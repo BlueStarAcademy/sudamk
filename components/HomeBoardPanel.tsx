@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { HomeBoardPost } from '../types/entities.js';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 
 type BoardCategory = 'notice' | 'patch';
 
@@ -310,7 +310,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                         {modalMode && onClose && (
                             <button
                                 type="button"
-                                className="rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-50 shadow-sm hover:bg-black/50 sm:px-4 sm:py-2"
+                                className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
                                 onClick={onClose}
                                 aria-label="공지 게시판 닫기"
                             >

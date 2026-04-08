@@ -1,5 +1,5 @@
 import React from 'react';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import { InventoryItem } from '../types.js';
 import { MATERIAL_ITEMS } from '../constants';
@@ -20,6 +20,7 @@ const DisassemblyResultModal: React.FC<DisassemblyResultModalProps> = ({ isOpen 
 
     return (
         <DraggableWindow title="분해 결과" onClose={onClose} windowId="disassemblyResult" isTopmost={isTopmost}>
+            <>
             <div className="p-4 text-on-panel flex flex-col items-center">
                 <h3 className="text-xl font-bold mb-4">장비 분해 완료!</h3>
 
@@ -61,11 +62,13 @@ const DisassemblyResultModal: React.FC<DisassemblyResultModalProps> = ({ isOpen 
                         </div>
                     </div>
                 )}
-
-                <Button onClick={onClose} colorScheme="blue" className="w-full max-w-xs">
-                    확인
-                </Button>
             </div>
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex justify-center px-4 pb-4 pt-2`}>
+                    <Button onClick={onClose} colorScheme="blue" className="w-full max-w-xs">
+                        확인
+                    </Button>
+                </div>
+            </>
         </DraggableWindow>
     );
 };

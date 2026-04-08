@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import { InventoryItem, QuestReward, ItemGrade } from '../types.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
@@ -65,6 +65,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
 
     return (
         <DraggableWindow title={title} onClose={onClose} windowId="quest-reward-summary" initialWidth={440} isTopmost={isTopmost}>
+            <>
             <div className="px-1 pb-1">
                 <div className={`${frame} overflow-hidden`}>
                     <div className="border-b border-amber-500/15 bg-gradient-to-r from-amber-950/50 via-black/40 to-amber-950/50 px-5 py-6 text-center">
@@ -78,38 +79,42 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                     <div className="space-y-4 p-5">
                         <div className="rounded-xl border border-white/5 bg-black/40 p-4 shadow-inner">
                             <h3 className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-500">획득 재화</h3>
-                            <div className="space-y-3 text-sm">
+                            <div className="flex flex-col items-center gap-2.5 text-sm">
                                 {(reward.gold ?? 0) > 0 && (
-                                    <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/15 bg-amber-950/20 px-3 py-2.5">
-                                        <span className="flex items-center gap-2 font-medium text-zinc-300">
-                                            <img src="/images/icon/Gold.png" alt="" className="h-5 w-5" />
-                                            골드
+                                    <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-amber-500/20 bg-amber-950/25 px-4 py-2.5 shadow-inner">
+                                        <img src="/images/icon/Gold.png" alt="골드" className="h-6 w-6 shrink-0 object-contain" />
+                                        <span className="text-lg font-bold tabular-nums text-amber-200 sm:text-xl">
+                                            +{reward.gold!.toLocaleString()}
                                         </span>
-                                        <span className="text-lg font-bold tabular-nums text-amber-200">+{reward.gold!.toLocaleString()}</span>
                                     </div>
                                 )}
                                 {(reward.diamonds ?? 0) > 0 && (
-                                    <div className="flex items-center justify-between gap-3 rounded-lg border border-cyan-500/15 bg-cyan-950/20 px-3 py-2.5">
-                                        <span className="flex items-center gap-2 font-medium text-zinc-300">
-                                            <img src="/images/icon/Zem.png" alt="" className="h-5 w-5" />
-                                            다이아
+                                    <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-cyan-500/20 bg-cyan-950/25 px-4 py-2.5 shadow-inner">
+                                        <img src="/images/icon/Zem.png" alt="다이아" className="h-6 w-6 shrink-0 object-contain" />
+                                        <span className="text-lg font-bold tabular-nums text-cyan-200 sm:text-xl">
+                                            +{reward.diamonds!.toLocaleString()}
                                         </span>
-                                        <span className="text-lg font-bold tabular-nums text-cyan-200">+{reward.diamonds!.toLocaleString()}</span>
                                     </div>
                                 )}
                                 {(reward.actionPoints ?? 0) > 0 && (
-                                    <div className="flex items-center justify-between gap-3 rounded-lg border border-emerald-500/15 bg-emerald-950/20 px-3 py-2.5">
-                                        <span className="font-medium text-zinc-300">⚡ 행동력</span>
-                                        <span className="text-lg font-bold tabular-nums text-emerald-300">+{reward.actionPoints!.toLocaleString()}</span>
+                                    <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-950/25 px-4 py-2.5 shadow-inner">
+                                        <span
+                                            className="flex h-6 w-6 shrink-0 items-center justify-center text-base font-black leading-none text-emerald-300"
+                                            aria-hidden
+                                        >
+                                            ⚡
+                                        </span>
+                                        <span className="text-lg font-bold tabular-nums text-emerald-300 sm:text-xl">
+                                            +{reward.actionPoints!.toLocaleString()}
+                                        </span>
                                     </div>
                                 )}
                                 {reward.xp?.type === 'blacksmith' && (reward.xp?.amount ?? 0) > 0 && (
-                                    <div className="flex items-center justify-between gap-3 rounded-lg border border-orange-500/15 bg-orange-950/20 px-3 py-2.5">
-                                        <span className="flex items-center gap-2 font-medium text-zinc-300">
-                                            <img src="/images/equipments/moru.png" alt="" className="h-5 w-5" />
-                                            대장간 경험치
+                                    <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-orange-500/20 bg-orange-950/25 px-4 py-2.5 shadow-inner">
+                                        <img src="/images/equipments/moru.png" alt="대장간 경험치" className="h-6 w-6 shrink-0 object-contain" />
+                                        <span className="text-lg font-bold tabular-nums text-orange-300 sm:text-xl">
+                                            +{reward.xp!.amount.toLocaleString()}
                                         </span>
-                                        <span className="text-lg font-bold tabular-nums text-orange-300">+{reward.xp!.amount.toLocaleString()}</span>
                                     </div>
                                 )}
                                 {(reward.gold ?? 0) <= 0 &&
@@ -128,17 +133,18 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                     획득 아이템
                                     <span className="h-px w-6 bg-gradient-to-l from-transparent to-amber-500/50" aria-hidden />
                                 </h3>
-                                <div className="grid grid-cols-4 gap-3 sm:grid-cols-5">
+                                <div className="flex flex-wrap justify-center gap-x-4 gap-y-4 sm:gap-x-3 sm:gap-y-3">
                                     {items.map((item, index) => (
-                                        <MailRewardItemTile key={index} item={item} variant="md" className="mx-auto" />
+                                        <MailRewardItemTile key={index} item={item} variant="md" />
                                     ))}
                                 </div>
                             </div>
                         )}
                     </div>
                 </div>
+            </div>
 
-                <div className="mt-5 flex justify-center">
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} mt-5 flex justify-center px-1 pb-1`}>
                     <Button
                         onClick={onClose}
                         className="min-w-[8.5rem] !rounded-xl !px-10 !py-2.5 !text-base !font-bold shadow-lg shadow-amber-950/20"
@@ -147,7 +153,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                         확인
                     </Button>
                 </div>
-            </div>
+            </>
         </DraggableWindow>
     );
 };

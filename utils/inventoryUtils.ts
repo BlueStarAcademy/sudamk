@@ -8,7 +8,10 @@ import {
     isMailAttachmentEquipment,
 } from '../shared/utils/equipmentEnhancementStars.js';
 import { normalizeInventoryEquipmentItem } from '../shared/utils/inventoryLegacyNormalize.js';
-import { isActionPointConsumable } from '../constants/items.js';
+import { isActionPointConsumable, isRefinementTicketMaterial } from '../constants/items.js';
+
+/** 옵션 변경권 3종: 슬롯당 최대 겹침, 초과 시 다음 슬롯 */
+export const REFINEMENT_TICKET_MAX_STACK = 100;
 
 const CONSUMABLE_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = CONSUMABLE_ITEMS.reduce((map, item) => {
     map[item.name] = item;
@@ -135,6 +138,8 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
     const getMaxStackSize = (name: string): number => {
         // 행동력 회복제: 한 묶음 최대 20개
         if (isActionPointConsumable(name)) return 20;
+        // 옵션 변경권: 한 슬롯 최대 100개
+        if (isRefinementTicketMaterial(name)) return REFINEMENT_TICKET_MAX_STACK;
         // 그 외 소모품/재료: 한 묶음 최대 100개
         return 100;
     };
@@ -279,6 +284,111 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
 
     return { success: true, finalItemsToAdd, updatedInventory };
 };
+
+/**
+ * 동일 종류 옵션 변경권을 최대 REFINEMENT_TICKET_MAX_STACK개까지 한 슬롯에 합치고, 초과분은 다음 슬롯으로 분할.
+ * 레거시(슬롯당 1개·consumable 저장 등) 정리 및 로드 시 일관된 스택 유지.
+ */
+export function consolidateRefinementTicketStacks(inventory: InventoryItem[]): InventoryItem[] {
+    if (!Array.isArray(inventory) || inventory.length === 0) return inventory;
+
+    const isTicketRow = (it: InventoryItem) =>
+        (it.type === 'material' || it.type === 'consumable') && isRefinementTicketMaterial(it.name);
+
+    const sourceKey = (it: InventoryItem & { source?: string }) => (it.source === 'tower' ? 'tower' : '');
+    const stackKey = (it: InventoryItem) => `${it.name}|${sourceKey(it as InventoryItem & { source?: string })}`;
+
+    const ticketRows = inventory.filter(isTicketRow);
+    if (ticketRows.length === 0) return inventory;
+
+    const keySeen = new Set<string>();
+    let needsWork = false;
+    for (const r of ticketRows) {
+        const q = r.quantity ?? 1;
+        if (q > REFINEMENT_TICKET_MAX_STACK || q < 1) {
+            needsWork = true;
+            break;
+        }
+        const k = stackKey(r);
+        if (keySeen.has(k)) {
+            needsWork = true;
+            break;
+        }
+        keySeen.add(k);
+        const tmpl = getItemTemplateByName(r.name);
+        if (tmpl && r.type !== tmpl.type) {
+            needsWork = true;
+            break;
+        }
+    }
+    if (!needsWork) return inventory;
+
+    let insertAt = -1;
+    const tickets: InventoryItem[] = [];
+    const rest: InventoryItem[] = [];
+
+    for (const item of inventory) {
+        if (isTicketRow(item)) {
+            if (insertAt < 0) insertAt = rest.length;
+            tickets.push(item);
+        } else {
+            rest.push(item);
+        }
+    }
+
+    if (tickets.length === 0) return inventory;
+
+    const totals = new Map<string, number>();
+    for (const t of tickets) {
+        const k = stackKey(t);
+        totals.set(k, (totals.get(k) ?? 0) + (t.quantity ?? 1));
+    }
+
+    const merged: InventoryItem[] = [];
+    for (const [key, total] of totals) {
+        const pipe = key.indexOf('|');
+        const name = pipe >= 0 ? key.slice(0, pipe) : key;
+        const src = pipe >= 0 ? key.slice(pipe + 1) : '';
+        const sourceObj = src === 'tower' ? { source: 'tower' as const } : {};
+        let left = total;
+        const template = getItemTemplateByName(name);
+        while (left > 0) {
+            const chunk = Math.min(left, REFINEMENT_TICKET_MAX_STACK);
+            if (template) {
+                merged.push({
+                    ...template,
+                    ...sourceObj,
+                    id: `item-${randomUUID()}`,
+                    quantity: chunk,
+                    createdAt: Date.now(),
+                    isEquipped: false,
+                    stars: 0,
+                    level: 1,
+                } as InventoryItem);
+            } else {
+                const sample = tickets.find((x) => x.name === name);
+                merged.push({
+                    name,
+                    description: sample?.description ?? '보상 아이템',
+                    type: 'material',
+                    slot: null,
+                    image: sample?.image ?? '/images/use/change1.png',
+                    grade: sample?.grade ?? ItemGrade.Normal,
+                    ...sourceObj,
+                    id: `item-${randomUUID()}`,
+                    quantity: chunk,
+                    createdAt: Date.now(),
+                    isEquipped: false,
+                    stars: 0,
+                    level: 1,
+                } as InventoryItem);
+            }
+            left -= chunk;
+        }
+    }
+
+    return [...rest.slice(0, insertAt), ...merged, ...rest.slice(insertAt)];
+}
 
 export const createItemInstancesFromReward = (itemRefs: (InventoryItem | { itemId: string; quantity: number })[]): InventoryItem[] => {
     const createdItems: InventoryItem[] = [];

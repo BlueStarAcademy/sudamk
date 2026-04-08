@@ -20,6 +20,8 @@ export interface CoreStatsHexagonChartProps {
     desktopLike?: boolean;
     /** 모바일 홈 가독성 향상용 텍스트/그래프 확대 */
     mobileReadable?: boolean;
+    /** 네이티브 모바일 프로필 홈: 좁은 폭에 맞춘 가로 배치·축소 (잘림 방지) */
+    profileMobileCompact?: boolean;
 }
 
 /** 꼭짓점 라벨 (2글자) — 그래프 색인 */
@@ -72,9 +74,17 @@ function hexPolygonPoints(r: number): string {
 /**
  * 좌측: 육각 레이더 + 꼭짓점 색인 라벨 / 우측: 6개 능력치 상세 목록
  */
-const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, baseByStat, className = '', desktopLike = false, mobileReadable = false }) => {
+const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
+    values,
+    baseByStat,
+    className = '',
+    desktopLike = false,
+    mobileReadable = false,
+    profileMobileCompact = false,
+}) => {
     const uid = useId().replace(/:/g, '');
     const gradId = `coreStatRadarFill-${uid}`;
+    const rowLayout = desktopLike || profileMobileCompact;
 
     const { dataPoints, labelPositions } = useMemo(() => {
         const badukAbilityTotal = CORE_STAT_RADAR_ORDER.reduce((sum, stat) => {
@@ -105,13 +115,38 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, b
 
     const dataPolygon = dataPoints.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
 
+    const chartShellClass =
+        'relative flex shrink-0 flex-col items-center justify-center rounded-xl border border-indigo-500/40 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_30px_-14px_rgba(0,0,0,0.6)] ' +
+        (profileMobileCompact
+            ? 'w-[min(48%,170px)] max-w-[170px] px-1.5 py-2'
+            : desktopLike
+              ? 'w-[min(60%,250px)] max-w-[250px] px-2.5 py-4'
+              : 'px-2.5 py-2.5 sm:w-[min(52%,220px)] sm:max-w-[220px] sm:py-4');
+
+    const svgSizeClass = profileMobileCompact
+        ? 'h-[7rem] max-w-[165px]'
+        : desktopLike
+          ? mobileReadable
+              ? 'h-48 max-w-[235px]'
+              : 'h-44 max-w-[220px]'
+          : 'h-[9.5rem] max-w-[180px] sm:h-44 sm:max-w-[200px]';
+
     return (
-        <div className={`flex h-full min-h-0 w-full min-w-0 ${desktopLike ? 'flex-row items-stretch gap-2.5' : 'flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3'} ${className}`}>
-            <div className={`relative flex shrink-0 flex-col items-center justify-center rounded-xl border border-indigo-500/40 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_30px_-14px_rgba(0,0,0,0.6)] ${desktopLike ? 'w-[min(60%,250px)] max-w-[250px] py-4' : 'sm:w-[min(52%,220px)] sm:max-w-[220px] sm:py-4'}`}>
+        <div className={`flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden ${className}`}>
+            <div
+                className={`flex min-h-0 max-w-full ${
+                    rowLayout
+                        ? profileMobileCompact
+                            ? 'flex-row items-stretch gap-2'
+                            : 'flex-row items-stretch gap-2.5'
+                        : 'w-full flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3'
+                }`}
+            >
+            <div className={chartShellClass}>
                 <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(ellipse_at_30%_20%,rgba(129,140,248,0.08),transparent_50%)]" aria-hidden />
                 <svg
                     viewBox={`0 0 ${VB} ${VB}`}
-                    className={`relative z-[1] w-full overflow-visible ${desktopLike ? (mobileReadable ? 'h-48 max-w-[235px]' : 'h-44 max-w-[220px]') : 'h-[9.5rem] max-w-[180px] sm:h-44 sm:max-w-[200px]'}`}
+                    className={`relative z-[1] w-full overflow-visible ${svgSizeClass}`}
                     role="img"
                     aria-label="육각형 능력치 그래프"
                 >
@@ -197,7 +232,11 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, b
                 </svg>
             </div>
 
-            <div className={`flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden ${desktopLike ? 'gap-1.5 py-0.5' : 'gap-0.5 sm:gap-1.5 sm:py-0.5'}`}>
+            <div
+                className={`flex min-h-0 min-w-0 flex-col justify-center overflow-hidden ${
+                    rowLayout ? '' : 'w-full flex-1'
+                } ${profileMobileCompact ? 'gap-0 py-0' : desktopLike ? 'gap-1.5 py-0.5' : 'gap-0.5 sm:gap-1.5 sm:py-0.5'}`}
+            >
                 {CORE_STAT_RADAR_ORDER.map(stat => {
                     const finalV = values[stat] ?? 0;
                     const baseV = baseByStat?.[stat];
@@ -206,28 +245,64 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, b
                     return (
                         <div
                             key={stat}
-                            className={`flex min-w-0 items-center border-b border-zinc-700/90 last:border-b-0 last:pb-0 ${desktopLike ? 'justify-center pb-1.5' : 'justify-center pb-1 sm:pb-1.5'}`}
+                            className={`flex min-w-0 items-center border-b border-zinc-700/90 last:border-b-0 last:pb-0 ${
+                                profileMobileCompact
+                                    ? 'justify-center pb-0.5'
+                                    : desktopLike
+                                      ? 'justify-center pb-1.5'
+                                      : 'justify-center pb-1 sm:pb-1.5'
+                            }`}
                         >
                             <div
-                                className={`grid items-center ${desktopLike ? 'w-[12.8rem]' : 'w-full max-w-[16rem]'} ${
-                                    desktopLike
-                                        ? mobileReadable
-                                            ? 'grid-cols-[7rem_2.8rem_3rem] gap-x-1.5'
-                                            : 'grid-cols-[6.4rem_2.5rem_2.8rem] gap-x-1.5'
-                                        : 'grid-cols-[6.4rem_2.6rem_3rem] gap-x-1'
-                                } mx-auto`}
+                                className={`grid items-center mx-auto ${
+                                    profileMobileCompact
+                                        ? 'w-full max-w-[11rem] grid-cols-[4.5rem_1.85rem_2rem] gap-x-0.5'
+                                        : desktopLike
+                                          ? `w-[12.8rem] ${
+                                                mobileReadable
+                                                    ? 'grid-cols-[7rem_2.8rem_3rem] gap-x-1.5'
+                                                    : 'grid-cols-[6.4rem_2.5rem_2.8rem] gap-x-1.5'
+                                            }`
+                                          : 'w-full max-w-[16rem] grid-cols-[6.4rem_2.6rem_3rem] gap-x-1'
+                                }`}
                             >
                                 <span
-                                    className={`truncate text-right font-semibold leading-tight tracking-tight text-amber-50/95 antialiased ${desktopLike ? (mobileReadable ? 'text-base' : 'text-sm') : 'text-[13px] sm:text-sm'}`}
+                                    className={`truncate text-right font-semibold leading-tight tracking-tight text-amber-50/95 antialiased ${
+                                        profileMobileCompact
+                                            ? 'text-[10px]'
+                                            : desktopLike
+                                              ? mobileReadable
+                                                  ? 'text-base'
+                                                  : 'text-sm'
+                                              : 'text-[13px] sm:text-sm'
+                                    }`}
                                     title={stat}
                                 >
                                     {stat}
                                 </span>
-                                <span className={`shrink-0 text-right font-mono font-bold tabular-nums tracking-tight text-amber-100 ${desktopLike ? (mobileReadable ? 'text-base' : 'text-sm') : 'text-[13px] sm:text-sm'}`}>
+                                <span
+                                    className={`shrink-0 text-right font-mono font-bold tabular-nums tracking-tight text-amber-100 ${
+                                        profileMobileCompact
+                                            ? 'text-[10px]'
+                                            : desktopLike
+                                              ? mobileReadable
+                                                  ? 'text-base'
+                                                  : 'text-sm'
+                                              : 'text-[13px] sm:text-sm'
+                                    }`}
+                                >
                                     {finalV}
                                 </span>
                                 <span
-                                    className={`shrink-0 text-left font-semibold tabular-nums text-emerald-400/95 ${desktopLike ? (mobileReadable ? 'text-sm' : 'text-xs') : 'text-[11px] sm:text-xs'}`}
+                                    className={`shrink-0 text-left font-semibold tabular-nums text-emerald-400/95 ${
+                                        profileMobileCompact
+                                            ? 'text-[9px]'
+                                            : desktopLike
+                                              ? mobileReadable
+                                                  ? 'text-sm'
+                                                  : 'text-xs'
+                                              : 'text-[11px] sm:text-xs'
+                                    }`}
                                 >
                                     {hasBonus ? `(+${bonus})` : ''}
                                 </span>
@@ -235,6 +310,7 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, b
                         </div>
                     );
                 })}
+            </div>
             </div>
         </div>
     );

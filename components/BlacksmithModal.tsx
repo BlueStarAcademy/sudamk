@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import EnhancementView from './blacksmith/EnhancementView.js';
 import CombinationView from './blacksmith/CombinationView.js';
@@ -6,6 +6,7 @@ import DisassemblyView from './blacksmith/DisassemblyView.js';
 import ConversionView from './blacksmith/ConversionView.js';
 import RefinementView from './blacksmith/RefinementView.js';
 import InventoryGrid from './blacksmith/InventoryGrid.js';
+import BlacksmithEquipmentPickerModal from './blacksmith/BlacksmithEquipmentPickerModal.js';
 import RefinementResultModal from './blacksmith/RefinementResultModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -23,6 +24,53 @@ const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Mythic,
     ItemGrade.Transcendent,
 ];
+
+function collectPresetEquipmentIds(
+    equipmentPresets: { equipment?: Record<string, string | null | undefined> }[] | undefined
+): Set<string> {
+    const ids = new Set<string>();
+    if (!equipmentPresets) return ids;
+    equipmentPresets.forEach(preset => {
+        if (preset.equipment) {
+            Object.values(preset.equipment).forEach(itemId => {
+                if (itemId) ids.add(itemId);
+            });
+        }
+    });
+    return ids;
+}
+
+function getCombineDisabledItemIds(
+    inventory: InventoryItem[],
+    combinationItems: (InventoryItem | null)[],
+    maxCombinableGradeIndex: number
+): string[] {
+    const firstItemGrade = combinationItems[0]?.grade;
+    const combinationItemIds = combinationItems.map(i => i?.id).filter(Boolean) as string[];
+    return inventory
+        .filter(item => {
+            if (combinationItemIds.includes(item.id)) return true;
+            if (item.isEquipped) return true;
+            if (GRADE_ORDER.indexOf(item.grade) > maxCombinableGradeIndex) return true;
+            if (firstItemGrade && item.grade !== firstItemGrade) return true;
+            return false;
+        })
+        .map(item => item.id);
+}
+
+function getDisassembleDisabledItemIds(
+    inventory: InventoryItem[],
+    equipmentPresets: { equipment?: Record<string, string | null | undefined> }[] | undefined
+): string[] {
+    const presetItemIds = collectPresetEquipmentIds(equipmentPresets);
+    return inventory
+        .filter(item => {
+            if (item.isEquipped) return true;
+            if (presetItemIds.has(item.id)) return true;
+            return false;
+        })
+        .map(item => item.id);
+}
 
 interface BlacksmithModalProps {
     onClose: () => void;
@@ -50,7 +98,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+    /** 넓은 태블릿 가로 등은 PC 2열 유지, 뷰포트 너비 1025px 미만·네이티브 셸은 스택 레이아웃 */
     const isCompactViewport = windowWidth < 1025;
+    const useStackedBlacksmithLayout = isCompactViewport || isNativeMobile;
 
     if (!currentUserWithStatus) return null;
 
@@ -165,63 +215,158 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
 
     const disabledItemIds = useMemo(() => {
         if (activeTab === 'combine') {
-            const firstItemGrade = combinationItems[0]?.grade;
-            const combinationItemIds = combinationItems.map(i => i?.id).filter(Boolean) as string[];
-
-            return inventory
-                .filter(item => {
-                    // Disable if already in a combination slot
-                    if (combinationItemIds.includes(item.id)) return true;
-                    // Disable if equipped
-                    if (item.isEquipped) return true;
-                    // Disable if grade is too high for blacksmith level
-                    if (GRADE_ORDER.indexOf(item.grade) > maxCombinableGradeIndex) return true;
-                    // If a first item is selected, disable items of different grades
-                    if (firstItemGrade && item.grade !== firstItemGrade) return true;
-                    
-                    return false;
-                })
-                .map(item => item.id);
-        } else if (activeTab === 'disassemble') {
-            // 프리셋에 등록된 장비 ID 수집
-            const presetItemIds = new Set<string>();
-            if (currentUserWithStatus.equipmentPresets) {
-                currentUserWithStatus.equipmentPresets.forEach(preset => {
-                    if (preset.equipment) {
-                        Object.values(preset.equipment).forEach(itemId => {
-                            if (itemId) presetItemIds.add(itemId);
-                        });
-                    }
-                });
-            }
-
-            return inventory
-                .filter(item => {
-                    // Disable if equipped
-                    if (item.isEquipped) return true;
-                    // Disable if in a preset
-                    if (presetItemIds.has(item.id)) return true;
-                    
-                    return false;
-                })
-                .map(item => item.id);
+            return getCombineDisabledItemIds(inventory, combinationItems, maxCombinableGradeIndex);
+        }
+        if (activeTab === 'disassemble') {
+            return getDisassembleDisabledItemIds(inventory, currentUserWithStatus.equipmentPresets);
         }
         return [];
     }, [activeTab, inventory, combinationItems, maxCombinableGradeIndex, currentUserWithStatus.equipmentPresets]);
+
+    const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
+    const [pickerSingle, setPickerSingle] = useState<InventoryItem | null>(null);
+    const [pickerCombine, setPickerCombine] = useState<(InventoryItem | null)[]>([null, null, null]);
+    const [pickerDisassemble, setPickerDisassemble] = useState<Set<string>>(new Set());
+
+    const pickerDisabledItemIds = useMemo(() => {
+        if (!equipmentPickerOpen) return [];
+        if (activeTab === 'combine') {
+            return getCombineDisabledItemIds(inventory, pickerCombine, maxCombinableGradeIndex);
+        }
+        if (activeTab === 'disassemble') {
+            return getDisassembleDisabledItemIds(inventory, currentUserWithStatus.equipmentPresets);
+        }
+        return [];
+    }, [
+        equipmentPickerOpen,
+        activeTab,
+        inventory,
+        pickerCombine,
+        maxCombinableGradeIndex,
+        currentUserWithStatus.equipmentPresets,
+    ]);
+
+    const mobileShowEquipmentWorkPanel = useMemo(() => {
+        if (!useStackedBlacksmithLayout) return true;
+        if (activeTab === 'convert') return true;
+        if (activeTab === 'enhance' || activeTab === 'refine') return selectedItem !== null;
+        if (activeTab === 'combine') return combinationItems.every(i => i !== null);
+        if (activeTab === 'disassemble') return selectedForDisassembly.size > 0;
+        return true;
+    }, [
+        useStackedBlacksmithLayout,
+        activeTab,
+        selectedItem,
+        combinationItems,
+        selectedForDisassembly,
+    ]);
+
+    const isMobileEquipmentTab =
+        activeTab === 'enhance' ||
+        activeTab === 'combine' ||
+        activeTab === 'disassemble' ||
+        activeTab === 'refine';
+
+    const openEquipmentPicker = useCallback(() => {
+        if (activeTab === 'enhance' || activeTab === 'refine') {
+            setPickerSingle(selectedItem);
+        } else if (activeTab === 'combine') {
+            setPickerCombine([...combinationItems]);
+        } else if (activeTab === 'disassemble') {
+            setPickerDisassemble(new Set(selectedForDisassembly));
+        }
+        setEquipmentPickerOpen(true);
+    }, [activeTab, selectedItem, combinationItems, selectedForDisassembly]);
+
+    const handlePickerConfirm = useCallback(() => {
+        if (activeTab === 'enhance' || activeTab === 'refine') {
+            if (pickerSingle) setSelectedItem(pickerSingle);
+        } else if (activeTab === 'combine') {
+            setCombinationItems([...pickerCombine]);
+        } else if (activeTab === 'disassemble') {
+            setSelectedForDisassembly(new Set(pickerDisassemble));
+        }
+        setEquipmentPickerOpen(false);
+    }, [activeTab, pickerSingle, pickerCombine, pickerDisassemble]);
+
+    const handlePickerSelectSingle = useCallback((item: InventoryItem) => {
+        setPickerSingle(item);
+    }, []);
+
+    const handlePickerSelectForCombine = useCallback((item: InventoryItem) => {
+        setPickerCombine(prev => {
+            const emptyIndex = prev.findIndex(i => i === null);
+            if (emptyIndex === -1) return prev;
+            const next = [...prev];
+            next[emptyIndex] = item;
+            return next;
+        });
+    }, []);
+
+    const handlePickerRemoveCombineSlot = useCallback((index: number) => {
+        setPickerCombine(prev => {
+            const next = [...prev];
+            next[index] = null;
+            return next;
+        });
+    }, []);
+
+    const handlePickerToggleDisassembly = useCallback((itemId: string) => {
+        setPickerDisassemble(prev => {
+            const next = new Set(prev);
+            if (next.has(itemId)) next.delete(itemId);
+            else next.add(itemId);
+            return next;
+        });
+    }, []);
+
+    const handleMobileEquipmentBack = useCallback(() => {
+        if (activeTab === 'enhance' || activeTab === 'refine') {
+            setSelectedItem(null);
+        } else if (activeTab === 'combine') {
+            setCombinationItems([null, null, null]);
+        } else if (activeTab === 'disassemble') {
+            setSelectedForDisassembly(new Set());
+        }
+    }, [activeTab]);
+
+    const [equipmentFeatureModalOpen, setEquipmentFeatureModalOpen] = useState(false);
+    const prevMobileEquipmentWorkRef = useRef(false);
+
+    useEffect(() => {
+        if (!useStackedBlacksmithLayout || !isMobileEquipmentTab) {
+            setEquipmentFeatureModalOpen(false);
+            prevMobileEquipmentWorkRef.current = false;
+            return;
+        }
+        const now = mobileShowEquipmentWorkPanel;
+        const prev = prevMobileEquipmentWorkRef.current;
+        if (now && !prev) {
+            setEquipmentFeatureModalOpen(true);
+        }
+        if (!now) {
+            setEquipmentFeatureModalOpen(false);
+        }
+        prevMobileEquipmentWorkRef.current = now;
+    }, [useStackedBlacksmithLayout, isMobileEquipmentTab, mobileShowEquipmentWorkPanel]);
 
     const tabs = [
         { id: 'enhance', label: '장비 강화' },
         { id: 'combine', label: '장비 합성' },
         { id: 'disassemble', label: '장비 분해' },
-        { id: 'convert', label: '재료 변환' },
         { id: 'refine', label: '장비 제련' },
+        { id: 'convert', label: '재료 변환' },
     ];
 
     const handleActionWrapper = useCallback(async (action: ServerAction): Promise<void> => {
         await handlers.handleAction(action);
     }, [handlers.handleAction]);
 
-    const renderContent = () => {
+    const stackedEquipmentViewport = useStackedBlacksmithLayout && mobileShowEquipmentWorkPanel;
+
+    const renderContent = (opts?: { forceStackedEquipmentViewport?: boolean }) => {
+        const stackedForDetail =
+            opts?.forceStackedEquipmentViewport === true ? true : stackedEquipmentViewport;
         switch (activeTab) {
             case 'enhance': return <EnhancementView 
                 selectedItem={selectedItem} 
@@ -230,6 +375,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 enhancementOutcome={enhancementOutcome} 
                 onOutcomeConfirm={handlers.clearEnhancementOutcome}
                 onStartEnhancement={handlers.startEnhancement}
+                stackedViewport={stackedForDetail}
             />;
             case 'combine': return <CombinationView 
                 items={combinationItems}
@@ -240,12 +386,14 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 }}
                 onAction={handleActionWrapper} 
                 currentUser={currentUserWithStatus}
+                stackedViewport={stackedForDetail}
             />;
             case 'disassemble': return (
                 <DisassemblyView
                     onAction={handleActionWrapper}
                     selectedForDisassembly={selectedForDisassembly}
                     onToggleDisassemblySelection={handleToggleDisassemblySelection}
+                    modalEquipmentSelectionFlow={useStackedBlacksmithLayout}
                 />
             );
             case 'convert': return <ConversionView onAction={handleActionWrapper} />;
@@ -255,6 +403,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 onAction={handlers.handleAction}
                 refinementResult={null}
                 onResultConfirm={handlers.clearRefinementResult}
+                stackedViewport={stackedForDetail}
             />;
             default: return null;
         }
@@ -311,36 +460,84 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         }
         return '가방'; // Default or fallback
     }, [activeTab]);
-    const mobileViewerMinHeight = activeTab === 'convert' ? 'min(46dvh, 360px)' : 'min(38dvh, 300px)';
-    const mobileInventoryMinHeightClass = activeTab === 'convert' ? 'min-h-[8.25rem] sm:min-h-[9rem]' : 'min-h-[9.5rem] sm:min-h-[10.5rem]';
-    const mobileInventoryMaxHeightClass = activeTab === 'convert' ? 'max-h-[min(190px,24vh)]' : 'max-h-[min(220px,28vh)]';
+    /** 뷰포트에 비례해 작업 영역·가방 높이 분배 (고정 px 상한은 짤림 유발) */
+    const mobileViewerMinH =
+        activeTab === 'convert' ? 'min(clamp(11rem, 36dvh, 22rem), 50dvh)' : 'min(clamp(10rem, 32dvh, 20rem), 46dvh)';
+
+    const mobilePickHint = useMemo(() => {
+        switch (activeTab) {
+            case 'enhance':
+                return '강화할 장비를 모달에서 고른 뒤 선택 완료를 누르면 강화 화면으로 이동합니다.';
+            case 'combine':
+                return '같은 등급 장비 3개를 모달에서 담은 뒤 선택 완료를 누르면 합성 화면으로 이동합니다.';
+            case 'disassemble':
+                return '분해할 장비를 모달에서 고른 뒤 선택 완료를 누르면 분해 화면으로 이동합니다.';
+            case 'refine':
+                return '제련할 장비를 모달에서 고른 뒤 선택 완료를 누르면 제련 화면으로 이동합니다.';
+            default:
+                return '';
+        }
+    }, [activeTab]);
+
+    const mobileFeatureModalTitle = useMemo(() => {
+        switch (activeTab) {
+            case 'enhance':
+                return '장비 강화';
+            case 'combine':
+                return '장비 합성';
+            case 'disassemble':
+                return '장비 분해';
+            case 'refine':
+                return '장비 제련';
+            default:
+                return '대장간';
+        }
+    }, [activeTab]);
+
+    const mobileFeatureOpenButtonLabel = useMemo(() => {
+        switch (activeTab) {
+            case 'enhance':
+                return '강화 화면 열기';
+            case 'combine':
+                return '합성 화면 열기';
+            case 'disassemble':
+                return '분해 화면 열기';
+            case 'refine':
+                return '제련 화면 열기';
+            default:
+                return '작업 화면 열기';
+        }
+    }, [activeTab]);
 
     return (
         <>
             <DraggableWindow 
                 title="대장간" 
                 onClose={onClose} 
-                bodyScrollable={!isNativeMobile}
-                bodyNoScroll={isNativeMobile}
-                mobileViewportFit={isNativeMobile}
-                mobileViewportMaxHeightVh={83}
-                hideFooter={isNativeMobile}
-                skipSavedPosition={isNativeMobile}
+                bodyScrollable
+                bodyNoScroll={false}
+                mobileViewportFit={useStackedBlacksmithLayout}
+                mobileViewportMaxHeightVh={useStackedBlacksmithLayout ? 92 : undefined}
+                mobileViewportMaxHeightCss={useStackedBlacksmithLayout ? 'min(94dvh, calc(100dvh - 12px))' : undefined}
+                hideFooter={useStackedBlacksmithLayout}
+                skipSavedPosition={useStackedBlacksmithLayout}
                 bodyPaddingClassName={
-                    isNativeMobile
-                        ? '!px-2 !pt-2 !pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]'
+                    useStackedBlacksmithLayout
+                        ? '!px-2 !pt-2 sm:!px-2.5 sm:!pt-2.5 !pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
                         : undefined
                 }
                 isTopmost={
                     isTopmost &&
+                    !equipmentPickerOpen &&
+                    !equipmentFeatureModalOpen &&
                     !modals.isBlacksmithHelpOpen &&
                     !modals.isBlacksmithEffectsModalOpen &&
                     !modals.disassemblyResult
                 }
                 initialWidth={1100}
-                initialHeight={isNativeMobile ? 900 : 900}
+                initialHeight={useStackedBlacksmithLayout ? 720 : 900}
                 windowId="blacksmith"
-                zIndex={isNativeMobile ? 120 : 50}
+                zIndex={useStackedBlacksmithLayout ? 120 : 50}
                 variant="store"
                 headerContent={
                     <button
@@ -359,65 +556,75 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     </button>
                 }
             >
-                <div className={`flex h-full min-h-0 ${isNativeMobile ? 'flex-1 flex-col' : ''}`}>
-                    {isNativeMobile ? (
-                        <div className="flex h-full min-h-0 w-full flex-1 flex-col gap-2">
-                            <div className="flex shrink-0 items-stretch gap-2">
-                                <div className="w-max max-w-[min(46vw,15rem)] shrink-0 rounded-xl border border-cyan-400/25 bg-gradient-to-b from-stone-900/80 to-cyan-950/30 p-1.5 shadow-inner">
-                                    <div className="relative w-max max-w-full overflow-hidden rounded-lg border border-cyan-300/30 bg-gradient-to-b from-stone-900/95 to-black/90 shadow-md">
-                                        <div className="flex w-max max-w-full items-center justify-center px-1 py-1.5 sm:py-2">
-                                            <img
-                                                src="/images/equipments/moru.png"
-                                                alt="Blacksmith"
-                                                className="mx-auto block h-auto max-h-[min(96px,32vw)] w-auto max-w-full object-contain object-center"
-                                                decoding="async"
-                                            />
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => handlers.openBlacksmithEffectsModal()}
-                                            title="대장간 효과"
-                                            aria-label="대장간 효과 보기"
-                                            className="absolute right-1.5 top-1.5 z-[1] max-w-[min(100%,11rem)] rounded-md border border-amber-500/45 bg-black/75 px-2 py-1 text-right shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/85 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
-                                        >
-                                            <span className="block text-xs font-bold leading-tight text-white drop-shadow-sm sm:text-sm">
-                                                대장간{' '}
-                                                <span className="text-amber-300">Lv.{blacksmithLevel ?? 1}</span>
-                                            </span>
-                                        </button>
-                                        <div className="absolute inset-x-0 bottom-0 border-t border-amber-500/20 bg-gradient-to-t from-black/90 via-black/78 to-black/20 px-2 pb-1 pt-2.5">
-                                            <div className="mb-0.5 flex items-center justify-between text-[11px] font-semibold tabular-nums text-stone-200">
-                                                <span className="text-stone-400">경험치</span>
-                                                {isMaxLevel ? (
-                                                    <span className="text-amber-200/95">{(blacksmithXp ?? 0).toLocaleString()} (Max)</span>
-                                                ) : (
-                                                    <span>
-                                                        {(blacksmithXp ?? 0).toLocaleString()} /{' '}
-                                                        {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="h-2 w-full overflow-hidden rounded-full border border-stone-600/60 bg-black/60 shadow-inner">
-                                                <div
-                                                    className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-400 transition-all"
-                                                    style={{
-                                                        width: isMaxLevel
-                                                            ? '100%'
-                                                            : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%`,
-                                                    }}
+                <div
+                    className={`flex min-h-0 w-full flex-1 ${useStackedBlacksmithLayout ? 'flex-col' : 'h-full flex-row'}`}
+                >
+                    {useStackedBlacksmithLayout ? (
+                        <div className="flex min-h-0 w-full flex-1 flex-col gap-2">
+                            <div className="shrink-0 rounded-xl border border-cyan-400/25 bg-gradient-to-b from-stone-900/80 to-cyan-950/30 p-2 shadow-inner">
+                                <div className="flex min-h-0 w-full items-stretch gap-2">
+                                    <div className="min-h-[9.5rem] min-w-0 flex-1">
+                                        <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-cyan-300/30 bg-gradient-to-b from-stone-900/95 to-black/90 shadow-md">
+                                            <div className="flex min-h-0 flex-1 items-center justify-center px-1.5 py-2 sm:px-2 sm:py-3">
+                                                <img
+                                                    src="/images/equipments/moru.png"
+                                                    alt="Blacksmith"
+                                                    className="mx-auto block h-auto max-h-[min(6.5rem,26vw)] w-auto max-w-full object-contain object-center sm:max-h-[min(7.5rem,28vw)]"
+                                                    decoding="async"
                                                 />
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={() => handlers.openBlacksmithEffectsModal()}
+                                                title="대장간 효과"
+                                                aria-label="대장간 효과 보기"
+                                                className="absolute left-1.5 top-1.5 z-[1] max-w-[calc(100%-4.5rem)] rounded-md border border-amber-500/45 bg-black/75 px-1.5 py-0.5 text-left shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/85 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 sm:left-2 sm:top-2 sm:px-2.5 sm:py-1"
+                                            >
+                                                <span className="block text-[10px] font-bold leading-tight text-white drop-shadow-sm sm:text-xs">
+                                                    대장간 <span className="text-amber-300">Lv.{blacksmithLevel ?? 1}</span>
+                                                </span>
+                                            </button>
+                                            <div className="shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-black/90 via-black/78 to-black/20 px-2 pb-1.5 pt-2 sm:px-3 sm:pb-2 sm:pt-3">
+                                                <div className="mb-0.5 flex items-center justify-between gap-1 text-[10px] font-semibold tabular-nums text-stone-200 sm:mb-1 sm:text-[11px] sm:text-xs">
+                                                    <span className="shrink-0 text-stone-400">경험치</span>
+                                                    {isMaxLevel ? (
+                                                        <span className="min-w-0 truncate text-right text-amber-200/95">
+                                                            {(blacksmithXp ?? 0).toLocaleString()} (Max)
+                                                        </span>
+                                                    ) : (
+                                                        <span className="min-w-0 truncate text-right text-[9px] sm:text-[11px]">
+                                                            {(blacksmithXp ?? 0).toLocaleString()} /{' '}
+                                                            {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="h-1.5 w-full overflow-hidden rounded-full border border-stone-600/60 bg-black/60 shadow-inner sm:h-2">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-400 transition-all"
+                                                        style={{
+                                                            width: isMaxLevel
+                                                                ? '100%'
+                                                                : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%`,
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-xl border border-indigo-400/25 bg-gradient-to-b from-slate-900/90 to-indigo-950/40 p-1.5 shadow-inner">
-                                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-1 auto-rows-fr content-center">
-                                        {tabs.map((tab) => (
+                                    <nav
+                                        className="flex w-[4.85rem] shrink-0 flex-col justify-center gap-1 sm:w-[5.65rem]"
+                                        aria-label="대장간 기능"
+                                    >
+                                        {tabs.map(tab => (
                                             <button
                                                 key={tab.id}
                                                 type="button"
-                                                onClick={() => onSetActiveTab(tab.id as 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine')}
-                                                className={`rounded-lg border px-1.5 py-1.5 text-center text-[11px] font-bold leading-tight shadow-sm transition sm:text-xs ${
+                                                onClick={() =>
+                                                    onSetActiveTab(
+                                                        tab.id as 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine'
+                                                    )
+                                                }
+                                                className={`min-h-[2.35rem] flex-1 rounded-lg border px-1 py-1 text-center text-[9px] font-bold leading-[1.15] shadow-sm transition sm:min-h-0 sm:px-1.5 sm:text-[10px] sm:leading-tight ${
                                                     activeTab === tab.id
                                                         ? 'border-amber-400/70 bg-gradient-to-br from-amber-600/40 via-amber-500/25 to-orange-900/30 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_14px_-6px_rgba(251,191,36,0.55)]'
                                                         : 'border-stone-600/55 bg-stone-800/50 text-stone-300 hover:border-cyan-500/35 hover:bg-stone-700/55 hover:text-stone-100'
@@ -426,44 +633,52 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                                 {tab.label}
                                             </button>
                                         ))}
-                                    </div>
+                                    </nav>
                                 </div>
                             </div>
 
                             <div
-                                className="flex min-h-0 min-w-0 flex-1 flex-col items-stretch overflow-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2"
-                                style={{ minHeight: mobileViewerMinHeight }}
+                                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2 [scrollbar-gutter:stable]"
+                                style={{ minHeight: mobileViewerMinH }}
                             >
-                                {renderContent()}
-                            </div>
-
-                            <div className="flex min-h-0 shrink-0 flex-col rounded-xl border border-color/40 bg-primary/40 p-2 pb-[max(1rem,env(safe-area-inset-bottom,0px))]">
-                                <div className="mb-1.5 flex items-center justify-between gap-2">
-                                    <h3 className="text-base font-bold text-on-panel">{bagHeaderText}</h3>
-                                    <select
-                                        value={sortOption}
-                                        onChange={(e) => setSortOption(e.target.value as SortOption)}
-                                        className="rounded border border-color bg-secondary px-2 py-1 text-xs text-on-panel"
-                                    >
-                                        <option value="grade">등급순</option>
-                                        <option value="stars">강화순</option>
-                                        <option value="name">이름순</option>
-                                        <option value="date">최신순</option>
-                                    </select>
-                                </div>
-                                <div className={`${mobileInventoryMinHeightClass} ${mobileInventoryMaxHeightClass} flex-shrink-0 overflow-y-auto overflow-x-hidden pr-1 pb-2.5`}>
-                                    <InventoryGrid
-                                        inventory={filteredInventory}
-                                        inventorySlots={inventorySlotsToDisplay}
-                                        onSelectItem={handleSelectItem}
-                                        selectedItemId={selectedItem?.id || null}
-                                        disabledItemIds={disabledItemIds}
-                                        selectedItemIdsForDisassembly={activeTab === 'disassemble' ? selectedForDisassembly : undefined}
-                                        onToggleDisassemblySelection={activeTab === 'disassemble' ? handleToggleDisassemblySelection : undefined}
-                                        columnCount={8}
-                                        gapPx={6}
-                                    />
-                                </div>
+                                {activeTab === 'convert' && renderContent()}
+                                {isMobileEquipmentTab && !mobileShowEquipmentWorkPanel && (
+                                    <div className="flex min-h-[11rem] flex-col items-center justify-center gap-4 px-2 py-5">
+                                        <p className="max-w-sm text-center text-sm leading-relaxed text-slate-400">
+                                            {mobilePickHint}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={openEquipmentPicker}
+                                            className="w-full max-w-xs rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-4 py-3.5 text-base font-bold text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.65)] transition hover:border-amber-300/80 active:scale-[0.99]"
+                                        >
+                                            장비 선택
+                                        </button>
+                                    </div>
+                                )}
+                                {isMobileEquipmentTab && mobileShowEquipmentWorkPanel && (
+                                    <div className="flex min-h-[10rem] flex-col items-center justify-center gap-3 px-2 py-6">
+                                        <p className="max-w-sm text-center text-sm leading-relaxed text-slate-400">
+                                            {equipmentFeatureModalOpen
+                                                ? '작업 창에서 진행 중입니다. 창을 닫은 경우 아래 버튼으로 다시 열 수 있습니다.'
+                                                : '아래 버튼을 눌러 작업 화면을 여세요.'}
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => setEquipmentFeatureModalOpen(true)}
+                                            className="w-full max-w-xs rounded-xl border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-4 py-3 text-base font-bold text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99]"
+                                        >
+                                            {mobileFeatureOpenButtonLabel}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleMobileEquipmentBack}
+                                            className="rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-xs font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
+                                        >
+                                            ← 장비 다시 선택
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -555,6 +770,71 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     )}
                 </div>
             </DraggableWindow>
+
+            {equipmentPickerOpen && useStackedBlacksmithLayout && isMobileEquipmentTab && (
+                <BlacksmithEquipmentPickerModal
+                    mode={activeTab}
+                    onClose={() => setEquipmentPickerOpen(false)}
+                    onConfirm={handlePickerConfirm}
+                    filteredInventory={filteredInventory}
+                    inventorySlots={inventorySlotsToDisplay}
+                    sortOption={sortOption}
+                    onSortChange={setSortOption}
+                    columnCount={windowWidth < 380 ? 5 : windowWidth < 480 ? 6 : 8}
+                    gapPx={windowWidth < 400 ? 4 : 6}
+                    disabledItemIds={pickerDisabledItemIds}
+                    pickerSingle={pickerSingle}
+                    onSelectSingle={handlePickerSelectSingle}
+                    pickerCombine={pickerCombine}
+                    onRemoveCombineSlot={handlePickerRemoveCombineSlot}
+                    onSelectForCombine={handlePickerSelectForCombine}
+                    pickerDisassemble={pickerDisassemble}
+                    onToggleDisassembly={handlePickerToggleDisassembly}
+                />
+            )}
+
+            {equipmentFeatureModalOpen &&
+                useStackedBlacksmithLayout &&
+                isMobileEquipmentTab &&
+                mobileShowEquipmentWorkPanel && (
+                    <DraggableWindow
+                        title={mobileFeatureModalTitle}
+                        onClose={() => setEquipmentFeatureModalOpen(false)}
+                        windowId={`blacksmith-work-${activeTab}`}
+                        isTopmost={
+                            isTopmost &&
+                            !equipmentPickerOpen &&
+                            !modals.isBlacksmithHelpOpen &&
+                            !modals.isBlacksmithEffectsModalOpen &&
+                            !modals.disassemblyResult
+                        }
+                        zIndex={140}
+                        variant="store"
+                        mobileViewportFit
+                        mobileViewportMaxHeightVh={96}
+                        mobileViewportMaxHeightCss="min(97dvh, calc(100dvh - 8px))"
+                        hideFooter
+                        skipSavedPosition
+                        initialWidth={520}
+                        initialHeight={860}
+                        bodyScrollable
+                        bodyNoScroll={false}
+                        bodyPaddingClassName="!px-2 !pt-2 !pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]"
+                    >
+                        <div className="flex min-h-0 w-full flex-1 flex-col gap-2">
+                            <button
+                                type="button"
+                                onClick={handleMobileEquipmentBack}
+                                className="shrink-0 self-start rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-xs font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
+                            >
+                                ← 장비 다시 선택
+                            </button>
+                            <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
+                                {renderContent({ forceStackedEquipmentViewport: true })}
+                            </div>
+                        </div>
+                    </DraggableWindow>
+                )}
 
             <RefinementResultModal
                 result={modals.refinementResult}

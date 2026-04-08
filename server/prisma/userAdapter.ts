@@ -11,6 +11,7 @@ import {
   normalizeInventoryEquipmentItem,
   normalizeEquipmentOptionNumbers,
 } from "../../shared/utils/inventoryLegacyNormalize.js";
+import { consolidateRefinementTicketStacks } from "../../utils/inventoryUtils.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
@@ -217,7 +218,7 @@ const ensureMail = (value: unknown): Mail[] =>
  */
 function normalizeInventoryItemList(inv: unknown): InventoryItem[] {
   const raw = Array.isArray(inv) ? inv : parseJson<InventoryItem[]>(inv, []);
-  return mapNormalizeInventoryList(raw);
+  return consolidateRefinementTicketStacks(mapNormalizeInventoryList(raw));
 }
 
 const normalizeMailAttachmentItems = (mails: Mail[]): Mail[] => {

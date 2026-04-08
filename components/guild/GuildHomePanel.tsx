@@ -5,6 +5,7 @@ import Button from '../Button.js';
 import { GUILD_CHECK_IN_MILESTONE_REWARDS } from '../../constants/index.js';
 import { isSameDayKST, formatDateTimeKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import Avatar from '../Avatar.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 
 const ensureTimestamp = (v: number | string | undefined): number =>
     typeof v === 'number' ? v : new Date((v as string) || 0).getTime();
@@ -186,10 +187,10 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                     <button
                         type="button"
                         onClick={() => setGuildCoinRewardModal(null)}
-                        className="absolute top-3 right-3 text-tertiary hover:text-primary transition-colors text-2xl font-bold leading-none"
+                        className={`absolute right-3 top-3 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
                         aria-label="닫기"
                     >
-                        ×
+                        닫기
                     </button>
                     <h2 id="guild-checkin-coin-title" className="text-lg sm:text-xl font-bold text-highlight text-center mb-3 pr-6">
                         길드 코인 획득

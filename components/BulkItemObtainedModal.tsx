@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
@@ -73,6 +73,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
             skipSavedPosition
             hideFooter
         >
+            <>
             <div className="flex flex-col p-1">
                 {hasItems && (
                     <h2 className="text-xl font-bold text-center text-white mb-4 pb-2 border-b border-slate-600/50">아이템을 획득했습니다</h2>
@@ -161,14 +162,17 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                         <p className="text-slate-400">획득한 아이템이 없습니다.</p>
                     </div>
                 )}
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500/90 to-emerald-600/90 hover:from-emerald-400 hover:to-emerald-500 border border-emerald-400/50 text-white font-semibold shadow-md transition-all active:scale-[0.98]"
-                >
-                    확인
-                </button>
             </div>
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} p-1 pt-2`}>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500/90 to-emerald-600/90 hover:from-emerald-400 hover:to-emerald-500 border border-emerald-400/50 text-white font-semibold shadow-md transition-all active:scale-[0.98]"
+                    >
+                        확인
+                    </button>
+                </div>
+            </>
         </DraggableWindow>
     );
 };

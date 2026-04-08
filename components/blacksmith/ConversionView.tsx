@@ -172,9 +172,21 @@ interface ConversionViewProps {
     onAction: (action: ServerAction) => Promise<void>;
 }
 
+const MOBILE_CONVERSION_BREAKPOINT_PX = 1025;
+
 const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
     const { currentUserWithStatus } = useAppContext();
     const [craftingDetails, setCraftingDetails] = useState<{ materialName: string, craftType: 'upgrade' | 'downgrade' } | null>(null);
+    const [useMobileConversionRow, setUseMobileConversionRow] = useState(
+        () => typeof window !== 'undefined' && window.innerWidth < MOBILE_CONVERSION_BREAKPOINT_PX
+    );
+
+    useEffect(() => {
+        const sync = () => setUseMobileConversionRow(window.innerWidth < MOBILE_CONVERSION_BREAKPOINT_PX);
+        sync();
+        window.addEventListener('resize', sync);
+        return () => window.removeEventListener('resize', sync);
+    }, []);
 
     if (!currentUserWithStatus) return null;
 
@@ -195,6 +207,79 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
 
     const materialTiers = ['하급 강화석', '중급 강화석', '상급 강화석', '최상급 강화석', '신비의 강화석'];
 
+    const renderStoneCard = (materialName: string) => {
+        const quantity = materialCategories[materialName]
+            ? materialCategories[materialName].reduce((sum, item) => sum + (item.quantity || 0), 0)
+            : 0;
+        const materialData = MATERIAL_ITEMS[materialName];
+        return (
+            <div
+                className={`flex shrink-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-2 ${
+                    useMobileConversionRow ? 'w-[5.5rem] min-w-[5.5rem]' : 'min-w-[100px] sm:min-w-[120px] sm:p-2.5'
+                }`}
+            >
+                <img
+                    src={materialData.image as string | undefined}
+                    alt={materialName}
+                    className={`mb-1 object-contain ${useMobileConversionRow ? 'h-9 w-9' : 'h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12'}`}
+                />
+                <h4
+                    className={`mb-0.5 text-center font-bold text-secondary sm:mb-1 sm:text-xs ${
+                        useMobileConversionRow ? 'max-w-[5rem] text-[10px] leading-tight' : 'text-[11px] whitespace-nowrap'
+                    }`}
+                >
+                    {materialName}
+                </h4>
+                <p className={`text-center text-tertiary ${useMobileConversionRow ? 'text-[9px]' : 'mb-1 text-[10px] sm:mb-1.5 sm:text-[11px]'}`}>
+                    보유 {quantity.toLocaleString()}
+                </p>
+            </div>
+        );
+    };
+
+    const renderConversionBridge = (leftTierName: string, leftTierIndex: number) => {
+        const higherName = materialTiers[leftTierIndex + 1];
+        const leftQty =
+            materialCategories[leftTierName]?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
+        const materialExists = materialCategories[leftTierName] && materialCategories[leftTierName].length > 0;
+        return (
+            <div
+                key={`bridge-${leftTierName}`}
+                className={`flex shrink-0 flex-col items-center justify-center gap-0.5 ${
+                    useMobileConversionRow ? 'px-0.5' : 'gap-1'
+                }`}
+            >
+                <span className={`font-medium text-secondary ${useMobileConversionRow ? 'text-[9px]' : 'text-[10px] sm:text-[11px]'}`}>합성</span>
+                <ResourceActionButton
+                    onClick={() => setCraftingDetails({ materialName: leftTierName, craftType: 'upgrade' })}
+                    variant="accent"
+                    className={`!w-auto whitespace-nowrap ${
+                        useMobileConversionRow ? '!px-2 !py-1 text-[11px]' : '!px-2.5 !py-1 text-[11px] sm:!px-3 sm:!py-1.5 sm:text-xs'
+                    }`}
+                    disabled={!materialExists || leftQty < 10}
+                    title={`${leftTierName} 10개 → ${higherName} 합성`}
+                >
+                    →
+                </ResourceActionButton>
+                <ResourceActionButton
+                    onClick={() => setCraftingDetails({ materialName: higherName, craftType: 'downgrade' })}
+                    variant="neutral"
+                    className={`!w-auto whitespace-nowrap ${
+                        useMobileConversionRow ? '!px-2 !py-1 text-[11px]' : '!px-2.5 !py-1 text-[11px] sm:!px-3 sm:!py-1.5 sm:text-xs'
+                    }`}
+                    disabled={
+                        !materialCategories[higherName] ||
+                        (materialCategories[higherName]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1
+                    }
+                    title={`${higherName} → ${leftTierName} 분해`}
+                >
+                    ←
+                </ResourceActionButton>
+                <span className={`font-medium text-secondary ${useMobileConversionRow ? 'text-[9px]' : 'text-[10px] sm:text-[11px]'}`}>분해</span>
+            </div>
+        );
+    };
+
     return (
         <div className="flex h-full min-h-0 w-full flex-col">
             {craftingDetails && (
@@ -207,115 +292,61 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                 />
             )}
 
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 p-2.5 sm:p-3">
-                {/* 가로 스크롤 체인은 뷰포트보다 넓을 때만 스크롤, 좁을 때는 가로·세로 중앙 정렬 */}
-                {/* 첫 번째 행: 하급 강화석 <> 중급 강화석 <> 상급 강화석 */}
-                <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
-                    <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
-                    {['하급 강화석', '중급 강화석', '상급 강화석'].map((materialName, index, row) => {
-                        const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
-                        const quantity = materialCategories[materialName]
-                            ? materialCategories[materialName].reduce((sum, item) => sum + (item.quantity || 0), 0)
-                            : 0;
-                        const materialData = MATERIAL_ITEMS[materialName];
-                        const tierIndex = materialTiers.indexOf(materialName);
-                        const canUpgrade = tierIndex < materialTiers.length - 1;
-                        const canDowngrade = tierIndex > 0;
-
-                        return (
-                            <React.Fragment key={materialName}>
-                                {/* 강화석 카드 */}
-                                <div className="flex min-w-[100px] flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-2 sm:min-w-[120px] sm:p-2.5">
-                                    <img src={materialData.image as string | undefined} alt={materialName} className="mb-1 h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12" />
-                                    <h4 className="mb-0.5 text-center text-[11px] font-bold text-secondary whitespace-nowrap sm:mb-1 sm:text-xs">{materialName}</h4>
-                                    <p className="mb-1 text-center text-[10px] text-tertiary sm:mb-1.5 sm:text-[11px]">보유: {quantity.toLocaleString()}개</p>
-                                </div>
-                                
-                                {/* 오른쪽 화살표 (합성) - 마지막 강화석이 아닐 때만 표시 */}
-                                {index < row.length - 1 && (
-                                    <div className="flex shrink-0 flex-col items-center gap-1">
-                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">합성</span>
-                                        <ResourceActionButton
-                                            onClick={() => setCraftingDetails({ materialName, craftType: 'upgrade' })}
-                                            variant="accent"
-                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
-                                            disabled={!materialExists || quantity < 10}
-                                            title={`${materialName} 10개 → ${materialTiers[tierIndex + 1]} 합성`}
-                                        >
-                                            →
-                                        </ResourceActionButton>
-                                        <ResourceActionButton
-                                            onClick={() => setCraftingDetails({ materialName: materialTiers[tierIndex + 1], craftType: 'downgrade' })}
-                                            variant="neutral"
-                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
-                                            disabled={!materialCategories[materialTiers[tierIndex + 1]] || 
-                                                (materialCategories[materialTiers[tierIndex + 1]]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1}
-                                            title={`${materialTiers[tierIndex + 1]} → ${materialName} 분해`}
-                                        >
-                                            ←
-                                        </ResourceActionButton>
-                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">분해</span>
-                                    </div>
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
+            <div
+                className={`flex min-h-0 flex-1 rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 p-2.5 sm:p-3 ${
+                    useMobileConversionRow
+                        ? 'flex-col justify-start overflow-x-hidden overflow-y-hidden py-2'
+                        : 'flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden'
+                }`}
+            >
+                {useMobileConversionRow ? (
+                    <div className="flex w-full min-w-0 flex-col gap-1.5">
+                        <p className="shrink-0 px-0.5 text-center text-[10px] text-amber-200/75">
+                            좌우로 스크롤하여 강화석 단계를 선택하세요
+                        </p>
+                        <div className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
+                            <div className="inline-flex min-h-[7.5rem] flex-nowrap items-stretch gap-1.5 px-1 py-0.5">
+                                {materialTiers.map((materialName, index) => (
+                                    <React.Fragment key={materialName}>
+                                        {renderStoneCard(materialName)}
+                                        {index < materialTiers.length - 1 && renderConversionBridge(materialName, index)}
+                                    </React.Fragment>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        {/* PC: 두 행 레이아웃 유지 */}
+                        <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+                            <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
+                                {['하급 강화석', '중급 강화석', '상급 강화석'].map((materialName, index, row) => {
+                                    const tierIndex = materialTiers.indexOf(materialName);
+                                    return (
+                                        <React.Fragment key={materialName}>
+                                            {renderStoneCard(materialName)}
+                                            {index < row.length - 1 && renderConversionBridge(materialName, tierIndex)}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
+                        </div>
 
-                {/* 두 번째 행: 상급 강화석 <> 최상급 강화석 <> 신비의 강화석 */}
-                <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
-                    <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
-                    {['상급 강화석', '최상급 강화석', '신비의 강화석'].map((materialName, index, row) => {
-                        const materialExists = materialCategories[materialName] && materialCategories[materialName].length > 0;
-                        const quantity = materialCategories[materialName]
-                            ? materialCategories[materialName].reduce((sum, item) => sum + (item.quantity || 0), 0)
-                            : 0;
-                        const materialData = MATERIAL_ITEMS[materialName];
-                        const tierIndex = materialTiers.indexOf(materialName);
-                        const canUpgrade = tierIndex < materialTiers.length - 1;
-                        const canDowngrade = tierIndex > 0;
-
-                        return (
-                            <React.Fragment key={materialName}>
-                                {/* 강화석 카드 */}
-                                <div className="flex min-w-[100px] flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-2 sm:min-w-[120px] sm:p-2.5">
-                                    <img src={materialData.image as string | undefined} alt={materialName} className="mb-1 h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12" />
-                                    <h4 className="mb-0.5 text-center text-[11px] font-bold text-secondary whitespace-nowrap sm:mb-1 sm:text-xs">{materialName}</h4>
-                                    <p className="mb-1 text-center text-[10px] text-tertiary sm:mb-1.5 sm:text-[11px]">보유: {quantity.toLocaleString()}개</p>
-                                </div>
-                                
-                                {/* 오른쪽 화살표 (합성) - 마지막 강화석이 아닐 때만 표시 */}
-                                {index < row.length - 1 && (
-                                    <div className="flex shrink-0 flex-col items-center gap-1">
-                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">합성</span>
-                                        <ResourceActionButton
-                                            onClick={() => setCraftingDetails({ materialName, craftType: 'upgrade' })}
-                                            variant="accent"
-                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
-                                            disabled={!materialExists || quantity < 10}
-                                            title={`${materialName} 10개 → ${materialTiers[tierIndex + 1]} 합성`}
-                                        >
-                                            →
-                                        </ResourceActionButton>
-                                        <ResourceActionButton
-                                            onClick={() => setCraftingDetails({ materialName: materialTiers[tierIndex + 1], craftType: 'downgrade' })}
-                                            variant="neutral"
-                                            className="!w-auto !px-2.5 !py-1 text-[11px] whitespace-nowrap sm:!px-3 sm:!py-1.5 sm:text-xs"
-                                            disabled={!materialCategories[materialTiers[tierIndex + 1]] || 
-                                                (materialCategories[materialTiers[tierIndex + 1]]?.reduce((sum, item) => sum + (item.quantity || 0), 0) || 0) < 1}
-                                            title={`${materialTiers[tierIndex + 1]} → ${materialName} 분해`}
-                                        >
-                                            ←
-                                        </ResourceActionButton>
-                                        <span className="text-[10px] font-medium text-secondary sm:text-[11px]">분해</span>
-                                    </div>
-                                )}
-                            </React.Fragment>
-                        );
-                    })}
-                    </div>
-                </div>
+                        <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
+                            <div className="inline-flex max-w-none flex-nowrap items-start justify-center gap-2">
+                                {['상급 강화석', '최상급 강화석', '신비의 강화석'].map((materialName, index, row) => {
+                                    const tierIndex = materialTiers.indexOf(materialName);
+                                    return (
+                                        <React.Fragment key={materialName}>
+                                            {renderStoneCard(materialName)}
+                                            {index < row.length - 1 && renderConversionBridge(materialName, tierIndex)}
+                                        </React.Fragment>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );

@@ -125,7 +125,6 @@ function computeBubblePlacementInModal(
     top: number;
     maxW: number;
     maxH: number;
-    needsInternalScroll: boolean;
     placeBelow: boolean;
     arrowOffset: number;
 } {
@@ -149,15 +148,18 @@ function computeBubblePlacementInModal(
     const estimatedBubbleH = Math.min(420, Math.max(240, modalInnerH * 0.5));
     const measuredBubbleH = bubbleSize?.height ?? estimatedBubbleH;
     const clampedBubbleH = Math.min(measuredBubbleH, modalInnerH);
-    const needsInternalScroll = measuredBubbleH > modalInnerH;
     const topSpace = anchor.top - modalTop;
     const bottomSpace = modalBottom - anchor.bottom;
     const placeBelow = bottomSpace >= clampedBubbleH || bottomSpace >= topSpace;
     const preferredTop = placeBelow ? anchor.bottom + gap : anchor.top - clampedBubbleH - gap;
     const top = Math.min(Math.max(preferredTop, modalTop), modalBottom - clampedBubbleH);
 
+    /** 말풍선 상단(top)부터 모달 안쪽 하단까지 — 긴 설명은 이 높이 안에서 스크롤 */
+    const edgePad = 10;
+    const maxH = Math.max(120, Math.min(modalBottom - top - edgePad, modalInnerH));
+
     const arrowOffset = Math.min(Math.max(cx - left - 7, 16), maxW - 32);
-    return { left, top, maxW, maxH: modalInnerH, needsInternalScroll, placeBelow, arrowOffset };
+    return { left, top, maxW, maxH, placeBelow, arrowOffset };
 }
 
 const EncyclopediaIconCell: React.FC<{
@@ -512,17 +514,19 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         const mainStatNames = mainStatGradeDef.stats.join(' 또는 ');
 
         const sectionTitle = (text: string, accent: string) => (
-            <h5 className={`text-xs font-extrabold leading-tight tracking-wide sm:text-sm ${accent}`}>{text}</h5>
+            <h5 className={`text-[10px] font-extrabold leading-tight tracking-wide sm:text-sm ${accent}`}>{text}</h5>
         );
 
-        const sectionShellClass = 'rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
-        const optGridClass = 'grid grid-cols-1 gap-x-3 gap-y-1.5 pt-2 text-xs leading-relaxed text-slate-300 sm:grid-cols-2 sm:text-sm';
+        const sectionShellClass =
+            'rounded-lg border border-white/10 bg-black/25 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] sm:px-3 sm:py-2.5';
+        const optGridClass =
+            'grid grid-cols-1 gap-x-2 gap-y-1 pt-1.5 text-[10px] leading-snug text-slate-300 sm:grid-cols-2 sm:gap-x-3 sm:gap-y-1.5 sm:pt-2 sm:text-sm sm:leading-relaxed';
 
         return (
             <div className="min-h-0 space-y-2.5">
                 <div className={sectionShellClass}>
                     {sectionTitle('주옵션', 'text-amber-200/95')}
-                    <p className="pt-1.5 text-xs leading-relaxed text-slate-300 sm:text-sm">
+                    <p className="pt-1 text-[11px] leading-snug text-slate-300 sm:pt-1.5 sm:text-sm sm:leading-relaxed">
                         <strong className="text-amber-100">{mainStatNames}</strong>: +{mainStatValue}
                         {mainIsPercentage ? '%' : ''}
                     </p>
@@ -582,10 +586,10 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
         if (mainTab === 'equipment' && isEquipmentDetail) {
             return (
-                <div className="flex flex-col gap-3.5">
-                    <div className="rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/20 via-white/[0.02] to-indigo-950/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                        <div className="flex items-start gap-3">
-                            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg ring-2 ring-amber-400/30 shadow-lg">
+                <div className="flex flex-col gap-2.5 sm:gap-3.5">
+                    <div className="rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/20 via-white/[0.02] to-indigo-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-3">
+                        <div className="flex items-start gap-2 sm:gap-3">
+                            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg ring-2 ring-amber-400/30 shadow-lg sm:h-16 sm:w-16">
                                 <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
                                 {item.image ? (
                                     <img
@@ -603,8 +607,10 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                 ) : null}
                             </div>
                             <div className="min-w-0 flex-1">
-                                <h3 className={`truncate text-base font-black leading-tight sm:text-lg ${gradeStyles[item.grade].color}`}>{item.name}</h3>
-                                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs">
+                                <h3 className={`line-clamp-2 text-sm font-black leading-tight sm:truncate sm:text-base sm:leading-tight lg:text-lg ${gradeStyles[item.grade].color}`}>
+                                    {item.name}
+                                </h3>
+                                <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] sm:gap-1.5 sm:text-xs">
                                     <span className="rounded-full border border-white/15 bg-black/35 px-2 py-0.5 text-slate-100">
                                         {slotNames[item.slot]}
                                     </span>
@@ -623,13 +629,13 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                         착용 레벨 합 {GRADE_LEVEL_REQUIREMENTS[item.grade]}
                                     </span>
                                 </div>
-                                <p className="mt-2 rounded-lg border border-white/10 bg-black/25 px-2.5 py-2 text-xs leading-relaxed text-slate-300 sm:text-sm">
+                                <p className="mt-1.5 rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] leading-snug text-slate-300 sm:mt-2 sm:px-2.5 sm:py-2 sm:text-sm sm:leading-relaxed">
                                     {item.description}
                                 </p>
                             </div>
                         </div>
                     </div>
-                    <div className="min-w-0 flex-1 pr-0.5 text-left">
+                    <div className="min-h-0 min-w-0 flex-1 pr-0.5 text-left">
                         {renderEquipmentSubOptions(item)}
                     </div>
                 </div>
@@ -638,10 +644,10 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
         return (
             <div className="flex flex-col items-center">
-                <div className="relative h-28 w-28 overflow-hidden rounded-xl ring-2 ring-amber-400/25 shadow-lg">
+                <div className="relative h-20 w-20 overflow-hidden rounded-xl ring-2 ring-amber-400/25 shadow-lg sm:h-28 sm:w-28">
                     <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     {isActionPointConsumable(item.name) ? (
-                        <ActionPointIconOverlay name={item.name} />
+                        <ActionPointIconOverlay name={item.name} compact />
                     ) : item.image ? (
                         <img
                             src={item.image}
@@ -658,9 +664,11 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                         />
                     ) : null}
                 </div>
-                <h3 className={`mt-3 text-center text-xl font-black tracking-tight ${gradeStyles[item.grade].color}`}>{item.name}</h3>
+                <h3 className={`mt-2 text-center text-base font-black leading-snug tracking-tight sm:mt-3 sm:text-xl ${gradeStyles[item.grade].color}`}>
+                    {item.name}
+                </h3>
                 <p
-                    className={`mt-1 text-center text-sm ${
+                    className={`mt-0.5 text-center text-[11px] sm:mt-1 sm:text-sm ${
                         item.type === 'equipment' ? gradeStyles[item.grade].color : 'text-slate-400'
                     }`}
                 >
@@ -671,9 +679,9 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                           : '소모품'}
                 </p>
                 {item.type === 'equipment' && (
-                    <p className="mt-1 text-center text-[11px] text-slate-500">{`착용 레벨 합: ${GRADE_LEVEL_REQUIREMENTS[item.grade]}`}</p>
+                    <p className="mt-0.5 text-center text-[10px] text-slate-500 sm:mt-1 sm:text-[11px]">{`착용 레벨 합: ${GRADE_LEVEL_REQUIREMENTS[item.grade]}`}</p>
                 )}
-                <p className="mt-3 w-full border-t border-white/10 pt-3 text-center text-base leading-relaxed text-slate-300">
+                <p className="mt-2 w-full border-t border-white/10 pt-2 text-left text-[11px] leading-snug text-slate-300 sm:mt-3 sm:pt-3 sm:text-center sm:text-base sm:leading-relaxed">
                     {item.description}
                 </p>
             </div>
@@ -735,9 +743,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                         data-draggable-satellite="encyclopedia"
                         role="dialog"
                         aria-label="아이템 상세"
-                        className={`pointer-events-auto rounded-xl border border-amber-400/30 bg-gradient-to-b from-[#14151c] via-black/95 to-[#0a0a10] shadow-[0_12px_48px_-8px_rgba(0,0,0,0.9),0_0_40px_-16px_rgba(251,191,36,0.22)] ${
-                            bubblePlacement.needsInternalScroll ? 'overflow-y-auto overscroll-contain scrollbar-thin' : 'overflow-visible'
-                        }`}
+                        className="pointer-events-auto max-h-[min(100dvh-24px,100vh-24px)] overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-xl border border-amber-400/30 bg-gradient-to-b from-[#14151c] via-black/95 to-[#0a0a10] shadow-[0_12px_48px_-8px_rgba(0,0,0,0.9),0_0_40px_-16px_rgba(251,191,36,0.22)] [-webkit-overflow-scrolling:touch]"
                         style={{
                             position: 'fixed',
                             zIndex: 100000,
@@ -764,7 +770,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                 <div className="h-0 w-0 border-x-[7px] border-t-[8px] border-x-transparent border-t-amber-500/45" />
                             </div>
                         )}
-                        <div className="px-4 pb-4 pt-3">
+                        <div className="min-h-0 px-2.5 pb-3 pt-2.5 sm:px-4 sm:pb-4 sm:pt-3">
                             {renderItemBubbleInner(itemBubble.item)}
                         </div>
                     </div>,

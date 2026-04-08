@@ -81,8 +81,8 @@ const XpBar: React.FC<{ level: number, currentXp: number, label: string, colorCl
 
 const CombinedLevelBadge: React.FC<{ level: number; compact?: boolean }> = ({ level, compact = false }) => {
     return (
-        <div className={`flex-shrink-0 bg-tertiary/40 rounded-md border border-color flex items-center justify-center text-center ${compact ? 'w-12 px-1 py-1' : 'w-16 px-2 py-2'}`}>
-            <span className={`font-bold leading-none text-highlight whitespace-nowrap ${compact ? 'text-base' : 'text-2xl'}`}>Lv.{level}</span>
+        <div className={`flex shrink-0 items-center justify-center rounded-md border border-color bg-tertiary/40 text-center ${compact ? 'w-11 px-1 py-1' : 'w-14 px-1.5 py-1.5'}`}>
+            <span className={`whitespace-nowrap font-bold leading-none text-highlight ${compact ? 'text-sm' : 'text-xl'}`}>Lv.{level}</span>
         </div>
     );
 };
@@ -506,6 +506,8 @@ const Profile: React.FC<ProfileProps> = () => {
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
     const usePcHomePanelStyle = isNativeMobile && profileTab === 'home';
+    /** 웹 브라우저 홈 좌열 프로필(레벨·매너·길드 박스 가로 확장) */
+    const webHomeProfileLayout = !isNativeMobile && profileTab === 'home';
     const { rankings: championshipRankings } = useRanking('championship', 100, 0);
     const championshipMyEntry = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -878,31 +880,43 @@ const Profile: React.FC<ProfileProps> = () => {
         return bonuses;
     }, [equippedItems]);
     
-    /** 장착 그리드·프리셋 행 공통 너비 */
+    /** 장착 그리드·프리셋 행 공통 너비 (네이티브 모바일 홈은 패널 폭 전체 사용) */
     const EQUIPMENT_BAND_MAX_CLASS = usePcHomePanelStyle ? 'max-w-[320px]' : 'max-w-[275px]';
+
+    /** 프로필 스택(모바일·PC 좌열) 패널 내부 패딩·간격 — 뷰포트 높이에 비례 */
+    const profileStackPanelPad = 'px-[clamp(0.45rem,1.8vw,0.65rem)] py-[clamp(0.35rem,1.35dvh,0.65rem)]';
+    /** PC 홈 좌열 프로필 칸만 좌우 여백 축소 (레벨·매너·길드 박스 폭 확보) */
+    const profileStackPanelPadProfilePc =
+        'px-[clamp(0.2rem,0.85vw,0.42rem)] py-[clamp(0.35rem,1.35dvh,0.65rem)]';
+    const profileStackPanelGap = 'gap-[clamp(0.25rem,0.85dvh,0.4rem)]';
+    /** 스크롤 영역: 가로는 꽉 채우고 세로는 중앙 정렬 */
+    const profileStackScrollInnerClass =
+        'flex min-h-full w-full flex-col items-stretch justify-center gap-0 py-0.5';
 
     const EquipmentPanelContent = useMemo(() => {
         const nh = isNativeMobile && !usePcHomePanelStyle;
         return (
-            <div className={`mx-auto flex w-full min-w-0 flex-col ${EQUIPMENT_BAND_MAX_CLASS}`}>
-                <div className="flex w-full shrink-0 flex-col justify-center px-0.5 py-0.5">
-                    <div className="grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
+            <div
+                className={`flex h-full min-h-0 w-full min-w-0 flex-col ${nh ? 'max-w-none' : `${EQUIPMENT_BAND_MAX_CLASS} mx-auto w-full`}`}
+            >
+                <div className={`flex min-h-0 w-full flex-1 flex-col justify-center ${profileStackPanelGap}`}>
+                    <div className="grid min-h-0 min-w-0 w-full flex-1 grid-cols-3 grid-rows-[repeat(2,minmax(0,1fr))] gap-[clamp(0.2rem,0.75dvh,0.35rem)] [&>*]:min-h-0 [&>*]:min-w-0">
                         {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                             const item = equippedItems.find(it => it.slot === slot);
                             return (
-                                <div key={slot} className="aspect-square w-full min-w-0">
+                                <div key={slot} className="flex min-h-0 min-w-0 h-full w-full items-center justify-center">
                                     <EquipmentSlotDisplay
                                         slot={slot}
                                         item={item}
                                         onClick={() => item && handlers.openViewingItem(item, true)}
                                         compact
-                                        scaleFactor={usePcHomePanelStyle ? 1.35 : 1.21}
+                                        scaleFactor={usePcHomePanelStyle ? 1.35 : nh ? 1.05 : 1.18}
                                     />
                                 </div>
                             );
                         })}
                     </div>
-                    <div className={`flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 ${nh ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'}`}>
+                    <div className="flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-[clamp(0.2rem,0.8dvh,0.35rem)]">
                         <select
                             value={selectedPreset}
                             onChange={handlePresetChange}
@@ -928,25 +942,31 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const ProfilePanelContent = useMemo(() => {
         const nh = isNativeMobile && !usePcHomePanelStyle;
-        const readableHome = usePcHomePanelStyle;
+        const readableHome = usePcHomePanelStyle || webHomeProfileLayout;
         return (
-        <>
-            <div className={`flex min-w-0 flex-row items-center pl-0.5 ${nh ? 'gap-2' : 'gap-1.5 sm:gap-2'}`}>
-                <div className="flex w-[9rem] min-w-[8.25rem] max-w-[10rem] flex-shrink-0 flex-col items-center gap-0.5">
+        <div className="flex h-full min-h-0 w-full min-w-0 max-w-full flex-col gap-[clamp(0.2rem,1dvh,0.5rem)]">
+            <div className={`flex min-h-0 min-w-0 w-full flex-1 flex-row items-stretch ${nh ? 'gap-2' : 'gap-1.5 sm:gap-2'}`}>
+                <div
+                    className={`flex shrink-0 flex-col items-center justify-center gap-0.5 self-stretch ${
+                        readableHome
+                            ? 'w-[8.5rem] min-w-[7.875rem] max-w-[9.125rem] sm:w-[8.75rem] sm:min-w-[8.125rem] sm:max-w-[9.375rem]'
+                            : 'w-[9.5rem] min-w-[8.75rem] max-w-[10.25rem]'
+                    }`}
+                >
                     <div className="relative">
-                        <Avatar userId={currentUserWithStatus.id} userName={nickname} size={72} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                        <button 
+                        <Avatar userId={currentUserWithStatus.id} userName={nickname} size={82} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                        <button
                             onClick={handlers.openProfileEditModal}
-                            className="absolute bottom-0 right-0 flex h-7 w-7 items-center justify-center rounded-full border-2 border-primary bg-secondary p-1 transition-transform hover:scale-110 hover:bg-tertiary active:scale-95"
+                            className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-secondary p-1 transition-transform hover:scale-110 hover:bg-tertiary active:scale-95"
                             title="프로필 수정"
                         >
                             <span className="text-sm">✏️</span>
                             {!currentUserWithStatus.mbti && (
-                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-red-500 rounded-full"></span>
+                                <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-red-500"></span>
                             )}
                         </button>
                     </div>
-                    <div className="mt-1 w-full min-w-0 px-0.5">
+                    <div className="mt-3 w-full min-w-0 px-0.5 sm:mt-3.5">
                         <div className="w-full min-w-[6.25em] rounded-xl border border-amber-500/40 bg-gradient-to-b from-zinc-800 to-zinc-900 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_6px_20px_rgba(0,0,0,0.5)]">
                             <h2
                                 className={`w-full min-w-0 truncate text-center font-extrabold leading-snug tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] ${readableHome ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'}`}
@@ -955,9 +975,9 @@ const Profile: React.FC<ProfileProps> = () => {
                             >
                                 {nickname}
                             </h2>
-                            <div className="mt-1.5 flex justify-center">
+                            <div className="mt-2 flex justify-center sm:mt-2.5">
                                 <span
-                                    className={`inline-flex max-w-full items-center justify-center rounded-lg border border-indigo-400/45 bg-indigo-950 px-2 py-0.5 text-center font-bold uppercase tracking-[0.12em] text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${readableHome ? 'text-[11px] sm:text-xs' : 'text-[10px] sm:text-[11px]'}`}
+                                    className={`inline-flex max-w-full items-center justify-center rounded-lg border border-indigo-400/45 bg-indigo-950 px-2 py-0.5 text-center font-bold uppercase tracking-[0.1em] text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${readableHome ? 'text-sm sm:text-base' : nh ? 'text-[13px] sm:text-sm' : 'text-xs sm:text-sm'}`}
                                     title={currentUserWithStatus.mbti ? `MBTI: ${currentUserWithStatus.mbti}` : 'MBTI: 미설정'}
                                 >
                                     MBTI · {currentUserWithStatus.mbti ? currentUserWithStatus.mbti : '미설정'}
@@ -966,85 +986,113 @@ const Profile: React.FC<ProfileProps> = () => {
                         </div>
                     </div>
                 </div>
-                
-                <div className={`min-w-0 flex-1 rounded-lg border border-zinc-600/90 bg-gradient-to-br from-zinc-800 to-zinc-950 p-1.5 pl-2 flex flex-col gap-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${nh ? '' : 'sm:p-1 sm:gap-0.5'}`}>
-                    <div className="flex min-w-0 items-center gap-2">
-                        <CombinedLevelBadge level={combinedLevel} compact={nh} />
-                        <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
-                            <XpBar bumpText={nh} level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
-                            <XpBar bumpText={nh} level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
+
+                <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col justify-center gap-1 self-stretch">
+                    <div className="flex w-full min-w-0 flex-col gap-1">
+                        <div
+                            className={`flex w-full min-w-0 flex-col gap-1 rounded-lg border border-zinc-600/90 bg-gradient-to-br from-zinc-800 to-zinc-950 p-1 pl-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${nh ? '' : 'sm:p-1 sm:pl-1.5 sm:gap-0.5'}`}
+                        >
+                            <div className="flex min-w-0 items-center gap-1.5">
+                                <CombinedLevelBadge level={combinedLevel} compact={nh} />
+                                <div className="flex min-w-0 flex-1 flex-col justify-center space-y-0.5">
+                                    <XpBar bumpText={nh} level={currentUserWithStatus.strategyLevel} currentXp={currentUserWithStatus.strategyXp} label="전략" colorClass="bg-gradient-to-r from-blue-500 to-cyan-400" />
+                                    <XpBar bumpText={nh} level={currentUserWithStatus.playfulLevel} currentXp={currentUserWithStatus.playfulXp} label="놀이" colorClass="bg-gradient-to-r from-yellow-500 to-orange-400" />
+                                </div>
+                            </div>
+                        </div>
+                        <div
+                            className={`w-full min-w-0 overflow-hidden rounded-lg border border-amber-500/35 bg-gradient-to-b from-zinc-800/90 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-18px_rgba(0,0,0,0.65)] ${nh ? '' : 'sm:p-2'}`}
+                        >
+                            <div className="mb-1 flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-1">
+                                <span
+                                    className="shrink-0 font-bold text-amber-100/95"
+                                    style={{ fontSize: nh ? 'clamp(0.75rem, 1.65vw, 0.875rem)' : 'clamp(0.75rem, 1.45vw, 0.875rem)' }}
+                                >
+                                    매너 등급
+                                </span>
+                                <span
+                                    className={`min-w-0 shrink truncate font-bold tabular-nums ${mannerRank.color}`}
+                                    style={{ fontSize: nh ? 'clamp(0.75rem, 1.65vw, 0.875rem)' : 'clamp(0.75rem, 1.45vw, 0.875rem)' }}
+                                    title={`${totalMannerScore}점 (${mannerRank.rank})`}
+                                >
+                                    {totalMannerScore}점 ({mannerRank.rank})
+                                </span>
+                                <Button
+                                    type="button"
+                                    onClick={() => setShowMannerRankModal(true)}
+                                    colorScheme="none"
+                                    className="!ml-auto !shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 px-1.5 py-0.5 !text-[9px] !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white sm:!px-2 sm:!py-0.5 sm:!text-[10px]"
+                                    title="매너 등급 정보"
+                                >
+                                    등급 정보
+                                </Button>
+                            </div>
+                            <div className="h-1.5 w-full rounded-full border border-color bg-tertiary/50 sm:h-2">
+                                <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }} />
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>        
-
-            {/* 매너 등급은 레벨/XP와 별개의 섹션으로 분리 */}
-            <div className={`mt-1 w-full min-w-0 overflow-hidden rounded-lg border border-amber-500/35 bg-gradient-to-b from-zinc-800/90 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_10px_30px_-18px_rgba(0,0,0,0.65)] ${nh ? '' : 'sm:p-2.5'}`}>
-                <div className="mb-1 flex min-w-0 flex-wrap items-baseline gap-x-1 gap-y-1">
-                    <span
-                        className="shrink-0 font-bold text-amber-100/95"
-                        style={{ fontSize: nh ? 'clamp(0.8125rem, 1.85vw, 0.9375rem)' : 'clamp(0.8125rem, 1.6vw, 0.9375rem)' }}
-                    >
-                        매너 등급
-                    </span>
-                    <span
-                        className={`min-w-0 shrink truncate font-bold tabular-nums ${mannerRank.color}`}
-                        style={{ fontSize: nh ? 'clamp(0.8125rem, 1.85vw, 0.9375rem)' : 'clamp(0.8125rem, 1.6vw, 0.9375rem)' }}
-                        title={`${totalMannerScore}점 (${mannerRank.rank})`}
-                    >
-                        {totalMannerScore}점 ({mannerRank.rank})
-                    </span>
-                    <Button
-                        type="button"
-                        onClick={() => setShowMannerRankModal(true)}
-                        colorScheme="none"
-                        className="!ml-auto !shrink-0 !whitespace-nowrap rounded-lg border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 px-2 py-0.5 !text-[10px] !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white sm:!px-2.5 sm:!py-1 sm:!text-[11px]"
-                        title="매너 등급 정보"
-                    >
-                        등급 정보
-                    </Button>
-                </div>
-                <div className="h-2 w-full rounded-full border border-color bg-tertiary/50">
-                    <div className={`${mannerStyle.colorClass} h-full rounded-full`} style={{ width: `${mannerStyle.percentage}%` }} />
-                </div>
             </div>
 
-            <div className={`flex flex-col ${nh ? 'mt-1 pt-1' : 'mt-0.5 pt-0.5'}`}>
-                <div className="overflow-hidden rounded-lg border border-zinc-600/80 bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-inner">
-                    <div className={`min-h-[52px] ${nh ? 'p-1.5' : readableHome ? 'p-1.5 sm:p-2' : 'p-1 sm:p-1.5'}`}>
+            <div className={`flex w-full shrink-0 flex-col items-stretch ${nh ? 'mt-0.5 pt-0.5' : 'mt-0.5 pt-0.5'}`}>
+                <div className="w-full min-w-0 overflow-hidden rounded-lg border border-zinc-600/80 bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-inner">
+                    <div className={`${nh ? 'min-h-0 py-1 px-1' : 'min-h-[52px]'} ${nh ? '' : readableHome ? 'p-1.5 sm:p-2' : 'p-1 sm:p-1.5'}`}>
                     {!guildCheckDone ? (
                         <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
                     ) : guildInfo ? (
-                            <div className="w-full rounded-md border border-transparent p-1.5">
-                                <div className="flex min-w-0 items-center gap-2.5">
-                                    <div className="flex-shrink-0 w-12 h-12 rounded-md bg-secondary/50 border border-color flex items-center justify-center overflow-hidden">
+                            <div className="flex min-w-0 flex-nowrap items-center gap-1.5 px-0.5 py-1 sm:gap-2 sm:px-1 sm:py-1.5">
+                                <div
+                                    className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-color bg-secondary/50 ${nh ? 'h-9 w-9' : 'h-9 w-9 sm:h-10 sm:w-10'}`}
+                                >
                                     {guildInfo.icon ? (
-                                        <img src={guildInfo.icon.startsWith('/images/guild/icon') ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon') : guildInfo.icon} alt={guildInfo.name} className="w-full h-full object-cover" />
+                                        <img
+                                            src={
+                                                guildInfo.icon.startsWith('/images/guild/icon')
+                                                    ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
+                                                    : guildInfo.icon
+                                            }
+                                            alt={guildInfo.name}
+                                            className="h-full w-full object-cover"
+                                        />
                                     ) : (
-                                        <img src="/images/button/guild.png" alt="길드" className="w-9 h-9 object-contain" />
+                                        <img src="/images/button/guild.png" alt="길드" className={`object-contain ${nh ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'}`} />
                                     )}
-                                    </div>
-                                    <div className="min-w-0 flex-1 text-left self-center">
-                                        <div className="flex min-w-0 items-center gap-2">
-                                            <span className={`shrink-0 rounded-md border border-amber-500/45 bg-amber-950/45 px-2 py-0.5 font-semibold text-amber-100 ${readableHome ? 'text-base' : 'text-sm'}`}>
-                                                Lv.{guildInfo.level || 1}
-                                            </span>
-                                            <div className="truncate font-semibold text-white" style={{ fontSize: nh ? 'clamp(0.95rem, 2.35vw, 1.05rem)' : readableHome ? 'clamp(1rem, 2.35vw, 1.1rem)' : 'clamp(0.9rem, 2.2vw, 1rem)' }}>
-                                                {guildInfo.name}
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
-                                <div className="mt-1.5 flex items-center justify-end">
-                                    <Button
-                                        onClick={() => window.location.hash = '#/guild'}
-                                        colorScheme="none"
-                                        className="!whitespace-nowrap rounded-lg border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 px-2.5 py-1 !text-[11px] !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white"
-                                        title="길드 홈 보기"
+                                <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden sm:gap-1.5">
+                                    <span
+                                        className={`shrink-0 rounded-md border border-amber-500/45 bg-amber-950/45 font-semibold leading-tight text-amber-100 ${
+                                            nh ? 'px-1.5 py-0 text-[10px]' : readableHome ? 'px-1.5 py-0.5 text-xs sm:px-2 sm:text-sm' : 'px-1.5 py-0.5 text-[11px] sm:text-xs'
+                                        }`}
                                     >
-                                        길드 입장
-                                    </Button>
+                                        Lv.{guildInfo.level || 1}
+                                    </span>
+                                    <div
+                                        className="min-w-0 truncate font-semibold text-white"
+                                        style={{
+                                            fontSize: nh
+                                                ? 'clamp(0.78rem, 2.1vw, 0.9rem)'
+                                                : readableHome
+                                                  ? 'clamp(0.85rem, 1.8vw, 1rem)'
+                                                  : 'clamp(0.82rem, 1.6vw, 0.95rem)',
+                                        }}
+                                        title={guildInfo.name}
+                                    >
+                                        {guildInfo.name}
+                                    </div>
                                 </div>
+                                <Button
+                                    onClick={() => (window.location.hash = '#/guild')}
+                                    colorScheme="none"
+                                    className={`!shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white ${
+                                        nh
+                                            ? '!px-2 !py-1 !text-[10px]'
+                                            : '!px-2 !py-1 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]'
+                                    }`}
+                                    title="길드 홈 보기"
+                                >
+                                    길드 입장
+                                </Button>
                             </div>
                     ) : guildLoadingFailed ? (
                         <div className="flex min-w-0 items-center gap-2">
@@ -1059,9 +1107,9 @@ const Profile: React.FC<ProfileProps> = () => {
                     </div>
                 </div>
             </div>
-        </>
+        </div>
         );
-    }, [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel, nickname, avatarUrl, borderUrl, isNativeMobile, usePcHomePanelStyle]);
+    }, [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel, nickname, avatarUrl, borderUrl, isNativeMobile, usePcHomePanelStyle, webHomeProfileLayout]);
 
     const AbilityStatsPanelContent = useMemo(() => {
         const nh = isNativeMobile && !usePcHomePanelStyle;
@@ -1079,26 +1127,28 @@ const Profile: React.FC<ProfileProps> = () => {
         }
         const badukAbilityTotal = Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
         return (
-            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                <div className="relative flex min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2.5 py-2 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:px-3 sm:py-2.5">
+            <div
+                className={`flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-center ${nh ? 'gap-[clamp(0.2rem,0.85dvh,0.45rem)] overflow-x-hidden' : 'gap-[clamp(0.35rem,1dvh,0.5rem)] overflow-hidden'}`}
+            >
+                <div className={`relative w-full max-w-[min(100%,24rem)] shrink-0 overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:max-w-[min(100%,26rem)] ${nh ? 'px-[clamp(0.35rem,1.5vw,0.5rem)] py-[clamp(0.3rem,1.1dvh,0.5rem)]' : 'px-[clamp(0.45rem,1.2vw,0.65rem)] py-[clamp(0.35rem,1.2dvh,0.55rem)] sm:px-3 sm:py-2.5'}`}>
                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
-                    <div className="relative flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                        <div className="min-w-0 flex-1">
-                            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
-                                <span className={`bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)] ${readableHome ? 'text-lg sm:text-xl' : 'text-base sm:text-lg'}`}>
-                                    바둑능력
-                                </span>
-                                <span
-                                    className={`bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${readableHome ? 'text-[1.6rem] sm:text-[2.1rem]' : 'text-[1.35rem] sm:text-2xl'}`}
-                                    title="6개 핵심 능력치 합계"
-                                >
-                                    {badukAbilityTotal}
-                                </span>
-                            </div>
-                        </div>
-                        <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-zinc-700/90 pt-2 sm:border-t-0 sm:pt-0">
+                    <div className="relative flex w-full min-w-0 flex-row flex-nowrap items-center gap-2 sm:gap-2.5 md:gap-3">
+                        <div className="flex min-w-0 flex-1 flex-nowrap items-baseline justify-start gap-x-1 overflow-hidden text-left sm:gap-x-1.5 md:gap-x-2">
                             <span
-                                className={`min-w-0 truncate font-medium text-amber-100/85 ${readableHome ? 'text-sm sm:text-base' : 'text-xs sm:text-sm'}`}
+                                className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-left font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)] ${nh ? 'text-sm' : readableHome ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base md:text-lg'}`}
+                            >
+                                바둑능력
+                            </span>
+                            <span
+                                className={`min-w-0 bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text text-left font-mono font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${nh ? 'text-[1.15rem]' : readableHome ? 'text-[1.35rem] sm:text-[1.65rem] md:text-[2rem]' : 'text-[1.2rem] sm:text-xl md:text-2xl'}`}
+                                title="6개 핵심 능력치 합계"
+                            >
+                                {badukAbilityTotal}
+                            </span>
+                        </div>
+                        <div className="ml-auto flex shrink-0 flex-nowrap items-center justify-end gap-1 text-right sm:gap-1.5">
+                            <span
+                                className={`max-w-[min(8rem,46vw)] truncate font-medium text-amber-100/85 sm:max-w-[11rem] md:max-w-none ${nh ? 'text-[10px]' : readableHome ? 'text-xs sm:text-sm md:text-base' : 'text-[11px] sm:text-xs md:text-sm'}`}
                                 title={`보너스: ${availablePoints}P`}
                             >
                                 보너스{' '}
@@ -1108,15 +1158,22 @@ const Profile: React.FC<ProfileProps> = () => {
                             <Button
                                 onClick={handlers.openStatAllocationModal}
                                 colorScheme="none"
-                                className="!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-2.5 !py-1 !text-[10px] !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 sm:!text-[11px]"
+                                className={`!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 ${nh ? '!px-2 !py-0.5 !text-[9px]' : '!px-2 !py-0.5 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]'}`}
                             >
                                 분배
                             </Button>
                         </div>
                     </div>
                 </div>
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                    <CoreStatsHexagonChart values={finalByStat} baseByStat={baseByStat} className="min-h-0 flex-1" desktopLike={usePcHomePanelStyle} mobileReadable={usePcHomePanelStyle} />
+                <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col items-center overflow-y-auto overflow-x-hidden overscroll-y-contain">
+                    <CoreStatsHexagonChart
+                        values={finalByStat}
+                        baseByStat={baseByStat}
+                        className="min-h-0 w-full min-w-0 max-w-[min(100%,26rem)] flex-1 sm:max-w-[min(100%,28rem)]"
+                        desktopLike={usePcHomePanelStyle}
+                        mobileReadable={usePcHomePanelStyle}
+                        profileMobileCompact={nh}
+                    />
                 </div>
             </div>
         );
@@ -1145,11 +1202,17 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const mergedCardClass = 'flex h-full min-h-0 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10';
     const imagePaneClass = 'min-h-0 min-w-0 flex-[1.78] p-0.5';
-    const infoPanelClass = 'min-h-0 min-w-[196px] flex-[0.92] border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] flex flex-col gap-2';
-    const infoTitleClass = 'mb-1 inline-flex w-full items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2 py-1 text-[15px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]';
-    const infoRowClass = 'grid grid-cols-[4.2rem_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] leading-snug';
-    const infoLabelClass = 'text-center font-semibold text-slate-300/95';
-    const infoValueClass = 'min-w-0 text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
+    /** PC 경기장 카드 우측: 타이틀 상단·버튼 하단 고정, 중간 통계 블록 세로 중앙 */
+    const infoPanelShellClass =
+        'flex h-full min-h-0 min-w-[196px] flex-[0.92] flex-col gap-2 border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
+    const infoPanelMiddleClass =
+        'flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-center gap-2 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]';
+    const infoTitleClass =
+        'inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2 py-1 text-[15px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]';
+    const infoRowClass =
+        'grid w-full min-w-0 grid-cols-[minmax(4.25rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] leading-snug';
+    const infoLabelClass = 'min-w-0 text-center font-semibold text-slate-300/95';
+    const infoValueClass = 'min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
     const LobbyCards = (
         <div className={lobbyGridShell}>
             <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -1175,11 +1238,13 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className="flex min-h-0 w-full flex-1 rounded-md" />
                             </div>
                         </div>
-                        <div className={infoPanelClass}>
+                        <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>싱글플레이</div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>현재 위치</span><span className={infoValueClass}>{singleStageLabel}</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>진행도</span><span className={infoValueClass}>{singleProgress} / {SINGLE_PLAYER_STAGES.length}</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>클리어</span><span className={infoValueClass}>{Math.max(0, singleProgress)}</span></div>
+                            <div className={infoPanelMiddleClass}>
+                                <div className={infoRowClass}><span className={infoLabelClass}>현재 위치</span><span className={infoValueClass}>{singleStageLabel}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>진행도</span><span className={infoValueClass}>{singleProgress} / {SINGLE_PLAYER_STAGES.length}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>클리어</span><span className={infoValueClass}>{Math.max(0, singleProgress)}</span></div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1193,11 +1258,13 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className={imagePaneClass}>
                             <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => window.location.hash = '#/tower'} compact={false} hideOverlayText={true} />
                         </div>
-                        <div className={infoPanelClass}>
+                        <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>도전의 탑</div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>현재 층</span><span className={infoValueClass}>{towerCurrentFloor}층</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>남은 시간</span><span className={infoValueClass}>{towerTimeLeft}</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{towerCurrentRank ? `${towerCurrentRank}위` : '-'}</span></div>
+                            <div className={infoPanelMiddleClass}>
+                                <div className={infoRowClass}><span className={infoLabelClass}>현재 층</span><span className={infoValueClass}>{towerCurrentFloor}층</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>남은 시간</span><span className={infoValueClass}>{towerTimeLeft}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{towerCurrentRank ? `${towerCurrentRank}위` : '-'}</span></div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1211,18 +1278,20 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className={imagePaneClass}>
                             <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
                         </div>
-                        <div className={`${infoPanelClass} border-cyan-300/20`}>
+                        <div className={`${infoPanelShellClass} border-cyan-300/20`}>
                             <div className={`${infoTitleClass} text-cyan-100`}>전략 바둑</div>
-                            <div className="flex items-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-950/30 px-2.5 py-2">
-                                {overallTiers.strategicTier?.icon && <img src={overallTiers.strategicTier.icon} alt={overallTiers.strategicTier.name} className="h-7 w-7 rounded-md object-contain ring-1 ring-white/20" />}
-                                <div className="min-w-0">
-                                    <div className="truncate text-[12px] font-semibold text-cyan-100/90">{overallTiers.strategicTier.name}</div>
-                                    <div className="text-sm font-bold text-cyan-50">Lv.{currentUserWithStatus.strategyLevel}</div>
+                            <div className={infoPanelMiddleClass}>
+                                <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-950/30 px-2.5 py-2">
+                                    {overallTiers.strategicTier?.icon && <img src={overallTiers.strategicTier.icon} alt={overallTiers.strategicTier.name} className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/20" />}
+                                    <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                                        <span className="min-w-0 truncate text-left text-[12px] font-semibold text-cyan-100/90">{overallTiers.strategicTier.name}</span>
+                                        <span className="shrink-0 text-sm font-bold tabular-nums text-cyan-50">Lv.{currentUserWithStatus.strategyLevel}</span>
+                                    </div>
                                 </div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.strategic.wins}승{aggregatedStats.strategic.losses}패({strategicWinRate}%)</span></div>
                             </div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.strategic.wins}승{aggregatedStats.strategic.losses}패({strategicWinRate}%)</span></div>
-                            <Button onClick={() => setDetailedStatsType('strategic')} colorScheme="none" className="!mt-auto !w-full !justify-center rounded-lg border border-cyan-300/35 bg-cyan-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-cyan-50 hover:bg-cyan-900/55">
+                            <Button onClick={() => setDetailedStatsType('strategic')} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-cyan-300/35 bg-cyan-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-cyan-50 hover:bg-cyan-900/55">
                                 상세보기
                             </Button>
                         </div>
@@ -1238,18 +1307,20 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className={imagePaneClass}>
                             <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
                         </div>
-                        <div className={`${infoPanelClass} border-amber-300/20`}>
+                        <div className={`${infoPanelShellClass} border-amber-300/20`}>
                             <div className={`${infoTitleClass} text-amber-100`}>놀이 바둑</div>
-                            <div className="flex items-center gap-2 rounded-lg border border-amber-300/20 bg-amber-950/30 px-2.5 py-2">
-                                {overallTiers.playfulTier?.icon && <img src={overallTiers.playfulTier.icon} alt={overallTiers.playfulTier.name} className="h-7 w-7 rounded-md object-contain ring-1 ring-white/20" />}
-                                <div className="min-w-0">
-                                    <div className="truncate text-[12px] font-semibold text-amber-100/90">{overallTiers.playfulTier.name}</div>
-                                    <div className="text-sm font-bold text-amber-50">Lv.{currentUserWithStatus.playfulLevel}</div>
+                            <div className={infoPanelMiddleClass}>
+                                <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-amber-300/20 bg-amber-950/30 px-2.5 py-2">
+                                    {overallTiers.playfulTier?.icon && <img src={overallTiers.playfulTier.icon} alt={overallTiers.playfulTier.name} className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/20" />}
+                                    <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
+                                        <span className="min-w-0 truncate text-left text-[12px] font-semibold text-amber-100/90">{overallTiers.playfulTier.name}</span>
+                                        <span className="shrink-0 text-sm font-bold tabular-nums text-amber-50">Lv.{currentUserWithStatus.playfulLevel}</span>
+                                    </div>
                                 </div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-amber-200`}>{overallTiers.playfulIntegratedScore}점</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.playful.wins}승{aggregatedStats.playful.losses}패({playfulWinRate}%)</span></div>
                             </div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-amber-200`}>{overallTiers.playfulIntegratedScore}점</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.playful.wins}승{aggregatedStats.playful.losses}패({playfulWinRate}%)</span></div>
-                            <Button onClick={() => setDetailedStatsType('playful')} colorScheme="none" className="!mt-auto !w-full !justify-center rounded-lg border border-amber-300/35 bg-amber-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-amber-50 hover:bg-amber-900/55">
+                            <Button onClick={() => setDetailedStatsType('playful')} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-amber-300/35 bg-amber-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-amber-50 hover:bg-amber-900/55">
                                 상세보기
                             </Button>
                         </div>
@@ -1274,13 +1345,15 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className="flex min-h-0 w-full flex-1 rounded-md" />
                             </div>
                         </div>
-                        <div className={infoPanelClass}>
+                        <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>챔피언십</div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>시즌 점수</span><span className={infoValueClass}>{championshipScore}점</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{championshipRank != null ? `${championshipRank}위` : '100+위'}</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>동네리그</span><span className={infoValueClass}>{dungeonProgress.neighborhood?.currentStage ?? 0}단계</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>전국대회</span><span className={infoValueClass}>{dungeonProgress.national?.currentStage ?? 0}단계</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>월드전</span><span className={infoValueClass}>{dungeonProgress.world?.currentStage ?? 0}단계</span></div>
+                            <div className={infoPanelMiddleClass}>
+                                <div className={infoRowClass}><span className={infoLabelClass}>시즌 점수</span><span className={infoValueClass}>{championshipScore}점</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>현재 순위</span><span className={infoValueClass}>{championshipRank != null ? `${championshipRank}위` : '100+위'}</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>동네리그</span><span className={infoValueClass}>{dungeonProgress.neighborhood?.currentStage ?? 0}단계</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>전국대회</span><span className={infoValueClass}>{dungeonProgress.national?.currentStage ?? 0}단계</span></div>
+                                <div className={infoRowClass}><span className={infoLabelClass}>월드전</span><span className={infoValueClass}>{dungeonProgress.world?.currentStage ?? 0}단계</span></div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1294,9 +1367,11 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className={imagePaneClass}>
                             <PveCard title="모험" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" isComingSoon={true} compact={false} hideOverlayText={true} />
                         </div>
-                        <div className={infoPanelClass}>
+                        <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>모험</div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>상태</span><span className={infoValueClass}>오픈 예정</span></div>
+                            <div className={infoPanelMiddleClass}>
+                                <div className={infoRowClass}><span className={infoLabelClass}>상태</span><span className={infoValueClass}>오픈 예정</span></div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1321,23 +1396,43 @@ const Profile: React.FC<ProfileProps> = () => {
                     <>
                         {profileTab === 'home' && (
                             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
-                                <div className="flex h-full min-h-0 w-full min-w-0 flex-col gap-1.5 overflow-hidden">
-                                    <div className="relative flex min-h-0 flex-[0.9] flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                                <div className="grid h-full min-h-0 w-full min-w-0 grid-rows-[repeat(3,minmax(0,1fr))] gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden">
+                                    <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
                                     <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                                     <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-                                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 text-on-panel">
-                                        <div className="min-h-0 flex-1 overflow-hidden">{ProfilePanelContent}</div>
+                                    <div
+                                        className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden text-on-panel ${
+                                            usePcHomePanelStyle ? profileStackPanelPadProfilePc : profileStackPanelPad
+                                        }`}
+                                    >
+                                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]">
+                                            <div className={profileStackScrollInnerClass}>
+                                                {ProfilePanelContent}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                    <div className="relative flex min-h-0 flex-[0.58] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10">
+                                    <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10">
                                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                                     <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                                    <div className="min-h-0 flex-1 overflow-hidden">{EquipmentPanelContent}</div>
+                                    <div className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden ${profileStackPanelPad}`}>
+                                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]">
+                                            <div className={profileStackScrollInnerClass}>
+                                                {EquipmentPanelContent}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                    <div className="relative flex min-h-0 flex-[0.76] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10">
+                                    <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10">
                                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                                     <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                                    {AbilityStatsPanelContent}
+                                    <div className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden ${profileStackPanelPad}`}>
+                                        <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]">
+                                            <div className={profileStackScrollInnerClass}>
+                                                {AbilityStatsPanelContent}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             </div>
@@ -1426,23 +1521,41 @@ const Profile: React.FC<ProfileProps> = () => {
                 ) : (
                 <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
                     {/* 좌측: 프로필 패널(스크롤 없음) + 능력치 / 중앙: 입장 카드 / 우측: 퀵 메뉴 */}
-                    <div className="flex h-full min-h-0 w-[min(42%,480px)] min-w-[288px] max-w-[480px] shrink-0 flex-col gap-1.5 overflow-hidden">
-                        <div className="relative flex min-h-0 flex-[0.9] flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                    <div className="grid h-full min-h-0 w-[min(43%,500px)] min-w-[292px] max-w-[500px] shrink-0 grid-rows-[repeat(3,minmax(0,1fr))] gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden">
+                        <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
                             <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 text-on-panel">
-                                <div className="min-h-0 flex-1 overflow-hidden">{ProfilePanelContent}</div>
+                            <div
+                                className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden text-on-panel ${profileStackPanelPadProfilePc}`}
+                            >
+                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]">
+                                    <div className={profileStackScrollInnerClass}>
+                                        {ProfilePanelContent}
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <div className="relative flex min-h-0 flex-[0.58] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10">
+                        <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10">
                             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                            <div className="min-h-0 flex-1 overflow-hidden">{EquipmentPanelContent}</div>
+                            <div className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden ${profileStackPanelPad}`}>
+                                <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]">
+                                    <div className={profileStackScrollInnerClass}>
+                                        {EquipmentPanelContent}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div className="relative flex min-h-0 flex-[0.76] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10">
+                        <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10">
                             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                            {AbilityStatsPanelContent}
+                            <div className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden ${profileStackPanelPad}`}>
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]">
+                                    <div className={profileStackScrollInnerClass}>
+                                        {AbilityStatsPanelContent}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">

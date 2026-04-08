@@ -1,5 +1,5 @@
 import React from 'react';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 
 interface ClaimAllSummaryModalProps {
@@ -11,6 +11,7 @@ interface ClaimAllSummaryModalProps {
 const ClaimAllSummaryModal: React.FC<ClaimAllSummaryModalProps> = ({ summary, onClose, isTopmost }) => {
     return (
         <DraggableWindow title="일괄 수령 결과" onClose={onClose} windowId="claim-all-summary" initialWidth={400} isTopmost={isTopmost}>
+            <>
             <div className="text-center">
                 <h2 className="text-xl font-bold mb-4">아래 보상을 모두 수령했습니다!</h2>
                 <div className="space-y-3 bg-gray-900/50 p-4 rounded-lg text-lg">
@@ -33,8 +34,13 @@ const ClaimAllSummaryModal: React.FC<ClaimAllSummaryModalProps> = ({ summary, on
                         </div>
                     )}
                 </div>
-                <Button onClick={onClose} className="w-full mt-6 py-2.5">확인</Button>
             </div>
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} px-1 pt-2`}>
+                    <Button onClick={onClose} className="w-full py-2.5">
+                        확인
+                    </Button>
+                </div>
+            </>
         </DraggableWindow>
     );
 };

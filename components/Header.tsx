@@ -36,16 +36,28 @@ const ResourceDisplay = memo<{
         ? 'min-w-0 flex-1'
         : 'flex-shrink-0';
     const valueClass = fluid
-        ? 'min-w-0 flex-1 tabular-nums leading-none tracking-tight text-[clamp(0.4rem,calc(0.02rem+2.55vw),0.8rem)]'
+        ? 'min-w-0 flex-1 tabular-nums leading-none tracking-tight text-[clamp(0.42rem,calc(0.06rem+2.65vw),0.82rem)]'
         : dense
           ? 'min-w-0 tabular-nums leading-none text-[clamp(0.5625rem,calc(0.42rem+1.1vw),0.8125rem)] sm:text-[11px]'
           : 'text-[9px] sm:text-sm';
+    const iconShell = fluid
+        ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]'
+        : dense
+          ? 'h-6 w-6'
+          : 'w-7 h-7 text-lg';
+    const iconImg = fluid
+        ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
+        : dense
+          ? 'h-4 w-4'
+          : 'w-5 h-5';
     return (
         <div
-            className={`flex items-center bg-tertiary/50 rounded-full shadow-inner ${shell} ${dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 sm:gap-2 py-1 pl-1 pr-2 sm:pr-3'} ${className ?? ''}`}
+            className={`flex items-center bg-tertiary/50 rounded-full shadow-inner ${shell} ${
+                fluid ? 'gap-[clamp(0.125rem,0.8vw,0.25rem)] py-[clamp(0.125rem,0.6vw,0.25rem)] pl-[clamp(0.125rem,0.8vw,0.25rem)] pr-[clamp(0.25rem,1.2vw,0.45rem)]' : dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 sm:gap-2 py-1 pl-1 pr-2 sm:pr-3'
+            } ${className ?? ''}`}
         >
-            <div className={`bg-primary flex items-center justify-center rounded-full flex-shrink-0 ${dense ? 'h-6 w-6' : 'w-7 h-7 text-lg'}`}>
-                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${dense ? 'h-4 w-4' : 'w-5 h-5'}`} loading="lazy" decoding="async" />
+            <div className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${iconShell}`}>
+                <img src={resourceIcons[icon]} alt={RESOURCE_LABEL[icon]} className={`object-contain ${iconImg}`} loading="lazy" decoding="async" />
             </div>
             <span className={`font-bold text-primary whitespace-nowrap ${valueClass}`}>
                 {formattedValue}
@@ -116,27 +128,34 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const [specialPopoverFixed, setSpecialPopoverFixed] = useState<{ top: number; right: number } | null>(null);
 
     const updateSpecialPopoverPosition = useCallback(() => {
-        if (!isMobile || !isSpecialResourcesOpen || !specialResourcesRef.current) return;
+        if (!isSpecialResourcesOpen || !specialResourcesRef.current) return;
         const rect = specialResourcesRef.current.getBoundingClientRect();
+        const margin = 8;
+        const rightOffset = window.innerWidth - rect.right;
         setSpecialPopoverFixed({
             top: rect.bottom + 4,
-            right: window.innerWidth - rect.right,
+            right: Math.max(margin, rightOffset),
         });
-    }, [isMobile, isSpecialResourcesOpen]);
+    }, [isSpecialResourcesOpen]);
 
     useLayoutEffect(() => {
-        if (!isMobile || !isSpecialResourcesOpen) {
+        if (!isSpecialResourcesOpen) {
             setSpecialPopoverFixed(null);
             return;
         }
         updateSpecialPopoverPosition();
         window.addEventListener('resize', updateSpecialPopoverPosition);
         window.addEventListener('scroll', updateSpecialPopoverPosition, true);
+        const vv = typeof window !== 'undefined' ? window.visualViewport : null;
+        vv?.addEventListener('resize', updateSpecialPopoverPosition);
+        vv?.addEventListener('scroll', updateSpecialPopoverPosition);
         return () => {
             window.removeEventListener('resize', updateSpecialPopoverPosition);
             window.removeEventListener('scroll', updateSpecialPopoverPosition, true);
+            vv?.removeEventListener('resize', updateSpecialPopoverPosition);
+            vv?.removeEventListener('scroll', updateSpecialPopoverPosition);
         };
-    }, [isMobile, isSpecialResourcesOpen, updateSpecialPopoverPosition]);
+    }, [isSpecialResourcesOpen, updateSpecialPopoverPosition]);
 
     useEffect(() => {
         // 팝오버 열림 상태에서 외부 클릭으로 닫기
@@ -155,7 +174,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
 
     if (!currentUserWithStatus) return null;
 
-    const { handleLogout, openShop, openSettingsModal, openProfileEditModal, openMailbox } = handlers;
+    const { handleLogout, openProfileEditModal, openMailbox } = handlers;
     const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel } = currentUserWithStatus;
     const combinedUserLevel = (Number(strategyLevel) || 0) + (Number(playfulLevel) || 0);
 
@@ -169,10 +188,16 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
 
     const specialResourcesPopoverPanel = (
-        <div className="bg-primary border border-color rounded-lg shadow-2xl min-w-[100px] py-2">
-            <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors">
-                <img src={specialResourceIcons.guildCoins} alt={SPECIAL_RESOURCE_LABEL.guildCoins} className="w-5 h-5 object-contain" />
-                <span className="font-bold text-sm text-primary whitespace-nowrap">
+        <div className="w-max max-w-[min(18rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
+            <div className="flex items-center gap-[clamp(0.35rem,1.5vw,0.5rem)] px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:gap-2 sm:px-3 sm:py-1.5">
+                <img
+                    src={specialResourceIcons.guildCoins}
+                    alt={SPECIAL_RESOURCE_LABEL.guildCoins}
+                    className="h-[clamp(1rem,3.5vw,1.35rem)] w-[clamp(1rem,3.5vw,1.35rem)] shrink-0 object-contain sm:h-5 sm:w-5"
+                    loading="lazy"
+                    decoding="async"
+                />
+                <span className="min-w-0 font-bold tabular-nums text-primary text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] whitespace-nowrap sm:text-sm">
                     {(guildCoins ?? 0).toLocaleString()}
                 </span>
             </div>
@@ -187,10 +212,10 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             <div
                 className={`flex min-w-0 w-full items-center ${
                     isMobile
-                        ? 'h-[52px] min-h-[52px] max-h-[52px] flex-nowrap justify-end gap-x-1 overflow-hidden px-2 py-0'
+                        ? 'min-h-[clamp(2.45rem,calc(1.55rem+6.2vw),3.4rem)] flex-nowrap justify-end gap-x-[clamp(0.2rem,1.2vw,0.35rem)] overflow-hidden px-[clamp(0.375rem,2.2vw,0.6rem)] py-[clamp(0.2rem,1vw,0.35rem)]'
                         : dense
-                          ? 'min-h-[58px] flex-nowrap gap-x-2 gap-y-0 px-2 py-2 sm:min-h-[58px] sm:gap-x-2 sm:px-2 sm:py-2'
-                          : 'min-h-[70px] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:min-h-[75px] sm:gap-3 sm:p-3'
+                          ? 'min-h-[clamp(3.25rem,calc(2.65rem+1.4vw),3.75rem)] flex-nowrap gap-x-2 gap-y-0 px-2 py-2 sm:gap-x-2 sm:px-2 sm:py-2'
+                          : 'min-h-[clamp(3.5rem,calc(2.85rem+2vw),4.85rem)] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:gap-3 sm:p-3'
                 }`}
             >
                 {!isMobile && (
@@ -221,67 +246,100 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         }`}
                     >
                     <div
-                        className={`flex flex-shrink-0 items-center gap-0.5 rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner sm:gap-1 ${
-                            dense ? 'py-1 pl-1.5 pr-1' : 'pl-2 pr-1 py-1'
+                        className={`flex flex-shrink-0 items-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner ${
+                            isMobile
+                                ? 'gap-[clamp(0.08rem,0.7vw,0.2rem)] py-[clamp(0.06rem,0.45vw,0.16rem)] pl-[clamp(0.3rem,1.5vw,0.45rem)] pr-[clamp(0.12rem,0.7vw,0.22rem)] sm:gap-1'
+                                : dense
+                                  ? 'gap-0.5 py-1 pl-1.5 pr-1 sm:gap-1'
+                                  : 'gap-0.5 py-1 pl-2 pr-1 sm:gap-1'
                         }`}
                     >
                         <span
-                            className={`flex min-w-0 items-center gap-0.5 font-bold whitespace-nowrap text-primary sm:gap-1 ${
+                            className={`flex min-w-0 items-center font-bold whitespace-nowrap text-primary ${
                                 isMobile
-                                    ? 'text-[clamp(0.625rem,calc(0.48rem+2.2vw),0.8125rem)]'
+                                    ? 'gap-[clamp(0.05rem,0.5vw,0.2rem)] text-[clamp(0.6rem,calc(0.42rem+2.35vw),0.84rem)] sm:gap-1'
                                     : dense
-                                      ? 'text-[11px]'
-                                      : 'text-[9px] sm:text-xs'
+                                      ? 'gap-0.5 text-[11px] sm:gap-1'
+                                      : 'gap-0.5 text-[9px] sm:gap-1 sm:text-xs'
                             }`}
                         >
-                            <span className="text-base leading-none">⚡</span>
+                            <span
+                                className={`leading-none ${isMobile ? 'text-[clamp(0.85rem,calc(0.65rem+2vw),1.05rem)]' : 'text-base'}`}
+                            >
+                                ⚡
+                            </span>
                             {`${safeActionPoints.current}/${safeActionPoints.max}`}
                         </span>
                         <ActionPointTimer user={currentUserWithStatus} mobile={isMobile} />
                         <button
                             onClick={handlers.openActionPointModal}
-                            className={`flex flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary ${
-                                dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
+                            className={`flex flex-shrink-0 items-center justify-center transition-colors ${
+                                isMobile
+                                    ? 'min-h-[clamp(1.15rem,3.8vw,1.5rem)] min-w-[clamp(1.15rem,3.8vw,1.5rem)] rounded-none border-0 bg-transparent p-[clamp(0.1rem,0.5vw,0.2rem)] hover:bg-primary/20 active:bg-primary/30'
+                                    : `rounded-full border-0 bg-primary/70 hover:bg-primary ${
+                                          dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
+                                      }`
                             }`}
                             title="행동력 충전 (상점)"
                         >
                             <img
                                 src={resourceIcons.actionPlus}
                                 alt="행동력 충전"
-                                className={`object-contain ${dense ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-5 sm:w-5'}`}
+                                className={`object-contain ${
+                                    isMobile
+                                        ? 'h-[clamp(0.75rem,2.6vw,0.95rem)] w-[clamp(0.75rem,2.6vw,0.95rem)]'
+                                        : dense
+                                          ? 'h-3.5 w-3.5'
+                                          : 'h-4 w-4 sm:h-5 sm:w-5'
+                                }`}
                                 loading="lazy"
                                 decoding="async"
                             />
                         </button>
                     </div>
                     <ResourceDisplay icon="gold" value={safeGold} dense={dense} fluid={isMobile} />
-                    <div className={`relative ${isMobile ? 'flex min-w-0 flex-1 items-center' : 'flex-shrink-0'}`} ref={specialResourcesRef}>
-                        <div className="flex min-w-0 flex-1 items-center gap-0.5 sm:gap-1">
-                            <div className="min-w-0 flex-1">
+                    <div
+                        className={`relative ${isMobile ? 'flex min-w-0 flex-1 items-center' : 'min-w-[4.5rem] shrink-0 sm:min-w-0'}`}
+                        ref={specialResourcesRef}
+                    >
+                        <div className="flex min-w-0 w-full max-w-full flex-1 items-center gap-[clamp(0.125rem,1vw,0.35rem)] sm:gap-1">
+                            <div className="min-w-0 flex-1 overflow-hidden">
                                 <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} fluid={isMobile} />
                             </div>
                             <button
+                                type="button"
                                 onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
-                                className={`flex flex-shrink-0 items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
-                                    dense ? 'h-6 w-6' : 'h-6 w-6 sm:h-7 sm:w-7'
+                                aria-expanded={isSpecialResourcesOpen}
+                                className={`flex shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
+                                    isMobile
+                                        ? 'h-[clamp(1.35rem,4.2vw,1.7rem)] w-[clamp(1.35rem,4.2vw,1.7rem)] active:scale-95'
+                                        : dense
+                                          ? 'h-[clamp(1.35rem,2.6vw,1.75rem)] w-[clamp(1.35rem,2.6vw,1.75rem)] active:scale-95'
+                                          : 'h-[clamp(1.45rem,2.2vw,1.85rem)] w-[clamp(1.45rem,2.2vw,1.85rem)] sm:h-7 sm:w-7 active:scale-95'
                                 } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
                                 title="특수 재화"
                             >
                                 <span
-                                    className={`text-primary transition-transform ${dense ? 'text-[10px]' : 'text-[10px] sm:text-xs'} ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
+                                    className={`text-primary transition-transform duration-200 ${
+                                        isMobile
+                                            ? 'text-[clamp(0.52rem,calc(0.32rem+1.85vw),0.72rem)]'
+                                            : dense
+                                              ? 'text-[clamp(0.5rem,calc(0.28rem+1.1vw),0.65rem)]'
+                                              : 'text-[clamp(0.55rem,calc(0.35rem+0.9vw),0.75rem)] sm:text-xs'
+                                    } ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
+                                    aria-hidden
                                 >
                                     ▼
                                 </span>
                             </button>
                         </div>
-                        {isSpecialResourcesOpen && !isMobile && (
-                            <div className="absolute top-full right-0 z-[99999] mt-1 min-w-[100px]">
-                                {specialResourcesPopoverPanel}
-                            </div>
-                        )}
                     </div>
                     
-                    <div className={`w-px flex-shrink-0 bg-border-color ${dense ? 'mx-0.5 h-7 self-center' : 'mx-1 h-9 sm:mx-2'}`} />
+                    <div
+                        className={`w-px flex-shrink-0 self-center bg-border-color ${
+                            isMobile ? 'mx-[clamp(0.1rem,0.8vw,0.25rem)] h-[clamp(1.35rem,4.5vw,1.85rem)]' : dense ? 'mx-0.5 h-7' : 'mx-1 h-9 sm:mx-2'
+                        }`}
+                    />
                     
                     {/* 공통 버튼들 (모바일에서도 항상 노출) */}
                     <div className="flex flex-shrink-0 items-center gap-0.5 sm:gap-2">
@@ -290,11 +348,16 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             onClick={() => { window.location.hash = '#/admin'; }}
                             colorScheme="none"
                             className={`${
-                                dense
-                                    ? '!h-7 !min-h-7 !max-h-7 !px-2 !py-0 !text-[10px] !leading-none rounded-full border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
-                                    : '!px-3 !py-1.5 text-[9px] sm:text-xs rounded-lg border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
+                                isMobile
+                                    ? '!h-[clamp(1.45rem,4.8vw,1.85rem)] !min-h-0 !max-h-none !px-[clamp(0.35rem,1.8vw,0.5rem)] !py-0 !text-[clamp(0.55rem,calc(0.35rem+1.85vw),0.65rem)] !leading-none rounded-full border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
+                                    : dense
+                                      ? '!h-7 !min-h-7 !max-h-7 !px-2 !py-0 !text-[10px] !leading-none rounded-full border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
+                                      : '!px-3 !py-1.5 text-[9px] sm:text-xs rounded-lg border border-indigo-300/50 bg-gradient-to-r from-indigo-500/85 via-sky-500/80 to-cyan-400/80 text-white shadow-[0_10px_24px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_16px_32px_-18px_rgba(96,165,250,0.6)]'
                             } flex-shrink-0 whitespace-nowrap`}
-                            style={{ letterSpacing: dense ? '0.04em' : '0.08em', ...(dense ? { fontSize: '10px' } : {}) }}
+                            style={{
+                                letterSpacing: dense || isMobile ? '0.04em' : '0.08em',
+                                ...(dense && !isMobile ? { fontSize: '10px' } : {}),
+                            }}
                         >
                             관리자
                         </Button>
@@ -302,41 +365,40 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <button
                         onClick={openMailbox}
                         className={
-                            dense
-                                ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
-                                : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
+                            isMobile
+                                ? 'relative flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
+                                : dense
+                                  ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
+                                  : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
                         }
                         title="우편함"
                     >
                         <img
                             src="/images/icon/mail.png"
                             alt="우편함"
-                            className={`object-contain ${dense ? 'h-4 w-4' : 'h-6 w-6'}`}
+                            className={`object-contain ${
+                                isMobile ? 'h-[clamp(0.75rem,2.6vw,0.95rem)] w-[clamp(0.75rem,2.6vw,0.95rem)]' : dense ? 'h-4 w-4' : 'h-6 w-6'
+                            }`}
                             loading="lazy"
                             decoding="async"
                         />
                         {unreadMailCount > 0 && (
                             <span
-                                className={`absolute rounded-full border-2 border-primary bg-red-500 ${dense ? 'top-0 right-0 h-1.5 w-1.5' : 'top-1 right-1 h-2.5 w-2.5'}`}
+                                className={`absolute rounded-full border-2 border-primary bg-red-500 ${
+                                    isMobile ? 'right-0 top-0 h-[clamp(0.3rem,1.2vw,0.4rem)] w-[clamp(0.3rem,1.2vw,0.4rem)]' : dense ? 'top-0 right-0 h-1.5 w-1.5' : 'top-1 right-1 h-2.5 w-2.5'
+                                }`}
                             />
                         )}
-                    </button>
-                    <button
-                        onClick={openSettingsModal}
-                        className={
-                            dense
-                                ? 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-base leading-none transition-colors hover:bg-primary'
-                                : 'rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
-                        }
-                        title="설정"
-                    >
-                        ⚙️
                     </button>
                     <button
                         type="button"
                         onClick={() => setShowLogoutConfirm(true)}
                         className={`flex shrink-0 items-center justify-center rounded-full border-2 border-red-800/85 bg-red-500 text-black shadow-sm transition-colors hover:bg-red-600 ${
-                            dense ? 'h-9 w-9' : 'h-10 w-10'
+                            isMobile
+                                ? 'h-[clamp(1.65rem,5.5vw,2.15rem)] w-[clamp(1.65rem,5.5vw,2.15rem)]'
+                                : dense
+                                  ? 'h-9 w-9'
+                                  : 'h-10 w-10'
                         }`}
                         title="로그아웃"
                         aria-label="로그아웃"
@@ -345,7 +407,9 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             viewBox="0 0 24 24"
                             fill="none"
                             xmlns="http://www.w3.org/2000/svg"
-                            className={`text-black ${dense ? 'h-[1.125rem] w-[1.125rem]' : 'h-5 w-5'}`}
+                            className={`text-black ${
+                                isMobile ? 'h-[clamp(0.95rem,3.2vw,1.2rem)] w-[clamp(0.95rem,3.2vw,1.2rem)]' : dense ? 'h-[1.125rem] w-[1.125rem]' : 'h-5 w-5'
+                            }`}
                             aria-hidden
                         >
                             <path
@@ -366,14 +430,13 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 </div>
             </div>
         </header>
-        {isMobile &&
-            isSpecialResourcesOpen &&
+        {isSpecialResourcesOpen &&
             specialPopoverFixed &&
             typeof document !== 'undefined' &&
             createPortal(
                 <div
                     ref={specialResourcesPopoverPortalRef}
-                    className="pointer-events-auto fixed w-max max-w-[min(16rem,calc(100vw-1rem))]"
+                    className="pointer-events-auto fixed w-max max-w-[min(18rem,calc(100vw-1rem))]"
                     style={{
                         top: specialPopoverFixed.top,
                         right: specialPopoverFixed.right,

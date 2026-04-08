@@ -24,10 +24,15 @@ const SLOT_NAMES_KO: Record<EquipmentSlot, string> = {
     stones: '바둑돌',
 };
 
-const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; }> = ({ item, onRemove }) => {
+const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; showRemoveButton?: boolean; isCompact?: boolean; }> = ({
+    item,
+    onRemove,
+    showRemoveButton = true,
+    isCompact = false,
+}) => {
     if (!item) {
         return (
-            <div className="h-28 w-1/3 rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 text-xs text-amber-100/70 flex items-center justify-center">
+            <div className={`${isCompact ? 'h-24 w-full' : 'h-28 w-1/3'} rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 text-xs text-amber-100/70 flex items-center justify-center`}>
                 재료
             </div>
         );
@@ -37,16 +42,18 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; }> 
     const isTranscendent = item.grade === ItemGrade.Transcendent;
 
     return (
-        <div className="relative h-28 w-1/3 rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
-            <button onClick={onRemove} className="absolute top-1 right-1 text-red-500 hover:text-red-400 z-10">
-                &times;
-            </button>
-            <div className={`relative w-14 h-14 rounded-lg flex-shrink-0 overflow-hidden border border-slate-500/50 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}>
+        <div className={`${isCompact ? 'h-24 w-full p-1.5' : 'h-28 w-1/3 p-2'} relative rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center`}>
+            {showRemoveButton && (
+                <button onClick={onRemove} className="absolute top-1 right-1 text-red-500 hover:text-red-400 z-10">
+                    &times;
+                </button>
+            )}
+            <div className={`relative ${isCompact ? 'w-12 h-12' : 'w-14 h-14'} rounded-lg flex-shrink-0 overflow-hidden border border-slate-500/50 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}>
                 <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                 {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
             </div>
-            <p className={`text-xs font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>
-            <p className="text-[11px] text-slate-400">{SLOT_NAMES_KO[item.slot!] || '기타'}</p>
+            <p className={`${isCompact ? 'text-[10px]' : 'text-xs'} font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>
+            <p className={`${isCompact ? 'text-[10px]' : 'text-[11px]'} text-slate-400`}>{SLOT_NAMES_KO[item.slot!] || '기타'}</p>
         </div>
     );
 };
@@ -132,10 +139,17 @@ interface CombinationViewProps {
     onRemoveItem: (index: number) => void;
     onAction: (action: ServerAction) => Promise<void>;
     currentUser: UserWithStatus;
+    stackedViewport?: boolean;
 }
 
-const CombinationView: React.FC<CombinationViewProps> = ({ items, onRemoveItem, onAction, currentUser }) => {
-    const isMobile = false;
+const CombinationView: React.FC<CombinationViewProps> = ({
+    items,
+    onRemoveItem,
+    onAction,
+    currentUser,
+    stackedViewport = false,
+}) => {
+    const isMobile = stackedViewport;
     const [isRandom, setIsRandom] = useState(false);
 
     const handleCombine = () => {
@@ -149,9 +163,15 @@ const CombinationView: React.FC<CombinationViewProps> = ({ items, onRemoveItem, 
 
     return (
         <div className={`${isMobile ? 'h-auto' : 'h-full'} flex flex-col items-center ${isMobile ? 'justify-start gap-2' : 'justify-between gap-3'}`}>
-            <div className={`w-full flex ${isMobile ? 'flex-wrap justify-center' : 'justify-around'} items-stretch gap-2`}>
+            <div className={`w-full ${isMobile ? 'grid grid-cols-3 gap-1' : 'flex justify-around items-stretch gap-2'}`}>
                 {items.map((item, index) => (
-                    <ItemSlot key={index} item={item} onRemove={() => onRemoveItem(index)} />
+                    <ItemSlot
+                        key={index}
+                        item={item}
+                        onRemove={() => onRemoveItem(index)}
+                        showRemoveButton={!isMobile}
+                        isCompact={isMobile}
+                    />
                 ))}
             </div>
 

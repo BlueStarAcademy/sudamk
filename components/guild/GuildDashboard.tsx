@@ -8,7 +8,7 @@ import GuildHomePanel, { GuildChat, GuildCheckInPanel, GuildAnnouncementPanel } 
 import GuildMembersPanel from './GuildMembersPanel.js';
 import GuildManagementPanel from './GuildManagementPanel.js';
 import { GUILD_XP_PER_LEVEL, GUILD_BOSSES, GUILD_RESEARCH_PROJECTS, AVATAR_POOL, BORDER_POOL, emptySlotImages, slotNames, GUILD_BOSS_MAX_ATTEMPTS, GUILD_INITIAL_MEMBER_LIMIT, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_GOLD_COST, GUILD_DONATION_DIAMOND_COST, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_DONATION_GOLD_REWARDS, GUILD_DONATION_DIAMOND_REWARDS, ADMIN_USER_ID, ADMIN_NICKNAME, DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT } from '../../constants/index.js';
-import DraggableWindow from '../DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
 import NineSlicePanel from '../ui/NineSlicePanel.js';
@@ -591,10 +591,10 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
                                 <button
                                     type="button"
                                     onClick={() => setDonationLogModalOpen(false)}
-                                    className="rounded-lg p-1 text-2xl leading-none text-tertiary transition-colors hover:bg-stone-700/50 hover:text-primary"
+                                    className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
                                     aria-label="닫기"
                                 >
-                                    ×
+                                    닫기
                                 </button>
                             </div>
                             <div className="min-h-0 flex-1 overflow-hidden p-4">{donationLogModalContent}</div>
@@ -1065,11 +1065,12 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                 <div className="flex items-center justify-between mb-3">
                                     <h3 className="text-base font-bold text-highlight">참여 길드원 기록</h3>
                                     <button
+                                        type="button"
                                         onClick={() => setShowBossParticipantsModal(false)}
-                                        className="text-stone-300 hover:text-white text-lg leading-none"
+                                        className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
                                         aria-label="닫기"
                                     >
-                                        ×
+                                        닫기
                                     </button>
                                 </div>
                                 {bossParticipantRanking.length > 0 ? (
@@ -2697,10 +2698,10 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                             <button
                                 type="button"
                                 onClick={() => setIsGuildContentDrawerOpen(false)}
-                                className="p-2 text-2xl text-tertiary hover:text-primary"
+                                className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
                                 aria-label="닫기"
                             >
-                                ×
+                                닫기
                             </button>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 sm:gap-4 sm:p-4">

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 
@@ -16,13 +17,22 @@ interface NoContestModalProps {
 
 const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
     const [savingRecord, setSavingRecord] = useState(false);
+    const isMobile = useIsHandheldDevice(1025);
     const isInitiator = session.noContestInitiatorIds?.includes(currentUser.id);
     const canUseGameRecordUi = canSaveStrategicPvpGameRecord(session) && !isSpectator;
     const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(session.id, currentUser.savedGameRecords);
     const recordCount = currentUser.savedGameRecords?.length ?? 0;
 
     return (
-        <DraggableWindow title="무효 대국" onClose={onConfirm} initialWidth={450} windowId="no-contest">
+        <DraggableWindow
+            title="무효 대국"
+            onClose={onConfirm}
+            initialWidth={450}
+            windowId="no-contest"
+            mobileViewportFit={isMobile}
+            mobileViewportMaxHeightVh={90}
+        >
+            <>
             <div className="text-white">
                 <div className="bg-gray-900/50 p-4 rounded-lg mb-6 text-center">
                     <p className="text-lg">
@@ -71,14 +81,13 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
                         )}
                     </div>
                 )}
-
-                 <Button 
-                    onClick={onConfirm}
-                    className="w-full py-3"
-                 >
-                    확인
-                 </Button>
             </div>
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} px-1 pt-2`}>
+                    <Button onClick={onConfirm} className="w-full py-3">
+                        확인
+                    </Button>
+                </div>
+            </>
         </DraggableWindow>
     );
 };

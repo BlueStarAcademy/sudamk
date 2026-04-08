@@ -17,6 +17,7 @@ import AiChallengeModal from './AiChallengeModal.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
 import MatchFoundModal from './MatchFoundModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 
 
 interface WaitingRoomComponentProps {
@@ -582,10 +583,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       <button
                         type="button"
                         onClick={() => setIsNativeAuxDrawerOpen(false)}
-                        className="flex h-9 w-9 items-center justify-center rounded-lg text-2xl leading-none text-tertiary hover:bg-tertiary/40 hover:text-on-panel"
+                        className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
                         aria-label="닫기"
                       >
-                        ×
+                        닫기
                       </button>
                     </div>
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden overscroll-contain px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">

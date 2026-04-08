@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode } from '../types.js';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
@@ -421,7 +421,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             uniformPcScale={false}
             mobileViewportFit
             mobileViewportMaxHeightVh={97}
-            bodyNoScroll={isMobile}
+            headerShowTitle={!isMobile || isScoring}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}
@@ -429,13 +429,13 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
             hideFooter
         >
+            <>
             <div
-                className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex h-full w-full min-h-0 flex-1 flex-col ${
+                className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex w-full min-h-0 flex-col ${
                     isMobile
-                        ? 'h-full min-h-0 flex-1 overflow-hidden'
-                        : useBodyScrollSizing
-                          ? 'overflow-x-hidden'
-                          : 'overflow-x-hidden overflow-y-visible'
+                        ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
+                        : 'h-full flex-1 ' +
+                          (useBodyScrollSizing ? 'overflow-x-hidden' : 'overflow-x-hidden overflow-y-visible')
                 } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
             >
                 {/* Title */}
@@ -450,20 +450,20 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         </h1>
                     </div>
                 )}
-                {!isScoring && !isEnded && !analysisResult && session.winner === null && (
-                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl min-[1024px]:text-3xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-amber-100/90`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
+                {!isMobile && !isScoring && !isEnded && !analysisResult && session.winner === null && (
+                    <h1 className={`text-2xl min-[1024px]:text-3xl font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-amber-100/90`}>
                         게임 결과
                     </h1>
                 )}
                 
                 <div
                     className={`flex min-h-0 flex-row gap-1.5 sm:gap-3 ${
-                        isMobile ? 'min-h-0 flex-1 overflow-hidden' : 'items-start overflow-visible'
+                        isMobile ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible' : 'items-start overflow-visible'
                     }`}
                 >
                     {/* Left Panel: 경기 결과 */}
                     <div
-                        className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'min-h-0 w-1/2 flex-1 p-1.5' : 'w-1/2 shrink-0 overflow-visible p-2.5'} sp-summary-left-panel`}
+                        className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 shrink-0 overflow-visible p-2.5'} sp-summary-left-panel`}
                     >
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
                             경기 결과
@@ -471,7 +471,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         <div
                             className={
                                 isMobile
-                                    ? 'flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden'
+                                    ? 'flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-visible'
                                     : 'flex flex-col gap-1.5 overflow-visible'
                             }
                         >
@@ -524,7 +524,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     {/* Right Panel: 획득 보상 */}
                     <div
                         className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${
-                            isMobile ? 'min-h-0 w-1/2 flex-1 overflow-hidden p-1.5' : 'w-1/2 flex-1 overflow-visible p-2.5'
+                            isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 flex-1 overflow-visible p-2.5'
                         }`}
                     >
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
@@ -643,9 +643,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         </div>
                     </div>
                 </div>
+            </div>
 
                 <div
-                    className={`${PRE_GAME_MODAL_FOOTER_CLASS} mt-auto flex-shrink-0 !flex-col rounded-b-2xl ${
+                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} ${PRE_GAME_MODAL_FOOTER_CLASS} mt-auto flex-shrink-0 !flex-col rounded-b-2xl ${
                         isMobile
                             ? '!gap-1.5 !p-2.5 -mx-2 -mb-2 sm:!gap-2 sm:!p-3 sm:-mx-3 sm:-mb-3'
                             : '!gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
@@ -693,7 +694,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </Button>
                     </div>
                 </div>
-            </div>
+            </>
         </DraggableWindow>
     );
 };

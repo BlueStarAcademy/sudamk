@@ -1,5 +1,6 @@
 import React from 'react';
 import { InventoryItem, ItemGrade } from '../../types.js';
+import { isRefinementTicketMaterial } from '../../constants/items.js';
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.png',
@@ -118,7 +119,17 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
                                 )}
                                 {renderStarDisplay(item.stars)}
                                 {item.isEquipped && <div className="absolute top-0.5 right-0.5 text-xs font-bold text-white bg-blue-600/80 px-1 rounded-bl-md">E</div>}
-                                {item.quantity && item.quantity > 1 && <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md">{item.quantity}</span>}
+                                {(() => {
+                                    const stackQty = item.quantity ?? 1;
+                                    const isTicket = isRefinementTicketMaterial(item.name);
+                                    if (!isTicket && stackQty <= 1) return null;
+                                    if (isTicket && stackQty < 1) return null;
+                                    return (
+                                        <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md">
+                                            {stackQty}
+                                        </span>
+                                    );
+                                })()}
                                 {selectedItemIdsForDisassembly?.has(item.id) && (
                                     <div className="absolute inset-0 z-20 pointer-events-none flex items-center justify-center bg-gray-800/70 rounded-md">
                                         <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path></svg>

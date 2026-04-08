@@ -464,17 +464,17 @@ const TournamentCard: React.FC<{
                             {participationBadge}
                         </div>
                     </button>
-                    <div className="min-h-0 min-w-[248px] flex-[1.08] border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] space-y-2.5">
-                        <div className="mb-1 inline-flex w-full items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2.5 py-1.5 text-[17px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]">
+                    <div className="flex min-h-0 min-w-[248px] flex-[1.08] flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] space-y-2.5">
+                        <div className="mb-1 inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2.5 py-1.5 text-[17px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]">
                             {definition.name}
                         </div>
-                        <div className="grid grid-cols-[5.2rem_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
-                            <span className="text-center font-semibold text-slate-300/95">최고 단계</span>
-                            <span className="min-w-0 text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
+                        <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
+                            <span className="min-w-0 text-center font-semibold text-slate-300/95">최고 단계</span>
+                            <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
                                 {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
                             </span>
                         </div>
-                        <div className="rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2">
+                        <div className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2">
                             <div className="mb-1 flex items-center justify-between gap-2">
                                 <div className="text-center text-[14px] font-semibold text-slate-200/95">챔피언십 랭킹점수</div>
                                 <select

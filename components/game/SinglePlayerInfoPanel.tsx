@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 
 const goProverbs = [
     { term: "부득탐승(不得貪勝)", meaning: "너무 이기려고 탐하지 말라." },
@@ -23,7 +24,11 @@ const ProverbPanel: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
         <div className="bg-gray-800/80 backdrop-blur-sm p-3 rounded-md flex-1 border border-gray-700/50 text-stone-300 flex flex-col min-h-0">
             <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-amber-300 flex justify-between items-center flex-shrink-0">
                 <span>바둑 격언</span>
-                {onClose && <button onClick={onClose} className="text-xl font-bold text-gray-400 hover:text-white">×</button>}
+                {onClose && (
+                    <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label="닫기">
+                        닫기
+                    </button>
+                )}
             </h3>
             <div className="flex-grow flex flex-col items-center justify-center text-center min-h-0">
                 <p className="text-2xl font-semibold text-stone-100">{currentProverb.term}</p>

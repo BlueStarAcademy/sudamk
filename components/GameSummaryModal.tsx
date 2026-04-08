@@ -2,7 +2,7 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { LiveGameSession, User, Player, WinReason, StatChange, AnalysisResult, GameMode, GameSummary, InventoryItem, AvatarInfo, BorderInfo, AlkkagiStone, ServerAction, AlkkagiRoundHistoryEntry } from '../types.js';
 import Avatar from './Avatar.js';
 import { audioService } from '../services/audioService.js';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
@@ -904,17 +904,19 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             windowId="game-summary"
             hideFooter
         >
+            <>
             <div
                 className={`flex min-h-0 flex-col text-white antialiased ${
                     useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'w-full overflow-x-hidden overflow-y-visible'
                 } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
             >
+                {!isMobile && (
                 <h1
-                    className={`${isMobile ? 'text-lg mb-1.5' : 'text-3xl mb-2 min-[1024px]:text-4xl min-[1280px]:text-5xl'} flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
-                    style={{ fontSize: isMobile ? `${16 * mobileTextScale}px` : undefined }}
+                    className={`text-3xl mb-2 min-[1024px]:text-4xl min-[1280px]:text-5xl flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
                 >
                     {title}
                 </h1>
+                )}
                 {isGuildWar && (
                     <div className="flex flex-col items-center gap-1.5 mb-3 flex-shrink-0">
                         <div className="flex justify-center items-center gap-1.5" aria-label={`획득 별 ${guildWarStars}개`}>
@@ -970,7 +972,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         <div
                             className={
                                 isMobile
-                                    ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+                                    ? 'flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-visible'
                                     : 'flex flex-col overflow-visible'
                             }
                         >
@@ -987,7 +989,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     >
                         <div
                             className={`flex min-w-0 flex-col gap-2.5 rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${
-                                isMobile ? 'min-h-0 flex-1 overflow-hidden' : 'overflow-visible'
+                                isMobile ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible' : 'overflow-visible'
                             }`}
                         >
                             <h2
@@ -1070,13 +1072,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
                                 </p>
                             ) : mySummary ? (
-                                <div
-                                    className={
-                                        isMobile
-                                            ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.35)_transparent]'
-                                            : 'overflow-visible'
-                                    }
-                                >
+                        <div
+                            className={
+                                isMobile
+                                    ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
+                                    : 'overflow-visible'
+                            }
+                        >
                                 <div className="grid grid-cols-2 gap-2 sm:gap-2.5">
                                     <div className={`${statCardClass} text-center`}>
                                         <p className={statLabelClass}>랭킹 점수</p>
@@ -1235,8 +1237,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         </div>
                     </div>
                 </div>
-                 
-                <div className={`${isMobile ? 'mt-3' : 'mt-4'} ${arenaPostGameButtonGridClass} flex-shrink-0`}>
+            </div>
+                <div
+                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} ${isMobile ? 'mt-3' : 'mt-4'} ${arenaPostGameButtonGridClass} flex-shrink-0`}
+                >
                     {canUseGameRecordUi && onAction && (
                         <button
                             type="button"
@@ -1286,7 +1290,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         확인
                     </button>
                 </div>
-            </div>
+            </>
         </DraggableWindow>
     );
 };

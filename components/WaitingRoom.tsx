@@ -15,6 +15,7 @@ import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSid
 import Button from './Button.js';
 import GameApplicationModal from './GameApplicationModal.js';
 import AiChallengeModal from './waiting-room/AiChallengeModal.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 
 interface WaitingRoomComponentProps {
     mode: GameMode;
@@ -264,7 +265,14 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 </button>
             </div>
             <div className={`fixed top-0 right-0 h-full w-[320px] bg-primary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'} flex flex-col`}>
-                <button onClick={() => setIsMobileSidebarOpen(false)} className="self-end text-2xl p-2 text-tertiary hover:text-primary">×</button>
+                <button
+                    type="button"
+                    onClick={() => setIsMobileSidebarOpen(false)}
+                    className={`self-end ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
+                    aria-label="닫기"
+                >
+                    닫기
+                </button>
                 <div className="flex-shrink-0 border-b border-color p-2">
                     <div className={`mx-auto flex h-52 flex-col min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS}`}>
                         <QuickAccessSidebar />

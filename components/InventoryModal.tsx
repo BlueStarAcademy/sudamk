@@ -764,6 +764,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const [itemToSellBulk, setItemToSellBulk] = useState<InventoryItem | null>(null);
     const [isExpandModalOpen, setIsExpandModalOpen] = useState(false);
     const [isEquipCompareOpen, setIsEquipCompareOpen] = useState(false);
+    const [isMobileItemDetailOpen, setIsMobileItemDetailOpen] = useState(false);
+    const [isMobileEquippedModalOpen, setIsMobileEquippedModalOpen] = useState(false);
 
     // 브라우저 크기 감지
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -797,6 +799,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
     /** 실제 창 너비 기준. 스케일 캔버스 안 모바일에서도 좁은 레이아웃(50/50·8열)에 사용 */
     const narrowInventoryLayout = isCompactViewport;
+    const mobileInventoryColumns = useMemo(() => {
+        if (!narrowInventoryLayout) return 12;
+        if (windowWidth < 390) return 5;
+        if (windowWidth < 460) return 6;
+        if (windowWidth < 560) return 7;
+        return 8;
+    }, [narrowInventoryLayout, windowWidth]);
 
     // 창 크기에 비례한 스케일 팩터 계산 (기준: 950px 너비)
     // 캔버스 밖 모바일: DraggableWindow가 뷰포트 맞춤이므로 여기서는 PC와 동일 비율(축소 없음)
@@ -819,10 +828,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         if (narrowInventoryLayout && modalLayerUsesDesignPixels) return 1.2;
         return 1.0;
     }, [narrowInventoryLayout, modalLayerUsesDesignPixels]);
-    const mobileSelectedViewerHeightPx = useMemo(
-        () => Math.max(200, Math.min(360, Math.round(windowHeight * 0.4))),
-        [windowHeight]
-    );
     const luxuryTabButtonBase = 'rounded-lg border font-semibold tracking-wide transition-all duration-200 shadow-[0_12px_24px_-16px_rgba(15,23,42,0.85)] hover:-translate-y-0.5 active:translate-y-0';
     const getLuxuryTabButtonClass = (isActive: boolean) =>
         isActive
@@ -1128,7 +1133,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             title="가방"
             onClose={onClose}
             windowId="inventory"
-            isTopmost={isTopmost}
+            isTopmost={isTopmost && !isMobileEquippedModalOpen && !isMobileItemDetailOpen}
             initialWidth={calculatedWidth}
             initialHeight={calculatedHeight}
             variant="store"
@@ -1143,385 +1148,25 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"
                 style={{ margin: 0, padding: 0 }}
             >
-                {/* Top section: Equipped items (left) and Selected item details (right) */}
-                <div
-                    className={`bg-gray-800 mb-2 rounded-md shadow-inner ${narrowInventoryLayout ? 'flex shrink-0 flex-col gap-2 overflow-y-auto' : 'flex shrink-0 flex-row'}`}
-                    style={{
-                        /* 모바일: 하단 인벤(flex-1)에 밀려 뷰어가 0높이로 죽지 않게 shrink 금지 + 최소 높이 */
-                        minHeight: narrowInventoryLayout
-                            ? `${Math.max(200, Math.min(340, Math.round(windowHeight * 0.34)))}px`
-                            : undefined,
-                        maxHeight: narrowInventoryLayout ? `${Math.min(680 * scaleFactor, windowHeight * 0.55)}px` : undefined,
-                        padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                    }}
-                >
-                    {narrowInventoryLayout ? (
-                        <>
-                            <div className="flex w-full min-w-0 flex-row gap-2" style={{ minHeight: `${Math.max(130, Math.round(150 * scaleFactor))}px` }}>
-                                {/* 모바일: 넓은 열 — 장착 슬롯 + 하단 능력치·프리셋 */}
-                                <div
-                                    className="min-w-0 flex-1 border-r border-gray-700 pr-2"
-                                    style={{ paddingRight: `${Math.max(6, Math.round(10 * scaleFactor))}px` }}
-                                >
-                                    <h3
-                                        className="font-bold text-on-panel"
-                                        style={{
-                                            fontSize: `${Math.max(12, Math.round(15 * scaleFactor * mobileTextScale))}px`,
-                                            marginBottom: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                                        }}
-                                    >
-                                        장착 장비
-                                    </h3>
-                                    <div
-                                        className="grid"
-                                        style={{
-                                            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                                            gap: `${Math.max(3, Math.round(4 * scaleFactor))}px`,
-                                        }}
-                                    >
-                                        {EQUIPMENT_SLOTS.map((slot) => {
-                                            const equippedItem = getItemForSlot(slot);
-                                            return (
-                                                <div key={slot} style={{ width: '100%', minWidth: 0 }}>
-                                                    <EquipmentSlotDisplay
-                                                        slot={slot}
-                                                        item={equippedItem}
-                                                        scaleFactor={Math.max(0.34, scaleFactor * 0.68)}
-                                                        onClick={equippedItem ? () => setSelectedItemId(equippedItem.id) : undefined}
-                                                        isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
-                                                    />
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                    <div className="mt-2 border-t border-gray-600/60 pt-2">
-                                        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
-                                            {Object.values(CoreStat).map((stat) => {
-                                                const baseStats = currentUser.baseStats || {};
-                                                const spentStatPoints = currentUser.spentStatPoints || {};
-                                                const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
-                                                const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-                                                const bonus = Math.floor(baseValue * (bonusInfo.percent / 100)) + bonusInfo.flat;
-                                                const finalValue = baseValue + bonus;
-                                                return (
-                                                    <div
-                                                        key={stat}
-                                                        className="flex items-center justify-between rounded-md bg-tertiary/40 p-1"
-                                                        style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                    >
-                                                        <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
-                                                        <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
-                                                            {isNaN(finalValue) ? 0 : finalValue}
-                                                            {bonus > 0 && (
-                                                                <span className="ml-0.5 text-green-400" style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
-                                                                    (+{bonus})
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="mt-2 flex items-center gap-1.5">
-                                            <select
-                                                value={selectedPreset}
-                                                onChange={(e) => handlePresetChange(Number(e.target.value))}
-                                                className="min-w-0 flex-1 rounded-md border border-color bg-secondary p-1 focus:border-accent focus:ring-accent"
-                                                style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                            >
-                                                {presets.map((preset, index) => (
-                                                    <option key={index} value={index}>
-                                                        {preset.name}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1 !px-2 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                저장
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </div>
-                                {/* 모바일: 좁은 열 — 선택 아이템 (같은 슬롯 장착 장비와 옵션 수치 비교) */}
-                                <div
-                                    className="flex min-w-0 flex-1 flex-col"
-                                    style={{
-                                        minHeight: `${mobileSelectedViewerHeightPx}px`,
-                                        height: `${mobileSelectedViewerHeightPx}px`,
-                                        maxHeight: `${mobileSelectedViewerHeightPx}px`,
-                                    }}
-                                >
-                                    {selectedItem && selectedItem.type === 'equipment' ? (
-                                        <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-1.5">
-                                            <div className="mb-1 flex shrink-0 items-center justify-between gap-1">
-                                                <h3
-                                                    className="min-w-0 truncate font-bold text-on-panel"
-                                                    style={{ fontSize: `${Math.max(12, Math.round(15 * scaleFactor * mobileTextScale))}px` }}
-                                                >
-                                                    선택 장비
-                                                </h3>
-                                                {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
-                                                    <Button
-                                                        type="button"
-                                                        onClick={() => setIsEquipCompareOpen(true)}
-                                                        colorScheme="blue"
-                                                        className={`!shrink-0 !py-0.5 !px-1.5 ${viewerActionButtonClass.info}`}
-                                                        style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}
-                                                    >
-                                                        장비 비교
-                                                    </Button>
-                                                )}
-                                            </div>
-                                            <div className="min-h-0 flex-1 overflow-y-auto px-0.5 pb-14" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                                <LocalItemDetailDisplay
-                                                    item={selectedItem}
-                                                    title="선택된 아이템 없음"
-                                                    comparisonItem={correspondingEquippedItem ?? undefined}
-                                                    scaleFactor={scaleFactor}
-                                                    mobileTextScale={mobileTextScale}
-                                                    userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
-                                                    detailScaleMultiplier={0.88}
-                                                />
-                                            </div>
-                                            <div className="absolute bottom-1 left-0 right-0 z-30 flex shrink-0 justify-center gap-1 bg-panel-secondary/95 px-1 backdrop-blur-sm">
-                                                {selectedItem.id === correspondingEquippedItem?.id ? (
-                                                    <Button
-                                                        onClick={() => handleEquipToggle(selectedItem.id)}
-                                                        colorScheme="red"
-                                                        className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`}
-                                                        style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                    >
-                                                        해제
-                                                    </Button>
-                                                ) : (
-                                                    <Button
-                                                        onClick={() => handleEquipToggle(selectedItem.id)}
-                                                        colorScheme="green"
-                                                        className={`flex-1 !py-1 ${viewerActionButtonClass.success}`}
-                                                        disabled={!canEquip}
-                                                        style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                    >
-                                                        장착
-                                                    </Button>
-                                                )}
-                                                <Button
-                                                    onClick={() => onStartEnhance(selectedItem)}
-                                                    disabled={selectedItem.stars >= 10}
-                                                    colorScheme="yellow"
-                                                    className={`flex-1 !py-1 ${viewerActionButtonClass.warning}`}
-                                                    style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                >
-                                                    {selectedItem.stars >= 10 ? '최대' : '강화'}
-                                                </Button>
-                                                <Button
-                                                    onClick={() => setItemToSell(selectedItem)}
-                                                    colorScheme="red"
-                                                    className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`}
-                                                    style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                >
-                                                    판매
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ) : selectedItem && (selectedItem.type === 'consumable' || selectedItem.type === 'material') ? (
-                                        <div className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-2">
-                                            <h3
-                                                className="mb-2 flex-shrink-0 font-bold text-on-panel"
-                                                style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}
-                                            >
-                                                선택 {selectedItem.type === 'consumable' ? '소모품' : '재료'}
-                                            </h3>
-                                            <div
-                                                className="min-h-0 flex-1 overflow-y-auto"
-                                                style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px`, WebkitOverflowScrolling: 'touch' }}
-                                            >
-                                                <div className="mb-2 flex items-start justify-between gap-1">
-                                                    <div
-                                                        className="relative aspect-square flex-shrink-0 rounded-lg"
-                                                        style={{
-                                                            width: `${Math.max(72, Math.round(104 * scaleFactor))}px`,
-                                                            height: `${Math.max(72, Math.round(104 * scaleFactor))}px`,
-                                                        }}
-                                                    >
-                                                        <img
-                                                            src={gradeBackgrounds[selectedItem.grade]}
-                                                            alt={selectedItem.grade}
-                                                            className="absolute inset-0 h-full w-full rounded-lg object-cover"
-                                                        />
-                                                        {isActionPointConsumable(selectedItem.name) ? (
-                                                            <div
-                                                                className="absolute inset-0 flex flex-col items-center justify-center text-amber-300"
-                                                                style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }}
-                                                            >
-                                                                <span className="text-2xl leading-none" aria-hidden>
-                                                                    ⚡
-                                                                </span>
-                                                                <span
-                                                                    className="mt-0.5 font-bold text-amber-200"
-                                                                    style={{ fontSize: `${Math.max(11, Math.round(15 * scaleFactor * mobileTextScale))}px` }}
-                                                                >
-                                                                    +{selectedItem.name.replace(/.*\(\+(\d+)\)/, '$1')}
-                                                                </span>
-                                                            </div>
-                                                        ) : selectedItem.image ? (
-                                                            <img
-                                                                src={selectedItem.image}
-                                                                alt={selectedItem.name}
-                                                                className="absolute object-contain"
-                                                                style={{
-                                                                    width: '80%',
-                                                                    height: '80%',
-                                                                    padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`,
-                                                                    left: '50%',
-                                                                    top: '50%',
-                                                                    transform: 'translate(-50%, -50%)',
-                                                                }}
-                                                            />
-                                                        ) : null}
-                                                    </div>
-                                                    <div className="min-w-0 flex-grow text-right">
-                                                        <h3
-                                                            className={`font-bold break-words ${gradeStyles[selectedItem.grade].color}`}
-                                                            style={{ fontSize: `${Math.max(13, Math.round(16 * scaleFactor * mobileTextScale))}px` }}
-                                                        >
-                                                            {selectedItem.name}
-                                                        </h3>
-                                                        <p className={gradeStyles[selectedItem.grade].color} style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                            [{gradeStyles[selectedItem.grade].name}]
-                                                        </p>
-                                                        <p className="mt-1 text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                            {selectedItem.description}
-                                                        </p>
-                                                        <p className="mt-1 text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                            보유 수량: {selectedItem.quantity}
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                                {selectedItem.type === 'material' && (
-                                                    <div className="mt-2 rounded-lg bg-gray-800/50 p-2">
-                                                        <p className="mb-1 font-semibold text-secondary" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                                                            강화 필요 정보:
-                                                        </p>
-                                                        {enhancementMaterialDetails.length > 0 ? (
-                                                            enhancementMaterialDetails.slice(0, 2).map((detail, index) => (
-                                                                <p key={index} className="text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                                    {detail}
-                                                                </p>
-                                                            ))
-                                                        ) : (
-                                                            <p className="text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                                이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.
-                                                            </p>
-                                                        )}
-                                                        {enhancementMaterialDetails.length > 2 && (
-                                                            <p className="mt-1 text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                                ...
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="absolute bottom-1 left-0 right-0 flex shrink-0 flex-wrap justify-center gap-1 px-1">
-                                                {selectedItem.type === 'consumable' &&
-                                                    (() => {
-                                                        const consumableItem = findConsumableItem(selectedItem.name);
-                                                        const isUsable = consumableItem?.usable !== false;
-                                                        const isSellable = consumableItem?.sellable !== false;
-                                                        const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
-                                                        return (
-                                                            <>
-                                                                {isUsable && (
-                                                                    <>
-                                                                        <Button
-                                                                            onClick={() => {
-                                                                                void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
-                                                                            }}
-                                                                            colorScheme="blue"
-                                                                            className={`w-full !py-1 ${viewerActionButtonClass.info}`}
-                                                                            style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                                        >
-                                                                            사용
-                                                                        </Button>
-                                                                        {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                                            <Button
-                                                                                onClick={() => {
-                                                                                    setItemToUseBulk(selectedItem);
-                                                                                    setShowUseQuantityModal(true);
-                                                                                }}
-                                                                                colorScheme="purple"
-                                                                                className={`w-full !py-1 ${viewerActionButtonClass.accent}`}
-                                                                                style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                                            >
-                                                                                일괄 사용
-                                                                            </Button>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                                {isSellable && (
-                                                                    <>
-                                                                        <Button
-                                                                            onClick={() => setItemToSell(selectedItem)}
-                                                                            colorScheme="red"
-                                                                            className={`w-full !py-1 ${viewerActionButtonClass.danger}`}
-                                                                            style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                                        >
-                                                                            판매
-                                                                        </Button>
-                                                                        {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                                            <Button
-                                                                                onClick={() => setItemToSellBulk(selectedItem)}
-                                                                                colorScheme="orange"
-                                                                                className={`w-full !py-1 ${viewerActionButtonClass.warning}`}
-                                                                                style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                                            >
-                                                                                일괄 판매
-                                                                            </Button>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </>
-                                                        );
-                                                    })()}
-                                                {selectedItem.type === 'material' && (
-                                                    <>
-                                                        <Button
-                                                            onClick={() => setItemToSell(selectedItem)}
-                                                            colorScheme="red"
-                                                            className={`w-full !py-1 ${viewerActionButtonClass.danger}`}
-                                                            style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                        >
-                                                            판매
-                                                        </Button>
-                                                        <Button
-                                                            onClick={() => setItemToSellBulk(selectedItem)}
-                                                            colorScheme="orange"
-                                                            className={`w-full !py-1 ${viewerActionButtonClass.warning}`}
-                                                            style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                        >
-                                                            일괄 판매
-                                                        </Button>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ) : selectedItem ? (
-                                        <div
-                                            className="flex h-full flex-1 items-center justify-center rounded-lg bg-panel-secondary p-2 text-tertiary"
-                                            style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
-                                        >
-                                            선택된 아이템 없음
-                                        </div>
-                                    ) : (
-                                        <div
-                                            className="flex h-full flex-1 items-center justify-center rounded-lg border border-dashed border-gray-600/60 p-2 text-center text-tertiary"
-                                            style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
-                                        >
-                                            아이템을 선택해주세요
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </>
-                    ) : (
+                {narrowInventoryLayout ? (
+                    <div className="mb-2 shrink-0 rounded-md bg-gray-800 px-2 py-2 shadow-inner">
+                        <Button
+                            type="button"
+                            onClick={() => setIsMobileEquippedModalOpen(true)}
+                            colorScheme="blue"
+                            className={`w-full !py-2 !px-3 ${viewerActionButtonClass.info}`}
+                            style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}
+                        >
+                            장착장비
+                        </Button>
+                    </div>
+                ) : (
+                    <div
+                        className="bg-gray-800 mb-2 rounded-md shadow-inner flex shrink-0 flex-row"
+                        style={{
+                            padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
+                        }}
+                    >
                         <>
                             {/* 데스크톱: 좌 1/3 장착+스탯, 우측 상세 */}
                             <div className="w-1/3 flex-shrink-0 border-r border-gray-700" style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}>
@@ -1798,8 +1443,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         </div>
                     )}
                         </>
-                    )}
-                </div>
+                    </div>
+                )}
 
                 {/* Bottom section: Inventory grid — 모바일은 flex-1+min-h-0으로 남는 영역만 쓰고 내부 스크롤 (상단 뷰어가 밀리지 않게) */}
                 <div
@@ -1815,32 +1460,59 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     }}
                 >
                     <div className={`flex-shrink-0 bg-gray-900/50 rounded-md mb-2`} style={{ padding: `${Math.max(6, Math.round(8 * scaleFactor))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>
-                        <div className={`flex items-center justify-between`}>
-                            <div className={`flex items-center space-x-2`}>
-                                <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
-                                <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
-                                <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
-                                <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
-                            </div>
-                            <div className={`flex items-center space-x-2`}>
-                                <span style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
-                                <select onChange={(e) => setSortKey(e.target.value as SortKey)} value={sortKey} className={`bg-gray-700 text-white rounded-md p-1`} style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                    <option value="createdAt">최신순</option>
-                                    <option value="grade">등급순</option>
-                                    <option value="type">종류순</option>
-                                </select>
-                                <div className="text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                                    {`${filteredAndSortedInventory.length} / ${currentSlots}`}
+                        {narrowInventoryLayout ? (
+                            <div className="flex min-w-0 flex-col gap-2">
+                                <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                    <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
+                                    <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
+                                    <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
+                                    <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
+                                </div>
+                                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-gray-700/50 pt-2">
+                                    <span className="shrink-0" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
+                                    <select
+                                        onChange={(e) => setSortKey(e.target.value as SortKey)}
+                                        value={sortKey}
+                                        className="min-w-0 flex-1 rounded-md bg-gray-700 p-1.5 text-white sm:max-w-[14rem]"
+                                        style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                    >
+                                        <option value="createdAt">최신순</option>
+                                        <option value="grade">등급순</option>
+                                        <option value="type">종류순</option>
+                                    </select>
+                                    <div className="ml-auto shrink-0 text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                        {`${filteredAndSortedInventory.length} / ${currentSlots}`}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div className={`flex items-center justify-between`}>
+                                <div className={`flex items-center space-x-2`}>
+                                    <Button onClick={() => setActiveTab('all')} colorScheme={activeTab === 'all' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'all')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>전체</Button>
+                                    <Button onClick={() => setActiveTab('equipment')} colorScheme={activeTab === 'equipment' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'equipment')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>장비</Button>
+                                    <Button onClick={() => setActiveTab('consumable')} colorScheme={activeTab === 'consumable' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'consumable')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>소모품</Button>
+                                    <Button onClick={() => setActiveTab('material')} colorScheme={activeTab === 'material' ? 'blue' : 'gray'} className={`!py-1 !px-2 ${getLuxuryTabButtonClass(activeTab === 'material')}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>재료</Button>
+                                </div>
+                                <div className={`flex items-center space-x-2`}>
+                                    <span style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>정렬:</span>
+                                    <select onChange={(e) => setSortKey(e.target.value as SortKey)} value={sortKey} className={`bg-gray-700 text-white rounded-md p-1`} style={{ fontSize: `${Math.max(9, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                                        <option value="createdAt">최신순</option>
+                                        <option value="grade">등급순</option>
+                                        <option value="type">종류순</option>
+                                    </select>
+                                    <div className="text-gray-400" style={{ fontSize: `${Math.max(10, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                        {`${filteredAndSortedInventory.length} / ${currentSlots}`}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="overflow-y-auto flex-1 min-h-0" style={{ width: '100%', minWidth: 0, paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
                         <div 
                             className="grid gap-2" 
                             style={{ 
                                 gridTemplateColumns: narrowInventoryLayout
-                                    ? `repeat(8, minmax(0, 1fr))`
+                                    ? `repeat(${mobileInventoryColumns}, minmax(0, 1fr))`
                                     : `repeat(12, minmax(0, 1fr))`,
                                 gap: `${Math.max(narrowInventoryLayout ? 3 : 4, Math.round((narrowInventoryLayout ? 5 : 8) * scaleFactor))}px`,
                                 width: '100%',
@@ -1855,7 +1527,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     <div key={item.id} className="aspect-square" style={{ width: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%' }}>
                                         <InventoryItemCard
                                             item={item}
-                                            onClick={() => setSelectedItemId(item.id)}
+                                            onClick={() => {
+                                                setSelectedItemId(item.id);
+                                                if (narrowInventoryLayout) setIsMobileItemDetailOpen(true);
+                                            }}
                                             isSelected={selectedItemId === item.id}
                                             isEquipped={item.isEquipped || false}
                                             enhancementStars={enhancementAnimationTarget?.itemId === item.id ? enhancementAnimationTarget.stars : undefined}
@@ -1886,6 +1561,174 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
 
                 </div>
             </div>
+
+            {narrowInventoryLayout && isMobileEquippedModalOpen && (
+                <DraggableWindow
+                    title="장착 장비"
+                    onClose={() => setIsMobileEquippedModalOpen(false)}
+                    windowId="inventoryMobileEquipped"
+                    isTopmost={isTopmost && !isMobileItemDetailOpen}
+                    initialWidth={720}
+                    initialHeight={640}
+                    variant="store"
+                    mobileViewportFit
+                    mobileViewportMaxHeightVh={92}
+                    hideFooter
+                    bodyPaddingClassName="p-2 sm:p-3"
+                >
+                    <div className="flex max-h-[min(78dvh,720px)] min-h-0 flex-col gap-2 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                        <h3
+                            className="font-bold text-on-panel"
+                            style={{
+                                fontSize: `${Math.max(12, Math.round(15 * scaleFactor * mobileTextScale))}px`,
+                            }}
+                        >
+                            장착 슬롯
+                        </h3>
+                        <div
+                            className="grid"
+                            style={{
+                                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                                gap: `${Math.max(3, Math.round(4 * scaleFactor))}px`,
+                            }}
+                        >
+                            {EQUIPMENT_SLOTS.map((slot) => {
+                                const equippedItem = getItemForSlot(slot);
+                                return (
+                                    <div key={slot} style={{ width: '100%', minWidth: 0 }}>
+                                        <EquipmentSlotDisplay
+                                            slot={slot}
+                                            item={equippedItem}
+                                            scaleFactor={Math.max(0.34, scaleFactor * 0.68)}
+                                            onClick={equippedItem ? () => {
+                                                setSelectedItemId(equippedItem.id);
+                                                setIsMobileItemDetailOpen(true);
+                                            } : undefined}
+                                            isSelected={equippedItem ? selectedItemId === equippedItem.id : false}
+                                        />
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <div className="border-t border-gray-600/60 pt-2">
+                            <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                                {Object.values(CoreStat).map((stat) => {
+                                    const baseStats = currentUser.baseStats || {};
+                                    const spentStatPoints = currentUser.spentStatPoints || {};
+                                    const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
+                                    const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
+                                    const bonus = Math.floor(baseValue * (bonusInfo.percent / 100)) + bonusInfo.flat;
+                                    const finalValue = baseValue + bonus;
+                                    return (
+                                        <div
+                                            key={stat}
+                                            className="flex items-center justify-between rounded-md bg-tertiary/40 p-1"
+                                            style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
+                                        >
+                                            <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
+                                            <span className="whitespace-nowrap font-mono font-bold" title={`기본: ${baseValue}, 장비: ${bonus}`}>
+                                                {isNaN(finalValue) ? 0 : finalValue}
+                                                {bonus > 0 && (
+                                                    <span className="ml-0.5 text-green-400" style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
+                                                        (+{bonus})
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-2 flex items-center gap-1.5">
+                                <select
+                                    value={selectedPreset}
+                                    onChange={(e) => handlePresetChange(Number(e.target.value))}
+                                    className="min-w-0 flex-1 rounded-md border border-color bg-secondary p-1 focus:border-accent focus:ring-accent"
+                                    style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
+                                >
+                                    {presets.map((preset, index) => (
+                                        <option key={index} value={index}>
+                                            {preset.name}
+                                        </option>
+                                    ))}
+                                </select>
+                                <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1 !px-2 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                                    저장
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                </DraggableWindow>
+            )}
+
+            {narrowInventoryLayout && isMobileItemDetailOpen && selectedItem && (
+                <DraggableWindow
+                    title="아이템 정보"
+                    onClose={() => setIsMobileItemDetailOpen(false)}
+                    windowId="inventoryMobileItemDetail"
+                    isTopmost={!isEquipCompareOpen}
+                    initialWidth={720}
+                    initialHeight={740}
+                    variant="store"
+                    mobileViewportFit
+                    mobileViewportMaxHeightVh={96}
+                    hideFooter
+                    bodyPaddingClassName="p-2 sm:p-3"
+                >
+                    <div className="flex min-h-[48dvh] flex-col gap-2">
+                        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-panel-secondary p-2">
+                            <LocalItemDetailDisplay
+                                item={selectedItem}
+                                title="선택된 아이템 없음"
+                                comparisonItem={selectedItem.type === 'equipment' ? (correspondingEquippedItem ?? undefined) : undefined}
+                                scaleFactor={scaleFactor}
+                                mobileTextScale={mobileTextScale}
+                                userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                detailScaleMultiplier={0.92}
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                            {selectedItem.type === 'equipment' && (
+                                <>
+                                    {selectedItem.id === correspondingEquippedItem?.id ? (
+                                        <Button onClick={() => handleEquipToggle(selectedItem.id)} colorScheme="red" className={viewerActionButtonClass.danger}>해제</Button>
+                                    ) : (
+                                        <Button onClick={() => handleEquipToggle(selectedItem.id)} colorScheme="green" className={viewerActionButtonClass.success} disabled={!canEquip}>장착</Button>
+                                    )}
+                                    {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
+                                        <Button
+                                            type="button"
+                                            onClick={() => setIsEquipCompareOpen(true)}
+                                            colorScheme="blue"
+                                            className={viewerActionButtonClass.info}
+                                        >
+                                            장비 비교
+                                        </Button>
+                                    )}
+                                    <Button onClick={() => onStartEnhance(selectedItem)} disabled={selectedItem.stars >= 10} colorScheme="yellow" className={viewerActionButtonClass.warning}>
+                                        {selectedItem.stars >= 10 ? '최대 강화' : '강화'}
+                                    </Button>
+                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={viewerActionButtonClass.danger}>판매</Button>
+                                </>
+                            )}
+                            {selectedItem.type === 'consumable' && (
+                                <>
+                                    <Button onClick={() => { void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } }); }} colorScheme="blue" className={viewerActionButtonClass.info}>사용</Button>
+                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={viewerActionButtonClass.danger}>판매</Button>
+                                    {selectedItem.quantity && selectedItem.quantity > 1 && (
+                                        <Button onClick={() => { setItemToUseBulk(selectedItem); setShowUseQuantityModal(true); }} colorScheme="purple" className={viewerActionButtonClass.accent}>일괄 사용</Button>
+                                    )}
+                                </>
+                            )}
+                            {selectedItem.type === 'material' && (
+                                <>
+                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={viewerActionButtonClass.danger}>판매</Button>
+                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={viewerActionButtonClass.warning}>일괄 판매</Button>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </DraggableWindow>
+            )}
 
             {isEquipCompareOpen &&
                 selectedItem?.type === 'equipment' &&
@@ -2094,35 +1937,101 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             )}
 
             {isExpandModalOpen && activeTab !== 'all' && (
-                <DraggableWindow title="가방 확장" onClose={() => setIsExpandModalOpen(false)} windowId="expandInventory" isTopmost={isTopmost} variant="store">
-                    <div className="w-full h-full flex flex-col items-center justify-center p-6">
-                        <div className="w-full max-w-[360px] flex flex-col items-center justify-center space-y-6 text-center">
-                            <div className="flex flex-col items-center space-y-3 w-full">
-                                <p className="text-on-panel text-base font-medium w-full">{`${activeTabLabel} 가방을 확장하시겠습니까?`}</p>
-                                <div className="flex items-center justify-center gap-3 text-base font-semibold w-full">
-                                    <span className="text-gray-400">{currentCategorySlots}칸</span>
-                                    <span className="text-gray-500">→</span>
-                                    <span className="text-emerald-300">{nextCategorySlots}칸</span>
+                <DraggableWindow
+                    title="가방 확장"
+                    onClose={() => setIsExpandModalOpen(false)}
+                    windowId="expandInventory"
+                    isTopmost={isTopmost}
+                    variant="store"
+                    initialWidth={400}
+                    initialHeight={520}
+                    hideFooter
+                    bodyNoScroll
+                    bodyPaddingClassName="p-0"
+                >
+                    <div className="relative flex flex-col overflow-hidden rounded-b-[inherit] bg-gradient-to-b from-amber-950/25 via-stone-950 to-zinc-950 px-4 pb-5 pt-2 sm:px-5 sm:pb-6 sm:pt-2.5">
+                        <div
+                            className="pointer-events-none absolute -left-20 top-0 h-40 w-40 rounded-full bg-amber-500/12 blur-3xl"
+                            aria-hidden
+                        />
+                        <div
+                            className="pointer-events-none absolute -right-16 bottom-24 h-36 w-36 rounded-full bg-cyan-500/10 blur-3xl"
+                            aria-hidden
+                        />
+                        <div
+                            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/20 to-transparent"
+                            aria-hidden
+                        />
+
+                        <div className="relative mx-auto flex w-full max-w-[22rem] flex-col gap-4">
+                            <div className="text-center">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/55">Inventory upgrade</p>
+                                <p className="mt-2 text-balance text-base font-bold leading-snug text-amber-50/95 sm:text-lg">
+                                    {activeTabLabel} 가방을 확장하시겠습니까?
+                                </p>
+                            </div>
+
+                            <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/50 via-stone-900/75 to-stone-950/95 p-4 shadow-[0_20px_50px_-28px_rgba(16,185,129,0.45)] ring-1 ring-inset ring-white/[0.06] sm:p-5">
+                                <div className="mb-3 flex items-center justify-center gap-2 border-b border-emerald-500/15 pb-2.5">
+                                    <span
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-400/25 bg-emerald-950/60 text-emerald-300/90 shadow-inner"
+                                        aria-hidden
+                                    >
+                                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 7h12l1 10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L6 7z" />
+                                            <path d="M9 11v2M15 11v2" />
+                                        </svg>
+                                    </span>
+                                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-200/80">수납 공간</span>
+                                </div>
+                                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-on-panel">
+                                    <span className="rounded-lg border border-stone-600/50 bg-stone-900/70 px-3 py-1.5 font-mono text-sm font-bold tabular-nums text-stone-400 shadow-inner sm:text-base">
+                                        {currentCategorySlots}칸
+                                    </span>
+                                    <span className="text-lg font-black text-emerald-500/70 sm:text-xl" aria-hidden>
+                                        →
+                                    </span>
+                                    <span className="rounded-lg border border-emerald-400/35 bg-emerald-950/40 px-3 py-1.5 font-mono text-sm font-bold tabular-nums text-emerald-200 shadow-[0_0_24px_-8px_rgba(52,211,153,0.5)] sm:text-base">
+                                        {nextCategorySlots}칸
+                                    </span>
                                     {slotsIncrease > 0 && (
-                                        <span className="text-emerald-400 text-sm">(+{slotsIncrease})</span>
+                                        <span className="w-full text-center text-xs font-semibold text-emerald-400/90 sm:w-auto sm:text-sm">
+                                            +{slotsIncrease}칸 추가
+                                        </span>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex flex-col items-center gap-2 w-full">
-                                <span className="text-xs text-gray-400">필요 다이아</span>
-                                <div className={`flex items-center justify-center gap-2 px-4 py-2 rounded-full border ${hasEnoughDiamonds ? 'border-cyan-400/60 bg-cyan-500/10 text-cyan-100' : 'border-rose-500/60 bg-rose-500/10 text-rose-200'}`}>
-                                    <img src="/images/icon/Zem.png" alt="다이아" className="w-5 h-5 object-contain" />
-                                    <span className="font-bold text-base">{expansionCost.toLocaleString()}</span>
+
+                            <div
+                                className={`rounded-2xl border p-4 shadow-[0_16px_40px_-24px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.05] sm:p-4 ${
+                                    hasEnoughDiamonds
+                                        ? 'border-cyan-400/35 bg-gradient-to-br from-sky-950/40 via-stone-900/80 to-indigo-950/30'
+                                        : 'border-rose-500/40 bg-gradient-to-br from-rose-950/35 via-stone-900/80 to-stone-950'
+                                }`}
+                            >
+                                <p className="mb-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400">필요 다이아</p>
+                                <div className="flex items-center justify-center gap-2.5">
+                                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-black/30 shadow-inner">
+                                        <img src="/images/icon/Zem.png" alt="" className="h-7 w-7 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.45)]" />
+                                    </div>
+                                    <span
+                                        className={`font-mono text-2xl font-black tabular-nums tracking-tight sm:text-[1.65rem] ${
+                                            hasEnoughDiamonds ? 'text-cyan-100' : 'text-rose-200'
+                                        }`}
+                                    >
+                                        {expansionCost.toLocaleString()}
+                                    </span>
                                 </div>
                                 {!hasEnoughDiamonds && (
-                                    <span className="text-xs text-rose-300 mt-1">다이아가 부족합니다.</span>
+                                    <p className="mt-3 text-center text-xs font-medium text-rose-300/95">다이아가 부족합니다.</p>
                                 )}
                             </div>
-                            <div className="flex items-center justify-center gap-3 w-full pt-2">
-                                <Button 
-                                    onClick={() => setIsExpandModalOpen(false)} 
-                                    colorScheme="gray"
-                                    className="px-6 py-2.5 min-w-[100px]"
+
+                            <div className="flex flex-wrap items-stretch justify-center gap-3 pt-0.5">
+                                <Button
+                                    onClick={() => setIsExpandModalOpen(false)}
+                                    colorScheme="none"
+                                    className="min-h-[2.75rem] min-w-[6.5rem] rounded-xl border-2 border-stone-500/45 bg-gradient-to-b from-stone-700/90 to-stone-900/95 px-5 py-2.5 text-sm font-bold text-stone-100 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.8)] transition hover:border-stone-400/55 hover:brightness-110 active:scale-[0.99] focus:ring-2 focus:ring-stone-500/40 focus:ring-offset-2 focus:ring-offset-stone-950"
                                 >
                                     취소
                                 </Button>
@@ -2130,12 +2039,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     onClick={handleConfirmExpand}
                                     disabled={!hasEnoughDiamonds}
                                     variant="diamonds"
-                                    className="flex items-center justify-center gap-2 px-6 py-2.5 min-w-[120px]"
+                                    className="!w-auto min-h-[2.75rem] min-w-[9.5rem] !rounded-xl !border-2 !px-5 !py-2.5 !text-sm !font-bold !shadow-[0_12px_36px_-16px_rgba(56,189,248,0.55)]"
                                 >
-                                    <span>확장</span>
-                                    <span className="flex items-center gap-1 text-sm">
-                                        <img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4 object-contain" />
-                                        {expansionCost.toLocaleString()}
+                                    <span className="flex items-center justify-center gap-2">
+                                        <span>확장</span>
+                                        <span className="flex items-center gap-1 opacity-95">
+                                            <img src="/images/icon/Zem.png" alt="" className="h-4 w-4 object-contain" />
+                                            <span className="font-mono tabular-nums">{expansionCost.toLocaleString()}</span>
+                                        </span>
                                     </span>
                                 </ResourceActionButton>
                             </div>
@@ -2145,23 +2056,79 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             )}
 
             {isRenameModalOpen && (
-                <DraggableWindow title="프리셋 이름 변경" onClose={() => setIsRenameModalOpen(false)} windowId="renamePreset" isTopmost={isTopmost && !isExpandModalOpen}>
-                    <div className="p-4 flex flex-col items-center">
-                        <p className="mb-4 text-on-panel">새로운 프리셋 이름을 입력하세요:</p>
-                        <input
-                            type="text"
-                            value={newPresetName}
-                            onChange={(e) => setNewPresetName(e.target.value)}
-                            className="bg-secondary border border-color text-on-panel text-sm rounded-md p-2 mb-4 w-full max-w-xs"
-                            maxLength={20}
-                        />
-                        <div className="flex gap-2">
-                            <Button onClick={handleSavePreset} colorScheme="blue">
-                                저장
-                            </Button>
-                            <Button onClick={() => setIsRenameModalOpen(false)} colorScheme="gray">
-                                취소
-                            </Button>
+                <DraggableWindow
+                    title="프리셋 이름 변경"
+                    onClose={() => setIsRenameModalOpen(false)}
+                    windowId="renamePreset"
+                    isTopmost={isTopmost && !isExpandModalOpen}
+                    zIndex={78}
+                    variant="store"
+                    initialWidth={400}
+                    initialHeight={320}
+                    skipSavedPosition
+                    hideFooter
+                    mobileViewportFit
+                    mobileViewportMaxHeightCss="min(88dvh, calc(100dvh - 16px))"
+                    bodyPaddingClassName="!p-2 sm:!p-3"
+                >
+                    <div className="flex flex-col gap-3 p-1">
+                        <div
+                            className="relative overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_20px_44px_-22px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                            role="dialog"
+                            aria-labelledby="preset-rename-heading"
+                        >
+                            <div
+                                className="pointer-events-none absolute inset-0 opacity-[0.11]"
+                                style={{
+                                    background:
+                                        'radial-gradient(ellipse 90% 50% at 50% -8%, rgba(251, 191, 36, 0.42), transparent 55%), radial-gradient(ellipse 65% 40% at 50% 108%, rgba(34, 211, 238, 0.1), transparent 52%)',
+                                }}
+                                aria-hidden
+                            />
+                            <div className="relative px-4 pb-5 pt-5 sm:px-5 sm:pb-6 sm:pt-6">
+                                <div className="mx-auto mb-4 h-px w-2/3 max-w-[14rem] bg-gradient-to-r from-transparent via-amber-400/45 to-transparent" aria-hidden />
+                                <h2
+                                    id="preset-rename-heading"
+                                    className="mb-1 text-center text-sm font-bold tracking-wide text-amber-100/95 sm:text-base"
+                                >
+                                    프리셋 이름
+                                </h2>
+                                <p className="mb-4 text-center text-[11px] leading-relaxed text-slate-400 sm:text-xs">
+                                    저장할 프리셋의 표시 이름을 입력하세요. (최대 20자)
+                                </p>
+                                <label htmlFor="preset-rename-input" className="sr-only">
+                                    프리셋 이름
+                                </label>
+                                <input
+                                    id="preset-rename-input"
+                                    type="text"
+                                    value={newPresetName}
+                                    onChange={e => setNewPresetName(e.target.value)}
+                                    maxLength={20}
+                                    autoFocus
+                                    className="mb-1 w-full rounded-xl border border-amber-500/25 bg-black/45 px-3 py-2.5 text-center text-sm font-semibold text-slate-100 shadow-inner outline-none ring-0 transition placeholder:text-slate-500 focus:border-amber-400/55 focus:bg-black/55 focus:shadow-[0_0_0_1px_rgba(251,191,36,0.25),inset_0_1px_0_rgba(255,255,255,0.06)] sm:py-3 sm:text-base"
+                                    placeholder="예: 공격 세트"
+                                />
+                                <p className="mb-4 text-center text-[10px] tabular-nums text-slate-500">
+                                    {newPresetName.length} / 20
+                                </p>
+                                <div className="flex flex-col gap-2 sm:flex-row sm:justify-center sm:gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={handleSavePreset}
+                                        className="w-full rounded-xl border border-amber-400/35 bg-gradient-to-b from-emerald-500/95 via-emerald-600/95 to-emerald-800/90 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition hover:border-amber-300/50 hover:from-emerald-400 hover:via-emerald-500 hover:to-emerald-700 active:scale-[0.98] sm:flex-1 sm:max-w-[11rem] sm:py-3"
+                                    >
+                                        저장
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRenameModalOpen(false)}
+                                        className="w-full rounded-xl border border-slate-500/55 bg-gradient-to-b from-slate-700/90 to-slate-900/95 py-2.5 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-slate-400/60 hover:from-slate-600/90 hover:to-slate-800/95 active:scale-[0.98] sm:flex-1 sm:max-w-[11rem] sm:py-3"
+                                    >
+                                        취소
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </DraggableWindow>
@@ -2351,19 +2318,26 @@ const InventoryItemCard: React.FC<{
                     P
                 </div>
             )}
-            {(item.type === 'consumable' || item.type === 'material') && item.quantity && item.quantity > 1 && (
-                <div 
-                    className="absolute bg-black/70 text-white font-bold rounded border border-white/30"
-                    style={{
-                        bottom: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
-                        right: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
-                        fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
-                        padding: `${Math.max(2, Math.round(4 * scaleFactor))}px ${Math.max(3, Math.round(4 * scaleFactor))}px`
-                    }}
-                >
-                    {item.quantity}
-                </div>
-            )}
+            {(() => {
+                if (item.type !== 'consumable' && item.type !== 'material') return null;
+                const stackQty = item.quantity ?? 1;
+                const isTicket = isRefinementTicketMaterial(item.name);
+                if (!isTicket && stackQty <= 1) return null;
+                if (isTicket && stackQty < 1) return null;
+                return (
+                    <div
+                        className="absolute bg-black/70 text-white font-bold rounded border border-white/30"
+                        style={{
+                            bottom: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                            right: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
+                            fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
+                            padding: `${Math.max(2, Math.round(4 * scaleFactor))}px ${Math.max(3, Math.round(4 * scaleFactor))}px`,
+                        }}
+                    >
+                        {stackQty}
+                    </div>
+                );
+            })()}
         </div>
     );
 };

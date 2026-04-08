@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { countTowerLobbyInventoryQty } from '../utils/towerLobbyInventory.js';
 
@@ -197,13 +198,14 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
                     <h2 className="text-xl sm:text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">
                         도전의 탑 아이템 구매
                     </h2>
-                    <Button
+                    <button
+                        type="button"
                         onClick={onClose}
-                        colorScheme="none"
-                        className="!p-1 !min-w-0 hover:bg-amber-900/50 rounded border border-amber-700/30"
+                        className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
+                        aria-label="도전의 탑 아이템 구매 닫기"
                     >
-                        <span className="text-xl text-amber-200">×</span>
-                    </Button>
+                        닫기
+                    </button>
                 </div>
 
                 <div className="flex-1 flex gap-4 min-h-0 overflow-hidden mb-4">

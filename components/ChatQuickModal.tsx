@@ -28,8 +28,8 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
     const bodyClass = useMemo(
         () =>
             isMobile
-                ? 'flex min-h-[min(58dvh,420px)] flex-col overflow-hidden'
-                : 'flex h-[min(520px,70vh)] min-h-[320px] flex-col overflow-hidden',
+                ? 'flex min-h-[min(87dvh,630px)] flex-col overflow-hidden'
+                : 'flex h-[min(780px,105vh)] min-h-[480px] flex-col overflow-hidden',
         [isMobile],
     );
 
@@ -39,7 +39,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
             onClose={onClose}
             windowId="chat-quick-modal"
             initialWidth={isMobile ? 720 : 520}
-            initialHeight={isMobile ? 480 : 560}
+            initialHeight={isMobile ? 720 : 840}
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit={isMobile}

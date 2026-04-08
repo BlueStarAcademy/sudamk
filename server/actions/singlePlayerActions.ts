@@ -585,7 +585,13 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 user.singlePlayerMissions = {};
             }
             
-            const rewards: Array<{ missionId: string; missionName: string; rewardType: 'gold' | 'diamonds'; rewardAmount: number }> = [];
+            const rewards: Array<{
+                missionId: string;
+                missionName: string;
+                missionLevel: number;
+                rewardType: 'gold' | 'diamonds';
+                rewardAmount: number;
+            }> = [];
             let totalGold = 0;
             let totalDiamonds = 0;
             
@@ -641,6 +647,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 rewards.push({
                     missionId: missionInfo.id,
                     missionName: missionInfo.name,
+                    missionLevel: currentLevel,
                     rewardType,
                     rewardAmount: availableAmount
                 });

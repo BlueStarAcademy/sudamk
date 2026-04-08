@@ -1,5 +1,5 @@
 import React from 'react';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import { TournamentType, TournamentState } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
@@ -266,12 +266,12 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
             mobileViewportFit={isMobile}
             mobileViewportMaxHeightCss="92dvh"
             mobileViewportMaxHeightVh={92}
-            bodyNoScroll={isMobile}
-            bodyScrollable={!isMobile}
+            bodyScrollable
             hideFooter={isMobile}
             skipSavedPosition={isMobile}
             bodyPaddingClassName={isMobile ? '!p-0' : undefined}
         >
+            <>
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#07080c] text-zinc-100">
                 <div
                     className="pointer-events-none absolute inset-0 opacity-[0.07]"
@@ -303,7 +303,11 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                     </div>
 
                     <div
-                        className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-2.5 pb-2 pt-2.5 sm:px-3.5 sm:pb-3 sm:pt-3 [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent] sm:p-3 ${!isMobile ? 'max-h-[min(52vh,420px)]' : ''}`}
+                        className={`min-h-0 flex-1 overflow-x-hidden px-2.5 pb-2 pt-2.5 sm:px-3.5 sm:pb-3 sm:pt-3 sm:p-3 ${
+                            isMobile
+                                ? 'overflow-y-visible'
+                                : `max-h-[min(52vh,420px)] overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent]`
+                        }`}
                     >
                         <div className="flex flex-col gap-2.5 sm:gap-3">
                             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
@@ -441,19 +445,22 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                             </div>
                         </div>
                     </div>
-
-                    <div className="relative z-10 flex shrink-0 flex-col border-t border-white/10 bg-[#07080c]/95 px-2.5 py-2.5 backdrop-blur-[2px] sm:px-3 sm:py-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
-                        <Button
-                            bare
-                            onClick={onClose}
-                            colorScheme="none"
-                            className="w-full rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 py-3 text-base font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] active:translate-y-px sm:py-2.5 sm:text-sm"
-                        >
-                            확인
-                        </Button>
-                    </div>
                 </div>
             </div>
+
+            <div
+                className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} relative z-10 flex shrink-0 flex-col border-t border-white/10 bg-[#07080c]/95 px-2.5 py-2.5 backdrop-blur-[2px] sm:px-3 sm:py-3 sm:pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]`}
+            >
+                <Button
+                    bare
+                    onClick={onClose}
+                    colorScheme="none"
+                    className="w-full rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 py-3 text-base font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] active:translate-y-px sm:py-2.5 sm:text-sm"
+                >
+                    확인
+                </Button>
+            </div>
+            </>
         </DraggableWindow>
     );
 };

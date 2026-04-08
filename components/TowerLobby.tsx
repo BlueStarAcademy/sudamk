@@ -10,7 +10,7 @@ import { TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import TowerItemShopModal from './TowerItemShopModal.js';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 import {
     countTowerLobbyInventoryQty,
     TOWER_ITEM_TURN_ADD_NAMES,
@@ -897,13 +897,14 @@ const TowerLobby: React.FC = () => {
                     <div className="bg-gradient-to-br from-gray-900/95 via-amber-950/90 to-gray-800/95 border-2 border-amber-600/50 rounded-xl p-4 sm:p-6 max-w-md max-h-[80vh] overflow-y-auto shadow-2xl shadow-amber-900/50 backdrop-blur-md">
                         <div className="flex justify-between items-center mb-4">
                             <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">도전의 탑 도움말</h2>
-                            <Button
+                            <button
+                                type="button"
                                 onClick={() => setIsHelpOpen(false)}
-                                colorScheme="none"
-                                className="!p-1 !min-w-0 hover:bg-amber-900/50 rounded border border-amber-700/30"
+                                className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
+                                aria-label="도전의 탑 도움말 닫기"
                             >
-                                <span className="text-xl text-amber-200">×</span>
-                            </Button>
+                                닫기
+                            </button>
                         </div>
                         <div className="text-sm text-amber-100 space-y-2">
                             <p>도전의 탑은 100층으로 구성된 PvE 콘텐츠입니다.</p>

@@ -24,6 +24,7 @@ import { getGuildWarBoardMode, getGuildWarStarConditionLines } from '../../share
 import AdBanner from '../ads/AdBanner.js';
 import MatchPlayGuideModal from './MatchPlayGuideModal.js';
 import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 
 
 interface SidebarProps extends GameProps {
@@ -231,7 +232,9 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
                             </button>
                         )}
                         {onClose && (
-                            <button onClick={onClose} className="text-xl font-bold text-gray-400 hover:text-white" aria-label="닫기">×</button>
+                            <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label="닫기">
+                                닫기
+                            </button>
                         )}
                     </div>
                 </h3>
@@ -313,7 +316,11 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
         <div className="bg-gray-800 p-2 rounded-md flex flex-col border border-color">
             <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex-shrink-0 flex justify-between items-center">
                 유저 목록
-                {onClose && <button onClick={onClose} className="text-xl font-bold text-gray-400 hover:text-white">×</button>}
+                {onClose && (
+                    <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label="닫기">
+                        닫기
+                    </button>
+                )}
             </h3>
             <div className="space-y-0.5 overflow-y-auto pr-1 flex-grow min-h-0" style={{ maxHeight: '7.5rem' }}>
                 {playersInRoom.map(user => renderUser(user, user.id === blackPlayerId ? '흑' : '백'))}

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import DraggableWindow from '../DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { InventoryItem, ItemGrade } from '../../types.js';
 import { gradeBackgrounds, gradeStyles } from '../../constants/items';
@@ -143,13 +143,6 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
               ? 'from-rose-950/40 via-stone-900/95 to-stone-950'
               : 'from-amber-950/45 via-stone-900/95 to-stone-950';
 
-    const heroRingClass =
-        mood === 'success'
-            ? 'border-emerald-400/45 shadow-[0_0_40px_-8px_rgba(52,211,153,0.45)] bg-gradient-to-br from-emerald-600/25 via-teal-900/20 to-stone-950/80'
-            : mood === 'fail'
-              ? 'border-rose-500/40 shadow-[0_0_36px_-10px_rgba(244,63,94,0.4)] bg-gradient-to-br from-rose-900/30 via-stone-900/40 to-stone-950/80'
-              : 'border-amber-400/50 shadow-[0_0_40px_-8px_rgba(251,191,36,0.35)] bg-gradient-to-br from-amber-700/25 via-stone-900/35 to-stone-950/80';
-
     const headlineClass =
         mood === 'success'
             ? 'bg-gradient-to-r from-emerald-200 via-teal-200 to-cyan-200 bg-clip-text text-transparent'
@@ -167,12 +160,12 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit
-            bodyNoScroll
             hideFooter
             bodyPaddingClassName="p-2 sm:p-4"
         >
+            <>
             <div
-                className={`relative flex h-full min-h-0 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain bg-gradient-to-b ${backdropClass} rounded-b-xl px-0.5 pb-1 pt-0 sm:px-2 sm:pb-2 sm:pt-1`}
+                className={`relative flex min-h-0 flex-col overflow-x-hidden overflow-y-visible bg-gradient-to-b ${backdropClass} rounded-b-xl px-0.5 pb-1 pt-0 sm:px-2 sm:pb-2 sm:pt-1`}
             >
                 <div
                     className="pointer-events-none absolute -left-24 top-0 hidden h-48 w-48 rounded-full bg-gradient-to-br from-white/5 to-transparent blur-2xl sm:block"
@@ -183,21 +176,9 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                     aria-hidden
                 />
 
-                {/* 좁은 화면: 큰 히어로/중복 제목 생략 (창 제목으로 충분) */}
-                <div className="relative hidden flex-col items-center sm:mb-4 sm:mt-2 sm:flex">
-                    <div
-                        className={`relative mb-3 flex h-16 w-16 items-center justify-center rounded-full border-2 sm:mb-4 sm:h-[5.5rem] sm:w-[5.5rem] ${heroRingClass} ${isRolling ? 'animate-pulse' : success ? 'animate-[pulse_2s_ease-in-out_infinite]' : ''}`}
-                    >
-                        <span
-                            className={`select-none text-4xl drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)] sm:text-5xl ${isRolling ? 'animate-spin' : ''}`}
-                        >
-                            {isRolling ? '⚙️' : success ? '✦' : '✕'}
-                        </span>
-                        {!isRolling && success && (
-                            <span className="pointer-events-none absolute inset-0 rounded-full border border-emerald-300/20" aria-hidden />
-                        )}
-                    </div>
-                    <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.35em] text-stone-500">
+                {/* PC: 창 제목과 보조 헤드라인 (이모지 히어로 제거 — 결과 본문 가독성 우선) */}
+                <div className="relative hidden flex-col items-center sm:mb-2 sm:mt-1 sm:flex">
+                    <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
                         {isRolling ? 'Processing' : success ? 'Enhancement' : 'Result'}
                     </p>
                     <h3 className={`text-2xl font-black tracking-tight sm:text-3xl ${headlineClass}`}>
@@ -205,11 +186,11 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                     </h3>
                 </div>
 
-                <p className="mx-auto line-clamp-2 max-h-[2.5rem] shrink-0 px-1 text-center text-[10px] leading-snug text-stone-400 sm:mt-2 sm:max-h-none sm:text-xs sm:leading-relaxed md:text-sm">
+                <p className="mx-auto line-clamp-3 max-h-[3.25rem] shrink-0 px-1 text-center text-xs leading-snug text-stone-300 sm:mt-1.5 sm:max-h-none sm:text-sm sm:leading-snug md:text-base">
                     {message}
                 </p>
 
-                <div className="mt-1.5 flex w-full max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 sm:mt-4 sm:gap-6">
+                <div className="mt-1.5 flex w-full max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 sm:mt-3 sm:gap-4">
                     <div className="rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-4 sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)]">
                         <ItemDisplay item={itemBefore} label="이전" dimmed />
                     </div>
@@ -229,24 +210,29 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                 </div>
 
                 {(success || isRolling) && (
-                    <div className="relative mt-1.5 flex shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/15 bg-gradient-to-br from-stone-900/90 via-stone-950/95 to-black/80 p-2 shadow-inner backdrop-blur-sm sm:mt-3 sm:rounded-2xl sm:p-4">
+                    <div className="relative mt-1.5 flex shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-br from-stone-900/90 via-stone-950/95 to-black/80 px-2 py-2 shadow-inner backdrop-blur-sm sm:mt-2.5 sm:rounded-2xl sm:px-2.5 sm:py-3">
                         <div className="pointer-events-none absolute left-0 top-0 hidden h-full w-1 bg-gradient-to-b from-amber-400/80 via-amber-500/40 to-amber-600/30 sm:block" aria-hidden />
-                        <h4 className="relative z-[1] mb-1 border-b border-stone-700/60 pb-1 text-center text-[9px] font-bold uppercase tracking-wider text-amber-200/90 sm:mb-3 sm:pb-2 sm:text-xs sm:tracking-[0.2em]">
+                        <h4 className="relative z-[1] mb-1.5 border-b border-stone-700/60 pb-1.5 text-center text-sm font-bold tracking-normal text-amber-100 sm:mb-2 sm:pb-2 sm:text-base">
                             {isRolling ? '제련 진행 중…' : '변경 사항'}
                         </h4>
-                        <div className="relative z-[1] space-y-0 text-[9px] text-stone-300 sm:text-xs">
-                            <div className="flex flex-col gap-0.5 border-b border-stone-800/80 py-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-2.5">
-                                <span className="shrink-0 font-semibold text-stone-500">등급</span>
-                                <span className="flex flex-wrap items-center justify-end gap-x-1 gap-y-0 font-mono text-[9px] tabular-nums sm:justify-end sm:gap-x-2 sm:text-xs">
+                        {/* 모든 행에 동일한 2열 그리드 → 라벨 길이와 무관하게 값 열 정렬 */}
+                        <div className="relative z-[1] mx-auto w-full max-w-[min(100%,22rem)] divide-y divide-stone-800/80 text-sm text-stone-200 sm:text-[15px]">
+                            <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-x-3 py-2 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-x-3.5">
+                                <span className="text-right text-xs font-semibold leading-tight tracking-tight text-amber-50/95 sm:text-sm">
+                                    등급
+                                </span>
+                                <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0 text-left font-mono text-xs tabular-nums text-amber-100 sm:text-sm">
                                     <span className={starInfoBefore.colorClass}>{starInfoBefore.text || '(미강화)'}</span>
                                     <span className="shrink-0 text-stone-600">→</span>
                                     <span className={starInfoAfter.colorClass}>{starInfoAfter.text}</span>
                                 </span>
                             </div>
                             {itemBefore.options && itemAfter.options && (
-                                <div className="flex flex-col gap-0.5 border-b border-stone-800/80 py-1 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:py-2.5">
-                                    <span className="shrink-0 font-semibold text-stone-500">주옵션</span>
-                                    <span className="min-w-0 max-w-full text-right font-mono text-[8px] leading-tight text-amber-100/90 sm:max-w-[min(100%,18rem)] sm:text-[11px] sm:leading-snug">
+                                <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-3 py-2 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-x-3.5">
+                                    <span className="pt-px text-right text-xs font-semibold leading-tight tracking-tight text-amber-50/95 sm:text-sm">
+                                        주옵션
+                                    </span>
+                                    <span className="min-w-0 text-left font-mono text-xs font-bold leading-snug tracking-tight text-amber-100 sm:text-sm sm:leading-snug">
                                         <span className="text-stone-500">{itemBefore.options.main.display}</span>
                                         <span className="mx-0.5 text-stone-600 sm:mx-1">→</span>
                                         {isRolling && rollingValues.main !== undefined ? (
@@ -262,9 +248,11 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                 </div>
                             )}
                             {changedSubOption?.type === 'new' && changedSubOption.option && (
-                                <div className="flex flex-col gap-0.5 border-b border-stone-800/80 py-1 text-emerald-200/95 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:py-2.5">
-                                    <span className="shrink-0 font-semibold text-emerald-500/80">부옵션 추가</span>
-                                    <span className="min-w-0 max-w-full text-right font-mono text-[8px] leading-tight sm:max-w-[min(100%,18rem)] sm:text-[11px] sm:leading-snug">
+                                <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-3 py-2 text-emerald-200 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-x-3.5">
+                                    <span className="pt-px text-right text-xs font-semibold leading-tight tracking-tight text-emerald-300/95 sm:text-sm">
+                                        부옵션 추가
+                                    </span>
+                                    <span className="min-w-0 text-left font-mono text-xs font-bold leading-snug tracking-tight sm:text-sm sm:leading-snug">
                                         {isRolling && changedSubOption.option
                                             ? (() => {
                                                   const subIndex =
@@ -289,9 +277,11 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                 </div>
                             )}
                             {changedSubOption?.type === 'upgraded' && changedSubOption.before && (
-                                <div className="flex flex-col gap-0.5 py-1 text-sky-200/95 sm:flex-row sm:items-start sm:justify-between sm:gap-3 sm:py-2.5">
-                                    <span className="shrink-0 font-semibold text-sky-500/80">부옵션 강화</span>
-                                    <span className="min-w-0 max-w-full text-right font-mono text-[8px] leading-tight sm:max-w-[min(100%,18rem)] sm:text-[11px] sm:leading-snug">
+                                <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-3 py-2 text-sky-200 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-x-3.5">
+                                    <span className="pt-px text-right text-xs font-semibold leading-tight tracking-tight text-sky-200/95 sm:text-sm">
+                                        부옵션 강화
+                                    </span>
+                                    <span className="min-w-0 text-left font-mono text-xs font-bold leading-snug tracking-tight sm:text-sm sm:leading-snug">
                                         <span className="text-stone-500">{changedSubOption.before.display}</span>
                                         <span className="mx-0.5 text-stone-600 sm:mx-1">→</span>
                                         {isRolling && changedSubOption.after
@@ -322,34 +312,39 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                 )}
 
                 {xpGained !== undefined && xpGained > 0 && (
-                    <div className="relative z-[2] mt-1 flex shrink-0 flex-col gap-0.5 rounded-full border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-stone-900/60 to-stone-950/80 px-2 py-1 shadow-inner sm:mt-2 sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-4 sm:py-2.5">
-                        <span className="flex min-w-0 items-center gap-1 text-[9px] font-semibold text-amber-100/90 sm:gap-2 sm:text-xs">
-                            <img src="/images/equipments/moru.png" alt="" className="h-3.5 w-3.5 shrink-0 opacity-90 sm:h-5 sm:w-5" />
-                            대장간 경험치
-                        </span>
-                        <span className="shrink-0 text-right text-[10px] font-bold tabular-nums text-amber-300 sm:text-base">
-                            +{xpGained.toLocaleString()}
-                        </span>
+                    <div className="relative z-[2] mt-1 flex shrink-0 justify-center sm:mt-2">
+                        <div className="inline-flex max-w-[min(100%,20rem)] flex-col items-center gap-1 rounded-full border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-stone-900/60 to-stone-950/80 px-4 py-1.5 shadow-inner sm:flex-row sm:items-center sm:gap-x-2.5 sm:gap-y-0 sm:px-5 sm:py-2">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-100 sm:text-sm">
+                                <img src="/images/equipments/moru.png" alt="" className="h-4 w-4 shrink-0 opacity-90 sm:h-5 sm:w-5" />
+                                대장간 경험치
+                            </span>
+                            <span className="shrink-0 text-sm font-bold tabular-nums text-amber-300 sm:text-base">
+                                +{xpGained.toLocaleString()}
+                            </span>
+                        </div>
                     </div>
                 )}
 
-                {!isRolling && (
-                    <Button
-                        onClick={(e) => {
-                            e?.stopPropagation();
-                            onClose();
-                        }}
-                        colorScheme="none"
-                        className={`mt-1 w-full shrink-0 !border-2 py-2 text-xs font-bold tracking-wide !shadow-lg transition hover:brightness-110 active:scale-[0.99] focus:!ring-offset-stone-900 sm:mt-2 sm:py-3 sm:text-sm ${
-                            success
-                                ? '!border-emerald-400/55 bg-gradient-to-r from-emerald-700/90 via-teal-700/90 to-cyan-800/90 text-white !shadow-emerald-950/50 focus:!ring-emerald-400/40'
-                                : '!border-rose-500/35 bg-gradient-to-r from-stone-700/90 via-stone-800/90 to-stone-900/90 text-stone-100 !shadow-black/50 focus:!ring-rose-400/30'
-                        }`}
-                    >
-                        확인
-                    </Button>
-                )}
             </div>
+                {!isRolling && (
+                    <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} mt-2 flex justify-center px-0.5 pb-2 sm:mt-3 sm:px-2`}>
+                        <Button
+                            onClick={(e) => {
+                                e?.stopPropagation();
+                                onClose();
+                            }}
+                            colorScheme="none"
+                            className={`w-auto min-w-[10rem] max-w-[min(100%,18rem)] shrink-0 px-8 !border-2 py-2.5 text-sm font-bold tracking-wide !shadow-lg transition hover:brightness-110 active:scale-[0.99] focus:!ring-offset-stone-900 sm:py-3 sm:text-base ${
+                                success
+                                    ? '!border-emerald-400/55 bg-gradient-to-r from-emerald-700/90 via-teal-700/90 to-cyan-800/90 text-white !shadow-emerald-950/50 focus:!ring-emerald-400/40'
+                                    : '!border-rose-500/35 bg-gradient-to-r from-stone-700/90 via-stone-800/90 to-stone-900/90 text-stone-100 !shadow-black/50 focus:!ring-rose-400/30'
+                            }`}
+                        >
+                            확인
+                        </Button>
+                    </div>
+                )}
+            </>
         </DraggableWindow>
     );
 };

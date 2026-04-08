@@ -15,6 +15,10 @@ import {
 import { useInGameModalLayout } from '../contexts/InGameModalLayoutContext.js';
 import { getModalScaleFitPaddingPx } from '../utils/modalViewportPadding.js';
 
+/** 공지 게시판 모달과 동일한 텍스트 「닫기」 버튼 스타일 (DraggableWindow·커스텀 모달 공통) */
+export const SUDAMR_MODAL_CLOSE_BUTTON_CLASS =
+    'rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-50 shadow-sm hover:bg-black/50 sm:px-4 sm:py-2';
+
 interface DraggableWindowProps {
 
     title: string;
@@ -39,14 +43,16 @@ interface DraggableWindowProps {
 
     zIndex?: number;
 
+    /** 하위 호환용. 스타일은 default·store 동일(통합 크롬). */
     variant?: 'default' | 'store';
 
     /** 저장된 위치가 없을 때 사용 (스케일 캔버스에서 보드 옆에 두기 등) */
     defaultPosition?: { x: number; y: number };
 
     /**
-     * true: 프레임을 뷰로 맞추고 본문 스크롤(스크롤·줄바꿈으로 빈 공간 활용).
-     * 미지정/false: 기본은 스크롤 없이 PC 레이아웃을 유지한 채 전체를 균일 scale로 한 화면에 맞춤.
+     * 뷰포트 맞춤 레이아웃(너비 상한·본문 스크롤). true면 명시적으로 켭니다.
+     * 생략 시에도 좁은 뷰포트·네이티브 앱(스케일 캔버스 밖)에서는 자동으로 동일 모드가 적용되어,
+     * PC 설계 프레임을 통째로 축소(scale)해 넣는 방식은 쓰지 않습니다.
      */
     mobileViewportFit?: boolean;
 
@@ -106,6 +112,28 @@ interface DraggableWindowProps {
 
 
 const SETTINGS_KEY = 'draggableWindowSettings';
+
+/**
+ * 모바일(좁은 뷰포트·네이티브)에서 DraggableWindow의 **직계 자식** 마지막 노드에 이 클래스를 붙이면,
+ * 해당 노드는 본문 스크롤 밖에 두어 하단에 고정하고 위쪽만 스크롤됩니다. (PC는 기존처럼 한 덩어리로 렌더)
+ */
+export const SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS = 'sudamr-modal-mobile-sticky-footer';
+
+function childHasStickyFooterClassName(node: React.ReactNode): boolean {
+    if (!React.isValidElement(node)) return false;
+    const cn = (node.props as { className?: unknown }).className;
+    return typeof cn === 'string' && cn.split(/\s+/).includes(SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS);
+}
+
+function partitionMobileStickyFooter(children: React.ReactNode): { main: React.ReactNode; footer: React.ReactNode | null } {
+    const arr = React.Children.toArray(children);
+    if (arr.length < 2) return { main: children, footer: null };
+    const last = arr[arr.length - 1];
+    if (childHasStickyFooterClassName(last)) {
+        return { main: <>{arr.slice(0, -1)}</>, footer: last };
+    }
+    return { main: children, footer: null };
+}
 
 /** App.tsx 스케일 캔버스: 드래그는 client 픽셀, translate는 설계 픽셀이라 비율·경계를 맞춘다 */
 function getScaledCanvasDragMetrics(): {
@@ -211,7 +239,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     isTopmost = true,
     headerContent,
     zIndex,
-    variant = 'default',
+    variant: _variant = 'default',
     defaultPosition = { x: 0, y: 0 },
     mobileViewportFit,
     mobileViewportMaxHeightVh,
@@ -467,10 +495,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const uniformDesignH = resolvedInitialHeight ?? 720;
     const effectiveMobileMaxHeightVh = mobileViewportMaxHeightVh ?? NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH;
 
-    /** 스크롤형 뷰포트 맞춤은 명시적 true일 때만(프로필·강화 결과·캔버스 안 중첩 등). */
+    /**
+     * 스케일 캔버스 밖의 모바일·네이티브: PC 프레임 통째 축소(scale) 대신 뷰포트 맞춤(전용 셸) 기본.
+     * 게임 내 설계 픽셀 레이어에서는 기존처럼 `mobileViewportFit === true`일 때만(중첩·특수 모달).
+     */
+    const wantsMobileViewportFitShell =
+        mobileViewportFit === true ||
+        (!modalLayerUsesDesignPixels && (effectiveIsCompactViewport || isNativeMobile));
+
     const useMobileViewportFitLayout =
-        mobileViewportFit === true &&
-        (effectiveIsCompactViewport || modalLayerUsesDesignPixels);
+        wantsMobileViewportFitShell && (effectiveIsCompactViewport || modalLayerUsesDesignPixels || isNativeMobile);
 
     const useUniformPcScaleLayout = uniformPcScale && !useMobileViewportFitLayout;
 
@@ -502,11 +536,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const pcUniformScale = useViewportUniformScale(uniformDesignW, uniformHeightForViewportScale, useUniformPcScaleLayout);
 
     /**
-     * 스케일 캔버스 밖에서, 뷰포트 맞춤·uniformPcScale이 아닐 때 실측 균일 scale.
-     * PC·모바일 공통: 스크롤 없이 전체가 보이도록 하며 하단 버튼까지 맞춤.
+     * 스케일 캔버스 밖에서만, 뷰포트 맞춤·uniformPcScale이 아닐 때 실측 균일 scale.
+     * 좁은 뷰포트·네이티브에서는 사용하지 않음(PC 축소형 모달 방지).
      */
     const useCompactScaleToFitLayout =
-        !modalLayerUsesDesignPixels && !useMobileViewportFitLayout && !useUniformPcScaleLayout;
+        !modalLayerUsesDesignPixels &&
+        !useMobileViewportFitLayout &&
+        !useUniformPcScaleLayout &&
+        !effectiveIsCompactViewport &&
+        !isNativeMobile;
 
     /** 실측 scale: 본문이 flex-1에 눌려 잘리지 않도록 자연 높이 (아래 containerBaseClass보다 먼저 선언) */
     const bodyScaleToFitNaturalLayout = useCompactScaleToFitLayout;
@@ -888,7 +926,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     
 
     const headerCursor = isTopmost ? 'cursor-move' : '';
-    const isStoreVariant = variant === 'store';
     const useLargeCorners = Boolean(containerExtraClassName?.includes('rounded-2xl'));
     const headerTopRounded = useLargeCorners ? 'rounded-t-2xl' : 'rounded-t-xl';
     const footerBottomRounded = useLargeCorners ? 'rounded-b-2xl' : 'rounded-b-xl';
@@ -899,20 +936,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const containerBaseClass = modalLayerUsesDesignPixels
         ? `absolute top-1/2 left-1/2 flex flex-col ${outerOverflowClass} rounded-xl transition-shadow duration-200`
         : `fixed top-1/2 left-1/2 flex flex-col ${outerOverflowClass} rounded-xl transition-shadow duration-200`;
-    const containerVariantClass = isStoreVariant
-        ? 'text-slate-100 bg-gradient-to-br from-[#1f2239] via-[#101a34] to-[#060b12] border border-cyan-300/40 shadow-[0_40px_100px_-45px_rgba(34,211,238,0.65)]'
-        : 'sudamr-floating-modal-surface ring-1 ring-inset ring-white/[0.07]';
-    const headerVariantClass = isStoreVariant
-        ? 'bg-gradient-to-r from-[#1b2645] via-[#15203b] to-[#1b2645] border-b border-cyan-300/30 text-cyan-100'
-        : 'border-b border-white/[0.09] bg-gradient-to-r from-secondary/95 via-secondary/75 to-tertiary/55 text-primary shadow-[inset_0_-1px_0_rgba(255,255,255,0.05)]';
-    const footerVariantClass = isStoreVariant
-        ? 'bg-[#111a32] border-t border-cyan-300/30 text-cyan-200'
-        : 'border-t border-white/[0.09] bg-gradient-to-t from-tertiary/40 via-secondary/35 to-secondary/45 text-tertiary shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+    /** store/default 통일: 글로벌 sudamr-floating-modal-surface + 앰버 톤 헤더·푸터 */
+    const containerVariantClass = 'sudamr-floating-modal-surface relative text-on-panel ring-1 ring-inset ring-amber-400/15';
+    const headerVariantClass =
+        'relative z-[11] border-b border-amber-400/28 bg-gradient-to-b from-zinc-800/98 via-zinc-950 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]';
+    const footerVariantClass =
+        'relative z-[11] border-t border-amber-400/22 bg-gradient-to-t from-zinc-950 via-zinc-900/96 to-zinc-900/92 text-amber-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
     /** 좁은 뷰포트·네이티브: 본문 글자·여백을 키워 가독성 확보 */
     const isMobileModalShell = effectiveIsCompactViewport || isNativeMobile;
     const bodyPaddingClass =
-        bodyPaddingClassName ??
-        (isStoreVariant ? 'p-5' : uniformLayout ? 'p-5' : isMobileModalShell ? 'p-5' : 'p-4');
+        bodyPaddingClassName ?? (uniformLayout ? 'p-5' : isMobileModalShell ? 'p-5' : 'p-4');
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
     const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? viewportMaxHeightCss;
@@ -926,15 +959,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         (useMobileViewportFitLayout ||
             (bodyScrollable && !uniformLayout && !useCompactScaleToFitLayout) ||
             forceBodyScrollForViewportClamp);
-    const closeButtonClass = isStoreVariant
-        ? 'w-10 h-10 flex items-center justify-center rounded-full bg-gradient-to-br from-rose-500/85 via-rose-500/75 to-rose-600/85 hover:from-rose-400 hover:via-rose-500 hover:to-rose-600 transition-colors shadow-[0_18px_38px_-24px_rgba(244,63,94,0.75)]'
-        : 'w-10 h-10 flex items-center justify-center rounded-full border border-white/14 bg-gradient-to-b from-white/[0.08] to-transparent bg-tertiary/90 text-on-panel shadow-[0_12px_32px_-14px_rgba(0,0,0,0.6)] transition-all duration-200 hover:border-danger/45 hover:bg-danger/90 hover:text-white';
+
+    const { main: stickyMain, footer: stickyFooter } = partitionMobileStickyFooter(children);
+    const useStickyMobileFooter = isMobileModalShell && stickyFooter !== null;
+    const scrollRegionAllowsVerticalScroll = useStickyMobileFooter || bodyAllowsVerticalScroll;
 
     /** mobileViewportFit: 스크롤은 유지하되 트랙을 숨김(좁은 브라우저·스케일 캔버스에서도 동일) */
     const bodyScrollOverflowClass =
-        bodyAllowsVerticalScroll && useMobileViewportFitLayout
+        scrollRegionAllowsVerticalScroll && useMobileViewportFitLayout
             ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0'
-            : bodyAllowsVerticalScroll
+            : scrollRegionAllowsVerticalScroll
               ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto]'
               : 'overflow-hidden';
 
@@ -942,7 +976,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         <>
             {modal && (
                 <div
-                    className={`${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0 bg-transparent`}
+                    className={`${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0 bg-slate-950/[0.5] backdrop-blur-md [-webkit-backdrop-filter:blur(12px)]`}
                     style={{ zIndex: effectiveZIndex - 1, pointerEvents: 'auto' }}
                 />
             )}
@@ -1022,7 +1056,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                             ? `${positionTranslate} scale(${compactFitScale})`
                             : transformStyle,
                     transformOrigin: 'center',
-                    boxShadow: !isStoreVariant && isDragging ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)' : undefined,
+                    boxShadow: isDragging
+                        ? '0 32px 64px -24px rgba(0,0,0,0.58), 0 0 72px -32px rgba(251,191,36,0.14)'
+                        : undefined,
                     zIndex: effectiveZIndex,
                     pointerEvents: 'auto',
                 }}
@@ -1038,7 +1074,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 >
                     {headerShowTitle ? (
                         <h2
-                            className={`select-none font-bold tracking-tight text-primary ${
+                            className={`select-none font-bold tracking-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
                                 uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-xl' : 'text-lg'
                             }`}
                         >
@@ -1050,35 +1086,46 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     <div className="flex items-center gap-2">
                         {headerContent}
                         {onClose && (
-                            <button 
+                            <button
+                                type="button"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onClose();
-                                }} 
-                                className={`${closeButtonClass} z-30`}
+                                }}
+                                className={`z-30 shrink-0 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
                                 style={{ pointerEvents: 'auto', cursor: 'pointer' }}
+                                aria-label={`${title} 닫기`}
                             >
-                                <span
-                                    className={`font-bold text-white ${uniformLayout ? 'text-xl' : 'text-lg'}`}
-                                >
-                                    ✕
-                                </span>
+                                닫기
                             </button>
                         )}
                     </div>
                 </div>
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                    <div
-                        className={`${
-                            bodyScaleToFitNaturalLayout
-                                ? 'flex w-full min-h-0 flex-shrink-0 flex-col'
-                                : 'flex min-h-0 flex-1 flex-col'
-                        } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${uniformLayout ? 'antialiased' : ''}${
-                            isMobileModalShell ? ' sudamr-mobile-modal-body' : ''
-                        }`}
-                    >
-                        {children}
-                    </div>
+                    {useStickyMobileFooter ? (
+                        <>
+                            <div
+                                className={`flex min-h-0 flex-1 flex-col ${bodyScrollOverflowClass} ${bodyPaddingClass} ${
+                                    uniformLayout ? 'antialiased' : ''
+                                }${isMobileModalShell ? ' sudamr-mobile-modal-body' : ''}`}
+                            >
+                                {stickyMain}
+                            </div>
+                            <div className="min-w-0 shrink-0">{stickyFooter}</div>
+                        </>
+                    ) : (
+                        <div
+                            className={`${
+                                bodyScaleToFitNaturalLayout
+                                    ? 'flex w-full min-h-0 flex-shrink-0 flex-col'
+                                    : 'flex min-h-0 flex-1 flex-col'
+                            } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${uniformLayout ? 'antialiased' : ''}${
+                                isMobileModalShell ? ' sudamr-mobile-modal-body' : ''
+                            }`}
+                        >
+                            {children}
+                        </div>
+                    )}
                     {!hideFooter && (
                         <div
                             className={

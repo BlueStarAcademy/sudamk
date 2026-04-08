@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { MATERIAL_SELL_PRICES, CONSUMABLE_SELL_PRICES, gradeBackgrounds, gradeStyles } from '../constants/items.js';
@@ -65,18 +65,27 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
             initialHeight={580}
             skipSavedPosition
             hideFooter
+            mobileViewportFit
+            mobileViewportMaxHeightVh={92}
+            bodyPaddingClassName="p-0 sm:p-0"
         >
-            <div className="flex min-h-0 flex-col gap-4 p-4 text-slate-100 sm:p-5">
-                <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                    <p className="text-center text-[11px] font-semibold uppercase tracking-[0.2em] text-cyan-200/60">Bulk trade</p>
-                    <h3 className="mt-1 text-center text-lg font-black tracking-tight text-slate-50">판매할 수량을 정하세요</h3>
-                    <p className="mt-1 text-center text-xs text-slate-400">
-                        {label} · 보유 <span className="font-semibold text-slate-200">{totalQuantity.toLocaleString()}</span>개
+            <>
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain p-3 pb-2 text-slate-100 sm:p-5 sm:pb-4 [-webkit-overflow-scrolling:touch]">
+                <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
+                    <p className="text-center text-xs font-bold tracking-wide text-cyan-200/85 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-cyan-200/60">
+                        일괄 판매
+                    </p>
+                    <h3 className="mt-2 text-center text-xl font-black leading-snug tracking-tight text-slate-50 sm:mt-1 sm:text-lg">
+                        판매할 수량을 정하세요
+                    </h3>
+                    <p className="mt-2 text-center text-sm text-slate-300 sm:mt-1 sm:text-xs sm:text-slate-400">
+                        {label} · 합계{' '}
+                        <span className="font-semibold text-slate-100">{totalQuantity.toLocaleString()}</span>개 보유
                     </p>
 
-                    <div className="mt-4 flex items-center gap-4 rounded-xl border border-white/[0.06] bg-black/25 p-3 sm:p-4">
+                    <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-white/[0.06] bg-black/25 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
                         <div
-                            className={`relative flex h-[6.75rem] w-[6.75rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-black/30 sm:h-[7.25rem] sm:w-[7.25rem] ${
+                            className={`relative flex h-[7.25rem] w-[7.25rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-black/30 sm:h-[7.25rem] sm:w-[7.25rem] ${
                                 isTranscendent ? 'transcendent-grade-slot' : ''
                             }`}
                         >
@@ -93,10 +102,10 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                                 </span>
                             )}
                         </div>
-                        <div className="min-w-0 flex-1">
-                            <p className={`text-xs font-bold ${tierStyle.color}`}>[{tierStyle.name}]</p>
-                            <p className="truncate text-base font-bold text-slate-50">{item.name}</p>
-                            <p className="mt-1 text-xs text-slate-500">슬라이더 또는 숫자로 조절</p>
+                        <div className="min-w-0 w-full flex-1 text-center sm:text-left">
+                            <p className={`text-sm font-bold sm:text-xs ${tierStyle.color}`}>[{tierStyle.name}]</p>
+                            <p className="mt-0.5 line-clamp-2 text-base font-bold leading-snug text-slate-50 sm:truncate sm:text-base">{item.name}</p>
+                            <p className="mt-2 text-sm text-slate-400 sm:mt-1 sm:text-xs sm:text-slate-500">아래 슬라이더나 숫자로 개수를 맞추세요</p>
                         </div>
                     </div>
 
@@ -111,7 +120,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                                 type="button"
                                 disabled={totalQuantity === 0}
                                 onClick={() => setPreset(p.q)}
-                                className="rounded-lg border border-white/10 bg-slate-800/60 px-3 py-1.5 text-xs font-bold text-slate-200 transition-all hover:border-cyan-400/35 hover:bg-slate-700/70 disabled:opacity-40"
+                                className="min-h-[44px] min-w-[4.5rem] rounded-lg border border-white/10 bg-slate-800/60 px-4 py-2 text-sm font-bold text-slate-200 transition-all hover:border-cyan-400/35 hover:bg-slate-700/70 disabled:opacity-40 sm:min-h-0 sm:px-3 sm:py-1.5 sm:text-xs"
                             >
                                 {p.label}
                             </button>
@@ -119,10 +128,10 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                     </div>
                 </div>
 
-                <div className="space-y-3 rounded-2xl border border-white/[0.07] bg-slate-950/40 p-4">
+                <div className="space-y-4 rounded-2xl border border-white/[0.07] bg-slate-950/40 p-3 sm:space-y-3 sm:p-4">
                     <div className="flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-500">수량</span>
-                        <span className="font-mono text-sm font-black tabular-nums text-cyan-100">
+                        <span className="text-sm font-bold text-slate-300 sm:text-xs sm:uppercase sm:tracking-wider sm:text-slate-500">판매 수량</span>
+                        <span className="font-mono text-base font-black tabular-nums text-cyan-100 sm:text-sm">
                             {quantity.toLocaleString()} <span className="text-slate-500">/</span> {totalQuantity.toLocaleString()}
                         </span>
                     </div>
@@ -133,7 +142,7 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                         value={Math.min(quantity, Math.max(1, totalQuantity))}
                         onChange={handleQuantityChange}
                         disabled={totalQuantity === 0}
-                        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-slate-800 disabled:opacity-40 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-gradient-to-b [&::-moz-range-thumb]:from-amber-300 [&::-moz-range-thumb]:to-amber-600 [&::-moz-range-thumb]:shadow-[0_0_12px_rgba(251,191,36,0.5)] [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-amber-200/80 [&::-webkit-slider-thumb]:bg-gradient-to-b [&::-webkit-slider-thumb]:from-amber-300 [&::-webkit-slider-thumb]:to-amber-600 [&::-webkit-slider-thumb]:shadow-[0_0_12px_rgba(251,191,36,0.45)]"
+                        className="h-3 w-full cursor-pointer appearance-none rounded-full bg-slate-800 disabled:opacity-40 sm:h-2 [&::-moz-range-thumb]:h-5 [&::-moz-range-thumb]:w-5 [&::-moz-range-thumb]:cursor-pointer [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:border-0 [&::-moz-range-thumb]:bg-gradient-to-b [&::-moz-range-thumb]:from-amber-300 [&::-moz-range-thumb]:to-amber-600 [&::-moz-range-thumb]:shadow-[0_0_12px_rgba(251,191,36,0.5)] sm:[&::-moz-range-thumb]:h-4 sm:[&::-moz-range-thumb]:w-4 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-amber-200/80 [&::-webkit-slider-thumb]:bg-gradient-to-b [&::-webkit-slider-thumb]:from-amber-300 [&::-webkit-slider-thumb]:to-amber-600 [&::-webkit-slider-thumb]:shadow-[0_0_12px_rgba(251,191,36,0.45)] sm:[&::-webkit-slider-thumb]:h-4 sm:[&::-webkit-slider-thumb]:w-4"
                     />
                     <input
                         type="number"
@@ -141,42 +150,45 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                         max={totalQuantity}
                         value={quantity}
                         onChange={handleQuantityChange}
-                        className="w-full rounded-xl border border-white/10 bg-slate-900/80 py-2.5 text-center font-mono text-sm font-bold text-slate-100 shadow-inner outline-none transition-colors focus:border-cyan-400/40 focus:ring-2 focus:ring-cyan-400/20"
+                        inputMode="numeric"
+                        className="w-full rounded-xl border border-white/10 bg-slate-900/80 py-3 text-center font-mono text-base font-bold text-slate-100 shadow-inner outline-none transition-colors focus:border-cyan-400/40 focus:ring-2 focus:ring-cyan-400/20 sm:py-2.5 sm:text-sm"
                     />
                 </div>
 
-                <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-yellow-950/35 to-amber-950/50 p-4 shadow-[0_0_32px_-12px_rgba(245,158,11,0.35)]">
-                    <div className="flex justify-between gap-3 text-sm">
-                        <span className="text-slate-400">단가</span>
-                        <span className={`font-bold tabular-nums ${isDeleteOnly ? 'text-slate-500' : 'text-amber-200/90'}`}>
-                            {isDeleteOnly ? '0 (삭제)' : `${pricePerUnit.toLocaleString()} G`}
+                <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-yellow-950/35 to-amber-950/50 p-3 shadow-[0_0_32px_-12px_rgba(245,158,11,0.35)] sm:p-4">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <span className="text-sm font-semibold text-slate-300 sm:text-slate-400">개당 판매가</span>
+                        <span className={`text-right text-base font-bold tabular-nums sm:text-sm ${isDeleteOnly ? 'text-slate-500' : 'text-amber-200/90'}`}>
+                            {isDeleteOnly ? '0 (삭제만)' : `${pricePerUnit.toLocaleString()} 골드`}
                         </span>
                     </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-amber-500/15 pt-3">
-                        <div className="flex items-center gap-2">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-900/40">
-                                <img src="/images/icon/Gold.png" alt="" className="h-6 w-6 object-contain" />
+                    <div className="mt-3 flex flex-col gap-3 border-t border-amber-500/15 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center justify-center gap-2 sm:justify-start">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-900/40 sm:h-9 sm:w-9">
+                                <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain sm:h-6 sm:w-6" />
                             </div>
-                            <span className="text-xs font-bold uppercase tracking-wider text-amber-200/60">
-                                {isDeleteOnly ? '합계 (삭제)' : '총 골드'}
+                            <span className="text-sm font-bold text-amber-200/85 sm:text-xs sm:uppercase sm:tracking-wider sm:text-amber-200/60">
+                                {isDeleteOnly ? '합계 (삭제)' : '총 받을 골드'}
                             </span>
                         </div>
                         <span
-                            className={`text-xl font-black tabular-nums sm:text-2xl ${
+                            className={`text-center text-2xl font-black tabular-nums sm:text-right sm:text-xl md:text-2xl ${
                                 isDeleteOnly ? 'text-slate-500' : 'text-amber-200 [text-shadow:0_0_20px_rgba(251,191,36,0.3)]'
                             }`}
                         >
                             {isDeleteOnly ? '0' : totalPrice.toLocaleString()}
                         </span>
                     </div>
-                    {isDeleteOnly && <p className="mt-2 text-center text-[11px] text-slate-500">0골드 처리로 인벤토리에서 제거됩니다.</p>}
+                    {isDeleteOnly && (
+                        <p className="mt-2 text-center text-sm text-slate-400 sm:text-[11px] sm:text-slate-500">골드는 들어오지 않고, 선택한 개수만큼만 사라집니다.</p>
+                    )}
                 </div>
-
-                <div className="mt-auto flex gap-3 pt-1">
+            </div>
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex gap-3 border-t border-white/[0.08] bg-slate-950/95 p-3 pt-3 sm:p-5`}>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="flex-1 rounded-xl border border-white/12 bg-slate-800/70 px-4 py-3.5 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all hover:border-slate-500/40 hover:bg-slate-700/80 active:scale-[0.98]"
+                        className="min-h-[48px] flex-1 rounded-xl border border-white/12 bg-slate-800/70 px-4 py-3.5 text-base font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all hover:border-slate-500/40 hover:bg-slate-700/80 active:scale-[0.98] sm:min-h-0 sm:text-sm"
                     >
                         취소
                     </button>
@@ -184,12 +196,12 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
                         type="button"
                         onClick={() => onConfirm(quantity)}
                         disabled={quantity === 0 || quantity > totalQuantity || totalQuantity === 0}
-                        className="flex-1 rounded-xl border border-rose-400/40 bg-gradient-to-b from-rose-500/95 via-rose-600 to-rose-950 px-4 py-3.5 text-sm font-black text-rose-50 shadow-[0_6px_24px_-6px_rgba(244,63,94,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-rose-300/50 hover:from-rose-400 hover:via-rose-500 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98]"
+                        className="min-h-[48px] flex-1 rounded-xl border border-rose-400/40 bg-gradient-to-b from-rose-500/95 via-rose-600 to-rose-950 px-4 py-3.5 text-base font-black text-rose-50 shadow-[0_6px_24px_-6px_rgba(244,63,94,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-rose-300/50 hover:from-rose-400 hover:via-rose-500 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none active:scale-[0.98] sm:min-h-0 sm:text-sm"
                     >
                         {quantity.toLocaleString()}개 판매
                     </button>
                 </div>
-            </div>
+            </>
         </DraggableWindow>
     );
 };

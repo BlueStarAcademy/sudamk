@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useR
 import { createPortal } from 'react-dom';
 import { UserWithStatus, TournamentState, PlayerForTournament, ServerAction, User, CoreStat, Match, Round, CommentaryLine, TournamentType, LeagueTier } from '../types.js';
 import Button from './Button.js';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 import { useButtonClickThrottle } from '../hooks/useButtonClickThrottle.js';
 import { useTournamentSimulation } from '../hooks/useTournamentSimulation.js';
 import { TOURNAMENT_DEFINITIONS, TOURNAMENT_SCORE_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, AVATAR_POOL, BORDER_POOL, CORE_STATS_DATA, LEAGUE_DATA, DUNGEON_STAGE_BASE_SCORE, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, gradeBackgrounds } from '../constants';
@@ -4524,7 +4525,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     <div className={`absolute top-0 right-0 z-50 flex h-full w-[320px] flex-col border-l border-gray-600/80 bg-slate-950/98 shadow-2xl backdrop-blur-md transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
                         <div className="flex justify-between items-center p-2 border-b border-gray-600 flex-shrink-0">
                             <h3 className="text-lg font-bold">대진표</h3>
-                            <button onClick={() => setIsMobileSidebarOpen(false)} className="text-2xl font-bold text-gray-300 hover:text-white">×</button>
+                            <button
+                                type="button"
+                                onClick={() => setIsMobileSidebarOpen(false)}
+                                className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
+                                aria-label="닫기"
+                            >
+                                닫기
+                            </button>
                         </div>
                         <div className="flex-1 min-h-0 overflow-hidden flex flex-col px-2 pt-2 pb-0" style={{ flex: '1 1 0', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                             {sidebarContent}

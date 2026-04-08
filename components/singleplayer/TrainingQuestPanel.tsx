@@ -24,7 +24,13 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
         newLevel: number;
     } | null>(null);
     const [claimAllRewards, setClaimAllRewards] = useState<{
-        rewards: Array<{ missionId: string; missionName: string; rewardType: 'gold' | 'diamonds'; rewardAmount: number }>;
+        rewards: Array<{
+            missionId: string;
+            missionName: string;
+            missionLevel?: number;
+            rewardType: 'gold' | 'diamonds';
+            rewardAmount: number;
+        }>;
         totalGold: number;
         totalDiamonds: number;
     } | null>(null);

@@ -102,7 +102,7 @@ class AudioService {
         if (this.preloadStarted) return;
         this.preloadStarted = true;
         for (const name of SOUND_BASE_NAMES) {
-            const url = `${this.soundsPath}${name}.mp3`;
+            const url = this.getSoundUrl(name);
             void this.loadSound(url).catch(() => {});
         }
     }
@@ -249,6 +249,28 @@ class AudioService {
         this.trackLongRunningHtml5(soundName, el, loop);
     }
 
+    /**
+     * await 없이 한 틱 안에서 끝냄. 앱플레이어·Android WebView는 제스처 스택이 끊기면 WebAudio/HTML5 재생이 막히는 경우가 많음.
+     */
+    private playSoundIfRunning(buffer: AudioBuffer, volume: number, loop: boolean): AudioBufferSourceNode | null {
+        if (!this.audioContext || this.audioContext.state === 'closed') return null;
+        const ctx = this.audioContext;
+        if (ctx.state !== 'running') return null;
+        try {
+            const source = ctx.createBufferSource();
+            source.buffer = buffer;
+            source.loop = loop;
+            const gainNode = ctx.createGain();
+            gainNode.gain.setValueAtTime(volume, ctx.currentTime);
+            source.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            source.start(0);
+            return source;
+        } catch {
+            return null;
+        }
+    }
+
     private async playSound(buffer: AudioBuffer, volume = 1, loop = false): Promise<AudioBufferSourceNode | null> {
         await this.initialize();
         if (!this.audioContext || this.audioContext.state === 'closed') return null;
@@ -274,16 +296,8 @@ class AudioService {
             console.warn('[AudioService] context not running, skip WebAudio playback:', ctx.state);
             return null;
         }
-        
-        const source = ctx.createBufferSource();
-        source.buffer = buffer;
-        source.loop = loop;
-        const gainNode = ctx.createGain();
-        gainNode.gain.setValueAtTime(volume, ctx.currentTime);
-        source.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        source.start(0);
-        return source;
+
+        return this.playSoundIfRunning(buffer, volume, loop);
     }
     
     private async play(soundName: string, category: keyof SoundSettings['categoryMuted'], volume: number, loop = false): Promise<AudioBufferSourceNode | null> {
@@ -296,7 +310,7 @@ class AudioService {
         const cached = this.audioBuffers.get(url);
         if (cached) {
             try {
-                const node = await this.playSound(cached, effectiveVolume, loop);
+                const node = this.playSoundIfRunning(cached, effectiveVolume, loop);
                 if (node) return node;
             } catch (e) {
                 console.error(`Could not play sound ${soundName}`, e);

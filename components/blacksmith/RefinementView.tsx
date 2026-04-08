@@ -232,12 +232,20 @@ interface RefinementViewProps {
     onAction: (action: ServerAction) => void;
     refinementResult: { message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null;
     onResultConfirm: () => void;
+    stackedViewport?: boolean;
 }
 
 type RefinementType = 'type' | 'value' | 'mythic';
 
-const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUser, onAction, refinementResult, onResultConfirm }) => {
-    const isMobile = false;
+const RefinementView: React.FC<RefinementViewProps> = ({
+    selectedItem,
+    currentUser,
+    onAction,
+    refinementResult,
+    onResultConfirm,
+    stackedViewport = false,
+}) => {
+    const isMobile = stackedViewport;
     const [selectedOption, setSelectedOption] = useState<{ type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null>(null);
     const [refinementType, setRefinementType] = useState<RefinementType | null>(null);
     const [isRefining, setIsRefining] = useState(false);
@@ -572,27 +580,44 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
 
     return (
         <div className="flex h-full flex-col gap-2 p-2">
-            {/* 좌우 분할 레이아웃 */}
-            <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 min-w-0">
-                {/* 좌측: 선택된 장비 표시 */}
-                <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
-                    <h3 className="mb-1 text-xs font-bold text-amber-100">선택된 장비</h3>
-                    <div className="flex-1 min-h-0">
-                        <ItemDisplay 
-                            item={selectedItem} 
-                            selectedOption={selectedOption}
-                            onOptionClick={(type, index) => {
-                                setSelectedOption({ type, index });
-                                setRefinementType(null);
-                            }}
-                        />
+            {/* 좌우 분할 레이아웃(모바일: 단계형 전환) */}
+            <div
+                className={`min-h-0 min-w-0 gap-3 ${stackedViewport ? 'flex flex-1 flex-col' : 'grid flex-1 grid-cols-2'}`}
+            >
+                {(!isMobile || !selectedOption) && (
+                    <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
+                        <h3 className="mb-1 text-xs font-bold text-amber-100">선택된 장비</h3>
+                        <div className="flex-1 min-h-0">
+                            <ItemDisplay
+                                item={selectedItem}
+                                selectedOption={selectedOption}
+                                onOptionClick={(type, index) => {
+                                    setSelectedOption({ type, index });
+                                    setRefinementType(null);
+                                }}
+                            />
+                        </div>
                     </div>
-                </div>
+                )}
 
-                {/* 우측: 제련 정보 (grid 자식은 기본 min-width:auto라 내용이 잘릴 수 있어 min-w-0) */}
-                <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
-                    <h3 className="mb-2 shrink-0 text-xs font-bold text-amber-100">제련 정보</h3>
-                    <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
+                {(!isMobile || selectedOption) && (
+                    <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
+                        <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+                            <h3 className="text-xs font-bold text-amber-100">제련 정보</h3>
+                            {isMobile && selectedOption && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setSelectedOption(null);
+                                        setRefinementType(null);
+                                    }}
+                                    className="rounded border border-slate-500/60 bg-slate-800/70 px-2 py-1 text-[10px] font-semibold text-slate-200 hover:border-cyan-400/50"
+                                >
+                                    옵션 다시 선택
+                                </button>
+                            )}
+                        </div>
+                        <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
                     {refinementExhausted ? (
                         <div className="flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-sm text-amber-200/95 min-h-[120px]">
                             <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
@@ -800,29 +825,30 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                             좌측에서 옵션을 선택해주세요.
                         </div>
                     )}
-                    </div>
-
-                    <div
-                        className="mt-2 shrink-0 border-t border-white/15 pt-1.5"
-                        role="group"
-                        aria-label="보유 옵션 변경권"
-                    >
-                        <div className="flex gap-1 justify-between items-end">
-                            {REFINEMENT_TICKET_DEFS.map(({ id, itemKey }) => {
-                                const def = MATERIAL_ITEMS[itemKey];
-                                return (
-                                    <RefinementOwnedTicketSlot
-                                        key={id}
-                                        id={id}
-                                        name={def.name}
-                                        description={def.description}
-                                        image={def.image}
-                                        count={ticketCounts[id]}
-                                    />
-                                );
-                            })}
                         </div>
                     </div>
+                )}
+            </div>
+
+            <div
+                className="shrink-0 border-t border-white/15 pt-1.5"
+                role="group"
+                aria-label="보유 옵션 변경권"
+            >
+                <div className="flex gap-1 justify-between items-end">
+                    {REFINEMENT_TICKET_DEFS.map(({ id, itemKey }) => {
+                        const def = MATERIAL_ITEMS[itemKey];
+                        return (
+                            <RefinementOwnedTicketSlot
+                                key={id}
+                                id={id}
+                                name={def.name}
+                                description={def.description}
+                                image={def.image}
+                                count={ticketCounts[id]}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         </div>

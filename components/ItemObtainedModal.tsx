@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
@@ -121,58 +121,126 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             title="아이템 획득"
             onClose={onClose}
             windowId="item-obtained"
-            initialWidth={420}
+            initialWidth={440}
+            initialHeight={560}
             isTopmost={isTopmost}
             zIndex={70}
             skipSavedPosition
             hideFooter
+            variant="store"
+            mobileViewportFit
+            mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
         >
-            <div className="flex flex-col p-1">
-                <div className="rounded-xl bg-gradient-to-br from-slate-800/95 via-slate-900/98 to-slate-800/95 border border-slate-600/50 shadow-xl overflow-hidden">
-                    <div className="p-6">
-                        <div className="relative w-44 h-44 mx-auto rounded-xl mb-5 overflow-visible ring-2 ring-slate-500/40 ring-offset-2 ring-offset-slate-900">
-                            <div className={`relative w-full h-full rounded-xl flex items-center justify-center overflow-hidden ${borderClass || 'border-2 border-slate-500/50'} ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
-                                <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover" />
-                            {isActionPointConsumable(item.name) ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
-                                    <span className="text-6xl leading-none" aria-hidden>⚡</span>
-                                    <span className="text-xl font-bold text-amber-200 mt-1" style={{ textShadow: '1px 1px 2px black' }}>
-                                        +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
-                                    </span>
+            <>
+                <div className="flex flex-col gap-3 p-1">
+                    <div
+                        className="relative overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_24px_48px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                        role="region"
+                        aria-label="획득 아이템"
+                    >
+                        <div
+                            className="pointer-events-none absolute inset-0 opacity-[0.12]"
+                            style={{
+                                background:
+                                    'radial-gradient(ellipse 85% 55% at 50% -5%, rgba(251, 191, 36, 0.45), transparent 58%), radial-gradient(ellipse 70% 45% at 50% 100%, rgba(34, 211, 238, 0.12), transparent 55%)',
+                            }}
+                            aria-hidden
+                        />
+                        <div className="relative px-5 pb-5 pt-6 sm:px-6 sm:pb-6 sm:pt-7">
+                            <div className="mx-auto mb-5 flex max-w-[11rem] flex-col items-center sm:max-w-[12rem]">
+                                <div className="relative mb-1 h-px w-[72%] bg-gradient-to-r from-transparent via-amber-400/55 to-transparent" aria-hidden />
+                                <div className="relative aspect-square w-full">
+                                    <div
+                                        className="absolute inset-[-10%] rounded-2xl opacity-40 blur-2xl"
+                                        style={{
+                                            background:
+                                                item.grade === ItemGrade.Transcendent
+                                                    ? 'conic-gradient(from 180deg, rgba(34,211,238,0.35), rgba(168,85,247,0.25), rgba(251,191,36,0.3), rgba(34,211,238,0.35))'
+                                                    : 'radial-gradient(circle at 50% 40%, rgba(251,191,36,0.25), transparent 65%)',
+                                        }}
+                                        aria-hidden
+                                    />
+                                    <div className="relative mx-auto flex h-full w-full items-center justify-center rounded-2xl p-1 ring-1 ring-amber-500/25 ring-offset-2 ring-offset-[#0d111c]">
+                                        <div
+                                            className={`relative h-full w-full overflow-hidden rounded-xl ${borderClass || 'border-2 border-slate-600/55'} ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}
+                                        >
+                                            <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                                            {isActionPointConsumable(item.name) ? (
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                    <span className="text-5xl leading-none sm:text-6xl" aria-hidden>
+                                                        ⚡
+                                                    </span>
+                                                    <span
+                                                        className="mt-1 text-lg font-bold text-amber-200 sm:text-xl"
+                                                        style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 12px rgba(251,191,36,0.35)' }}
+                                                    >
+                                                        +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
+                                                    </span>
+                                                </div>
+                                            ) : item.image ? (
+                                                <img
+                                                    src={item.image}
+                                                    alt=""
+                                                    className="absolute object-contain p-3 sm:p-4"
+                                                    style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                                />
+                                            ) : null}
+                                            {isCurrency && (
+                                                <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 p-2 backdrop-blur-[1px]">
+                                                    <span
+                                                        className="text-center text-2xl font-bold tabular-nums text-white sm:text-3xl"
+                                                        style={{ textShadow: '0 2px 8px rgba(0,0,0,0.85), 0 0 20px rgba(251,191,36,0.25)' }}
+                                                    >
+                                                        +{item.quantity?.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
                                 </div>
-                            ) : item.image ? (
-                                <img src={item.image} alt={item.name} className="absolute object-contain p-4" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
-                            ) : null}
-                            {isCurrency && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-sm p-1">
-                                    <span className="text-white text-3xl font-bold text-center break-words" style={{ textShadow: '1px 1px 2px black' }}>
-                                        +{item.quantity?.toLocaleString()}
-                                    </span>
+                                <div className="mt-2 h-px w-[55%] bg-gradient-to-r from-transparent via-white/15 to-transparent" aria-hidden />
+                            </div>
+
+                            <div className="flex flex-col items-center text-center">
+                                <span
+                                    className={`inline-flex items-center justify-center rounded-full border px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em] sm:text-xs ${styles.bg} ${styles.text} border-white/10 shadow-inner ${textGlowClass}`}
+                                >
+                                    [{styles.name}]
+                                </span>
+                                <div className="mt-2 flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0">
+                                    <h2
+                                        className={`max-w-full text-xl font-black tracking-tight sm:text-2xl ${starInfo.colorClass} ${textGlowClass}`}
+                                        style={{ wordBreak: 'keep-all' }}
+                                    >
+                                        {item.name}
+                                    </h2>
+                                    {item.stars > 0 && (
+                                        <span className={`text-lg font-bold sm:text-xl ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>
+                                    )}
+                                </div>
+                                {requiredLevel && (
+                                    <p className="mt-2 text-[11px] text-amber-200/85 sm:text-xs">착용 레벨 합 {requiredLevel}</p>
+                                )}
+                            </div>
+
+                            {item.type === 'equipment' && (
+                                <div className="mt-5 max-h-44 w-full space-y-2 overflow-y-auto rounded-xl border border-slate-600/45 bg-black/35 p-3 text-left text-xs shadow-inner backdrop-blur-sm [scrollbar-gutter:stable]">
+                                    {renderOptions(item)}
                                 </div>
                             )}
                         </div>
                     </div>
-                    </div>
-                    <p className={`font-bold text-base ${styles.text} ${textGlowClass}`}>[{styles.name}]</p>
-                    <div className="flex items-baseline justify-center gap-2 mt-1">
-                        <h2 className={`text-2xl font-bold ${starInfo.colorClass} ${textGlowClass}`}>{item.name}</h2>
-                        {item.stars > 0 && <span className={`text-xl font-bold ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>}
-                    </div>
-                    {requiredLevel && <p className="text-xs text-yellow-300 mt-1">(착용 레벨 합: {requiredLevel})</p>}
-                    {item.type === 'equipment' && (
-                        <div className="w-full text-xs text-left space-y-2 mt-4 max-h-44 overflow-y-auto bg-slate-800/50 border border-slate-600/40 p-3 rounded-xl">
-                            {renderOptions(item)}
-                        </div>
-                    )}
                 </div>
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="w-full mt-5 py-3 rounded-xl bg-gradient-to-r from-emerald-500/90 to-emerald-600/90 hover:from-emerald-400 hover:to-emerald-500 border border-emerald-400/50 text-white font-semibold shadow-md transition-all active:scale-[0.98]"
-                >
-                    확인
-                </button>
-            </div>
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} p-1 pt-2`}>
+                    <button
+                        type="button"
+                        onClick={onClose}
+                        className="w-full rounded-xl border border-amber-400/35 bg-gradient-to-b from-emerald-500/95 via-emerald-600/95 to-emerald-800/90 py-3 font-bold text-white shadow-[0_12px_28px_-12px_rgba(16,185,129,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-amber-300/50 hover:from-emerald-400 hover:via-emerald-500 hover:to-emerald-700 active:scale-[0.98]"
+                    >
+                        확인
+                    </button>
+                </div>
+            </>
         </DraggableWindow>
     );
 };

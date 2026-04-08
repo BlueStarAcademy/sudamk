@@ -207,9 +207,19 @@ interface EnhancementViewProps {
     enhancementOutcome: { message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null;
     onOutcomeConfirm: () => void;
     onStartEnhancement?: (item: InventoryItem) => void;
+    /** 좁은 대장간 뷰: 좌우 패널을 세로 스택 */
+    stackedViewport?: boolean;
 }
 
-const EnhancementView: React.FC<EnhancementViewProps> = ({ selectedItem, currentUser, onAction, enhancementOutcome, onOutcomeConfirm, onStartEnhancement }) => {
+const EnhancementView: React.FC<EnhancementViewProps> = ({
+    selectedItem,
+    currentUser,
+    onAction,
+    enhancementOutcome,
+    onOutcomeConfirm,
+    onStartEnhancement,
+    stackedViewport = false,
+}) => {
     const [isEnhancing, setIsEnhancing] = useState(false);
     const [enhancementProgress, setEnhancementProgress] = useState(0);
     const [previousStars, setPreviousStars] = useState<number | undefined>(undefined);
@@ -430,8 +440,14 @@ useEffect(() => {
 
     return (
             <div className="relative flex h-full flex-col">
-            <div className="flex h-full min-h-0 flex-row gap-4">
-                <div className="flex h-full min-h-0 w-[55%] min-w-0 flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#1a1f2d]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+            <div
+                className={`flex h-full min-h-0 gap-4 ${stackedViewport ? 'min-h-0 flex-col' : 'flex-row'}`}
+            >
+                <div
+                    className={`flex h-full min-h-0 min-w-0 flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#1a1f2d]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                        stackedViewport ? 'w-full max-h-[min(42dvh,16rem)] shrink-0' : 'w-[55%]'
+                    }`}
+                >
                     <ItemDisplay 
                         item={selectedItem} 
                         previousStars={previousStars}
@@ -439,7 +455,9 @@ useEffect(() => {
                     />
                 </div>
 
-                <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-2">
+                <div
+                    className={`flex min-h-0 min-w-0 flex-col gap-2 ${stackedViewport ? 'h-auto flex-1' : 'h-full flex-1'}`}
+                >
                     {/* 강화 성공 시 정보 */}
                     <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2">
                         <h4 className="mb-1.5 text-center text-xs font-bold text-emerald-200">강화 성공 시</h4>

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react';
 import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS } from '../constants';
@@ -22,6 +22,36 @@ const QUEST_ITEM_BAR_MAX_CLASS = 'max-w-[14rem]';
 
 const questTextScrollRowClass =
     'max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.45)_transparent]';
+
+/** 퀘스트 활약도 전용 심볼 — 보상 줄·상세·오늘의 활약도 등 동일 마크 */
+const ActivityVitalityIcon: React.FC<{ className?: string; size?: number }> = ({ className = '', size = 14 }) => {
+    const gradId = `q-av-${useId().replace(/:/g, '')}`;
+    return (
+        <svg
+            width={size}
+            height={size}
+            viewBox="0 0 16 16"
+            className={`shrink-0 ${className}`}
+            aria-hidden
+            focusable="false"
+        >
+            <defs>
+                <linearGradient id={gradId} x1="0" y1="0" x2="16" y2="16" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#34d399" />
+                    <stop offset="55%" stopColor="#2dd4bf" />
+                    <stop offset="100%" stopColor="#fbbf24" />
+                </linearGradient>
+            </defs>
+            <path
+                fill={`url(#${gradId})`}
+                d="M8 1.2 9.62 5.86 14.6 6.38 10.9 9.58 12.1 14.48 8 11.7 3.9 14.48 5.1 9.58 1.4 6.38 6.38 5.86z"
+            />
+        </svg>
+    );
+};
+
+/** 퀘스트 목록 제목 옆 아이콘 (퀵메뉴·에셋과 동일 계열) */
+const QUEST_LIST_ICON_SRC = '/images/quest.png';
 
 const getQuestDisplayTitle = (title: string): string => {
     if (title === '자동대국 토너먼트 참여하기' || title === '챔피언십 경기 진행하기') {
@@ -91,20 +121,31 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest,
     const itemName = firstItem ? ('itemId' in firstItem ? firstItem.itemId : firstItem.name) : null;
     const itemQty = firstItem?.quantity ?? 0;
     const itemImage = itemName ? (CONSUMABLE_ITEMS.find((item) => item.name === itemName)?.image ?? null) : null;
+    const ap = quest.activityPoints ?? 0;
+    const hasActivity = ap > 0;
 
-    if (!hasGold && !firstItem) return null;
+    if (!hasGold && !firstItem && !hasActivity) return null;
 
     return (
         <div
-            className={`flex w-full min-w-0 items-center justify-center gap-1 rounded-md border border-amber-500/20 bg-black/30 px-1.5 py-1 text-center ${
+            className={`flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0.5 rounded-md border border-amber-500/20 bg-black/30 px-1.5 py-1 text-center ${
                 isMobile ? 'text-[10px]' : 'text-[11px]'
             }`}
             title="퀘스트 보상"
         >
-            {hasGold ? (
-                <span className="inline-flex min-w-0 items-center gap-0.5 font-semibold text-amber-100">
-                    <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 opacity-95" />
-                    <span className="truncate tabular-nums">{quest.reward.gold!.toLocaleString()}</span>
+            {hasGold || hasActivity ? (
+                <span className="inline-flex min-w-0 flex-nowrap items-center justify-center gap-x-2 font-semibold">
+                    {hasGold ? (
+                        <span className="inline-flex min-w-0 items-center gap-0.5 text-amber-100">
+                            <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 shrink-0 opacity-95" />
+                            <span className="truncate tabular-nums">{quest.reward.gold!.toLocaleString()}</span>
+                        </span>
+                    ) : null}
+                    {hasActivity ? (
+                        <span className="shrink-0 tabular-nums text-amber-200">
+                            ⭐+{ap}
+                        </span>
+                    ) : null}
                 </span>
             ) : null}
             {firstItem ? (
@@ -139,7 +180,10 @@ const QuestDetailBubble: React.FC<{
             />
             <p className={`text-slate-200/95 ${isMobile ? 'text-[11px] leading-relaxed' : 'text-xs leading-relaxed'}`}>{description}</p>
             <div className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-amber-500/15 pt-2 text-[11px] text-amber-100/90 sm:text-xs">
-                <span className="font-medium tracking-tight">📜 활약도 +{activityPoints}</span>
+                <span className="inline-flex items-center gap-1 font-medium tracking-tight">
+                    <ActivityVitalityIcon size={isMobile ? 12 : 13} />
+                    활약도 +{activityPoints}
+                </span>
                 {gold != null && gold > 0 ? (
                     <span className="font-medium tracking-tight">
                         <img src="/images/icon/Gold.png" alt="" className="mb-px mr-0.5 inline h-3 w-3 align-middle opacity-95" />
@@ -196,11 +240,10 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
         </div>
     );
 
-    const iconBox = (compact: boolean) => (
+    const iconBox = (
         <div
-            className={`flex shrink-0 items-center justify-center rounded-xl border border-amber-900/35 bg-gradient-to-b from-slate-800/80 to-slate-950/90 text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 ${
-                compact ? 'h-11 w-11 text-lg' : 'h-[4.25rem] w-[4.25rem] text-2xl'
-            }`}
+            className="flex h-[4.25rem] w-[4.25rem] shrink-0 items-center justify-center rounded-xl border border-amber-900/35 bg-gradient-to-b from-slate-800/80 to-slate-950/90 text-2xl text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10"
+            aria-hidden
         >
             📜
         </div>
@@ -216,8 +259,17 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
                     aria-expanded={bubbleOpen}
                     aria-haspopup="dialog"
                 >
-                    <span className="shrink-0 text-amber-400/70 transition-transform group-hover:text-amber-300" aria-hidden>
-                        💬
+                    <span
+                        className={`flex shrink-0 items-center justify-center rounded-lg border border-amber-500/30 bg-slate-950/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
+                            isMobile ? 'h-7 w-7' : 'h-9 w-9'
+                        }`}
+                        aria-hidden
+                    >
+                        <img
+                            src={QUEST_LIST_ICON_SRC}
+                            alt=""
+                            className={`object-contain opacity-95 transition-opacity group-hover:opacity-100 ${isMobile ? 'h-4 w-4' : 'h-[1.35rem] w-[1.35rem]'}`}
+                        />
                     </span>
                     <span
                         className={`min-w-0 flex-1 font-semibold leading-snug tracking-tight text-slate-100 ${isMobile ? 'text-[13px]' : 'text-[15px]'} ${bubbleOpen ? '' : 'truncate'}`}
@@ -264,7 +316,6 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
         return (
             <div className={cardShell}>
                 <div className="flex min-w-0 items-stretch gap-2.5">
-                    {iconBox(true)}
                     {mainColumn}
                     <div className="flex w-[5.75rem] shrink-0 flex-col justify-center">{claimBlock}</div>
                 </div>
@@ -274,7 +325,7 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
 
     return (
         <div className={`flex items-stretch gap-3 ${cardShell}`}>
-            {iconBox(false)}
+            {iconBox}
             {mainColumn}
             <div className="flex w-[6.5rem] shrink-0 flex-col justify-center">{claimBlock}</div>
         </div>
@@ -325,7 +376,12 @@ const ActivityPanel: React.FC<{
             <div className="pointer-events-none absolute -bottom-10 -left-8 h-28 w-28 rounded-full bg-amber-400/[0.08] blur-3xl" />
             <div className="relative mb-3 flex min-w-0 items-end justify-between gap-3">
                 <div className="min-w-0">
-                    <p className={`mb-0.5 font-semibold uppercase tracking-[0.18em] text-amber-200/40 ${isMobile ? 'text-[9px]' : 'text-[10px]'}`}>
+                    <p
+                        className={`mb-0.5 flex items-center gap-1 font-semibold uppercase tracking-[0.18em] text-amber-200/40 ${isMobile ? 'text-[9px]' : 'text-[10px]'}`}
+                    >
+                        <span className="text-sm leading-none text-amber-300 sm:text-base" aria-hidden>
+                            ⭐
+                        </span>
                         활약도
                     </p>
                     <div className={questTextScrollRowClass}>
@@ -334,8 +390,11 @@ const ActivityPanel: React.FC<{
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-0.5 text-right">
                     <span
-                        className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-2.5 py-1 font-bold tabular-nums text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:px-3 sm:py-1.5 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                        className={`inline-flex items-center gap-1 rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-2.5 py-1 font-bold tabular-nums text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:px-3 sm:py-1.5 ${isMobile ? 'text-xs' : 'text-sm'}`}
                     >
+                        <span className={`leading-none text-amber-300 ${isMobile ? 'text-sm' : 'text-base'}`} aria-hidden>
+                            ⭐
+                        </span>
                         {activityProgress}
                         <span className="mx-0.5 font-normal text-amber-200/45">/</span>
                         {maxProgress}

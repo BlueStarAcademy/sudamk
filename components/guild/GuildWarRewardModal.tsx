@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 
 interface WarResult {
@@ -58,10 +59,12 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
+                    type="button"
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-tertiary hover:text-primary transition-colors text-2xl font-bold"
+                    className={`absolute right-4 top-4 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
+                    aria-label="닫기"
                 >
-                    ×
+                    닫기
                 </button>
 
                 {!showRewards ? (

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { InventoryItem, ServerAction, ItemGrade } from '../../types.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
@@ -47,7 +47,7 @@ const SelectedDisassemblyItemsPanel: React.FC<{
                     인벤토리에서 분해할 장비를 선택하세요
                 </div>
             ) : (
-                <ul className="max-h-[min(200px,28vh)] space-y-2 overflow-y-auto pr-1">
+                <ul className="max-h-[min(32dvh,240px)] space-y-2 overflow-y-auto pr-1">
                     {items.map(item => {
                         const styles = gradeStyles[item.grade];
                         const isTranscendent = item.grade === ItemGrade.Transcendent;
@@ -98,7 +98,9 @@ const DisassemblyPreviewPanel: React.FC<{
     blacksmithLevel: number;
     /** 네이티브 모바일: 선택 장비 목록 없이 재료 영역 위주·가독성 강화 */
     nativeMobile?: boolean;
-}> = ({ selectedIds, inventory, blacksmithLevel, nativeMobile }) => {
+    /** 장비 선택을 모달에서만 하는 모바일 대장간 플로우 */
+    modalEquipmentSelectionFlow?: boolean;
+}> = ({ selectedIds, inventory, blacksmithLevel, nativeMobile, modalEquipmentSelectionFlow }) => {
     const { rangeMap, totalMaterials, itemCount } = useMemo(() => {
         const selectedItems = inventory.filter(item => selectedIds.has(item.id));
         const materials: Record<string, number> = {};
@@ -138,7 +140,9 @@ const DisassemblyPreviewPanel: React.FC<{
 
     const mobileSubline =
         itemCount === 0
-            ? '아래 장비 인벤토리에서 분해할 장비를 선택(체크)하세요.'
+            ? modalEquipmentSelectionFlow
+                ? '「장비 다시 선택」으로 모달을 열어 분해할 장비를 고르세요.'
+                : '아래 장비 인벤토리에서 분해할 장비를 선택(체크)하세요.'
             : '재료별 최소~최대(같은 이름은 합산)';
 
     return (
@@ -293,12 +297,28 @@ interface DisassemblyViewProps {
     onAction: (action: ServerAction) => Promise<void>;
     selectedForDisassembly: Set<string>;
     onToggleDisassemblySelection: (itemId: string) => void;
+    modalEquipmentSelectionFlow?: boolean;
 }
 
-const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedForDisassembly = new Set(), onToggleDisassemblySelection }) => { // Added default value
+const DisassemblyView: React.FC<DisassemblyViewProps> = ({
+    onAction,
+    selectedForDisassembly = new Set(),
+    onToggleDisassemblySelection,
+    modalEquipmentSelectionFlow = false,
+}) => {
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus } = useAppContext();
     const [isAutoSelectOpen, setIsAutoSelectOpen] = useState(false);
+    const [viewportNarrow, setViewportNarrow] = useState(
+        () => typeof window !== 'undefined' && window.innerWidth < 1025
+    );
+    useEffect(() => {
+        const sync = () => setViewportNarrow(window.innerWidth < 1025);
+        sync();
+        window.addEventListener('resize', sync);
+        return () => window.removeEventListener('resize', sync);
+    }, []);
+    const useStackedDisassemblyLayout = isNativeMobile || viewportNarrow;
 
     if (!currentUserWithStatus) return null;
 
@@ -371,25 +391,26 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedFor
             )}
             <div
                 className={`flex min-h-0 flex-1 gap-3 ${
-                    isNativeMobile ? 'flex-col' : 'flex-row sm:items-stretch'
+                    useStackedDisassemblyLayout ? 'flex-col' : 'flex-row sm:items-stretch'
                 }`}
             >
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-                    {!isNativeMobile && (
+                    {!useStackedDisassemblyLayout && (
                         <SelectedDisassemblyItemsPanel selectedIds={selectedForDisassembly} inventory={inventory} />
                     )}
-                    <div className="min-h-0 flex-1 overflow-hidden">
+                    <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
                         <DisassemblyPreviewPanel
                             selectedIds={selectedForDisassembly}
                             inventory={inventory}
                             blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
-                            nativeMobile={isNativeMobile}
+                            nativeMobile={useStackedDisassemblyLayout}
+                            modalEquipmentSelectionFlow={modalEquipmentSelectionFlow}
                         />
                     </div>
                 </div>
                 <div
                     className={`flex flex-shrink-0 gap-2 ${
-                        isNativeMobile
+                        useStackedDisassemblyLayout
                             ? 'w-full flex-row'
                             : 'w-full flex-col justify-center sm:w-[9.5rem]'
                     }`}
@@ -398,7 +419,7 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedFor
                         onClick={() => setIsAutoSelectOpen(true)}
                         variant="accent"
                         className={`${
-                            isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'
+                            useStackedDisassemblyLayout ? 'min-h-[44px] flex-1' : '!w-full'
                         } !rounded-lg !border !border-amber-300/40 !bg-gradient-to-r !from-amber-600/90 !via-amber-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-amber-50 !shadow-[0_14px_26px_-18px_rgba(251,191,36,0.8)] hover:!from-amber-500 hover:!via-amber-400 hover:!to-orange-400`}
                     >
                         자동 선택
@@ -408,7 +429,7 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedFor
                         disabled={selectedForDisassembly.size === 0}
                         variant="materials"
                         className={`${
-                            isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'
+                            useStackedDisassemblyLayout ? 'min-h-[44px] flex-1' : '!w-full'
                         } !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
                     >
                         선택 분해 ({selectedForDisassembly.size})
