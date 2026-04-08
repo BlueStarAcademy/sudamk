@@ -7,6 +7,14 @@
 
 // Get API base URL from environment variable
 // Vite exposes env variables prefixed with VITE_
+const deriveDevBackendBaseFromHost = (): string | null => {
+    if (typeof window === 'undefined') return null;
+    const host = window.location.hostname;
+    if (!host) return null;
+    const protocol = window.location.protocol === 'https:' ? 'https:' : 'http:';
+    return `${protocol}//${host}:4000`;
+};
+
 const getApiBaseUrl = (): string => {
     // In development, prefer explicit backend URL if provided.
     // (Some setups don't run Vite proxy or backend on localhost:4000.)
@@ -16,6 +24,11 @@ const getApiBaseUrl = (): string => {
             let cleanUrl = devApiUrl.replace(/\/$/, '');
             console.log('[API Config] Development mode: using explicit API URL:', cleanUrl);
             return cleanUrl;
+        }
+        const autoDevApi = deriveDevBackendBaseFromHost();
+        if (autoDevApi) {
+            console.log('[API Config] Development mode: using auto-detected API URL:', autoDevApi);
+            return autoDevApi;
         }
         console.log('[API Config] Development mode: using relative paths (Vite proxy)');
         return '';
@@ -56,6 +69,14 @@ const getWebSocketUrl = (): string => {
         if (devWsUrl) {
             console.log('[API Config] Development mode: using explicit WebSocket URL:', devWsUrl);
             return devWsUrl;
+        }
+        const autoDevApi = deriveDevBackendBaseFromHost();
+        if (autoDevApi) {
+            const protocol = autoDevApi.startsWith('https://') ? 'wss:' : 'ws:';
+            const host = autoDevApi.replace(/^https?:\/\//, '');
+            const autoWs = `${protocol}//${host}`;
+            console.log('[API Config] Development mode: using auto-detected WebSocket URL:', autoWs);
+            return autoWs;
         }
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         return `${protocol}//${window.location.host}`;

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getMannerScore, getMannerRank, getMannerStyle, MANNER_RANKS } from '../services/manner.js';
@@ -75,6 +75,14 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
         return active;
     }, [currentEffects]);
 
+    const rankListRef = useRef<HTMLDivElement>(null);
+    const activeRankRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!rankListRef.current || !activeRankRef.current) return;
+        activeRankRef.current.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }, [totalMannerScore]);
+
     return (
         <DraggableWindow title="매너 등급 정보" onClose={onClose} windowId="manner-rank" initialWidth={600} isTopmost={isTopmost}>
             <div className={`flex flex-col ${isNativeMobile ? 'gap-2.5 p-2.5' : 'gap-4 p-4'}`}>
@@ -101,7 +109,7 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                 {/* 등급별 효과 정보 */}
                 <div className={`bg-gray-800/50 rounded-lg border border-gray-700 ${isNativeMobile ? 'p-2.5' : 'p-4'}`}>
                     <h3 className={`${isNativeMobile ? 'mb-2 text-base' : 'mb-3 text-lg'} font-bold text-gray-200`}>등급별 효과</h3>
-                    <div className={`overflow-y-auto ${isNativeMobile ? 'max-h-[42dvh] space-y-2 pr-1 pb-1' : 'max-h-96 space-y-3 pr-3 pb-4'}`}>
+                    <div ref={rankListRef} className={`overflow-y-auto ${isNativeMobile ? 'max-h-[42dvh] space-y-2 pr-1 pb-1' : 'max-h-96 space-y-3 pr-3 pb-4'}`}>
                         {MANNER_RANKS.slice().reverse().map((rank, index) => {
                             const isActive = totalMannerScore >= rank.min && totalMannerScore <= rank.max;
                             const rankColor = getMannerRank(rank.min === 0 ? 0 : rank.min).color;
@@ -146,6 +154,7 @@ const MannerRankModal: React.FC<MannerRankModalProps> = ({ user, onClose, isTopm
                             return (
                                 <div
                                     key={index}
+                                    ref={isActive ? activeRankRef : null}
                                     className={`${isNativeMobile ? 'p-2' : 'p-3'} rounded-lg border ${isActive ? 'border-amber-400 bg-amber-900/20' : 'border-gray-700 bg-gray-900/30'}`}
                                 >
                                     <div className={`flex items-center justify-between ${isNativeMobile ? 'mb-1.5' : 'mb-2'}`}>

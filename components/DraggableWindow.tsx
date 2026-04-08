@@ -9,8 +9,6 @@ import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } f
 import {
     INGAME_BOARD_FRAME_MAX_HEIGHT_PX,
     INGAME_BOARD_FRAME_MAX_WIDTH_PX,
-    INGAME_MODAL_DEFAULT_OFFSET_X,
-    INGAME_MODAL_DEFAULT_OFFSET_Y,
 } from '../constants/ingameModalFrame.js';
 import { useInGameModalLayout } from '../contexts/InGameModalLayoutContext.js';
 import { getModalScaleFitPaddingPx } from '../utils/modalViewportPadding.js';
@@ -224,6 +222,29 @@ function screenDeltaToPositionDelta(dScreenX: number, dScreenY: number): { dx: n
     return { dx: dScreenX * rx, dy: dScreenY * ry };
 }
 
+/** 인게임 모달 기본 위치: 바둑판(.go-board-panel) 중심점으로 정렬 */
+function getIngameBoardCenteredDefaultPosition(base: { x: number; y: number }): { x: number; y: number } {
+    if (typeof document === 'undefined') return base;
+    const modalRoot = document.getElementById('sudamr-modal-root');
+    const boardEl = document.querySelector('.go-board-panel') as HTMLElement | null;
+    if (!modalRoot || !boardEl) return base;
+
+    const rootRect = modalRoot.getBoundingClientRect();
+    const boardRect = boardEl.getBoundingClientRect();
+    if (rootRect.width <= 0 || rootRect.height <= 0 || boardRect.width <= 0 || boardRect.height <= 0) {
+        return base;
+    }
+
+    const rootCx = rootRect.left + rootRect.width / 2;
+    const rootCy = rootRect.top + rootRect.height / 2;
+    const boardCx = boardRect.left + boardRect.width / 2;
+    const boardCy = boardRect.top + boardRect.height / 2;
+    const dScreenX = boardCx - rootCx;
+    const dScreenY = boardCy - rootCy;
+    const { dx, dy } = screenDeltaToPositionDelta(dScreenX, dScreenY);
+    return { x: base.x + dx, y: base.y + dy };
+}
+
 // 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
 let globalZIndexCounter = 10000;
 
@@ -307,11 +328,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }, [initialWidth, modalLayerUsesDesignPixels, ingameBoardFrame]);
 
     const effectiveDefaultPosition = useMemo(() => {
-        if (!modalLayerUsesDesignPixels || !ingameBoardFrame) return defaultPosition;
-        return {
-            x: (defaultPosition?.x ?? 0) + INGAME_MODAL_DEFAULT_OFFSET_X,
-            y: (defaultPosition?.y ?? 0) + INGAME_MODAL_DEFAULT_OFFSET_Y,
-        };
+        const base = { x: defaultPosition?.x ?? 0, y: defaultPosition?.y ?? 0 };
+        if (!modalLayerUsesDesignPixels || !ingameBoardFrame) return base;
+        return getIngameBoardCenteredDefaultPosition(base);
     }, [defaultPosition, modalLayerUsesDesignPixels, ingameBoardFrame]);
 
     const [rememberPosition, setRememberPosition] = useState(true);

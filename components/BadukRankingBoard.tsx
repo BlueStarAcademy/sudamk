@@ -10,6 +10,8 @@ interface BadukRankingBoardProps {
     isTopmost?: boolean;
     dense?: boolean;
     mobileSplitLarge?: boolean;
+    /** 모바일 랭킹 퀵 모달에서는 가이드를 별도 팁 모달로 표시 */
+    hideInlineGuide?: boolean;
 }
 
 const IS_DEV = import.meta.env.DEV;
@@ -61,7 +63,7 @@ const RankingRow = ({
                 title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
             >
                 <span
-                    className={`w-9 shrink-0 text-center text-sm font-black tabular-nums ${
+                    className={`w-8 shrink-0 text-center text-[11px] font-black tabular-nums ${
                         typeof rank === 'number' && rank === 1
                             ? 'text-amber-300'
                             : typeof rank === 'number' && rank === 2
@@ -106,7 +108,7 @@ const RankingRow = ({
     );
 };
 
-const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense, mobileSplitLarge }) => {
+const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense, mobileSplitLarge, hideInlineGuide }) => {
     const rowDense = Boolean(dense && !mobileSplitLarge);
     const wide = Boolean(mobileSplitLarge);
     const { currentUserWithStatus, handlers } = useAppContext();
@@ -256,7 +258,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                 <div
                     className={
                         wide
-                            ? 'flex min-h-0 flex-[7] flex-col overflow-hidden'
+                            ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
                             : 'flex min-h-0 flex-1 flex-col overflow-hidden'
                     }
                 >
@@ -312,7 +314,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                         </>
                     )}
                 </div>
-                {wide && (
+                {wide && !hideInlineGuide && (
                     <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
                         <MobileRankingGuidePanel variant={activeTab === 'strategic' ? 'baduk-strategic' : 'baduk-playful'} />
                     </div>

@@ -322,12 +322,12 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                         <>
                                             {/* 잠김 오버레이 - 반투명 배경 (버튼 클릭은 막지만 UI는 보이도록) */}
                                             <div className="absolute inset-0 bg-gray-900/50 rounded-lg z-30 pointer-events-none" />
-                                            {/* 잠김 아이콘 및 텍스트 - 우상단에 작게 표시 */}
-                                            <div className="absolute top-1 right-1 sm:top-1.5 sm:right-1.5 z-40 pointer-events-none">
-                                                <div className="flex flex-col items-end gap-0.5">
-                                                    <div className="text-lg sm:text-xl filter drop-shadow-lg">🔒</div>
-                                                    <div className="bg-black/80 rounded px-1.5 py-0.5 sm:px-2 sm:py-1 border border-gray-600">
-                                                        <span className={`text-white font-bold text-center block whitespace-nowrap ${compactTopSlot ? 'text-[10px]' : 'text-[8px] sm:text-[9px]'}`}>
+                                            {/* 잠김 아이콘 및 텍스트 - 카드 중앙 배치 */}
+                                            <div className="absolute inset-0 z-40 pointer-events-none flex items-center justify-center">
+                                                <div className="flex flex-col items-center gap-1.5">
+                                                    <div className="text-2xl sm:text-[1.75rem] filter drop-shadow-[0_3px_8px_rgba(0,0,0,0.85)]">🔒</div>
+                                                    <div className="rounded-lg border border-amber-200/60 bg-black/90 px-3 py-1.5 sm:px-3.5 sm:py-2 shadow-lg">
+                                                        <span className={`block whitespace-nowrap text-center font-black leading-tight text-amber-100 ${compactTopSlot ? 'text-[13px] sm:text-[14px]' : 'text-xs sm:text-sm'}`}>
                                                             {quest.unlockStageId} 필요
                                                         </span>
                                                     </div>

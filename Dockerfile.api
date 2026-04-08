@@ -53,6 +53,8 @@ COPY assets.ts ./assets.ts
 COPY profanity.ts ./profanity.ts
 COPY package.json ./package.json
 COPY tsconfig.base.json ./tsconfig.base.json
+# Audio assets for /sounds static route
+COPY public/sound ./public/sound
 
 # Non-root user
 RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001

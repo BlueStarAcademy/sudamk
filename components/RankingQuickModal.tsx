@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
 import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
+import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
 
 type MobileRankingPanelTab = 'game' | 'baduk' | 'championship';
+type GuideMainTab = 'game' | 'baduk' | 'championship';
+type GameGuideTab = 'combat' | 'manner';
+type BadukGuideTab = 'strategic' | 'playful';
 
 interface RankingQuickModalProps {
     onClose: () => void;
@@ -25,14 +29,35 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
     const [mobilePanelTab, setMobilePanelTab] = useState<MobileRankingPanelTab>('game');
+    const [isTipModalOpen, setIsTipModalOpen] = useState(false);
+    const [guideMainTab, setGuideMainTab] = useState<GuideMainTab>('game');
+    const [gameGuideTab, setGameGuideTab] = useState<GameGuideTab>('combat');
+    const [badukGuideTab, setBadukGuideTab] = useState<BadukGuideTab>('strategic');
+
+    const guideVariant = useMemo(() => {
+        if (guideMainTab === 'game') {
+            return gameGuideTab === 'combat' ? 'game-combat' : 'game-manner';
+        }
+        if (guideMainTab === 'baduk') {
+            return badukGuideTab === 'strategic' ? 'baduk-strategic' : 'baduk-playful';
+        }
+        return null;
+    }, [guideMainTab, gameGuideTab, badukGuideTab]);
 
     return (
         <DraggableWindow
             title="랭킹"
-            onClose={onClose}
+            onClose={() => {
+                // 팁이 열린 상태에서 헤더 닫기(X)를 누르면 랭킹창 종료 대신 팁만 먼저 닫는다.
+                if (isTipModalOpen) {
+                    setIsTipModalOpen(false);
+                    return;
+                }
+                onClose();
+            }}
             windowId="ranking-quick-modal"
             initialWidth={isMobile ? 720 : 980}
-            initialHeight={isMobile ? 520 : 640}
+            initialHeight={isMobile ? 760 : 640}
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit={isMobile}
@@ -46,7 +71,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
             <div
                 className={`relative flex min-h-0 flex-col gap-2 rounded-2xl border border-amber-500/20 bg-gradient-to-br from-zinc-900/92 via-zinc-950/96 to-black/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_64px_-28px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.06] sm:gap-3 sm:p-3 ${
                     isMobile
-                        ? 'min-h-0 flex-1 max-h-[min(78dvh,560px)] overflow-hidden'
+                        ? 'min-h-0 flex-1 max-h-[min(94dvh,880px)] overflow-hidden'
                         : 'h-[min(72vh,560px)] overflow-y-auto overflow-x-hidden overscroll-contain'
                 }`}
             >
@@ -60,40 +85,159 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                 />
                 {isMobile ? (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
-                        <div
-                            className="flex shrink-0 gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
-                            role="tablist"
-                            aria-label="랭킹 종류"
-                        >
-                            {MOBILE_RANKING_TABS.map(({ id, label }) => {
-                                const selected = mobilePanelTab === id;
-                                return (
-                                    <button
-                                        key={id}
-                                        type="button"
-                                        role="tab"
-                                        aria-selected={selected}
-                                        onClick={() => setMobilePanelTab(id)}
-                                        className={`min-h-[40px] shrink-0 rounded-xl border px-3.5 py-2 text-sm font-bold transition-all active:scale-[0.98] ${
-                                            selected
-                                                ? 'border-amber-400/45 bg-gradient-to-r from-amber-600/90 to-yellow-600/85 text-amber-50 shadow-md shadow-amber-900/40'
-                                                : 'border-white/10 bg-black/35 text-zinc-400 hover:border-white/20 hover:bg-white/[0.06] hover:text-zinc-200'
-                                        }`}
-                                    >
-                                        {label}
-                                    </button>
-                                );
-                            })}
+                        <div className="flex min-w-0 items-center gap-2">
+                            <div
+                                className="flex min-w-0 flex-1 shrink-0 gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]"
+                                role="tablist"
+                                aria-label="랭킹 종류"
+                            >
+                                {MOBILE_RANKING_TABS.map(({ id, label }) => {
+                                    const selected = mobilePanelTab === id;
+                                    return (
+                                        <button
+                                            key={id}
+                                            type="button"
+                                            role="tab"
+                                            aria-selected={selected}
+                                            onClick={() => setMobilePanelTab(id)}
+                                            className={`min-h-[36px] shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all active:scale-[0.98] ${
+                                                selected
+                                                    ? 'border-amber-400/45 bg-gradient-to-r from-amber-600/90 to-yellow-600/85 text-amber-50 shadow-md shadow-amber-900/40'
+                                                    : 'border-white/10 bg-black/35 text-zinc-400 hover:border-white/20 hover:bg-white/[0.06] hover:text-zinc-200'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setGuideMainTab(mobilePanelTab);
+                                    setIsTipModalOpen(true);
+                                }}
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/40 bg-amber-500/20 text-base shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
+                                title="스코어 가이드 보기"
+                                aria-label="스코어 가이드 보기"
+                            >
+                                💡
+                            </button>
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04]">
                             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                {mobilePanelTab === 'game' && <GameRankingBoard mobileSplitLarge />}
-                                {mobilePanelTab === 'baduk' && <BadukRankingBoard mobileSplitLarge />}
+                                {mobilePanelTab === 'game' && <GameRankingBoard mobileSplitLarge hideInlineGuide />}
+                                {mobilePanelTab === 'baduk' && <BadukRankingBoard mobileSplitLarge hideInlineGuide />}
                                 {mobilePanelTab === 'championship' && (
                                     <ChampionshipRankingPanel compact lobbyNativeMobile />
                                 )}
                             </div>
                         </div>
+                        {isTipModalOpen && (
+                            <div
+                                className="absolute inset-0 z-20 flex items-center justify-center bg-black/65 p-2 backdrop-blur-[2px]"
+                                onClick={() => setIsTipModalOpen(false)}
+                            >
+                                <div
+                                    className="flex h-[min(80dvh,620px)] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-zinc-950 shadow-2xl shadow-black/60"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">
+                                        <h4 className="text-sm font-bold text-amber-100">스코어 가이드</h4>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsTipModalOpen(false)}
+                                            className="rounded-md border border-amber-300/40 bg-amber-500/20 px-2.5 py-1 text-xs font-semibold text-amber-50"
+                                        >
+                                            가이드 닫기
+                                        </button>
+                                    </div>
+                                    <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2">
+                                        <div className="flex items-center gap-1.5 overflow-x-auto">
+                                            {([
+                                                { id: 'game', label: '게임' },
+                                                { id: 'baduk', label: '바둑' },
+                                                { id: 'championship', label: '챔피언십' },
+                                            ] as const).map(({ id, label }) => (
+                                                <button
+                                                    key={id}
+                                                    type="button"
+                                                    onClick={() => setGuideMainTab(id)}
+                                                    className={`shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold ${
+                                                        guideMainTab === id
+                                                            ? 'border-amber-300/50 bg-amber-500/20 text-amber-50'
+                                                            : 'border-white/15 bg-white/5 text-zinc-300'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        {guideMainTab === 'game' && (
+                                            <div className="flex items-center gap-1.5 overflow-x-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGameGuideTab('combat')}
+                                                    className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                                                        gameGuideTab === 'combat'
+                                                            ? 'border-indigo-300/50 bg-indigo-500/20 text-indigo-100'
+                                                            : 'border-white/15 bg-white/5 text-zinc-300'
+                                                    }`}
+                                                >
+                                                    바둑능력
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setGameGuideTab('manner')}
+                                                    className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                                                        gameGuideTab === 'manner'
+                                                            ? 'border-indigo-300/50 bg-indigo-500/20 text-indigo-100'
+                                                            : 'border-white/15 bg-white/5 text-zinc-300'
+                                                    }`}
+                                                >
+                                                    매너
+                                                </button>
+                                            </div>
+                                        )}
+                                        {guideMainTab === 'baduk' && (
+                                            <div className="flex items-center gap-1.5 overflow-x-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setBadukGuideTab('strategic')}
+                                                    className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                                                        badukGuideTab === 'strategic'
+                                                            ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-100'
+                                                            : 'border-white/15 bg-white/5 text-zinc-300'
+                                                    }`}
+                                                >
+                                                    전략바둑
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setBadukGuideTab('playful')}
+                                                    className={`shrink-0 rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                                                        badukGuideTab === 'playful'
+                                                            ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-100'
+                                                            : 'border-white/15 bg-white/5 text-zinc-300'
+                                                    }`}
+                                                >
+                                                    놀이바둑
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="min-h-0 flex-1 overflow-y-auto p-2">
+                                        {guideVariant ? (
+                                            <MobileRankingGuidePanel variant={guideVariant} />
+                                        ) : (
+                                            <div className="flex h-full items-center justify-center px-4 text-center text-sm text-zinc-300">
+                                                챔피언십 탭은 별도 스코어 가이드가 준비되어 있지 않습니다.
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="relative z-[1] grid min-h-0 flex-1 grid-cols-3 gap-2.5 sm:gap-3">

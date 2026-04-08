@@ -5699,6 +5699,10 @@ export const useApp = () => {
     };
     
     const handleViewUser = useCallback(async (userId: string) => {
+        // 랭킹 퀵 모달에서 유저 프로필을 열 때 프로필 모달이 뒤로 깔리지 않도록 먼저 닫는다.
+        if (isRankingQuickModalOpen) {
+            setIsRankingQuickModalOpen(false);
+        }
         // allUsers(usersMap)에 전체 프로필이 있으면 사용 (협상 상대 등)
         if (Array.isArray(allUsers)) {
             const userToView = allUsers.find(u => u && u.id === userId);
@@ -5724,7 +5728,7 @@ export const useApp = () => {
         } catch (error) {
             console.error(`[handleViewUser] Error fetching user ${userId}:`, error);
         }
-    }, [onlineUsers, allUsers]);
+    }, [onlineUsers, allUsers, isRankingQuickModalOpen]);
 
     const openModerationModal = useCallback((userId: string) => {
         if (!Array.isArray(onlineUsers) || !Array.isArray(allUsers)) return;

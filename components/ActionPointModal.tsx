@@ -178,11 +178,6 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                         </div>
                     </div>
 
-                    <div className="p-3 border-t border-slate-800/80 flex justify-center">
-                        <Button onClick={onClose} colorScheme="gray" className="px-6 py-1.5 text-sm">
-                            닫기
-                        </Button>
-                    </div>
                 </div>
             </DraggableWindow>
 
