@@ -657,11 +657,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
 
-            const shouldRemember = settings.rememberPosition ?? true;
+            const shouldRemember = settings.rememberPosition ?? false;
 
             setRememberPosition(shouldRemember);
 
-            if (skipSavedPosition) {
+            const shouldForceDefaultCenter = skipSavedPosition || Boolean(ingameBoardFrame);
+            if (shouldForceDefaultCenter) {
                 setPosition({ ...effectiveDefaultPosition });
                 try {
                     const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
@@ -685,8 +686,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 }
 
             } else {
-
-                setPosition({ x: 0, y: 0 });
+                // 기본값은 항상 중앙(인게임은 바둑판 중앙)
+                setPosition({ ...effectiveDefaultPosition });
 
             }
 
@@ -700,7 +701,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         setIsInitialized(true);
 
-    }, [windowId, effectiveIsCompactViewport, effectiveDefaultPosition.x, effectiveDefaultPosition.y, skipSavedPosition]);
+    }, [windowId, effectiveIsCompactViewport, effectiveDefaultPosition.x, effectiveDefaultPosition.y, skipSavedPosition, ingameBoardFrame]);
 
 
 
@@ -810,7 +811,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             setIsDragging(false);
 
-            if (rememberPosition && !effectiveIsCompactViewport && !skipSavedPosition) {
+            if (rememberPosition && !effectiveIsCompactViewport && !skipSavedPosition && !ingameBoardFrame) {
 
                 try {
 
@@ -830,7 +831,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         }
 
-    }, [isDragging, windowId, rememberPosition, effectiveIsCompactViewport, skipSavedPosition]);
+    }, [isDragging, windowId, rememberPosition, effectiveIsCompactViewport, skipSavedPosition, ingameBoardFrame]);
 
 
 
@@ -912,7 +913,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
                 // If unchecked, reset position immediately and clear saved data
 
-                setPosition({ x: 0, y: 0 });
+                setPosition({ ...effectiveDefaultPosition });
 
                 const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
 
