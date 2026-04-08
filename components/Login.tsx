@@ -8,13 +8,11 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 const loginPrimaryBtnClass =
   'w-full rounded-xl bg-gradient-to-b from-amber-200/95 via-amber-500 to-amber-800 py-3.5 text-[17px] font-semibold tracking-wide text-amber-950 shadow-[0_8px_28px_rgba(180,83,9,0.28)] ring-1 ring-inset ring-white/30 transition [text-shadow:0_1px_0_rgba(255,255,255,0.25)] hover:brightness-[1.04] hover:shadow-[0_10px_32px_rgba(180,83,9,0.34)] active:translate-y-px active:shadow-[0_5px_18px_rgba(180,83,9,0.22)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none';
 
-// 카카오 공식 디자인 가이드: 배경 #FEE500, 텍스트 #000000/85%, radius 12px
 const loginKakaoBtnClass =
-  'w-full rounded-[12px] bg-[#FEE500] py-3.5 text-[15px] font-medium leading-tight text-black/85 transition hover:brightness-[1.03] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
+  'w-full rounded-xl bg-[#FEE500] py-3.5 text-[16px] font-semibold tracking-wide text-black/85 shadow-[0_6px_22px_rgba(0,0,0,0.14)] ring-1 ring-inset ring-black/[0.07] transition hover:brightness-[1.03] hover:shadow-[0_8px_26px_rgba(0,0,0,0.18)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
 
-// 구글 공식 브랜딩 가이드: 배경 #FFFFFF, 텍스트 #1F1F1F, 테두리 #747775 1px, Roboto Medium
 const loginGoogleBtnClass =
-  'w-full rounded-full bg-white py-3.5 text-[14px] font-medium leading-tight text-[#1F1F1F] ring-1 ring-inset ring-[#747775] transition hover:bg-[#F2F2F2] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
+  'w-full rounded-xl bg-white py-3.5 text-[16px] font-semibold tracking-wide text-zinc-700 shadow-[0_6px_22px_rgba(0,0,0,0.14)] ring-1 ring-inset ring-black/[0.07] transition hover:bg-gray-50 hover:shadow-[0_8px_26px_rgba(0,0,0,0.18)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
 
 const loginRegisterBtnClass =
   'w-full rounded-xl border border-white/18 bg-white/[0.06] py-3.5 text-[16px] font-semibold tracking-wide text-stone-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-amber-400/35 hover:bg-white/[0.1] hover:text-amber-50 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950';
@@ -256,7 +254,7 @@ const Login: React.FC = () => {
         <div className="mt-5 sm:mt-6">
           <button
             type="button"
-            className="w-full rounded-[12px] overflow-hidden transition hover:brightness-[1.03] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
+            className={`${loginKakaoBtnClass} flex items-center justify-center gap-2`}
             onClick={async () => {
               try {
                 const apiUrl = getApiUrl('/api/auth/kakao/url');
@@ -295,13 +293,15 @@ const Login: React.FC = () => {
               }
             }}
           >
-            {/* 카카오 공식 로그인 버튼 이미지 */}
-            <img src="/images/oauth/kakao_login.png" alt="카카오 로그인" className="w-full h-[48px] object-contain" />
+            {/* 카카오 공식 말풍선 심볼 */}
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path fillRule="evenodd" clipRule="evenodd" d="M9 0.6C4.02944 0.6 0 3.71267 0 7.55283C0 9.94002 1.55836 12.0451 3.93132 13.2971L2.93331 16.7981C2.84473 17.1082 3.20572 17.3567 3.47572 17.1705L7.5727 14.3437C8.03958 14.4122 8.51584 14.4486 9 14.4486C13.9706 14.4486 18 11.3889 18 7.55283C18 3.71267 13.9706 0.6 9 0.6Z" fill="black"/>
+            </svg>
+            카카오 로그인
           </button>
           <button
             type="button"
             className={`${loginGoogleBtnClass} mt-3 flex items-center justify-center gap-2`}
-            style={{ fontFamily: "'Roboto', system-ui, sans-serif" }}
             onClick={async () => {
               try {
                 const apiUrl = getApiUrl('/api/auth/google/url');
@@ -334,7 +334,7 @@ const Login: React.FC = () => {
               <path d="M4.4045 11.9C4.2045 11.3 4.0909 10.6591 4.0909 10C4.0909 9.3409 4.2045 8.7 4.4045 8.1V5.5091H1.0636C0.3864 6.8591 0 8.3864 0 10C0 11.6136 0.3864 13.1409 1.0636 14.4909L4.4045 11.9Z" fill="#FBBC04"/>
               <path d="M10 3.9773C11.4681 3.9773 12.7863 4.4818 13.8227 5.4727L16.6909 2.6045C14.9591 0.9909 12.6954 0 10 0C6.0909 0 2.7091 2.2409 1.0636 5.5091L4.4045 8.1C5.1909 5.7364 7.3954 3.9773 10 3.9773Z" fill="#E94235"/>
             </svg>
-            Google로 계속하기
+            구글 로그인
           </button>
         </div>
       </div>
