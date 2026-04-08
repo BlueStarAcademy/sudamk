@@ -14,7 +14,9 @@ const KakaoCallback: React.FC = () => {
         const handleCallback = async () => {
             try {
                 // URL에서 인증 코드 추출
-                const urlParams = new URLSearchParams(window.location.search);
+                // 해시 라우팅 사용 시 ?code=xxx가 해시 안에 포함됨 (/#/auth/kakao/callback?code=xxx)
+                const hashQuery = window.location.hash.split('?')[1] || '';
+                const urlParams = new URLSearchParams(hashQuery || window.location.search);
                 const code = urlParams.get('code');
 
                 if (!code) {

@@ -5,6 +5,13 @@ import App from './App.js';
 import { installPortraitLockLifecycleForPhoneHandheld } from './utils/mobilePortraitLock.js';
 import './index.css';
 
+// OAuth 콜백 경로를 해시 라우트로 변환 (카카오/구글 등 소셜 로그인)
+// 카카오가 /auth/kakao/callback?code=xxx 로 리다이렉트하지만 앱은 해시 라우팅 사용
+if (window.location.pathname.startsWith('/auth/')) {
+    const hashRoute = `#/${window.location.pathname.slice(1)}${window.location.search}`;
+    window.history.replaceState(null, '', '/' + hashRoute);
+}
+
 installPortraitLockLifecycleForPhoneHandheld();
 
 // Register Service Worker for PWA (프로덕션 환경에서만)

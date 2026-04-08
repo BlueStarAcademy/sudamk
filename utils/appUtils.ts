@@ -34,7 +34,7 @@ export function navigateFromGameIfApplicable(targetHash: string): void {
 }
 
 export function parseHash(hash: string): AppRoute {
-    const path = hash.replace(/^#\/?/, '');
+    const path = hash.replace(/^#\/?/, '').split('?')[0]; // 쿼리 파라미터 제거
     const [view, ...rest] = path.split('/');
 
     switch (view) {
