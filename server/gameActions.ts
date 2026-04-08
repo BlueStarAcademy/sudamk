@@ -44,6 +44,28 @@ export type HandleActionResult = {
 };
 
 // --- Helper Functions (moved from the old gameActions) ---
+const normalizeLegacyQuestTexts = (user: User): boolean => {
+    if (!user.quests) return false;
+
+    let changed = false;
+    const questGroups = [user.quests.daily?.quests, user.quests.weekly?.quests, user.quests.monthly?.quests];
+
+    for (const quests of questGroups) {
+        if (!Array.isArray(quests)) continue;
+        for (const quest of quests) {
+            if (quest.title === '자동대국 토너먼트 참여하기' || quest.title === '챔피언십 경기 진행하기') {
+                quest.title = '챔피언십 경기 완료하기';
+                changed = true;
+            }
+            if (quest.title === '일일퀘스트 활약도100보상 받기(3/3)') {
+                quest.title = '일일퀘스트 활약도100보상 받기 3회';
+                changed = true;
+            }
+        }
+    }
+
+    return changed;
+};
 
 export const resetAndGenerateQuests = async (user: User): Promise<User> => {
     const now = Date.now();
@@ -58,6 +80,9 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
             weekly: existingQuests.weekly || createDefaultQuests().weekly,
             monthly: existingQuests.monthly || createDefaultQuests().monthly,
         };
+        modified = true;
+    }
+    if (normalizeLegacyQuestTexts(updatedUser)) {
         modified = true;
     }
 
@@ -179,11 +204,17 @@ export const updateQuestProgress = (user: User, type: 'win' | 'participate' | 'a
             case '전략바둑 승리하기': if (type === 'win' && isStrategic) shouldUpdate = true; break;
             case '놀이바둑 승리하기': if (type === 'win' && isPlayful) shouldUpdate = true; break;
             case '액션버튼 사용하기': if (type === 'action_button') shouldUpdate = true; break;
-            case '챔피언십 경기 진행하기': if (type === 'championship_play') shouldUpdate = true; break;
-            case '자동대국 토너먼트 참여하기': if (type === 'tournament_participate') shouldUpdate = true; break;
+            case '챔피언십 경기 완료하기':
+            case '챔피언십 경기 진행하기':
+            case '자동대국 토너먼트 참여하기':
+                if (type === 'championship_play' || type === 'tournament_participate') shouldUpdate = true;
+                break;
             case '장비 강화시도': if (type === 'enhancement_attempt') shouldUpdate = true; break;
             case '재료 합성시도': if (type === 'craft_attempt') shouldUpdate = true; break;
-            case '일일퀘스트 활약도100보상 받기(3/3)': if (type === 'claim_daily_milestone_100') shouldUpdate = true; break;
+            case '일일퀘스트 활약도100보상 받기 3회':
+            case '일일퀘스트 활약도100보상 받기(3/3)':
+                if (type === 'claim_daily_milestone_100') shouldUpdate = true;
+                break;
             case '일일 퀘스트 활약도100 보상받기 10회': if (type === 'claim_daily_milestone_100') shouldUpdate = true; break;
             case '주간퀘스트 활약도100보상 받기(2/2)': if (type === 'claim_weekly_milestone_100') shouldUpdate = true; break;
         }

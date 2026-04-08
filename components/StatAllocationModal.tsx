@@ -195,13 +195,20 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
     const leftStats = [CoreStat.Concentration, CoreStat.ThinkingSpeed, CoreStat.Judgment];
     const rightStats = [CoreStat.Calculation, CoreStat.CombatPower, CoreStat.Stability];
 
+    const shellClass =
+        'rounded-2xl border border-amber-900/25 bg-gradient-to-b from-[#12141c] via-[#0f1118] to-[#090a10] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_60px_-30px_rgba(0,0,0,0.9)]';
+    const statCardClass =
+        'rounded-xl border border-white/[0.1] bg-gradient-to-br from-slate-900/90 via-slate-950/90 to-black/85 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 hover:border-amber-400/35';
+
     return (
         <DraggableWindow title="능력치 포인트 분배" onClose={onClose} windowId="stat-allocation" initialWidth={1000} isTopmost={isTopmost}>
-            <div className={`flex flex-col gap-4 h-auto min-h-0`}>
+            <div className={`${shellClass} flex h-auto min-h-0 flex-col gap-4`}>
                 {/* 상단: 보너스 포인트 표시 */}
-                <div className={`bg-gradient-to-r from-purple-900/60 via-indigo-900/60 to-blue-900/60 ${isMobile ? 'p-1.5' : 'p-3'} rounded-xl border border-purple-500/30 shadow-lg backdrop-blur-sm text-center flex-shrink-0`}>
-                    <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-purple-200 mb-0.5`}>사용 가능한 보너스 포인트</p>
-                    <p className={`${isMobile ? 'text-xl' : 'text-3xl'} font-bold bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent`}>{availablePoints}</p>
+                <div className={`rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/35 via-slate-900/75 to-indigo-950/35 ${isMobile ? 'p-2' : 'p-3.5'} text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm flex-shrink-0`}>
+                    <p className={`${isMobile ? 'text-xs' : 'text-base'} mb-1 font-semibold tracking-wide text-amber-200/90`}>사용 가능한 보너스 포인트</p>
+                    <p className={`${isMobile ? 'text-2xl' : 'text-4xl'} font-black bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent`}>
+                        {availablePoints}
+                    </p>
                 </div>
 
                 {/* 중앙: 육각형 그래프를 가운데, 양쪽에 능력치 3개씩 */}
@@ -229,15 +236,15 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                             const colorClass = statColors[stat];
                             
                             return (
-                                <div key={stat} className={`bg-gradient-to-br from-gray-900/70 to-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg border border-gray-700/50 shadow-lg backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-200`}>
+                                <div key={stat} className={`${statCardClass} ${isMobile ? 'p-1.5' : 'p-2'}`}>
                                     <div className={`flex justify-between items-center ${isMobile ? 'mb-1' : 'mb-1.5'}`}>
                                         <div className="flex items-center gap-1.5">
                                             <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${colorClass} shadow-lg`}></div>
-                                            <span className={`font-bold ${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-100`}>{statName}</span>
+                                            <span className={`font-bold ${isMobile ? 'text-xs' : 'text-sm'} text-slate-100`}>{statName}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5">
-                                            <span className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} text-gray-400`}>{currentUser.baseStats[stat] || 0}</span>
-                                            <span className={`font-mono font-bold ${isMobile ? 'text-xs' : 'text-sm'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}>
+                                            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-slate-400`}>{currentUser.baseStats[stat] || 0}</span>
+                                            <span className={`font-mono font-black ${isMobile ? 'text-sm' : 'text-base'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}>
                                                 {chartStats[stat]}
                                             </span>
                                         </div>
@@ -263,7 +270,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                             max={maxForThisSlider}
                                             value={currentSpent}
                                             onChange={(e) => handlePointChange(stat, e.target.value)}
-                                            className={`${isMobile ? 'w-12 text-[10px] p-0.5' : 'w-16 text-xs p-1'} bg-gray-800/80 border border-cyan-500/30 rounded-md text-center text-cyan-200 font-bold focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all`}
+                                            className={`${isMobile ? 'w-14 text-xs p-1' : 'w-20 text-sm p-1.5'} rounded-md border border-amber-300/25 bg-black/45 text-center font-bold text-amber-100 transition-all focus:border-amber-300/60 focus:ring-1 focus:ring-amber-300/40`}
                                             disabled={!isEditing}
                                         />
                                     </div>
@@ -273,7 +280,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                     </div>
 
                     {/* 가운데: 육각형 그래프 */}
-                    <div className={`${isMobile ? 'w-full' : 'w-1/3'} flex flex-col items-center justify-center bg-gradient-to-br from-gray-900/80 via-gray-800/60 to-gray-900/80 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border border-cyan-500/20 shadow-2xl backdrop-blur-sm flex-shrink-0`}>
+                    <div className={`${isMobile ? 'w-full' : 'w-1/3'} flex flex-col items-center justify-center rounded-xl border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 ${isMobile ? 'p-2' : 'p-4'} shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_18px_38px_-24px_rgba(251,191,36,0.35)] backdrop-blur-sm flex-shrink-0`}>
                         <div className={isMobile ? 'scale-75' : 'scale-90'}>
                             <RadarChart datasets={radarDatasets} maxStatValue={300} size={isMobile ? 180 : 220} />
                         </div>
@@ -302,15 +309,15 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                             const colorClass = statColors[stat];
                             
                             return (
-                                <div key={stat} className={`bg-gradient-to-br from-gray-900/70 to-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-lg border border-gray-700/50 shadow-lg backdrop-blur-sm hover:border-cyan-400/50 transition-all duration-200`}>
+                                <div key={stat} className={`${statCardClass} ${isMobile ? 'p-1.5' : 'p-2'}`}>
                                     <div className={`flex justify-between items-center ${isMobile ? 'mb-1' : 'mb-1.5'}`}>
                                         <div className="flex items-center gap-1.5">
                                             <div className={`w-1.5 h-1.5 rounded-full bg-gradient-to-r ${colorClass} shadow-lg`}></div>
-                                            <span className={`font-bold ${isMobile ? 'text-[10px]' : 'text-xs'} text-gray-100`}>{statName}</span>
+                                            <span className={`font-bold ${isMobile ? 'text-xs' : 'text-sm'} text-slate-100`}>{statName}</span>
                                         </div>
                                         <div className="flex items-center gap-1.5">
-                                            <span className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} text-gray-400`}>{currentUser.baseStats[stat] || 0}</span>
-                                            <span className={`font-mono font-bold ${isMobile ? 'text-xs' : 'text-sm'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}>
+                                            <span className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-slate-400`}>{currentUser.baseStats[stat] || 0}</span>
+                                            <span className={`font-mono font-black ${isMobile ? 'text-sm' : 'text-base'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}>
                                                 {chartStats[stat]}
                                             </span>
                                         </div>
@@ -336,7 +343,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                             max={maxForThisSlider}
                                             value={currentSpent}
                                             onChange={(e) => handlePointChange(stat, e.target.value)}
-                                            className={`${isMobile ? 'w-12 text-[10px] p-0.5' : 'w-16 text-xs p-1'} bg-gray-800/80 border border-cyan-500/30 rounded-md text-center text-cyan-200 font-bold focus:border-cyan-400 focus:ring-1 focus:ring-cyan-400 transition-all`}
+                                            className={`${isMobile ? 'w-14 text-xs p-1' : 'w-20 text-sm p-1.5'} rounded-md border border-amber-300/25 bg-black/45 text-center font-bold text-amber-100 transition-all focus:border-amber-300/60 focus:ring-1 focus:ring-amber-300/40`}
                                             disabled={!isEditing}
                                         />
                                     </div>
@@ -347,23 +354,23 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                 </div>
 
                 {/* 하단: 버튼들 */}
-                <div className={`flex ${isMobile ? 'flex-col' : 'justify-between items-center'} ${isMobile ? 'gap-2' : ''} ${isMobile ? 'pt-2' : 'pt-3'} border-t border-gray-700/50 flex-shrink-0`}>
+                <div className={`flex ${isMobile ? 'flex-col' : 'justify-between items-center'} ${isMobile ? 'gap-2' : ''} ${isMobile ? 'pt-2' : 'pt-3'} border-t border-white/10 flex-shrink-0`}>
                     <div className={`flex flex-col ${isMobile ? 'items-stretch w-full' : 'items-start'} ${isMobile ? 'gap-1' : ''}`}>
                         <Button 
                             onClick={handleReset} 
                             colorScheme="red" 
                             disabled={!canReset}
-                            className={`${isMobile ? '!text-xs !py-2 !px-3 w-full min-h-[40px]' : '!text-xs !py-1 !px-2'} bg-gradient-to-r from-red-600/90 to-orange-600/90 hover:from-red-500 hover:to-orange-500 border border-red-400/50 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
+                            className={`${isMobile ? '!text-sm !py-2.5 !px-3.5 w-full min-h-[44px]' : '!text-sm !py-2 !px-3.5'} rounded-lg border border-rose-300/35 bg-gradient-to-r from-rose-600/90 via-rose-500/90 to-orange-500/85 shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:from-rose-500 hover:via-rose-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed`}
                         >
                             초기화 (<img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-3 h-3' : 'w-3 h-3'} inline-block`} />{resetCost.toLocaleString()})
                         </Button>
-                        <p className={`${isMobile ? 'text-[10px]' : 'text-[10px]'} text-gray-400 ${isMobile ? 'mt-0 text-center' : 'mt-0.5'}`}>일일 변경제한: {maxDailyResets - statResetCountToday}/{maxDailyResets}</p>
+                        <p className={`${isMobile ? 'text-xs' : 'text-xs'} text-slate-400 ${isMobile ? 'mt-0 text-center' : 'mt-0.5'}`}>일일 변경제한: {maxDailyResets - statResetCountToday}/{maxDailyResets}</p>
                     </div>
                     <div className={`flex ${isMobile ? 'w-full' : ''} ${isMobile ? 'gap-2' : 'gap-2'} ${isMobile ? 'mt-1' : ''}`}>
                         <Button 
                             onClick={onClose} 
                             colorScheme="gray" 
-                            className={`${isMobile ? '!text-xs !py-2 !px-3 flex-1 min-h-[40px]' : '!text-xs !py-1 !px-3'} bg-gradient-to-r from-gray-700/90 to-gray-600/90 hover:from-gray-600 hover:to-gray-500 border border-gray-500/50 shadow-lg`}
+                            className={`${isMobile ? '!text-sm !py-2.5 !px-3.5 flex-1 min-h-[44px]' : '!text-sm !py-2 !px-3.5'} rounded-lg border border-white/15 bg-gradient-to-r from-slate-700/85 to-slate-600/85 shadow-[0_12px_24px_-18px_rgba(15,23,42,0.85)] hover:from-slate-600 hover:to-slate-500`}
                         >
                             취소
                         </Button>
@@ -372,7 +379,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                 onClick={handleConfirm} 
                                 colorScheme="green" 
                                 disabled={!hasChanges} 
-                                className={`${isMobile ? '!text-xs !py-2 !px-3 flex-1 min-h-[40px]' : '!text-xs !py-1 !px-3'} bg-gradient-to-r from-emerald-600/90 to-green-600/90 hover:from-emerald-500 hover:to-green-500 border border-emerald-400/50 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed`}
+                                className={`${isMobile ? '!text-sm !py-2.5 !px-3.5 flex-1 min-h-[44px]' : '!text-sm !py-2 !px-3.5'} rounded-lg border border-emerald-300/40 bg-gradient-to-r from-emerald-600/90 via-emerald-500/90 to-teal-500/85 shadow-[0_14px_26px_-18px_rgba(16,185,129,0.8)] hover:from-emerald-500 hover:via-emerald-400 hover:to-teal-400 disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                                 분배
                             </Button>
@@ -380,7 +387,7 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                             <Button 
                                 onClick={onClose} 
                                 colorScheme="gray" 
-                                className={`${isMobile ? '!text-xs !py-2 !px-3 flex-1 min-h-[40px]' : '!text-xs !py-1 !px-3'} bg-gradient-to-r from-gray-700/90 to-gray-600/90 hover:from-gray-600 hover:to-gray-500 border border-gray-500/50 shadow-lg`}
+                                className={`${isMobile ? '!text-sm !py-2.5 !px-3.5 flex-1 min-h-[44px]' : '!text-sm !py-2 !px-3.5'} rounded-lg border border-white/15 bg-gradient-to-r from-slate-700/85 to-slate-600/85 shadow-[0_12px_24px_-18px_rgba(15,23,42,0.85)] hover:from-slate-600 hover:to-slate-500`}
                             >
                                 닫기
                             </Button>

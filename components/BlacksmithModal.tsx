@@ -469,58 +469,68 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     ) : (
                     <>
                     {/* Left Panel */}
-                    <div className={`w-[360px] bg-tertiary/30 p-4 flex flex-col items-center gap-4 flex-shrink-0 overflow-hidden`}>
-                        <div className="w-full aspect-w-3 aspect-h-2 prism-border rounded-lg overflow-hidden relative flex-shrink-0">
+                    <div className="w-[360px] flex flex-shrink-0 flex-col items-center gap-4 overflow-hidden rounded-2xl border border-amber-400/20 bg-gradient-to-b from-[#1b1f2f]/85 via-[#131827]/90 to-[#0c101a]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_48px_-28px_rgba(0,0,0,0.85)]">
+                        <div className="relative w-full overflow-hidden rounded-xl border border-amber-400/25 shadow-[0_14px_30px_-20px_rgba(251,191,36,0.45)] aspect-w-3 aspect-h-2 flex-shrink-0">
                             <img src="/images/equipments/moru.png" alt="Blacksmith" className="w-full h-full object-cover" />
                         </div>
                         <div className="text-center">
-                            <h2 className={`text-2xl font-bold`}>대장간 <span className="text-yellow-400">Lv.{(blacksmithLevel ?? 1)}</span></h2>
+                            <h2 className="text-2xl font-black tracking-tight text-amber-100">
+                                대장간 <span className="text-yellow-300">Lv.{(blacksmithLevel ?? 1)}</span>
+                            </h2>
                         </div>
                         <div className="w-full">
-                            <div className={`flex justify-between text-xs mb-1`}>
-                                <span>경험치</span>
+                            <div className="mb-1 flex justify-between text-xs text-slate-200">
+                                <span className="font-semibold tracking-wide text-amber-200/80">경험치</span>
                                 {isMaxLevel ? (
-                                    <span>{(blacksmithXp ?? 0).toLocaleString()}(Max)</span>
+                                    <span className="text-amber-200">{(blacksmithXp ?? 0).toLocaleString()} (Max)</span>
                                 ) : (
-                                    <span>{(blacksmithXp ?? 0)} / {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)} ({Math.round(((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100)}%)</span>
+                                    <span className="text-slate-200">
+                                        {(blacksmithXp ?? 0)} / {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)} ({Math.round(((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100)}%)
+                                    </span>
                                 )}
                             </div>
-                            <div className={`w-full bg-black/50 rounded-full h-3 border border-color`}>
-                                <div className="bg-yellow-500 h-full rounded-full transition-all" style={{ width: isMaxLevel ? '100%' : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%` }}></div>
+                            <div className="h-3 w-full overflow-hidden rounded-full border border-amber-500/25 bg-black/55 shadow-inner">
+                                <div
+                                    className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all"
+                                    style={{ width: isMaxLevel ? '100%' : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%` }}
+                                />
                             </div>
                         </div>
-                        <div className="w-full flex-1 min-h-0 overflow-y-auto">
+                        <div className="w-full min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
                             <BlacksmithLevelEffectsSummary blacksmithLevel={blacksmithLevel ?? 1} />
                         </div>
                     </div>
 
                     {/* Right Panel */}
-                    <div className={`flex-1 bg-primary p-4 flex flex-col min-w-0 min-h-0`}>
-                        <div className={`flex border-b border-color mb-4`}>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-2xl border border-white/10 bg-gradient-to-b from-[#131722]/90 via-[#0f131d]/95 to-[#0a0d15]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                        <div className="mb-4 flex gap-1 rounded-xl border border-white/[0.06] bg-black/35 p-1 shadow-inner backdrop-blur-md">
                             {tabs.map(tab => (
                                 <button
                                     key={tab.id}
                                     onClick={() => onSetActiveTab(tab.id as 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine')}
-                                    className={`px-4 py-2 text-sm font-semibold ${
+                                    className={`relative flex-1 overflow-hidden rounded-lg px-3 py-2 text-sm font-semibold transition-all duration-200 ${
                                         activeTab === tab.id
-                                            ? 'border-b-2 border-accent text-accent'
-                                            : 'text-secondary hover:bg-secondary/20'
+                                            ? 'text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_20px_-8px_rgba(251,191,36,0.45)]'
+                                            : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
                                     }`}
                                 >
-                                    {tab.label}
+                                    {activeTab === tab.id && (
+                                        <span className="absolute inset-0 bg-gradient-to-b from-amber-600/35 via-amber-700/20 to-amber-950/35 ring-1 ring-amber-400/30" aria-hidden />
+                                    )}
+                                    <span className="relative z-[1]">{tab.label}</span>
                                 </button>
                             ))}
                         </div>
-                        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-tertiary/20 p-4`}>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/70 via-black/35 to-black/50 p-4">
                             {renderContent()}
                         </div>
-                        <div className={`mt-4 flex flex-col`}>
-                            <div className={`flex items-center justify-between mb-2`}>
-                                <h3 className={`text-lg font-bold text-on-panel`}>{bagHeaderText}</h3>
+                        <div className="mt-4 flex flex-col rounded-xl border border-white/10 bg-black/25 p-3">
+                            <div className="mb-2 flex items-center justify-between">
+                                <h3 className="text-lg font-black tracking-tight text-amber-100">{bagHeaderText}</h3>
                                 <select
                                     value={sortOption}
                                     onChange={(e) => setSortOption(e.target.value as SortOption)}
-                                    className={`bg-secondary border border-color text-on-panel text-xs rounded px-2 py-1`}
+                                    className="rounded-md border border-amber-400/30 bg-slate-900/85 px-2.5 py-1.5 text-xs font-semibold text-amber-100 outline-none transition focus:border-amber-300/60"
                                 >
                                     <option value="grade">등급순</option>
                                     <option value="stars">강화순</option>
@@ -528,7 +538,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                     <option value="date">최신순</option>
                                 </select>
                             </div>
-                            <div className={`h-[130px] overflow-y-auto pr-1`}>
+                            <div className="h-[130px] overflow-y-auto pr-1">
                                 <InventoryGrid 
                                     inventory={filteredInventory} 
                                     inventorySlots={inventorySlotsToDisplay} 

@@ -27,7 +27,7 @@ const SLOT_NAMES_KO: Record<EquipmentSlot, string> = {
 const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; }> = ({ item, onRemove }) => {
     if (!item) {
         return (
-            <div className="w-1/3 h-28 border-2 border-dashed border-slate-600 rounded-lg flex items-center justify-center bg-slate-900/40 text-xs text-slate-400">
+            <div className="h-28 w-1/3 rounded-lg border-2 border-dashed border-amber-500/30 bg-black/35 text-xs text-amber-100/70 flex items-center justify-center">
                 재료
             </div>
         );
@@ -37,7 +37,7 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; }> 
     const isTranscendent = item.grade === ItemGrade.Transcendent;
 
     return (
-        <div className="w-1/3 h-28 rounded-lg bg-slate-900/40 p-2 flex flex-col items-center justify-center text-center relative border border-slate-600/40 shadow-inner">
+        <div className="relative h-28 w-1/3 rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center">
             <button onClick={onRemove} className="absolute top-1 right-1 text-red-500 hover:text-red-400 z-10">
                 &times;
             </button>
@@ -80,8 +80,8 @@ const OutcomeProbability: React.FC<{ items: (InventoryItem | null)[], isRandom: 
     if (probabilities.length === 0) return null;
 
     return (
-        <div className="w-full bg-slate-900/40 border border-slate-600/30 p-3 rounded-lg mt-3">
-            <h4 className="font-semibold text-center mb-2 text-xs text-cyan-200">결과물 종류 확률</h4>
+        <div className="mt-3 w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-3">
+            <h4 className="mb-2 text-center text-xs font-bold text-amber-100">결과물 종류 확률</h4>
             <div className="grid grid-cols-3 gap-x-3 gap-y-1 text-[11px]">
                 {probabilities.map(([slot, prob]) => (
                     <div key={slot} className="flex justify-between">
@@ -111,8 +111,8 @@ const GradeProbability: React.FC<{ items: (InventoryItem | null)[], currentUser:
     if (!probabilities) return null;
 
     return (
-        <div className="w-full bg-slate-900/40 border border-slate-600/30 p-3 rounded-lg mt-2">
-            <h4 className="font-semibold text-center mb-2 text-xs text-cyan-200">결과물 등급 확률</h4>
+        <div className="mt-2 w-full rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c29]/75 via-black/35 to-black/45 p-3">
+            <h4 className="mb-2 text-center text-xs font-bold text-amber-100">결과물 등급 확률</h4>
             <div className="grid grid-cols-2 gap-x-4 text-[11px]">
                 <div className="flex justify-between">
                     <span className="text-slate-400">성공:</span>

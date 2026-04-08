@@ -23,6 +23,16 @@ const QUEST_ITEM_BAR_MAX_CLASS = 'max-w-[14rem]';
 const questTextScrollRowClass =
     'max-w-full overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.45)_transparent]';
 
+const getQuestDisplayTitle = (title: string): string => {
+    if (title === '자동대국 토너먼트 참여하기' || title === '챔피언십 경기 진행하기') {
+        return '챔피언십 경기 완료하기';
+    }
+    if (title === '일일퀘스트 활약도100보상 받기(3/3)') {
+        return '일일퀘스트 활약도100보상 받기 3회';
+    }
+    return title;
+};
+
 const AchievementsPlaceholder: React.FC<{ isMobile: boolean }> = ({ isMobile }) => (
     <div
         className={`flex flex-col items-center justify-center rounded-2xl border border-amber-500/20 bg-gradient-to-b from-slate-900/80 via-[#0e1016]/95 to-[#080a0f] text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-400/10 ${
@@ -75,6 +85,39 @@ const QuestClaimStripButton: React.FC<{
     );
 };
 
+const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest, isMobile }) => {
+    const hasGold = Boolean(quest.reward?.gold && quest.reward.gold > 0);
+    const firstItem = quest.reward?.items?.[0];
+    const itemName = firstItem ? ('itemId' in firstItem ? firstItem.itemId : firstItem.name) : null;
+    const itemQty = firstItem?.quantity ?? 0;
+    const itemImage = itemName ? (CONSUMABLE_ITEMS.find((item) => item.name === itemName)?.image ?? null) : null;
+
+    if (!hasGold && !firstItem) return null;
+
+    return (
+        <div
+            className={`flex w-full min-w-0 items-center justify-center gap-1 rounded-md border border-amber-500/20 bg-black/30 px-1.5 py-1 text-center ${
+                isMobile ? 'text-[10px]' : 'text-[11px]'
+            }`}
+            title="퀘스트 보상"
+        >
+            {hasGold ? (
+                <span className="inline-flex min-w-0 items-center gap-0.5 font-semibold text-amber-100">
+                    <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 opacity-95" />
+                    <span className="truncate tabular-nums">{quest.reward.gold!.toLocaleString()}</span>
+                </span>
+            ) : null}
+            {firstItem ? (
+                <span className="inline-flex min-w-0 items-center gap-0.5 font-semibold text-slate-100">
+                    {itemImage ? <img src={itemImage} alt="" className="h-3 w-3 object-contain" /> : null}
+                    <span className="truncate">{itemName}</span>
+                    <span className="tabular-nums text-amber-200">x{itemQty}</span>
+                </span>
+            ) : null}
+        </div>
+    );
+};
+
 const QuestDetailBubble: React.FC<{
     description: string;
     activityPoints: number;
@@ -121,6 +164,7 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
     const bubbleRef = useRef<HTMLDivElement>(null);
     const isComplete = quest.progress >= quest.target;
     const percentage = Math.min((quest.progress / quest.target) * 100, 100);
+    const displayTitle = getQuestDisplayTitle(quest.title);
 
     const handleClaimClick = useCallback(() => {
         if (isComplete && !quest.isClaimed) {
@@ -142,6 +186,7 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
 
     const claimBlock = (
         <div className="flex w-full min-w-0 flex-col items-stretch gap-1" data-quest-claim onClick={(e) => e.stopPropagation()}>
+            <QuestRewardPill quest={quest} isMobile={isMobile} />
             <QuestClaimStripButton
                 isClaimed={quest.isClaimed}
                 isComplete={isComplete}
@@ -177,7 +222,7 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
                     <span
                         className={`min-w-0 flex-1 font-semibold leading-snug tracking-tight text-slate-100 ${isMobile ? 'text-[13px]' : 'text-[15px]'} ${bubbleOpen ? '' : 'truncate'}`}
                     >
-                        {quest.title}
+                        {displayTitle}
                     </span>
                 </button>
                 {bubbleOpen ? (

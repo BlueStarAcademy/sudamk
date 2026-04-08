@@ -20,9 +20,9 @@ const BlacksmithEffectsModal = lazy(() => import('./blacksmith/BlacksmithEffects
 const GameRecordListModal = lazy(() => import('./GameRecordListModal.js'));
 const GameRecordViewerModal = lazy(() => import('./GameRecordViewerModal.js'));
 import InfoModal from './InfoModal.js';
-import AnnouncementsModal from './AnnouncementsModal.js';
 import RankingQuickModal from './RankingQuickModal.js';
 import ChatQuickModal from './ChatQuickModal.js';
+import HomeBoardPanel from './HomeBoardPanel.js';
 import DisassemblyResultModal from './DisassemblyResultModal.js';
 import StatAllocationModal from './StatAllocationModal.js';
 import ItemDetailModal from './ItemDetailModal.js';
@@ -57,6 +57,7 @@ const AppModalLayer: React.FC = () => {
         aggregatedMythicStats,
         announcements,
         globalOverrideAnnouncement,
+        homeBoardPosts,
         waitingRoomChats,
     } = useAppContext();
 
@@ -152,12 +153,26 @@ const AppModalLayer: React.FC = () => {
             )}
             {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
             {modals.isAnnouncementsModalOpen && (
-                <AnnouncementsModal
-                    announcements={announcements}
-                    globalOverrideAnnouncement={globalOverrideAnnouncement}
-                    onClose={handlers.closeAnnouncementsModal}
-                    isTopmost={topmostModalId === 'announcementsModal'}
-                />
+                <div
+                    className="sudamr-modal-overlay z-[230] bg-black/60 backdrop-blur-[3px]"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="announcements-board-shell-title"
+                    onClick={handlers.closeAnnouncementsModal}
+                >
+                    <div
+                        className="sudamr-modal-panel flex h-[min(90vh,820px)] w-[min(96vw,1080px)] max-w-none flex-col overflow-hidden p-0 ring-1 ring-amber-400/25"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <HomeBoardPanel
+                            posts={homeBoardPosts}
+                            isAdmin={false}
+                            onAction={handlers.handleAction}
+                            modalMode
+                            onClose={handlers.closeAnnouncementsModal}
+                        />
+                    </div>
+                </div>
             )}
             {modals.isRankingQuickModalOpen && (
                 <RankingQuickModal onClose={handlers.closeRankingQuickModal} isTopmost={topmostModalId === 'rankingQuickModal'} />

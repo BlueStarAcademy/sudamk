@@ -10,6 +10,10 @@ interface HomeBoardPanelProps {
     onAction?: (action: any) => void;
     /** 네이티브 홈 한 화면: 부모 높이에 맞춤 */
     fitViewport?: boolean;
+    /** 풀스크린 모달(반투명 배경): 게시판형·큰 글자 */
+    modalMode?: boolean;
+    /** modalMode일 때 상단 닫기 */
+    onClose?: () => void;
 }
 
 const PATCH_PREFIX = '[패치]';
@@ -29,7 +33,8 @@ const toStoredTitle = (rawTitle: string, category: BoardCategory): string => {
     return category === 'patch' ? `${PATCH_PREFIX} ${clean}` : clean;
 };
 
-const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false, onAction, fitViewport = false }) => {
+const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false, onAction, fitViewport = false, modalMode = false, onClose }) => {
+    const useCompactList = fitViewport && !modalMode;
     const [selectedPost, setSelectedPost] = useState<HomeBoardPost | null>(null);
     const [isManageOpen, setIsManageOpen] = useState(false);
     const [editingPost, setEditingPost] = useState<HomeBoardPost | null>(null);
@@ -163,9 +168,11 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
             return (
                 <div
                     className={
-                        fitViewport
+                        useCompactList
                             ? 'flex flex-1 items-center justify-center py-2 text-center text-[10px] text-tertiary'
-                            : 'flex flex-1 items-center justify-center py-4 text-center text-sm text-tertiary'
+                            : modalMode
+                              ? 'flex flex-1 items-center justify-center py-8 text-center text-base text-tertiary'
+                              : 'flex flex-1 items-center justify-center py-4 text-center text-sm text-tertiary'
                     }
                 >
                     {emptyText}
@@ -173,7 +180,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
             );
         }
 
-        if (fitViewport) {
+        if (useCompactList) {
             return (
                 <div
                     className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain rounded-md border border-color/50 bg-secondary/25"
@@ -208,8 +215,24 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
             );
         }
 
+        const rowTitleClass = modalMode
+            ? 'min-w-0 flex-1 truncate text-base font-semibold text-slate-100 sm:text-lg'
+            : 'min-w-0 flex-1 truncate text-sm font-semibold text-primary';
+        const rowDateDesktopClass = modalMode
+            ? 'hidden w-[9.5rem] flex-shrink-0 text-right text-sm tabular-nums text-slate-400 sm:inline-block'
+            : 'hidden w-[8.5rem] flex-shrink-0 text-right text-xs tabular-nums text-tertiary sm:inline-block';
+        const rowDateMobileClass = modalMode
+            ? 'flex w-[6rem] flex-shrink-0 flex-col items-end justify-center gap-0.5 text-right leading-tight sm:hidden'
+            : 'flex w-[5.5rem] flex-shrink-0 flex-col items-end justify-center gap-0.5 text-right leading-tight sm:hidden';
+        const rowDateMobileTextClass = modalMode ? 'text-sm font-medium tabular-nums text-slate-400' : 'text-xs font-medium tabular-nums text-tertiary';
+        const pinClass = modalMode ? 'w-6 flex-shrink-0 text-center text-lg leading-none' : 'w-5 flex-shrink-0 text-center text-base leading-none';
+        const pinEmoji = modalMode ? 'text-amber-300 drop-shadow text-xl' : 'text-amber-300 drop-shadow';
+        const listBorder = modalMode ? 'border border-amber-200/15 bg-gradient-to-b from-white/[0.06] to-black/20 shadow-inner' : 'border border-color/60 bg-secondary/20';
+        const rowMinH = modalMode ? 'min-h-[3.25rem]' : 'min-h-[2.5rem]';
+        const rowPad = modalMode ? 'px-3 py-2.5' : 'px-2 py-1.5';
+
         return (
-            <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-md border border-color/60 bg-secondary/20">
+            <div className={`min-h-0 flex-1 overflow-x-hidden overflow-y-auto rounded-lg ${listBorder}`}>
                 <div className="flex min-w-0 flex-col" role="list">
                     {items.map((post) => {
                         const { dateLine, timeLine } = formatDateParts(post.createdAt);
@@ -218,25 +241,25 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                                 key={post.id}
                                 type="button"
                                 role="listitem"
-                                className={`group flex w-full min-h-[2.5rem] items-center gap-2 border-b border-color/35 px-2 py-1.5 text-left transition-colors last:border-b-0 hover:bg-secondary/55 ${
+                                className={`group flex w-full ${rowMinH} items-center gap-2 border-b border-color/35 ${rowPad} text-left transition-colors last:border-b-0 hover:bg-secondary/55 ${
                                     post.isPinned
                                         ? 'bg-gradient-to-r from-amber-900/25 via-amber-950/15 to-secondary/40'
                                         : 'bg-secondary/15'
                                 }`}
                                 onClick={() => handlePostClick(post)}
                             >
-                                <span className="w-5 flex-shrink-0 text-center text-base leading-none" aria-hidden>
-                                    {post.isPinned ? <span className="text-amber-300 drop-shadow">📌</span> : <span className="text-tertiary/40">·</span>}
+                                <span className={`${pinClass}`} aria-hidden>
+                                    {post.isPinned ? <span className={pinEmoji}>📌</span> : <span className="text-tertiary/40">·</span>}
                                 </span>
-                                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-primary">
+                                <span className={rowTitleClass}>
                                     {stripCategoryPrefix(post.title)}
                                 </span>
-                                <span className="hidden w-[8.5rem] flex-shrink-0 text-right text-xs tabular-nums text-tertiary sm:inline-block">
+                                <span className={rowDateDesktopClass}>
                                     {formatDateTime(post.createdAt)}
                                 </span>
-                                <span className="flex w-[5.5rem] flex-shrink-0 flex-col items-end justify-center gap-0.5 text-right leading-tight sm:hidden">
-                                    <span className="text-xs font-medium tabular-nums text-tertiary">{dateLine}</span>
-                                    <span className="text-xs font-medium tabular-nums text-tertiary">{timeLine}</span>
+                                <span className={rowDateMobileClass}>
+                                    <span className={rowDateMobileTextClass}>{dateLine}</span>
+                                    <span className={rowDateMobileTextClass}>{timeLine}</span>
                                 </span>
                             </button>
                         );
@@ -246,37 +269,96 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
         );
     };
 
+    const shellClass = modalMode
+        ? 'min-h-0 flex h-full flex-col overflow-hidden rounded-xl border-2 border-amber-800/40 bg-gradient-to-b from-amber-950/50 via-zinc-900 to-zinc-950 text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_64px_-28px_rgba(0,0,0,0.85)] ring-1 ring-amber-200/15'
+        : 'bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col h-full overflow-hidden';
+
     return (
         <>
-            <div className="bg-panel border border-color text-on-panel rounded-lg min-h-0 flex flex-col h-full overflow-hidden">
-                <div className={`flex shrink-0 items-center justify-between border-b border-color ${fitViewport ? 'px-1.5 py-1 sm:px-2' : 'px-3 py-2.5 sm:px-4'}`}>
-                    <h3 className={fitViewport ? 'text-[12px] font-bold leading-tight text-primary sm:text-[13px]' : 'text-base font-bold leading-tight text-primary sm:text-lg'}>
-                        홈 게시판
+            <div className={shellClass}>
+                <div
+                    className={`flex shrink-0 items-center justify-between border-b border-amber-200/15 bg-gradient-to-r from-amber-950/55 via-zinc-900/90 to-amber-950/40 ${
+                        useCompactList ? 'px-1.5 py-1 sm:px-2' : modalMode ? 'px-4 py-3 sm:px-5' : 'px-3 py-2.5 sm:px-4'
+                    }`}
+                >
+                    <h3
+                        id={modalMode ? 'announcements-board-shell-title' : undefined}
+                        className={
+                            useCompactList
+                                ? 'text-[12px] font-bold leading-tight text-primary sm:text-[13px]'
+                                : modalMode
+                                  ? 'text-lg font-black tracking-tight text-amber-50 sm:text-xl'
+                                  : 'text-base font-bold leading-tight text-primary sm:text-lg'
+                        }
+                    >
+                        {modalMode ? '공지 게시판' : '홈 게시판'}
                     </h3>
-                    {isAdmin && onAction && (
-                        <button
-                            type="button"
-                            className={fitViewport
-                                ? 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35'
-                                : 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-800/35'}
-                            onClick={() => setIsManageOpen(true)}
-                        >
-                            관리
-                        </button>
-                    )}
+                    <div className="flex shrink-0 items-center gap-2">
+                        {isAdmin && onAction && (
+                            <button
+                                type="button"
+                                className={
+                                    useCompactList
+                                        ? 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35'
+                                        : 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-800/35'
+                                }
+                                onClick={() => setIsManageOpen(true)}
+                            >
+                                관리
+                            </button>
+                        )}
+                        {modalMode && onClose && (
+                            <button
+                                type="button"
+                                className="rounded-lg border border-white/15 bg-black/35 px-3 py-1.5 text-sm font-semibold text-amber-50 shadow-sm hover:bg-black/50 sm:px-4 sm:py-2"
+                                onClick={onClose}
+                                aria-label="공지 게시판 닫기"
+                            >
+                                닫기
+                            </button>
+                        )}
+                    </div>
                 </div>
-                <div className={fitViewport ? 'flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-1 pb-1 pt-1' : 'flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-2 pb-2 pt-1 sm:px-3'}>
+                <div
+                    className={
+                        useCompactList
+                            ? 'flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-1 pb-1 pt-1'
+                            : modalMode
+                              ? 'flex min-h-0 flex-1 flex-col gap-3 overflow-hidden px-3 pb-3 pt-3 sm:px-4 sm:pb-4'
+                              : 'flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-2 pb-2 pt-1 sm:px-3'
+                    }
+                >
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <div className={`mb-1 shrink-0 border-b border-color/50 ${fitViewport ? 'px-0.5 pb-0.5' : 'px-1 pb-1'}`}>
-                            <h4 className={fitViewport ? 'text-[11px] font-bold text-cyan-200' : 'text-sm font-bold text-cyan-200'}>
+                        <div
+                            className={`mb-1 shrink-0 border-b border-amber-200/10 ${useCompactList ? 'px-0.5 pb-0.5' : modalMode ? 'px-1 pb-2' : 'px-1 pb-1'}`}
+                        >
+                            <h4
+                                className={
+                                    useCompactList
+                                        ? 'text-[11px] font-bold text-cyan-200'
+                                        : modalMode
+                                          ? 'text-base font-bold text-cyan-200 sm:text-lg'
+                                          : 'text-sm font-bold text-cyan-200'
+                                }
+                            >
                                 공지사항
                             </h4>
                         </div>
                         {renderPostList(noticePosts, '공지사항이 없습니다.')}
                     </div>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-color/35 pt-1.5">
-                        <div className={`mb-1 shrink-0 border-b border-color/50 ${fitViewport ? 'px-0.5 pb-0.5' : 'px-1 pb-1'}`}>
-                            <h4 className={fitViewport ? 'text-[11px] font-bold text-amber-200' : 'text-sm font-bold text-amber-200'}>
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-amber-200/10 pt-2 sm:pt-3">
+                        <div
+                            className={`mb-1 shrink-0 border-b border-amber-200/10 ${useCompactList ? 'px-0.5 pb-0.5' : modalMode ? 'px-1 pb-2' : 'px-1 pb-1'}`}
+                        >
+                            <h4
+                                className={
+                                    useCompactList
+                                        ? 'text-[11px] font-bold text-amber-200'
+                                        : modalMode
+                                          ? 'text-base font-bold text-amber-200 sm:text-lg'
+                                          : 'text-sm font-bold text-amber-200'
+                                }
+                            >
                                 패치 / 업데이트
                             </h4>
                         </div>
@@ -285,25 +367,40 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                 </div>
             </div>
 
-            {selectedPost && fitViewport && (
+            {selectedPost && (useCompactList || modalMode) && (
                 <div
-                    className="sudamr-modal-overlay z-[280] p-3"
+                    className={`sudamr-modal-overlay z-[280] p-3 ${modalMode ? 'bg-black/50 backdrop-blur-[2px]' : ''}`}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="home-board-modal-title"
                     onClick={() => setSelectedPost(null)}
                 >
                     <div
-                        className="sudamr-modal-panel flex max-h-[min(85dvh,28rem)] w-full max-w-md flex-col overflow-hidden p-0 ring-1 ring-white/[0.06]"
+                        className={`sudamr-modal-panel flex w-full flex-col overflow-hidden p-0 ring-1 ring-white/[0.06] ${
+                            modalMode ? 'max-h-[min(88dvh,40rem)] max-w-lg sm:max-w-2xl' : 'max-h-[min(85dvh,28rem)] max-w-md'
+                        }`}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-white/10 bg-gradient-to-r from-secondary/90 to-tertiary/40 px-3 py-2.5">
+                        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-white/10 bg-gradient-to-r from-secondary/90 to-tertiary/40 px-3 py-2.5 sm:px-4 sm:py-3">
                             <div className="min-w-0 flex-1">
-                                <h2 id="home-board-modal-title" className="text-sm font-bold leading-snug text-primary sm:text-base">
+                                <h2
+                                    id="home-board-modal-title"
+                                    className={
+                                        modalMode
+                                            ? 'text-lg font-bold leading-snug text-primary sm:text-xl'
+                                            : 'text-sm font-bold leading-snug text-primary sm:text-base'
+                                    }
+                                >
                                     {selectedPost.isPinned && <span className="mr-1 text-amber-400">📌</span>}
                                     {stripCategoryPrefix(selectedPost.title)}
                                 </h2>
-                                <p className="mt-1 text-[11px] text-tertiary sm:text-xs">
+                                <p
+                                    className={
+                                        modalMode
+                                            ? 'mt-1.5 text-sm text-tertiary sm:text-base'
+                                            : 'mt-1 text-[11px] text-tertiary sm:text-xs'
+                                    }
+                                >
                                     {formatDateTime(selectedPost.createdAt)}
                                     {selectedPost.updatedAt !== selectedPost.createdAt && (
                                         <span className="ml-1.5 block sm:inline">
@@ -314,20 +411,26 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                             </div>
                             <button
                                 type="button"
-                                className="shrink-0 rounded-lg border border-color/60 bg-secondary/80 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-secondary"
+                                className={`shrink-0 rounded-lg border border-color/60 bg-secondary/80 font-semibold text-primary hover:bg-secondary ${
+                                    modalMode ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2' : 'px-2.5 py-1 text-xs'
+                                }`}
                                 onClick={() => setSelectedPost(null)}
                             >
                                 닫기
                             </button>
                         </div>
-                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 text-sm leading-relaxed text-primary whitespace-pre-wrap sm:text-[15px]">
+                        <div
+                            className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 leading-relaxed text-primary whitespace-pre-wrap sm:px-5 sm:py-4 ${
+                                modalMode ? 'text-base sm:text-lg' : 'text-sm sm:text-[15px]'
+                            }`}
+                        >
                             {selectedPost.content}
                         </div>
                     </div>
                 </div>
             )}
 
-            {selectedPost && !fitViewport && (
+            {selectedPost && !useCompactList && !modalMode && (
                 <DraggableWindow
                     title={stripCategoryPrefix(selectedPost.title)}
                     onClose={() => setSelectedPost(null)}

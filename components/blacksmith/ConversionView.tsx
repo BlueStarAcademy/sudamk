@@ -207,7 +207,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                 />
             )}
 
-            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-4 overflow-y-auto overflow-x-hidden rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171c2a]/70 via-[#101522]/88 to-[#0b1018]/92 p-2.5 sm:p-3">
                 {/* 가로 스크롤 체인은 뷰포트보다 넓을 때만 스크롤, 좁을 때는 가로·세로 중앙 정렬 */}
                 {/* 첫 번째 행: 하급 강화석 <> 중급 강화석 <> 상급 강화석 */}
                 <div className="flex w-full min-w-0 justify-center overflow-x-auto pb-1 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]">
@@ -225,7 +225,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                         return (
                             <React.Fragment key={materialName}>
                                 {/* 강화석 카드 */}
-                                <div className="bg-panel-secondary flex min-w-[100px] flex-col items-center justify-center rounded-lg p-2 sm:min-w-[120px] sm:p-2.5">
+                                <div className="flex min-w-[100px] flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-2 sm:min-w-[120px] sm:p-2.5">
                                     <img src={materialData.image as string | undefined} alt={materialName} className="mb-1 h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12" />
                                     <h4 className="mb-0.5 text-center text-[11px] font-bold text-secondary whitespace-nowrap sm:mb-1 sm:text-xs">{materialName}</h4>
                                     <p className="mb-1 text-center text-[10px] text-tertiary sm:mb-1.5 sm:text-[11px]">보유: {quantity.toLocaleString()}개</p>
@@ -279,7 +279,7 @@ const ConversionView: React.FC<ConversionViewProps> = ({ onAction }) => {
                         return (
                             <React.Fragment key={materialName}>
                                 {/* 강화석 카드 */}
-                                <div className="bg-panel-secondary flex min-w-[100px] flex-col items-center justify-center rounded-lg p-2 sm:min-w-[120px] sm:p-2.5">
+                                <div className="flex min-w-[100px] flex-col items-center justify-center rounded-lg border border-white/10 bg-gradient-to-b from-slate-900/80 to-black/55 p-2 sm:min-w-[120px] sm:p-2.5">
                                     <img src={materialData.image as string | undefined} alt={materialName} className="mb-1 h-10 w-10 sm:mb-1.5 sm:h-12 sm:w-12" />
                                     <h4 className="mb-0.5 text-center text-[11px] font-bold text-secondary whitespace-nowrap sm:mb-1 sm:text-xs">{materialName}</h4>
                                     <p className="mb-1 text-center text-[10px] text-tertiary sm:mb-1.5 sm:text-[11px]">보유: {quantity.toLocaleString()}개</p>

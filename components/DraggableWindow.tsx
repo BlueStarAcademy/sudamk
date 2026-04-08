@@ -305,8 +305,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
             const clickedInside = path.includes(windowRef.current) || windowRef.current.contains(event.target as Node);
             if (clickedInside) return;
+            /** `createPortal(document.body)` 등 창 밖에 붙는 UI(도감 말풍선 등) — 같은 windowId면 바깥 클릭으로 닫지 않음 */
+            const target = event.target as HTMLElement | null;
+            if (target?.closest?.(`[data-draggable-satellite="${windowId}"]`)) {
+                return;
+            }
             // 클릭된 요소가 다른 DraggableWindow 내부에 있는지 확인
-            const target = event.target as HTMLElement;
             if (target) {
                 // 클릭된 요소의 부모 중에 다른 DraggableWindow가 있는지 확인
                 let parent = target.parentElement;
@@ -323,7 +327,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         }
 
-    }, [onClose, closeOnOutsideClick, isTopmost]);
+    }, [onClose, closeOnOutsideClick, isTopmost, windowId]);
 
 
 

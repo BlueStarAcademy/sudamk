@@ -10,6 +10,17 @@ const CHAMPIONSHIP_TOP = 100;
 const INITIAL_DISPLAY = 6;
 const LOAD_MORE = 8;
 
+function compactRankAccent(rank: number, isCurrentUser: boolean, dense: boolean, lobbyNativeMobile: boolean): string {
+    if (isCurrentUser) {
+        return 'ring-1 ring-cyan-400/50 ring-inset bg-gradient-to-r from-cyan-950/55 via-cyan-900/25 to-transparent shadow-[0_0_20px_-10px_rgba(34,211,238,0.35)]';
+    }
+    if (dense || rank < 1 || rank > 3) return '';
+    const bar = lobbyNativeMobile ? 'border-l-[3px]' : 'border-l-[3px]';
+    if (rank === 1) return `${bar} border-l-amber-400/90 bg-gradient-to-r from-amber-950/45 to-transparent`;
+    if (rank === 2) return `${bar} border-l-slate-300/80 bg-gradient-to-r from-slate-800/40 to-transparent`;
+    return `${bar} border-l-amber-700/85 bg-gradient-to-r from-orange-950/35 to-transparent`;
+}
+
 /** 게임/바둑 랭킹과 동일한 한 줄 행 (compact용) */
 const CompactRankRow: React.FC<{
     entry: RankingEntry;
@@ -20,14 +31,24 @@ const CompactRankRow: React.FC<{
 }> = ({ entry, isCurrentUser, onViewUser, dense, lobbyNativeMobile = false }) => {
     const avatarUrl = AVATAR_POOL.find(a => a.id === entry.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === entry.borderId)?.url;
+    const r = entry.rank === 0 ? 0 : entry.rank;
+    const accent = compactRankAccent(r, isCurrentUser, Boolean(dense), lobbyNativeMobile);
     return (
         <div
-            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
+            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
             onClick={!isCurrentUser && onViewUser ? () => onViewUser(entry.id) : undefined}
             title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
         >
             <span
-                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? 'w-8 text-[11px]' : 'w-8 text-xs'}`}
+                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? 'w-8 text-[11px]' : 'w-8 text-xs'} ${
+                    !dense && r === 1
+                        ? 'text-amber-300'
+                        : !dense && r === 2
+                          ? 'text-slate-200'
+                          : !dense && r === 3
+                            ? 'text-amber-600/90'
+                            : ''
+                }`}
             >
                 {entry.rank === 0 ? '-' : entry.rank}
             </span>
@@ -172,10 +193,17 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
 
         return (
             <div
-                className={`bg-panel text-on-panel flex h-full min-h-0 flex-col rounded-lg border border-color ${dense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'} ${lobbyGlass ? 'backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]' : ''}`}
+                className={`relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-fuchsia-500/20 bg-gradient-to-b from-zinc-900/95 via-zinc-950 to-black text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-black/30 ${dense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'} ${lobbyGlass ? 'backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]' : ''}`}
             >
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-fuchsia-400/35 to-transparent" aria-hidden />
                 <h3
-                    className={`flex-shrink-0 text-center font-semibold text-secondary ${dense ? 'text-[8px] leading-tight' : lobbyNativeMobile ? 'text-base' : 'text-sm'}`}
+                    className={`relative z-[1] flex-shrink-0 text-center font-black tracking-tight ${
+                        dense
+                            ? 'text-[8px] leading-tight text-secondary'
+                            : lobbyNativeMobile
+                              ? 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-base text-transparent'
+                              : 'bg-gradient-to-r from-fuchsia-100 via-violet-50 to-amber-100/90 bg-clip-text text-sm text-transparent'
+                    }`}
                 >
                     챔피언십 랭킹
                 </h3>
@@ -188,7 +216,7 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                     ) : (
                         <>
                             {currentUserEntry && (
-                                <div className="sticky top-0 z-10 bg-panel">
+                                <div className="sticky top-0 z-10 border-b border-cyan-500/25 bg-gradient-to-r from-cyan-950/40 to-transparent pb-1 pt-0.5">
                                     <CompactRankRow
                                         entry={currentUserEntry}
                                         isCurrentUser={true}

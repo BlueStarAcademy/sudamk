@@ -24,7 +24,7 @@ const MainBackgroundLayer: React.FC<MainBackgroundLayerProps> = ({ variant = 'ap
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover"
                     decoding="async"
-                    fetchPriority="low"
+                    fetchpriority="low"
                 />
             )}
             <div className={`absolute inset-0 bg-gradient-to-b ${dim}`} />

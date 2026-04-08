@@ -1,19 +1,19 @@
 import React, { useMemo } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
-type DockTab = 'home' | 'ranking' | 'arena' | 'tournament' | 'singleplayer' | 'tower';
+type DockTab = 'home' | 'arena' | 'tournament' | 'singleplayer' | 'tower' | 'adventure';
 
 const DOCK_ITEMS: { tab: DockTab; label: string }[] = [
     { tab: 'home', label: '홈' },
-    { tab: 'ranking', label: '랭킹' },
-    { tab: 'arena', label: '경기장' },
-    { tab: 'tournament', label: '챔피언십' },
     { tab: 'singleplayer', label: '싱글플레이' },
     { tab: 'tower', label: '도전의 탑' },
+    { tab: 'arena', label: '경기장' },
+    { tab: 'tournament', label: '챔피언십' },
+    { tab: 'adventure', label: '모험' },
 ];
 
 /**
- * 네이티브 모바일: 광고 바로 위 고정 탭. 프로필 하위(홈·랭킹·경기장) + 주요 로비 이동.
+ * 네이티브 모바일: 광고 바로 위 고정 탭. 프로필 하위(홈·경기장) + 주요 로비 이동.
  */
 const NativeMobileDock: React.FC = () => {
     const { currentRoute } = useAppContext();
@@ -25,7 +25,6 @@ const NativeMobileDock: React.FC = () => {
         if (v === 'tower') return 'tower';
         if (v === 'profile') {
             const t = currentRoute.params?.tab;
-            if (t === 'ranking') return 'ranking';
             if (t === 'arena') return 'arena';
             return 'home';
         }
@@ -38,9 +37,6 @@ const NativeMobileDock: React.FC = () => {
             case 'home':
                 replaceAppHash('#/profile');
                 break;
-            case 'ranking':
-                replaceAppHash('#/profile/ranking');
-                break;
             case 'arena':
                 replaceAppHash('#/profile/arena');
                 break;
@@ -52,6 +48,9 @@ const NativeMobileDock: React.FC = () => {
                 break;
             case 'tower':
                 replaceAppHash('#/tower');
+                break;
+            case 'adventure':
+                // 준비 중: 버튼만 노출하고 이동은 비활성화
                 break;
             default:
                 break;
@@ -67,6 +66,7 @@ const NativeMobileDock: React.FC = () => {
                 <div className="grid w-full grid-cols-6 gap-1">
                     {DOCK_ITEMS.map(({ tab, label }) => {
                         const on = activeTab === tab;
+                        const disabled = tab === 'adventure';
                         const compactLabel =
                             tab === 'tournament' || tab === 'singleplayer' || tab === 'tower';
                         return (
@@ -74,8 +74,9 @@ const NativeMobileDock: React.FC = () => {
                                 key={tab}
                                 type="button"
                                 onClick={() => go(tab)}
+                                disabled={disabled}
                                 className={[
-                                    'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-0.5 py-0.5 text-center transition-all duration-200 active:scale-[0.98] sm:h-12',
+                                    'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-0.5 py-0.5 text-center transition-all duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-55 sm:h-12',
                                     on
                                         ? 'border-amber-300/70 bg-gradient-to-b from-amber-700/40 via-amber-900/65 to-stone-950/95 text-amber-50 shadow-[0_3px_10px_rgba(251,191,36,0.2),inset_0_1px_0_rgba(255,255,255,0.18)]'
                                         : 'border-stone-500/45 bg-gradient-to-b from-slate-700/80 via-slate-900/88 to-slate-950/95 text-stone-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:border-stone-400/55',

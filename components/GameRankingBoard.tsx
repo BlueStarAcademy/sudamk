@@ -9,6 +9,18 @@ import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 
 const IS_DEV = import.meta.env.DEV;
 
+/** 랭킹 모달용: 1~3위 강조 / 본인 행 강조 */
+function rankRowAccent(rank: number | string, isCurrentUser: boolean, dense: boolean, mobileWide: boolean): string {
+    if (isCurrentUser) {
+        return 'ring-1 ring-cyan-400/50 ring-inset bg-gradient-to-r from-cyan-950/55 via-cyan-900/25 to-transparent shadow-[0_0_24px_-10px_rgba(34,211,238,0.4)]';
+    }
+    if (dense || typeof rank !== 'number' || rank < 1 || rank > 3) return '';
+    const bar = mobileWide ? 'border-l-[3px]' : 'border-l-[3px]';
+    if (rank === 1) return `${bar} border-l-amber-400/90 bg-gradient-to-r from-amber-950/50 to-transparent shadow-[inset_6px_0_20px_-12px_rgba(251,191,36,0.2)]`;
+    if (rank === 2) return `${bar} border-l-slate-300/80 bg-gradient-to-r from-slate-800/45 to-transparent`;
+    return `${bar} border-l-amber-700/85 bg-gradient-to-r from-orange-950/40 to-transparent`;
+}
+
 const RankingRow = ({
     user,
     rank,
@@ -36,14 +48,28 @@ const RankingRow = ({
         }
     };
 
+    const accent = rankRowAccent(rank, isCurrentUser, Boolean(dense), mobileWide);
+
     if (mobileWide) {
         return (
             <div
-                className={`flex min-h-[3rem] items-center rounded-md px-1.5 py-1 ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
+                className={`flex min-h-[3rem] items-center rounded-lg px-1.5 py-1 transition-colors ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
                 onClick={handleClick}
                 title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
             >
-                <span className="w-9 shrink-0 text-center text-sm font-bold tabular-nums">{rank}</span>
+                <span
+                    className={`w-9 shrink-0 text-center text-sm font-black tabular-nums ${
+                        typeof rank === 'number' && rank === 1
+                            ? 'text-amber-300'
+                            : typeof rank === 'number' && rank === 2
+                              ? 'text-slate-200'
+                              : typeof rank === 'number' && rank === 3
+                                ? 'text-amber-600/90'
+                                : 'text-primary'
+                    }`}
+                >
+                    {rank}
+                </span>
                 <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={40} />
                 <span className="ml-2 min-w-0 flex-1 truncate text-sm font-semibold">{user.nickname}</span>
                 <span className="w-[4.5rem] shrink-0 text-right font-mono text-sm tabular-nums">{value.toLocaleString()}</span>
@@ -53,11 +79,23 @@ const RankingRow = ({
 
     return (
         <div
-            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${isCurrentUser ? 'bg-blue-500/30' : onViewUser ? 'cursor-pointer hover:bg-secondary/50' : ''}`}
+            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
             onClick={handleClick}
             title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
         >
-            <span className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'}`}>{rank}</span>
+            <span
+                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'} ${
+                    !dense && typeof rank === 'number' && rank === 1
+                        ? 'text-amber-300'
+                        : !dense && typeof rank === 'number' && rank === 2
+                          ? 'text-slate-200'
+                          : !dense && typeof rank === 'number' && rank === 3
+                            ? 'text-amber-600/90'
+                            : ''
+                }`}
+            >
+                {rank}
+            </span>
             <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} />
             <span className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}>{user.nickname}</span>
             <span className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : 'w-16 text-xs'}`}>{value.toLocaleString()}</span>
@@ -151,31 +189,48 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense, m
 
     return (
         <div
-            className={`bg-panel text-on-panel flex h-full min-h-0 flex-1 flex-col rounded-lg border border-color ${
-                wide ? 'gap-1 p-2' : rowDense ? 'gap-0.5 p-0.5' : 'gap-1 p-1.5'
+            className={`relative flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/95 via-zinc-950 to-black text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-black/30 ${
+                wide ? 'gap-1 p-2' : rowDense ? 'gap-0.5 p-0.5' : 'gap-1.5 p-2'
             }`}
         >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
             <h3
-                className={`flex-shrink-0 text-center font-bold text-secondary ${
-                    wide ? 'text-base' : rowDense ? 'text-[8px] leading-tight' : 'text-xs'
+                className={`relative z-[1] flex-shrink-0 text-center font-black tracking-tight ${
+                    wide
+                        ? 'bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-200/90 bg-clip-text text-base text-transparent'
+                        : rowDense
+                          ? 'text-[8px] leading-tight text-secondary'
+                          : 'bg-gradient-to-r from-amber-100 via-yellow-50 to-amber-200/90 bg-clip-text text-xs text-transparent sm:text-sm'
                 }`}
             >
                 게임 랭킹
             </h3>
-            <div className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 ${wide ? 'p-1' : rowDense ? 'p-px' : 'p-0.5'}`}>
+            <div
+                className={`relative z-[1] flex flex-shrink-0 rounded-xl border border-white/10 bg-black/45 p-1 shadow-inner ${wide ? '' : rowDense ? 'p-px' : ''}`}
+            >
                 <button
+                    type="button"
                     onClick={() => setActiveTab('combat')}
-                    className={`flex-1 rounded-md font-semibold transition-all ${
-                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'
-                    } ${activeTab === 'combat' ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                    className={`flex-1 rounded-lg font-semibold transition-all ${
+                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
+                    } ${
+                        activeTab === 'combat'
+                            ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-blue-500/25'
+                            : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
+                    }`}
                 >
                     바둑능력
                 </button>
                 <button
+                    type="button"
                     onClick={() => setActiveTab('manner')}
-                    className={`flex-1 rounded-md font-semibold transition-all ${
-                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1 text-xs'
-                    } ${activeTab === 'manner' ? 'bg-yellow-600 text-white' : 'text-gray-400 hover:bg-gray-700/50'}`}
+                    className={`flex-1 rounded-lg font-semibold transition-all ${
+                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
+                    } ${
+                        activeTab === 'manner'
+                            ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-md shadow-amber-500/25'
+                            : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
+                    }`}
                 >
                     매너
                 </button>
@@ -209,7 +264,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense, m
                     ) : (
                         <>
                             {currentUserRanking && (
-                                <div className="z-10 flex-shrink-0 border-b border-color/40 bg-panel pb-1">
+                                <div className="z-10 flex-shrink-0 border-b border-cyan-500/25 bg-gradient-to-r from-cyan-950/40 to-transparent pb-1.5 pt-0.5">
                                     <RankingRow
                                         user={currentUserRanking.user}
                                         rank={currentUserRanking.rank as number}

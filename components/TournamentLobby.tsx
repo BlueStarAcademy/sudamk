@@ -1,20 +1,19 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade } from '../types.js';
-import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages } from '../constants';
+import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages, getDungeonStageScore } from '../constants';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import LeagueTierInfoModal from './LeagueTierInfoModal.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
-import ChatWindow from './waiting-room/ChatWindow.js';
 import PointsInfoPanel from './PointsInfoPanel.js';
 import Button from './Button.js';
 import { calculateUserEffects } from '../services/effectService.js';
-import ChampionshipHelpModal from './ChampionshipHelpModal.js';
 import ChampionshipRankingPanel from './ChampionshipRankingPanel.js';
 import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
+import CoreStatsHexagonChart from './CoreStatsHexagonChart.js';
 
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
@@ -344,7 +343,9 @@ const TournamentCard: React.FC<{
     compact?: boolean;
     /** 채팅·랭킹 사이 가로 3열: 좁은 폭, 하단 독 이상 글자 크기 */
     compactInline?: boolean;
-}> = ({ type, onClick, onContinue, inProgress, currentUser, compact, compactInline }) => {
+    /** 홈 입장버튼처럼 우측 정보 패널 결합형 */
+    mergedInfoPanel?: boolean;
+}> = ({ type, onClick, onContinue, inProgress, currentUser, compact, compactInline, mergedInfoPanel = false }) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
 
@@ -387,6 +388,12 @@ const TournamentCard: React.FC<{
     /** 모바일 입장 카드: 오늘 아직 참여 전이면 (0/1) — 남은 일일 입장이 있을 때 */
     const hasRemainingDailyEntry =
         !isCompletedToday && !isPausedInProgress && playedCountToday === 0;
+    const participationBadge = hasResultToView ? '결과 보기' : hasUnclaimedReward ? '보상 완료' : '참가 가능';
+    const participationBadgeTone = hasResultToView
+        ? 'border-amber-300/60 bg-amber-500/90 text-amber-950'
+        : hasUnclaimedReward
+          ? 'border-emerald-300/60 bg-emerald-500/90 text-emerald-950'
+          : 'border-cyan-300/60 bg-cyan-500/90 text-cyan-950';
 
     const [entryModalOpen, setEntryModalOpen] = useState(false);
 
@@ -429,9 +436,113 @@ const TournamentCard: React.FC<{
               : 'h-full transform rounded-lg bg-gray-800 p-2 shadow-lg hover:-translate-y-1 hover:shadow-purple-500/30 sm:p-3'
     }`;
 
+    const currentPointsStage = Math.min(10, Math.max(1, dungeonProgress.currentStage || 1));
+    const [pointsStage, setPointsStage] = useState<number>(currentPointsStage);
+    useEffect(() => {
+        setPointsStage(currentPointsStage);
+    }, [currentPointsStage]);
+    const pointsTop1 = getDungeonStageScore(type, pointsStage, 1);
+    const pointsTop2 = getDungeonStageScore(type, pointsStage, 2);
+    const pointsTop3 = getDungeonStageScore(type, pointsStage, 3);
+
     return (
         <>
-            {compactInline && hasRemainingDailyEntry ? (
+            {mergedInfoPanel ? (
+                <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+                    <button
+                        type="button"
+                        onClick={() => setEntryModalOpen(true)}
+                        className="group relative min-h-0 min-w-0 flex-[1.35] overflow-hidden rounded-l-2xl text-left focus:outline-none"
+                        aria-label={`${definition.name} 입장 및 보상 안내`}
+                    >
+                        <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                        <div
+                            className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
+                            aria-label={`참가 상태: ${participationBadge}`}
+                        >
+                            {participationBadge}
+                        </div>
+                    </button>
+                    <div className="min-h-0 min-w-[248px] flex-[1.08] border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] space-y-2.5">
+                        <div className="mb-1 inline-flex w-full items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2.5 py-1.5 text-[17px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]">
+                            {definition.name}
+                        </div>
+                        <div className="grid grid-cols-[5.2rem_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
+                            <span className="text-center font-semibold text-slate-300/95">최고 단계</span>
+                            <span className="min-w-0 text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
+                                {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
+                            </span>
+                        </div>
+                        <div className="rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2">
+                            <div className="mb-1 flex items-center justify-between gap-2">
+                                <div className="text-center text-[14px] font-semibold text-slate-200/95">챔피언십 랭킹점수</div>
+                                <select
+                                    value={pointsStage}
+                                    onChange={(e) => setPointsStage(Number(e.target.value))}
+                                    className="min-w-[5rem] rounded border border-amber-400/35 bg-zinc-900/85 px-1.5 py-0.5 text-[12px] font-semibold text-amber-100 focus:border-amber-300/70 focus:outline-none"
+                                    aria-label={`${definition.name} 점수 확인 단계 선택`}
+                                >
+                                    {Array.from({ length: 10 }, (_, i) => i + 1).map((stage) => (
+                                        <option key={stage} value={stage}>
+                                            {stage}단계{stage === currentPointsStage ? ' (현재단계)' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            {(() => {
+                                const buildRows = () => {
+                                    if (type === 'neighborhood') {
+                                        return Array.from({ length: 6 }, (_, i) => ({ label: `${i + 1}위`, rank: i + 1 }));
+                                    }
+                                    if (type === 'national') {
+                                        return [
+                                            ...Array.from({ length: 4 }, (_, i) => ({ label: `${i + 1}위`, rank: i + 1 })),
+                                            { label: '8강', rank: 8 },
+                                        ];
+                                    }
+                                    return [
+                                        ...Array.from({ length: 4 }, (_, i) => ({ label: `${i + 1}위`, rank: i + 1 })),
+                                        { label: '8강', rank: 8 },
+                                        { label: '16강', rank: 16 },
+                                    ];
+                                };
+
+                                const rows = buildRows();
+
+                                return (
+                                    <div className="grid grid-cols-3 gap-1">
+                                        {rows.map(({ label, rank }) => {
+                                            const score = getDungeonStageScore(type, pointsStage, rank);
+                                            const rankTone =
+                                                rank === 1
+                                                    ? 'text-yellow-300'
+                                                    : rank === 2
+                                                      ? 'text-slate-200'
+                                                      : rank === 3
+                                                        ? 'text-amber-300'
+                                                        : 'text-slate-300';
+                                            return (
+                                                <div
+                                                    key={`${label}-${rank}`}
+                                                    className="overflow-hidden rounded-md border border-white/12 bg-black/25"
+                                                >
+                                                    <div className={`border-b border-white/10 px-1 py-0.5 text-center text-[13px] font-bold ${rankTone}`}>
+                                                        {label}{rank <= 3 ? ' (단계상승)' : ''}
+                                                    </div>
+                                                    <div className="px-1 py-0.5 text-center font-mono text-[13px] font-semibold tabular-nums text-slate-100">
+                                                        {score}점
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                        </div>
+                    </div>
+                </div>
+            ) : compactInline && hasRemainingDailyEntry ? (
                 <div className="relative h-full min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg p-[2px] shadow-[0_0_20px_-4px_rgba(251,191,36,0.35)]">
                     <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]" aria-hidden>
                         <div
@@ -439,12 +550,12 @@ const TournamentCard: React.FC<{
                         />
                     </div>
                     <div className={`relative z-[1] h-full min-h-0 ${cardShellClass}`}>
-                        {hasUnclaimedReward && (
-                            <div
-                                className="pointer-events-none absolute right-1 top-1 z-20 h-2.5 w-2.5 rounded-full border-2 border-gray-800 bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-3 sm:w-3"
-                                aria-hidden
-                            />
-                        )}
+                        <div
+                            className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
+                            aria-label={`참가 상태: ${participationBadge}`}
+                        >
+                            {participationBadge}
+                        </div>
                         <button
                             type="button"
                             onClick={() => setEntryModalOpen(true)}
@@ -475,12 +586,12 @@ const TournamentCard: React.FC<{
                 </div>
             ) : (
             <div className={cardShellClass}>
-                {hasUnclaimedReward && (
-                    <div
-                        className="pointer-events-none absolute right-1 top-1 z-20 h-2.5 w-2.5 rounded-full border-2 border-gray-800 bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-3 sm:w-3"
-                        aria-hidden
-                    />
-                )}
+                <div
+                    className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
+                    aria-label={`참가 상태: ${participationBadge}`}
+                >
+                    {participationBadge}
+                </div>
                 <button
                     type="button"
                     onClick={() => setEntryModalOpen(true)}
@@ -685,7 +796,7 @@ const EquipmentSlotDisplay: React.FC<{
 };
 
 const TournamentLobby: React.FC = () => {
-    const { currentUserWithStatus, allUsers, handlers, waitingRoomChats, presets } = useAppContext();
+    const { currentUserWithStatus, allUsers, handlers, presets } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
 
     const venueLobbyPanelStyle = useMemo(
@@ -702,7 +813,6 @@ const TournamentLobby: React.FC = () => {
     const [hasRankChanged, setHasRankChanged] = useState(false);
     const [enrollingIn, setEnrollingIn] = useState<TournamentType | null>(null);
     const [selectedPreset, setSelectedPreset] = useState(0);
-    const [isChampionshipHelpOpen, setIsChampionshipHelpOpen] = useState(false);
 
     if (!currentUserWithStatus) {
         return (
@@ -781,46 +891,71 @@ const TournamentLobby: React.FC = () => {
         }
     };
 
+    const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUserWithStatus), [currentUserWithStatus]);
+    const baseByStat = useMemo(() => {
+        const out = {} as Record<CoreStat, number>;
+        for (const stat of Object.values(CoreStat)) {
+            out[stat] = (currentUserWithStatus.baseStats?.[stat] || 0) + (currentUserWithStatus.spentStatPoints?.[stat] || 0);
+        }
+        return out;
+    }, [currentUserWithStatus]);
+    const finalByStat = useMemo(() => {
+        const out = {} as Record<CoreStat, number>;
+        for (const stat of Object.values(CoreStat)) {
+            const baseValue = baseByStat[stat] || 0;
+            out[stat] = Math.floor((baseValue + coreStatBonuses[stat].flat) * (1 + coreStatBonuses[stat].percent / 100));
+        }
+        return out;
+    }, [baseByStat, coreStatBonuses]);
+    const badukAbilityTotal = useMemo(
+        () => Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0),
+        [finalByStat],
+    );
+    const totalPoints =
+        (Math.max(0, currentUserWithStatus.strategyLevel - 1) * 2) +
+        (Math.max(0, currentUserWithStatus.playfulLevel - 1) * 2) +
+        (currentUserWithStatus.bonusStatPoints || 0);
+    const spentPoints = Object.values(currentUserWithStatus.spentStatPoints || {}).reduce((sum, points) => sum + points, 0);
+    const availablePoints = totalPoints - spentPoints;
+    const combinedLevel = (currentUserWithStatus.strategyLevel || 0) + (currentUserWithStatus.playfulLevel || 0);
+    const myAvatarUrl = AVATAR_POOL.find(a => a.id === currentUserWithStatus.avatarId)?.url;
+    const myBorderUrl = BORDER_POOL.find(b => b.id === currentUserWithStatus.borderId)?.url;
+    const championshipScore = currentUserWithStatus.cumulativeTournamentScore || currentUserWithStatus.tournamentScore || 0;
+    const championshipRank = useMemo(() => {
+        if (championshipScore <= 0) return null;
+        const rankedByServer = currentUserWithStatus.dailyRankings?.championship?.rank;
+        if (typeof rankedByServer === 'number' && rankedByServer > 0) return rankedByServer;
+
+        const participantsMap = new Map<string, UserWithStatus>();
+        for (const user of allUsers || []) {
+            participantsMap.set(user.id, user);
+        }
+        participantsMap.set(currentUserWithStatus.id, currentUserWithStatus);
+
+        const participants = Array.from(participantsMap.values()).filter(
+            (u) => (u.cumulativeTournamentScore || u.tournamentScore || 0) > 0
+        );
+        if (participants.length === 0) return null;
+
+        participants.sort((a, b) => {
+            const aScore = a.cumulativeTournamentScore || a.tournamentScore || 0;
+            const bScore = b.cumulativeTournamentScore || b.tournamentScore || 0;
+            if (bScore !== aScore) return bScore - aScore;
+            return (a.nickname || '').localeCompare(b.nickname || '', 'ko');
+        });
+
+        const idx = participants.findIndex(u => u.id === currentUserWithStatus.id);
+        return idx >= 0 ? idx + 1 : null;
+    }, [allUsers, currentUserWithStatus, championshipScore]);
+
     return (
         <div
-            className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5' : 'h-full min-h-0 overflow-hidden p-4 sm:p-6 lg:p-8'}`}
+            className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5' : 'h-full p-2 sm:p-4 lg:p-2'}`}
             style={venueLobbyPanelStyle}
         >
-            {isNativeMobile ? (
+            {isNativeMobile && (
                 <header className={`relative mb-0.5 flex min-h-11 shrink-0 items-center justify-center px-1 py-1 ${venueHeaderChrome}`}>
                     <h1 className="pointer-events-none select-none px-12 text-center text-lg font-bold">챔피언십</h1>
-                    <div className="absolute right-0.5 top-1/2 flex -translate-y-1/2 items-center gap-0.5">
-                        <button
-                            onClick={() => setIsChampionshipHelpOpen(true)}
-                            className="flex h-9 w-9 items-center justify-center transition-transform hover:scale-110"
-                            aria-label="도움말"
-                            title="도움말"
-                        >
-                            <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
-                        </button>
-                    </div>
-                </header>
-            ) : (
-                <header className={`mb-4 flex flex-shrink-0 items-center justify-between sm:mb-6 ${venueHeaderChrome}`}>
-                    <button
-                        onClick={() => window.location.hash = '#/profile'}
-                        className="transition-transform active:scale-90 filter hover:drop-shadow-lg"
-                    >
-                        <img src="/images/button/back.png" alt="Back" className="h-10 w-10 sm:h-12 sm:w-12" />
-                    </button>
-                    <div className="min-w-0 flex-1 text-center">
-                        <h1 className="text-xl font-bold sm:text-2xl lg:text-4xl">챔피언십</h1>
-                    </div>
-                    <div className="flex shrink-0 items-center justify-center">
-                        <button
-                            onClick={() => setIsChampionshipHelpOpen(true)}
-                            className="flex h-8 w-8 items-center justify-center transition-transform hover:scale-110 sm:h-10 sm:w-10"
-                            aria-label="도움말"
-                            title="도움말"
-                        >
-                            <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
-                        </button>
-                    </div>
                 </header>
             )}
 
@@ -880,91 +1015,108 @@ const TournamentLobby: React.FC = () => {
 
                     {/* 입장 카드 3개 — 가로 와이드 이미지, 카드별 색 구분 */}
                     <div
-                        className={`grid w-full shrink-0 grid-cols-3 gap-2 overflow-hidden rounded-lg border border-stone-600/40 p-1.5 shadow-inner ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
+                        className={`grid w-full shrink-0 grid-cols-1 grid-rows-3 gap-2 overflow-hidden rounded-lg border border-stone-600/40 p-1.5 shadow-inner ${CHAMPIONSHIP_PANEL_GLASS} bg-stone-950/45`}
                     >
                         <TournamentCard
-                            compactInline
                             type="neighborhood"
                             onClick={(stage) => handleEnterArena('neighborhood', stage)}
                             onContinue={() => handleContinueTournament('neighborhood')}
                             inProgress={neighborhoodState || null}
                             currentUser={currentUserWithStatus}
+                            mergedInfoPanel
                         />
                         <TournamentCard
-                            compactInline
                             type="national"
                             onClick={(stage) => handleEnterArena('national', stage)}
                             onContinue={() => handleContinueTournament('national')}
                             inProgress={nationalState || null}
                             currentUser={currentUserWithStatus}
+                            mergedInfoPanel
                         />
                         <TournamentCard
-                            compactInline
                             type="world"
                             onClick={(stage) => handleEnterArena('world', stage)}
                             onContinue={() => handleContinueTournament('world')}
                             inProgress={worldState || null}
                             currentUser={currentUserWithStatus}
+                            mergedInfoPanel
                         />
                     </div>
 
-                    {/* 채팅 · 챔피언십 랭킹 */}
-                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-0.5 overflow-hidden">
-                        <div
-                            className={`min-h-0 min-w-0 overflow-hidden rounded-md border border-color/35 bg-gray-900/40 ${CHAMPIONSHIP_PANEL_GLASS}`}
-                        >
-                            <ChatWindow
-                                messages={waitingRoomChats.global || []}
-                                mode="global"
-                                onAction={handlers.handleAction}
-                                onViewUser={handlers.openViewingUser}
-                                locationPrefix="[챔피언십]"
-                                compactTournamentMobile
-                            />
-                        </div>
-                        <div className="min-h-0 min-w-0 overflow-hidden rounded-md border border-color/40 p-0.5">
-                            <ChampionshipRankingPanel compact lobbyNativeMobile lobbyGlass />
-                        </div>
+                    {/* 챔피언십 랭킹 */}
+                    <div className="min-h-0 flex-1 overflow-hidden rounded-md border border-color/40 p-0.5">
+                        <ChampionshipRankingPanel compact lobbyNativeMobile lobbyGlass />
                     </div>
                 </div>
             ) : (
-            <div className="flex-1 flex flex-row gap-6 min-h-0 overflow-hidden">
-                <main className="flex-grow flex flex-col gap-6 min-h-0 overflow-hidden">
-                    <div className="grid grid-cols-3 gap-3 sm:gap-4 lg:gap-5 flex-shrink-0">
-                        <TournamentCard type="neighborhood" onClick={(stage) => handleEnterArena('neighborhood', stage)} onContinue={() => handleContinueTournament('neighborhood')} inProgress={neighborhoodState || null} currentUser={currentUserWithStatus} />
-                        <TournamentCard type="national" onClick={(stage) => handleEnterArena('national', stage)} onContinue={() => handleContinueTournament('national')} inProgress={nationalState || null} currentUser={currentUserWithStatus} />
-                        <TournamentCard type="world" onClick={(stage) => handleEnterArena('world', stage)} onContinue={() => handleContinueTournament('world')} inProgress={worldState || null} currentUser={currentUserWithStatus} />
-                    </div>
-                    
-                    <div className="flex-1 flex flex-row gap-3 sm:gap-4 lg:gap-6 min-h-0 overflow-hidden">
-                        <div className={`w-80 flex-shrink-0 flex flex-col min-h-0 overflow-hidden rounded-lg border border-color/35 ${CHAMPIONSHIP_PANEL_GLASS} bg-gray-900/35 p-0.5`}>
-                            <PointsInfoPanel lobbyGlass />
+            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
+                <div className="min-h-0 flex-1 flex flex-col gap-1.5 overflow-hidden">
+                    <div className="flex min-h-0 flex-1 flex-row gap-1.5 overflow-hidden">
+                    <aside className="flex h-full min-h-0 w-[min(42%,480px)] min-w-[288px] max-w-[480px] shrink-0 flex-col gap-1.5 overflow-hidden">
+                        <div className="relative flex min-h-0 flex-[0.9] flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-2.5 text-on-panel">
+                                <div className="mb-2 relative flex shrink-0 items-center gap-2 rounded-xl border border-amber-500/35 bg-black/20 p-1.5">
+                                    <button
+                                        onClick={() => window.location.hash = '#/profile'}
+                                        className="relative z-[1] transition-transform active:scale-90 filter hover:drop-shadow-lg"
+                                    >
+                                        <img src="/images/button/back.png" alt="Back" className="h-10 w-10 sm:h-11 sm:w-11" />
+                                    </button>
+                                    <h1 className="relative z-[1] text-left text-xl font-bold sm:text-2xl lg:text-3xl">챔피언십</h1>
+                                </div>
+                                <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-black/35 via-zinc-950/50 to-amber-950/20 p-2">
+                                    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-amber-400/25 bg-black/30 px-2.5 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                                        <div className="flex min-w-0 items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-2 py-1.5">
+                                            <Avatar
+                                                userId={currentUserWithStatus.id}
+                                                userName={currentUserWithStatus.nickname}
+                                                avatarUrl={myAvatarUrl}
+                                                borderUrl={myBorderUrl}
+                                                size={54}
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-base font-extrabold tracking-tight text-amber-50">{currentUserWithStatus.nickname}</p>
+                                                <p className="mt-0.5 text-sm font-semibold text-amber-200/90">Lv.{combinedLevel}</p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2 grid min-h-0 flex-1 grid-cols-2 gap-2">
+                                            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-violet-300/45 bg-gradient-to-br from-violet-900/55 via-zinc-900/75 to-indigo-950/65 shadow-[0_10px_24px_-12px_rgba(99,102,241,0.55)]">
+                                                <div className="border-b border-violet-200/20 bg-gradient-to-r from-violet-400/35 to-indigo-500/35 px-2.5 py-1.5 text-center text-[13px] font-black tracking-wide text-violet-50">
+                                                    챔피언십 점수
+                                                </div>
+                                                <div className="flex min-h-0 flex-1 items-center justify-center px-2.5 py-2">
+                                                <span className="font-mono text-[1.9rem] font-black leading-none text-violet-100 tabular-nums drop-shadow-[0_0_20px_rgba(167,139,250,0.45)]">
+                                                    {championshipScore.toLocaleString()}
+                                                </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-amber-300/45 bg-gradient-to-br from-amber-900/55 via-zinc-900/75 to-orange-950/65 shadow-[0_10px_24px_-12px_rgba(245,158,11,0.55)]">
+                                                <div className="border-b border-amber-200/20 bg-gradient-to-r from-amber-400/35 to-orange-500/35 px-2.5 py-1.5 text-center text-[13px] font-black tracking-wide text-amber-50">
+                                                    현재 순위
+                                                </div>
+                                                <div className="flex min-h-0 flex-1 items-center justify-center px-2.5 py-2">
+                                                <span className="text-[1.9rem] font-black leading-none text-amber-100 tabular-nums drop-shadow-[0_0_20px_rgba(251,191,36,0.45)]">
+                                                    {championshipRank != null ? `${championshipRank}위` : '-'}
+                                                </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        <div
-                            className={`flex-1 min-h-0 flex flex-col overflow-hidden rounded-lg border border-color/35 bg-gray-900/40 shadow-lg ${CHAMPIONSHIP_PANEL_GLASS}`}
-                        >
-                            <ChatWindow
-                                messages={waitingRoomChats.global || []}
-                                mode="global"
-                                onAction={handlers.handleAction}
-                                onViewUser={handlers.openViewingUser}
-                                locationPrefix="[챔피언십]"
-                            />
-                        </div>
-                    </div>
-                </main>
-                 <aside className="flex flex-col w-[380px] xl:w-[460px] flex-shrink-0 gap-3 min-h-0 overflow-hidden">
-                    <div className="flex-shrink-0 flex flex-row gap-2 items-stretch">
-                        <div
-                            className={`flex-1 bg-panel border border-color text-on-panel rounded-lg flex flex-col overflow-hidden min-w-0 ${CHAMPIONSHIP_PANEL_GLASS}`}
-                        >
-                            <div className="w-[280px] max-w-full mx-auto flex flex-col flex-1 p-1.5">
-                                <h3 className="text-center font-semibold text-secondary text-xs flex-shrink-0 mb-1">장착 장비</h3>
-                                <div className="grid grid-cols-3 gap-2">
+                        <div className={`relative flex min-h-0 flex-[0.58] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10`}>
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                            <div className="mx-auto flex w-full min-w-0 max-w-[275px] flex-1 flex-col">
+                                <div className="grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
                                     {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                                         const item = getItemForSlot(slot);
                                         return (
-                                            <div key={slot} className="w-full aspect-square">
+                                            <div key={slot} className="aspect-square w-full min-w-0">
                                                 <EquipmentSlotDisplay
                                                     slot={slot}
                                                     item={item}
@@ -974,11 +1126,11 @@ const TournamentLobby: React.FC = () => {
                                         );
                                     })}
                                 </div>
-                                <div className="mt-1 flex gap-1.5 items-center">
+                                <div className="mt-1.5 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-1.5">
                                     <select
                                         value={selectedPreset}
                                         onChange={handlePresetChange}
-                                        className="bg-secondary border border-color text-xs rounded-md p-0.5 focus:ring-accent focus:border-accent flex-1"
+                                        className="min-h-[24px] min-w-0 flex-1 rounded border border-color bg-secondary px-1 py-0.5 text-[10px] focus:border-accent focus:ring-accent sm:text-xs"
                                     >
                                         {presets && presets.map((preset, index) => (
                                             <option key={index} value={index}>{preset.name}</option>
@@ -987,30 +1139,74 @@ const TournamentLobby: React.FC = () => {
                                     <Button
                                         onClick={handlers.openEquipmentEffectsModal}
                                         colorScheme="none"
-                                        className="!text-[9px] !py-0.5 !px-2 flex-shrink-0 justify-center rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_8px_20px_-12px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400"
+                                        className="!shrink-0 !whitespace-nowrap !px-2 !py-0.5 !text-[9px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
                                     >
-                                        장비 효과
+                                        효과
                                     </Button>
-                                </div>
-                                <div className="border-t border-color mt-1.5 pt-1.5 flex flex-col gap-1 flex-shrink-0">
-                                    <h3 className="text-xs font-semibold text-secondary">능력치</h3>
-                                    <StatsDisplayPanel currentUser={currentUserWithStatus} />
                                 </div>
                             </div>
                         </div>
+                        <div className={`relative flex min-h-0 flex-[0.76] flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10`}>
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                            <div className="relative mb-2 flex min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2.5 py-2 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:px-3 sm:py-2.5">
+                                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
+                                <div className="relative flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                                            <span className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)] sm:text-lg">
+                                                바둑능력
+                                            </span>
+                                            <span
+                                                className="bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono text-[1.35rem] font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] sm:text-2xl"
+                                                title="6개 핵심 능력치 합계"
+                                            >
+                                                {badukAbilityTotal}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div className="flex shrink-0 items-center justify-end gap-1.5 border-t border-zinc-700/90 pt-2 sm:border-t-0 sm:pt-0">
+                                        <span className="min-w-0 truncate text-xs font-medium text-amber-100/85 sm:text-sm" title={`보너스: ${availablePoints}P`}>
+                                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                                            <span className="text-amber-100/55">P</span>
+                                        </span>
+                                        <Button
+                                            onClick={handlers.openStatAllocationModal}
+                                            colorScheme="none"
+                                            className="!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-2.5 !py-1 !text-[10px] !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 sm:!text-[11px]"
+                                        >
+                                            분배
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                            <CoreStatsHexagonChart
+                                values={finalByStat}
+                                baseByStat={baseByStat}
+                                className="min-h-0 flex-1"
+                            />
+                        </div>
+                    </aside>
+                    <main className="min-h-0 flex-1 flex flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
+                        <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1120px)] flex-col justify-center">
+                            <div className="grid h-full min-h-0 grid-cols-1 grid-rows-3 content-center gap-3 sm:gap-4 lg:gap-5">
+                                <TournamentCard type="neighborhood" onClick={(stage) => handleEnterArena('neighborhood', stage)} onContinue={() => handleContinueTournament('neighborhood')} inProgress={neighborhoodState || null} currentUser={currentUserWithStatus} mergedInfoPanel />
+                                <TournamentCard type="national" onClick={(stage) => handleEnterArena('national', stage)} onContinue={() => handleContinueTournament('national')} inProgress={nationalState || null} currentUser={currentUserWithStatus} mergedInfoPanel />
+                                <TournamentCard type="world" onClick={(stage) => handleEnterArena('world', stage)} onContinue={() => handleContinueTournament('world')} inProgress={worldState || null} currentUser={currentUserWithStatus} mergedInfoPanel />
+                            </div>
+                        </div>
+                    </main>
+                    </div>
+                </div>
+                    <aside className="flex h-full min-h-0 flex-shrink-0 flex-col overflow-hidden self-stretch">
+                    <div className="flex h-full min-h-0 flex-shrink-0 flex-row gap-2 items-stretch">
                         <div className={`${PC_QUICK_RAIL_COLUMN_CLASS} ml-auto overflow-hidden`}>
                             <QuickAccessSidebar fillHeight={true} compact={false} className={CHAMPIONSHIP_PANEL_GLASS} />
                         </div>
                     </div>
-                    
-                    {/* 챔피언십 랭킹 - 더 위로 끌어올려져 세로 공간 확보 */}
-                    <div className="flex-1 min-h-0 overflow-hidden">
-                        <ChampionshipRankingPanel lobbyGlass />
-                    </div>
                 </aside>
             </div>
             )}
-            {isChampionshipHelpOpen && <ChampionshipHelpModal onClose={() => setIsChampionshipHelpOpen(false)} />}
         </div>
     );
 };

@@ -2389,6 +2389,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     <SinglePlayerGameDescriptionModal 
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
+                        currentUser={currentUserWithStatus}
                     />
                 )}
                 <Header compact />
@@ -2538,6 +2539,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     <SinglePlayerGameDescriptionModal 
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
+                        currentUser={currentUserWithStatus}
                     />
                 )}
                 <Header compact />

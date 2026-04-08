@@ -571,12 +571,12 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
     const refinementExhausted = refinementCount <= 0;
 
     return (
-        <div className="flex flex-col h-full gap-2 p-2">
+        <div className="flex h-full flex-col gap-2 p-2">
             {/* 좌우 분할 레이아웃 */}
             <div className="flex-1 grid grid-cols-2 gap-3 min-h-0 min-w-0">
                 {/* 좌측: 선택된 장비 표시 */}
-                <div className="flex flex-col bg-gray-800/50 rounded-lg p-2 min-h-0 min-w-0">
-                    <h3 className="text-xs font-bold mb-1 text-gray-300">선택된 장비</h3>
+                <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
+                    <h3 className="mb-1 text-xs font-bold text-amber-100">선택된 장비</h3>
                     <div className="flex-1 min-h-0">
                         <ItemDisplay 
                             item={selectedItem} 
@@ -590,8 +590,8 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                 </div>
 
                 {/* 우측: 제련 정보 (grid 자식은 기본 min-width:auto라 내용이 잘릴 수 있어 min-w-0) */}
-                <div className="flex flex-col bg-gray-800/50 rounded-lg p-2 min-h-0 min-w-0">
-                    <h3 className="text-xs font-bold mb-2 text-gray-300 shrink-0">제련 정보</h3>
+                <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
+                    <h3 className="mb-2 shrink-0 text-xs font-bold text-amber-100">제련 정보</h3>
                     <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
                     {refinementExhausted ? (
                         <div className="flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-sm text-amber-200/95 min-h-[120px]">
@@ -601,7 +601,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                     ) : selectedOption ? (
                         <div className="flex flex-col gap-2 text-xs">
                             {/* 선택된 옵션 표시 */}
-                            <div className="bg-gray-900/50 p-1.5 rounded">
+                            <div className="rounded border border-white/10 bg-black/35 p-1.5">
                                 <div className="text-gray-400 text-xs mb-0.5">선택된 옵션</div>
                                 <div className="text-yellow-300 font-semibold">
                                     {selectedOption?.type === 'mythicSub' && selectedOptionData ? (
@@ -677,7 +677,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                             {refinementType && (
                                 <>
                                     {/* 변경 가능한 옵션/수치 표시 */}
-                                    <div className="bg-gray-900/50 p-1.5 rounded">
+                                    <div className="rounded border border-white/10 bg-black/35 p-1.5">
                                         <div className="text-gray-400 text-xs mb-1">
                                             {refinementType === 'value' ? '변경 가능한 수치 범위' : '변경 가능한 옵션'}
                                         </div>
@@ -712,7 +712,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                                     </div>
 
                                     {/* 필요 재료 (이미지로 표시) */}
-                                    <div className="bg-gray-900/50 p-1.5 rounded">
+                                    <div className="rounded border border-white/10 bg-black/35 p-1.5">
                                         <div className="text-gray-400 text-xs mb-1">필요 재료</div>
                                         <div className="flex flex-wrap gap-2 items-center">
                                             {/* 변경권 */}
@@ -803,7 +803,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({ selectedItem, currentUs
                     </div>
 
                     <div
-                        className="mt-2 pt-1.5 border-t border-gray-600/60 shrink-0"
+                        className="mt-2 shrink-0 border-t border-white/15 pt-1.5"
                         role="group"
                         aria-label="보유 옵션 변경권"
                     >

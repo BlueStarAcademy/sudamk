@@ -1,6 +1,18 @@
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { InventoryItem, InventoryItemType, EquipmentSlot, ItemGrade, MythicStat } from '../../types.js';
-import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS, GRADE_SUB_OPTION_RULES, MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_LEVEL_REQUIREMENTS } from '../../constants';
+import {
+    EQUIPMENT_POOL,
+    MATERIAL_ITEMS,
+    CONSUMABLE_ITEMS,
+    GRADE_SUB_OPTION_RULES,
+    MAIN_STAT_DEFINITIONS,
+    SUB_OPTION_POOLS,
+    SPECIAL_STATS_DATA,
+    MYTHIC_STATS_DATA,
+    GRADE_LEVEL_REQUIREMENTS,
+    isActionPointConsumable,
+} from '../../constants';
 import DraggableWindow from '../DraggableWindow.js';
 
 interface EncyclopediaModalProps {
@@ -47,20 +59,154 @@ function encyclopediaItemsEqual(a: EncyclopediaItem, b: EncyclopediaItem): boole
     return a.name === b.name && a.grade === b.grade && a.type === b.type && (a.slot ?? null) === (b.slot ?? null);
 }
 
+/** 가방·인벤토리와 동일: 행동력 회복제는 이미지 대신 ⚡ + 수치 */
+function ActionPointIconOverlay({ name, compact }: { name: string; compact?: boolean }) {
+    const m = name.match(/\+(\d+)/);
+    const apValue = m?.[1];
+    return (
+        <span
+            className={`absolute inset-0 z-[2] flex flex-col items-center justify-center ${compact ? 'text-[1.55rem] sm:text-[1.75rem]' : 'text-[2.8rem]'}`}
+            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+            aria-hidden
+        >
+            <span className="leading-none drop-shadow-[0_0_10px_rgba(34,211,238,0.55)]">⚡</span>
+            {apValue ? (
+                <span
+                    className={`mt-0.5 font-bold text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)] ${
+                        compact ? 'text-[10px] sm:text-[11px]' : 'text-base'
+                    }`}
+                >
+                    +{apValue}
+                </span>
+            ) : null}
+        </span>
+    );
+}
+
+/** 아이콘 기준 말풍선 위치 (뷰포트 안으로 클램프) */
+function computeBubblePlacement(anchor: DOMRect): {
+    left: number;
+    top: number;
+    maxW: number;
+    placeBelow: boolean;
+    arrowOffset: number;
+} {
+    const pad = 10;
+    const gap = 12;
+    const maxW = Math.min(520, window.innerWidth - pad * 2);
+    const cx = anchor.left + anchor.width / 2;
+
+    const rightSpace = window.innerWidth - anchor.right - pad;
+    const leftSpace = anchor.left - pad;
+    const placeRight = rightSpace >= maxW || rightSpace >= leftSpace;
+    const preferredLeft = placeRight ? anchor.right + gap : anchor.left - maxW - gap;
+    const left = Math.min(Math.max(preferredLeft, pad), window.innerWidth - maxW - pad);
+
+    // 정확한 렌더 높이를 사전 측정하기 어렵기 때문에, 대각선 배치용 기준 높이를 사용해 상/하를 선택한다.
+    const estimatedBubbleH = Math.min(420, Math.max(260, window.innerHeight * 0.42));
+    const spaceBelow = window.innerHeight - anchor.bottom - pad;
+    const spaceAbove = anchor.top - pad;
+    const placeBelow = !(spaceAbove > spaceBelow && spaceBelow < estimatedBubbleH * 0.6);
+    const arrowOffset = Math.min(Math.max(cx - left - 7, 16), maxW - 32);
+    if (placeBelow) {
+        const maxTop = window.innerHeight - estimatedBubbleH - pad;
+        return { left, top: Math.min(anchor.bottom + gap, Math.max(pad, maxTop)), maxW, placeBelow, arrowOffset };
+    }
+    const top = Math.max(pad, anchor.top - estimatedBubbleH - gap);
+    return { left, top, maxW, placeBelow, arrowOffset };
+}
+
+function computeBubblePlacementInModal(
+    anchor: DOMRect,
+    modalBounds: DOMRect,
+    bubbleSize?: { height: number }
+): {
+    left: number;
+    top: number;
+    maxW: number;
+    maxH: number;
+    needsInternalScroll: boolean;
+    placeBelow: boolean;
+    arrowOffset: number;
+} {
+    const pad = 14;
+    const gap = 10;
+    const modalLeft = modalBounds.left + pad;
+    const modalRight = modalBounds.right - pad;
+    const modalTop = modalBounds.top + pad;
+    const modalBottom = modalBounds.bottom - pad;
+    const modalInnerW = Math.max(240, modalRight - modalLeft);
+    const modalInnerH = Math.max(220, modalBottom - modalTop);
+
+    const maxW = Math.min(520, modalInnerW);
+    const cx = anchor.left + anchor.width / 2;
+    const rightSpace = modalRight - anchor.right;
+    const leftSpace = anchor.left - modalLeft;
+    const placeRight = rightSpace >= maxW || rightSpace >= leftSpace;
+    const preferredLeft = placeRight ? anchor.right + gap : anchor.left - maxW - gap;
+    const left = Math.min(Math.max(preferredLeft, modalLeft), modalRight - maxW);
+
+    const estimatedBubbleH = Math.min(420, Math.max(240, modalInnerH * 0.5));
+    const measuredBubbleH = bubbleSize?.height ?? estimatedBubbleH;
+    const clampedBubbleH = Math.min(measuredBubbleH, modalInnerH);
+    const needsInternalScroll = measuredBubbleH > modalInnerH;
+    const topSpace = anchor.top - modalTop;
+    const bottomSpace = modalBottom - anchor.bottom;
+    const placeBelow = bottomSpace >= clampedBubbleH || bottomSpace >= topSpace;
+    const preferredTop = placeBelow ? anchor.bottom + gap : anchor.top - clampedBubbleH - gap;
+    const top = Math.min(Math.max(preferredTop, modalTop), modalBottom - clampedBubbleH);
+
+    const arrowOffset = Math.min(Math.max(cx - left - 7, 16), maxW - 32);
+    return { left, top, maxW, maxH: modalInnerH, needsInternalScroll, placeBelow, arrowOffset };
+}
+
+const EncyclopediaIconCell: React.FC<{
+    item: EncyclopediaItem;
+    bubbleOpen: boolean;
+    onToggleBubble: (anchor: HTMLElement) => void;
+}> = ({ item, bubbleOpen, onToggleBubble }) => (
+    <button
+        type="button"
+        title={item.name}
+        onClick={(e) => {
+            e.stopPropagation();
+            onToggleBubble(e.currentTarget);
+        }}
+        className={`group relative w-full rounded-lg p-0.5 transition-all duration-200 ${
+            bubbleOpen
+                ? 'z-[2] bg-amber-950/35 ring-2 ring-inset ring-amber-400/95 shadow-[inset_0_0_14px_rgba(251,191,36,0.18)]'
+                : 'ring-1 ring-inset ring-white/[0.12] hover:z-[1] hover:bg-white/[0.04] hover:ring-amber-400/45'
+        }`}
+    >
+        <div className="relative aspect-square w-full overflow-hidden rounded-md">
+            <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+            {isActionPointConsumable(item.name) ? (
+                <ActionPointIconOverlay name={item.name} compact />
+            ) : item.image ? (
+                <img
+                    src={item.image}
+                    alt=""
+                    className="absolute object-contain"
+                    style={{
+                        width: '78%',
+                        height: '78%',
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                    }}
+                />
+            ) : null}
+        </div>
+    </button>
+);
+
 const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmost }) => {
-    type MainTab = 'equipment' | 'material' | 'consumable' | 'help';
-    type ConsumableCategory = '골드꾸러미' | '다이아꾸러미' | '장비상자' | '재료상자';
+    type MainTab = 'equipment' | 'material' | 'consumable';
 
     const [mainTab, setMainTab] = useState<MainTab>('equipment');
 
     const equipmentSlots: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
     const slotNames: Record<EquipmentSlot, string> = { fan: '부채', board: '바둑판', top: '상의', bottom: '하의', bowl: '바둑통', stones: '바둑돌' };
-    const consumableCategories: { id: ConsumableCategory; name: string }[] = [
-        { id: '장비상자', name: '장비상자' },
-        { id: '재료상자', name: '재료상자' },
-        { id: '골드꾸러미', name: '골드꾸러미' },
-        { id: '다이아꾸러미', name: '다이아꾸러미' },
-    ];
     const gradeStyles: Record<ItemGrade, { name: string; color: string }> = {
         normal: { name: '일반', color: 'text-slate-300' },
         uncommon: { name: '고급', color: 'text-emerald-300' },
@@ -71,46 +217,142 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         transcendent: { name: '초월', color: 'text-cyan-200' },
     };
 
-    const [activeEquipmentSlot, setActiveEquipmentSlot] = useState<EquipmentSlot>('fan');
-    const [selectedItem, setSelectedItem] = useState<EncyclopediaItem | null>(null);
-    const [activeConsumableCategory, setActiveConsumableCategory] = useState<ConsumableCategory>('장비상자');
+    /** 클릭한 아이콘 기준 말풍선 (뷰어 패널 대체) */
+    const [itemBubble, setItemBubble] = useState<{ item: EncyclopediaItem; anchor: DOMRect; modalBounds: DOMRect } | null>(null);
+    const bubbleContentRef = useRef<HTMLDivElement>(null);
+    const [bubbleSize, setBubbleSize] = useState<{ height: number } | null>(null);
 
-    const itemsForTab = useMemo<EncyclopediaItem[]>(() => {
-        if (mainTab === 'equipment') {
-            return EQUIPMENT_POOL.filter((item) => item.slot === activeEquipmentSlot).sort((a, b) => gradeOrder[a.grade] - gradeOrder[b.grade]);
+    const equipmentItemsBySlot = useMemo(() => {
+        const map: Record<EquipmentSlot, EncyclopediaItem[]> = {
+            fan: [],
+            board: [],
+            top: [],
+            bottom: [],
+            bowl: [],
+            stones: [],
+        };
+        for (const raw of EQUIPMENT_POOL) {
+            const slot = raw.slot as EquipmentSlot;
+            if (!slot || !map[slot]) continue;
+            map[slot].push(raw as EncyclopediaItem);
         }
-        if (mainTab === 'material') {
-            return (Object.values(MATERIAL_ITEMS) as InventoryItem[]).sort((a, b) => gradeOrder[a.grade] - gradeOrder[b.grade]);
+        for (const slot of equipmentSlots) {
+            map[slot].sort((a, b) => gradeOrder[a.grade] - gradeOrder[b.grade]);
         }
-        if (mainTab === 'consumable') {
-            const keywordMap: Record<ConsumableCategory, string> = {
-                골드꾸러미: '골드 꾸러미',
-                다이아꾸러미: '다이아 꾸러미',
-                장비상자: '장비 상자',
-                재료상자: '재료 상자',
-            };
-            const keyword = keywordMap[activeConsumableCategory];
-            return [...CONSUMABLE_ITEMS].filter((item) => item.name.includes(keyword)).sort((a, b) => a.name.localeCompare(b.name));
+        return map;
+    }, []);
+
+    /** 도감 재료 탭: 변경권 / 강화석 구분 (이름 기준) */
+    const materialItemsByGroup = useMemo(() => {
+        const all = Object.values(MATERIAL_ITEMS) as InventoryItem[];
+        const byGrade = (a: InventoryItem, b: InventoryItem) => gradeOrder[a.grade] - gradeOrder[b.grade];
+        const tickets = all.filter((i) => i.name.includes('변경권')).sort(byGrade);
+        const stones = all.filter((i) => i.name.includes('강화석')).sort(byGrade);
+        const other = all.filter((i) => !i.name.includes('변경권') && !i.name.includes('강화석')).sort(byGrade);
+        return {
+            tickets: tickets as EncyclopediaItem[],
+            stones: stones as EncyclopediaItem[],
+            other: other as EncyclopediaItem[],
+        };
+    }, []);
+
+    /** 도감 소모품 탭: 종류별 구분 */
+    const consumableItemsByCategory = useMemo(() => {
+        const all = [...CONSUMABLE_ITEMS];
+        const byGrade = (a: InventoryItem, b: InventoryItem) => gradeOrder[a.grade] - gradeOrder[b.grade];
+        const byName = (a: InventoryItem, b: InventoryItem) => a.name.localeCompare(b.name, 'ko');
+        const pick = (pred: (i: InventoryItem) => boolean): EncyclopediaItem[] => {
+            const filtered = all.filter(pred);
+            return (filtered as InventoryItem[]).sort(byGrade) as EncyclopediaItem[];
+        };
+
+        const towerNames = new Set(['턴 추가', '미사일', '히든', '스캔', '배치변경']);
+
+        const sections: { key: string; title: string; items: EncyclopediaItem[] }[] = [
+            { key: 'equipmentBox', title: '장비상자', items: pick((i) => i.name.includes('장비 상자')) },
+            { key: 'resourceBox', title: '재료상자', items: pick((i) => i.name.includes('재료 상자')) },
+            { key: 'goldBundle', title: '골드꾸러미', items: pick((i) => i.name.includes('골드 꾸러미')) },
+            { key: 'diamondBundle', title: '다이아꾸러미', items: pick((i) => i.name.includes('다이아 꾸러미')) },
+            { key: 'condition', title: '컨디션회복제', items: pick((i) => i.name.includes('컨디션')) },
+            { key: 'actionPoint', title: '행동력 회복제', items: pick((i) => i.name.startsWith('행동력 회복제')) },
+            { key: 'tower', title: '도전의 탑', items: pick((i) => towerNames.has(i.name)) },
+        ];
+
+        const assigned = new Set<string>();
+        for (const s of sections) {
+            for (const it of s.items) {
+                assigned.add(encyclopediaItemKey(it));
+            }
         }
-        return [];
-    }, [mainTab, activeEquipmentSlot, activeConsumableCategory]);
+        const other = all
+            .filter((i) => !assigned.has(encyclopediaItemKey(i as EncyclopediaItem)))
+            .sort(byName) as EncyclopediaItem[];
+        if (other.length > 0) {
+            sections.push({ key: 'other', title: '기타', items: other });
+        }
+
+        return sections;
+    }, []);
 
     useEffect(() => {
-        if (mainTab === 'help') {
-            setSelectedItem(null);
+        setItemBubble(null);
+    }, [mainTab]);
+
+    useEffect(() => {
+        if (!itemBubble) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setItemBubble(null);
+        };
+        const onDocClick = (e: MouseEvent) => {
+            if (bubbleContentRef.current?.contains(e.target as Node)) return;
+            setItemBubble(null);
+        };
+        document.addEventListener('keydown', onKey);
+        const t = window.setTimeout(() => document.addEventListener('click', onDocClick), 0);
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            window.clearTimeout(t);
+            document.removeEventListener('click', onDocClick);
+        };
+    }, [itemBubble]);
+
+    useLayoutEffect(() => {
+        if (!itemBubble) {
+            setBubbleSize(null);
             return;
         }
-        setSelectedItem((prev) => {
-            if (itemsForTab.length === 0) return null;
-            if (prev && itemsForTab.some((item) => encyclopediaItemsEqual(prev, item))) return prev;
-            return itemsForTab[0];
-        });
-    }, [mainTab, itemsForTab]);
+        const bubbleEl = bubbleContentRef.current;
+        if (!bubbleEl) return;
+        const measure = () => {
+            const rect = bubbleEl.getBoundingClientRect();
+            setBubbleSize({ height: rect.height });
+        };
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(bubbleEl);
+        return () => {
+            ro.disconnect();
+        };
+    }, [itemBubble]);
 
-    const isItemSelected = useCallback(
-        (item: EncyclopediaItem) => !!(selectedItem && encyclopediaItemsEqual(selectedItem, item)),
-        [selectedItem]
+    const isBubbleForItem = useCallback(
+        (item: EncyclopediaItem) => !!(itemBubble && encyclopediaItemsEqual(itemBubble.item, item)),
+        [itemBubble]
     );
+
+    const toggleItemBubble = useCallback((item: EncyclopediaItem, anchorEl: HTMLElement) => {
+        setItemBubble((prev) => {
+            if (prev && encyclopediaItemsEqual(prev.item, item)) return null;
+            const modalEl = anchorEl.closest('[data-draggable-window="encyclopedia"]') as HTMLElement | null;
+            const modalBounds = modalEl?.getBoundingClientRect() ?? anchorEl.getBoundingClientRect();
+            return { item, anchor: anchorEl.getBoundingClientRect(), modalBounds };
+        });
+    }, []);
+
+    const bubblePlacement = useMemo(() => {
+        if (!itemBubble) return null;
+        return computeBubblePlacementInModal(itemBubble.anchor, itemBubble.modalBounds, bubbleSize ?? undefined);
+    }, [itemBubble, bubbleSize]);
 
     const mainTabBtn = (id: MainTab, label: string) => (
         <button
@@ -136,149 +378,344 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     const subPanelClass =
         'rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/80 via-slate-950/90 to-black/80 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm';
 
-    const subNavBtn = (active: boolean, onClick: () => void, label: string, key: string) => (
-        <button
-            type="button"
-            key={key}
-            onClick={onClick}
-            className={`flex-shrink-0 rounded-lg px-3 py-1.5 text-xs transition-all md:w-full md:px-4 md:py-2 md:text-left md:text-sm ${
-                active
-                    ? 'bg-gradient-to-r from-amber-600/40 to-amber-800/30 text-amber-100 ring-1 ring-amber-400/30 shadow-[0_0_16px_-6px_rgba(251,191,36,0.4)]'
-                    : 'text-slate-400 hover:bg-white/[0.05] hover:text-slate-200'
-            }`}
-        >
-            {label}
-        </button>
+    /** 모달 전체를 스크롤 루트로 사용 (아이템 패널 위 휠 스크롤도 동작) */
+    const listScrollClass = 'min-h-0 flex-1 px-2 py-2';
+
+    const renderEquipmentIconGrid = () => (
+        <div className={`flex min-h-0 flex-1 flex-col gap-4 ${listScrollClass}`}>
+            {equipmentSlots.map((slot) => {
+                const items = equipmentItemsBySlot[slot];
+                if (items.length === 0) return null;
+                return (
+                    <div key={slot} className="min-w-0">
+                        <div className="mb-2 flex items-center gap-2 border-b border-amber-500/20 pb-1.5">
+                            <span className="text-[11px] font-black uppercase tracking-[0.18em] text-amber-200/75 sm:text-xs">부위</span>
+                            <h4 className="text-sm font-bold tracking-tight text-amber-100 sm:text-base">{slotNames[slot]}</h4>
+                            <span className="ml-auto rounded-md bg-black/35 px-2 py-0.5 text-[10px] tabular-nums text-slate-400">{items.length}</span>
+                        </div>
+                        <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(58px,1fr))] sm:gap-2.5">
+                            {items.map((item) => (
+                                <EncyclopediaIconCell
+                                    key={encyclopediaItemKey(item)}
+                                    item={item}
+                                    bubbleOpen={isBubbleForItem(item)}
+                                    onToggleBubble={(el) => toggleItemBubble(item, el)}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                );
+            })}
+        </div>
     );
 
-    const renderEquipmentSubOptions = () => {
-        if (!selectedItem || selectedItem.type !== 'equipment' || !selectedItem.slot) return null;
-        const rules = GRADE_SUB_OPTION_RULES[selectedItem.grade];
+    const miscIconGridClass =
+        'grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(58px,1fr))] sm:gap-2.5';
+
+    const renderMaterialIconGrid = () => {
+        const { tickets, stones, other } = materialItemsByGroup;
+        const sections: { key: string; title: string; items: EncyclopediaItem[] }[] = [
+            { key: 'tickets', title: '변경권', items: tickets },
+            { key: 'stones', title: '강화석', items: stones },
+        ];
+        if (other.length > 0) {
+            sections.push({ key: 'other', title: '기타', items: other });
+        }
+        const hasAny = sections.some((s) => s.items.length > 0);
+
+        return (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className={listScrollClass}>
+                    {!hasAny ? (
+                        <div className="flex h-24 items-center justify-center text-sm text-slate-500">표시할 재료가 없습니다.</div>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            {sections.map(({ key, title, items }) =>
+                                items.length === 0 ? null : (
+                                    <div key={key} className="min-w-0">
+                                        <div className="mb-2 flex items-center gap-2 border-b border-amber-500/20 pb-1.5">
+                                            <span className="text-[11px] font-black uppercase tracking-[0.12em] text-amber-200/75 sm:text-xs">재료</span>
+                                            <h4 className="text-sm font-bold tracking-tight text-amber-100 sm:text-base">{title}</h4>
+                                            <span className="ml-auto rounded-md bg-black/35 px-2 py-0.5 text-[10px] tabular-nums text-slate-400">{items.length}</span>
+                                        </div>
+                                        <div className={miscIconGridClass}>
+                                            {items.map((item) => (
+                                                <EncyclopediaIconCell
+                                                    key={encyclopediaItemKey(item)}
+                                                    item={item}
+                                                    bubbleOpen={isBubbleForItem(item)}
+                                                    onToggleBubble={(el) => toggleItemBubble(item, el)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const renderConsumableIconGrid = () => {
+        const hasAny = consumableItemsByCategory.some((s) => s.items.length > 0);
+
+        return (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className={listScrollClass}>
+                    {!hasAny ? (
+                        <div className="flex h-24 items-center justify-center text-sm text-slate-500">표시할 소모품이 없습니다.</div>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            {consumableItemsByCategory.map(({ key, title, items }) =>
+                                items.length === 0 ? null : (
+                                    <div key={key} className="min-w-0">
+                                        <div className="mb-2 flex items-center gap-2 border-b border-amber-500/20 pb-1.5">
+                                            <span className="text-[11px] font-black uppercase tracking-[0.12em] text-amber-200/75 sm:text-xs">소모품</span>
+                                            <h4 className="text-sm font-bold tracking-tight text-amber-100 sm:text-base">{title}</h4>
+                                            <span className="ml-auto rounded-md bg-black/35 px-2 py-0.5 text-[10px] tabular-nums text-slate-400">{items.length}</span>
+                                        </div>
+                                        <div className={miscIconGridClass}>
+                                            {items.map((item) => (
+                                                <EncyclopediaIconCell
+                                                    key={encyclopediaItemKey(item)}
+                                                    item={item}
+                                                    bubbleOpen={isBubbleForItem(item)}
+                                                    onToggleBubble={(el) => toggleItemBubble(item, el)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const renderEquipmentSubOptions = (item: EncyclopediaItem) => {
+        if (item.type !== 'equipment' || !item.slot) return null;
+        const rules = GRADE_SUB_OPTION_RULES[item.grade];
         const formatCount = (count: [number, number]) => (count[0] === count[1] ? `${count[0]}` : `${count[0]}~${count[1]}`);
         const hasMythic = rules.mythicCount[0] > 0;
-        const combatPool = SUB_OPTION_POOLS[selectedItem.slot]?.[rules.combatTier] || [];
+        /** 일반 등급 등 specialCount가 [0,0]이면 특수 옵션 없음 → 도감에서 블록 미표시 */
+        const hasSpecialOptions = rules.specialCount[1] > 0;
+        const combatPool = SUB_OPTION_POOLS[item.slot]?.[rules.combatTier] || [];
 
-        const mainStatDef = MAIN_STAT_DEFINITIONS[selectedItem.slot];
-        const mainStatGradeDef = mainStatDef.options[selectedItem.grade];
+        const mainStatDef = MAIN_STAT_DEFINITIONS[item.slot];
+        const mainStatGradeDef = mainStatDef.options[item.grade];
         const mainStatValue = mainStatGradeDef.value;
         const mainIsPercentage = mainStatDef.isPercentage;
         const mainStatNames = mainStatGradeDef.stats.join(' 또는 ');
 
         const sectionTitle = (text: string, accent: string) => (
-            <h5
-                className={`mt-3 border-b border-white/10 pb-1.5 text-xs font-semibold tracking-wide md:text-sm ${accent}`}
-            >
-                {text}
-            </h5>
+            <h5 className={`text-xs font-extrabold leading-tight tracking-wide sm:text-sm ${accent}`}>{text}</h5>
         );
 
+        const sectionShellClass = 'rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]';
+        const optGridClass = 'grid grid-cols-1 gap-x-3 gap-y-1.5 pt-2 text-xs leading-relaxed text-slate-300 sm:grid-cols-2 sm:text-sm';
+
         return (
-            <>
-                {sectionTitle('주옵션', 'text-amber-200/95')}
-                <p className="py-1.5 text-[11px] leading-relaxed text-slate-300 md:text-xs">
-                    <strong className="text-amber-100">{mainStatNames}</strong>: +{mainStatValue}
-                    {mainIsPercentage ? '%' : ''}
-                </p>
+            <div className="min-h-0 space-y-2.5">
+                <div className={sectionShellClass}>
+                    {sectionTitle('주옵션', 'text-amber-200/95')}
+                    <p className="pt-1.5 text-xs leading-relaxed text-slate-300 sm:text-sm">
+                        <strong className="text-amber-100">{mainStatNames}</strong>: +{mainStatValue}
+                        {mainIsPercentage ? '%' : ''}
+                    </p>
+                </div>
 
-                {sectionTitle(`부옵션 (랜덤 ${formatCount(rules.combatCount)}개)`, 'text-sky-200/90')}
-                <ul className="space-y-1 pt-1 text-[10px] text-slate-300 md:text-xs">
-                    {combatPool.map((opt, index) => (
-                        <li key={`${opt.type}-${index}`}>
-                            <strong className="text-sky-300">{opt.type}</strong>: +{opt.range[0]}~{opt.range[1]}
-                            {opt.isPercentage ? '%' : ''}
-                        </li>
-                    ))}
-                </ul>
-
-                {sectionTitle(`특수 옵션 (랜덤 ${formatCount(rules.specialCount)}개)`, 'text-emerald-200/90')}
-                <ul className="space-y-1 pt-1 text-[10px] text-slate-300 md:text-xs">
-                    {Object.entries(SPECIAL_STATS_DATA).map(([key, def]) => (
-                        <li key={key}>
-                            <strong className="text-emerald-300">{def.name}</strong>: +{def.range[0]}~{def.range[1]}
-                            {def.isPercentage ? '%' : ''}
-                        </li>
-                    ))}
-                </ul>
+                <div className={sectionShellClass}>
+                    {sectionTitle(`부옵션 (랜덤 ${formatCount(rules.combatCount)}개)`, 'text-sky-200/95')}
+                    <ul className={optGridClass}>
+                        {combatPool.map((opt, index) => (
+                            <li key={`${opt.type}-${index}`} className="min-w-0 break-words">
+                                <strong className="text-sky-300">{opt.type}</strong>: +{opt.range[0]}~{opt.range[1]}
+                                {opt.isPercentage ? '%' : ''}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+                {hasSpecialOptions && (
+                    <div className={sectionShellClass}>
+                        {sectionTitle(`특수 옵션 (랜덤 ${formatCount(rules.specialCount)}개)`, 'text-emerald-200/95')}
+                        <ul className={optGridClass}>
+                            {Object.entries(SPECIAL_STATS_DATA).map(([key, def]) => (
+                                <li key={key} className="min-w-0 break-words">
+                                    <strong className="text-emerald-300">{def.name}</strong>: +{def.range[0]}~{def.range[1]}
+                                    {def.isPercentage ? '%' : ''}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                )}
                 {hasMythic && (
-                    <>
-                        {sectionTitle(`신화 옵션 (랜덤 ${formatCount(rules.mythicCount)}개)`, 'text-rose-200/90')}
-                        <ul className="space-y-1 pt-1 text-[10px] text-slate-300 md:text-xs">
+                    <div className={sectionShellClass}>
+                        {sectionTitle(`신화 옵션 (랜덤 ${formatCount(rules.mythicCount)}개)`, 'text-rose-200/95')}
+                        <ul className={optGridClass}>
                             {Object.values(MythicStat).map((stat) => {
                                 const data = MYTHIC_STATS_DATA[stat];
                                 return (
-                                    <li key={stat}>
-                                        <strong className="text-rose-300">{data.name}</strong>: {data.description}
+                                    <li key={stat} className="min-w-0 break-words">
+                                        <span
+                                            className="inline cursor-help border-b border-dotted border-rose-400/35 decoration-rose-400/40 underline-offset-2"
+                                            title={data.description}
+                                        >
+                                            <strong className="text-rose-300">{data.abbrevLabel}</strong>
+                                            <span className="text-rose-200/90"> · {data.shortDescription}</span>
+                                        </span>
                                     </li>
                                 );
                             })}
                         </ul>
-                    </>
+                    </div>
                 )}
-            </>
+            </div>
         );
     };
 
-    const renderHelpContent = () => (
-        <div className="h-full space-y-6 overflow-y-auto pr-2 text-left text-slate-300">
-            <h3 className="bg-gradient-to-r from-amber-100 via-amber-200 to-amber-100 bg-clip-text text-center text-xl font-bold tracking-tight text-transparent md:text-2xl">
-                도감 도움말 및 업데이트 내역
-            </h3>
-            <div className="rounded-xl border border-white/[0.07] bg-black/25 p-4">
-                <h4 className="mb-2 border-b border-emerald-500/25 pb-2 text-sm font-semibold text-emerald-200/95 md:text-base">최근 업데이트</h4>
-                <ul className="list-inside list-disc space-y-1.5 text-xs md:text-sm">
-                    <li>장비 주옵션 강화 보너스 규칙이 변경되었습니다. (+4, +7, +10 강화 시 2배 보너스)</li>
-                    <li>소모품 탭의 아이템 정렬 방식이 종류별로 개선되었습니다.</li>
-                </ul>
-            </div>
-            <div className="rounded-xl border border-white/[0.07] bg-black/25 p-4">
-                <h4 className="mb-2 border-b border-sky-500/25 pb-2 text-sm font-semibold text-sky-200/95 md:text-base">도감 사용법</h4>
-                <ul className="list-inside list-disc space-y-2 text-xs md:text-sm">
-                    <li>이 도감에서는 게임 내 모든 장비, 재료, 소모품의 상세 정보를 확인할 수 있습니다.</li>
-                    <li>
-                        <strong className="text-amber-100">장비 탭:</strong> 각 부위별 장비의 등급에 따른 획득 가능 옵션과 능력치 범위를 볼 수 있습니다. 강화 규칙과 부옵션 획득 규칙도 확인
-                        가능합니다.
-                    </li>
-                    <li>
-                        <strong className="text-amber-100">재료/소모품 탭:</strong> 각 아이템의 설명과 등급을 확인할 수 있습니다.
-                    </li>
-                    <li>
-                        <strong className="text-amber-100">도움말 탭:</strong> 새로운 업데이트나 주요 변경사항이 있을 때마다 이곳에서 안내해 드립니다.
-                    </li>
-                </ul>
-            </div>
-            <div className="rounded-xl border border-white/[0.07] bg-black/25 p-4">
-                <h4 className="mb-2 border-b border-violet-500/25 pb-2 text-sm font-semibold text-violet-200/95 md:text-base">장비 옵션 상세</h4>
-                <div className="space-y-3 text-xs md:text-sm">
-                    <div>
-                        <h5 className="font-semibold text-amber-100">주옵션</h5>
-                        <p className="mt-1 pl-1 text-[11px] leading-relaxed text-slate-400 md:text-xs">
-                            1강화마다 획득 시 부여되는 수치만큼 추가됩니다. 별 색상이 은색에서 금색(+4), 금색에서 푸른색(+7), 푸른색에서 프리즘색(+10)이 될 때 각각 2배로 강화됩니다.
-                        </p>
+    const renderItemBubbleInner = (item: EncyclopediaItem) => {
+        const isEquipmentDetail = item.type === 'equipment' && item.slot;
+
+        if (mainTab === 'equipment' && isEquipmentDetail) {
+            return (
+                <div className="flex flex-col gap-3.5">
+                    <div className="rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/20 via-white/[0.02] to-indigo-950/25 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                        <div className="flex items-start gap-3">
+                            <div className="relative h-16 w-16 flex-shrink-0 overflow-hidden rounded-lg ring-2 ring-amber-400/30 shadow-lg">
+                                <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                                {item.image ? (
+                                    <img
+                                        src={item.image}
+                                        alt=""
+                                        className="absolute object-contain"
+                                        style={{
+                                            width: '80%',
+                                            height: '80%',
+                                            left: '50%',
+                                            top: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                    />
+                                ) : null}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h3 className={`truncate text-base font-black leading-tight sm:text-lg ${gradeStyles[item.grade].color}`}>{item.name}</h3>
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] sm:text-xs">
+                                    <span className="rounded-full border border-white/15 bg-black/35 px-2 py-0.5 text-slate-100">
+                                        {slotNames[item.slot]}
+                                    </span>
+                                    <span
+                                        className={`rounded-full border px-2 py-0.5 ${
+                                            item.grade === 'mythic'
+                                                ? 'border-amber-300/40 bg-amber-300/15 text-amber-100'
+                                                : item.grade === 'transcendent'
+                                                  ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-100'
+                                                  : 'border-white/15 bg-white/5 text-slate-200'
+                                        }`}
+                                    >
+                                        {gradeStyles[item.grade].name}
+                                    </span>
+                                    <span className="rounded-full border border-emerald-300/25 bg-emerald-500/10 px-2 py-0.5 text-emerald-200/90">
+                                        착용 레벨 합 {GRADE_LEVEL_REQUIREMENTS[item.grade]}
+                                    </span>
+                                </div>
+                                <p className="mt-2 rounded-lg border border-white/10 bg-black/25 px-2.5 py-2 text-xs leading-relaxed text-slate-300 sm:text-sm">
+                                    {item.description}
+                                </p>
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <h5 className="font-semibold text-sky-200">부옵션</h5>
-                        <p className="mt-1 pl-1 text-[11px] leading-relaxed text-slate-400 md:text-xs">
-                            최대 4개까지 부여됩니다. 1강화마다 부옵션이 4개가 될 때까지 우선적으로 추가된 후, 4개가 모두 채워지면 기존 부옵션 중 하나가 랜덤하게 강화됩니다.
-                        </p>
-                    </div>
-                    <div>
-                        <h5 className="font-semibold text-emerald-200">특수 옵션 & 신화 옵션</h5>
-                        <p className="mt-1 pl-1 text-[11px] leading-relaxed text-slate-400 md:text-xs">
-                            강화되지 않는 고유한 고정 옵션입니다. 신화 등급 장비에서만 신화 옵션이 등장합니다.
-                        </p>
+                    <div className="min-w-0 flex-1 pr-0.5 text-left">
+                        {renderEquipmentSubOptions(item)}
                     </div>
                 </div>
-            </div>
-        </div>
-    );
+            );
+        }
 
-    const layoutClasses = 'flex-row';
+        return (
+            <div className="flex flex-col items-center">
+                <div className="relative h-28 w-28 overflow-hidden rounded-xl ring-2 ring-amber-400/25 shadow-lg">
+                    <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                    {isActionPointConsumable(item.name) ? (
+                        <ActionPointIconOverlay name={item.name} />
+                    ) : item.image ? (
+                        <img
+                            src={item.image}
+                            alt=""
+                            className="absolute object-contain"
+                            style={{
+                                width: '78%',
+                                height: '78%',
+                                padding: '10%',
+                                left: '50%',
+                                top: '50%',
+                                transform: 'translate(-50%, -50%)',
+                            }}
+                        />
+                    ) : null}
+                </div>
+                <h3 className={`mt-3 text-center text-xl font-black tracking-tight ${gradeStyles[item.grade].color}`}>{item.name}</h3>
+                <p
+                    className={`mt-1 text-center text-sm ${
+                        item.type === 'equipment' ? gradeStyles[item.grade].color : 'text-slate-400'
+                    }`}
+                >
+                    {item.type === 'equipment'
+                        ? `${gradeStyles[item.grade].name} · ${item.slot ? slotNames[item.slot] : ''}`
+                        : mainTab === 'material'
+                          ? '재료'
+                          : '소모품'}
+                </p>
+                {item.type === 'equipment' && (
+                    <p className="mt-1 text-center text-[11px] text-slate-500">{`착용 레벨 합: ${GRADE_LEVEL_REQUIREMENTS[item.grade]}`}</p>
+                )}
+                <p className="mt-3 w-full border-t border-white/10 pt-3 text-center text-base leading-relaxed text-slate-300">
+                    {item.description}
+                </p>
+            </div>
+        );
+    };
 
     const shellClass =
         'rounded-2xl border border-amber-900/20 bg-gradient-to-b from-[#12141c] via-[#0e1016] to-[#08090e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_48px_-24px_rgba(0,0,0,0.85)]';
 
+    const leftPanelShellClass = `${subPanelClass} flex min-h-0 w-full min-w-0 flex-1 flex-col`;
+
+    const renderLeftPanel = () => {
+        if (mainTab === 'equipment') {
+            return (
+                <div className={leftPanelShellClass}>
+                    {renderEquipmentIconGrid()}
+                </div>
+            );
+        }
+        if (mainTab === 'material') {
+            return (
+                <div className={leftPanelShellClass}>
+                    {renderMaterialIconGrid()}
+                </div>
+            );
+        }
+        return (
+            <div className={leftPanelShellClass}>
+                {renderConsumableIconGrid()}
+            </div>
+        );
+    };
+
     return (
-        <DraggableWindow title="도감" onClose={onClose} windowId="encyclopedia" initialWidth={920} isTopmost={isTopmost}>
+        <DraggableWindow
+            title="도감"
+            onClose={onClose}
+            windowId="encyclopedia"
+            initialWidth={700}
+            initialHeight={880}
+            isTopmost={isTopmost}
+        >
             <div className={shellClass}>
                 <div
                     className="mb-4 flex flex-shrink-0 gap-1 rounded-xl border border-white/[0.06] bg-black/40 p-1 shadow-inner backdrop-blur-md"
@@ -288,147 +725,51 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                     {mainTabBtn('equipment', '장비')}
                     {mainTabBtn('material', '재료')}
                     {mainTabBtn('consumable', '소모품')}
-                    {mainTabBtn('help', '도움말')}
                 </div>
-
-                {mainTab === 'help' ? (
-                    <div className="h-[calc(var(--vh,1vh)*65)] rounded-xl border border-white/[0.06] bg-black/30 p-4">{renderHelpContent()}</div>
-                ) : (
-                    <div className={`flex gap-4 h-[calc(var(--vh,1vh)*65)] ${layoutClasses}`}>
-                        <div className="flex h-full w-1/2 flex-col gap-3">
-                            {mainTab === 'consumable' && (
-                                <div className={subPanelClass}>
-                                    <h3 className="mb-2 hidden text-xs font-bold uppercase tracking-[0.2em] text-amber-200/70 md:block">종류</h3>
-                                    <div className="flex flex-row gap-2 overflow-x-auto pb-1 scrollbar-thin md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pb-0">
-                                        {consumableCategories.map((cat) =>
-                                            subNavBtn(activeConsumableCategory === cat.id, () => setActiveConsumableCategory(cat.id), cat.name, cat.id)
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                            {mainTab === 'equipment' && (
-                                <div className={subPanelClass}>
-                                    <h3 className="mb-2 hidden text-xs font-bold uppercase tracking-[0.2em] text-amber-200/70 md:block">부위</h3>
-                                    <div className="flex flex-row gap-2 overflow-x-auto pb-1 scrollbar-thin md:flex-col md:overflow-y-auto md:overflow-x-hidden md:pb-0">
-                                        {equipmentSlots.map((slot) =>
-                                            subNavBtn(activeEquipmentSlot === slot, () => setActiveEquipmentSlot(slot), slotNames[slot], slot)
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-
-                            <div className={`${subPanelClass} flex min-h-0 flex-grow flex-col`}>
-                                <h3 className="mb-2 flex-shrink-0 text-sm font-bold text-slate-100 md:text-base">아이템 목록</h3>
-                                <div className="flex flex-grow flex-col space-y-1 overflow-y-auto pr-1 scrollbar-thin">
-                                    {itemsForTab.map((item) => {
-                                        const selected = isItemSelected(item);
-                                        return (
-                                            <button
-                                                key={encyclopediaItemKey(item)}
-                                                type="button"
-                                                onClick={() => setSelectedItem(item)}
-                                                className={`flex w-full items-center gap-2.5 rounded-lg p-2 text-left text-sm transition-all ${
-                                                    selected
-                                                        ? 'bg-gradient-to-r from-amber-900/45 to-amber-950/30 ring-1 ring-amber-400/35 shadow-[0_0_20px_-8px_rgba(251,191,36,0.35)]'
-                                                        : 'hover:bg-white/[0.05]'
-                                                }`}
-                                            >
-                                                <div className="relative h-9 w-9 flex-shrink-0">
-                                                    <img
-                                                        src={gradeBackgrounds[item.grade]}
-                                                        alt=""
-                                                        className="absolute inset-0 h-full w-full rounded-md object-cover ring-1 ring-black/40"
-                                                    />
-                                                    {item.image && (
-                                                        <img
-                                                            src={item.image}
-                                                            alt=""
-                                                            className="absolute object-contain p-0.5"
-                                                            style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-                                                        />
-                                                    )}
-                                                </div>
-                                                <div className="min-w-0 flex-1">
-                                                    <span className={`block truncate font-medium ${gradeStyles[item.grade].color}`}>{item.name}</span>
-                                                    {item.type === 'equipment' && (
-                                                        <span className="text-[10px] text-slate-500">{gradeStyles[item.grade].name}</span>
-                                                    )}
-                                                </div>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div
-                            className={`flex min-h-0 w-1/2 flex-col items-center rounded-xl border border-amber-500/15 bg-gradient-to-b from-slate-950/90 via-black/60 to-slate-950/95 p-3 shadow-[inset_0_0_40px_-20px_rgba(251,191,36,0.12)] md:p-4`}
-                        >
-                            {selectedItem ? (
-                                <>
-                                    <div
-                                        className={`relative flex-shrink-0 rounded-xl ring-1 ring-amber-400/20 shadow-[0_0_32px_-8px_rgba(251,191,36,0.25)] ${
-                                            mainTab === 'equipment' ? 'h-24 w-24 md:h-40 md:w-40' : 'h-28 w-28 md:h-40 md:w-40'
-                                        }`}
-                                    >
-                                        <img
-                                            src={gradeBackgrounds[selectedItem.grade]}
-                                            alt=""
-                                            className="absolute inset-0 h-full w-full rounded-xl object-cover"
-                                        />
-                                        {selectedItem.image && (
-                                            <img
-                                                src={selectedItem.image}
-                                                alt=""
-                                                className="absolute object-contain"
-                                                style={{
-                                                    width: '80%',
-                                                    height: '80%',
-                                                    padding: '15%',
-                                                    left: '50%',
-                                                    top: '50%',
-                                                    transform: 'translate(-50%, -50%)',
-                                                }}
-                                            />
-                                        )}
-                                    </div>
-                                    <h3
-                                        className={`mt-3 text-center font-bold md:mt-4 ${gradeStyles[selectedItem.grade].color} ${
-                                            mainTab === 'equipment' ? 'text-base md:text-2xl' : 'text-lg md:text-2xl'
-                                        }`}
-                                    >
-                                        {selectedItem.name}
-                                    </h3>
-                                    <p
-                                        className={`mt-0.5 text-center text-xs md:text-sm ${
-                                            selectedItem.type === 'equipment' ? gradeStyles[selectedItem.grade].color : 'text-slate-400'
-                                        }`}
-                                    >
-                                        {selectedItem.type === 'equipment'
-                                            ? `[${gradeStyles[selectedItem.grade].name}] ${selectedItem.slot ? slotNames[selectedItem.slot] : ''}`
-                                            : mainTab === 'material'
-                                              ? '재료'
-                                              : '소모품'}
-                                    </p>
-                                    {selectedItem.type === 'equipment' && (
-                                        <p className="mt-1 text-[10px] text-slate-500 md:text-xs">{`착용 레벨 합: ${GRADE_LEVEL_REQUIREMENTS[selectedItem.grade]}`}</p>
-                                    )}
-                                    <div className="mt-3 min-h-0 w-full flex-grow overflow-y-auto border-t border-white/10 pt-3 pr-1 scrollbar-thin">
-                                        {selectedItem.type === 'equipment' && renderEquipmentSubOptions()}
-                                        {selectedItem.type !== 'equipment' && (
-                                            <p className="py-2 text-center text-xs leading-relaxed text-slate-300 md:text-sm">{selectedItem.description}</p>
-                                        )}
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex h-full items-center justify-center text-slate-500">
-                                    <p className="text-sm">아이템을 선택하세요.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                <div className="flex min-h-0 flex-col">{renderLeftPanel()}</div>
             </div>
+            {itemBubble && bubblePlacement &&
+                createPortal(
+                    <div
+                        ref={bubbleContentRef}
+                        data-draggable-satellite="encyclopedia"
+                        role="dialog"
+                        aria-label="아이템 상세"
+                        className={`pointer-events-auto rounded-xl border border-amber-400/30 bg-gradient-to-b from-[#14151c] via-black/95 to-[#0a0a10] shadow-[0_12px_48px_-8px_rgba(0,0,0,0.9),0_0_40px_-16px_rgba(251,191,36,0.22)] ${
+                            bubblePlacement.needsInternalScroll ? 'overflow-y-auto overscroll-contain scrollbar-thin' : 'overflow-visible'
+                        }`}
+                        style={{
+                            position: 'fixed',
+                            zIndex: 100000,
+                            left: bubblePlacement.left,
+                            top: bubblePlacement.top,
+                            width: bubblePlacement.maxW,
+                            maxHeight: bubblePlacement.maxH,
+                        }}
+                    >
+                        {bubblePlacement.placeBelow ? (
+                            <div
+                                className="pointer-events-none absolute -top-[7px]"
+                                style={{ left: bubblePlacement.arrowOffset }}
+                                aria-hidden
+                            >
+                                <div className="h-0 w-0 border-x-[7px] border-b-[8px] border-x-transparent border-b-amber-500/45" />
+                            </div>
+                        ) : (
+                            <div
+                                className="pointer-events-none absolute -bottom-[7px]"
+                                style={{ left: bubblePlacement.arrowOffset }}
+                                aria-hidden
+                            >
+                                <div className="h-0 w-0 border-x-[7px] border-t-[8px] border-x-transparent border-t-amber-500/45" />
+                            </div>
+                        )}
+                        <div className="px-4 pb-4 pt-3">
+                            {renderItemBubbleInner(itemBubble.item)}
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </DraggableWindow>
     );
 };

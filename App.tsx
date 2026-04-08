@@ -226,6 +226,15 @@ const AppContent: React.FC = () => {
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
     /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
     const lockPcMainScroll = currentUser && currentRoute.view === 'set-nickname';
+    /** 네이티브 셸 상단 퀵스트립은 홈(프로필 기본 탭)에서만 노출 */
+    const showNativeTopQuickStrip =
+        Boolean(currentUser) &&
+        isNativeMobile &&
+        !isGameView &&
+        !hideAppHeader &&
+        ((currentRoute.view === 'profile' &&
+            ((currentRoute.params?.tab as string | undefined) ?? 'home') === 'home') ||
+            currentRoute.view === 'tournament');
 
     // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)
     const DESIGN_W = 1920;
@@ -331,7 +340,7 @@ const AppContent: React.FC = () => {
                                     <div className="w-full min-w-0 shrink-0">
                                         <Header />
                                     </div>
-                                    {isNativeMobile && (
+                                    {showNativeTopQuickStrip && (
                                         <div className="relative z-[45] w-full min-w-0 shrink-0">
                                             <QuickAccessSidebar mobileHeaderStrip />
                                         </div>

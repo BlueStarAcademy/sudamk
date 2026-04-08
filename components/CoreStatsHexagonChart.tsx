@@ -16,6 +16,10 @@ export interface CoreStatsHexagonChartProps {
     /** 있으면 (기본) 대비 장비 보너스를 표시 */
     baseByStat?: Record<CoreStat, number>;
     className?: string;
+    /** 모바일에서도 PC와 동일한 2열(그래프+능력치) 레이아웃 강제 */
+    desktopLike?: boolean;
+    /** 모바일 홈 가독성 향상용 텍스트/그래프 확대 */
+    mobileReadable?: boolean;
 }
 
 /** 꼭짓점 라벨 (2글자) — 그래프 색인 */
@@ -37,6 +41,19 @@ const R_DATA_INSET = 32;
 /** 꼭짓점 바깥쪽 라벨 배치 반경 (그리드보다 약간 밖) */
 const R_LABEL = 45;
 
+/**
+ * 바둑능력(6개 핵심 능력치 합계) 구간별로 육각형 그래프 한 축의 시각적 최댓값.
+ * 합이 구간 최대를 넘는 능력치는 그래프에서만 외곽선에 맞춤.
+ */
+export function radarAxisMaxForBadukAbilityTotal(badukAbilityTotal: number): number {
+    const t = Number.isFinite(badukAbilityTotal) ? Math.max(0, badukAbilityTotal) : 0;
+    if (t <= 2000) return 300;
+    if (t <= 4000) return 600;
+    if (t <= 6000) return 900;
+    if (t <= 8000) return 1200;
+    return 1500;
+}
+
 function vertex(angleRad: number, r: number): { x: number; y: number } {
     return {
         x: CX + r * Math.cos(angleRad),
@@ -55,24 +72,25 @@ function hexPolygonPoints(r: number): string {
 /**
  * 좌측: 육각 레이더 + 꼭짓점 색인 라벨 / 우측: 6개 능력치 상세 목록
  */
-const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, baseByStat, className = '' }) => {
+const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, baseByStat, className = '', desktopLike = false, mobileReadable = false }) => {
     const uid = useId().replace(/:/g, '');
     const gradId = `coreStatRadarFill-${uid}`;
 
     const { dataPoints, labelPositions } = useMemo(() => {
-        const raw = CORE_STAT_RADAR_ORDER.map(s => {
-            const v = values[s];
-            return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, v) : 0;
-        });
-        // 치우침(분포)을 보기 위한 정규화:
-        // 각 축을 "전체 합 대비 비중"으로 보고, 정육각형 외곽(=균등 분포)을 기준으로 표현한다.
-        // 균등 분포면 (v/sum)*6 = 1 이므로 외곽에 닿고, 특정 축이 강하면 1을 넘어 외곽에 붙는다(클램프).
-        const sumV = raw.reduce((acc, v) => acc + v, 0);
-        const norm = sumV > 0 ? raw.map(v => Math.min(1, (v / sumV) * 6)) : raw.map(() => 0);
+        const badukAbilityTotal = CORE_STAT_RADAR_ORDER.reduce((sum, stat) => {
+            const vRaw = values[stat];
+            const v = typeof vRaw === 'number' && Number.isFinite(vRaw) ? vRaw : 0;
+            return sum + Math.max(0, v);
+        }, 0);
+        const radarMax = radarAxisMaxForBadukAbilityTotal(badukAbilityTotal);
 
-        const pts = CORE_STAT_RADAR_ORDER.map((_, i) => {
+        const pts = CORE_STAT_RADAR_ORDER.map((stat, i) => {
+            const vRaw = values[stat];
+            const v = typeof vRaw === 'number' && Number.isFinite(vRaw) ? Math.max(0, vRaw) : 0;
+            const vCapped = Math.min(v, radarMax);
+            const ratio = radarMax > 0 ? vCapped / radarMax : 0;
             const a = -Math.PI / 2 + (i * 2 * Math.PI) / 6;
-            const { x, y } = vertex(a, R_DATA_INSET * norm[i]);
+            const { x, y } = vertex(a, R_DATA_INSET * ratio);
             return { x, y };
         });
 
@@ -88,12 +106,12 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, b
     const dataPolygon = dataPoints.map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
 
     return (
-        <div className={`flex h-full min-h-0 w-full min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3 ${className}`}>
-            <div className="relative flex shrink-0 flex-col items-center justify-center rounded-xl border border-indigo-500/40 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_30px_-14px_rgba(0,0,0,0.6)] sm:w-[min(52%,220px)] sm:max-w-[220px] sm:py-4">
+        <div className={`flex h-full min-h-0 w-full min-w-0 ${desktopLike ? 'flex-row items-stretch gap-2.5' : 'flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3'} ${className}`}>
+            <div className={`relative flex shrink-0 flex-col items-center justify-center rounded-xl border border-indigo-500/40 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_30px_-14px_rgba(0,0,0,0.6)] ${desktopLike ? 'w-[min(60%,250px)] max-w-[250px] py-4' : 'sm:w-[min(52%,220px)] sm:max-w-[220px] sm:py-4'}`}>
                 <div className="pointer-events-none absolute inset-0 rounded-xl bg-[radial-gradient(ellipse_at_30%_20%,rgba(129,140,248,0.08),transparent_50%)]" aria-hidden />
                 <svg
                     viewBox={`0 0 ${VB} ${VB}`}
-                    className="relative z-[1] h-[9.5rem] w-full max-w-[180px] overflow-visible sm:h-44 sm:max-w-[200px]"
+                    className={`relative z-[1] w-full overflow-visible ${desktopLike ? (mobileReadable ? 'h-48 max-w-[235px]' : 'h-44 max-w-[220px]') : 'h-[9.5rem] max-w-[180px] sm:h-44 sm:max-w-[200px]'}`}
                     role="img"
                     aria-label="육각형 능력치 그래프"
                 >
@@ -179,26 +197,41 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({ values, b
                 </svg>
             </div>
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-0.5 overflow-hidden sm:gap-1.5 sm:py-0.5">
+            <div className={`flex min-h-0 min-w-0 flex-1 flex-col justify-center overflow-hidden ${desktopLike ? 'gap-1.5 py-0.5' : 'gap-0.5 sm:gap-1.5 sm:py-0.5'}`}>
                 {CORE_STAT_RADAR_ORDER.map(stat => {
                     const finalV = values[stat] ?? 0;
                     const baseV = baseByStat?.[stat];
                     const bonus = baseV !== undefined ? finalV - baseV : 0;
+                    const hasBonus = bonus > 0;
                     return (
                         <div
                             key={stat}
-                            className="flex min-w-0 items-center justify-between gap-2 border-b border-zinc-700/90 pb-1 last:border-b-0 last:pb-0 sm:pb-1.5"
+                            className={`flex min-w-0 items-center border-b border-zinc-700/90 last:border-b-0 last:pb-0 ${desktopLike ? 'justify-center pb-1.5' : 'justify-center pb-1 sm:pb-1.5'}`}
                         >
-                            <span
-                                className="min-w-0 truncate text-[13px] font-semibold leading-tight tracking-tight text-amber-50/95 antialiased sm:text-sm"
-                                title={stat}
+                            <div
+                                className={`grid items-center ${desktopLike ? 'w-[12.8rem]' : 'w-full max-w-[16rem]'} ${
+                                    desktopLike
+                                        ? mobileReadable
+                                            ? 'grid-cols-[7rem_2.8rem_3rem] gap-x-1.5'
+                                            : 'grid-cols-[6.4rem_2.5rem_2.8rem] gap-x-1.5'
+                                        : 'grid-cols-[6.4rem_2.6rem_3rem] gap-x-1'
+                                } mx-auto`}
                             >
-                                {stat}
-                            </span>
-                            <span className="shrink-0 text-right font-mono text-[13px] font-bold tabular-nums tracking-tight text-amber-100 sm:text-sm">
-                                {finalV}
-                                {bonus > 0 && <span className="ml-1 text-[11px] font-semibold text-emerald-400/95 sm:text-xs">(+{bonus})</span>}
-                            </span>
+                                <span
+                                    className={`truncate text-right font-semibold leading-tight tracking-tight text-amber-50/95 antialiased ${desktopLike ? (mobileReadable ? 'text-base' : 'text-sm') : 'text-[13px] sm:text-sm'}`}
+                                    title={stat}
+                                >
+                                    {stat}
+                                </span>
+                                <span className={`shrink-0 text-right font-mono font-bold tabular-nums tracking-tight text-amber-100 ${desktopLike ? (mobileReadable ? 'text-base' : 'text-sm') : 'text-[13px] sm:text-sm'}`}>
+                                    {finalV}
+                                </span>
+                                <span
+                                    className={`shrink-0 text-left font-semibold tabular-nums text-emerald-400/95 ${desktopLike ? (mobileReadable ? 'text-sm' : 'text-xs') : 'text-[11px] sm:text-xs'}`}
+                                >
+                                    {hasBonus ? `(+${bonus})` : ''}
+                                </span>
+                            </div>
                         </div>
                     );
                 })}

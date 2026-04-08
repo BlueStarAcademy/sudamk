@@ -23,6 +23,7 @@ import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js
 import { getGuildWarBoardMode, getGuildWarStarConditionLines } from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
 import MatchPlayGuideModal from './MatchPlayGuideModal.js';
+import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
 
 
 interface SidebarProps extends GameProps {
@@ -38,7 +39,7 @@ interface SidebarProps extends GameProps {
     pauseDisabledBecauseAiTurn?: boolean;
 }
 
-export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () => void, onOpenSettings?: () => void }> = ({ session, onClose, onOpenSettings }) => {
+export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: UserWithStatus, onClose?: () => void, onOpenSettings?: () => void }> = ({ session, currentUser, onClose, onOpenSettings }) => {
     const [matchGuideOpen, setMatchGuideOpen] = useState(false);
     const { mode, settings, effectiveCaptureTargets } = session;
 
@@ -239,7 +240,16 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, onClose?: () =>
                 </div>
             </div>
             {matchGuideOpen && (
-                <MatchPlayGuideModal session={session} onClose={() => setMatchGuideOpen(false)} />
+                (session.isSinglePlayer || session.gameCategory === 'singleplayer') ? (
+                    <SinglePlayerGameDescriptionModal
+                        session={session}
+                        readOnly
+                        currentUser={currentUser}
+                        onClose={() => setMatchGuideOpen(false)}
+                    />
+                ) : (
+                    <MatchPlayGuideModal session={session} onClose={() => setMatchGuideOpen(false)} />
+                )
             )}
         </>
     );
@@ -660,7 +670,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     return (
         <div className="flex flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
             <div className="flex-shrink-0 space-y-2">
-                <GameInfoPanel session={session} onClose={props.onClose} onOpenSettings={props.onOpenSettings} />
+                <GameInfoPanel session={session} currentUser={props.currentUser} onClose={props.onClose} onOpenSettings={props.onOpenSettings} />
                 <UserListPanel {...props} />
                 <GuildWarStarConditionsPanel session={session} />
                 {/* PC 사이드바 광고 (300×250) */}

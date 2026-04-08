@@ -37,7 +37,7 @@ const SelectedDisassemblyItemsPanel: React.FC<{
     );
 
     return (
-        <div className="flex-shrink-0 rounded-xl border border-cyan-300/20 bg-[#0f1627]/90 p-3 min-h-0">
+        <div className="min-h-0 flex-shrink-0 rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171d2b]/85 via-[#101524]/92 to-[#0a0e17]/95 p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold text-cyan-200/90">선택된 장비</p>
                 <span className="text-[11px] text-slate-400">{items.length.toLocaleString()}개</span>
@@ -143,7 +143,7 @@ const DisassemblyPreviewPanel: React.FC<{
 
     return (
         <div
-            className={`flex h-full min-h-0 flex-col rounded-2xl border border-cyan-300/20 bg-gradient-to-br from-[#1d243b] via-[#121a2d] to-[#0b1120] ${
+            className={`flex h-full min-h-0 flex-col rounded-2xl border border-amber-400/20 bg-gradient-to-br from-[#1d243b] via-[#121a2d] to-[#0b1120] ${
                 nativeMobile ? 'gap-2 p-3' : 'gap-3 p-4'
             }`}
         >
@@ -160,7 +160,7 @@ const DisassemblyPreviewPanel: React.FC<{
                     </>
                 ) : (
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-cyan-200">예상 획득 재료</p>
+                        <p className="text-sm font-semibold text-amber-100">예상 획득 재료</p>
                         <span className="text-[11px] text-slate-400">
                             대상 {itemCount.toLocaleString()}개 · 범위(최소~최대)
                         </span>
@@ -230,7 +230,7 @@ const DisassemblyPreviewPanel: React.FC<{
             </div>
 
             <div
-                className={`flex-shrink-0 rounded-xl border border-cyan-300/20 bg-[#0f172a] text-center text-cyan-200/85 ${
+                className={`flex-shrink-0 rounded-xl border border-amber-400/20 bg-[#0f172a] text-center text-amber-100/90 ${
                     nativeMobile ? 'px-2.5 py-2 text-[11px] leading-snug' : 'px-3 py-2 text-[11px]'
                 }`}
             >
@@ -397,7 +397,9 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedFor
                     <ResourceActionButton
                         onClick={() => setIsAutoSelectOpen(true)}
                         variant="accent"
-                        className={`${isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'} !px-3 !py-2.5 text-sm`}
+                        className={`${
+                            isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'
+                        } !rounded-lg !border !border-amber-300/40 !bg-gradient-to-r !from-amber-600/90 !via-amber-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-amber-50 !shadow-[0_14px_26px_-18px_rgba(251,191,36,0.8)] hover:!from-amber-500 hover:!via-amber-400 hover:!to-orange-400`}
                     >
                         자동 선택
                     </ResourceActionButton>
@@ -405,9 +407,11 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({ onAction, selectedFor
                         onClick={handleDisassemble}
                         disabled={selectedForDisassembly.size === 0}
                         variant="materials"
-                        className={`${isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'} !px-3 !py-2.5 text-sm leading-snug`}
+                        className={`${
+                            isNativeMobile ? 'min-h-[44px] flex-1' : '!w-full'
+                        } !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
                     >
-                        선택 아이템 분해 ({selectedForDisassembly.size})
+                        선택 분해 ({selectedForDisassembly.size})
                     </ResourceActionButton>
                 </div>
             </div>

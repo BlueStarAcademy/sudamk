@@ -7,7 +7,7 @@ interface InfoModalProps {
     isTopmost?: boolean;
 }
 
-type InfoTab = 'game' | 'home' | 'waiting' | 'tower' | 'championship' | 'blacksmith' | 'guild' | 'level' | 'ranking' | 'equipment' | 'manner';
+type InfoTab = 'game' | 'home' | 'waiting' | 'tower' | 'championship' | 'blacksmith' | 'guild' | 'level' | 'ranking' | 'equipment' | 'manner' | 'encyclopedia';
 
 const InfoModal: React.FC<InfoModalProps> = ({ onClose, isTopmost }) => {
     const [activeTab, setActiveTab] = useState<InfoTab>('game');
@@ -24,6 +24,7 @@ const InfoModal: React.FC<InfoModalProps> = ({ onClose, isTopmost }) => {
         { id: 'ranking', label: '랭킹시스템' },
         { id: 'equipment', label: '장비' },
         { id: 'manner', label: '매너등급' },
+        { id: 'encyclopedia', label: '도감' },
     ];
 
     const renderContent = () => {
@@ -165,6 +166,44 @@ const InfoModal: React.FC<InfoModalProps> = ({ onClose, isTopmost }) => {
                                 <li><span className="text-red-500 font-semibold">매우 나쁨 (1점 ~ 49점):</span> 행동력 회복 속도 감소 (20분마다 1 회복)</li>
                                 <li><span className="text-red-700 font-semibold">최악 (0점):</span> 최대 행동력 20 감소</li>
                             </ul>
+                        </div>
+                    </div>
+                );
+            case 'encyclopedia':
+                return (
+                    <div className="space-y-6 text-slate-200">
+                        <h3 className="text-center text-xl font-bold tracking-tight text-amber-200">도감 도움말 및 업데이트 내역</h3>
+                        <div className="rounded-xl border border-emerald-500/25 bg-black/20 p-4">
+                            <h4 className="mb-2 border-b border-emerald-500/25 pb-2 text-sm font-semibold text-emerald-200">최근 업데이트</h4>
+                            <ul className="list-inside list-disc space-y-1.5 text-sm">
+                                <li>장비 주옵션 강화 보너스 규칙이 변경되었습니다. (+4, +7, +10 강화 시 2배 보너스)</li>
+                                <li>소모품 탭의 아이템 정렬 방식이 종류별로 개선되었습니다.</li>
+                            </ul>
+                        </div>
+                        <div className="rounded-xl border border-sky-500/25 bg-black/20 p-4">
+                            <h4 className="mb-2 border-b border-sky-500/25 pb-2 text-sm font-semibold text-sky-200">도감 사용법</h4>
+                            <ul className="list-inside list-disc space-y-2 text-sm">
+                                <li>이 도감에서는 게임 내 모든 장비, 재료, 소모품의 상세 정보를 확인할 수 있습니다.</li>
+                                <li><strong className="text-amber-100">장비 탭:</strong> 부위마다 등급 7종이 나열되며 아이콘을 누르면 말풍선으로 상세 옵션을 확인할 수 있습니다.</li>
+                                <li><strong className="text-amber-100">재료/소모품 탭:</strong> 종류별로 구분되어 있으며 아이콘을 누르면 말풍선으로 설명과 등급을 확인합니다.</li>
+                            </ul>
+                        </div>
+                        <div className="rounded-xl border border-violet-500/25 bg-black/20 p-4">
+                            <h4 className="mb-2 border-b border-violet-500/25 pb-2 text-sm font-semibold text-violet-200">장비 옵션 상세</h4>
+                            <div className="space-y-3 text-sm">
+                                <div>
+                                    <h5 className="font-semibold text-amber-100">주옵션</h5>
+                                    <p className="mt-1 text-slate-300">1강화마다 획득 시 부여되는 수치만큼 추가됩니다. 별 색상이 은색에서 금색(+4), 금색에서 푸른색(+7), 푸른색에서 프리즘색(+10)이 될 때 각각 2배로 강화됩니다.</p>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-sky-200">부옵션</h5>
+                                    <p className="mt-1 text-slate-300">최대 4개까지 부여됩니다. 1강화마다 부옵션이 4개가 될 때까지 우선적으로 추가된 후, 4개가 모두 채워지면 기존 부옵션 중 하나가 랜덤하게 강화됩니다.</p>
+                                </div>
+                                <div>
+                                    <h5 className="font-semibold text-emerald-200">특수 옵션 & 신화 옵션</h5>
+                                    <p className="mt-1 text-slate-300">강화되지 않는 고유한 고정 옵션입니다. 신화 등급 장비에서만 신화 옵션이 등장합니다.</p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );

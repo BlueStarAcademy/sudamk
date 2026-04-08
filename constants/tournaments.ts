@@ -204,7 +204,7 @@ export const DUNGEON_DEFAULT_SCORE_BONUS = 0.0;
 export const DUNGEON_STAGE_1_SCORE_BY_TYPE: Record<TournamentType, Record<number, number>> = {
     neighborhood: { 1: 15, 2: 10, 3: 6, 4: 3, 5: 2, 6: 1 },
     national:     { 1: 21, 2: 14, 3: 7, 4: 3, 5: 3, 6: 3, 7: 3, 8: 2 },
-    world:        { 1: 24, 2: 16, 3: 10, 4: 7, 5: 5, 6: 5, 7: 5, 8: 5, 9: 3, 10: 3, 11: 3, 12: 3, 13: 3, 14: 3, 15: 3 },
+    world:        { 1: 24, 2: 16, 3: 10, 4: 7, 5: 5, 6: 5, 7: 5, 8: 5, 9: 3, 10: 3, 11: 3, 12: 3, 13: 3, 14: 3, 15: 3, 16: 3 },
 };
 
 // 2~10단계 배율 (1단계 점수 × 이 배율 = 해당 단계 점수, 소수점 반올림)

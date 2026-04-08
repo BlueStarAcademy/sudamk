@@ -431,7 +431,7 @@ useEffect(() => {
     return (
             <div className="relative flex h-full flex-col">
             <div className="flex h-full min-h-0 flex-row gap-4">
-                <div className="flex h-full min-h-0 w-[55%] min-w-0 flex-col rounded-lg bg-gray-900/40 p-2">
+                <div className="flex h-full min-h-0 w-[55%] min-w-0 flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#1a1f2d]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                     <ItemDisplay 
                         item={selectedItem} 
                         previousStars={previousStars}
@@ -441,8 +441,8 @@ useEffect(() => {
 
                 <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col gap-2">
                     {/* 강화 성공 시 정보 */}
-                    <div className="bg-gray-900/50 p-2 rounded-lg flex-shrink-0">
-                        <h4 className="font-semibold text-center mb-1.5 text-green-300 text-xs">강화 성공 시</h4>
+                    <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2">
+                        <h4 className="mb-1.5 text-center text-xs font-bold text-emerald-200">강화 성공 시</h4>
                         <div className="space-y-1.5 text-xs text-left">
                             <div className="flex justify-between items-center gap-2 min-w-0">
                                 <span className="text-gray-400 whitespace-nowrap flex-shrink-0 text-xs">등급:</span>
@@ -465,8 +465,8 @@ useEffect(() => {
                     
                     {/* 필요 재료 | 강화 성공 확률 — 나란히 두 패널 */}
                     <div className="flex min-w-0 flex-shrink-0 flex-row items-stretch gap-2">
-                        <div className="min-w-0 flex-1 rounded-lg bg-gray-900/50 p-2">
-                            <h4 className="mb-2 text-center text-xs font-semibold">필요 재료</h4>
+                        <div className="min-w-0 flex-1 rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/75 via-black/35 to-black/45 p-2">
+                            <h4 className="mb-2 text-center text-xs font-bold text-amber-100">필요 재료</h4>
                             <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
                                 <div className="relative flex flex-col items-center px-1" title={`골드: ${(currentUser?.gold || 0).toLocaleString()} / ${goldCost.toLocaleString()}`}>
                                     <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
@@ -494,8 +494,8 @@ useEffect(() => {
                                 })}
                             </div>
                         </div>
-                        <div className="flex w-[7.25rem] min-w-[6.5rem] shrink-0 flex-col justify-center rounded-lg bg-gray-900/50 p-2 text-center sm:w-32">
-                            <h4 className="mb-1 text-xs font-semibold leading-tight">강화 성공 확률</h4>
+                        <div className="flex w-[7.25rem] min-w-[6.5rem] shrink-0 flex-col justify-center rounded-xl border border-amber-300/20 bg-gradient-to-b from-amber-950/25 via-black/45 to-black/30 p-2 text-center sm:w-32">
+                            <h4 className="mb-1 text-xs font-bold leading-tight text-amber-100">강화 성공 확률</h4>
                             <p className="font-bold leading-tight text-yellow-300" style={{ fontSize: 'clamp(0.95rem, 2.8vw, 1.35rem)' }}>
                                 {baseSuccessRate}%
                                 {failBonus > 0 && (

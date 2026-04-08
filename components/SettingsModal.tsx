@@ -3,7 +3,6 @@
 
 import React, { useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
-import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { SoundCategory, PanelEdgeStyle } from '../types.js';
 import ToggleSwitch from './ui/ToggleSwitch.js';
@@ -24,18 +23,41 @@ const SettingsSection: React.FC<{ title: string; children: React.ReactNode; clas
     className = '',
 }) => (
     <section
-        className={`rounded-2xl border border-color/45 bg-gradient-to-br from-tertiary/40 via-tertiary/18 to-tertiary/5 p-4 sm:p-5 shadow-sm ring-1 ring-inset ring-white/[0.06] ${className}`}
+        className={`relative overflow-hidden rounded-xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/92 via-zinc-950/96 to-black/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_18px_48px_-28px_rgba(0,0,0,0.75)] ring-1 ring-white/[0.05] sm:p-5 ${className}`}
     >
-        <div className="mb-4 flex items-center gap-3">
+        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
+        <div className="relative mb-4 flex items-center gap-3">
             <div
-                className="h-9 w-1 shrink-0 rounded-full bg-accent shadow-[0_0_14px] shadow-accent/30"
+                className="h-9 w-1 shrink-0 rounded-full bg-gradient-to-b from-amber-300 via-amber-500 to-amber-700 shadow-[0_0_16px_rgba(251,191,36,0.45)]"
                 aria-hidden
             />
-            <h3 className="text-base font-semibold tracking-tight text-text-primary">{title}</h3>
+            <h3 className="text-base font-bold tracking-tight text-amber-50/95">{title}</h3>
         </div>
-        {children}
+        <div className="relative">{children}</div>
     </section>
 );
+
+/** 계정 탭: 아이디·비밀번호 전환 버튼 */
+const accountToggleBtnClass = (active: boolean) =>
+    `relative flex min-h-[3rem] flex-1 items-center justify-center gap-2 overflow-hidden rounded-xl border px-3 py-2.5 text-center text-sm font-semibold tracking-tight transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0e1016] ${
+        active
+            ? 'border-amber-400/50 bg-gradient-to-b from-amber-600/30 via-amber-950/55 to-black/85 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_32px_-10px_rgba(251,191,36,0.4)] ring-1 ring-amber-400/30'
+            : 'border-white/[0.1] bg-gradient-to-b from-zinc-800/55 to-zinc-950/75 text-slate-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] hover:border-amber-500/35 hover:text-amber-100/95 hover:shadow-[0_0_24px_-12px_rgba(251,191,36,0.22)]'
+    }`;
+
+const accountSubmitBtnClass =
+    'relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl border border-amber-400/40 bg-gradient-to-b from-amber-500/95 via-amber-600/92 to-amber-900/95 px-4 py-3 text-sm font-bold tracking-wide text-stone-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.38),0_10px_32px_-8px_rgba(245,158,11,0.42)] transition duration-200 hover:brightness-110 hover:shadow-[0_14px_36px_-6px_rgba(251,191,36,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0e1016] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:hover:brightness-100';
+
+/** 비상·탈퇴: 붉은 계열 프리미엄 CTA */
+const dangerCtaBtnClass =
+    'group relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl border border-red-400/45 bg-gradient-to-b from-red-600/96 via-rose-800/96 to-rose-950/98 px-4 py-3.5 text-sm font-bold tracking-[0.06em] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_0_0_1px_rgba(0,0,0,0.25),0_14px_40px_-10px_rgba(220,38,38,0.55)] transition duration-200 hover:border-red-300/55 hover:shadow-[0_0_44px_-8px_rgba(248,113,113,0.5)] focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0e1016] active:scale-[0.99] active:brightness-95 disabled:cursor-not-allowed disabled:opacity-55';
+
+const dangerOutlineBtnClass = (active: boolean) =>
+    `relative inline-flex w-full items-center justify-center overflow-hidden rounded-xl border px-4 py-3.5 text-sm font-semibold tracking-wide transition duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0e1016] active:scale-[0.995] ${
+        active
+            ? 'border-red-400/50 bg-gradient-to-b from-red-950/70 to-black/80 text-red-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_28px_-12px_rgba(239,68,68,0.35)] ring-1 ring-red-500/25'
+            : 'border-red-500/35 bg-gradient-to-b from-red-950/40 to-black/50 text-red-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-red-400/45 hover:shadow-[0_0_28px_-10px_rgba(239,68,68,0.3)]'
+    }`;
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => {
     const {
@@ -214,7 +236,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
             .join(', ');
         return (
             <div
-                className="w-20 h-14 rounded-lg border border-color bg-panel"
+                className="h-14 w-20 rounded-lg border border-white/10 bg-panel shadow-inner ring-1 ring-white/[0.04]"
                 style={{
                     backgroundImage,
                     backgroundRepeat: 'no-repeat, no-repeat, no-repeat, no-repeat',
@@ -231,18 +253,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                 return (
                     <div className="flex flex-col gap-5">
                         <SettingsSection title="패널 엣지 스타일">
-                            <p className="mb-1 text-xs leading-relaxed text-text-secondary">
+                            <p className="mb-1 text-xs leading-relaxed text-slate-400">
                                 대기실·프로필·모든 모달 창 등 UI 전역에 동일하게 적용됩니다. 기본값은 클래식 엣지입니다.
                             </p>
                             <div className="space-y-4">
-                                <div className="flex items-center justify-center rounded-xl border border-color/50 bg-panel/80 p-8 shadow-inner">
+                                <div className="flex items-center justify-center rounded-xl border border-amber-500/15 bg-black/35 p-8 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04]">
                                     {renderEdgePreview(settings.graphics.panelEdgeStyle ?? 'default')}
                                 </div>
                                 <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
                                     {PANEL_EDGE_OPTIONS.map(option => (
                                         <label
                                             key={option.id}
-                                            className="flex cursor-pointer items-center gap-2 rounded-xl border border-color/35 bg-secondary/15 px-3 py-2.5 transition-all duration-150 has-[:checked]:border-accent has-[:checked]:bg-accent/10 has-[:checked]:shadow-sm has-[:checked]:ring-1 has-[:checked]:ring-accent/30"
+                                            className="flex cursor-pointer items-center gap-2 rounded-xl border border-white/[0.08] bg-black/25 px-3 py-2.5 transition-all duration-150 has-[:checked]:border-amber-400/55 has-[:checked]:bg-amber-950/40 has-[:checked]:shadow-[0_0_20px_-8px_rgba(251,191,36,0.35)] has-[:checked]:ring-1 has-[:checked]:ring-amber-400/20"
                                         >
                                             <input
                                                 type="radio"
@@ -252,7 +274,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                                 onChange={() => updatePanelEdgeStyle(option.id)}
                                                 className="h-4 w-4 shrink-0 border-color bg-secondary text-accent focus:ring-accent"
                                             />
-                                            <span className="flex-1 whitespace-nowrap text-sm font-medium text-text-primary">
+                                            <span className="flex-1 whitespace-nowrap text-sm font-medium text-amber-50/95">
                                                 {option.label}
                                             </span>
                                         </label>
@@ -268,11 +290,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                         <SettingsSection title="출력">
                             <div className="space-y-5">
                                 <div>
-                                    <p className="mb-2 text-xs font-medium uppercase tracking-wider text-text-secondary/90">
+                                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-amber-200/80">
                                         마스터 볼륨
                                     </p>
-                                    <div className="flex items-center gap-4 rounded-xl border border-color/40 bg-secondary/20 px-3 py-3">
-                                        <span className="w-11 text-center font-mono text-lg tabular-nums text-text-primary">
+                                    <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-black/30 px-3 py-3 shadow-inner ring-1 ring-white/[0.04]">
+                                        <span className="w-11 text-center font-mono text-lg tabular-nums text-amber-100">
                                             {(settings.sound.masterVolume * 10).toFixed(0)}
                                         </span>
                                         <Slider
@@ -299,9 +321,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                                 {soundCategories.map(({ key, label }) => (
                                     <div
                                         key={key}
-                                        className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors hover:border-color/30 hover:bg-secondary/15"
+                                        className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 transition-colors hover:border-amber-500/15 hover:bg-white/[0.04]"
                                     >
-                                        <span className="text-sm text-text-secondary">{label}</span>
+                                        <span className="text-sm text-slate-300">{label}</span>
                                         <ToggleSwitch
                                             checked={!settings.sound.categoryMuted[key]}
                                             onChange={(checked) =>
@@ -323,29 +345,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                     <div className="flex flex-col gap-5">
                         <SettingsSection title="게임 플레이">
                             <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
-                                    <span className="text-sm text-text-secondary">착수 버튼 사용</span>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                    <span className="text-sm text-slate-300">착수 버튼 사용</span>
                                     <ToggleSwitch
                                         checked={settings.features.moveConfirmButtonBox}
                                         onChange={(checked) => updateFeatureSetting('moveConfirmButtonBox', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
-                                    <span className="text-sm text-text-secondary">돌 미리보기 (마우스 호버)</span>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                    <span className="text-sm text-slate-300">돌 미리보기 (마우스 호버)</span>
                                     <ToggleSwitch
                                         checked={settings.features.stonePreview}
                                         onChange={(checked) => updateFeatureSetting('stonePreview', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
-                                    <span className="text-sm text-text-secondary">마지막 놓은 자리 표시</span>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                    <span className="text-sm text-slate-300">마지막 놓은 자리 표시</span>
                                     <ToggleSwitch
                                         checked={settings.features.lastMoveMarker}
                                         onChange={(checked) => updateFeatureSetting('lastMoveMarker', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
-                                    <span className="text-sm text-text-secondary">따낸점수 애니메이션</span>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                    <span className="text-sm text-slate-300">따낸점수 애니메이션</span>
                                     <ToggleSwitch
                                         checked={settings.features.captureScoreAnimation}
                                         onChange={(checked) => updateFeatureSetting('captureScoreAnimation', checked)}
@@ -355,15 +377,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                         </SettingsSection>
                         <SettingsSection title="알림">
                             <div className="flex flex-col gap-1">
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
-                                    <span className="text-sm text-text-secondary">퀘스트 완료 알림</span>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                    <span className="text-sm text-slate-300">퀘스트 완료 알림</span>
                                     <ToggleSwitch
                                         checked={settings.features.questNotifications}
                                         onChange={(checked) => updateFeatureSetting('questNotifications', checked)}
                                     />
                                 </div>
-                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-color/30 hover:bg-secondary/15">
-                                    <span className="text-sm text-text-secondary">채팅 내용 알림 (빨간 점)</span>
+                                <div className="flex items-center justify-between gap-3 rounded-lg border border-transparent px-2 py-2.5 hover:border-amber-500/15 hover:bg-white/[0.04]">
+                                    <span className="text-sm text-slate-300">채팅 내용 알림 (빨간 점)</span>
                                     <ToggleSwitch
                                         checked={settings.features.chatNotifications}
                                         onChange={(checked) => updateFeatureSetting('chatNotifications', checked)}
@@ -372,13 +394,29 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                             </div>
                         </SettingsSection>
                         <SettingsSection title="비상 기능">
-                            <div className="rounded-xl border border-red-600/40 bg-gradient-to-br from-red-950/50 to-red-950/20 p-4 ring-1 ring-inset ring-red-500/15">
-                                <p className="mb-4 text-sm leading-relaxed text-red-100/90">
-                                    비상탈출 버튼을 사용하면 모든 플레이 중인 게임이 강제 종료되며, PVP 경기장에서는 기권패 처리됩니다.
-                                </p>
-                                <Button onClick={handleEmergencyExit} colorScheme="red" className="w-full shadow-md shadow-red-900/30">
-                                    비상탈출
-                                </Button>
+                            <div className="relative overflow-hidden rounded-2xl border border-red-500/30 bg-gradient-to-br from-[#1c080c] via-[#12060a] to-[#0a0406] p-[1px] shadow-[0_0_52px_-18px_rgba(220,38,38,0.45)]">
+                                <div
+                                    className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/50 to-transparent"
+                                    aria-hidden
+                                />
+                                <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/35 via-black/40 to-black/55 p-4 ring-1 ring-inset ring-red-500/15">
+                                    <p className="mb-4 text-sm leading-relaxed text-red-100/88">
+                                        비상탈출 버튼을 사용하면 모든 플레이 중인 게임이 강제 종료되며, PVP 경기장에서는 기권패 처리됩니다.
+                                    </p>
+                                    <button type="button" onClick={handleEmergencyExit} className={dangerCtaBtnClass}>
+                                        <span
+                                            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-80"
+                                            aria-hidden
+                                        />
+                                        <span className="relative flex items-center justify-center gap-2.5">
+                                            <span
+                                                className="inline-block h-2 w-2 shrink-0 rounded-full bg-red-100 shadow-[0_0_14px_rgba(254,202,202,0.95)]"
+                                                aria-hidden
+                                            />
+                                            비상탈출
+                                        </span>
+                                    </button>
+                                </div>
                             </div>
                         </SettingsSection>
                     </div>
@@ -388,157 +426,175 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
                     <div className="flex flex-col gap-5">
                         <SettingsSection title="계정 관리">
                             <div className="mb-4 flex flex-col gap-2.5 sm:flex-row">
-                                <Button
+                                <button
+                                    type="button"
+                                    className={accountToggleBtnClass(showChangeUsername)}
                                     onClick={() => {
                                         setShowChangeUsername(!showChangeUsername);
                                         setShowChangePassword(false);
                                         setShowWithdraw(false);
                                         setError(null);
                                     }}
-                                    colorScheme="blue"
-                                    className="flex-1"
                                 >
+                                    <span
+                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${showChangeUsername ? 'bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.8)]' : 'bg-slate-600'}`}
+                                        aria-hidden
+                                    />
                                     {showChangeUsername ? '아이디 변경 취소' : '아이디 변경'}
-                                </Button>
-                                <Button
+                                </button>
+                                <button
+                                    type="button"
+                                    className={accountToggleBtnClass(showChangePassword)}
                                     onClick={() => {
                                         setShowChangePassword(!showChangePassword);
                                         setShowChangeUsername(false);
                                         setShowWithdraw(false);
                                         setError(null);
                                     }}
-                                    colorScheme="blue"
-                                    className="flex-1"
                                 >
+                                    <span
+                                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${showChangePassword ? 'bg-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.8)]' : 'bg-slate-600'}`}
+                                        aria-hidden
+                                    />
                                     {showChangePassword ? '비밀번호 변경 취소' : '비밀번호 변경'}
-                                </Button>
+                                </button>
                             </div>
                             {showChangeUsername && (
-                                <div className="mb-4 rounded-xl border border-color/50 bg-secondary/20 p-4 ring-1 ring-inset ring-white/[0.04]">
+                                <div className="mb-4 rounded-xl border border-amber-500/20 bg-black/35 p-4 ring-1 ring-inset ring-white/[0.05]">
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="mb-1 block text-sm text-text-secondary">새 아이디</label>
+                                            <label className="mb-1 block text-sm text-slate-400">새 아이디</label>
                                             <input
                                                 type="text"
                                                 value={newUsername}
                                                 onChange={(e) => setNewUsername(e.target.value)}
-                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-amber-50 outline-none focus:ring-2 focus:ring-amber-400/35"
                                                 placeholder="3-20자"
                                                 disabled={isLoading}
                                             />
                                         </div>
                                         <div>
-                                            <label className="mb-1 block text-sm text-text-secondary">현재 비밀번호</label>
+                                            <label className="mb-1 block text-sm text-slate-400">현재 비밀번호</label>
                                             <input
                                                 type="password"
                                                 value={currentPassword}
                                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-amber-50 outline-none focus:ring-2 focus:ring-amber-400/35"
                                                 disabled={isLoading}
                                             />
                                         </div>
                                         {error && <p className="text-sm text-red-400">{error}</p>}
-                                        <Button
+                                        <button
+                                            type="button"
+                                            className={accountSubmitBtnClass}
                                             onClick={handleChangeUsername}
-                                            colorScheme="blue"
-                                            className="w-full"
                                             disabled={isLoading}
                                         >
                                             {isLoading ? '처리 중...' : '변경하기'}
-                                        </Button>
+                                        </button>
                                     </div>
                                 </div>
                             )}
                             {showChangePassword && (
-                                <div className="mb-4 rounded-xl border border-color/50 bg-secondary/20 p-4 ring-1 ring-inset ring-white/[0.04]">
+                                <div className="mb-4 rounded-xl border border-amber-500/20 bg-black/35 p-4 ring-1 ring-inset ring-white/[0.05]">
                                     <div className="space-y-3">
                                         <div>
-                                            <label className="mb-1 block text-sm text-text-secondary">현재 비밀번호</label>
+                                            <label className="mb-1 block text-sm text-slate-400">현재 비밀번호</label>
                                             <input
                                                 type="password"
                                                 value={currentPassword}
                                                 onChange={(e) => setCurrentPassword(e.target.value)}
-                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-amber-50 outline-none focus:ring-2 focus:ring-amber-400/35"
                                                 disabled={isLoading}
                                             />
                                         </div>
                                         <div>
-                                            <label className="mb-1 block text-sm text-text-secondary">새 비밀번호</label>
+                                            <label className="mb-1 block text-sm text-slate-400">새 비밀번호</label>
                                             <input
                                                 type="password"
                                                 value={newPassword}
                                                 onChange={(e) => setNewPassword(e.target.value)}
-                                                className="w-full rounded-lg border border-color bg-secondary px-3 py-2.5 text-text-primary outline-none focus:ring-2 focus:ring-accent/40"
+                                                className="w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2.5 text-amber-50 outline-none focus:ring-2 focus:ring-amber-400/35"
                                                 placeholder="최소 6자"
                                                 disabled={isLoading}
                                             />
                                         </div>
                                         {error && <p className="text-sm text-red-400">{error}</p>}
-                                        <Button
+                                        <button
+                                            type="button"
+                                            className={accountSubmitBtnClass}
                                             onClick={handleChangePassword}
-                                            colorScheme="blue"
-                                            className="w-full"
                                             disabled={isLoading}
                                         >
                                             {isLoading ? '처리 중...' : '변경하기'}
-                                        </Button>
+                                        </button>
                                     </div>
                                 </div>
                             )}
                         </SettingsSection>
                         <SettingsSection title="회원탈퇴">
-                            <div className="rounded-xl border border-red-600/40 bg-gradient-to-br from-red-950/45 to-red-950/15 p-4 ring-1 ring-inset ring-red-500/15">
-                                <p className="mb-4 text-sm leading-relaxed text-red-100/90">
-                                    회원탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다. 동일한 이메일로는 1주일간 재가입이 불가능합니다.
-                                </p>
-                                <Button
-                                    onClick={() => {
-                                        setShowWithdraw(!showWithdraw);
-                                        setShowChangeUsername(false);
-                                        setShowChangePassword(false);
-                                        setError(null);
-                                    }}
-                                    colorScheme="red"
-                                    className="w-full shadow-md shadow-red-900/25"
-                                >
-                                    {showWithdraw ? '취소' : '회원탈퇴'}
-                                </Button>
-                                {showWithdraw && (
-                                    <div className="mt-4 space-y-3 border-t border-red-500/25 pt-4">
-                                        <div>
-                                            <label className="mb-1 block text-sm text-red-100/90">비밀번호 확인</label>
-                                            <input
-                                                type="password"
-                                                value={withdrawPassword}
-                                                onChange={(e) => setWithdrawPassword(e.target.value)}
-                                                className="w-full rounded-lg border border-red-700/40 bg-secondary px-3 py-2.5 text-text-primary focus:ring-2 focus:ring-red-500/35"
+                            <div className="relative overflow-hidden rounded-2xl border border-red-500/28 bg-gradient-to-br from-[#1a0608] via-[#100407] to-[#0a0305] p-[1px] shadow-[0_0_48px_-20px_rgba(185,28,28,0.4)]">
+                                <div
+                                    className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-red-400/40 to-transparent"
+                                    aria-hidden
+                                />
+                                <div className="relative rounded-[0.95rem] bg-gradient-to-b from-red-950/40 via-black/45 to-black/60 p-4 ring-1 ring-inset ring-red-500/12">
+                                    <p className="mb-4 text-sm leading-relaxed text-red-100/88">
+                                        회원탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다. 동일한 이메일로는 1주일간 재가입이 불가능합니다.
+                                    </p>
+                                    <button
+                                        type="button"
+                                        className={dangerOutlineBtnClass(showWithdraw)}
+                                        onClick={() => {
+                                            setShowWithdraw(!showWithdraw);
+                                            setShowChangeUsername(false);
+                                            setShowChangePassword(false);
+                                            setError(null);
+                                        }}
+                                    >
+                                        {showWithdraw ? '취소' : '회원탈퇴'}
+                                    </button>
+                                    {showWithdraw && (
+                                        <div className="mt-4 space-y-3 border-t border-red-500/20 pt-4">
+                                            <div>
+                                                <label className="mb-1 block text-sm font-medium text-red-100/85">비밀번호 확인</label>
+                                                <input
+                                                    type="password"
+                                                    value={withdrawPassword}
+                                                    onChange={(e) => setWithdrawPassword(e.target.value)}
+                                                    className="w-full rounded-xl border border-red-500/35 bg-black/45 px-3 py-2.5 text-red-50/95 outline-none ring-1 ring-inset ring-white/[0.04] placeholder:text-red-200/30 focus:border-red-400/50 focus:ring-2 focus:ring-red-500/30"
+                                                    disabled={isLoading}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="mb-1 block text-sm font-medium text-red-100/85">
+                                                    확인 문구 입력: &quot;회원탈퇴&quot;
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={withdrawConfirm}
+                                                    onChange={(e) => setWithdrawConfirm(e.target.value)}
+                                                    className="w-full rounded-xl border border-red-500/35 bg-black/45 px-3 py-2.5 text-red-50/95 outline-none ring-1 ring-inset ring-white/[0.04] placeholder:text-red-200/35 focus:border-red-400/50 focus:ring-2 focus:ring-red-500/30"
+                                                    placeholder="회원탈퇴"
+                                                    disabled={isLoading}
+                                                />
+                                            </div>
+                                            {error && <p className="text-sm text-red-400">{error}</p>}
+                                            <button
+                                                type="button"
+                                                className={dangerCtaBtnClass}
+                                                onClick={handleWithdraw}
                                                 disabled={isLoading}
-                                            />
+                                            >
+                                                <span
+                                                    className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-80"
+                                                    aria-hidden
+                                                />
+                                                <span className="relative">{isLoading ? '처리 중...' : '탈퇴하기'}</span>
+                                            </button>
                                         </div>
-                                        <div>
-                                            <label className="mb-1 block text-sm text-red-100/90">
-                                                확인 문구 입력: &quot;회원탈퇴&quot;
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={withdrawConfirm}
-                                                onChange={(e) => setWithdrawConfirm(e.target.value)}
-                                                className="w-full rounded-lg border border-red-700/40 bg-secondary px-3 py-2.5 text-text-primary focus:ring-2 focus:ring-red-500/35"
-                                                placeholder="회원탈퇴"
-                                                disabled={isLoading}
-                                            />
-                                        </div>
-                                        {error && <p className="text-sm text-red-400">{error}</p>}
-                                        <Button
-                                            onClick={handleWithdraw}
-                                            colorScheme="red"
-                                            className="w-full"
-                                            disabled={isLoading}
-                                        >
-                                            {isLoading ? '처리 중...' : '탈퇴하기'}
-                                        </Button>
-                                    </div>
-                                )}
+                                    )}
+                                </div>
                             </div>
                         </SettingsSection>
                     </div>
@@ -547,25 +603,31 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ onClose, isTopmost }) => 
     };
     
     return (
-        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={640} initialHeight={740} isTopmost={isTopmost}>
-            <div className="flex h-[640px] flex-col bg-gradient-to-b from-tertiary/8 via-transparent to-tertiary/15 px-1 pb-1 sm:px-2">
-                <div className="mb-4 flex shrink-0 gap-1 rounded-xl border border-color/40 bg-tertiary/30 p-1 shadow-inner ring-1 ring-inset ring-white/[0.05]">
+        <DraggableWindow title="설정" onClose={onClose} windowId="settings" initialWidth={720} initialHeight={780} isTopmost={isTopmost}>
+            <div className="flex h-full min-h-0 flex-1 flex-col rounded-2xl border border-amber-900/25 bg-gradient-to-b from-[#12141c] via-[#0e1016] to-[#08090e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <div className="mb-3 flex shrink-0 gap-1 rounded-xl border border-white/[0.08] bg-black/40 p-1 shadow-inner backdrop-blur-md">
                     {tabs.map(tab => (
                         <button
                             key={tab.id}
                             type="button"
                             onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 rounded-lg py-2.5 text-sm font-medium transition-all duration-200 ${
+                            className={`relative flex-1 overflow-hidden rounded-lg py-2.5 text-sm font-semibold transition-all duration-200 ${
                                 activeTab === tab.id
-                                    ? 'bg-accent font-semibold text-primary shadow-md shadow-accent/25 ring-1 ring-inset ring-white/15'
-                                    : 'text-text-secondary hover:bg-secondary/45 hover:text-text-primary'
+                                    ? 'text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_-4px_rgba(251,191,36,0.35)]'
+                                    : 'text-slate-400 hover:bg-white/[0.06] hover:text-amber-100/90'
                             }`}
                         >
-                            {tab.label}
+                            {activeTab === tab.id && (
+                                <span
+                                    className="pointer-events-none absolute inset-0 bg-gradient-to-b from-amber-600/35 via-amber-700/25 to-amber-900/35"
+                                    aria-hidden
+                                />
+                            )}
+                            <span className="relative z-[1]">{tab.label}</span>
                         </button>
                     ))}
                 </div>
-                <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1 pr-3 sm:px-3">
+                <div className="min-h-0 flex-1 overflow-y-auto px-1 py-1 pr-2 sm:px-2">
                     {renderContent()}
                 </div>
             </div>

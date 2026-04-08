@@ -300,7 +300,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             `${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} ${arenaPostGameButtonInRowModifier}${extra ? ` ${extra}` : ''}`;
 
         return (
-            <footer className="responsive-controls flex-shrink-0 bg-gray-800 rounded-lg p-2 flex flex-col items-stretch justify-center gap-2 w-full min-h-0 sm:min-h-[120px]">
+            <footer className="responsive-controls flex-shrink-0 bg-stone-800/70 backdrop-blur-sm rounded-xl w-full h-[164px] border border-stone-700/50 p-2 flex flex-col items-stretch justify-center gap-2">
                 <div className={arenaPostGamePanelShellClass}>
                     <div className={arenaPostGameIngameEndedRowClass}>
                     <Button bare onClick={handleShowResults} colorScheme="none" className={endedRowBtn()}>

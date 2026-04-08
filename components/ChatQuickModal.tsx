@@ -35,7 +35,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
 
     return (
         <DraggableWindow
-            title="전체 채팅"
+            title="채팅"
             onClose={onClose}
             windowId="chat-quick-modal"
             initialWidth={isMobile ? 720 : 520}

@@ -430,7 +430,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             hideFooter
         >
             <div
-                className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex w-full min-h-0 flex-col ${
+                className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex h-full w-full min-h-0 flex-1 flex-col ${
                     isMobile
                         ? 'h-full min-h-0 flex-1 overflow-hidden'
                         : useBodyScrollSizing
@@ -645,10 +645,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 </div>
 
                 <div
-                    className={`${PRE_GAME_MODAL_FOOTER_CLASS} flex-shrink-0 !flex-col rounded-b-2xl ${
+                    className={`${PRE_GAME_MODAL_FOOTER_CLASS} mt-auto flex-shrink-0 !flex-col rounded-b-2xl ${
                         isMobile
-                            ? 'mt-2 !gap-1.5 !p-2.5 -mx-2 -mb-2 sm:mt-3 sm:!gap-2 sm:!p-3 sm:-mx-3 sm:-mb-3'
-                            : 'mt-2 !gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
+                            ? '!gap-1.5 !p-2.5 -mx-2 -mb-2 sm:!gap-2 sm:!p-3 sm:-mx-3 sm:-mb-3'
+                            : '!gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
                     }`}
                 >
                     <div className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5`}>

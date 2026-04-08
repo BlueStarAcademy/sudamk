@@ -1,8 +1,9 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { LiveGameSession, SinglePlayerStageInfo } from '../types.js';
+import { LiveGameSession, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
+import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
 import { GameMode, SinglePlayerLevel } from '../types/enums.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -20,8 +21,11 @@ import {
 
 interface SinglePlayerGameDescriptionModalProps {
     session: LiveGameSession;
-    onStart: () => void;
+    onStart?: () => void;
     onClose?: () => void;
+    /** 인게임 경기방법: 시작하기 대신 확인 버튼만 표시 */
+    readOnly?: boolean;
+    currentUser?: UserWithStatus;
 }
 
 const SINGLE_PLAYER_LEVEL_DISPLAY: Partial<Record<SinglePlayerLevel, string>> = {
@@ -54,7 +58,7 @@ const IN_MODAL_FOOTER_RESERVE_PX = 104;
 const DRAG_FRAME_H_MIN = 560;
 const DRAG_FRAME_H_MAX = 1200;
 
-const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModalProps> = ({ session, onStart, onClose }) => {
+const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModalProps> = ({ session, onStart, onClose, readOnly = false, currentUser }) => {
     const isTower = session.gameCategory === 'tower';
     const stage: SinglePlayerStageInfo | undefined = isTower
         ? TOWER_STAGES.find((s) => s.id === session.stageId)
@@ -97,6 +101,29 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const modeMeta =
         SPECIAL_GAME_MODES.find((m) => m.mode === session.mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === session.mode);
 
+    const stageIndex = useMemo(
+        () => (isTower ? -1 : SINGLE_PLAYER_STAGES.findIndex((s) => s.id === stage.id)),
+        [isTower, stage.id]
+    );
+    const isFirstClearReward = useMemo(() => {
+        if (isTower || !currentUser || stageIndex < 0) return true;
+        const clearedStages = (currentUser as { clearedSinglePlayerStages?: string[] }).clearedSinglePlayerStages || [];
+        const singlePlayerProgress = (currentUser as { singlePlayerProgress?: number }).singlePlayerProgress ?? 0;
+        return !(clearedStages.includes(stage.id) || singlePlayerProgress > stageIndex);
+    }, [currentUser, isTower, stage.id, stageIndex]);
+
+    const selectedClearReward = stage.rewards
+        ? (isFirstClearReward ? stage.rewards.firstClear : stage.rewards.repeatClear)
+        : undefined;
+
+    const resolveItemImage = (itemId: string): string | null => {
+        const c = CONSUMABLE_ITEMS.find((it) => it.name === itemId);
+        if (c?.image) return c.image;
+        if (MATERIAL_ITEMS[itemId]?.image) return MATERIAL_ITEMS[itemId].image;
+        const eq = EQUIPMENT_POOL.find((it) => it.name === itemId);
+        return eq?.image ?? null;
+    };
+
     const spacingY = isCompactUi ? 'space-y-4' : 'space-y-5';
     const mainBlocks = (
         <div className={`${spacingY} pr-0.5`}>
@@ -112,54 +139,71 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     <p className="text-[0.65rem] font-bold uppercase tracking-[0.14em] text-amber-200/75 sm:text-xs">
                         {isTower ? '도전의 탑' : '싱글 스테이지'}
                     </p>
-                    <h3 className="mt-1 text-xl font-black tracking-tight text-white drop-shadow-sm max-[480px]:text-[1.35rem] sm:text-2xl">{stageDisplayName}</h3>
+                    <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
+                        <h3 className="text-xl font-black tracking-tight text-white drop-shadow-sm max-[480px]:text-[1.35rem] sm:text-2xl">
+                            {stageDisplayName}
+                        </h3>
+                        <div className="max-w-full rounded-lg border border-amber-500/35 bg-black/40 px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                            <p className="text-right text-[10px] font-semibold tracking-wide text-amber-200/90 sm:text-[11px]">
+                                이번 클리어 보상 ({isFirstClearReward ? '첫 클리어' : '재도전'})
+                            </p>
+                            {selectedClearReward ? (
+                                <div className="mt-1.5 flex flex-wrap items-center justify-end gap-1.5">
+                                    {(selectedClearReward.gold ?? 0) > 0 && (
+                                        <div className="inline-flex h-9 min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-amber-500/30 bg-amber-950/25 px-2 text-[11px] font-semibold text-amber-100">
+                                            <img src="/images/icon/Gold.png" alt="" className="h-4 w-4 object-contain" />
+                                            {(selectedClearReward.gold ?? 0).toLocaleString()}
+                                        </div>
+                                    )}
+                                    {(selectedClearReward.exp ?? 0) > 0 && (
+                                        <div className="inline-flex h-9 min-w-[4.25rem] items-center justify-center rounded-md border border-emerald-500/35 bg-emerald-950/25 px-2 text-[10px] font-black tracking-[0.03em] text-emerald-200">
+                                            전략EXP +{selectedClearReward.exp}
+                                        </div>
+                                    )}
+                                    {selectedClearReward.items?.map((rewardItem, idx) => {
+                                        const image = resolveItemImage(rewardItem.itemId);
+                                        return (
+                                            <div
+                                                key={`${rewardItem.itemId}-${idx}`}
+                                                className="inline-flex h-9 min-w-[4.25rem] items-center justify-center gap-1 rounded-md border border-violet-500/30 bg-violet-950/20 px-2 text-[10px] font-semibold text-violet-100"
+                                                title={rewardItem.itemId}
+                                            >
+                                                {image ? <img src={image} alt="" className="h-4 w-4 object-contain" /> : <span>🎁</span>}
+                                                x{rewardItem.quantity}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="mt-1 text-right text-[11px] leading-snug text-amber-100/80 sm:text-xs">보상 정보 없음</p>
+                            )}
+                        </div>
+                    </div>
                     <p className="mt-1.5 text-base text-sky-200/88 max-[480px]:text-[1.02rem] sm:text-base">
                         모드: <span className="font-semibold text-sky-100/95">{gameModeName}</span>
                     </p>
                 </div>
             </div>
             <PreGameSummaryGrid session={session} summary={summaryFour} singleColumn={isCompactUi} />
-            {stage.rewards && (
-                <div className="rounded-xl border border-amber-500/22 bg-zinc-950/45 p-3.5 ring-1 ring-inset ring-white/[0.05]">
-                    <h3 className="mb-3 flex items-center gap-2 border-b border-amber-500/18 pb-2.5 text-base font-bold text-amber-100/95">
-                        <img src="/images/icon/Gold.png" alt="" className="h-6 w-6 object-contain opacity-95 drop-shadow" />
-                        클리어 보상
-                    </h3>
-                    <div className="overflow-hidden rounded-lg border border-amber-500/15 bg-black/30">
-                        <table className="w-full text-left text-sm sm:text-sm max-[480px]:text-[0.95rem]">
-                            <thead>
-                                <tr className="border-b border-amber-500/15 bg-zinc-900/70 text-amber-200/95">
-                                    <th className="border-r border-amber-500/12 px-3 py-2 font-semibold">구분</th>
-                                    <th className="px-3 py-2 font-semibold">내용</th>
-                                </tr>
-                            </thead>
-                            <tbody className="text-zinc-200">
-                                <tr className="border-b border-amber-500/10 bg-zinc-900/35">
-                                    <td className="whitespace-nowrap border-r border-amber-500/10 px-3 py-2.5 align-top font-medium text-emerald-300/95">
-                                        최초 클리어
-                                    </td>
-                                    <td className="px-3 py-2.5 align-top leading-snug">
-                                        {formatSinglePlayerRewardCell(stage.rewards.firstClear)}
-                                    </td>
-                                </tr>
-                                <tr className="bg-zinc-900/25">
-                                    <td className="whitespace-nowrap border-r border-amber-500/10 px-3 py-2.5 align-top font-medium text-sky-300/95">
-                                        재도전 클리어
-                                    </td>
-                                    <td className="px-3 py-2.5 align-top leading-snug">
-                                        {isTower ? '보상 없음' : formatSinglePlayerRewardCell(stage.rewards.repeatClear)}
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
         </div>
     );
 
     const footerButtons = (compact: boolean) => (
         <>
+            {readOnly ? (
+                <Button
+                    onClick={onClose}
+                    colorScheme="accent"
+                    className={
+                        compact
+                            ? `mx-auto !w-full max-w-[min(20rem,92vw)] min-h-[3rem] px-8 py-2.5 text-base ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`
+                            : `!w-auto shrink-0 px-8 py-3 text-base ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`
+                    }
+                >
+                    확인
+                </Button>
+            ) : (
+                <>
             {onClose && (
                 <Button
                     onClick={onClose}
@@ -174,8 +218,9 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 </Button>
             )}
             <Button
-                onClick={onStart}
+                onClick={() => onStart?.()}
                 colorScheme="accent"
+                disabled={!onStart}
                 className={
                     compact
                         ? onClose
@@ -186,6 +231,8 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             >
                 시작하기
             </Button>
+                </>
+            )}
         </>
     );
 
@@ -198,7 +245,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             initialHeight={isCompactUi ? 2400 : frameHeight}
             modal={true}
             closeOnOutsideClick={!!onClose}
-            headerShowTitle={!isCompactUi}
+            headerShowTitle={false}
             uniformPcScale={!isCompactUi}
             mobileViewportFit={isCompactUi}
             bodyNoScroll={isCompactUi}
@@ -222,7 +269,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     <div className={`flex min-h-0 min-w-0 flex-1 flex-col ${PRE_GAME_MODAL_LAYER_CLASS}`}>
                         <div
                             ref={contentMeasureRef}
-                            className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5"
+                            className="min-h-0 flex-1 overflow-visible overflow-x-hidden pr-0.5"
                         >
                             {mainBlocks}
                         </div>
