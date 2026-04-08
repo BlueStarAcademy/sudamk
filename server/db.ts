@@ -19,6 +19,7 @@ import {
     createUserCredential,
     deleteUserCredentialByUsername,
     getUserCredentialByKakaoId,
+    getUserCredentialByGoogleId,
     updateUserCredential
 } from './prisma/credentialService.ts';
 import {
@@ -504,15 +505,19 @@ export const getUserCredentialsByUserId = async (userId: string): Promise<UserCr
     const cred = await getUserCredentialByUserId(userId);
     return cred ? { username: cred.username, passwordHash: cred.passwordHash, userId: cred.userId } : null;
 };
-export const createUserCredentials = async (username: string, passwordHash: string | null, userId: string, kakaoId?: string | null): Promise<void> => {
-    await createUserCredential(username, passwordHash, userId, kakaoId);
+export const createUserCredentials = async (username: string, passwordHash: string | null, userId: string, kakaoId?: string | null, googleId?: string | null): Promise<void> => {
+    await createUserCredential(username, passwordHash, userId, kakaoId, googleId);
 };
 
 export const getUserCredentialsByKakaoId = async (kakaoId: string): Promise<UserCredentials | null> => {
     const cred = await getUserCredentialByKakaoId(kakaoId);
     return cred ? { username: cred.username, passwordHash: cred.passwordHash, userId: cred.userId } : null;
 };
-export const updateUserCredentialPassword = async (userId: string, updates: { passwordHash?: string | null; kakaoId?: string | null; emailVerified?: boolean }): Promise<void> => {
+export const getUserCredentialsByGoogleId = async (googleId: string): Promise<UserCredentials | null> => {
+    const cred = await getUserCredentialByGoogleId(googleId);
+    return cred ? { username: cred.username, passwordHash: cred.passwordHash, userId: cred.userId } : null;
+};
+export const updateUserCredentialPassword = async (userId: string, updates: { passwordHash?: string | null; kakaoId?: string | null; googleId?: string | null; emailVerified?: boolean }): Promise<void> => {
     await updateUserCredential(userId, updates);
 };
 

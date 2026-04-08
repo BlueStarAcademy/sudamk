@@ -6,6 +6,7 @@ import { GameMode } from '../types.js';
 import Login from './Login.js';
 import Register from './Register.js';
 import KakaoCallback from './KakaoCallback.js';
+import GoogleCallback from './GoogleCallback.js';
 import SetNickname from './SetNickname.js';
 import Profile from './Profile.js';
 import Lobby from './Lobby.js';
@@ -78,6 +79,9 @@ const Router: React.FC = () => {
         }
         if (currentRoute.view === 'kakao-callback') {
             return <KakaoCallback />;
+        }
+        if (currentRoute.view === 'google-callback') {
+            return <GoogleCallback />;
         }
         return <Login />;
     }

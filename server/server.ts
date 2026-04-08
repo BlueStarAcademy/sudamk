@@ -52,6 +52,7 @@ import { clearAiSession, syncAiSession } from './aiSessionManager.js';
 import { hashPassword, verifyPassword } from './utils/passwordUtils.js';
 import { sendEmailVerification, verifyEmailCode } from './services/emailVerificationService.js';
 import { getKakaoAuthUrl, getKakaoAccessToken, getKakaoUserInfo } from './services/kakaoAuthService.js';
+import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './services/googleAuthService.js';
 
 const getTournamentStateByType = (user: types.User, type: types.TournamentType): types.TournamentState | null => {
     switch (type) {
@@ -3746,6 +3747,75 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         } catch (e: any) {
             console.error('[/api/auth/kakao/callback] Error:', e);
             res.status(500).json({ message: '카카오 로그인 처리 중 오류가 발생했습니다.', error: process.env.NODE_ENV === 'development' ? e?.message : undefined });
+        }
+    });
+
+    // 구글 로그인 URL 생성
+    app.get('/api/auth/google/url', (req, res) => {
+        try {
+            const url = getGoogleAuthUrl();
+            res.json({ url });
+        } catch (e: any) {
+            console.error('[/api/auth/google/url] Error:', e);
+            res.status(500).json({ message: '구글 로그인 URL 생성에 실패했습니다.' });
+        }
+    });
+
+    // 구글 로그인 콜백 처리
+    app.post('/api/auth/google/callback', async (req, res) => {
+        try {
+            const { code } = req.body;
+            if (!code) {
+                return res.status(400).json({ message: '인증 코드가 필요합니다.' });
+            }
+
+            // 구글 액세스 토큰 받기
+            const accessToken = await getGoogleAccessToken(code);
+
+            // 구글 사용자 정보 가져오기
+            const googleUserInfo = await getGoogleUserInfo(accessToken);
+
+            // 기존 사용자 확인 (구글 ID로)
+            let credentials = await db.getUserCredentialsByGoogleId(googleUserInfo.id);
+            let user: types.User | null = null;
+
+            if (credentials) {
+                // 기존 사용자 로그인
+                user = await db.getUser(credentials.userId);
+                if (!user) {
+                    return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
+                }
+            } else {
+                // 신규 사용자 회원가입
+                const tempNickname = `user_${randomUUID().slice(0, 8)}`;
+                const username = `google_${googleUserInfo.id}`;
+
+                user = createDefaultUser(`user-${randomUUID()}`, username, tempNickname, false);
+
+                user = await resetAndGenerateQuests(user);
+                await db.createUser(user);
+
+                // 구글 ID로 인증 정보 생성 (비밀번호 없음)
+                await db.createUserCredentials(username, null, user.id, null, googleUserInfo.id);
+
+                // 구글 이메일이 있으면 자동 인증 처리
+                if (googleUserInfo.email) {
+                    await db.verifyUserEmail(user.id);
+                }
+            }
+
+            // 로그인 시 최근 접속 시각 갱신
+            user.lastLoginAt = Date.now();
+            await db.updateUser(user).catch(err => console.warn('[Google] Failed to update lastLoginAt:', err?.message));
+
+            // 로그인 처리
+            volatileState.userConnections[user.id] = Date.now();
+            volatileState.userStatuses[user.id] = { status: types.UserStatus.Online };
+
+            res.json({ user });
+        } catch (e: any) {
+            console.error('[/api/auth/google/callback] Error:', e);
+            res.status(500).json({ message: '구글 로그인 처리 중 오류가 발생했습니다.', error: process.env.NODE_ENV === 'development' ? e?.message : undefined });
         }
     });
 

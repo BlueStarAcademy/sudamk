@@ -8,6 +8,7 @@ export type PrismaCredential = Prisma.UserCredentialGetPayload<{
     passwordHash: true;
     userId: true;
     kakaoId?: true;
+    googleId?: true;
     emailVerified?: true;
   };
 }>;
@@ -112,15 +113,16 @@ export const createUserCredential = async (
   username: string,
   passwordHash: string | null,
   userId: string,
-  kakaoId?: string | null
+  kakaoId?: string | null,
+  googleId?: string | null
 ): Promise<void> => {
   const normalizedUsername = username.toLowerCase();
   try {
     // 먼저 새 컬럼이 있는지 확인하고 시도 (createdAt/updatedAt 필수)
     await prisma.$executeRawUnsafe(`
-      INSERT INTO "UserCredential" (username, "passwordHash", "userId", "kakaoId", "emailVerified", "createdAt", "updatedAt")
-      VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-    `, normalizedUsername, passwordHash, userId, kakaoId || null, false);
+      INSERT INTO "UserCredential" (username, "passwordHash", "userId", "kakaoId", "googleId", "emailVerified", "createdAt", "updatedAt")
+      VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+    `, normalizedUsername, passwordHash, userId, kakaoId || null, googleId || null, false);
   } catch (error: any) {
     // kakaoId나 emailVerified 컬럼이 아직 없는 경우 기본 필드만 사용
     const errorCode = error.code || error.meta?.code;
@@ -143,6 +145,7 @@ export const updateUserCredential = async (
   updates: {
     passwordHash?: string | null;
     kakaoId?: string | null;
+    googleId?: string | null;
     emailVerified?: boolean;
   }
 ): Promise<void> => {
@@ -158,6 +161,10 @@ export const updateUserCredential = async (
     if (updates.kakaoId !== undefined) {
       setClauses.push(`"kakaoId" = $${paramIndex++}`);
       values.push(updates.kakaoId);
+    }
+    if (updates.googleId !== undefined) {
+      setClauses.push(`"googleId" = $${paramIndex++}`);
+      values.push(updates.googleId);
     }
     if (updates.emailVerified !== undefined) {
       setClauses.push(`"emailVerified" = $${paramIndex++}`);
@@ -226,6 +233,36 @@ export const getUserCredentialByKakaoId = async (
     const errorMessage = error.message || '';
     if (errorCode === 'P2022' || errorCode === '42703' || 
         errorMessage.includes('kakaoId') || errorMessage.includes('column') || 
+        errorMessage.includes('does not exist')) {
+      return null;
+    }
+    throw error;
+  }
+};
+
+export const getUserCredentialByGoogleId = async (
+  googleId: string
+): Promise<PrismaCredential | null> => {
+  try {
+    const result = await prisma.$queryRawUnsafe<Array<{
+      username: string;
+      passwordHash: string | null;
+      userId: string;
+      kakaoId?: string | null;
+      googleId?: string | null;
+      emailVerified?: boolean;
+    }>>(
+      `SELECT username, "passwordHash", "userId", "kakaoId", "googleId", "emailVerified"
+       FROM "UserCredential"
+       WHERE "googleId" = $1`,
+      googleId
+    );
+    return result[0] || null;
+  } catch (error: any) {
+    const errorCode = error.code || error.meta?.code;
+    const errorMessage = error.message || '';
+    if (errorCode === 'P2022' || errorCode === '42703' ||
+        errorMessage.includes('googleId') || errorMessage.includes('column') ||
         errorMessage.includes('does not exist')) {
       return null;
     }

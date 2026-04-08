@@ -2,7 +2,7 @@
 import { GameMode } from "../types/index.js";
 
 export type AppRoute = {
-    view: 'login' | 'register' | 'kakao-callback' | 'set-nickname' | 'profile' | 'lobby' | 'waiting' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower';
+    view: 'login' | 'register' | 'kakao-callback' | 'google-callback' | 'set-nickname' | 'profile' | 'lobby' | 'waiting' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower';
     params: any;
 };
 
@@ -58,9 +58,12 @@ export function parseHash(hash: string): AppRoute {
             if (sub === 'arena') return { view: 'profile', params: { tab: 'arena' as const } };
             return { view: 'profile', params: { tab: 'home' as const } };
         }
-        case 'auth': 
+        case 'auth':
             if (rest[0] === 'kakao' && rest[1] === 'callback') {
                 return { view: 'kakao-callback', params: {} };
+            }
+            if (rest[0] === 'google' && rest[1] === 'callback') {
+                return { view: 'google-callback', params: {} };
             }
             return { view: 'login', params: {} };
         default: return { view: 'login', params: {} };
