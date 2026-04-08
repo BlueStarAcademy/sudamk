@@ -184,6 +184,60 @@ const TowerLobby: React.FC = () => {
     const towerNativeGlass =
         'rounded-xl border border-amber-500/40 bg-gray-950/50 backdrop-blur-md shadow-lg shadow-black/30';
 
+    /** 네이티브 모바일: 랭킹 우측 기록 패널 */
+    const renderMobileMyTowerRecordRail = () => (
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-md border border-amber-500/50 bg-gradient-to-b from-amber-950/85 via-gray-900/92 to-amber-950/80 shadow-md shadow-amber-900/25">
+            <div className="shrink-0 border-b border-amber-600/45 bg-amber-900/30 px-1 py-1.5 text-center leading-tight">
+                <h3 className="text-[10px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-200">
+                    내 기록
+                </h3>
+            </div>
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2 text-[10px] leading-tight">
+                <div>
+                    <div className="text-[9px] text-amber-400/85">역대 최고</div>
+                    <div className="font-bold tabular-nums text-yellow-200">{bestFloorAllTime}층</div>
+                </div>
+                <div>
+                    <div className="text-[9px] text-amber-400/85">이번 달 순위</div>
+                    <div className="font-bold tabular-nums text-yellow-200">
+                        {myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}
+                    </div>
+                </div>
+                <div className="border-t border-amber-700/35 pt-1.5">
+                    <p className="mb-1 text-[9px] text-amber-400/90">월간 보상(예정)</p>
+                    {myRewardTier ? (
+                        <div className="flex flex-col gap-1">
+                            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+                                <span className="inline-flex items-center gap-0.5 text-yellow-200">
+                                    <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 shrink-0" />
+                                    <span className="tabular-nums">{myRewardTier.gold.toLocaleString()}</span>
+                                </span>
+                                <span className="inline-flex items-center gap-0.5 text-cyan-200">
+                                    <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0" />
+                                    <span className="tabular-nums">{myRewardTier.diamonds}</span>
+                                </span>
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                                {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
+                                    <span key={i} className="inline-flex items-center gap-0.5 text-amber-200">
+                                        <img
+                                            src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
+                                            alt=""
+                                            className="h-3 w-3 shrink-0"
+                                        />
+                                        <span className="tabular-nums">×{it.quantity}</span>
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-[9px] leading-snug text-amber-400/80">10층 이상 시 지급</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+
     const renderTowerFloorRows = () =>
         stages.map((floor) => {
                             const stage = TOWER_STAGES.find(s => s.id === `tower-${floor}`);
@@ -506,105 +560,94 @@ const TowerLobby: React.FC = () => {
                                 </div>
                             </div>
                             <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-1 sm:p-2 ${towerNativeGlass}`}>
-                    <div className="mb-1 flex flex-shrink-0 items-center justify-between sm:mb-2">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                                랭킹 Top 100
-                            </h2>
-                            <span className="text-xs sm:text-sm font-semibold text-yellow-300">{timeUntilReset}</span>
-                        </div>
-                        <Button
-                            onClick={() => setIsRewardModalOpen(true)}
-                            colorScheme="none"
-                            className="!p-1.5 !min-w-0 border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 backdrop-blur-sm text-xs sm:text-sm text-amber-200"
-                        >
-                            보상정보
-                        </Button>
-                    </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-                        {/* 내 정보 전용 박스: 역대 최고 층수, 현재 순위, 해당 보상 */}
-                        <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40 overflow-hidden mb-3">
-                            <div className="px-3 py-2.5 border-b border-amber-600/50 bg-amber-900/30">
-                                <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-200">내 도전의 탑 기록</h3>
-                            </div>
-                            <div className="p-3 space-y-3 text-sm">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-amber-300/90">역대 최고 층수</span>
-                                    <span className="font-bold text-yellow-200">{bestFloorAllTime}층</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-amber-300/90">현재 나의 순위</span>
-                                    <span className="font-bold text-yellow-200">{myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}</span>
-                                </div>
-                                <div className="pt-2 border-t border-amber-700/40">
-                                    <p className="text-amber-300/90 text-xs mb-1.5">이번 달 예정 보상 (현재 기록 기준)</p>
-                                    {myRewardTier ? (
-                                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                                            <span className="inline-flex items-center gap-1 text-yellow-200"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />{myRewardTier.gold.toLocaleString()}</span>
-                                            <span className="inline-flex items-center gap-1 text-cyan-200"><img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4" />{myRewardTier.diamonds}</span>
-                                            {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
-                                                <span key={i} className="inline-flex items-center gap-1 text-amber-200">
-                                                    <img src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`} alt={it.itemId} className="w-4 h-4" />
-                                                    ×{it.quantity}
+                                <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(8rem,44%)] gap-1">
+                                    <div className="flex min-h-0 min-w-0 flex-col">
+                                        <div className="mb-1 flex flex-shrink-0 items-center justify-between gap-1 sm:mb-2">
+                                            <div className="min-w-0 flex items-center gap-1.5">
+                                                <h2 className="truncate text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:text-base">
+                                                    랭킹 Top 100
+                                                </h2>
+                                                <span className="shrink-0 text-[10px] font-semibold text-yellow-300 sm:text-xs">
+                                                    {timeUntilReset}
                                                 </span>
-                                            ))}
+                                            </div>
+                                            <Button
+                                                onClick={() => setIsRewardModalOpen(true)}
+                                                colorScheme="none"
+                                                className="!min-w-0 shrink-0 !p-1 !px-1.5 border border-amber-600/50 bg-amber-900/40 text-[10px] text-amber-200 hover:bg-amber-800/60 sm:!p-1.5 sm:text-xs"
+                                            >
+                                                보상정보
+                                            </Button>
                                         </div>
-                                    ) : (
-                                        <p className="text-amber-400/80 text-xs">10층 이상 클리어 시 월간 보상을 받을 수 있습니다.</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                        {!myRankingEntry && monthlyBestFloor < 10 && (
-                            <p className="text-center text-amber-300/70 text-xs py-2 px-1">10층 이상 클리어 시 랭킹에 표시됩니다.</p>
-                        )}
-                        {/* Top 100 */}
-                        {towerRankingsLoading && towerRankings.length === 0 ? (
-                            <p className="text-center text-amber-300/60 py-8">랭킹 불러오는 중...</p>
-                        ) : top100Users.length > 0 ? (
-                            top100Users.map((user) => {
-                                const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
-                                const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
-                                const isTop3 = (user as any).rank <= 3;
-                                const rank = (user as any).rank;
-                                const isCurrentUser = !!currentUser && user.id === currentUser.id;
-                                return (
-                                    <div
-                                        key={user.id}
-                                        className={`flex items-center gap-2 p-2 rounded-lg transition-all ${
-                                            isCurrentUser
-                                                ? 'bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 border-2 border-yellow-400/60 shadow-md shadow-yellow-900/30'
-                                                : isTop3
-                                                ? 'bg-gradient-to-r from-amber-900/40 to-yellow-900/40 border border-amber-500/50 hover:from-amber-800/50 hover:to-yellow-800/50'
-                                                : 'bg-gray-800/40 border border-amber-700/30 hover:bg-gray-700/50 hover:border-amber-600/50'
-                                        }`}
-                                    >
-                                        <span className={`text-xs sm:text-sm font-bold w-6 flex-shrink-0 ${
-                                            rank === 1 ? 'text-yellow-300' : rank === 2 ? 'text-gray-300' : rank === 3 ? 'text-amber-500' : 'text-amber-300'
-                                        }`}>
-                                            {rank}
-                                        </span>
-                                        <Avatar
-                                            userId={user.id}
-                                            userName={user.nickname}
-                                            avatarUrl={avatarUrl}
-                                            borderUrl={borderUrl}
-                                            size={32}
-                                        />
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-xs sm:text-sm font-semibold truncate ${isCurrentUser ? 'text-yellow-100' : 'text-amber-100'}`}>{user.nickname}</p>
-                                            <p className="text-[10px] sm:text-xs text-amber-300/80">
-                                                층: {(user as any).displayFloor ?? 0}
-                                            </p>
+                                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
+                                            {!myRankingEntry && monthlyBestFloor < 10 && (
+                                                <p className="px-0.5 text-center text-[10px] text-amber-300/70">
+                                                    10층 이상 클리어 시 랭킹에 표시됩니다.
+                                                </p>
+                                            )}
+                                            {towerRankingsLoading && towerRankings.length === 0 ? (
+                                                <p className="py-6 text-center text-sm text-amber-300/60">랭킹 불러오는 중...</p>
+                                            ) : top100Users.length > 0 ? (
+                                                top100Users.map((user) => {
+                                                    const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
+                                                    const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
+                                                    const isTop3 = (user as any).rank <= 3;
+                                                    const rank = (user as any).rank;
+                                                    const isCurrentUser = !!currentUser && user.id === currentUser.id;
+                                                    return (
+                                                        <div
+                                                            key={user.id}
+                                                            className={`flex items-center gap-1.5 rounded-lg p-1.5 transition-all sm:gap-2 sm:p-2 ${
+                                                                isCurrentUser
+                                                                    ? 'border-2 border-yellow-400/60 bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 shadow-md shadow-yellow-900/30'
+                                                                    : isTop3
+                                                                      ? 'border border-amber-500/50 bg-gradient-to-r from-amber-900/40 to-yellow-900/40 hover:from-amber-800/50 hover:to-yellow-800/50'
+                                                                      : 'border border-amber-700/30 bg-gray-800/40 hover:border-amber-600/50 hover:bg-gray-700/50'
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className={`w-5 shrink-0 text-[10px] font-bold sm:w-6 sm:text-xs ${
+                                                                    rank === 1
+                                                                        ? 'text-yellow-300'
+                                                                        : rank === 2
+                                                                          ? 'text-gray-300'
+                                                                          : rank === 3
+                                                                            ? 'text-amber-500'
+                                                                            : 'text-amber-300'
+                                                                }`}
+                                                            >
+                                                                {rank}
+                                                            </span>
+                                                            <Avatar
+                                                                userId={user.id}
+                                                                userName={user.nickname}
+                                                                avatarUrl={avatarUrl}
+                                                                borderUrl={borderUrl}
+                                                                size={28}
+                                                            />
+                                                            <div className="min-w-0 flex-1">
+                                                                <p
+                                                                    className={`truncate text-[11px] font-semibold sm:text-xs ${isCurrentUser ? 'text-yellow-100' : 'text-amber-100'}`}
+                                                                >
+                                                                    {user.nickname}
+                                                                </p>
+                                                                <p className="text-[9px] text-amber-300/80 sm:text-[10px]">
+                                                                    층: {(user as any).displayFloor ?? 0}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                            ) : (
+                                                <p className="py-6 text-center text-sm text-amber-300/60">랭킹 데이터가 없습니다.</p>
+                                            )}
                                         </div>
                                     </div>
-                                );
-                            })
-                        ) : (
-                            <p className="text-center text-amber-300/60 py-8">랭킹 데이터가 없습니다.</p>
-                        )}
-                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-col border-l border-amber-600/25 pl-1">
+                                        {renderMobileMyTowerRecordRail()}
+                                    </div>
                                 </div>
+                            </div>
                         </div>
                         <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_5.5rem] gap-1 overflow-hidden">
                             <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-2 ${towerNativeGlass}`}>
@@ -692,7 +735,7 @@ const TowerLobby: React.FC = () => {
                         {/* 내 정보 전용 박스: 역대 최고 층수, 현재 순위, 해당 보상 */}
                         <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40 overflow-hidden mb-3">
                             <div className="px-3 py-2.5 border-b border-amber-600/50 bg-amber-900/30">
-                                <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-200">내 도전의 탑 기록</h3>
+                                <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-200">내 기록</h3>
                             </div>
                             <div className="p-3 space-y-3 text-sm">
                                 <div className="flex justify-between items-center">

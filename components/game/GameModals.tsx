@@ -144,9 +144,10 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
 
     const confirmModalContent = {
         resign: {
-            title: "기권 확인",
-            message: "경기를 포기하시겠습니까?",
-            confirmText: "기권",
+            title: '기권 확인',
+            lead: '경기를 포기하시겠습니까?',
+            detail: '대국이 즉시 종료되며 기권패로 처리됩니다.',
+            confirmText: '기권',
             onConfirm: () => onAction({ type: 'RESIGN_GAME', payload: { gameId } }),
         },
     };
@@ -157,13 +158,56 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         <>
             {renderModals()}
             {content && (
-                <div className="absolute inset-0 z-[10000] flex items-center justify-center bg-transparent pointer-events-auto">
-                    <div className="sudamr-modal-panel w-full max-w-sm rounded-xl p-6">
-                        <h2 className="mb-4 text-center text-xl font-bold text-primary">{content.title}</h2>
-                        <p className="mb-6 text-center text-secondary">{content.message}</p>
-                        <div className="flex gap-4 mt-4">
-                            <Button onClick={onHideConfirmModal} colorScheme="gray" className="w-full">취소</Button>
-                            <Button onClick={() => { onHideConfirmModal(); content.onConfirm(); }} colorScheme="red" className="w-full">{content.confirmText}</Button>
+                <div
+                    className="absolute inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 pointer-events-auto bg-slate-950/60 backdrop-blur-[8px]"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="resign-confirm-title"
+                >
+                    <div className="sudamr-modal-panel flex w-full max-w-[min(100%,20.5rem)] flex-col overflow-hidden rounded-xl border border-rose-500/20 shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_64px_-24px_rgba(0,0,0,0.85),0_0_80px_-40px_rgba(244,63,94,0.18)] ring-1 ring-rose-500/10">
+                        <div
+                            className="h-px w-full shrink-0 bg-gradient-to-r from-transparent via-rose-400/70 to-transparent"
+                            aria-hidden
+                        />
+                        <div className="flex flex-col gap-2.5 px-4 pt-3.5 pb-0 sm:px-5 sm:pt-4">
+                            <p className="text-center text-[10px] font-semibold tracking-[0.18em] text-rose-300/90">
+                                대국 포기
+                            </p>
+                            <h2
+                                id="resign-confirm-title"
+                                className="text-center text-lg font-bold tracking-tight text-primary sm:text-xl"
+                            >
+                                {content.title}
+                            </h2>
+                            <p className="text-center text-[15px] font-medium leading-snug text-stone-100/95 sm:text-base">
+                                {content.lead}
+                            </p>
+                        </div>
+                        <div className="sudamr-modal-inner-well mx-3.5 mt-2.5 px-3 py-2 sm:mx-4 sm:px-3.5 sm:py-2.5">
+                            <p className="text-center text-xs leading-relaxed text-secondary sm:text-[13px]">
+                                {content.detail}
+                            </p>
+                        </div>
+                        <div className="mt-3 flex gap-2 border-t border-white/[0.07] bg-gradient-to-b from-black/25 to-black/10 px-3.5 py-3 sm:gap-2.5 sm:px-4 sm:py-3.5">
+                            <Button
+                                type="button"
+                                onClick={onHideConfirmModal}
+                                colorScheme="gray"
+                                className="min-h-10 flex-1 !border-white/15 !py-2 text-sm font-semibold shadow-none"
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                type="button"
+                                onClick={() => {
+                                    onHideConfirmModal();
+                                    content.onConfirm();
+                                }}
+                                colorScheme="red"
+                                className="min-h-10 flex-1 !border-rose-600/50 !py-2 text-sm font-semibold shadow-[0_0_24px_-8px_rgba(244,63,94,0.55)]"
+                            >
+                                {content.confirmText}
+                            </Button>
                         </div>
                     </div>
                 </div>

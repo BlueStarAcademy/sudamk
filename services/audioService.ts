@@ -4,6 +4,10 @@ import type { SoundSettings } from '../types.js';
 import { defaultSettings } from '../hooks/useAppSettings.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 
+/** HTML5 autoplay 잠금 해제·풀 워밍업용 초단무음 WAV (data URI) */
+const SILENT_WAV_DATA_URI =
+    'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+
 /** `public/sound`에 있는 파일명과 일치 (첫 사용자 제스처 직후 백그라운드 프리로드) */
 const SOUND_BASE_NAMES = [
     'move', 'dice', 'failure', 'hidden', 'scanbgm', 'find', 'hit', 'rocket', 'lose', 'win',
@@ -29,6 +33,11 @@ class AudioService {
     private soundsPath = '/sounds/';
     private settings: SoundSettings = defaultSettings.sound;
     private html5AudioUnlocked = false;
+    /** Android WebView·앱플레이어: 매번 `new Audio()`는 재생 거절되는 경우가 많아, 제스처 직후 워밍업한 풀에서 꺼내 씀 */
+    private html5SfxPool: HTMLAudioElement[] = [];
+    private html5PoolWarmed = false;
+    /** iOS Safari: 문서에 연결되지 않은 Audio는 재생이 거절되는 경우가 많음 */
+    private html5SinkParent: HTMLElement | null = null;
 
     public isReady(): boolean {
         return !!this.audioContext && this.audioContext.state === 'running';
@@ -56,18 +65,101 @@ class AudioService {
             if (document.visibilityState !== 'visible') return;
             const ctx = this.audioContext;
             if (!ctx || ctx.state === 'closed') return;
-            void ctx.resume();
+            void ctx.resume().then(() => this.playSilentBufferWakeup(ctx)).catch(() => {});
         });
+    }
+
+    /** `resume()` 직후에만 효과가 있는 경우가 많음 (앱플레이어·Android Chromium) */
+    private playSilentBufferWakeup(ctx: AudioContext): void {
+        if (ctx.state === 'closed') return;
+        try {
+            const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+            const src = ctx.createBufferSource();
+            src.buffer = buf;
+            src.connect(ctx.destination);
+            src.start(0);
+        } catch {
+            /* suspended 등 */
+        }
+    }
+
+    /**
+     * 제스처 스택 안에서만 호출. Android WebView는 `new Audio()`마다 잠금이 걸리는 경우가 있어
+     * 미리 여러 요소에 무음 재생을 걸어 둔다.
+     */
+    private warmHtml5PoolInGesture(): void {
+        if (this.html5PoolWarmed || typeof window === 'undefined') return;
+        this.html5PoolWarmed = true;
+        const poolSize = 4;
+        for (let i = 0; i < poolSize; i++) {
+            const el = new Audio();
+            el.preload = 'auto';
+            el.setAttribute('playsinline', 'true');
+            el.setAttribute('webkit-playsinline', 'true');
+            this.ensureAudioElementInDom(el);
+            el.muted = true;
+            el.volume = 0;
+            el.src = SILENT_WAV_DATA_URI;
+            void el.play().then(() => {
+                try {
+                    el.pause();
+                    el.currentTime = 0;
+                } catch {
+                    /* ignore */
+                }
+            }).catch(() => {});
+            el.muted = false;
+            el.volume = 1;
+            this.html5SfxPool.push(el);
+        }
+    }
+
+    private pickPooledHtml5Audio(): HTMLAudioElement | null {
+        for (const el of this.html5SfxPool) {
+            if (el.paused || el.ended) return el;
+        }
+        return this.html5SfxPool[0] ?? null;
+    }
+
+    private applyCrossOriginIfNeeded(el: HTMLAudioElement, url: string): void {
+        if (typeof window === 'undefined' || !url.startsWith('http')) return;
+        try {
+            if (new URL(url).origin !== window.location.origin) {
+                el.crossOrigin = 'anonymous';
+            }
+        } catch {
+            /* ignore */
+        }
+    }
+
+    private ensureAudioElementInDom(el: HTMLAudioElement): void {
+        if (typeof document === 'undefined' || el.isConnected) return;
+        if (!document.body) {
+            queueMicrotask(() => this.ensureAudioElementInDom(el));
+            return;
+        }
+        if (!this.html5SinkParent) {
+            const p = document.createElement('div');
+            p.id = 'audio-sink-hidden';
+            p.setAttribute('aria-hidden', 'true');
+            p.style.cssText =
+                'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden;clip:rect(0,0,0,0);pointer-events:none;opacity:0;';
+            document.body.appendChild(p);
+            this.html5SinkParent = p;
+        }
+        this.html5SinkParent.appendChild(el);
     }
 
     /**
      * iOS Safari·모바일 WebView: `AudioContext.resume()`은 사용자 제스처의 **동기** 호출 스택에서
-     * 실행되어야 합니다. `async initialize()` 안에서 `await` 뒤에 resume 하면 제스처가 끝난 것으로
-     * 간주되어 컨텍스트가 계속 `suspended`인 경우가 많습니다.
+     * 시작되어야 합니다. 다만 Android·앱플레이어는 `resume()` 완료 후에야 `running`으로 바뀌는 경우가
+     * 많아, `resume().then`에서 무음 버퍼로 한 번 더 깨웁니다.
      * 버튼/보드 입력 등 UI 핸들러 맨 앞에서도 호출하세요.
+     * @param opts.warmHtml5Pool `pageshow` 등 비제스처 경로에서는 false (잠긴 풀이 고정되는 것 방지).
      */
-    public unlockFromUserGesture(): void {
+    public unlockFromUserGesture(opts?: { warmHtml5Pool?: boolean }): void {
         if (typeof window === 'undefined') return;
+        const warmHtml5Pool = opts?.warmHtml5Pool !== false;
         this.hookVisibilityResume();
         try {
             const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -77,21 +169,13 @@ class AudioService {
             }
             const ctx = this.audioContext;
             if (ctx.state === 'closed') return;
-            void ctx.resume();
-            // 일부 WebKit: 무음 1프레임으로 디코더·출력 경로까지 열어 줌
-            const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
-            const src = ctx.createBufferSource();
-            src.buffer = buf;
-            src.connect(ctx.destination);
-            try {
-                src.start(0);
-            } catch {
-                /* suspended 등 */
-            }
+            void ctx.resume().then(() => this.playSilentBufferWakeup(ctx)).catch(() => {});
+            this.playSilentBufferWakeup(ctx);
             // Android WebView/Samsung Internet 대응:
             // WebAudio 잠금과 별개로 HTML5 Audio autoplay gate를 사용자 제스처에서 함께 해제한다.
             this.tryUnlockHtml5Audio();
             this.kickPreloadAfterUnlock();
+            if (warmHtml5Pool) this.warmHtml5PoolInGesture();
         } catch (e) {
             console.warn('[AudioService] unlockFromUserGesture:', e);
         }
@@ -114,11 +198,11 @@ class AudioService {
             probe.preload = 'auto';
             probe.muted = true;
             probe.volume = 0;
-            probe.playsInline = true;
             probe.setAttribute('playsinline', 'true');
             probe.setAttribute('webkit-playsinline', 'true');
+            this.ensureAudioElementInDom(probe);
             // 매우 짧은 무음 wav (data URI)로 autoplay gate 해제 시도
-            probe.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+            probe.src = SILENT_WAV_DATA_URI;
             void probe.play().then(() => {
                 probe.pause();
                 try { probe.currentTime = 0; } catch {}
@@ -218,13 +302,30 @@ class AudioService {
     ): HTMLAudioElement | null {
         if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
         try {
-            const el = new Audio(this.getSoundUrl(soundName));
-            el.volume = Math.max(0, Math.min(1, effectiveVolume));
-            el.loop = loop;
+            const url = this.getSoundUrl(soundName);
+            const pooled = this.pickPooledHtml5Audio();
+            const el = pooled ?? new Audio();
+            if (pooled) {
+                try {
+                    el.pause();
+                    el.currentTime = 0;
+                } catch {
+                    /* ignore */
+                }
+            }
+            this.applyCrossOriginIfNeeded(el, url);
             el.preload = 'auto';
-            el.playsInline = true;
             el.setAttribute('playsinline', 'true');
             el.setAttribute('webkit-playsinline', 'true');
+            this.ensureAudioElementInDom(el);
+            el.src = url;
+            el.volume = Math.max(0, Math.min(1, effectiveVolume));
+            el.loop = loop;
+            try {
+                el.load();
+            } catch {
+                /* 일부 WebView */
+            }
             void el.play().catch((e) => {
                 console.warn('[AudioService] HTML5 play failed:', soundName, e);
             });
@@ -303,14 +404,16 @@ class AudioService {
     private async play(soundName: string, category: keyof SoundSettings['categoryMuted'], volume: number, loop = false): Promise<AudioBufferSourceNode | null> {
         if (this.settings.masterMuted || this.settings.categoryMuted[category]) return null;
         // 일부 모바일 브라우저에서 초기 unlock이 누락돼도, 실제 재생 시도 순간에 다시 열어준다.
-        this.unlockFromUserGesture();
+        // 비제스처 경로이므로 HTML5 풀 워밍업은 하지 않음(잠긴 풀 고정 방지).
+        this.unlockFromUserGesture({ warmHtml5Pool: false });
         const effectiveVolume = volume * this.settings.masterVolume;
         const url = this.getSoundUrl(soundName);
 
         const cached = this.audioBuffers.get(url);
         if (cached) {
             try {
-                const node = this.playSoundIfRunning(cached, effectiveVolume, loop);
+                // 모바일: resume() 직후에도 한 틱 동안 suspended로 남는 경우가 많아 playSound로 대기 후 재생
+                const node = await this.playSound(cached, effectiveVolume, loop);
                 if (node) return node;
             } catch (e) {
                 console.error(`Could not play sound ${soundName}`, e);

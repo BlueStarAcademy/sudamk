@@ -105,8 +105,13 @@ const AppContent: React.FC = () => {
         window.addEventListener('touchstart', unlockAudio, capNonPassive);
         document.addEventListener('touchend', unlockAudio, capNonPassive);
         document.addEventListener('click', unlockAudio, capPassive);
+        /** 앱플레이어·에뮬레이터는 마우스 다운만 오는 경우가 있음 */
+        document.addEventListener('mousedown', unlockAudio, capPassive);
+        /** 블루투스 키보드·접근성 입력으로만 조작하는 모바일 */
+        window.addEventListener('keydown', unlockAudio, capPassive);
         const onPageShow = () => {
-            unlockAudio();
+            audioService.unlockFromUserGesture({ warmHtml5Pool: false });
+            void audioService.initialize();
         };
         window.addEventListener('pageshow', onPageShow);
 
@@ -115,6 +120,8 @@ const AppContent: React.FC = () => {
             window.removeEventListener('touchstart', unlockAudio, capNonPassive);
             document.removeEventListener('touchend', unlockAudio, capNonPassive);
             document.removeEventListener('click', unlockAudio, capPassive);
+            document.removeEventListener('mousedown', unlockAudio, capPassive);
+            window.removeEventListener('keydown', unlockAudio, capPassive);
             window.removeEventListener('pageshow', onPageShow);
         };
     }, []);
