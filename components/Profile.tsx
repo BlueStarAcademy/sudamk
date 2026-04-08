@@ -5,7 +5,6 @@ import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SIN
 import Avatar from './Avatar.js';
 import Button from './Button.js';
 import DetailedStatsModal from './DetailedStatsModal.js';
-import DraggableWindow from './DraggableWindow.js';
 import ProfileEditModal from './ProfileEditModal.js';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
 import { calculateUserEffects } from '../services/effectService.js';
@@ -184,13 +183,13 @@ const LobbyCard: React.FC<{
     imageUrl: string;
     tier?: { name: string; icon: string; };
     compact?: boolean;
-    /** 네이티브 경기장 탭: 세로 스택용 큰 텍스트 */
+    /** 네이티브 경기장 탭: 세로 스택용 큰 카드 */
     arenaMobile?: boolean;
-    /** 경기장 탭: 해당 경기장 통합 랭킹 점수(모드 평균) */
+    /** 경기장 탭: 통합 랭킹 점수(표시용, 선택) */
     integratedRankingScore?: number;
     hideOverlayText?: boolean;
     hideOverlayFooter?: boolean;
-}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, integratedRankingScore, hideOverlayText = false, hideOverlayFooter = false }) => {
+}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, hideOverlayText = false, hideOverlayFooter = false }) => {
     const isStrategic = type === 'strategic';
     const shadowColor = isStrategic ? "hover:shadow-blue-500/30" : "hover:shadow-yellow-500/30";
 
@@ -1193,7 +1192,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const playfulWinRate = playfulTotal > 0 ? Math.round((aggregatedStats.playful.wins / playfulTotal) * 100) : 0;
     const dungeonProgress = (currentUserWithStatus as any)?.dungeonProgress ?? {};
 
-    /** 2×3: 1행 싱글·탑 / 2행 전략·놀이 / 3행 챔피언십·모험 */
+    /** 2×3: 1행 싱글·탑 / 2행 전략·놀이 / 3행 챔피언십·모험 (PC·모바일 홈 외 공용; 모바일 경기장 전용 화면은 별도) */
     const lobbyGridShell = isNativeMobile
         ? (profileTab === 'home'
             ? 'grid min-h-0 min-w-0 flex-1 grid-cols-1 grid-rows-[repeat(6,minmax(0,10.5rem))] gap-1.5 overflow-y-auto overscroll-y-contain px-0.5 pb-0.5 [&>*]:min-h-0 [&>*]:min-w-0'

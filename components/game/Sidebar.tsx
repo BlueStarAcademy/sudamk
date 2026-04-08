@@ -443,7 +443,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
             : "[메시지 입력]";
     
     return (
-        <div className="flex flex-col h-full bg-gray-800 p-2 rounded-md border border-color">
+        <div className="flex min-h-0 flex-col h-full bg-gray-800 p-2 rounded-md border border-color">
             {isAiGame ? (
                 currentUserWithStatus?.guildId ? (
                     <div className="flex bg-gray-900/70 p-1 rounded-lg mb-2 flex-shrink-0">
@@ -675,7 +675,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     const leaveButtonColor = isNoContestLeaveAvailable ? 'yellow' : 'red';
     
     return (
-        <div className="flex flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
+        <div className="flex min-h-0 flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
             <div className="flex-shrink-0 space-y-2">
                 <GameInfoPanel session={session} currentUser={props.currentUser} onClose={props.onClose} onOpenSettings={props.onOpenSettings} />
                 <UserListPanel {...props} />

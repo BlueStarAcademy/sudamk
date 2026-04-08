@@ -146,9 +146,9 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                             }}
                             aria-hidden
                         />
-                        <div className="relative flex min-h-0 flex-col gap-2.5 p-2.5 sm:gap-3 sm:px-5 sm:pb-5 sm:pt-6">
-                            <div className="flex min-w-0 items-center gap-2.5 sm:flex-col sm:items-center sm:gap-3">
-                                <div className="relative h-24 w-24 shrink-0 sm:h-40 sm:w-40">
+                        <div className="relative flex min-h-0 flex-col gap-2 p-2 max-[360px]:gap-1.5 max-[360px]:p-1.5 min-[390px]:gap-2.5 min-[390px]:p-2.5 sm:gap-3 sm:px-5 sm:pb-5 sm:pt-6">
+                            <div className="flex min-w-0 items-center gap-2 max-[360px]:gap-1.5 min-[390px]:gap-2.5 sm:flex-col sm:items-center sm:gap-3">
+                                <div className="relative h-20 w-20 shrink-0 min-[390px]:h-24 min-[390px]:w-24 sm:h-40 sm:w-40">
                                     <div
                                         className="absolute inset-[-10%] rounded-2xl opacity-40 blur-2xl"
                                         style={{
@@ -166,11 +166,11 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                             <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
                                             {isActionPointConsumable(item.name) ? (
                                                 <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
-                                                    <span className="text-3xl leading-none sm:text-5xl" aria-hidden>
+                                                    <span className="text-2xl leading-none min-[390px]:text-3xl sm:text-5xl" aria-hidden>
                                                         ⚡
                                                     </span>
                                                     <span
-                                                        className="mt-1 max-w-full truncate text-sm font-bold text-amber-200 sm:text-lg"
+                                                        className="mt-1 max-w-full truncate text-xs font-bold text-amber-200 min-[390px]:text-sm sm:text-lg"
                                                         style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 12px rgba(251,191,36,0.35)' }}
                                                     >
                                                         +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
@@ -187,7 +187,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                             {isCurrency && (
                                                 <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 p-2 backdrop-blur-[1px]">
                                                     <span
-                                                        className="text-center text-lg font-bold tabular-nums text-white sm:text-2xl"
+                                                        className="text-center text-base font-bold tabular-nums text-white min-[390px]:text-lg sm:text-2xl"
                                                         style={{ textShadow: '0 2px 8px rgba(0,0,0,0.85), 0 0 20px rgba(251,191,36,0.25)' }}
                                                     >
                                                         +{item.quantity?.toLocaleString()}
@@ -206,23 +206,23 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                     </span>
                                     <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0 sm:justify-center">
                                         <h2
-                                            className={`max-w-full break-words text-base font-black tracking-tight sm:text-xl ${starInfo.colorClass} ${textGlowClass}`}
+                                        className={`max-w-full break-words text-[13px] font-black tracking-tight min-[390px]:text-base sm:text-xl ${starInfo.colorClass} ${textGlowClass}`}
                                             style={{ wordBreak: 'keep-all' }}
                                         >
                                             {item.name}
                                         </h2>
                                         {item.stars > 0 && (
-                                            <span className={`text-sm font-bold sm:text-lg ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>
+                                            <span className={`text-xs font-bold min-[390px]:text-sm sm:text-lg ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>
                                         )}
                                     </div>
                                     {requiredLevel && (
-                                        <p className="mt-1 text-[10px] text-amber-200/85 sm:text-[11px]">착용 레벨 합 {requiredLevel}</p>
+                                        <p className="mt-1 text-[9px] text-amber-200/85 min-[390px]:text-[10px] sm:text-[11px]">착용 레벨 합 {requiredLevel}</p>
                                     )}
                                 </div>
                             </div>
 
                             {item.type === 'equipment' && (
-                                <div className="max-h-[28dvh] w-full space-y-1.5 overflow-y-auto rounded-xl border border-slate-600/45 bg-black/35 p-2.5 text-left text-[11px] shadow-inner backdrop-blur-sm [scrollbar-gutter:stable] sm:max-h-40 sm:p-3 sm:text-xs">
+                                <div className="max-h-[26dvh] w-full space-y-1 overflow-y-auto rounded-xl border border-slate-600/45 bg-black/35 p-2 text-left text-[10px] shadow-inner backdrop-blur-sm [scrollbar-gutter:stable] min-[390px]:max-h-[28dvh] min-[390px]:space-y-1.5 min-[390px]:p-2.5 min-[390px]:text-[11px] sm:max-h-40 sm:p-3 sm:text-xs">
                                     {renderOptions(item)}
                                 </div>
                             )}

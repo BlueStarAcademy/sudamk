@@ -3,6 +3,7 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { TournamentType, UserWithStatus, TournamentState } from '../types.js';
 import { CoreStat, ItemGrade } from '../types/enums.js';
+import { calculateUserEffects } from '../services/effectService.js';
 import {
     TOURNAMENT_DEFINITIONS,
     DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
@@ -49,24 +50,6 @@ type RewardPiece = {
     /** 썸네일 바로 아래 한 줄 라벨 (예: 월드 기본 보상「장비」「변경권」) */
     captionBelowThumb?: string;
 };
-
-const CORE_STAT_SHORT: Record<CoreStat, string> = {
-    [CoreStat.Concentration]: '집중',
-    [CoreStat.ThinkingSpeed]: '사고',
-    [CoreStat.Judgment]: '판단',
-    [CoreStat.Calculation]: '계산',
-    [CoreStat.CombatPower]: '전투',
-    [CoreStat.Stability]: '안정',
-};
-
-const CORE_STAT_ROW: CoreStat[] = [
-    CoreStat.Concentration,
-    CoreStat.ThinkingSpeed,
-    CoreStat.Judgment,
-    CoreStat.Calculation,
-    CoreStat.CombatPower,
-    CoreStat.Stability,
-];
 
 function getDungeonBotStatRangeForStage(stage: number): { minStat: number; maxStat: number } {
     const clamped = Math.min(10, Math.max(1, Number.isFinite(stage) ? Math.floor(stage) : 1));
@@ -476,6 +459,59 @@ const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
     );
 };
 
+/** 기대값 대비: 더 낮음 → 열세, 10% 이상 높음 → 우세, 그 사이는 중립 */
+function compareToneVsExpected(my: number, opponentExpected: number): 'better' | 'worse' | 'neutral' {
+    if (my < opponentExpected) return 'worse';
+    if (opponentExpected <= 0) return 'neutral';
+    if (my >= opponentExpected * 1.1) return 'better';
+    return 'neutral';
+}
+
+function myStatValueToneClass(tone: 'better' | 'worse' | 'neutral'): string {
+    switch (tone) {
+        case 'better':
+            return 'text-emerald-300';
+        case 'worse':
+            return 'text-red-400';
+        default:
+            return 'text-zinc-100';
+    }
+}
+
+/** 화살표+차이: 낮을 때는 항상 빨강, 높을 때는 우세(10%↑)면 초록·아니면 회색 */
+function diffArrowBadgeClass(diff: number, tone: 'better' | 'worse' | 'neutral'): string {
+    if (diff === 0) return 'text-zinc-500';
+    if (diff < 0) return 'text-red-400';
+    return tone === 'better' ? 'text-emerald-400' : 'text-zinc-400';
+}
+
+const MyStatCompareCell: React.FC<{ my: number; opponentExpected: number; borderBottom?: boolean }> = ({
+    my,
+    opponentExpected,
+    borderBottom = true,
+}) => {
+    const tone = compareToneVsExpected(my, opponentExpected);
+    const diff = my - opponentExpected;
+    const valueCls = `font-mono text-sm font-bold tabular-nums leading-none sm:text-base ${myStatValueToneClass(tone)}`;
+    return (
+        <div
+            className={`flex min-h-[2.5rem] flex-col items-center justify-center gap-0.5 border-r border-white/[0.07] px-1 py-1.5 ${borderBottom ? 'border-b border-white/[0.07]' : ''}`}
+        >
+            <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5">
+                <span className={valueCls}>{my.toLocaleString()}</span>
+                {diff !== 0 && (
+                    <span
+                        className={`whitespace-nowrap text-[11px] font-bold tabular-nums leading-none sm:text-xs ${diffArrowBadgeClass(diff, tone)}`}
+                        title={diff > 0 ? `+${diff}` : `${diff}`}
+                    >
+                        {diff > 0 ? `↑${diff}` : `↓${Math.abs(diff)}`}
+                    </span>
+                )}
+            </div>
+        </div>
+    );
+};
+
 const SectionTitle: React.FC<{ children: React.ReactNode; accent: 'cyan' | 'amber' }> = ({ children, accent }) => {
     const line =
         accent === 'cyan'
@@ -587,6 +623,30 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
         () => Math.round((botStatRange.minStat + botStatRange.maxStat) / 2),
         [botStatRange]
     );
+    /** 6개 핵심 능력치 각각이 위 범위·평균을 따를 때의 기대 합(참고) */
+    const botBadukAbilityAvg = useMemo(() => botAvgStat * 6, [botAvgStat]);
+
+    const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUser), [currentUser]);
+    const baseByStat = useMemo(() => {
+        const out = {} as Record<CoreStat, number>;
+        for (const stat of Object.values(CoreStat)) {
+            out[stat] = (currentUser.baseStats?.[stat] || 0) + (currentUser.spentStatPoints?.[stat] || 0);
+        }
+        return out;
+    }, [currentUser]);
+    const finalByStat = useMemo(() => {
+        const out = {} as Record<CoreStat, number>;
+        for (const stat of Object.values(CoreStat)) {
+            const baseValue = baseByStat[stat] || 0;
+            out[stat] = Math.floor((baseValue + coreStatBonuses[stat].flat) * (1 + coreStatBonuses[stat].percent / 100));
+        }
+        return out;
+    }, [baseByStat, coreStatBonuses]);
+    const myBadukAbilityTotal = useMemo(
+        () => Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0),
+        [finalByStat]
+    );
+    const myAvgStat = useMemo(() => Math.round(myBadukAbilityTotal / 6), [myBadukAbilityTotal]);
 
     const isUnlocked = dungeonProgress.unlockedStages.includes(selectedStage);
     const canEnterFresh = !showContinueFlow && isUnlocked;
@@ -599,12 +659,12 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
             windowId={`championship-venue-entry-${type}`}
             onClose={onClose}
             initialWidth={760}
-            initialHeight={700}
+            initialHeight={720}
             modal
             isTopmost={isTopmost}
             mobileViewportFit
-            mobileViewportMaxHeightCss="90dvh"
-            mobileViewportMaxHeightVh={92}
+            mobileViewportMaxHeightCss="92dvh"
+            mobileViewportMaxHeightVh={94}
             bodyNoScroll
             hideFooter
             bodyPaddingClassName="!p-0"
@@ -621,8 +681,8 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                 <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-purple-600/15 blur-3xl" aria-hidden />
                 <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
 
-                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-1.5 p-2 sm:gap-2 sm:p-3">
-                    <div className="relative flex h-[3.75rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5rem]">
+                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-1 p-2 sm:gap-1.5 sm:p-3">
+                    <div className="relative flex h-[3.35rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5rem]">
                         <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
                         <div className="relative z-[1] flex flex-1 flex-col justify-center px-3.5 py-2">
@@ -699,25 +759,45 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                         </div>
                     </div>
 
-                    <div className="shrink-0 rounded-xl border border-violet-500/25 bg-black/35 p-2 ring-1 ring-inset ring-violet-500/10 sm:p-2.5">
-                        <div className="mb-1.5 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-2">
-                            <span className="text-sm font-bold text-violet-200 sm:text-base">상대 선수 평균 능력치 (참고)</span>
-                            <span className="whitespace-nowrap text-[11px] text-zinc-500 sm:text-xs">
-                                능력치별 {botStatRange.minStat}~{botStatRange.maxStat} 랜덤 · 표시 ≈ 평균 {botAvgStat}
-                            </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-                            {CORE_STAT_ROW.map(stat => (
-                                <div
-                                    key={stat}
-                                    className="flex items-center justify-between gap-1 rounded-lg bg-black/30 px-2 py-1.5 ring-1 ring-white/[0.06] sm:flex-col sm:items-stretch sm:px-2 sm:py-2"
-                                >
-                                    <span className="shrink-0 text-xs font-semibold text-zinc-400">{CORE_STAT_SHORT[stat]}</span>
-                                    <span className="text-right font-mono text-base font-bold tabular-nums text-zinc-50 sm:text-center sm:text-lg">
-                                        {botAvgStat}
+                    <div className="shrink-0 rounded-xl border border-violet-500/25 bg-black/35 p-1.5 ring-1 ring-inset ring-violet-500/10 sm:p-2">
+                        <SectionTitle accent="cyan">나 vs 상대 (참고)</SectionTitle>
+                        <div className="mt-0.5 overflow-hidden rounded-lg border border-white/[0.06] bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            <div className="grid grid-cols-[minmax(4.75rem,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-0 text-center">
+                                <div className="border-b border-r border-white/[0.07] bg-black/35 py-1.5 text-xs font-bold tracking-wide text-zinc-400 sm:py-2 sm:text-sm">
+                                    항목
+                                </div>
+                                <div className="border-b border-r border-white/[0.07] bg-black/35 py-1.5 text-xs font-bold tracking-wide text-cyan-200 sm:py-2 sm:text-sm">
+                                    나
+                                </div>
+                                <div className="border-b border-white/[0.07] bg-black/35 py-1.5 text-xs font-bold tracking-wide text-violet-200 sm:py-2 sm:text-sm">
+                                    상대
+                                </div>
+
+                                <div className="border-b border-r border-white/[0.07] px-1 py-2 text-center text-xs font-semibold leading-snug text-zinc-300 sm:px-2 sm:text-sm">
+                                    평균 능력치
+                                </div>
+                                <MyStatCompareCell my={myAvgStat} opponentExpected={botAvgStat} borderBottom />
+                                <div className="flex flex-col items-center justify-center border-b border-white/[0.07] px-0.5 py-1.5 sm:px-1 sm:py-2">
+                                    <div className="flex flex-wrap items-baseline justify-center gap-x-1">
+                                        <span className="font-mono text-sm font-bold tabular-nums text-violet-100 sm:text-base">
+                                            {botAvgStat.toLocaleString()}
+                                        </span>
+                                        <span className="font-mono text-[10px] font-medium tabular-nums text-zinc-400 sm:text-[11px]">
+                                            ({botStatRange.minStat}~{botStatRange.maxStat})
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="border-r border-white/[0.07] px-1 py-2 text-center text-xs font-semibold leading-snug text-zinc-300 sm:px-2 sm:text-sm">
+                                    바둑능력
+                                </div>
+                                <MyStatCompareCell my={myBadukAbilityTotal} opponentExpected={botBadukAbilityAvg} borderBottom={false} />
+                                <div className="flex flex-col items-center justify-center px-0.5 py-1.5 sm:px-1 sm:py-2">
+                                    <span className="font-mono text-sm font-bold tabular-nums text-violet-100 sm:text-base">
+                                        {botBadukAbilityAvg.toLocaleString()}
                                     </span>
                                 </div>
-                            ))}
+                            </div>
                         </div>
                     </div>
 

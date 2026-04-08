@@ -22,6 +22,8 @@ export interface CoreStatsHexagonChartProps {
     mobileReadable?: boolean;
     /** 네이티브 모바일 프로필 홈: 좁은 폭에 맞춘 가로 배치·축소 (잘림 방지) */
     profileMobileCompact?: boolean;
+    /** 챔피언십 등 한 화면 모달: 그래프·글자 추가 축소 */
+    compactModal?: boolean;
 }
 
 /** 꼭짓점 라벨 (2글자) — 그래프 색인 */
@@ -81,10 +83,12 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
     desktopLike = false,
     mobileReadable = false,
     profileMobileCompact = false,
+    compactModal = false,
 }) => {
     const uid = useId().replace(/:/g, '');
     const gradId = `coreStatRadarFill-${uid}`;
     const rowLayout = desktopLike;
+    const compact = compactModal && (desktopLike || mobileReadable);
 
     const { dataPoints, labelPositions } = useMemo(() => {
         const badukAbilityTotal = CORE_STAT_RADAR_ORDER.reduce((sum, stat) => {
@@ -119,31 +123,37 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
         'relative flex shrink-0 flex-col items-center justify-center rounded-xl border border-indigo-500/40 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_30px_-14px_rgba(0,0,0,0.6)] ' +
         (profileMobileCompact
             ? 'w-[min(45%,156px)] max-w-[156px] px-1 py-1.5'
-            : desktopLike
-              ? mobileReadable
-                  ? 'w-[min(52%,210px)] max-w-[210px] px-2 py-2.5'
-                  : 'w-[min(60%,250px)] max-w-[250px] px-2.5 py-4'
-              : 'px-2.5 py-2.5 sm:w-[min(52%,220px)] sm:max-w-[220px] sm:py-4');
+            : compact
+              ? 'w-[min(42%,150px)] max-w-[150px] px-1 py-1.5'
+              : desktopLike
+                ? mobileReadable
+                    ? 'w-[min(52%,210px)] max-w-[210px] px-2 py-2.5'
+                    : 'w-[min(60%,250px)] max-w-[250px] px-2.5 py-4'
+                : 'px-2.5 py-2.5 sm:w-[min(52%,220px)] sm:max-w-[220px] sm:py-4');
 
     const svgSizeClass = profileMobileCompact
         ? 'h-[6.6rem] max-w-[150px]'
-        : desktopLike
-          ? mobileReadable
-              ? 'h-40 max-w-[196px]'
-              : 'h-44 max-w-[220px]'
-          : 'h-[9.5rem] max-w-[180px] sm:h-44 sm:max-w-[200px]';
+        : compact
+          ? 'h-[6.5rem] max-w-[150px]'
+          : desktopLike
+            ? mobileReadable
+                ? 'h-40 max-w-[196px]'
+                : 'h-44 max-w-[220px]'
+            : 'h-[9.5rem] max-w-[180px] sm:h-44 sm:max-w-[200px]';
 
     return (
-        <div className={`flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden ${className}`}>
+        <div className={`flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center ${compact ? 'overflow-x-visible overflow-y-hidden' : 'overflow-hidden'} ${className}`}>
             <div
-                className={`flex min-h-0 max-w-full ${
+                className={`flex min-h-0 w-full min-w-0 max-w-full ${
                     profileMobileCompact
-                        ? 'w-full flex-col items-center gap-1.5'
+                        ? 'flex-col items-center gap-1.5'
                         : rowLayout
                           ? mobileReadable
-                              ? 'flex-row items-stretch gap-1.5'
+                              ? compact
+                                  ? 'flex-row items-stretch gap-1'
+                                  : 'flex-row items-stretch gap-1.5'
                               : 'flex-row items-stretch gap-2.5'
-                          : 'w-full flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3'
+                          : 'flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3'
                 }`}
             >
             <div className={chartShellClass}>
@@ -237,9 +247,11 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
             </div>
 
             <div
-                className={`flex min-h-0 min-w-0 flex-col justify-center overflow-hidden ${
-                    rowLayout || profileMobileCompact ? '' : 'w-full flex-1'
-                } ${profileMobileCompact ? 'gap-0 py-0' : desktopLike ? (mobileReadable ? 'gap-1 py-0' : 'gap-1.5 py-0.5') : 'gap-0.5 sm:gap-1.5 sm:py-0.5'}`}
+                className={`flex min-h-0 min-w-0 flex-1 flex-col justify-center ${
+                    compact && desktopLike ? 'overflow-visible' : 'overflow-hidden'
+                } ${rowLayout || profileMobileCompact ? '' : 'w-full flex-1'} ${
+                    profileMobileCompact ? 'gap-0 py-0' : desktopLike ? (mobileReadable ? (compact ? 'gap-0.5 py-0' : 'gap-1 py-0') : 'gap-1.5 py-0.5') : 'gap-0.5 sm:gap-1.5 sm:py-0.5'
+                }`}
             >
                 {CORE_STAT_RADAR_ORDER.map(stat => {
                     const finalV = values[stat] ?? 0;
@@ -253,10 +265,28 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                 profileMobileCompact
                                     ? 'justify-center pb-0.5'
                                     : desktopLike
-                                      ? 'justify-center pb-1.5'
+                                      ? compact
+                                          ? 'justify-end pb-0.5'
+                                          : 'justify-center pb-1.5'
                                       : 'justify-center pb-1 sm:pb-1.5'
                             }`}
                         >
+                            {compact && desktopLike ? (
+                                <div className="flex w-full min-w-0 max-w-full items-baseline justify-end gap-x-1 pl-0.5 pr-1.5">
+                                    <span
+                                        className="min-w-0 flex-1 truncate text-right text-[10px] font-semibold leading-tight tracking-tight text-amber-50/95 antialiased sm:text-[11px]"
+                                        title={stat}
+                                    >
+                                        {stat}
+                                    </span>
+                                    <span className="shrink-0 min-w-[3rem] text-right font-mono text-[11px] font-bold tabular-nums tracking-tight text-amber-100 sm:text-xs">
+                                        {finalV}
+                                    </span>
+                                    <span className="shrink-0 whitespace-nowrap text-[9px] font-semibold tabular-nums text-emerald-400/95 sm:text-[10px]">
+                                        {hasBonus ? `(+${bonus})` : ''}
+                                    </span>
+                                </div>
+                            ) : (
                             <div
                                 className={`grid items-center mx-auto ${
                                     profileMobileCompact
@@ -275,10 +305,10 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                         profileMobileCompact
                                             ? 'overflow-visible text-[9px] leading-snug'
                                             : desktopLike
-                                              ? mobileReadable
-                                                  ? 'truncate text-sm'
-                                                  : 'truncate text-sm'
-                                              : 'truncate text-[13px] sm:text-sm'
+                                                ? mobileReadable
+                                                    ? 'truncate text-sm'
+                                                    : 'truncate text-sm'
+                                                : 'truncate text-[13px] sm:text-sm'
                                     }`}
                                     title={stat}
                                 >
@@ -289,10 +319,10 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                         profileMobileCompact
                                         ? 'text-[9px]'
                                             : desktopLike
-                                              ? mobileReadable
-                                                  ? 'text-sm'
-                                                  : 'text-sm'
-                                              : 'text-[13px] sm:text-sm'
+                                                ? mobileReadable
+                                                    ? 'text-sm'
+                                                    : 'text-sm'
+                                                : 'text-[13px] sm:text-sm'
                                     }`}
                                 >
                                     {finalV}
@@ -302,15 +332,16 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                         profileMobileCompact
                                         ? 'text-[8px]'
                                             : desktopLike
-                                              ? mobileReadable
-                                                  ? 'text-[11px]'
-                                                  : 'text-xs'
-                                              : 'text-[11px] sm:text-xs'
+                                                ? mobileReadable
+                                                    ? 'text-[11px]'
+                                                    : 'text-xs'
+                                                : 'text-[11px] sm:text-xs'
                                     }`}
                                 >
                                     {hasBonus ? `(+${bonus})` : ''}
                                 </span>
                             </div>
+                            )}
                         </div>
                     );
                 })}

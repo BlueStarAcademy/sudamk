@@ -296,7 +296,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
         const isAiTurn = game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) && 
                         (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
         
-        // 타임아웃 체크 및 자동 주사위 굴리기 (PVP에만)
+        // 타임아웃 체크 및 자동 주사위 굴리기 (실시간 PVP만). AI 대국은 파울만 적용하고 자동 굴림 없음.
         if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
             const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
             const timeOver = now - game.turnDeadline;
@@ -308,7 +308,12 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 return;
             }
 
-            // 타임아웃 시 자동으로 주사위 굴리기 (아이템 미사용)
+            if (game.isAiGame) {
+                game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                game.turnStartTime = now;
+            } else {
+
+            // 타임아웃 시 자동으로 주사위 굴리기 (아이템 미사용, PVP)
             const myRole = timedOutPlayerId === game.thiefPlayerId ? 'thief' : 'police';
             const { dice1, dice2, stonesToPlace } = rollThiefDiceForRole(myRole);
             
@@ -324,6 +329,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             if (!game.thiefDiceRollHistory) game.thiefDiceRollHistory = { [p1Id]: [], [p2Id]: [] };
             game.thiefDiceRollHistory[timedOutPlayerId].push(dice1);
             if (dice2 > 0) game.thiefDiceRollHistory[timedOutPlayerId].push(dice2);
+            }
         }
     } else if (game.gameStatus === 'thief_rolling_animating') {
         if (game.animation && game.animation.type === 'dice_roll_main' && now > game.animation.startTime + game.animation.duration) {
@@ -364,7 +370,12 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 return;
             }
 
-            // 타임아웃 시 자동으로 랜덤 착점 (남은 돌 수만큼)
+            if (game.isAiGame) {
+                game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
+                game.turnStartTime = now;
+            } else {
+
+            // 타임아웃 시 자동으로 랜덤 착점 (남은 돌 수만큼, PVP)
             let stonesToPlace = game.stonesToPlace || 0;
             const myRole = timedOutPlayerId === game.thiefPlayerId ? 'thief' : 'police';
             let tempBoardState = JSON.parse(JSON.stringify(game.boardState));
@@ -479,6 +490,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 } else {
                     applyThiefPlacingHandoff(game, now);
                 }
+            }
             }
         }
         }

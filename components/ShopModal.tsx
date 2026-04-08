@@ -304,13 +304,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         switch (activeTab) {
             case 'equipment':
                 return (
-                    <div className={`${mobileShop ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                    <div className={`${mobileShop ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2' : 'grid grid-cols-4 gap-3'}`}>
                         {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
                     </div>
                 );
             case 'materials':
                  return (
-                    <div className={`${mobileShop ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                    <div className={`${mobileShop ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2' : 'grid grid-cols-4 gap-3'}`}>
                         {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
                     </div>
                 );
@@ -355,7 +355,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 });
                 const consumableItems = [...baseConsumableItems, ...actionPointShopItems];
                 return (
-                    <div className={`${mobileShop ? 'grid grid-cols-3 gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                    <div className={`${mobileShop ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2' : 'grid grid-cols-4 gap-3'}`}>
                         {consumableItems.map(item => (
                             <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />
                         ))}

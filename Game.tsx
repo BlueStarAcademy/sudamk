@@ -49,6 +49,12 @@ import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.j
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
+/** 모바일 우측 패널: 100vh 대신 dvh + 노치/홈바로 하단 잘림 방지 */
+const mobileGameSidebarDrawerStyle: React.CSSProperties = {
+    paddingTop: 'env(safe-area-inset-top, 0px)',
+    paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+};
+
 const KO_RULE_FLASH_MESSAGE = '패 모양(단순 코)입니다. 바로 다시 따낼 수 없습니다.';
 
 interface MoveConfirmDraggableProps {
@@ -2488,18 +2494,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {isMobile && (
                         <>
-                            <div className={`fixed top-0 right-0 h-full w-[280px] bg-secondary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                                <SinglePlayerSidebar 
-                                    session={sessionWithRestoredPatternStones}
-                                    gameChat={gameChat}
-                                    onAction={handlers.handleAction}
-                                    currentUser={currentUserWithStatus}
-                                    onClose={() => setIsMobileSidebarOpen(false)}
-                                    isPaused={isPaused}
-                                    resumeCountdown={resumeCountdown}
-                                    pauseButtonCooldown={pauseButtonCooldown}
-                                    onTogglePause={handlePauseToggle}
-                                />
+                            <div
+                                className={`fixed top-0 right-0 z-50 flex h-[100dvh] max-h-[100dvh] w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                                style={mobileGameSidebarDrawerStyle}
+                            >
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                    <SinglePlayerSidebar
+                                        session={sessionWithRestoredPatternStones}
+                                        gameChat={gameChat}
+                                        onAction={handlers.handleAction}
+                                        currentUser={currentUserWithStatus}
+                                        onClose={() => setIsMobileSidebarOpen(false)}
+                                        isPaused={isPaused}
+                                        resumeCountdown={resumeCountdown}
+                                        pauseButtonCooldown={pauseButtonCooldown}
+                                        onTogglePause={handlePauseToggle}
+                                    />
+                                </div>
                             </div>
                             {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
                         </>
@@ -2636,18 +2647,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {isMobile && (
                         <>
-                            <div className={`fixed top-0 right-0 h-full w-[280px] bg-secondary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                                <TowerSidebar 
-                                    session={sessionWithRestoredPatternStones}
-                                    gameChat={gameChat}
-                                    onAction={handlers.handleAction}
-                                    currentUser={currentUserWithStatus}
-                                    onClose={() => setIsMobileSidebarOpen(false)}
-                                    onTogglePause={handlePauseToggle}
-                                    isPaused={isPaused}
-                                    resumeCountdown={resumeCountdown}
-                                    pauseButtonCooldown={pauseButtonCooldown}
-                                />
+                            <div
+                                className={`fixed top-0 right-0 z-50 flex h-[100dvh] max-h-[100dvh] w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                                style={mobileGameSidebarDrawerStyle}
+                            >
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                    <TowerSidebar
+                                        session={sessionWithRestoredPatternStones}
+                                        gameChat={gameChat}
+                                        onAction={handlers.handleAction}
+                                        currentUser={currentUserWithStatus}
+                                        onClose={() => setIsMobileSidebarOpen(false)}
+                                        onTogglePause={handlePauseToggle}
+                                        isPaused={isPaused}
+                                        resumeCountdown={resumeCountdown}
+                                        pauseButtonCooldown={pauseButtonCooldown}
+                                    />
+                                </div>
                             </div>
                             {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
                         </>
@@ -2888,33 +2904,38 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 
                 {isMobile && (
                     <>
-                        <div className={`fixed top-0 right-0 h-full w-[280px] bg-secondary shadow-2xl z-50 transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-                            {isGuildWarTowerStyleUi ? (
-                                <GuildWarTowerSidebar
-                                    session={sessionWithRestoredPatternStones}
-                                    gameChat={gameChat}
-                                    onAction={handlers.handleAction}
-                                    currentUser={currentUserWithStatus}
-                                    onClose={() => setIsMobileSidebarOpen(false)}
-                                    onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
-                                    isPaused={effectivePaused}
-                                    resumeCountdown={resumeCountdown}
-                                    pauseButtonCooldown={pauseButtonCooldown}
-                                />
-                            ) : (
-                                <Sidebar
-                                    {...gameProps}
-                                    onLeaveOrResign={handleLeaveOrResignClick}
-                                    isNoContestLeaveAvailable={isNoContestLeaveAvailable}
-                                    onClose={() => setIsMobileSidebarOpen(false)}
-                                    onOpenSettings={handlers.openSettingsModal}
-                                    onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
-                                    isPaused={effectivePaused}
-                                    resumeCountdown={resumeCountdown}
-                                    pauseButtonCooldown={pauseButtonCooldown}
-                                    pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
-                                />
-                            )}
+                        <div
+                            className={`fixed top-0 right-0 z-50 flex h-[100dvh] max-h-[100dvh] w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                            style={mobileGameSidebarDrawerStyle}
+                        >
+                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                {isGuildWarTowerStyleUi ? (
+                                    <GuildWarTowerSidebar
+                                        session={sessionWithRestoredPatternStones}
+                                        gameChat={gameChat}
+                                        onAction={handlers.handleAction}
+                                        currentUser={currentUserWithStatus}
+                                        onClose={() => setIsMobileSidebarOpen(false)}
+                                        onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                        isPaused={effectivePaused}
+                                        resumeCountdown={resumeCountdown}
+                                        pauseButtonCooldown={pauseButtonCooldown}
+                                    />
+                                ) : (
+                                    <Sidebar
+                                        {...gameProps}
+                                        onLeaveOrResign={handleLeaveOrResignClick}
+                                        isNoContestLeaveAvailable={isNoContestLeaveAvailable}
+                                        onClose={() => setIsMobileSidebarOpen(false)}
+                                        onOpenSettings={handlers.openSettingsModal}
+                                        onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
+                                        isPaused={effectivePaused}
+                                        resumeCountdown={resumeCountdown}
+                                        pauseButtonCooldown={pauseButtonCooldown}
+                                        pauseDisabledBecauseAiTurn={isPausableAiGame && !isMyTurn}
+                                    />
+                                )}
+                            </div>
                         </div>
                         {isMobileSidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setIsMobileSidebarOpen(false)}></div>}
                     </>

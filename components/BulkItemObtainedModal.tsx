@@ -78,9 +78,9 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
         >
             <>
-            <div className="flex flex-col gap-2 p-1">
+            <div className="flex flex-col gap-1.5 p-1 max-[360px]:gap-1 max-[360px]:p-0.5 min-[390px]:gap-2">
                 {hasItems && (
-                    <h2 className="rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800/95 to-zinc-950 px-3 py-2 text-center text-lg font-bold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-xl">
+                    <h2 className="rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800/95 to-zinc-950 px-2.5 py-1.5 text-center text-base font-bold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] min-[390px]:px-3 min-[390px]:py-2 min-[390px]:text-lg sm:text-xl">
                         아이템을 획득했습니다
                     </h2>
                 )}
@@ -106,7 +106,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                     </div>
                 )}
                 {hasItems ? (
-                    <div className="grid max-h-[60vh] grid-cols-3 justify-items-center gap-2 overflow-y-auto rounded-xl border border-amber-500/25 bg-gradient-to-b from-zinc-800/80 via-zinc-900/75 to-zinc-950/80 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:grid-cols-4 sm:gap-2.5 sm:p-3 md:grid-cols-5 md:gap-3 md:p-4">
+                    <div className="grid max-h-[58vh] grid-cols-2 justify-items-center gap-1.5 overflow-y-auto rounded-xl border border-amber-500/25 bg-gradient-to-b from-zinc-800/80 via-zinc-900/75 to-zinc-950/80 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] min-[390px]:max-h-[60vh] min-[390px]:grid-cols-3 min-[390px]:gap-2 min-[390px]:p-2 sm:grid-cols-4 sm:gap-2.5 sm:p-3 md:grid-cols-5 md:gap-3 md:p-4">
                         {items.map((item, index) => {
                             const itemGrade = item.grade || 'normal';
                             const styles = gradeStyles[itemGrade] || gradeStyles.normal;

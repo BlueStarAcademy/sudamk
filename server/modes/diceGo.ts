@@ -700,7 +700,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             const isAiTurn = game.isAiGame && game.currentPlayer !== types.Player.None && 
                             (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
             
-            // 타임아웃 체크 및 자동 주사위 굴리기 (PVP에만)
+            // 타임아웃 체크 및 자동 주사위 굴리기 (실시간 PVP만). AI 대국(길드전 등 shouldEnforceTimeControl=true)은 파울만 적용하고 자동 굴림 없음.
             if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline && !isAiTurn) {
                 const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                 const timeOver = now - game.turnDeadline;
@@ -712,7 +712,13 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     return;
                 }
 
-                // 타임아웃 시 자동으로 주사위 굴리기
+                if (game.isAiGame) {
+                    game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                    game.turnStartTime = now;
+                    break;
+                }
+
+                // 타임아웃 시 자동으로 주사위 굴리기 (PVP)
                 const dice1 = Math.floor(Math.random() * 6) + 1;
                 const logic = getGoLogic(game);
                 const liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
@@ -750,6 +756,12 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 const timedOutPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
                 const gameEnded = handleTimeoutFoul(game, timedOutPlayerId, now);
                 if (gameEnded) return;
+
+                if (game.isAiGame) {
+                    game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
+                    game.turnStartTime = now;
+                    break;
+                }
 
                 let stonesToPlace = game.stonesToPlace || 0;
                 let tempBoardState = JSON.parse(JSON.stringify(game.boardState));

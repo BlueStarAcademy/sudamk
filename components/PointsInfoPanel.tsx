@@ -30,8 +30,13 @@ const PointsInfoPanel: React.FC<{
     variant?: 'default' | 'nativeEmbedded';
     /** 챔피언십 로비 배경 위: 반투명 + 뒤쪽 블러 */
     lobbyGlass?: boolean;
-}> = ({ variant = 'default', lobbyGlass = false }) => {
+    /** 모바일 전용 모달 등: 상단 h3 제목(일일 획득 가능 점수) 숨김 — 제목은 창 외부에서 처리 */
+    hideHeading?: boolean;
+    /** 모달 한 화면 맞춤: 경기장 탭으로 하나만 표시해 세로 스크롤 제거 */
+    arenaTabs?: boolean;
+}> = ({ variant = 'default', lobbyGlass = false, hideHeading = false, arenaTabs = false }) => {
     const [selectedStage, setSelectedStage] = useState<number>(1);
+    const [arenaTab, setArenaTab] = useState<number>(0);
     const tournamentTypes: { type: TournamentType; arena: string; title: string; maxRank: number }[] = [
         { type: 'neighborhood', arena: '동네', title: '동네바둑리그', maxRank: 6 },
         { type: 'national', arena: '전국', title: '전국바둑대회', maxRank: 8 },
@@ -40,19 +45,39 @@ const PointsInfoPanel: React.FC<{
 
     const embedded = variant === 'nativeEmbedded';
     const surfaceClass = lobbyGlass
-        ? 'border border-color/45 bg-gray-900/42 backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
+        ? embedded
+            ? 'rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-900/95 via-zinc-950/90 to-black/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-amber-100/10 backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
+            : 'border border-color/45 bg-gray-900/42 backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
         : 'bg-gray-800/50';
 
-    return (
-        <div className={`flex h-full min-h-0 flex-col rounded-lg ${surfaceClass} ${embedded ? 'p-1.5' : 'p-2 sm:p-3'}`}>
-            <h3 className={`flex-shrink-0 text-center font-bold text-gray-100 ${embedded ? 'mb-1.5 text-sm' : 'mb-3 text-base'}`}>일일 획득 가능 점수</h3>
+    const arenaCardClass = embedded
+        ? arenaTabs
+            ? 'rounded-lg border border-amber-500/25 bg-black/35 p-1.5 ring-1 ring-inset ring-white/[0.06] sm:p-2'
+            : 'rounded-lg border border-amber-500/25 bg-black/35 p-2 ring-1 ring-inset ring-white/[0.06]'
+        : 'rounded-md bg-gray-900/50 shadow-inner';
 
-            <div className={`flex-shrink-0 ${embedded ? 'mb-1.5' : 'mb-3'}`}>
-                <label className={`mb-1 block text-gray-300 ${embedded ? 'text-xs' : 'text-xs'}`}>단계 선택</label>
+    const pad = embedded && arenaTabs ? 'p-1.5' : embedded ? 'p-2' : '';
+
+    return (
+        <div className={`flex h-full min-h-0 flex-col ${surfaceClass} ${embedded ? pad : 'rounded-lg p-2 sm:p-3'}`}>
+            {!hideHeading && (
+                <h3 className={`flex-shrink-0 text-center font-bold text-gray-100 ${embedded ? 'mb-2 border-b border-amber-400/25 pb-2 text-sm text-amber-100' : 'mb-3 text-base'}`}>
+                    일일 획득 가능 점수
+                </h3>
+            )}
+
+            <div className={`flex-shrink-0 ${embedded ? (arenaTabs ? 'mb-1.5' : 'mb-2') : 'mb-3'}`}>
+                <label className={`mb-0.5 block font-medium text-amber-200/85 ${embedded ? (arenaTabs ? 'text-xs' : 'text-[11px]') : 'text-xs text-gray-300'}`}>단계 선택</label>
                 <select
                     value={selectedStage}
                     onChange={(e) => setSelectedStage(Number(e.target.value))}
-                    className={`w-full rounded-md border border-gray-600 bg-gray-700 text-gray-200 focus:border-purple-500 focus:ring-purple-500 ${embedded ? 'p-1.5 text-xs' : 'p-1.5 text-xs'}`}
+                    className={
+                        embedded
+                            ? arenaTabs
+                                ? 'w-full rounded-lg border border-amber-500/35 bg-zinc-950/80 px-2 py-1.5 text-xs text-zinc-100 focus:border-amber-400 focus:ring-amber-400/30'
+                                : 'w-full rounded-lg border border-amber-500/35 bg-zinc-950/80 p-2 text-xs text-zinc-100 focus:border-amber-400 focus:ring-amber-400/30'
+                            : 'w-full rounded-md border border-gray-600 bg-gray-700 p-1.5 text-xs text-gray-200 focus:border-purple-500 focus:ring-purple-500'
+                    }
                 >
                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => (
                         <option key={stage} value={stage}>{stage}단계</option>
@@ -60,23 +85,59 @@ const PointsInfoPanel: React.FC<{
                 </select>
             </div>
 
-            <div className={`min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5 sm:space-y-3 ${embedded ? '' : ''}`}>
-                {tournamentTypes.map(arenaData => {
+            {arenaTabs && embedded && (
+                <div className="mb-1.5 flex shrink-0 gap-1">
+                    {tournamentTypes.map((a, i) => (
+                        <button
+                            key={a.arena}
+                            type="button"
+                            onClick={() => setArenaTab(i)}
+                            className={`min-w-0 flex-1 rounded-lg border px-1 py-1.5 text-center text-[11px] font-bold leading-tight transition-colors sm:text-xs ${
+                                arenaTab === i
+                                    ? 'border-amber-400/60 bg-amber-950/50 text-amber-100 ring-1 ring-amber-400/30'
+                                    : 'border-white/10 bg-black/30 text-zinc-400 hover:border-amber-500/35 hover:text-zinc-200'
+                            }`}
+                        >
+                            {a.arena}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            <div
+                className={`min-h-0 flex-1 ${arenaTabs && embedded ? 'min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]' : `space-y-2 overflow-y-auto pr-0.5 sm:space-y-3 ${embedded ? '[scrollbar-width:thin]' : ''}`}`}
+            >
+                {(arenaTabs && embedded ? [tournamentTypes[arenaTab]] : tournamentTypes).map(arenaData => {
                     const displayRanks = groupRanksByScore(arenaData.type, selectedStage, arenaData.maxRank);
+                    const compact = arenaTabs && embedded;
 
                     return (
-                        <div key={arenaData.arena} className={`rounded-md bg-gray-900/50 shadow-inner ${embedded ? 'p-1.5' : 'p-2'}`}>
-                            <h4 className={`font-bold text-accent ${embedded ? 'mb-1 border-b border-accent/50 pb-0.5 text-xs' : 'mb-1.5 border-b border-accent/50 pb-0.5 text-sm'}`}>
+                        <div key={arenaData.arena} className={`${arenaCardClass} ${embedded && !arenaTabs ? '' : !embedded ? 'p-2' : ''}`}>
+                            <h4
+                                className={`font-bold ${embedded ? (compact ? 'mb-1.5 border-b border-amber-400/30 pb-1 text-center text-xs font-extrabold tracking-tight text-amber-100 sm:text-sm' : 'mb-2 border-b border-amber-400/30 pb-1.5 text-center text-xs font-extrabold tracking-tight text-amber-100 sm:text-sm') : 'mb-1.5 border-b border-accent/50 pb-0.5 text-sm text-accent'}`}
+                            >
                                 {arenaData.title} ({selectedStage}단계)
                             </h4>
-                            <div className={`grid grid-cols-2 ${embedded ? 'gap-x-1 gap-y-0.5' : 'gap-x-2 gap-y-0.5'}`}>
+                            <div
+                                className={`grid grid-cols-[minmax(0,1fr)_auto] ${embedded ? (compact ? 'gap-x-0.5 gap-y-0' : 'gap-x-2 gap-y-0') : 'gap-x-2 gap-y-0.5'}`}
+                            >
+                                <div
+                                    className={`col-span-2 grid grid-cols-[minmax(0,1fr)_auto] border-b border-white/10 pb-1 ${embedded ? (compact ? 'gap-x-0.5' : 'gap-x-2') : 'gap-x-2'} ${embedded ? (compact ? 'text-[10px] font-bold uppercase tracking-wide text-zinc-500 sm:text-[11px]' : 'text-[10px] font-bold uppercase tracking-wide text-zinc-500') : 'text-[10px] font-semibold text-gray-400'}`}
+                                >
+                                    <span className="pl-0.5">순위</span>
+                                    <span className="pr-0.5 text-right tabular-nums">점수</span>
+                                </div>
                                 {displayRanks.map(({ key, label, points, rankStart }) => {
-                                    const rankColor = rankStart === 1 ? 'text-yellow-400' : rankStart === 2 ? 'text-gray-400' : rankStart === 3 ? 'text-amber-600' : 'text-gray-300';
+                                    const rankColor = rankStart === 1 ? 'text-yellow-400' : rankStart === 2 ? 'text-slate-300' : rankStart === 3 ? 'text-amber-500' : 'text-zinc-300';
+                                    const rowText = compact ? `text-[12px] sm:text-[13px] ${rankColor}` : embedded ? `text-[12px] sm:text-[13px] ${rankColor}` : `text-xs ${rankColor}`;
                                     return (
-                                        <div key={key} className={`flex items-center justify-between ${embedded ? 'text-[11px] leading-tight' : 'text-xs'}`}>
-                                            <span className="truncate font-semibold">{label}</span>
-                                            <span className={`flex-shrink-0 font-bold ${rankColor} ${embedded ? 'ml-0.5' : 'ml-1'}`}>{points}점</span>
-                                        </div>
+                                        <React.Fragment key={key}>
+                                            <span className={`min-w-0 truncate py-0.5 pl-0.5 font-semibold leading-snug ${rowText}`}>{label}</span>
+                                            <span className={`py-0.5 pr-0.5 text-right font-mono font-bold tabular-nums leading-snug ${rowText}`}>
+                                                {points.toLocaleString()}
+                                                <span className="ml-0.5 font-sans font-bold">점</span>
+                                            </span>
+                                        </React.Fragment>
                                     );
                                 })}
                             </div>

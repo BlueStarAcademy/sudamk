@@ -349,7 +349,9 @@ const TowerLobby: React.FC = () => {
                                 <div
                                     key={floor}
                                     data-tower-floor={floor}
-                                    className={`rounded-lg p-2.5 sm:p-3 border flex items-center justify-between gap-2 relative ${
+                                    className={`rounded-lg border flex items-center justify-between relative ${
+                                        isNativeMobile ? 'gap-1.5 p-1.5' : 'gap-2 p-2.5 sm:p-3'
+                                    } ${
                                         isLocked
                                             ? 'bg-gray-900/50 border-gray-700/50 opacity-60'
                                             : isCurrent
@@ -372,11 +374,17 @@ const TowerLobby: React.FC = () => {
                                         </div>
                                     )}
                                     {/* 왼쪽: 정보 영역 */}
-                                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                    <div className={`flex items-center flex-1 min-w-0 ${isNativeMobile ? 'gap-1.5' : 'gap-2.5'}`}>
                                         {/* 층수 */}
-                                        <div className="flex items-center gap-1.5 flex-shrink-0 px-2 py-1.5 sm:px-2.5 bg-amber-900/50 rounded border border-amber-600/40">
+                                        <div
+                                            className={`flex items-center gap-1.5 flex-shrink-0 rounded border border-amber-600/40 bg-amber-900/50 ${
+                                                isNativeMobile ? 'px-1.5 py-1' : 'px-2 py-1.5 sm:px-2.5'
+                                            }`}
+                                        >
                                             <span
-                                                className={`text-lg sm:text-xl font-black ${
+                                                className={`font-black ${
+                                                    isNativeMobile ? 'text-base' : 'text-lg sm:text-xl'
+                                                } ${
                                                     isCurrent
                                                         ? 'text-yellow-300'
                                                         : isCleared
@@ -386,14 +394,16 @@ const TowerLobby: React.FC = () => {
                                             >
                                                 {floor}
                                             </span>
-                                            <span className="text-xs sm:text-sm text-amber-300 font-semibold">층</span>
+                                            <span className={`text-amber-300 font-semibold ${isNativeMobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>층</span>
                                             {isCleared && (
-                                                <span className="text-green-400 text-sm sm:text-base font-bold">✓</span>
+                                                <span className={`font-bold text-green-400 ${isNativeMobile ? 'text-xs' : 'text-sm sm:text-base'}`}>✓</span>
                                             )}
                                         </div>
 
                                         {/* 바둑판·배치 / 목표·제한 → 두 줄로 가로 배치 */}
-                                        <div className="flex flex-col gap-y-1.5 min-w-0 flex-1 text-[11px] sm:text-xs">
+                                        <div
+                                            className={`flex min-w-0 flex-1 flex-col ${isNativeMobile ? 'gap-y-1 text-[10px]' : 'gap-y-1.5 text-[11px] sm:text-xs'}`}
+                                        >
                                             {isCaptureMode && (
                                                 <>
                                                     <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
@@ -536,16 +546,20 @@ const TowerLobby: React.FC = () => {
 											}
                                         }}
                                         disabled={!canChallenge || isLocked || isChallengingRef.current}
-                                        className={`flex-shrink-0 px-3 sm:px-4 py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
+                                        className={`flex-shrink-0 rounded-lg font-semibold transition-all flex items-center justify-center ${
+                                            isNativeMobile
+                                                ? 'px-2 py-1.5 text-[10px] gap-1'
+                                                : 'px-3 sm:px-4 py-2 text-xs sm:text-sm gap-1.5'
+                                        } ${
                                             canChallenge && !isLocked
                                                 ? 'bg-gradient-to-br from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-lg shadow-amber-600/50'
                                                 : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
                                         }`}
                                     >
                                         {effectiveActionPointCost > 0 && (
-                                            <span className="text-[10px] sm:text-xs leading-none">⚡{effectiveActionPointCost}</span>
+                                            <span className={`leading-none ${isNativeMobile ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}>⚡{effectiveActionPointCost}</span>
                                         )}
-                                        <span className="text-[10px] sm:text-xs leading-none">도전</span>
+                                        <span className={`leading-none ${isNativeMobile ? 'text-[10px]' : 'text-[10px] sm:text-xs'}`}>도전</span>
                                     </button>
                                 </div>
                             );
@@ -555,10 +569,10 @@ const TowerLobby: React.FC = () => {
     function renderTowerMainColumns() {
         if (isNativeMobile) {
             // 모바일 레이아웃 우선순위:
-            // 1) 보유 아이템 패널 하단(구매 버튼 포함) 완전 노출 고정
+            // 1) 보유 아이템 패널 하단(구매 버튼 포함) 완전 노출 고정 — 아이템 셀을 촘촘히 해 같은 화면에서 스테이지 열 높이 확보
             // 2) 그 높이를 기준으로 랭킹 패널 높이 결정
             // 3) 랭킹 높이에 맞춰 이미지(내 기록) 패널 높이/가로폭(비율) 결정
-            const MOBILE_BOTTOM_PANEL_HEIGHT = 292;
+            const MOBILE_BOTTOM_PANEL_HEIGHT = 328;
             const inventory = currentUserWithStatus?.inventory || [];
             const getItemCount = (namesOrIds: readonly string[]): number =>
                 countTowerLobbyInventoryQty(inventory, namesOrIds);
@@ -664,45 +678,45 @@ const TowerLobby: React.FC = () => {
                             </div>
                         </section>
 
-                        {/* 하단: 스테이지 목록 | 보유 아이템(5행 고정) — 동일 높이 */}
+                        {/* 하단: 스테이지 목록 | 보유 아이템(5행 고정) — 동일 높이, 우측은 촘촘한 셀로 가로를 스테이지에 양보 */}
                         <section
-                            className="grid min-h-0 w-full shrink-0 grid-cols-[minmax(0,1fr)_6.5rem] gap-1.5 overflow-hidden"
+                            className="grid min-h-0 w-full shrink-0 grid-cols-[minmax(0,1fr)_5.5rem] gap-1 overflow-hidden"
                             style={{
                                 height: MOBILE_BOTTOM_PANEL_HEIGHT,
                                 minHeight: MOBILE_BOTTOM_PANEL_HEIGHT,
                             }}
                         >
-                            <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 sm:p-1.5 ${towerNativeGlass}`}>
+                            <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 ${towerNativeGlass}`}>
                                 <div
                                     ref={stageScrollRef}
-                                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-0.5 pr-1"
+                                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-0.5 pr-0.5"
                                 >
-                                    <div className="space-y-1.5">{renderTowerFloorRows()}</div>
+                                    <div className="space-y-1">{renderTowerFloorRows()}</div>
                                 </div>
                             </div>
-                            <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 ${towerNativeGlass}`}>
-                                <h3 className="mb-0.5 shrink-0 whitespace-nowrap text-center text-[9px] font-bold leading-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">
+                            <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl px-0.5 py-0.5 ${towerNativeGlass}`}>
+                                <h3 className="mb-0 shrink-0 whitespace-nowrap text-center text-[8px] font-bold leading-none text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">
                                     보유 아이템
                                 </h3>
-                                <div className="grid min-h-0 min-w-0 flex-1 grid-rows-5 gap-1 py-0.5">
+                                <div className="grid min-h-0 min-w-0 flex-1 grid-rows-5 gap-px py-px">
                                     {mobileTowerItems.map((item, index) => (
                                         <button
                                             key={index}
                                             type="button"
-                                            className="flex h-full min-h-0 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-700/30 bg-gray-800/40 p-2 transition-colors hover:border-amber-600/50 hover:bg-gray-700/50"
+                                            className="flex h-full min-h-0 min-w-0 flex-col items-center justify-center gap-0 rounded-md border border-amber-700/30 bg-gray-800/40 px-0.5 py-0.5 transition-colors hover:border-amber-600/50 hover:bg-gray-700/50"
                                             onClick={() => setIsItemShopOpen(true)}
                                         >
-                                            <div className="relative h-9 w-9 flex-shrink-0">
+                                            <div className="relative h-7 w-7 flex-shrink-0">
                                                 <img src={item.icon} alt={item.name} className="h-full w-full object-contain" />
                                                 <div
-                                                    className={`absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-amber-900 text-[8px] font-bold leading-none ${
+                                                    className={`absolute -bottom-px -right-px flex h-3 min-w-[0.75rem] items-center justify-center rounded-full border border-amber-900 px-0.5 text-[7px] font-bold leading-none ${
                                                         item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'
                                                     }`}
                                                 >
                                                     {item.count}
                                                 </div>
                                             </div>
-                                            <p className="max-w-full truncate text-center text-[10px] font-semibold leading-tight text-amber-100">
+                                            <p className="max-w-full truncate text-center text-[9px] font-semibold leading-tight text-amber-100">
                                                 {item.name}
                                             </p>
                                         </button>
@@ -711,7 +725,7 @@ const TowerLobby: React.FC = () => {
                                 <Button
                                     onClick={() => setIsItemShopOpen(true)}
                                     colorScheme="none"
-                                    className="mt-1.5 w-full shrink-0 !min-w-0 !px-1 !py-1 !text-[10px] font-semibold leading-tight border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 text-amber-200"
+                                    className="mt-0.5 w-full shrink-0 !min-w-0 !px-0.5 !py-0.5 !text-[9px] font-semibold leading-none border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 text-amber-200"
                                 >
                                     구매하기
                                 </Button>

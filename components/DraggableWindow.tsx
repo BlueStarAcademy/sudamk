@@ -965,7 +965,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     /** 좁은 뷰포트·네이티브: 본문 글자·여백을 키워 가독성 확보 */
     const isMobileModalShell = effectiveIsCompactViewport || isNativeMobile;
     const bodyPaddingClass =
-        bodyPaddingClassName ?? (uniformLayout ? 'p-5' : isMobileModalShell ? 'p-5' : 'p-4');
+        bodyPaddingClassName ??
+        (uniformLayout
+            ? 'p-5'
+            : isMobileModalShell
+              ? 'p-4 min-[390px]:p-5 max-[360px]:p-3'
+              : 'p-4');
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
     const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? viewportMaxHeightCss;

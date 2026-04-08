@@ -70,10 +70,9 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                 <div className={`${frame} overflow-hidden`}>
                     <div className="border-b border-amber-500/15 bg-gradient-to-r from-amber-950/50 via-black/40 to-amber-950/50 px-5 py-6 text-center">
                         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/70">Reward</p>
-                        <h2 className="mt-2 bg-gradient-to-r from-amber-50 via-amber-200 to-amber-100 bg-clip-text text-2xl font-black tracking-tight text-transparent drop-shadow-sm">
+                        <h2 className="mt-2 whitespace-nowrap bg-gradient-to-r from-amber-50 via-amber-200 to-amber-100 bg-clip-text text-xl font-black tracking-tight text-transparent drop-shadow-sm sm:text-2xl">
                             보상을 획득했습니다
                         </h2>
-                        <p className="mt-2 text-xs text-zinc-500">아래 내용이 인벤토리·재화에 반영되었습니다.</p>
                     </div>
 
                     <div className="space-y-4 p-5">

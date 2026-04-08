@@ -733,6 +733,69 @@ function isSinglePlayerOrTowerPve(game: types.LiveGameSession): boolean {
     return !!game.isSinglePlayer || (game as any).gameCategory === 'tower';
 }
 
+/** 싱글/도전의 탑: 승패가 따내기 점수 기준 */
+function isPveCaptureMode(game: types.LiveGameSession): boolean {
+    return isSinglePlayerOrTowerPve(game) && game.mode === types.GameMode.Capture;
+}
+
+/** 싱글/도전의 탑: 계가(집)로 승패 */
+function isPveScoringMode(game: types.LiveGameSession): boolean {
+    return isSinglePlayerOrTowerPve(game) && game.mode !== types.GameMode.Capture;
+}
+
+/** 따낸 돌 가중치 (문양돌 반영) — stoneOwner는 따인 돌의 색 */
+function weightedStonesCaptured(
+    game: types.LiveGameSession,
+    stoneOwner: Player,
+    capturedStones: Point[]
+): number {
+    let w = 0;
+    for (const stone of capturedStones) {
+        const wasPattern =
+            (stoneOwner === types.Player.Black &&
+                game.blackPatternStones?.some((p) => p.x === stone.x && p.y === stone.y)) ||
+            (stoneOwner === types.Player.White &&
+                game.whitePatternStones?.some((p) => p.x === stone.x && p.y === stone.y));
+        w += wasPattern ? 3 : 1;
+    }
+    return w;
+}
+
+/**
+ * 상대(차례가 온 플레이어)가 한 수에 따낼 수 있는 최대 가중 따내기 (스냅백·큰 따내기 등 함정 회피용)
+ */
+function getMaxOpponentWeightedCaptureReply(
+    game: types.LiveGameSession,
+    boardState: types.BoardState,
+    koInfo: types.LiveGameSession['koInfo'],
+    moveHistoryLen: number,
+    opponentPlayer: Player,
+    aiPlayer: Player,
+    logic: ReturnType<typeof getGoLogic>
+): number {
+    const simGame: types.LiveGameSession = {
+        ...game,
+        boardState,
+        koInfo,
+        currentPlayer: opponentPlayer,
+    };
+    const moves = findAllValidMoves(simGame, logic, opponentPlayer);
+    let maxW = 0;
+    for (const m of moves) {
+        const r = processMove(
+            boardState,
+            { ...m, player: opponentPlayer },
+            koInfo,
+            moveHistoryLen,
+            { ignoreSuicide: true }
+        );
+        if (!r.isValid || r.capturedStones.length === 0) continue;
+        const w = weightedStonesCaptured(game, aiPlayer, r.capturedStones);
+        if (w > maxW) maxW = w;
+    }
+    return maxW;
+}
+
 /**
  * 싱글/탑: 즉시 따낼 수 있는 수가 있으면 그중 가장 많이 따내는 수 (동점이면 문양돌 가중)
  */
@@ -760,15 +823,7 @@ function findBestImmediateCaptureMove(
                 pmOpts
             );
             if (!r.isValid || r.capturedStones.length === 0) continue;
-            let w = 0;
-            for (const stone of r.capturedStones) {
-                const wasPattern =
-                    (opponentPlayer === types.Player.Black &&
-                        game.blackPatternStones?.some((p) => p.x === stone.x && p.y === stone.y)) ||
-                    (opponentPlayer === types.Player.White &&
-                        game.whitePatternStones?.some((p) => p.x === stone.x && p.y === stone.y));
-                w += wasPattern ? 3 : 1;
-            }
+            const w = weightedStonesCaptured(game, opponentPlayer, r.capturedStones);
             const n = r.capturedStones.length;
             if (n > bestCount || (n === bestCount && w > bestWeighted)) {
                 bestCount = n;
@@ -1074,10 +1129,25 @@ export async function makeGoAiBotMove(
                 { ignoreSuicide: true }
             );
             const nKata = kataCap.isValid ? kataCap.capturedStones.length : 0;
-            if (nKata === 0) {
+            const capBest = processMove(
+                game.boardState,
+                { ...capMove, player: aiPlayerEnum },
+                game.koInfo,
+                game.moveHistory.length,
+                { ignoreSuicide: true }
+            );
+            const wKata =
+                kataCap.isValid && kataCap.capturedStones.length > 0
+                    ? weightedStonesCaptured(game, opponentPlayerEnum, kataCap.capturedStones)
+                    : 0;
+            const wBest =
+                capBest.isValid && capBest.capturedStones.length > 0
+                    ? weightedStonesCaptured(game, opponentPlayerEnum, capBest.capturedStones)
+                    : 0;
+            if (nKata === 0 || wBest > wKata) {
                 selectedMove = capMove;
                 console.log(
-                    `[makeGoAiBotMove] SP/Tower: prefer immediate capture over non-capture Kata move → (${capMove.x},${capMove.y}), game=${game.id}`
+                    `[makeGoAiBotMove] SP/Tower: prefer best immediate capture (w=${wBest}) over Kata (w=${wKata}) → (${capMove.x},${capMove.y}), game=${game.id}`
                 );
             }
         }
@@ -1266,8 +1336,9 @@ export async function makeGoAiBotMove(
         }
 
     // 3. 실수 확률 적용
-    if (Math.random() < profile.mistakeRate && scoredMoves.length > 1) {
-        // 실수를 할 경우
+    const pveMistakeMul = isSpOrTowerPve ? 0.62 : 1;
+    if (Math.random() < profile.mistakeRate * pveMistakeMul && scoredMoves.length > 1) {
+        // 실수를 할 경우 (싱글/탑은 승부에 맞게 실수 비율 완화)
         const mistakeChance = Math.random();
         if (mistakeChance < 0.3) {
             // 나쁜 수 선택 (하위 30%)
@@ -1983,6 +2054,11 @@ function scoreMovesByProfile(
 ): Array<{ move: Point; score: number }> {
     const scoredMoves: Array<{ move: Point; score: number }> = [];
 
+    const pveCap = isPveCaptureMode(game);
+    const pveScore = isPveScoringMode(game);
+    const territoryMul = pveScore ? 1.5 : pveCap ? 0.38 : 1;
+    const territoryStrategyMul = pveScore ? 1.45 : pveCap ? 0.42 : 1;
+
     for (const move of moves) {
         let score = 0;
         const point: Point = { x: move.x, y: move.y };
@@ -2050,11 +2126,15 @@ function scoreMovesByProfile(
             captureScore += 5000 + captureOpportunityScore * 500;
         }
         captureScore += captureOpportunityScore * profile.captureTendency * 300;
+        if (pveCap && captureOpportunityScore > 0) {
+            captureScore += 3800 + captureOpportunityScore * 420;
+        }
         
         // 살리기와 따내기 중 선택 (미래를 내다본 판단에 따라)
         if (saveScore > 0 && captureScore > 0) {
             if (isSinglePlayerOrTowerPve(game)) {
-                score += captureScore + saveScore * 0.25;
+                const saveWeight = pveCap ? 0.16 : 0.25;
+                score += captureScore + saveScore * saveWeight;
             } else if (saveScore >= 5000) {
                 // 살릴 수 있는 그룹 - 살리기와 따내기를 같은 등급으로 처리하되, 살리기 우선
                 score += saveScore;
@@ -2074,24 +2154,24 @@ function scoreMovesByProfile(
         
         // 영토 확보 전략 단계별 평가
         const territoryStrategyScore = evaluateTerritoryStrategy(game, logic, point, aiPlayer, opponentPlayer, profile);
-        score += territoryStrategyScore;
+        score += territoryStrategyScore * territoryStrategyMul;
         
-        // 방어적인 수는 더 높은 가중치 적용
+        // 방어적인 수는 더 높은 가중치 적용 (계가 PvE에서는 영토 우선, 따내기 PvE에서는 가중 낮춤)
         if (territoryScore > 5.0) {
             // 방어적인 수는 매우 높은 점수
-            score += territoryScore * profile.territoryTendency * 200;
+            score += territoryScore * profile.territoryTendency * 200 * territoryMul;
         } else if (territoryScore < 0) {
             // 영토를 메우는 수는 패널티
-            score += territoryScore * profile.territoryTendency * 100;
+            score += territoryScore * profile.territoryTendency * 100 * territoryMul;
         } else {
-            score += territoryScore * profile.territoryTendency * 50;
+            score += territoryScore * profile.territoryTendency * 50 * territoryMul;
         }
         
         // 2-1. 방어 방향 평가 (선의 높이에 따른 방어 우선순위)
         if (territoryScore > 5.0) {
             // 방어적인 수일 때만 방어 방향 평가
             const defensiveDirectionScore = evaluateDefensiveDirection(game, point, aiPlayer, profile);
-            score += defensiveDirectionScore * profile.territoryTendency * 150; // 방어 방향 점수
+            score += defensiveDirectionScore * profile.territoryTendency * 150 * territoryMul; // 방어 방향 점수
         }
 
         // 3. 전투 성향 반영
@@ -2101,19 +2181,22 @@ function scoreMovesByProfile(
         // 4. 아타리(단수) 기회 평가
         const atariScore = evaluateAtariOpportunity(game, logic, point, aiPlayer, opponentPlayer);
         if (atariScore > 0) {
-            score += 1000 + atariScore * profile.captureTendency * 200; // 높은 점수
+            const atariMul = pveCap ? 1.38 : pveScore ? 0.92 : 1;
+            score += (1000 + atariScore * profile.captureTendency * 200) * atariMul; // 높은 점수
         }
 
-        // 4-1. 유저 돌 근처로 접근 (공격적 접근) - 싱글플레이에서 특히 중요
-        if (game.isSinglePlayer) {
+        // 4-1. 유저 돌 근처로 접근 (공격적 접근) - 싱글/도전의 탑 PvE
+        if (isSinglePlayerOrTowerPve(game)) {
             const proximityScore = evaluateProximityToOpponent(game, logic, point, opponentPlayer);
-            score += proximityScore * profile.combatTendency * 250; // 유저 돌 근처로 가는 수
+            const proxMul = pveCap ? 1.35 : pveScore ? 0.85 : 1;
+            score += proximityScore * profile.combatTendency * 250 * proxMul; // 유저 돌 근처로 가는 수
         }
 
         // 4-2. 공격 기회 평가 (유저 그룹 위협)
-        if (game.isSinglePlayer) {
+        if (isSinglePlayerOrTowerPve(game)) {
             const attackScore = evaluateAttackOpportunity(game, logic, point, aiPlayer, opponentPlayer);
-            score += attackScore * profile.combatTendency * 200; // 유저 그룹을 위협하는 수
+            const atkMul = pveCap ? 1.4 : pveScore ? 0.75 : 1;
+            score += attackScore * profile.combatTendency * 200 * atkMul; // 유저 그룹을 위협하는 수
         }
 
         // 5. 정석/포석 활용도 반영 (고수일수록 더 반영)
@@ -2135,9 +2218,10 @@ function scoreMovesByProfile(
         }
 
         // 8. 승리 목적 달성도 반영 (목표 점수에 근접할수록 높은 점수)
-        if (profile.winFocus > 0.5 && (game.isSinglePlayer || game.mode === types.GameMode.Capture)) {
+        if (profile.winFocus > 0.5 && (isSinglePlayerOrTowerPve(game) || game.mode === types.GameMode.Capture)) {
             const winFocusScore = evaluateWinFocus(game, logic, point, aiPlayer, opponentPlayer);
-            score += winFocusScore * profile.winFocus * 150;
+            const wfMul = isPveCaptureMode(game) ? 1.35 : 1;
+            score += winFocusScore * profile.winFocus * 150 * wfMul;
         }
 
         // 9. 2단계: 자충수 방지 (단수당한 자신의 돌을 살리는 경우는 예외)
@@ -2272,10 +2356,10 @@ function scoreMovesByProfile(
             score += advancedScore * 250;
         }
 
-        // 15-1. 포위된 그룹의 탈출 시도 (높은 우선순위)
+        // 15-1. 포위된 그룹의 탈출 시도 (높은 우선순위) — 따내기 PvE에서는 따내기·공격이 우선이므로 가중 완화
         const escapeScore = evaluateEscapeFromSurround(game, logic, point, aiPlayer, opponentPlayer);
         if (escapeScore > 0) {
-            score += escapeScore * 1500; // 탈출 시도는 매우 높은 점수
+            score += escapeScore * (pveCap ? 420 : 1500); // 탈출 시도는 매우 높은 점수
         }
 
         // 16. 9단계: 연결/끊음, 사활, 행마
@@ -2316,7 +2400,14 @@ function scoreMovesByProfile(
                 logic,
                 profile.calculationDepth - 1 // 이미 1수는 둔 상태이므로 -1
             );
-            score += lookAheadScore * (profile.calculationDepth * 50); // 깊이에 따라 가중치 증가
+            let lookMul = profile.calculationDepth * 50;
+            // 따내기 PvE에서 즉시 따내기 수는 상대 1수 샘플링이 불완전해 과소평가되기 쉬움 → 가중 완화
+            if (pveCap && testResultForSave.capturedStones.length > 0) {
+                lookMul *= 0.42;
+            } else if (pveScore) {
+                lookMul *= 1.12;
+            }
+            score += lookAheadScore * lookMul; // 깊이에 따라 가중치 증가
         }
 
         if (
@@ -2325,7 +2416,30 @@ function scoreMovesByProfile(
             testResultForSave.capturedStones.length > 0 &&
             score > -90000
         ) {
-            score += 520000;
+            score += pveCap ? 640000 : 540000;
+        }
+
+        // 따내기 PvE: 한 수 교환으로 손해(상대가 더 크게 따냄)만 피함 — 무조건 따내기는 유지하되 명백한 함정은 감점
+        if (
+            pveCap &&
+            testResultForSave.isValid &&
+            testResultForSave.capturedStones.length > 0 &&
+            score > -90000
+        ) {
+            const myGain = weightedStonesCaptured(game, opponentPlayer, testResultForSave.capturedStones);
+            const oppReply = getMaxOpponentWeightedCaptureReply(
+                game,
+                testResultForSave.newBoardState,
+                testResultForSave.newKoInfo,
+                game.moveHistory.length + 1,
+                opponentPlayer,
+                aiPlayer,
+                logic
+            );
+            if (oppReply > myGain) {
+                const gap = oppReply - myGain;
+                score -= Math.min(580000, 120000 + gap * 95000);
+            }
         }
 
         scoredMoves.push({ move, score });
@@ -3103,11 +3217,28 @@ function scoreMovesFast(
         );
         const captureScore = evaluateCaptureOpportunity(game, logic, point, aiPlayer, opponentPlayer);
         const pveCaptureFirst = isSinglePlayerOrTowerPve(game);
+        const pveCapFast = isPveCaptureMode(game);
 
         if (pveCaptureFirst) {
-            // 싱글/탑: 즉시 따내기 > 단수 살리기 (Kata 미사용·저난이도 휴리스틱)
-            if (captureScore > 0) {
-                score += 48000 + captureScore * 2200;
+            if (pveCapFast) {
+                // 따내기 PvE: 즉시 따내기 우선 (저난이도 휴리스틱 강화)
+                if (captureScore > 0) {
+                    score += 62000 + captureScore * 2800;
+                }
+            } else {
+                // 계가 PvE: 영토·전략 점수를 두고 따내기는 보조
+                if (captureScore > 0) {
+                    score += 14000 + captureScore * 900;
+                }
+                const tsFast = evaluateTerritory(game, logic, point, aiPlayer, profile);
+                if (tsFast > 5.0) {
+                    score += tsFast * profile.territoryTendency * 165;
+                } else if (tsFast < 0) {
+                    score += tsFast * profile.territoryTendency * 85;
+                } else {
+                    score += tsFast * profile.territoryTendency * 48;
+                }
+                score += evaluateTerritoryStrategy(game, logic, point, aiPlayer, opponentPlayer, profile) * 1.38;
             }
             if (testResult.isValid) {
                 const myGroupsBefore = logic.getAllGroups(aiPlayer, game.boardState);
@@ -3119,7 +3250,7 @@ function scoreMovesFast(
                         );
                         if (matchingAfter && matchingAfter.libertyPoints.size > 1) {
                             const groupSize = groupBefore.stones.length;
-                            score += 9000 + groupSize * 700;
+                            score += pveCapFast ? 7800 + groupSize * 620 : 8800 + groupSize * 900;
                         }
                     }
                 }
@@ -3150,16 +3281,19 @@ function scoreMovesFast(
         // 2. 아타리(단수) 기회
         const atariScore = evaluateAtariOpportunity(game, logic, point, aiPlayer, opponentPlayer);
         if (atariScore > 0) {
-            score += 2000 + atariScore * 200; // 높은 점수
+            const atFastMul = pveCapFast ? 1.38 : pveCaptureFirst && !pveCapFast ? 0.94 : 1;
+            score += (2000 + atariScore * 200) * atFastMul; // 높은 점수
         }
 
         // 2-1. 유저 돌 근처로 접근 (공격적 접근)
         const proximityScore = evaluateProximityToOpponent(game, logic, point, opponentPlayer);
-        score += proximityScore * 300; // 유저 돌 근처로 가는 수
+        const proxFastMul = pveCapFast ? 1.32 : pveCaptureFirst && !pveCapFast ? 0.88 : 1;
+        score += proximityScore * 300 * proxFastMul; // 유저 돌 근처로 가는 수
 
         // 2-2. 공격 기회 평가 (유저 그룹 위협)
         const attackScore = evaluateAttackOpportunity(game, logic, point, aiPlayer, opponentPlayer);
-        score += attackScore * 250; // 유저 그룹을 위협하는 수
+        const atkFastMul = pveCapFast ? 1.35 : pveCaptureFirst && !pveCapFast ? 0.82 : 1;
+        score += attackScore * 250 * atkFastMul; // 유저 그룹을 위협하는 수
 
         // 3. 기본 안전성 (간단한 자유도 체크만)
         // 자충수 체크 (먹여치기/환격수는 예외)

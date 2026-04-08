@@ -38,7 +38,7 @@ const GuildWarTowerSidebar: React.FC<GuildWarTowerSidebarProps> = ({
     const boardLabel = boardId ? getGuildWarBoardDisplayName(boardId) : '길드 전쟁';
 
     return (
-        <div className="flex flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
+        <div className="flex min-h-0 flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
             <div className="flex-shrink-0 space-y-2">
                 <GameInfoPanel session={session} onClose={onClose} />
                 <div className="bg-gray-800/80 rounded-xl border border-stone-700 px-3 py-2">

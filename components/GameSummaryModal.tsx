@@ -887,7 +887,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
     const finalMannerRank = mySummary ? getMannerRank(mySummary.manner.final) : '';
 
     const statCardClass =
-        'rounded-xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.04] lg:p-3.5';
+        'rounded-xl border border-amber-500/20 bg-gradient-to-br from-slate-900/95 via-[#13141c] to-[#0a0a0f] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-500/10 lg:p-3.5';
     const statLabelClass =
         'text-[0.72rem] font-bold uppercase tracking-[0.14em] text-slate-400 min-[1024px]:text-[0.8rem] min-[1280px]:text-xs lg:tracking-[0.12em]';
 
@@ -903,16 +903,31 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             mobileViewportMaxHeightVh={78}
             windowId="game-summary"
             hideFooter
+            variant="store"
+            bodyPaddingClassName={
+                isMobile
+                    ? '!p-2 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-[390px]:!p-2.5'
+                    : '!p-3 sm:!p-4'
+            }
         >
             <>
+            <div className="relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_24px_48px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <div
+                    className="pointer-events-none absolute inset-0 opacity-[0.12]"
+                    style={{
+                        background:
+                            'radial-gradient(ellipse 85% 55% at 50% -5%, rgba(251, 191, 36, 0.45), transparent 58%), radial-gradient(ellipse 70% 45% at 50% 100%, rgba(34, 211, 238, 0.12), transparent 55%)',
+                    }}
+                    aria-hidden
+                />
             <div
-                className={`flex min-h-0 flex-col text-white antialiased ${
+                className={`relative flex min-h-0 flex-col text-on-panel antialiased ${
                     useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'w-full overflow-x-hidden overflow-y-visible'
-                } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
+                } ${isMobile ? 'p-2 text-xs sm:text-sm min-[390px]:p-2.5' : 'p-3 text-[1.0625rem] min-[1024px]:p-4 min-[1024px]:text-lg min-[1280px]:text-xl'}`}
             >
                 {!isMobile && (
                 <h1
-                    className={`text-3xl mb-2 min-[1024px]:text-4xl min-[1280px]:text-5xl flex-shrink-0 text-center font-black tracking-widest sm:mb-3 ${color}`}
+                    className={`mb-2 flex-shrink-0 text-center text-3xl font-black tracking-[0.2em] drop-shadow-[0_2px_14px_rgba(0,0,0,0.55)] sm:mb-3 min-[1024px]:text-4xl min-[1280px]:text-5xl ${color}`}
                 >
                     {title}
                 </h1>
@@ -949,7 +964,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                 >
                     {/* Left Panel: Game Content */}
                     <div
-                        className={`flex min-w-0 flex-col rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${
+                        className={`flex min-w-0 flex-col rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 sm:p-3.5 ${
                             isMobile ? 'min-h-0 w-1/2 flex-1' : 'w-1/2 shrink-0 overflow-visible'
                         }`}
                     >
@@ -988,7 +1003,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         }`}
                     >
                         <div
-                            className={`flex min-w-0 flex-col gap-2.5 rounded-xl border border-white/[0.08] bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.04] sm:p-3.5 ${
+                            className={`flex min-w-0 flex-col gap-2.5 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 sm:p-3.5 ${
                                 isMobile ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible' : 'overflow-visible'
                             }`}
                         >
@@ -1000,7 +1015,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                             >
                                 {isGuildWar ? '보상·기록' : '대국 결과'}
                             </h2>
-                            <div className="flex-shrink-0 rounded-xl border border-white/[0.07] bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-2.5 ring-1 ring-inset ring-white/[0.04]">
+                            <div className="flex-shrink-0 rounded-xl border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-2.5 ring-1 ring-inset ring-amber-500/10">
                                 <div className="flex items-center gap-2.5 sm:gap-3">
                                     <Avatar
                                         userId={currentUser.id}
@@ -1238,8 +1253,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     </div>
                 </div>
             </div>
+            </div>
                 <div
-                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} ${isMobile ? 'mt-3' : 'mt-4'} ${arenaPostGameButtonGridClass} flex-shrink-0`}
+                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} ${isMobile ? 'mt-2' : 'mt-3'} ${arenaPostGameButtonGridClass} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 pt-2 sm:px-2 sm:pb-1.5 sm:pt-2.5`}
                 >
                     {canUseGameRecordUi && onAction && (
                         <button
