@@ -554,6 +554,11 @@ const TowerLobby: React.FC = () => {
 
     function renderTowerMainColumns() {
         if (isNativeMobile) {
+            // 모바일 레이아웃 우선순위:
+            // 1) 보유 아이템 패널 하단(구매 버튼 포함) 완전 노출 고정
+            // 2) 그 높이를 기준으로 랭킹 패널 높이 결정
+            // 3) 랭킹 높이에 맞춰 이미지(내 기록) 패널 높이/가로폭(비율) 결정
+            const MOBILE_BOTTOM_PANEL_HEIGHT = 292;
             const inventory = currentUserWithStatus?.inventory || [];
             const getItemCount = (namesOrIds: readonly string[]): number =>
                 countTowerLobbyInventoryQty(inventory, namesOrIds);
@@ -570,8 +575,7 @@ const TowerLobby: React.FC = () => {
                     <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
                         {/* 상단: 좌 랭킹 | 우 내 기록(도전의 탑 이미지를 해당 패널 배경으로만 사용) */}
                         <section
-                            className="flex min-h-[min(48dvh,560px)] w-full shrink-0 items-stretch gap-1.5 overflow-hidden"
-                            style={{ flex: '1.55 1 0%', maxHeight: 'min(62dvh, 640px)' }}
+                            className="flex min-h-0 w-full flex-1 items-stretch gap-1.5 overflow-hidden"
                         >
                             {renderMobileMyTowerRecordPanel()}
                             <div
@@ -664,8 +668,8 @@ const TowerLobby: React.FC = () => {
                         <section
                             className="grid min-h-0 w-full shrink-0 grid-cols-[minmax(0,1fr)_6.5rem] gap-1.5 overflow-hidden"
                             style={{
-                                flex: '1 1 0%',
-                                minHeight: 'min(42dvh, 440px)',
+                                height: MOBILE_BOTTOM_PANEL_HEIGHT,
+                                minHeight: MOBILE_BOTTOM_PANEL_HEIGHT,
                             }}
                         >
                             <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 sm:p-1.5 ${towerNativeGlass}`}>
@@ -676,7 +680,7 @@ const TowerLobby: React.FC = () => {
                                     <div className="space-y-1.5">{renderTowerFloorRows()}</div>
                                 </div>
                             </div>
-                            <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 ${towerNativeGlass}`}>
+                            <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 ${towerNativeGlass}`}>
                                 <h3 className="mb-0.5 shrink-0 whitespace-nowrap text-center text-[9px] font-bold leading-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">
                                     보유 아이템
                                 </h3>

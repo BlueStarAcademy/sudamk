@@ -11,6 +11,8 @@ export const TABLET_MAX_LONG_SIDE_CSS_PX = 1600;
  * 긴 변이 이 값 이상이면 태블릿으로 보고 PC(16:9) 셸을 쓴다. 폰 가로(긴 변 ~900 미만)는 제외.
  */
 export const TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX = 1024;
+/** 가로 태블릿 보정: 짧은 변이 이 값 이상일 때만 태블릿으로 본다(폰 가로 제외). */
+export const TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX = 600;
 
 export type TouchLayoutProfile = {
     /** 폰·소형 터치 기기: 항상 세로형 네이티브 셸 */
@@ -31,8 +33,11 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
     const tabletLikePointer =
         window.matchMedia?.('(pointer: coarse)').matches === true ||
         window.matchMedia?.('(hover: none)').matches === true;
+    // 일부 태블릿(키보드/펜/마우스 연결)은 coarse/hover 판정이 바뀌어도 화면 크기상 태블릿이다.
+    const likelyTabletBySize = hasTouch && longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX;
+    const treatAsTouchTablet = hasTouch && (tabletLikePointer || likelyTabletBySize);
 
-    if (!hasTouch || !tabletLikePointer) {
+    if (!treatAsTouchTablet) {
         return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };
     }
 
@@ -43,6 +48,7 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
         const landscape = w > h;
         if (
             landscape &&
+            shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
             longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX &&
             longSide <= TABLET_MAX_LONG_SIDE_CSS_PX
         ) {
