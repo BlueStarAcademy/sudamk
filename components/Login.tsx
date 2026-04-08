@@ -256,7 +256,7 @@ const Login: React.FC = () => {
         <div className="mt-5 sm:mt-6">
           <button
             type="button"
-            className={`${loginKakaoBtnClass} flex items-center justify-center gap-2`}
+            className="w-full rounded-[12px] overflow-hidden transition hover:brightness-[1.03] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FEE500]/80 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
             onClick={async () => {
               try {
                 const apiUrl = getApiUrl('/api/auth/kakao/url');
@@ -295,11 +295,8 @@ const Login: React.FC = () => {
               }
             }}
           >
-            {/* 카카오 공식 말풍선 심볼 */}
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path fillRule="evenodd" clipRule="evenodd" d="M9 0.6C4.02944 0.6 0 3.71267 0 7.55283C0 9.94002 1.55836 12.0451 3.93132 13.2971L2.93331 16.7981C2.84473 17.1082 3.20572 17.3567 3.47572 17.1705L7.5727 14.3437C8.03958 14.4122 8.51584 14.4486 9 14.4486C13.9706 14.4486 18 11.3889 18 7.55283C18 3.71267 13.9706 0.6 9 0.6Z" fill="black"/>
-            </svg>
-            카카오 로그인
+            {/* 카카오 공식 로그인 버튼 이미지 */}
+            <img src="/images/oauth/kakao_login.png" alt="카카오 로그인" className="w-full h-[48px] object-contain" />
           </button>
           <button
             type="button"
