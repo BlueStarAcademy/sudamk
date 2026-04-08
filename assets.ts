@@ -17,6 +17,8 @@ export const PLAYFUL_GO_LOBBY_IMG = "/images/PlayingArena.png";
 export const TOURNAMENT_LOBBY_IMG = "/images/Championship.png";
 export const SINGLE_PLAYER_LOBBY_IMG = "/images/single/Map.png";
 export const TOWER_CHALLENGE_LOBBY_IMG = "/images/tower/Tower.png";
+/** 네이티브 모바일 도전의 탑 대기실 히어로(가로형 WebP, `public/images/tower/Tower1.webp`) */
+export const TOWER_MOBILE_HERO_WEBP = "/images/tower/Tower1.webp";
 
 // Guild Boss Images
 export const GUILD_BOSS_1_IMG = "/images/guild/boss/boss1.png";

@@ -233,14 +233,14 @@ const AppContent: React.FC = () => {
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
     /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
     const lockPcMainScroll = currentUser && currentRoute.view === 'set-nickname';
-    /** 네이티브 셸 상단 퀵스트립은 홈(프로필 기본 탭)에서만 노출 */
+    /** 네이티브 셸 상단 퀵스트립은 프로필 홈/경기장 탭 + 챔피언십 로비/경기장에서 노출 */
     const showNativeTopQuickStrip =
         Boolean(currentUser) &&
         isNativeMobile &&
         !isGameView &&
         !hideAppHeader &&
         ((currentRoute.view === 'profile' &&
-            ((currentRoute.params?.tab as string | undefined) ?? 'home') === 'home') ||
+            ['home', 'arena'].includes(((currentRoute.params?.tab as string | undefined) ?? 'home')) ) ||
             currentRoute.view === 'tournament');
 
     // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)

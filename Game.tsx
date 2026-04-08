@@ -1077,6 +1077,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isItemModeActive = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(gameStatus);
 
     const handleBoardClick = useCallback((x: number, y: number) => {
+        audioService.unlockFromUserGesture();
         audioService.stopTimerWarning();
         if (isSpectator || gameStatus === 'missile_animating') return;
         const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
@@ -2860,6 +2861,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             {...gameProps}
                                             onLeaveOrResign={handleLeaveOrResignClick}
                                             isNoContestLeaveAvailable={isNoContestLeaveAvailable}
+                                            onOpenSettings={handlers.openSettingsModal}
                                             onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
                                             isPaused={effectivePaused}
                                             resumeCountdown={resumeCountdown}
@@ -2905,6 +2907,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     onLeaveOrResign={handleLeaveOrResignClick}
                                     isNoContestLeaveAvailable={isNoContestLeaveAvailable}
                                     onClose={() => setIsMobileSidebarOpen(false)}
+                                    onOpenSettings={handlers.openSettingsModal}
                                     onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
                                     isPaused={effectivePaused}
                                     resumeCountdown={resumeCountdown}

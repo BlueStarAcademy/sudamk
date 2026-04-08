@@ -6,7 +6,7 @@ import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { loadWasmGnuGo, shouldUseClientSideAi } from '../services/wasmGnuGo.js';
-import { TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
+import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import TowerItemShopModal from './TowerItemShopModal.js';
@@ -184,56 +184,65 @@ const TowerLobby: React.FC = () => {
     const towerNativeGlass =
         'rounded-xl border border-amber-500/40 bg-gray-950/50 backdrop-blur-md shadow-lg shadow-black/30';
 
-    /** 네이티브 모바일: 랭킹 우측 기록 패널 */
-    const renderMobileMyTowerRecordRail = () => (
-        <div className="flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-md border border-amber-500/50 bg-gradient-to-b from-amber-950/85 via-gray-900/92 to-amber-950/80 shadow-md shadow-amber-900/25">
-            <div className="shrink-0 border-b border-amber-600/45 bg-amber-900/30 px-1 py-1.5 text-center leading-tight">
-                <h3 className="text-[10px] font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-200">
-                    내 기록
-                </h3>
+    /** 네이티브 모바일: 우측 열 — 도전의 탑 이미지를 뒷배경으로 깔고 그 위에 내 기록 */
+    const renderMobileMyTowerRecordPanel = () => (
+        <div className="relative flex min-h-0 w-[min(58%,17rem)] min-w-[11rem] max-w-[18.5rem] shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/50 shadow-lg shadow-amber-900/30">
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+                <img
+                    src={TOWER_MOBILE_HERO_WEBP}
+                    alt=""
+                    className="absolute left-1/2 top-1/2 h-[125%] w-[135%] max-w-none -translate-x-1/2 -translate-y-1/2 object-cover object-[center_40%]"
+                    onError={(e) => {
+                        const el = e.currentTarget;
+                        if (el.src.includes('Tower1.webp')) el.src = TOWER_CHALLENGE_LOBBY_IMG;
+                    }}
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/72 via-black/58 to-black/78" />
+                <div className="absolute inset-0 bg-amber-950/20" />
             </div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2 text-[10px] leading-tight">
-                <div>
-                    <div className="text-[9px] text-amber-400/85">역대 최고</div>
-                    <div className="font-bold tabular-nums text-yellow-200">{bestFloorAllTime}층</div>
-                </div>
-                <div>
-                    <div className="text-[9px] text-amber-400/85">이번 달 순위</div>
-                    <div className="font-bold tabular-nums text-yellow-200">
-                        {myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}
+            <div className="relative z-[1] flex min-h-0 flex-1 flex-col p-1.5">
+                <div className="grid shrink-0 grid-cols-2 gap-1.5">
+                    <div className="rounded-md border border-amber-500/35 bg-black/40 px-1.5 py-1 text-center backdrop-blur-[2px]">
+                        <div className="text-[9px] text-amber-200/90 drop-shadow-sm">내 기록</div>
+                        <div className="mt-0.5 font-bold tabular-nums text-yellow-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+                            {bestFloorAllTime}층
+                        </div>
+                        <div className="mt-0.5 text-[9px] text-amber-100/90 drop-shadow-sm">
+                            순위 {myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}
+                        </div>
                     </div>
-                </div>
-                <div className="border-t border-amber-700/35 pt-1.5">
-                    <p className="mb-1 text-[9px] text-amber-400/90">월간 보상(예정)</p>
-                    {myRewardTier ? (
-                        <div className="flex flex-col gap-1">
-                            <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
-                                <span className="inline-flex items-center gap-0.5 text-yellow-200">
+                    <div className="rounded-md border border-emerald-500/30 bg-black/40 px-1.5 py-1 text-center backdrop-blur-[2px]">
+                        <div className="text-[9px] text-emerald-200/90 drop-shadow-sm">예상 보상</div>
+                        {myRewardTier ? (
+                            <div className="mt-0.5 flex flex-col items-center gap-0.5">
+                                <div className="inline-flex items-center justify-center gap-0.5 text-[10px] text-yellow-100 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
                                     <img src="/images/icon/Gold.png" alt="" className="h-3 w-3 shrink-0" />
                                     <span className="tabular-nums">{myRewardTier.gold.toLocaleString()}</span>
-                                </span>
-                                <span className="inline-flex items-center gap-0.5 text-cyan-200">
+                                </div>
+                                <div className="inline-flex items-center justify-center gap-0.5 text-[10px] text-cyan-100 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
                                     <img src="/images/icon/Zem.png" alt="" className="h-3 w-3 shrink-0" />
                                     <span className="tabular-nums">{myRewardTier.diamonds}</span>
-                                </span>
+                                </div>
                             </div>
-                            <div className="flex flex-wrap gap-1">
-                                {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
-                                    <span key={i} className="inline-flex items-center gap-0.5 text-amber-200">
-                                        <img
-                                            src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
-                                            alt=""
-                                            className="h-3 w-3 shrink-0"
-                                        />
-                                        <span className="tabular-nums">×{it.quantity}</span>
-                                    </span>
-                                ))}
-                            </div>
-                        </div>
-                    ) : (
-                        <p className="text-[9px] leading-snug text-amber-400/80">10층 이상 시 지급</p>
-                    )}
+                        ) : (
+                            <div className="mt-1 text-[9px] text-amber-200/90 drop-shadow-sm">10층 이상</div>
+                        )}
+                    </div>
                 </div>
+                {myRewardTier && (
+                    <div className="mt-1.5 flex min-h-0 flex-wrap gap-1 rounded-md border border-amber-500/30 bg-black/35 p-1 backdrop-blur-[2px]">
+                        {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
+                            <span key={i} className="inline-flex items-center gap-0.5 text-[9px] text-amber-100 drop-shadow-[0_1px_1px_rgba(0,0,0,0.8)]">
+                                <img
+                                    src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
+                                    alt=""
+                                    className="h-3 w-3 shrink-0"
+                                />
+                                <span className="tabular-nums">x{it.quantity}</span>
+                            </span>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );
@@ -545,156 +554,155 @@ const TowerLobby: React.FC = () => {
 
     function renderTowerMainColumns() {
         if (isNativeMobile) {
+            const inventory = currentUserWithStatus?.inventory || [];
+            const getItemCount = (namesOrIds: readonly string[]): number =>
+                countTowerLobbyInventoryQty(inventory, namesOrIds);
+            const mobileTowerItems = [
+                { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
+                { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
+                { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
+                { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
+                { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
+            ] as const;
+
             return (
                 <>
-                    <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-                        <div className="grid min-h-0 shrink-0 grid-cols-[minmax(0,2.5fr)_minmax(0,7.5fr)] items-stretch gap-1 overflow-hidden min-h-0 max-h-[min(44dvh,90vh)]">
-                            <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-0.5 ${towerNativeGlass}`}>
-                                <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg">
-                                    <img
-                                        src={TOWER_CHALLENGE_LOBBY_IMG}
-                                        alt="도전의 탑"
-                                        className="h-full w-full object-cover object-center"
-                                    />
-                                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-black/15 to-transparent" />
+                    <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+                        {/* 상단: 좌 랭킹 | 우 내 기록(도전의 탑 이미지를 해당 패널 배경으로만 사용) */}
+                        <section
+                            className="flex min-h-[min(48dvh,560px)] w-full shrink-0 items-stretch gap-1.5 overflow-hidden"
+                            style={{ flex: '1.55 1 0%', maxHeight: 'min(62dvh, 640px)' }}
+                        >
+                            {renderMobileMyTowerRecordPanel()}
+                            <div
+                                className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl p-1.5 sm:p-2 ${towerNativeGlass}`}
+                            >
+                                <div className="mb-1 flex flex-shrink-0 items-center justify-between gap-1 border-b border-amber-600/25 pb-1">
+                                    <div className="min-w-0 flex items-center gap-1">
+                                        <h2 className="truncate text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:text-sm">
+                                            랭킹 Top 100
+                                        </h2>
+                                        <span className="shrink-0 text-[9px] font-semibold text-yellow-300 sm:text-[10px]">
+                                            {timeUntilReset}
+                                        </span>
+                                    </div>
+                                    <Button
+                                        onClick={() => setIsRewardModalOpen(true)}
+                                        colorScheme="none"
+                                        className="!min-w-0 shrink-0 !p-1 !px-1.5 border border-amber-600/50 bg-amber-900/50 text-[9px] text-amber-200 hover:bg-amber-800/60 sm:text-[10px]"
+                                    >
+                                        보상정보
+                                    </Button>
                                 </div>
-                            </div>
-                            <div className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden p-1 sm:p-2 ${towerNativeGlass}`}>
-                                <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,1fr)_minmax(8rem,44%)] gap-1">
-                                    <div className="flex min-h-0 min-w-0 flex-col">
-                                        <div className="mb-1 flex flex-shrink-0 items-center justify-between gap-1 sm:mb-2">
-                                            <div className="min-w-0 flex items-center gap-1.5">
-                                                <h2 className="truncate text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:text-base">
-                                                    랭킹 Top 100
-                                                </h2>
-                                                <span className="shrink-0 text-[10px] font-semibold text-yellow-300 sm:text-xs">
-                                                    {timeUntilReset}
-                                                </span>
-                                            </div>
-                                            <Button
-                                                onClick={() => setIsRewardModalOpen(true)}
-                                                colorScheme="none"
-                                                className="!min-w-0 shrink-0 !p-1 !px-1.5 border border-amber-600/50 bg-amber-900/40 text-[10px] text-amber-200 hover:bg-amber-800/60 sm:!p-1.5 sm:text-xs"
-                                            >
-                                                보상정보
-                                            </Button>
-                                        </div>
-                                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain pr-1">
-                                            {!myRankingEntry && monthlyBestFloor < 10 && (
-                                                <p className="px-0.5 text-center text-[10px] text-amber-300/70">
-                                                    10층 이상 클리어 시 랭킹에 표시됩니다.
-                                                </p>
-                                            )}
-                                            {towerRankingsLoading && towerRankings.length === 0 ? (
-                                                <p className="py-6 text-center text-sm text-amber-300/60">랭킹 불러오는 중...</p>
-                                            ) : top100Users.length > 0 ? (
-                                                top100Users.map((user) => {
-                                                    const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
-                                                    const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
-                                                    const isTop3 = (user as any).rank <= 3;
-                                                    const rank = (user as any).rank;
-                                                    const isCurrentUser = !!currentUser && user.id === currentUser.id;
-                                                    return (
-                                                        <div
-                                                            key={user.id}
-                                                            className={`flex items-center gap-1.5 rounded-lg p-1.5 transition-all sm:gap-2 sm:p-2 ${
-                                                                isCurrentUser
-                                                                    ? 'border-2 border-yellow-400/60 bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 shadow-md shadow-yellow-900/30'
-                                                                    : isTop3
-                                                                      ? 'border border-amber-500/50 bg-gradient-to-r from-amber-900/40 to-yellow-900/40 hover:from-amber-800/50 hover:to-yellow-800/50'
-                                                                      : 'border border-amber-700/30 bg-gray-800/40 hover:border-amber-600/50 hover:bg-gray-700/50'
-                                                            }`}
+                                <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain pr-0.5">
+                                    {!myRankingEntry && monthlyBestFloor < 10 && (
+                                        <p className="px-0.5 text-center text-[9px] text-amber-300/75">
+                                            10층 이상 클리어 시 랭킹에 표시됩니다.
+                                        </p>
+                                    )}
+                                    {towerRankingsLoading && towerRankings.length === 0 ? (
+                                        <p className="py-4 text-center text-xs text-amber-300/60">랭킹 불러오는 중...</p>
+                                    ) : top100Users.length > 0 ? (
+                                        top100Users.map((user) => {
+                                            const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
+                                            const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
+                                            const isTop3 = (user as any).rank <= 3;
+                                            const rank = (user as any).rank;
+                                            const isCurrentUser = !!currentUser && user.id === currentUser.id;
+                                            return (
+                                                <div
+                                                    key={user.id}
+                                                    className={`flex items-center gap-1 rounded-md p-1 transition-all sm:gap-1.5 sm:p-1.5 ${
+                                                        isCurrentUser
+                                                            ? 'border border-yellow-400/55 bg-gradient-to-r from-yellow-900/50 via-amber-800/40 to-orange-900/40 shadow-sm shadow-yellow-900/25'
+                                                            : isTop3
+                                                              ? 'border border-amber-500/45 bg-gradient-to-r from-amber-900/35 to-yellow-900/35'
+                                                              : 'border border-amber-700/25 bg-gray-900/45 hover:border-amber-600/40'
+                                                    }`}
+                                                >
+                                                    <span
+                                                        className={`w-4 shrink-0 text-[9px] font-bold sm:w-5 sm:text-[10px] ${
+                                                            rank === 1
+                                                                ? 'text-yellow-300'
+                                                                : rank === 2
+                                                                  ? 'text-gray-300'
+                                                                  : rank === 3
+                                                                    ? 'text-amber-500'
+                                                                    : 'text-amber-300'
+                                                        }`}
+                                                    >
+                                                        {rank}
+                                                    </span>
+                                                    <Avatar
+                                                        userId={user.id}
+                                                        userName={user.nickname}
+                                                        avatarUrl={avatarUrl}
+                                                        borderUrl={borderUrl}
+                                                        size={26}
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <p
+                                                            className={`truncate text-[10px] font-semibold sm:text-[11px] ${isCurrentUser ? 'text-yellow-100' : 'text-amber-100'}`}
                                                         >
-                                                            <span
-                                                                className={`w-5 shrink-0 text-[10px] font-bold sm:w-6 sm:text-xs ${
-                                                                    rank === 1
-                                                                        ? 'text-yellow-300'
-                                                                        : rank === 2
-                                                                          ? 'text-gray-300'
-                                                                          : rank === 3
-                                                                            ? 'text-amber-500'
-                                                                            : 'text-amber-300'
-                                                                }`}
-                                                            >
-                                                                {rank}
-                                                            </span>
-                                                            <Avatar
-                                                                userId={user.id}
-                                                                userName={user.nickname}
-                                                                avatarUrl={avatarUrl}
-                                                                borderUrl={borderUrl}
-                                                                size={28}
-                                                            />
-                                                            <div className="min-w-0 flex-1">
-                                                                <p
-                                                                    className={`truncate text-[11px] font-semibold sm:text-xs ${isCurrentUser ? 'text-yellow-100' : 'text-amber-100'}`}
-                                                                >
-                                                                    {user.nickname}
-                                                                </p>
-                                                                <p className="text-[9px] text-amber-300/80 sm:text-[10px]">
-                                                                    층: {(user as any).displayFloor ?? 0}
-                                                                </p>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })
-                                            ) : (
-                                                <p className="py-6 text-center text-sm text-amber-300/60">랭킹 데이터가 없습니다.</p>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex min-h-0 min-w-0 flex-col border-l border-amber-600/25 pl-1">
-                                        {renderMobileMyTowerRecordRail()}
-                                    </div>
+                                                            {user.nickname}
+                                                        </p>
+                                                        <p className="text-[8px] text-amber-300/85 sm:text-[9px]">
+                                                            층: {(user as any).displayFloor ?? 0}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <p className="py-4 text-center text-xs text-amber-300/60">랭킹 데이터가 없습니다.</p>
+                                    )}
                                 </div>
                             </div>
-                        </div>
-                        <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)_5.5rem] gap-1 overflow-hidden">
-                            <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-2 ${towerNativeGlass}`}>
-                                <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 mb-2 flex-shrink-0 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                                    스테이지
-                                </h2>
+                        </section>
+
+                        {/* 하단: 스테이지 목록 | 보유 아이템(5행 고정) — 동일 높이 */}
+                        <section
+                            className="grid min-h-0 w-full shrink-0 grid-cols-[minmax(0,1fr)_6.5rem] gap-1.5 overflow-hidden"
+                            style={{
+                                flex: '1 1 0%',
+                                minHeight: 'min(42dvh, 440px)',
+                            }}
+                        >
+                            <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 sm:p-1.5 ${towerNativeGlass}`}>
                                 <div
                                     ref={stageScrollRef}
-                                    className="min-h-0 flex-1 overflow-y-auto space-y-1.5 pr-1"
+                                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-0.5 pr-1"
                                 >
-                                    {renderTowerFloorRows()}
+                                    <div className="space-y-1.5">{renderTowerFloorRows()}</div>
                                 </div>
                             </div>
-                            <div className={`flex min-h-0 w-[5.5rem] min-w-[5.5rem] max-w-[5.5rem] shrink-0 flex-col overflow-hidden p-1.5 ${towerNativeGlass}`}>
-                                <h3 className="mb-1.5 shrink-0 whitespace-nowrap text-center text-[9px] font-bold leading-none text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:text-[10px]">
+                            <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl p-1 ${towerNativeGlass}`}>
+                                <h3 className="mb-0.5 shrink-0 whitespace-nowrap text-center text-[9px] font-bold leading-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">
                                     보유 아이템
                                 </h3>
-                                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
-                                    <div className="flex flex-row flex-wrap items-center justify-center gap-1.5 pb-1">
-                                        {(() => {
-                                            const inventory = currentUserWithStatus?.inventory || [];
-                                            const getItemCount = (namesOrIds: readonly string[]): number =>
-                                                countTowerLobbyInventoryQty(inventory, namesOrIds);
-                                            const items = [
-                                                { name: '턴 추가', icon: '/images/button/addturn.png', count: getItemCount(TOWER_ITEM_TURN_ADD_NAMES) },
-                                                { name: '미사일', icon: '/images/button/missile.png', count: getItemCount(TOWER_ITEM_MISSILE_NAMES) },
-                                                { name: '히든', icon: '/images/button/hidden.png', count: getItemCount(TOWER_ITEM_HIDDEN_NAMES) },
-                                                { name: '스캔', icon: '/images/button/scan.png', count: getItemCount(TOWER_ITEM_SCAN_NAMES) },
-                                                { name: '배치변경', icon: '/images/button/reflesh.png', count: getItemCount(TOWER_ITEM_REFRESH_NAMES) },
-                                            ];
-                                            return items.map((item, index) => (
-                                                <button
-                                                    key={index}
-                                                    className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-2 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
-                                                    onClick={() => setIsItemShopOpen(true)}
+                                <div className="grid min-h-0 min-w-0 flex-1 grid-rows-5 gap-1 py-0.5">
+                                    {mobileTowerItems.map((item, index) => (
+                                        <button
+                                            key={index}
+                                            type="button"
+                                            className="flex h-full min-h-0 min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-amber-700/30 bg-gray-800/40 p-2 transition-colors hover:border-amber-600/50 hover:bg-gray-700/50"
+                                            onClick={() => setIsItemShopOpen(true)}
+                                        >
+                                            <div className="relative h-9 w-9 flex-shrink-0">
+                                                <img src={item.icon} alt={item.name} className="h-full w-full object-contain" />
+                                                <div
+                                                    className={`absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 items-center justify-center rounded-full border border-amber-900 text-[8px] font-bold leading-none ${
+                                                        item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'
+                                                    }`}
                                                 >
-                                                    <div className="relative w-9 h-9 flex-shrink-0">
-                                                        <img src={item.icon} alt={item.name} className="w-full h-full object-contain" />
-                                                        <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${item.count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
-                                                            {item.count}
-                                                        </div>
-                                                    </div>
-                                                    <p className="text-[10px] font-semibold text-amber-100 text-center leading-tight">{item.name}</p>
-                                                </button>
-                                            ));
-                                        })()}
-                                    </div>
+                                                    {item.count}
+                                                </div>
+                                            </div>
+                                            <p className="max-w-full truncate text-center text-[10px] font-semibold leading-tight text-amber-100">
+                                                {item.name}
+                                            </p>
+                                        </button>
+                                    ))}
                                 </div>
                                 <Button
                                     onClick={() => setIsItemShopOpen(true)}
@@ -704,7 +712,7 @@ const TowerLobby: React.FC = () => {
                                     구매하기
                                 </Button>
                             </div>
-                        </div>
+                        </section>
                     </div>
                 </>
             );

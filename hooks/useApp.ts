@@ -21,6 +21,7 @@ import {
     useViewportHeightBelow,
     VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT,
     useTouchLayoutProfile,
+    useIsPortrait,
 } from './useIsMobileLayout.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
@@ -363,15 +364,16 @@ export const useApp = () => {
     const isNarrowViewport = useIsHandheldDevice(1025);
     const isShortViewportHeight = useViewportHeightBelow(VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT);
     const { isPhoneHandheldTouch, isLargeTouchTablet } = useTouchLayoutProfile();
+    const isPortrait = useIsPortrait();
 
     /**
      * 터치 폰: 항상 세로형 네이티브 셸(pcLike 무시).
-     * 8인치+ 터치 태블릿: 항상 PC(16:9) 셸.
+     * 8인치+ 터치 태블릿: 가로(landscape)는 PC(16:9), 세로(portrait)는 네이티브 모바일 셸.
      * 그 외(데스크톱 등): 기존처럼 pcLike·뷰포트로 결정.
      */
     const isNativeMobile = useMemo(() => {
         if (isPhoneHandheldTouch) return true;
-        if (isLargeTouchTablet) return false;
+        if (isLargeTouchTablet) return isPortrait;
         return (
             settings.graphics.pcLikeMobileLayout !== true &&
             (isNarrowViewport || isShortViewportHeight)
@@ -379,6 +381,7 @@ export const useApp = () => {
     }, [
         isPhoneHandheldTouch,
         isLargeTouchTablet,
+        isPortrait,
         isNarrowViewport,
         isShortViewportHeight,
         settings.graphics.pcLikeMobileLayout,

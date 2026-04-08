@@ -206,7 +206,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
 
     if (!currentUserWithStatus) return null;
 
-    const { handleLogout, openProfileEditModal, openMailbox } = handlers;
+    const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal } = handlers;
     const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel } = currentUserWithStatus;
     const combinedUserLevel = (Number(strategyLevel) || 0) + (Number(playfulLevel) || 0);
 
@@ -429,6 +429,21 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             />
                         )}
                     </button>
+                    {!isMobile && (
+                        <button
+                            type="button"
+                            onClick={openSettingsModal}
+                            className={
+                                dense
+                                    ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm transition-colors hover:bg-primary'
+                                    : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
+                            }
+                            title="설정"
+                            aria-label="설정 열기"
+                        >
+                            ⚙️
+                        </button>
+                    )}
                     <button
                         type="button"
                         onClick={() => setShowLogoutConfirm(true)}

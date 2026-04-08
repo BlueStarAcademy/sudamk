@@ -412,19 +412,36 @@ export const useTournamentSimulation = (tournament: TournamentState | null, curr
 
                     clearPersistedSimulation(currentUser.id, localTournament.type);
 
-                    handlers.handleAction({
-                        type: 'COMPLETE_TOURNAMENT_SIMULATION',
-                        payload: {
-                            type: localTournament.type,
-                            result: {
-                                timeElapsed: TOTAL_GAME_DURATION,
-                                player1Score: player1ScoreRef.current,
-                                player2Score: player2ScoreRef.current,
-                                commentary: commentaryRef.current,
-                                winnerId: winnerId
+                    const completionPayload = {
+                        type: localTournament.type,
+                        result: {
+                            timeElapsed: TOTAL_GAME_DURATION,
+                            player1Score: player1ScoreRef.current,
+                            player2Score: player2ScoreRef.current,
+                            commentary: commentaryRef.current,
+                            winnerId,
+                        }
+                    };
+                    const sendCompletionWithRetry = async (attempt: number) => {
+                        try {
+                            const response = await handlers.handleAction({
+                                type: 'COMPLETE_TOURNAMENT_SIMULATION',
+                                payload: completionPayload,
+                            }) as { error?: string } | undefined;
+                            if (response?.error) {
+                                throw new Error(response.error);
+                            }
+                        } catch (error) {
+                            if (attempt < 3) {
+                                setTimeout(() => {
+                                    void sendCompletionWithRetry(attempt + 1);
+                                }, 500 * (attempt + 1));
+                            } else {
+                                console.error('[useTournamentSimulation] Failed to submit completion after retries:', error);
                             }
                         }
-                    });
+                    };
+                    void sendCompletionWithRetry(0);
 
                     console.log('[useTournamentSimulation] Simulation completed, result sent to server');
                 }

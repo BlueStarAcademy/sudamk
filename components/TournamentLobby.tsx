@@ -677,76 +677,6 @@ const getStarDisplayInfo = (stars: number) => {
     return { text: "", colorClass: "text-white" };
 };
 
-const coreStatAbbreviations: Record<CoreStat, string> = {
-    [CoreStat.Concentration]: '집중',
-    [CoreStat.ThinkingSpeed]: '사고',
-    [CoreStat.Judgment]: '판단',
-    [CoreStat.Calculation]: '계산',
-    [CoreStat.CombatPower]: '전투',
-    [CoreStat.Stability]: '안정',
-};
-
-const StatsDisplayPanel: React.FC<{ currentUser: UserWithStatus; isMobile?: boolean; tight?: boolean }> = ({ currentUser, isMobile = false, tight = false }) => {
-    const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUser), [currentUser]);
-    const gapClass = tight && isMobile ? 'gap-1' : 'gap-1 sm:gap-1.5 lg:gap-2';
-    const mobileChampTight = isMobile && tight;
-
-    return (
-        <div className={`grid grid-cols-2 ${gapClass}`}>
-            {Object.values(CoreStat).map(stat => {
-                const baseValue = (currentUser.baseStats[stat] || 0) + (currentUser.spentStatPoints?.[stat] || 0);
-                // Align with calculateTotalStats: final = floor((base + flat) * (1 + percent/100))
-                const finalValue = Math.floor((baseValue + coreStatBonuses[stat].flat) * (1 + coreStatBonuses[stat].percent / 100));
-                const bonus = finalValue - baseValue;
-                // 숫자 자릿수에 따라 텍스트 크기 조정 (4자리 이상이면 작게)
-                const valueDigits = finalValue.toString().length;
-                const bonusDigits = bonus > 0 ? bonus.toString().length : 0;
-                const totalDigits = valueDigits + (bonus > 0 ? bonusDigits + 4 : 0); // (+N) 포함
-                
-                // 4자리 이상이면 텍스트 크기를 줄임
-                const getValueTextSize = () => {
-                    if (mobileChampTight) {
-                        return valueDigits >= 4 ? 'text-[12px]' : 'text-base';
-                    }
-                    if (isMobile) {
-                        return valueDigits >= 4 ? 'text-[10px]' : 'text-xs';
-                    }
-                    if (valueDigits >= 4) {
-                        return 'text-[9px] sm:text-[10px]';
-                    }
-                    return 'text-[10px] sm:text-xs';
-                };
-                
-                const getBonusTextSize = () => {
-                    if (mobileChampTight) {
-                        return totalDigits >= 8 ? 'text-[11px]' : 'text-sm';
-                    }
-                    if (isMobile) {
-                        return totalDigits >= 7 ? 'text-[9px]' : 'text-[10px]';
-                    }
-                    if (totalDigits >= 7) {
-                        return 'text-[8px] sm:text-[9px]';
-                    }
-                    return 'text-[9px] sm:text-xs';
-                };
-                
-                const padClass = mobileChampTight ? 'px-1.5 py-1' : isMobile ? 'p-1.5' : 'p-1.5 sm:p-2';
-                const rowTextClass = mobileChampTight ? 'text-[12px]' : isMobile ? 'text-xs' : 'text-[10px] sm:text-xs';
-                const abbrevClass = mobileChampTight ? 'text-[11px]' : isMobile ? 'text-xs' : '';
-                return (
-                    <div key={stat} className={`bg-gray-700/50 ${padClass} rounded-md flex items-center justify-between ${rowTextClass}`}>
-                        <span className={`font-semibold text-gray-300 whitespace-nowrap ${abbrevClass}`}>{coreStatAbbreviations[stat]}</span>
-                        <span className={`font-mono font-bold whitespace-nowrap ${getValueTextSize()}`} title={`기본: ${baseValue}, 장비: ${bonus}`}>
-                            {finalValue}
-                            {bonus > 0 && <span className={`text-green-400 ${getBonusTextSize()} ml-0.5`}>(+{bonus})</span>}
-                        </span>
-                    </div>
-                );
-            })}
-        </div>
-    );
-};
-
 const EquipmentSlotDisplay: React.FC<{
     slot: EquipmentSlot;
     item?: InventoryItem;
@@ -955,62 +885,153 @@ const TournamentLobby: React.FC = () => {
         >
             {isNativeMobile && (
                 <header className={`relative mb-0.5 flex min-h-11 shrink-0 items-center justify-center px-1 py-1 ${venueHeaderChrome}`}>
+                    <button
+                        type="button"
+                        onClick={() => { window.location.hash = '#/profile'; }}
+                        className="absolute left-1 top-1/2 z-[1] -translate-y-1/2 transition-transform active:scale-90 filter hover:drop-shadow-lg"
+                        aria-label="프로필로 돌아가기"
+                    >
+                        <img src="/images/button/back.png" alt="" className="h-9 w-9" />
+                    </button>
                     <h1 className="pointer-events-none select-none px-12 text-center text-lg font-bold">챔피언십</h1>
                 </header>
             )}
 
             {isNativeMobile ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-                    {/* 상단: 일일 획득 점수 · 장착 장비 · 퀵메뉴 */}
-                    <div className="grid min-h-0 shrink-0 grid-cols-[minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-0.5 overflow-hidden min-h-0 max-h-[min(44dvh,90vh)]">
-                        <div
-                            className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color/40 p-0.5 ${CHAMPIONSHIP_PANEL_GLASS} bg-gray-900/35`}
-                        >
-                            <PointsInfoPanel variant="nativeEmbedded" lobbyGlass />
-                        </div>
-                        <div
-                            className={`flex h-full min-h-0 min-w-0 flex-col overflow-hidden rounded-md border border-color bg-panel text-on-panel ${CHAMPIONSHIP_PANEL_GLASS}`}
-                        >
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-0.5 overflow-y-auto overflow-x-hidden px-1 py-1">
-                                <h3 className="flex-shrink-0 text-center text-base font-semibold leading-tight text-secondary">장착 장비</h3>
-                                <div className="grid shrink-0 grid-cols-3 grid-rows-2 gap-x-1 gap-y-0.5 px-0.5">
-                                    {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
-                                        const item = getItemForSlot(slot);
-                                        return (
-                                            <div key={slot} className="aspect-square min-h-0 w-full min-w-0">
-                                                <EquipmentSlotDisplay
-                                                    slot={slot}
-                                                    item={item}
-                                                    medium
-                                                    onClick={() => item && handlers.openViewingItem(item, true)}
-                                                />
+                <div className="flex min-h-0 flex-1 flex-col gap-1.5 pb-1">
+                    {/* PC 좌측 사이드와 동일 흐름: 프로필·점수/순위 → 장비 → 육각형 능력치 → 일일 점수표 */}
+                    <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                        <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                        <div className="relative p-2 text-on-panel">
+                            <div className="min-h-0 overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-black/35 via-zinc-950/50 to-amber-950/20 p-2">
+                                <div className="relative flex min-h-0 flex-col overflow-hidden rounded-lg border border-amber-400/25 bg-black/30 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
+                                    <div className="flex min-w-0 items-center gap-2.5 rounded-lg border border-white/10 bg-black/20 px-2 py-1.5">
+                                        <Avatar
+                                            userId={currentUserWithStatus.id}
+                                            userName={currentUserWithStatus.nickname}
+                                            avatarUrl={myAvatarUrl}
+                                            borderUrl={myBorderUrl}
+                                            size={48}
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-extrabold tracking-tight text-amber-50">{currentUserWithStatus.nickname}</p>
+                                            <p className="mt-0.5 text-xs font-semibold text-amber-200/90">Lv.{combinedLevel}</p>
+                                        </div>
+                                    </div>
+                                    <div className="mt-2 grid min-h-0 grid-cols-2 gap-2">
+                                        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-violet-300/45 bg-gradient-to-br from-violet-900/55 via-zinc-900/75 to-indigo-950/65 shadow-[0_10px_24px_-12px_rgba(99,102,241,0.55)]">
+                                            <div className="border-b border-violet-200/20 bg-gradient-to-r from-violet-400/35 to-indigo-500/35 px-2 py-1 text-center text-[11px] font-black tracking-wide text-violet-50">
+                                                챔피언십 점수
                                             </div>
-                                        );
-                                    })}
-                                </div>
-                                <div className="flex shrink-0 items-center justify-center gap-1 pt-0.5">
-                                    <select
-                                        value={selectedPreset}
-                                        onChange={handlePresetChange}
-                                        className="min-w-0 flex-1 rounded border border-color bg-secondary px-1.5 py-1 text-sm font-semibold leading-tight"
-                                    >
-                                        {presets && presets.map((preset, index) => (
-                                            <option key={index} value={index}>{preset.name}</option>
-                                        ))}
-                                    </select>
-                                    <Button
-                                        onClick={handlers.openEquipmentEffectsModal}
-                                        colorScheme="none"
-                                        className="!px-2 !py-1 !text-[11px] flex-shrink-0 justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white sm:!text-xs"
-                                    >
-                                        효과
-                                    </Button>
-                                </div>
-                                <div className="flex min-h-0 min-w-0 flex-1 flex-col border-t border-color pt-0.5">
-                                    <StatsDisplayPanel currentUser={currentUserWithStatus} isMobile tight />
+                                            <div className="flex min-h-[3.25rem] flex-1 items-center justify-center px-2 py-1.5">
+                                                <span className="font-mono text-[1.35rem] font-black leading-none text-violet-100 tabular-nums drop-shadow-[0_0_16px_rgba(167,139,250,0.45)]">
+                                                    {championshipScore.toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <div className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-amber-300/45 bg-gradient-to-br from-amber-900/55 via-zinc-900/75 to-orange-950/65 shadow-[0_10px_24px_-12px_rgba(245,158,11,0.55)]">
+                                            <div className="border-b border-amber-200/20 bg-gradient-to-r from-amber-400/35 to-orange-500/35 px-2 py-1 text-center text-[11px] font-black tracking-wide text-amber-50">
+                                                현재 순위
+                                            </div>
+                                            <div className="flex min-h-[3.25rem] flex-1 items-center justify-center px-2 py-1.5">
+                                                <span className="text-[1.35rem] font-black leading-none text-amber-100 tabular-nums drop-shadow-[0_0_16px_rgba(251,191,36,0.45)]">
+                                                    {championshipRank != null ? `${championshipRank}위` : '-'}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <div className={`relative flex shrink-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10`}>
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                        <div className="mx-auto flex w-full min-w-0 max-w-[275px] flex-col">
+                            <div className="grid w-full min-w-0 grid-cols-3 grid-rows-2 gap-1 [&>*]:min-w-0">
+                                {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
+                                    const item = getItemForSlot(slot);
+                                    return (
+                                        <div key={slot} className="aspect-square w-full min-w-0">
+                                            <EquipmentSlotDisplay
+                                                slot={slot}
+                                                item={item}
+                                                onClick={() => item && handlers.openViewingItem(item, true)}
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="mt-1.5 flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-1.5">
+                                <select
+                                    value={selectedPreset}
+                                    onChange={handlePresetChange}
+                                    className="min-h-[28px] min-w-0 flex-1 rounded border border-color bg-secondary px-1.5 py-1 text-xs focus:border-accent focus:ring-accent"
+                                >
+                                    {presets && presets.map((preset, index) => (
+                                        <option key={index} value={index}>{preset.name}</option>
+                                    ))}
+                                </select>
+                                <Button
+                                    onClick={handlers.openEquipmentEffectsModal}
+                                    colorScheme="none"
+                                    className="!shrink-0 !whitespace-nowrap !px-2 !py-1 !text-[10px] justify-center rounded-md border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white"
+                                >
+                                    효과
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={`relative flex min-h-[220px] shrink-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10`}>
+                        <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+                        <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
+                        <div className="relative mb-2 flex min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-2 py-1.5 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)]">
+                            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
+                            <div className="relative flex min-w-0 flex-col gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0">
+                                        <span className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)]">
+                                            바둑능력
+                                        </span>
+                                        <span
+                                            className="bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono text-xl font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)]"
+                                            title="6개 핵심 능력치 합계"
+                                        >
+                                            {badukAbilityTotal}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="flex shrink-0 items-center justify-between gap-1.5 border-t border-zinc-700/90 pt-2">
+                                    <span className="min-w-0 truncate text-[11px] font-medium text-amber-100/85" title={`보너스: ${availablePoints}P`}>
+                                        보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                                        <span className="text-amber-100/55">P</span>
+                                    </span>
+                                    <Button
+                                        onClick={handlers.openStatAllocationModal}
+                                        colorScheme="none"
+                                        className="!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-2 !py-1 !text-[10px] !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110"
+                                    >
+                                        분배
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                        <CoreStatsHexagonChart
+                            values={finalByStat}
+                            baseByStat={baseByStat}
+                            className="min-h-[160px] flex-1"
+                            mobileReadable
+                        />
+                    </div>
+
+                    <div
+                        className={`h-[min(38dvh,300px)] shrink-0 overflow-hidden rounded-xl border border-color/40 ${CHAMPIONSHIP_PANEL_GLASS} bg-gray-900/35`}
+                    >
+                        <PointsInfoPanel variant="nativeEmbedded" lobbyGlass />
                     </div>
 
                     {/* 입장 카드 3개 — 가로 와이드 이미지, 카드별 색 구분 */}

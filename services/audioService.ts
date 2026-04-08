@@ -2,7 +2,7 @@
 
 import type { SoundSettings } from '../types.js';
 import { defaultSettings } from '../hooks/useAppSettings.js';
-import { getApiUrl } from '../utils/apiConfig.js';
+import { API_BASE_URL, getApiUrl } from '../utils/apiConfig.js';
 
 /** HTML5 autoplay 잠금 해제·풀 워밍업용 초단무음 WAV (data URI) */
 const SILENT_WAV_DATA_URI =
@@ -119,17 +119,6 @@ class AudioService {
             if (el.paused || el.ended) return el;
         }
         return this.html5SfxPool[0] ?? null;
-    }
-
-    private applyCrossOriginIfNeeded(el: HTMLAudioElement, url: string): void {
-        if (typeof window === 'undefined' || !url.startsWith('http')) return;
-        try {
-            if (new URL(url).origin !== window.location.origin) {
-                el.crossOrigin = 'anonymous';
-            }
-        } catch {
-            /* ignore */
-        }
     }
 
     private ensureAudioElementInDom(el: HTMLAudioElement): void {
@@ -252,9 +241,39 @@ class AudioService {
         };
     }
 
-    /** 앱(WebView 포함)에서도 올바른 백엔드 origin으로 사운드 경로를 계산 */
+    /**
+     * 통합 배포·PWA·Capacitor: `/sounds/*.mp3` 가 페이지와 같은 출처에 있으면 절대 URL로 고정해 fetch·Audio 가 동일 키를 쓴다.
+     * API 전용 호스트에만 사운드가 있으면 getApiUrl 유지.
+     */
     private getSoundUrl(soundName: string): string {
-        return getApiUrl(`${this.soundsPath}${soundName}.mp3`);
+        const path = `${this.soundsPath}${soundName}.mp3`.replace(/\/{2,}/g, '/');
+        const viaApi = getApiUrl(path);
+        if (typeof window === 'undefined') return viaApi;
+        if (!API_BASE_URL) {
+            return new URL(path, window.location.origin).href;
+        }
+        try {
+            if (new URL(viaApi).origin === window.location.origin) {
+                return new URL(path, window.location.origin).href;
+            }
+        } catch {
+            /* ignore */
+        }
+        return viaApi;
+    }
+
+    /** 터치·모바일: WebAudio 는 useEffect 등 비제스처 타이밍에서 재생이 막히는 경우가 많아 HTML5 를 우선한다. */
+    private prefersTouchOrHtml5Sfx(): boolean {
+        if (typeof navigator === 'undefined') return false;
+        if (navigator.maxTouchPoints > 0) return true;
+        if (/Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            return true;
+        }
+        try {
+            return !!window.matchMedia?.('(pointer: coarse)')?.matches;
+        } catch {
+            return false;
+        }
     }
 
     private async loadSound(url: string): Promise<AudioBuffer | null> {
@@ -313,7 +332,6 @@ class AudioService {
                     /* ignore */
                 }
             }
-            this.applyCrossOriginIfNeeded(el, url);
             el.preload = 'auto';
             el.setAttribute('playsinline', 'true');
             el.setAttribute('webkit-playsinline', 'true');
@@ -408,6 +426,12 @@ class AudioService {
         this.unlockFromUserGesture({ warmHtml5Pool: false });
         const effectiveVolume = volume * this.settings.masterVolume;
         const url = this.getSoundUrl(soundName);
+
+        if (this.prefersTouchOrHtml5Sfx()) {
+            this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
+            void this.loadSound(url).catch(() => {});
+            return null;
+        }
 
         const cached = this.audioBuffers.get(url);
         if (cached) {

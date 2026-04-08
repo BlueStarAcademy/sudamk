@@ -1787,6 +1787,23 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
             
             // 토너먼트가 완료되었는지 확인
+            // 드물게 마지막 경기 직후 상태 반영이 늦어 bracket_ready/round_complete로 남는 경우가 있어
+            // 실제 경기 완료 여부를 한 번 더 검사해 안전하게 완료 처리한다.
+            const allMatchesFinished = dungeonState.rounds?.every((round) => round.matches?.every((match) => match.isFinished)) ?? false;
+            const allUserMatchesFinished =
+                dungeonType === 'neighborhood'
+                    ? (dungeonState.rounds?.every((round) => round.matches?.every((match) => !match.isUserMatch || match.isFinished)) ?? false)
+                    : false;
+            if (
+                (dungeonState.status !== 'complete' && dungeonState.status !== 'eliminated') &&
+                (allMatchesFinished || allUserMatchesFinished)
+            ) {
+                dungeonState.status = 'complete';
+                dungeonState.nextRoundStartTime = null;
+                console.log(
+                    `[COMPLETE_DUNGEON_STAGE] Auto-fixed stale status to complete for ${dungeonType} (allMatchesFinished=${allMatchesFinished}, allUserMatchesFinished=${allUserMatchesFinished})`
+                );
+            }
             const isTournamentComplete = dungeonState.status === 'complete' || dungeonState.status === 'eliminated';
             if (!isTournamentComplete) {
                 return { error: '토너먼트가 아직 완료되지 않았습니다.' };
