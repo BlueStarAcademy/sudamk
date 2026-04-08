@@ -162,11 +162,11 @@ const ShopItemCard: React.FC<{
     };
 
     return (
-        <div className={`group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 border border-indigo-400/35 shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] flex flex-col items-center text-center transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-3.5' : 'p-3'}`}>
+        <div className={`group relative overflow-hidden rounded-xl bg-gradient-to-br from-[#1f2239]/95 via-[#0f172a]/95 to-[#060b12]/95 border border-indigo-400/35 shadow-[0_22px_55px_-30px_rgba(99,102,241,0.65)] flex flex-col items-center text-center transition-transform duration-300 hover:-translate-y-1 hover:shadow-[0_30px_70px_-32px_rgba(129,140,248,0.65)] ${mobile ? 'p-2.5' : 'p-3'}`}>
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent pointer-events-none" />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
             <div 
-                className={`relative bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-2 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform ${mobile ? 'w-20 h-20' : 'w-16 h-16'}`}
+                className={`relative bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent rounded-lg mb-1.5 flex items-center justify-center shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] cursor-pointer hover:scale-105 transition-transform ${mobile ? 'w-16 h-16' : 'w-16 h-16'}`}
                 onClick={() => setShowDescription(!showDescription)}
                 onMouseEnter={() => setShowDescription(true)}
                 onMouseLeave={() => setShowDescription(false)}
@@ -182,7 +182,14 @@ const ShopItemCard: React.FC<{
                     </span>
                 )}
             </div>
-            <h3 className={`w-full min-w-0 break-keep px-0.5 text-center font-semibold leading-snug tracking-wide text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${mobile ? 'min-h-[2.8rem] text-[13px]' : 'min-h-[2.5rem] text-[11px] sm:min-h-0 sm:text-sm'}`}>
+            <h3
+                className={`w-full min-w-0 px-0 text-center font-semibold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(99,102,241,0.55)] ${
+                    mobile
+                        ? 'h-[1.1rem] whitespace-nowrap text-[10px] leading-[1.1rem]'
+                        : 'min-h-[2.5rem] break-keep text-[11px] leading-snug sm:min-h-0 sm:text-sm'
+                }`}
+                title={name}
+            >
                 {name}
             </h3>
             {showDescription && (
@@ -192,26 +199,26 @@ const ShopItemCard: React.FC<{
                     </p>
                 </div>
             )}
-            <div className="mt-2 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1.5">
+            <div className="mt-1.5 flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-1">
                 <Button
                     onClick={handleBuyClick}
                     disabled={remaining === 0}
                     colorScheme="none"
                     bare
-                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1.5 text-center font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${mobile ? 'min-h-[3.9rem] py-2.5' : 'min-h-[3.5rem] py-2'} ${
+                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-1 text-center font-semibold leading-tight transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60 disabled:cursor-not-allowed disabled:opacity-60 ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] py-1' : 'min-h-[3.5rem] py-2'} ${
                         isGold
                             ? 'border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 shadow-[0_12px_32px_-18px_rgba(251,191,36,0.85)] hover:from-amber-300 hover:to-amber-500'
                             : 'border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white shadow-[0_12px_32px_-18px_rgba(56,189,248,0.85)] hover:from-sky-300 hover:to-indigo-500'
                     }`}
                 >
                     <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5">
-                        <div className={`flex min-w-0 items-center justify-center gap-1 font-semibold tracking-wide ${mobile ? 'text-[13px]' : 'text-[11px] sm:text-xs'}`}>
+                        <div className={`flex min-w-0 items-center justify-center gap-1 font-semibold tracking-tight ${mobile ? 'text-[11px]' : 'text-[11px] sm:text-xs'}`}>
                             {PriceIcon}
                             <span className="min-w-0 tabular-nums">{priceAmount.toLocaleString()}</span>
                         </div>
                         {limit > 0 && (
                             <span
-                                className={`max-w-full px-0.5 text-center leading-tight ${mobile ? 'text-[10px]' : 'text-[9px]'} ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-wide`}
+                                className={`max-w-full px-0 text-center leading-tight ${mobile ? 'text-[9px]' : 'text-[9px]'} ${isGold ? 'text-slate-800/95' : 'text-white/85'} tracking-tight`}
                             >
                                 {limitText} 한도 {remaining}/{limit}
                             </span>

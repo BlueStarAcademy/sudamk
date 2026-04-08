@@ -1130,10 +1130,10 @@ const Profile: React.FC<ProfileProps> = () => {
             <div
                 className={`flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-center ${nh ? 'gap-[clamp(0.2rem,0.85dvh,0.45rem)] overflow-x-hidden' : 'gap-[clamp(0.35rem,1dvh,0.5rem)] overflow-hidden'}`}
             >
-                <div className={`relative w-full max-w-[min(100%,24rem)] shrink-0 overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:max-w-[min(100%,26rem)] ${nh ? 'px-[clamp(0.35rem,1.5vw,0.5rem)] py-[clamp(0.3rem,1.1dvh,0.5rem)]' : 'px-[clamp(0.45rem,1.2vw,0.65rem)] py-[clamp(0.35rem,1.2dvh,0.55rem)] sm:px-3 sm:py-2.5'}`}>
+                <div className={`relative w-full max-w-[min(100%,24rem)] shrink-0 overflow-hidden rounded-xl border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:max-w-[min(100%,26rem)] ${nh ? 'px-[clamp(0.32rem,1.35vw,0.48rem)] py-[clamp(0.24rem,0.95dvh,0.42rem)] max-[760px]:px-[0.28rem] max-[760px]:py-[0.2rem] max-[680px]:px-[0.24rem] max-[680px]:py-[0.16rem]' : 'px-[clamp(0.45rem,1.2vw,0.65rem)] py-[clamp(0.35rem,1.2dvh,0.55rem)] sm:px-3 sm:py-2.5'}`}>
                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
-                    <div className="relative flex w-full min-w-0 flex-row flex-nowrap items-center gap-2 sm:gap-2.5 md:gap-3">
-                        <div className="flex min-w-0 flex-1 flex-nowrap items-baseline justify-start gap-x-1 overflow-hidden text-left sm:gap-x-1.5 md:gap-x-2">
+                    <div className="relative flex w-full min-w-0 flex-row flex-wrap items-start gap-x-2 gap-y-1 sm:gap-x-2.5 md:gap-x-3 max-[760px]:gap-x-1.5 max-[760px]:gap-y-0.5 max-[680px]:gap-x-1">
+                        <div className="flex min-w-0 flex-1 flex-wrap items-baseline justify-start gap-x-1 gap-y-0.5 text-left sm:gap-x-1.5 md:gap-x-2">
                             <span
                                 className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-left font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)] ${nh ? 'text-sm' : readableHome ? 'text-base sm:text-lg md:text-xl' : 'text-sm sm:text-base md:text-lg'}`}
                             >
@@ -1146,9 +1146,9 @@ const Profile: React.FC<ProfileProps> = () => {
                                 {badukAbilityTotal}
                             </span>
                         </div>
-                        <div className="ml-auto flex shrink-0 flex-nowrap items-center justify-end gap-1 text-right sm:gap-1.5">
+                        <div className="ml-auto flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1 text-right sm:gap-1.5 max-[760px]:gap-0.5">
                             <span
-                                className={`max-w-[min(8rem,46vw)] truncate font-medium text-amber-100/85 sm:max-w-[11rem] md:max-w-none ${nh ? 'text-[10px]' : readableHome ? 'text-xs sm:text-sm md:text-base' : 'text-[11px] sm:text-xs md:text-sm'}`}
+                                className={`max-w-[min(9.6rem,58vw)] break-words font-medium text-amber-100/85 sm:max-w-[11rem] md:max-w-none ${nh ? 'text-[10px]' : readableHome ? 'text-xs sm:text-sm md:text-base' : 'text-[11px] sm:text-xs md:text-sm'}`}
                                 title={`보너스: ${availablePoints}P`}
                             >
                                 보너스{' '}
@@ -1395,8 +1395,8 @@ const Profile: React.FC<ProfileProps> = () => {
                 {isNativeMobile ? (
                     <>
                         {profileTab === 'home' && (
-                            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
-                                <div className="grid h-full min-h-0 w-full min-w-0 grid-rows-[repeat(3,minmax(0,1fr))] gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden">
+                            <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1 overflow-hidden max-[760px]:gap-0.5 max-[680px]:gap-[0.18rem]">
+                                <div className="grid h-full min-h-0 w-full min-w-0 grid-rows-[minmax(0,1.14fr)_minmax(0,0.93fr)_minmax(0,0.93fr)] gap-[clamp(0.18rem,0.65dvh,0.38rem)] overflow-hidden max-[760px]:grid-rows-[minmax(0,1.18fr)_minmax(0,0.91fr)_minmax(0,0.91fr)] max-[760px]:gap-[clamp(0.14rem,0.5dvh,0.3rem)] max-[680px]:grid-rows-[minmax(0,1.22fr)_minmax(0,0.89fr)_minmax(0,0.89fr)] max-[680px]:gap-[0.12rem]">
                                     <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
                                     <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                                     <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />

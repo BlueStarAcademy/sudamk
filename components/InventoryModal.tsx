@@ -198,13 +198,12 @@ const EquipmentSlotDisplay: React.FC<{
                         const apValue = match ? match[1] : null;
                         return (
                             <span
-                                className="absolute inset-0 flex flex-col items-center justify-center text-3xl"
-                                style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-[1.35rem] leading-none"
                                 aria-hidden
                             >
-                                <span>⚡</span>
+                                <span className="leading-none">⚡</span>
                                 {apValue && (
-                                    <span className="text-xs font-bold mt-0.5 text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                                    <span className="mt-0.5 max-w-full truncate text-[10px] font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
                                         +{apValue}
                                     </span>
                                 )}
@@ -506,13 +505,12 @@ const LocalItemDetailDisplay: React.FC<{
                             const apValue = match ? match[1] : null;
                             return (
                                 <span
-                                    className="absolute inset-0 flex flex-col items-center justify-center text-3xl"
-                                    style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                    className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-[1.35rem] leading-none"
                                     aria-hidden
                                 >
-                                    <span>⚡</span>
+                                    <span className="leading-none">⚡</span>
                                     {apValue && (
-                                        <span className="text-xs font-bold mt-0.5 text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                                        <span className="mt-0.5 max-w-full truncate text-[10px] font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
                                             +{apValue}
                                         </span>
                                     )}
@@ -1048,6 +1046,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         setIsEquipCompareOpen(false);
     }, [selectedItemId]);
 
+    /**
+     * 모바일 상세창이 열린 상태에서 아이템 사용/판매로 selectedItem이 사라지면
+     * 조건부 렌더만 사라지고 open 상태 플래그가 남아, 가방 루트가 비활성(topmost=false)로 고정될 수 있다.
+     * 아이템 참조가 끊긴 순간 관련 모바일 하위 모달 상태를 즉시 정리한다.
+     */
+    useEffect(() => {
+        if (selectedItem) return;
+        setIsMobileItemDetailOpen(false);
+        setIsEquipCompareOpen(false);
+    }, [selectedItem]);
+
     const canEquip = useMemo(() => {
         if (!selectedItem || selectedItem.type !== 'equipment') return false;
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[selectedItem.grade];
@@ -1336,9 +1345,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 >
                                                     <img src={gradeBackgrounds[selectedItem.grade]} alt={selectedItem.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                                                     {isActionPointConsumable(selectedItem.name) ? (
-                                                        <div className="absolute inset-0 flex flex-col items-center justify-center text-amber-300" style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }}>
-                                                            <span className="text-2xl sm:text-3xl leading-none" aria-hidden>⚡</span>
-                                                            <span className="font-bold text-amber-200 mt-0.5" style={{ fontSize: `${Math.max(10, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-amber-300" style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }}>
+                                                            <span className="text-xl leading-none sm:text-2xl" aria-hidden>⚡</span>
+                                                            <span className="mt-0.5 max-w-full truncate font-bold leading-none text-amber-200" style={{ fontSize: `${Math.max(9, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                                 +{selectedItem.name.replace(/.*\(\+(\d+)\)/, '$1')}
                                                             </span>
                                                         </div>
@@ -2254,13 +2263,12 @@ const InventoryItemCard: React.FC<{
                     const apValue = match ? match[1] : null;
                     return (
                         <span
-                            className="absolute inset-0 flex flex-col items-center justify-center text-3xl"
-                            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                            className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-[1.35rem] leading-none"
                             aria-hidden
                         >
-                            <span>⚡</span>
+                            <span className="leading-none">⚡</span>
                             {apValue && (
-                                <span className="text-xs font-bold mt-0.5 text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                                <span className="mt-0.5 max-w-full truncate text-[10px] font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
                                     +{apValue}
                                 </span>
                             )}

@@ -132,7 +132,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
         >
             <>
-                <div className="flex flex-col gap-3 p-1">
+                <div className="flex min-h-0 flex-col gap-2 p-1">
                     <div
                         className="relative overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_24px_48px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)]"
                         role="region"
@@ -146,10 +146,9 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                             }}
                             aria-hidden
                         />
-                        <div className="relative px-5 pb-5 pt-6 sm:px-6 sm:pb-6 sm:pt-7">
-                            <div className="mx-auto mb-5 flex max-w-[11rem] flex-col items-center sm:max-w-[12rem]">
-                                <div className="relative mb-1 h-px w-[72%] bg-gradient-to-r from-transparent via-amber-400/55 to-transparent" aria-hidden />
-                                <div className="relative aspect-square w-full">
+                        <div className="relative flex min-h-0 flex-col gap-2.5 p-2.5 sm:gap-3 sm:px-5 sm:pb-5 sm:pt-6">
+                            <div className="flex min-w-0 items-center gap-2.5 sm:flex-col sm:items-center sm:gap-3">
+                                <div className="relative h-24 w-24 shrink-0 sm:h-40 sm:w-40">
                                     <div
                                         className="absolute inset-[-10%] rounded-2xl opacity-40 blur-2xl"
                                         style={{
@@ -166,12 +165,12 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                         >
                                             <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
                                             {isActionPointConsumable(item.name) ? (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                                    <span className="text-5xl leading-none sm:text-6xl" aria-hidden>
+                                                <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
+                                                    <span className="text-3xl leading-none sm:text-5xl" aria-hidden>
                                                         ⚡
                                                     </span>
                                                     <span
-                                                        className="mt-1 text-lg font-bold text-amber-200 sm:text-xl"
+                                                        className="mt-1 max-w-full truncate text-sm font-bold text-amber-200 sm:text-lg"
                                                         style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 12px rgba(251,191,36,0.35)' }}
                                                     >
                                                         +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
@@ -181,14 +180,14 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                                 <img
                                                     src={item.image}
                                                     alt=""
-                                                    className="absolute object-contain p-3 sm:p-4"
+                                                    className="absolute object-contain p-2 sm:p-3.5"
                                                     style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                                                 />
                                             ) : null}
                                             {isCurrency && (
                                                 <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-black/45 p-2 backdrop-blur-[1px]">
                                                     <span
-                                                        className="text-center text-2xl font-bold tabular-nums text-white sm:text-3xl"
+                                                        className="text-center text-lg font-bold tabular-nums text-white sm:text-2xl"
                                                         style={{ textShadow: '0 2px 8px rgba(0,0,0,0.85), 0 0 20px rgba(251,191,36,0.25)' }}
                                                     >
                                                         +{item.quantity?.toLocaleString()}
@@ -198,33 +197,32 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                         </div>
                                     </div>
                                 </div>
-                                <div className="mt-2 h-px w-[55%] bg-gradient-to-r from-transparent via-white/15 to-transparent" aria-hidden />
-                            </div>
 
-                            <div className="flex flex-col items-center text-center">
-                                <span
-                                    className={`inline-flex items-center justify-center rounded-full border px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.12em] sm:text-xs ${styles.bg} ${styles.text} border-white/10 shadow-inner ${textGlowClass}`}
-                                >
-                                    [{styles.name}]
-                                </span>
-                                <div className="mt-2 flex flex-wrap items-baseline justify-center gap-x-2 gap-y-0">
-                                    <h2
-                                        className={`max-w-full text-xl font-black tracking-tight sm:text-2xl ${starInfo.colorClass} ${textGlowClass}`}
-                                        style={{ wordBreak: 'keep-all' }}
+                                <div className="flex min-w-0 flex-1 flex-col items-start text-left sm:items-center sm:text-center">
+                                    <span
+                                        className={`inline-flex items-center justify-center rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.1em] sm:px-3 sm:text-[11px] ${styles.bg} ${styles.text} border-white/10 shadow-inner ${textGlowClass}`}
                                     >
-                                        {item.name}
-                                    </h2>
-                                    {item.stars > 0 && (
-                                        <span className={`text-lg font-bold sm:text-xl ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>
+                                        [{styles.name}]
+                                    </span>
+                                    <div className="mt-1.5 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0 sm:justify-center">
+                                        <h2
+                                            className={`max-w-full break-words text-base font-black tracking-tight sm:text-xl ${starInfo.colorClass} ${textGlowClass}`}
+                                            style={{ wordBreak: 'keep-all' }}
+                                        >
+                                            {item.name}
+                                        </h2>
+                                        {item.stars > 0 && (
+                                            <span className={`text-sm font-bold sm:text-lg ${starInfo.colorClass} ${textGlowClass}`}>{starInfo.text}</span>
+                                        )}
+                                    </div>
+                                    {requiredLevel && (
+                                        <p className="mt-1 text-[10px] text-amber-200/85 sm:text-[11px]">착용 레벨 합 {requiredLevel}</p>
                                     )}
                                 </div>
-                                {requiredLevel && (
-                                    <p className="mt-2 text-[11px] text-amber-200/85 sm:text-xs">착용 레벨 합 {requiredLevel}</p>
-                                )}
                             </div>
 
                             {item.type === 'equipment' && (
-                                <div className="mt-5 max-h-44 w-full space-y-2 overflow-y-auto rounded-xl border border-slate-600/45 bg-black/35 p-3 text-left text-xs shadow-inner backdrop-blur-sm [scrollbar-gutter:stable]">
+                                <div className="max-h-[28dvh] w-full space-y-1.5 overflow-y-auto rounded-xl border border-slate-600/45 bg-black/35 p-2.5 text-left text-[11px] shadow-inner backdrop-blur-sm [scrollbar-gutter:stable] sm:max-h-40 sm:p-3 sm:text-xs">
                                     {renderOptions(item)}
                                 </div>
                             )}

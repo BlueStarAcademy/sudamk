@@ -957,7 +957,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ? `absolute top-1/2 left-1/2 flex flex-col ${outerOverflowClass} rounded-xl transition-shadow duration-200`
         : `fixed top-1/2 left-1/2 flex flex-col ${outerOverflowClass} rounded-xl transition-shadow duration-200`;
     /** store/default 통일: 글로벌 sudamr-floating-modal-surface + 앰버 톤 헤더·푸터 */
-    const containerVariantClass = 'sudamr-floating-modal-surface relative text-on-panel ring-1 ring-inset ring-amber-400/15';
+    const containerVariantClass = 'sudamr-floating-modal-surface text-on-panel ring-1 ring-inset ring-amber-400/15';
     const headerVariantClass =
         'relative z-[11] border-b border-amber-400/28 bg-gradient-to-b from-zinc-800/98 via-zinc-950 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]';
     const footerVariantClass =

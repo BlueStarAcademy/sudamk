@@ -67,32 +67,38 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
             onClose={onClose}
             windowId="bulk-item-obtained"
             initialWidth={620}
+            initialHeight={680}
             closeOnOutsideClick={false}
             isTopmost={isTopmost}
             zIndex={70}
             skipSavedPosition
             hideFooter
+            variant="store"
+            mobileViewportFit
+            mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
         >
             <>
-            <div className="flex flex-col p-1">
+            <div className="flex flex-col gap-2 p-1">
                 {hasItems && (
-                    <h2 className="text-xl font-bold text-center text-white mb-4 pb-2 border-b border-slate-600/50">아이템을 획득했습니다</h2>
+                    <h2 className="rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800/95 to-zinc-950 px-3 py-2 text-center text-lg font-bold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:text-xl">
+                        아이템을 획득했습니다
+                    </h2>
                 )}
                 {tournamentScoreChange && (
-                    <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-emerald-900/50 via-green-900/40 to-emerald-800/50 border border-emerald-500/50 shadow-lg">
+                    <div className="rounded-xl border border-emerald-500/50 bg-gradient-to-r from-emerald-900/50 via-green-900/40 to-emerald-800/50 p-3 shadow-lg sm:p-4">
                         <div className="flex flex-col items-center gap-2">
                             <div className="flex items-center gap-2">
                                 <span className="text-2xl">🏆</span>
                                 <span className="text-base font-bold text-emerald-200">랭킹 점수 변화</span>
                             </div>
-                            <div className="flex items-center gap-3 text-lg">
-                                <span className="text-gray-300 font-mono">{tournamentScoreChange.oldScore.toLocaleString()}</span>
+                            <div className="flex flex-wrap items-center justify-center gap-2 text-base sm:gap-3 sm:text-lg">
+                                <span className="font-mono text-gray-300">{tournamentScoreChange.oldScore.toLocaleString()}</span>
                                 <span className="text-gray-400">→</span>
-                                <span className="text-emerald-300 font-bold font-mono">{tournamentScoreChange.newScore.toLocaleString()}</span>
-                                <span className="text-emerald-400 font-semibold">(+{tournamentScoreChange.scoreReward.toLocaleString()}점)</span>
+                                <span className="font-mono font-bold text-emerald-300">{tournamentScoreChange.newScore.toLocaleString()}</span>
+                                <span className="font-semibold text-emerald-400">(+{tournamentScoreChange.scoreReward.toLocaleString()}점)</span>
                             </div>
                             {tournamentScoreChange.scoreReward > 0 && tournamentScoreChange.oldScore > 0 && (
-                                <div className="text-xs text-emerald-400/80 mt-1">
+                                <div className="mt-1 text-xs text-emerald-400/80">
                                     {((tournamentScoreChange.scoreReward / tournamentScoreChange.oldScore) * 100).toFixed(1)}% 증가
                                 </div>
                             )}
@@ -100,7 +106,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                     </div>
                 )}
                 {hasItems ? (
-                    <div className="grid grid-cols-5 gap-3 max-h-[60vh] overflow-y-auto p-4 rounded-xl bg-slate-800/50 border border-slate-600/40 justify-items-center">
+                    <div className="grid max-h-[60vh] grid-cols-3 justify-items-center gap-2 overflow-y-auto rounded-xl border border-amber-500/25 bg-gradient-to-b from-zinc-800/80 via-zinc-900/75 to-zinc-950/80 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:grid-cols-4 sm:gap-2.5 sm:p-3 md:grid-cols-5 md:gap-3 md:p-4">
                         {items.map((item, index) => {
                             const itemGrade = item.grade || 'normal';
                             const styles = gradeStyles[itemGrade] || gradeStyles.normal;
@@ -116,13 +122,13 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                             }
                             
                             return (
-                                <div key={index} className="relative w-full aspect-square rounded-xl overflow-visible ring-1 ring-slate-500/30">
+                                <div key={index} className="relative aspect-square w-full overflow-visible rounded-xl ring-1 ring-slate-500/30">
                                     <div className={`relative w-full h-full rounded-xl flex items-center justify-center overflow-hidden ${borderClass || 'border-2 border-slate-500/50'} ${itemGrade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}>
                                         <img src={styles.background} alt={itemGrade} className="absolute inset-0 w-full h-full object-cover" />
                                         {isActionPointConsumable(item.name) ? (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}>
-                                                <span className="text-3xl leading-none" aria-hidden>⚡</span>
-                                                <span className="text-xs font-bold text-amber-200 mt-0.5" style={{ textShadow: '1px 1px 2px black' }}>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
+                                                <span className="text-2xl leading-none sm:text-3xl" aria-hidden>⚡</span>
+                                                <span className="mt-0.5 max-w-full truncate text-[10px] font-bold leading-none text-amber-200 sm:text-xs" style={{ textShadow: '1px 1px 2px black' }}>
                                                     +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
                                                 </span>
                                             </div>
@@ -158,7 +164,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                         })}
                     </div>
                 ) : (
-                    <div className="p-6 rounded-xl bg-slate-800/50 border border-slate-600/40 text-center">
+                    <div className="rounded-xl border border-slate-600/40 bg-slate-800/50 p-6 text-center">
                         <p className="text-slate-400">획득한 아이템이 없습니다.</p>
                     </div>
                 )}

@@ -61,6 +61,9 @@ const AppModalLayer: React.FC = () => {
         waitingRoomChats,
     } = useAppContext();
 
+    const hasItemObtainedResult = Array.isArray(modals.lastUsedItemResult) && modals.lastUsedItemResult.length > 0;
+    const hasScoreOnlyItemObtained = Boolean(modals.tournamentScoreChange) && !hasItemObtainedResult;
+
     const activeModalIds = useMemo(() => {
         const ids: string[] = [];
         if (activeNegotiation) ids.push('negotiation');
@@ -98,9 +101,9 @@ const AppModalLayer: React.FC = () => {
         if (modals.showOtherDeviceLoginModal) ids.push('otherDeviceLogin');
         if (modals.isInsufficientActionPointsModalOpen) ids.push('insufficientActionPoints');
         if (modals.isOpponentInsufficientActionPointsModalOpen) ids.push('opponentInsufficientActionPoints');
-        if (modals.lastUsedItemResult) ids.push('itemObtained');
+        if (hasItemObtainedResult || hasScoreOnlyItemObtained) ids.push('itemObtained');
         return ids;
-    }, [modals, activeNegotiation]);
+    }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 
     const topmostModalId = activeModalIds.length > 0 ? activeModalIds[activeModalIds.length - 1] : null;
 
@@ -141,9 +144,9 @@ const AppModalLayer: React.FC = () => {
                     />
                 </Suspense>
             )}
-            {modals.lastUsedItemResult && modals.lastUsedItemResult.length === 1 && <ItemObtainedModal item={modals.lastUsedItemResult[0]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} />}
-            {modals.lastUsedItemResult && modals.lastUsedItemResult.length > 1 && <BulkItemObtainedModal items={modals.lastUsedItemResult} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
-            {modals.tournamentScoreChange && !modals.lastUsedItemResult && <BulkItemObtainedModal items={[]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
+            {hasItemObtainedResult && modals.lastUsedItemResult!.length === 1 && <ItemObtainedModal item={modals.lastUsedItemResult![0]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} />}
+            {hasItemObtainedResult && modals.lastUsedItemResult!.length > 1 && <BulkItemObtainedModal items={modals.lastUsedItemResult!} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
+            {hasScoreOnlyItemObtained && <BulkItemObtainedModal items={[]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
             {modals.disassemblyResult && <DisassemblyResultModal result={modals.disassemblyResult} onClose={handlers.closeDisassemblyResult} isTopmost={topmostModalId === 'disassemblyResult'} isOpen={true} />}
             {modals.craftResult && <CraftingResultModal result={modals.craftResult} onClose={handlers.closeCraftResult} isTopmost={topmostModalId === 'craftResult'} />}
             {modals.viewingUser && (
