@@ -370,7 +370,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             uniformPcScale={false}
             mobileViewportFit
             mobileViewportMaxHeightVh={97}
-            headerShowTitle={!isMobile || isScoring}
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}

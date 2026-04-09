@@ -88,8 +88,8 @@ interface DraggableWindowProps {
     uniformPcScale?: boolean;
 
     /**
-     * false: 헤더에 제목(h2)을 렌더하지 않음(닫기·드래그 영역만 유지). 본문 상단 박스가 제목 역할을 할 때 사용.
-     * 접근성: 이 경우 `title` 문자열이 루트에 aria-label로 전달됩니다.
+     * true: 헤더에 제목(h2) 표시. 기본 false(닫기·드래그만).
+     * 접근성: 제목 숨김 시 `title`은 루트 aria-label·닫기 버튼 라벨에 사용됩니다.
      */
     headerShowTitle?: boolean;
 
@@ -195,7 +195,8 @@ function getModalClampScreenRect(modalRoot: HTMLElement | null): DOMRect | null 
 function computeModalScreenCorrection(er: DOMRectReadOnly, clamp: DOMRectReadOnly): { dcx: number; dcy: number } {
     let dcx = 0;
     let dcy = 0;
-    const headerH = 52;
+    /** 닫기 행 실측에 맞춘 대략 높이(패딩 py-1.5 + text-sm 버튼) — 큰 모달 세로 보정용 */
+    const headerH = 40;
 
     if (er.width <= clamp.width) {
         if (er.left < clamp.left) dcx = clamp.left - er.left;
@@ -271,7 +272,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     skipSavedPosition = false,
     bodyPaddingClassName,
     uniformPcScale = false,
-    headerShowTitle = true,
+    headerShowTitle = false,
     containerExtraClassName,
     footerClassName,
     pcViewportMaxHeightCss,
@@ -1092,21 +1093,21 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     <div className={`absolute inset-0 z-20 cursor-not-allowed bg-black/30 ${overlayCornerRounded}`} />
                 )}
                 <div
-                    className={`${headerVariantClass} ${headerTopRounded} flex shrink-0 items-center justify-between p-3 ${headerCursor}`}
+                    className={`${headerVariantClass} ${headerTopRounded} flex shrink-0 items-center justify-between px-3 py-1.5 sm:py-2 ${headerCursor}`}
                     style={{ touchAction: 'none' }}
                     onMouseDown={handleMouseDown}
                     onTouchStart={handleTouchStart}
                 >
                     {headerShowTitle ? (
                         <h2
-                            className={`select-none font-bold tracking-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
+                            className={`select-none font-bold leading-tight tracking-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
                                 uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-xl' : 'text-lg'
                             }`}
                         >
                             {title}
                         </h2>
                     ) : (
-                        <div className="min-h-[2.5rem] min-w-0 flex-1 self-stretch" aria-hidden />
+                        <div className="min-h-0 min-w-0 flex-1" aria-hidden />
                     )}
                     <div className="flex items-center gap-2">
                         {headerContent}

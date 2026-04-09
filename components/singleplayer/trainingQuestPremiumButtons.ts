@@ -11,4 +11,7 @@ export const PREMIUM_QUEST_BTN = {
     /** PC 모달 확인 등: 전폭이 아닌 콘텐츠 폭 + 메탈릭 그라데이션 */
     confirmModal:
         'inline-flex !w-auto max-w-full items-center justify-center !rounded-lg !border !border-amber-300/55 !bg-gradient-to-b !from-amber-500/95 !via-amber-800/95 !to-amber-950 !px-7 !py-2 !text-sm !font-bold !text-amber-50 !shadow-[0_2px_14px_rgba(245,158,11,0.42),inset_0_1px_0_rgba(255,255,255,0.22)] hover:!brightness-110 active:!scale-[0.98] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/55',
+    /** 수련과제 일괄 수령 모달 확인: 폭을 살짝 좁힌 금속감 버튼 */
+    claimAllConfirm:
+        'mx-auto inline-flex w-full max-w-[10.25rem] min-h-[2.4rem] shrink-0 items-center justify-center !rounded-xl !border !border-amber-100/45 !bg-gradient-to-b !from-[#fde68a] !via-amber-500 !to-[#713f12] !px-4 !py-2 !text-sm !font-extrabold !tracking-wide !text-amber-950 ![text-shadow:0_1px_0_rgba(255,255,255,0.4)] !shadow-[0_6px_22px_rgba(245,158,11,0.4),0_0_0_1px_rgba(0,0,0,0.32),inset_0_1px_0_rgba(255,255,255,0.55),inset_0_-2px_0_rgba(0,0,0,0.25)] hover:!brightness-[1.07] hover:!shadow-[0_8px_28px_rgba(245,158,11,0.48)] active:!scale-[0.97] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-200/70 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-950 sm:max-w-[11rem] sm:!min-h-[2.5rem]',
 } as const;

@@ -1203,7 +1203,6 @@ const TournamentLobby: React.FC = () => {
                 {isAcquiredScoreModalOpen && (
                     <DraggableWindow
                         title="일일 획득 가능 점수"
-                        headerShowTitle={false}
                         onClose={() => setIsAcquiredScoreModalOpen(false)}
                         windowId="championship-daily-points-mobile"
                         isTopmost={true}

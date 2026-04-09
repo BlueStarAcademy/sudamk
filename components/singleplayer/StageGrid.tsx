@@ -129,10 +129,10 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
 
     return (
         <div
-            className={`bg-panel rounded-lg shadow-lg flex h-full min-h-0 flex-col overflow-hidden relative ${tabShelf ? 'p-3' : isMobile ? 'p-2.5' : 'p-4'}`}
+            className={`bg-panel rounded-lg shadow-lg flex h-full min-h-0 flex-col overflow-hidden relative ${tabShelf ? 'p-2.5' : isMobile ? 'p-2.5' : 'p-4'}`}
         >
             <div
-                className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${tabShelf ? 'mb-2 pb-1.5' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
+                className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${tabShelf ? 'mb-1.5 pb-1' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
             >
                 <h2
                     className={`font-bold text-on-panel min-w-0 flex-1 leading-tight ${tabShelf ? 'text-xl' : isMobile ? 'text-lg' : 'text-xl'}`}
@@ -165,7 +165,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                               ? 'repeat(auto-fill, minmax(108px, 1fr))'
                               : 'repeat(auto-fill, minmax(140px, 1fr))',
                         gridAutoRows: tabShelf
-                            ? 'minmax(172px, auto)'
+                            ? 'minmax(180px, auto)'
                             : isMobile
                               ? 'minmax(158px, auto)'
                               : 'minmax(180px, auto)'

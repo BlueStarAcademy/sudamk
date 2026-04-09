@@ -44,6 +44,7 @@ import Button from './components/Button.js';
 import ToggleSwitch from './components/ui/ToggleSwitch.js';
 import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfirmPanel.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
+import { replaceAppHash } from './utils/appUtils.js';
 import { useAdContext } from './components/ads/AdProvider.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
@@ -1736,6 +1737,30 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             setConfirmModalType('resign');
         }
     }, [isSpectator, handlers.handleAction, session.isAiGame, session.isSinglePlayer, session.gameCategory, session.mode, gameId, gameStatus, isNoContestLeaveAvailable]);
+
+    useEffect(() => {
+        const gameHash = `#/game/${gameId}`;
+        const shouldInterceptBackNavigation =
+            !isSpectator &&
+            !['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
+
+        if (!shouldInterceptBackNavigation) return;
+
+        const interceptBackNavigation = () => {
+            if (window.location.hash === gameHash) return;
+            // 뒤로가기로 경기장을 벗어나려는 경우, 화면은 유지하고 기권/나가기 확인 흐름을 재사용한다.
+            replaceAppHash(gameHash);
+            handleLeaveOrResignClick();
+        };
+
+        // 일부 모바일 웹뷰는 하드웨어 뒤로가기에서 hashchange 또는 popstate 중 하나만 발생시킬 수 있어 둘 다 구독한다.
+        window.addEventListener('hashchange', interceptBackNavigation);
+        window.addEventListener('popstate', interceptBackNavigation);
+        return () => {
+            window.removeEventListener('hashchange', interceptBackNavigation);
+            window.removeEventListener('popstate', interceptBackNavigation);
+        };
+    }, [gameId, gameStatus, isSpectator, handleLeaveOrResignClick]);
 
     useEffect(() => {
         return () => {

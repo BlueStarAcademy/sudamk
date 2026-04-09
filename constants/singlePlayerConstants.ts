@@ -104,7 +104,7 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
 ];
 
 
-export const SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = [
+const SINGLE_PLAYER_STAGES_BASE: SinglePlayerStageInfo[] = [
     // Data from the spreadsheet image
     // 입문 1~10: 따내기 바둑 (흑에게 15턴 제한)
     { id: '입문-1', name: '스테이지 1', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 7, targetScore: { black: 5, white: 5 }, placements: { black: 2, white: 2, blackPattern: 0, whitePattern: 1, centerBlackStoneChance: 90 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, blackTurnLimit: 15, rewards: { firstClear: { gold: 100, exp: 10 }, repeatClear: { gold: 10, exp: 10 } } },
@@ -213,4 +213,16 @@ export const SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = [
     { id: '유단자-19', name: '스테이지 19', level: SinglePlayerLevel.유단자, actionPointCost: 5, boardSize: 13, targetScore: { black: 0, white: 0 }, placements: { black: 4, white: 18, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 3 }, rewards: { firstClear: { gold: 800, exp: 350 }, repeatClear: { gold: 300, exp: 50 } }, autoScoringTurns: 80, hiddenCount: 1, scanCount: 2 },
     { id: '유단자-20', name: '스테이지 20', level: SinglePlayerLevel.유단자, actionPointCost: 5, boardSize: 13, targetScore: { black: 0, white: 0 }, placements: { black: 4, white: 25, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 3 }, rewards: { firstClear: { gold: 800, exp: 1000, items: [{itemId: "장비 상자 VI", quantity: 1}] }, repeatClear: { gold: 300, exp: 100 } }, autoScoringTurns: 80, hiddenCount: 1, scanCount: 2 },
 ];
+
+export const SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = SINGLE_PLAYER_STAGES_BASE.map((stage) => ({
+    ...stage,
+    actionPointCost: 0,
+    rewards: {
+        ...stage.rewards,
+        repeatClear: {
+            gold: 0,
+            exp: 0,
+        },
+    },
+}));
   

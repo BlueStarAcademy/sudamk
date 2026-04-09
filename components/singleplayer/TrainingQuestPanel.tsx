@@ -12,7 +12,7 @@ interface TrainingQuestPanelProps {
     currentUser: UserWithStatus;
     /** 네이티브 싱글플레이 상단 우측: 2×3 그리드로 6과제를 스크롤 없이 채움 */
     compactTopSlot?: boolean;
-    /** 싱글플레이 로비 하단 탭 안: 제목 숨김·일괄수령만, 일반 카드 레이아웃 + 스크롤 */
+    /** 싱글플레이 로비 하단 탭(모바일): 제목 숨김·일괄수령, 컴팩트 카드 + 3×2 그리드(스크롤 없음) */
     embeddedInTab?: boolean;
 }
 
@@ -255,7 +255,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     
     // 일괄 수령 핸들러
     const handleClaimAllRewards = async () => {
-        if (isClaimingAll) return; // 중복 클릭 방지
+        if (isClaimingAll || claimableQuestsCount === 0) return;
         
         setIsClaimingAll(true);
         try {
@@ -286,51 +286,53 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     };
 
     const effectiveCompactTop = compactTopSlot && !embeddedInTab;
+    /** 모바일 탭: 네이티브 상단 슬롯과 동일한 카드 형태, 가로 3×세로 2 */
+    const useCompactQuestCard = effectiveCompactTop || embeddedInTab;
+    const embeddedTabNarrow = embeddedInTab && !effectiveCompactTop;
+    const embeddedQuestBtnTight = embeddedTabNarrow
+        ? ' !text-[9px] !leading-tight !px-0.5 !py-0.5 [&_img]:!h-2.5 [&_img]:!w-2.5'
+        : '';
 
     return (
         <>
             <div
                 className={`bg-panel flex flex-col overflow-hidden rounded-lg shadow-lg ${
-                    embeddedInTab ? 'h-full min-h-0 p-2' : effectiveCompactTop ? 'h-full min-h-0 p-1.5' : 'h-full p-1.5 sm:p-2'
+                    embeddedInTab ? 'h-full min-h-0 p-1.5' : effectiveCompactTop ? 'h-full min-h-0 p-1.5' : 'h-full p-1.5 sm:p-2'
                 }`}
             >
                 {embeddedInTab ? (
-                    claimableQuestsCount > 0 && (
-                        <div className="mb-2 flex flex-shrink-0 justify-end border-b border-color/60 pb-2">
-                            <Button
-                                onClick={handleClaimAllRewards}
-                                colorScheme="none"
-                                className={`${PREMIUM_QUEST_BTN.claimAll} !text-sm sm:!text-base`}
-                                disabled={isClaimingAll}
-                            >
-                                {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
-                            </Button>
-                        </div>
-                    )
+                    <div className="mb-2 flex flex-shrink-0 justify-end border-b border-color/60 pb-2">
+                        <Button
+                            onClick={handleClaimAllRewards}
+                            colorScheme="none"
+                            className={`${PREMIUM_QUEST_BTN.claimAll} !text-sm sm:!text-base`}
+                            disabled={isClaimingAll || claimableQuestsCount === 0}
+                        >
+                            {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
+                        </Button>
+                    </div>
                 ) : (
                     <div
                         className={`flex flex-shrink-0 items-center justify-between border-b border-color ${effectiveCompactTop ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-1.5 sm:pb-1'}`}
                     >
                         <h2 className={`font-bold text-on-panel ${effectiveCompactTop ? 'text-sm' : 'text-base sm:text-lg'}`}>수련 과제</h2>
-                        {claimableQuestsCount > 0 && (
-                            <Button
-                                onClick={handleClaimAllRewards}
-                                colorScheme="none"
-                                className={PREMIUM_QUEST_BTN.claimAll}
-                                disabled={isClaimingAll}
-                            >
-                                {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
-                            </Button>
-                        )}
+                        <Button
+                            onClick={handleClaimAllRewards}
+                            colorScheme="none"
+                            className={PREMIUM_QUEST_BTN.claimAll}
+                            disabled={isClaimingAll || claimableQuestsCount === 0}
+                        >
+                            {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
+                        </Button>
                     </div>
                 )}
 
                 {/* 2x3 그리드 */}
                 <div
-                    className={`min-h-0 flex-1 ${embeddedInTab ? 'overflow-y-auto overscroll-y-contain' : effectiveCompactTop ? 'min-h-0 overflow-hidden' : 'overflow-hidden'}`}
+                    className={`min-h-0 flex-1 ${embeddedInTab || effectiveCompactTop ? 'min-h-0 overflow-hidden' : 'overflow-hidden'}`}
                 >
                     <div
-                        className={`grid grid-cols-2 ${effectiveCompactTop ? 'h-full min-h-0 grid-rows-3 gap-1.5' : embeddedInTab ? 'content-start gap-2 pb-2' : 'h-full gap-1 sm:gap-1.5'}`}
+                        className={`grid min-h-0 ${effectiveCompactTop ? 'h-full grid-cols-2 grid-rows-3 gap-1.5' : embeddedInTab ? 'h-full grid-cols-3 grid-rows-2 gap-1' : 'grid-cols-2 h-full gap-1 sm:gap-1.5'}`}
                     >
                         {trainingQuests.map((quest) => {
                             const { reward, progress, timeUntilNext, isMax } = calculateRewardAndProgress(quest);
@@ -343,7 +345,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                     key={quest.id}
                                     className={`
                                         relative bg-tertiary rounded-lg border-2 flex flex-col min-h-0 overflow-hidden
-                                        ${effectiveCompactTop ? 'h-full min-h-0 p-1.5' : 'p-1 sm:p-1.5'}
+                                        ${useCompactQuestCard ? `h-full min-h-0 ${embeddedTabNarrow ? 'p-1' : 'p-1.5'}` : 'p-1 sm:p-1.5'}
                                         ${quest.isUnlocked ? 'border-primary' : 'border-gray-600'}
                                     `}
                                 >
@@ -356,7 +358,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                 <div className="flex flex-col items-center gap-1.5">
                                                     <div className="text-2xl sm:text-[1.75rem] filter drop-shadow-[0_3px_8px_rgba(0,0,0,0.85)]">🔒</div>
                                                     <div className="rounded-lg border border-amber-200/60 bg-black/90 px-3 py-1.5 sm:px-3.5 sm:py-2 shadow-lg">
-                                                        <span className={`block whitespace-nowrap text-center font-black leading-tight text-amber-100 ${effectiveCompactTop ? 'text-[13px] sm:text-[14px]' : 'text-xs sm:text-sm'}`}>
+                                                        <span className={`block whitespace-nowrap text-center font-black leading-tight text-amber-100 ${useCompactQuestCard ? (embeddedTabNarrow ? 'text-[10px]' : 'text-[13px] sm:text-[14px]') : 'text-xs sm:text-sm'}`}>
                                                             {quest.unlockStageId} 필요
                                                         </span>
                                                     </div>
@@ -365,63 +367,122 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                         </>
                                     )}
 
-                                    {effectiveCompactTop ? (
+                                    {useCompactQuestCard ? (
                                         <>
-                                            {/* 네이티브: 썸네일 + 우측 생산/타이머 2줄 */}
-                                            <div className={`mb-0.5 sm:mb-1 flex-shrink-0 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
-                                                <div className="flex items-start gap-1.5">
-                                                    <div className="relative h-[52px] w-[52px] flex-shrink-0 overflow-hidden rounded-lg bg-gray-700">
-                                                        <img
-                                                            src={quest.image}
-                                                            alt={quest.name}
-                                                            className="h-full w-full object-cover"
-                                                            onError={(e) => {
-                                                                const target = e.target as HTMLImageElement;
-                                                                target.style.display = 'none';
-                                                            }}
-                                                        />
-                                                        <span className="absolute left-1/2 top-0 z-20 -translate-x-1/2 whitespace-nowrap rounded-md border border-amber-300/70 bg-black/85 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-200 shadow-[0_4px_10px_rgba(0,0,0,0.55)]">
-                                                            Lv.{quest.currentLevel || 0}
-                                                        </span>
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <div className="mb-0.5 flex items-center justify-between gap-1">
-                                                            <h3 className={`truncate font-bold ${quest.isUnlocked ? 'text-on-panel' : 'text-gray-400'} text-xs`}>
-                                                                {quest.name}
-                                                            </h3>
+                                            {embeddedTabNarrow ? (
+                                                <>
+                                                    {/* 모바일 탭: 큰 썸네일 → 생산·타이머 한 줄 → 게이지 */}
+                                                    <div className={`mb-0.5 flex flex-shrink-0 flex-col items-center ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
+                                                        <div className="relative h-[54px] w-[54px] shrink-0 overflow-hidden rounded-lg bg-gray-700">
+                                                            <img
+                                                                src={quest.image}
+                                                                alt={quest.name}
+                                                                className="h-full w-full object-cover"
+                                                                onError={(e) => {
+                                                                    const target = e.target as HTMLImageElement;
+                                                                    target.style.display = 'none';
+                                                                }}
+                                                            />
+                                                            <span className="absolute left-1/2 top-0 z-20 -translate-x-1/2 whitespace-nowrap rounded-md border border-amber-300/70 bg-black/85 px-1 py-0.5 text-[9px] font-bold leading-none text-amber-200 shadow-[0_4px_10px_rgba(0,0,0,0.55)]">
+                                                                Lv.{quest.currentLevel || 0}
+                                                            </span>
                                                         </div>
-                                                        {quest.levelInfo ? (
-                                                            <div className="text-[10px] leading-tight">
-                                                                <div className={`flex items-center gap-0.5 ${quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'}`}>
-                                                                    <span>
-                                                                        생산 {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
+                                                        <div className="mt-0.5 flex w-full min-w-0 flex-nowrap items-center justify-center gap-x-1 text-[9px] leading-none">
+                                                            {quest.levelInfo ? (
+                                                                <>
+                                                                    <span
+                                                                        className={`flex min-w-0 max-w-[55%] items-center gap-0.5 truncate ${quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'}`}
+                                                                        title={`생산 ${quest.levelInfo.productionRateMinutes}분 / ${quest.levelInfo.rewardAmount}`}
+                                                                    >
+                                                                        <span className="truncate">
+                                                                            {quest.levelInfo.productionRateMinutes}분/{quest.levelInfo.rewardAmount}
+                                                                        </span>
+                                                                        <img
+                                                                            src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                            alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                            className="h-2.5 w-2.5 shrink-0 object-contain"
+                                                                        />
                                                                     </span>
-                                                                    <img
-                                                                        src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                                        alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
-                                                                        className="h-3 w-3 object-contain"
-                                                                    />
-                                                                </div>
-                                                                <div className="flex items-center gap-1 text-gray-400">
-                                                                    <span>타이머</span>
-                                                                    {quest.isUnlocked && quest.isStarted && !isMax && timeUntilNext > 0 ? (
-                                                                        <span>{formatTime(timeUntilNext)}</span>
-                                                                    ) : quest.isUnlocked && quest.isStarted && isMax ? (
-                                                                        <span className="font-semibold text-green-400">MAX</span>
-                                                                    ) : (
-                                                                        <span>{quest.isUnlocked ? '--:--' : '잠김'}</span>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="text-[10px] leading-tight text-gray-500">
-                                                                <div>생산 시작 후 표시</div>
-                                                                <div>타이머 --:--</div>
-                                                            </div>
-                                                        )}
+                                                                    <span className="shrink-0 text-gray-600" aria-hidden>
+                                                                        |
+                                                                    </span>
+                                                                    <span className="shrink-0 tabular-nums text-gray-300">
+                                                                        {quest.isUnlocked && quest.isStarted && !isMax && timeUntilNext > 0 ? (
+                                                                            formatTime(timeUntilNext)
+                                                                        ) : quest.isUnlocked && quest.isStarted && isMax ? (
+                                                                            <span className="font-semibold text-green-400">MAX</span>
+                                                                        ) : (
+                                                                            <span>{quest.isUnlocked ? '--:--' : '잠김'}</span>
+                                                                        )}
+                                                                    </span>
+                                                                </>
+                                                            ) : (
+                                                                <span className="text-center text-gray-500">
+                                                                    시작 후 표시&nbsp;|&nbsp;--:--
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            </div>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    {/* 네이티브 상단 슬롯: 썸네일 + 우측 제목·생산/타이머 */}
+                                                    <div className={`mb-0.5 sm:mb-1 flex-shrink-0 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
+                                                        <div className="flex items-start gap-1.5">
+                                                            <div className="relative h-[52px] w-[52px] shrink-0 overflow-hidden rounded-lg bg-gray-700">
+                                                                <img
+                                                                    src={quest.image}
+                                                                    alt={quest.name}
+                                                                    className="h-full w-full object-cover"
+                                                                    onError={(e) => {
+                                                                        const target = e.target as HTMLImageElement;
+                                                                        target.style.display = 'none';
+                                                                    }}
+                                                                />
+                                                                <span className="absolute left-1/2 top-0 z-20 -translate-x-1/2 whitespace-nowrap rounded-md border border-amber-300/70 bg-black/85 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-200 shadow-[0_4px_10px_rgba(0,0,0,0.55)]">
+                                                                    Lv.{quest.currentLevel || 0}
+                                                                </span>
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className="mb-0.5 flex items-center justify-between gap-1">
+                                                                    <h3 className={`truncate text-xs font-bold ${quest.isUnlocked ? 'text-on-panel' : 'text-gray-400'}`}>
+                                                                        {quest.name}
+                                                                    </h3>
+                                                                </div>
+                                                                {quest.levelInfo ? (
+                                                                    <div className="text-[10px] leading-tight">
+                                                                        <div className={`flex items-center gap-0.5 ${quest.isUnlocked ? 'text-tertiary' : 'text-gray-500'}`}>
+                                                                            <span>
+                                                                                생산 {quest.levelInfo.productionRateMinutes}분 / {quest.levelInfo.rewardAmount}
+                                                                            </span>
+                                                                            <img
+                                                                                src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                                alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
+                                                                                className="h-3 w-3 object-contain"
+                                                                            />
+                                                                        </div>
+                                                                        <div className="flex items-center gap-1 text-gray-400">
+                                                                            <span>타이머</span>
+                                                                            {quest.isUnlocked && quest.isStarted && !isMax && timeUntilNext > 0 ? (
+                                                                                <span>{formatTime(timeUntilNext)}</span>
+                                                                            ) : quest.isUnlocked && quest.isStarted && isMax ? (
+                                                                                <span className="font-semibold text-green-400">MAX</span>
+                                                                            ) : (
+                                                                                <span>{quest.isUnlocked ? '--:--' : '잠김'}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="text-[10px] leading-tight text-gray-500">
+                                                                        <div>생산 시작 후 표시</div>
+                                                                        <div>타이머 --:--</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            )}
 
                                             <div className={`mb-0.5 sm:mb-1 flex-shrink-0 space-y-0.5 sm:space-y-1 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>
                                                 {quest.levelInfo ? (
@@ -478,26 +539,38 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                 </div>
                                             )}
 
-                                            <div className="mt-auto flex flex-shrink-0 flex-row gap-0.5 sm:gap-1">
+                                            <div className={`mt-auto flex flex-shrink-0 flex-row ${embeddedTabNarrow ? 'gap-0.5' : 'gap-0.5 sm:gap-1'}`}>
                                                 {!quest.isUnlocked ? (
                                                     <>
-                                                        <Button disabled colorScheme="none" className={`${PREMIUM_QUEST_BTN.claim} opacity-50`}>
-                                                            <span className="flex items-center gap-1">
+                                                        <Button
+                                                            disabled
+                                                            colorScheme="none"
+                                                            className={`${PREMIUM_QUEST_BTN.claim} opacity-50${embeddedQuestBtnTight}`}
+                                                        >
+                                                            <span className={`flex items-center ${embeddedTabNarrow ? 'gap-0.5' : 'gap-1'}`}>
                                                                 <span>수령</span>
                                                                 <img
                                                                     src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                                     alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
-                                                                    className="h-3 w-3 object-contain"
+                                                                    className={`object-contain ${embeddedTabNarrow ? 'h-2.5 w-2.5' : 'h-3 w-3'}`}
                                                                 />
                                                                 <span>0</span>
                                                             </span>
                                                         </Button>
-                                                        <Button disabled colorScheme="none" className={`${PREMIUM_QUEST_BTN.upgrade} opacity-50`}>
+                                                        <Button
+                                                            disabled
+                                                            colorScheme="none"
+                                                            className={`${PREMIUM_QUEST_BTN.upgrade} opacity-50${embeddedQuestBtnTight}`}
+                                                        >
                                                             강화
                                                         </Button>
                                                     </>
                                                 ) : !quest.isStarted ? (
-                                                    <Button onClick={() => handleStartMission(quest.id)} colorScheme="none" className={PREMIUM_QUEST_BTN.start}>
+                                                    <Button
+                                                        onClick={() => handleStartMission(quest.id)}
+                                                        colorScheme="none"
+                                                        className={`${PREMIUM_QUEST_BTN.start}${embeddedQuestBtnTight}`}
+                                                    >
                                                         시작
                                                     </Button>
                                                 ) : (
@@ -505,15 +578,15 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         <Button
                                                             onClick={() => handleCollectReward(quest.id)}
                                                             colorScheme="none"
-                                                            className={PREMIUM_QUEST_BTN.claim}
+                                                            className={`${PREMIUM_QUEST_BTN.claim}${embeddedQuestBtnTight}`}
                                                             disabled={!canCollect}
                                                         >
-                                                            <span className="flex items-center gap-1">
+                                                            <span className={`flex items-center ${embeddedTabNarrow ? 'gap-0.5' : 'gap-1'}`}>
                                                                 <span>수령</span>
                                                                 <img
                                                                     src={quest.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                                     alt={quest.rewardType === 'gold' ? '골드' : '다이아'}
-                                                                    className="h-3 w-3 flex-shrink-0 object-contain"
+                                                                    className={`flex-shrink-0 object-contain ${embeddedTabNarrow ? 'h-2.5 w-2.5' : 'h-3 w-3'}`}
                                                                 />
                                                                 <span>{reward > 0 ? reward.toLocaleString() : 0}</span>
                                                             </span>
@@ -521,7 +594,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         <Button
                                                             onClick={() => handleLevelUpClick(quest.id)}
                                                             colorScheme="none"
-                                                            className={PREMIUM_QUEST_BTN.upgrade}
+                                                            className={`${PREMIUM_QUEST_BTN.upgrade}${embeddedQuestBtnTight}`}
                                                             disabled={isMaxLevel}
                                                         >
                                                             강화

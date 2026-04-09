@@ -125,25 +125,25 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
     const chartShellClass =
         'relative flex shrink-0 flex-col items-center justify-center rounded-xl border border-indigo-500/40 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_30px_-14px_rgba(0,0,0,0.6)] ' +
         (profileMobileCompact
-            ? 'w-[min(45%,156px)] max-w-[156px] px-1 py-1.5'
+            ? 'w-full max-w-[min(100%,11.5rem)] px-[clamp(0.3rem,1.1vw,0.45rem)] py-[clamp(0.35rem,0.9dvh,0.55rem)]'
             : compact
               ? 'w-[min(42%,150px)] max-w-[150px] px-1 py-1.5'
               : desktopLike
                 ? mobileReadable
                     ? halfPanelExpanded
-                        ? 'w-[min(60%,268px)] max-w-[268px] px-2.5 py-3'
+                        ? 'aspect-square w-[min(43%,11.2rem)] min-w-[7rem] max-w-[11.2rem] px-[clamp(0.32rem,0.9vw,0.55rem)] py-[clamp(0.32rem,0.9dvh,0.55rem)]'
                         : 'w-[min(52%,210px)] max-w-[210px] px-2 py-2.5'
                     : 'w-[min(60%,250px)] max-w-[250px] px-2.5 py-4'
                 : 'px-2.5 py-2.5 sm:w-[min(52%,220px)] sm:max-w-[220px] sm:py-4');
 
     const svgSizeClass = profileMobileCompact
-        ? 'h-[6.6rem] max-w-[150px]'
+        ? 'h-[clamp(5rem,17vw,6.3rem)] max-w-[clamp(6.2rem,24vw,9.2rem)]'
         : compact
           ? 'h-[6.5rem] max-w-[150px]'
           : desktopLike
             ? mobileReadable
                 ? halfPanelExpanded
-                    ? 'h-[13.5rem] max-w-[248px]'
+                    ? 'h-full max-h-[10rem] w-full max-w-[10rem]'
                     : 'h-40 max-w-[196px]'
                 : 'h-44 max-w-[220px]'
             : 'h-[9.5rem] max-w-[180px] sm:h-44 sm:max-w-[200px]';
@@ -153,13 +153,13 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
             <div
                 className={`flex min-h-0 w-full min-w-0 max-w-full ${
                     profileMobileCompact
-                        ? 'flex-col items-center gap-1.5'
+                        ? 'flex-col items-center gap-[clamp(0.22rem,0.8dvh,0.45rem)]'
                         : rowLayout
                           ? mobileReadable
                               ? compact
                                   ? 'flex-row items-stretch gap-1'
                                   : halfPanelExpanded
-                                    ? 'flex-row items-stretch gap-2'
+                                    ? 'flex-row items-stretch gap-0.5'
                                     : 'flex-row items-stretch gap-1.5'
                               : 'flex-row items-stretch gap-2.5'
                           : 'flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3'
@@ -260,13 +260,13 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                     compact && desktopLike ? 'overflow-visible' : 'overflow-hidden'
                 } ${rowLayout || profileMobileCompact ? '' : 'w-full flex-1'} ${
                     profileMobileCompact
-                        ? 'gap-0 py-0'
+                        ? 'w-full max-w-[min(100%,12.5rem)] gap-0 py-0'
                         : desktopLike
                           ? mobileReadable
                               ? compact
                                   ? 'gap-0.5 py-0'
                                   : halfPanelExpanded
-                                    ? 'gap-1.5 py-0'
+                                    ? 'gap-0.5 py-0'
                                     : 'gap-1 py-0'
                               : 'gap-1.5 py-0.5'
                           : 'gap-0.5 sm:gap-1.5 sm:py-0.5'
@@ -282,11 +282,13 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                             key={stat}
                             className={`flex min-w-0 items-center border-b border-zinc-700/90 last:border-b-0 last:pb-0 ${
                                 profileMobileCompact
-                                    ? 'justify-center pb-0.5'
+                                    ? 'justify-center pb-[clamp(0.12rem,0.4dvh,0.24rem)]'
                                     : desktopLike
                                       ? compact
                                           ? 'justify-end pb-0.5'
-                                          : 'justify-center pb-1.5'
+                                          : halfPanelExpanded
+                                            ? 'justify-center pb-0.5'
+                                            : 'justify-center pb-1.5'
                                       : 'justify-center pb-1 sm:pb-1.5'
                             }`}
                         >
@@ -309,10 +311,10 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                             <div
                                 className={`grid items-center mx-auto ${
                                     profileMobileCompact
-                                        ? 'w-full max-w-[11rem] grid-cols-[4.5rem_1.85rem_2rem] gap-x-0.5'
+                                        ? 'w-full max-w-full grid-cols-[minmax(0,1fr)_auto_auto] gap-x-[clamp(0.2rem,0.8vw,0.35rem)] px-[clamp(0.1rem,0.4vw,0.2rem)]'
                                         : desktopLike
                                           ? halfPanelExpanded && mobileReadable
-                                              ? 'w-[13.5rem] grid-cols-[7rem_2.85rem_2.95rem] gap-x-1.5'
+                                              ? 'w-full max-w-[14rem] grid-cols-[minmax(0,1fr)_minmax(2.5rem,auto)_minmax(2.6rem,auto)] gap-x-0.5'
                                               : `w-[12rem] ${
                                                     mobileReadable
                                                         ? 'grid-cols-[6.2rem_2.5rem_2.7rem] gap-x-1'
@@ -322,13 +324,13 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                 }`}
                             >
                                 <span
-                                    className={`text-right font-semibold leading-tight tracking-tight text-amber-50/95 antialiased ${
+                                    className={`${desktopLike && mobileReadable && halfPanelExpanded ? 'text-center' : 'text-right'} font-semibold leading-tight tracking-tight text-amber-50/95 antialiased ${
                                         profileMobileCompact
-                                            ? 'overflow-visible text-[9px] leading-snug'
+                                            ? 'truncate text-[clamp(8px,2.3vw,9.5px)] leading-snug'
                                             : desktopLike
                                                 ? mobileReadable
                                                     ? halfPanelExpanded
-                                                        ? 'truncate text-base'
+                                                        ? 'truncate text-[clamp(12px,3vw,14px)]'
                                                         : 'truncate text-sm'
                                                     : 'truncate text-sm'
                                                 : 'truncate text-[13px] sm:text-sm'
@@ -338,13 +340,13 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                     {stat}
                                 </span>
                                 <span
-                                    className={`shrink-0 text-right font-mono font-bold tabular-nums tracking-tight text-amber-100 ${
+                                    className={`shrink-0 ${desktopLike && mobileReadable && halfPanelExpanded ? 'text-center' : 'text-right'} font-mono font-bold tabular-nums tracking-tight text-amber-100 ${
                                         profileMobileCompact
-                                        ? 'text-[9px]'
+                                        ? 'text-[clamp(8px,2.2vw,9.5px)]'
                                             : desktopLike
                                                 ? mobileReadable
                                                     ? halfPanelExpanded
-                                                        ? 'text-base'
+                                                        ? 'text-[clamp(12px,2.9vw,14px)]'
                                                         : 'text-sm'
                                                     : 'text-sm'
                                                 : 'text-[13px] sm:text-sm'
@@ -353,13 +355,13 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                     {finalV}
                                 </span>
                                 <span
-                                    className={`shrink-0 text-left font-semibold tabular-nums text-emerald-400/95 ${
+                                    className={`shrink-0 ${desktopLike && mobileReadable && halfPanelExpanded ? 'text-center' : 'text-left'} font-semibold tabular-nums text-emerald-400/95 ${
                                         profileMobileCompact
-                                        ? 'text-[8px]'
+                                        ? 'text-[clamp(7px,2vw,8.5px)]'
                                             : desktopLike
                                                 ? mobileReadable
                                                     ? halfPanelExpanded
-                                                        ? 'text-sm'
+                                                        ? 'text-[clamp(10.5px,2.6vw,12px)]'
                                                         : 'text-[11px]'
                                                     : 'text-xs'
                                                 : 'text-[11px] sm:text-xs'

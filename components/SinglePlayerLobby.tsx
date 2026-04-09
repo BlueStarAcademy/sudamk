@@ -61,8 +61,8 @@ const SinglePlayerLobby: React.FC = () => {
             </header>
 
             {isNativeMobile ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-0.5 pb-0.5">
-                    <div className="min-h-0 max-h-[min(40dvh,300px)] shrink-0 overflow-hidden rounded-lg ring-1 ring-emerald-500/15">
+                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0.5">
+                    <div className="min-h-0 max-h-[min(32dvh,248px)] shrink-0 overflow-hidden rounded-xl">
                         <ClassNavigationPanel
                             selectedClass={selectedClass}
                             onClassSelect={setOverrideClass}
@@ -72,7 +72,7 @@ const SinglePlayerLobby: React.FC = () => {
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                         <div
-                            className="flex shrink-0 gap-1 border-b border-white/10 p-1 sm:p-1.5"
+                            className="flex shrink-0 gap-1 border-b border-white/10 px-1 py-0.5 sm:p-1.5"
                             role="tablist"
                             aria-label="싱글플레이 하단"
                         >
@@ -81,7 +81,7 @@ const SinglePlayerLobby: React.FC = () => {
                                 role="tab"
                                 aria-selected={mobileLobbySubTab === 'quests'}
                                 onClick={() => setMobileLobbySubTab('quests')}
-                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm font-bold transition-all sm:py-2.5 sm:text-base ${
+                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm font-bold transition-all sm:py-2 sm:text-base ${
                                     mobileLobbySubTab === 'quests'
                                         ? 'border border-amber-400/55 bg-gradient-to-b from-emerald-900/50 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
                                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
@@ -94,7 +94,7 @@ const SinglePlayerLobby: React.FC = () => {
                                 role="tab"
                                 aria-selected={mobileLobbySubTab === 'stages'}
                                 onClick={() => setMobileLobbySubTab('stages')}
-                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm font-bold transition-all sm:py-2.5 sm:text-base ${
+                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm font-bold transition-all sm:py-2 sm:text-base ${
                                     mobileLobbySubTab === 'stages'
                                         ? 'border border-amber-400/55 bg-gradient-to-b from-emerald-900/50 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
                                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'

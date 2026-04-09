@@ -67,34 +67,6 @@ const ResourceDisplay = memo<{
 });
 ResourceDisplay.displayName = 'ResourceDisplay';
 
-/** 모바일 헤더: 길드 코인 등 특수 재화 — 골드/다이아와 동일한 fluid 스타일 */
-const SpecialResourceDisplay = memo<{
-    iconKey: SpecialResourceIconKey;
-    value: number;
-    label: string;
-}>(({ iconKey, value, label }) => {
-    const formattedValue = useMemo(() => value.toLocaleString(), [value]);
-    return (
-        <div
-            className="flex min-w-0 flex-1 items-center gap-[clamp(0.125rem,0.8vw,0.25rem)] rounded-full bg-tertiary/50 py-[clamp(0.125rem,0.6vw,0.25rem)] pl-[clamp(0.125rem,0.8vw,0.25rem)] pr-[clamp(0.25rem,1.2vw,0.45rem)] shadow-inner"
-        >
-            <div className="flex h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)] flex-shrink-0 items-center justify-center rounded-full bg-primary">
-                <img
-                    src={specialResourceIcons[iconKey]}
-                    alt={label}
-                    className="h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)] object-contain"
-                    loading="lazy"
-                    decoding="async"
-                />
-            </div>
-            <span className="min-w-0 flex-1 font-bold tabular-nums leading-none tracking-tight text-primary whitespace-nowrap text-[clamp(0.34rem,calc(0.03rem+2.05vw),0.82rem)]">
-                {formattedValue}
-            </span>
-        </div>
-    );
-});
-SpecialResourceDisplay.displayName = 'SpecialResourceDisplay';
-
 export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean }> = ({ user, mobile = false }) => {
     const { actionPoints, lastActionPointUpdate } = user;
     const [timeLeft, setTimeLeft] = useState('');
@@ -186,10 +158,6 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     }, [isSpecialResourcesOpen, updateSpecialPopoverPosition]);
 
     useEffect(() => {
-        if (isMobile) setIsSpecialResourcesOpen(false);
-    }, [isMobile]);
-
-    useEffect(() => {
         // 팝오버 열림 상태에서 외부 클릭으로 닫기
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
@@ -219,20 +187,33 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
 
+    const mobileAdditionalResources = [
+        { key: 'diamonds' as const, icon: resourceIcons.diamonds, label: RESOURCE_LABEL.diamonds, value: safeDiamonds },
+        { key: 'guildCoins' as const, icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 },
+    ];
+
     const specialResourcesPopoverPanel = (
         <div className="w-max max-w-[min(18rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
-            <div className="flex items-center gap-[clamp(0.35rem,1.5vw,0.5rem)] px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:gap-2 sm:px-3 sm:py-1.5">
-                <img
-                    src={specialResourceIcons.guildCoins}
-                    alt={SPECIAL_RESOURCE_LABEL.guildCoins}
-                    className="h-[clamp(1rem,3.5vw,1.35rem)] w-[clamp(1rem,3.5vw,1.35rem)] shrink-0 object-contain sm:h-5 sm:w-5"
-                    loading="lazy"
-                    decoding="async"
-                />
-                <span className="min-w-0 font-bold tabular-nums text-primary text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] whitespace-nowrap sm:text-sm">
-                    {(guildCoins ?? 0).toLocaleString()}
-                </span>
-            </div>
+            {(isMobile
+                ? mobileAdditionalResources
+                : [{ key: 'guildCoins', icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 }]
+            ).map((resource) => (
+                <div
+                    key={resource.key}
+                    className="flex items-center gap-[clamp(0.35rem,1.5vw,0.5rem)] px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:gap-2 sm:px-3 sm:py-1.5"
+                >
+                    <img
+                        src={resource.icon}
+                        alt={resource.label}
+                        className="h-[clamp(1rem,3.5vw,1.35rem)] w-[clamp(1rem,3.5vw,1.35rem)] shrink-0 object-contain sm:h-5 sm:w-5"
+                        loading="lazy"
+                        decoding="async"
+                    />
+                    <span className="min-w-0 font-bold tabular-nums text-primary text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] whitespace-nowrap sm:text-sm">
+                        {resource.value.toLocaleString()}
+                    </span>
+                </div>
+            ))}
         </div>
     );
 
@@ -244,7 +225,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             <div
                 className={`flex min-w-0 w-full items-center ${
                     isMobile
-                        ? 'min-h-[clamp(2.45rem,calc(1.55rem+6.2vw),4rem)] flex-wrap content-center justify-end gap-x-[clamp(0.15rem,1vw,0.35rem)] gap-y-1 overflow-x-auto overscroll-x-contain px-[clamp(0.3rem,1.8vw,0.55rem)] py-[clamp(0.2rem,1vw,0.35rem)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
+                        ? 'min-h-[clamp(2.45rem,calc(1.55rem+6.2vw),4rem)] flex-nowrap content-center justify-end gap-x-[clamp(0.15rem,1vw,0.35rem)] overflow-x-auto overscroll-x-contain px-[clamp(0.3rem,1.8vw,0.55rem)] py-[clamp(0.2rem,1vw,0.35rem)] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden'
                         : dense
                           ? 'min-h-[clamp(3.25rem,calc(2.65rem+1.4vw),3.75rem)] flex-nowrap gap-x-2 gap-y-0 px-2 py-2 sm:gap-x-2 sm:px-2 sm:py-2'
                           : 'min-h-[clamp(3.5rem,calc(2.85rem+2vw),4.85rem)] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:gap-3 sm:p-3'
@@ -271,7 +252,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <div
                         className={`flex min-w-0 items-center justify-end gap-0.5 sm:w-auto sm:gap-2 ${
                             isMobile
-                                ? 'min-w-0 w-full max-w-full flex-1 flex-wrap content-center justify-end gap-x-[clamp(0.12rem,0.9vw,0.28rem)] gap-y-1'
+                                ? 'min-w-0 w-full max-w-full flex-1 flex-nowrap content-center justify-end gap-x-[clamp(0.12rem,0.9vw,0.28rem)] overflow-x-visible'
                                 : dense
                                   ? 'min-w-0 flex-1 flex-nowrap overflow-hidden'
                                   : 'min-w-0 flex-1 flex-wrap sm:flex-nowrap'
@@ -329,50 +310,42 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             />
                         </button>
                     </div>
-                    <ResourceDisplay icon="gold" value={safeGold} dense={dense} fluid={isMobile} />
-                    {isMobile ? (
-                        <>
-                            <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} fluid={isMobile} />
-                            <SpecialResourceDisplay
-                                iconKey="guildCoins"
-                                value={guildCoins ?? 0}
-                                label={SPECIAL_RESOURCE_LABEL.guildCoins}
-                            />
-                        </>
-                    ) : (
-                        <div
-                            className={`relative min-w-[4.5rem] shrink-0 sm:min-w-0`}
-                            ref={specialResourcesRef}
-                        >
-                            <div className="flex min-w-0 w-full max-w-full flex-1 items-center gap-[clamp(0.125rem,1vw,0.35rem)] sm:gap-1">
-                                <div className="min-w-0 flex-1 overflow-hidden">
-                                    <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} fluid={false} />
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
-                                    aria-expanded={isSpecialResourcesOpen}
-                                    className={`flex shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
-                                        dense
-                                            ? 'h-[clamp(1.35rem,2.6vw,1.75rem)] w-[clamp(1.35rem,2.6vw,1.75rem)] active:scale-95'
-                                            : 'h-[clamp(1.45rem,2.2vw,1.85rem)] w-[clamp(1.45rem,2.2vw,1.85rem)] sm:h-7 sm:w-7 active:scale-95'
-                                    } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
-                                    title="특수 재화"
-                                >
-                                    <span
-                                        className={`text-primary transition-transform duration-200 ${
-                                            dense
-                                                ? 'text-[clamp(0.5rem,calc(0.28rem+1.1vw),0.65rem)]'
-                                                : 'text-[clamp(0.55rem,calc(0.35rem+0.9vw),0.75rem)] sm:text-xs'
-                                        } ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
-                                        aria-hidden
-                                    >
-                                        ▼
-                                    </span>
-                                </button>
+                    <div
+                        className={`relative min-w-[4.5rem] shrink-0 ${isMobile ? 'flex-1' : 'sm:min-w-0'}`}
+                        ref={specialResourcesRef}
+                    >
+                        <div className={`flex min-w-0 w-full max-w-full items-center ${isMobile ? 'gap-[clamp(0.1rem,0.8vw,0.24rem)]' : 'gap-[clamp(0.125rem,1vw,0.35rem)] sm:gap-1'}`}>
+                            <div className="min-w-0 flex-1 overflow-hidden">
+                                <ResourceDisplay icon={isMobile ? 'gold' : 'diamonds'} value={isMobile ? safeGold : safeDiamonds} dense={dense} fluid={isMobile} />
                             </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
+                                aria-expanded={isSpecialResourcesOpen}
+                                className={`flex shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
+                                    isMobile
+                                        ? 'h-[clamp(1.1rem,4.1vw,1.5rem)] w-[clamp(1.1rem,4.1vw,1.5rem)] active:scale-95'
+                                        : dense
+                                          ? 'h-[clamp(1.35rem,2.6vw,1.75rem)] w-[clamp(1.35rem,2.6vw,1.75rem)] active:scale-95'
+                                          : 'h-[clamp(1.45rem,2.2vw,1.85rem)] w-[clamp(1.45rem,2.2vw,1.85rem)] sm:h-7 sm:w-7 active:scale-95'
+                                } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
+                                title={isMobile ? '다른 재화' : '특수 재화'}
+                            >
+                                <span
+                                    className={`text-primary transition-transform duration-200 ${
+                                        isMobile
+                                            ? 'text-[clamp(0.44rem,1.9vw,0.62rem)]'
+                                            : dense
+                                              ? 'text-[clamp(0.5rem,calc(0.28rem+1.1vw),0.65rem)]'
+                                              : 'text-[clamp(0.55rem,calc(0.35rem+0.9vw),0.75rem)] sm:text-xs'
+                                    } ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
+                                    aria-hidden
+                                >
+                                    ▼
+                                </span>
+                            </button>
                         </div>
-                    )}
+                    </div>
                     
                     <div
                         className={`w-px flex-shrink-0 self-center bg-border-color ${
@@ -484,8 +457,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 </div>
             </div>
         </header>
-        {!isMobile &&
-            isSpecialResourcesOpen &&
+        {isSpecialResourcesOpen &&
             specialPopoverFixed &&
             typeof document !== 'undefined' &&
             createPortal(

@@ -21,6 +21,65 @@ interface ClaimAllTrainingQuestRewardsModalProps {
     isTopmost?: boolean;
 }
 
+/** 골드·다이아 행: 아이콘 열·숫자 열 정렬 */
+function ClaimAllTotalsBox({
+    totalGold,
+    totalDiamonds,
+    variant,
+}: {
+    totalGold: number;
+    totalDiamonds: number;
+    variant: 'compact' | 'comfortable';
+}) {
+    if (totalGold <= 0 && totalDiamonds <= 0) return null;
+
+    const shell =
+        variant === 'compact'
+            ? 'w-full max-w-[13rem] space-y-1.5 rounded-lg border border-emerald-400/30 bg-gradient-to-br from-emerald-950/55 via-gray-900/80 to-slate-950/90 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_18px_rgba(0,0,0,0.35)] sm:max-w-[13.5rem] sm:px-3.5 sm:py-2'
+            : 'w-full max-w-[14.5rem] space-y-2 rounded-xl border border-emerald-400/35 bg-gradient-to-br from-emerald-950/50 via-gray-900/85 to-slate-950/95 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_6px_22px_rgba(0,0,0,0.4)] sm:max-w-[15rem] sm:px-4 sm:py-3.5';
+
+    const titleClass =
+        variant === 'compact'
+            ? 'text-center text-xs font-bold leading-snug text-amber-100/95 sm:text-sm'
+            : 'text-center text-base font-bold text-amber-100 sm:text-lg';
+
+    const rowGrid = 'grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-2';
+    const iconWrap = 'flex h-7 items-center justify-center sm:h-8';
+    const iconClass = variant === 'compact' ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-7 w-7 sm:h-8 sm:w-8';
+    const numClass =
+        variant === 'compact'
+            ? 'text-right text-sm font-bold tabular-nums tracking-tight text-yellow-300 sm:text-base'
+            : 'text-right text-lg font-bold tabular-nums tracking-tight text-yellow-300 sm:text-xl';
+    const diaClass =
+        variant === 'compact'
+            ? 'text-right text-sm font-bold tabular-nums tracking-tight text-cyan-300 sm:text-base'
+            : 'text-right text-lg font-bold tabular-nums tracking-tight text-cyan-300 sm:text-xl';
+
+    return (
+        <div className={shell}>
+            <h3 className={titleClass}>총 합계</h3>
+            <div className="flex flex-col gap-2 sm:gap-2.5">
+                {totalGold > 0 && (
+                    <div className={rowGrid}>
+                        <div className={iconWrap}>
+                            <img src="/images/icon/Gold.png" alt="골드" className={`${iconClass} shrink-0 object-contain`} />
+                        </div>
+                        <span className={numClass}>+{totalGold.toLocaleString()}</span>
+                    </div>
+                )}
+                {totalDiamonds > 0 && (
+                    <div className={rowGrid}>
+                        <div className={iconWrap}>
+                            <img src="/images/icon/Zem.png" alt="다이아" className={`${iconClass} shrink-0 object-contain`} />
+                        </div>
+                        <span className={diaClass}>+{totalDiamonds.toLocaleString()}</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
 function formatMissionLabel(missionName: string, missionLevel?: number): React.ReactNode {
     if (typeof missionLevel === 'number' && missionLevel >= 1) {
         return (
@@ -110,43 +169,9 @@ function MobileClaimBody({
             </div>
 
             <div className="mt-2 flex shrink-0 flex-col items-center gap-2 border-t border-white/10 pt-2">
-                {(totalGold > 0 || totalDiamonds > 0) && (
-                    <div className="w-fit max-w-[min(100%,14.5rem)] space-y-1.5 rounded-lg border border-green-500/35 bg-gradient-to-r from-green-900/35 to-blue-900/35 px-3 py-2 text-center sm:max-w-[15rem] sm:px-3.5 sm:py-2">
-                        <h3 className="text-xs font-bold leading-snug text-amber-100/90 sm:text-sm">총 합계</h3>
-                        <div className="space-y-1.5">
-                            {totalGold > 0 && (
-                                <div className="flex items-center justify-center gap-2">
-                                    <img
-                                        src="/images/icon/Gold.png"
-                                        alt="골드"
-                                        className="h-6 w-6 shrink-0 sm:h-7 sm:w-7"
-                                    />
-                                    <span className="text-sm font-bold tabular-nums text-yellow-300 sm:text-base">
-                                        +{totalGold.toLocaleString()}
-                                    </span>
-                                </div>
-                            )}
-                            {totalDiamonds > 0 && (
-                                <div className="flex items-center justify-center gap-2">
-                                    <img
-                                        src="/images/icon/Zem.png"
-                                        alt="다이아"
-                                        className="h-6 w-6 shrink-0 sm:h-7 sm:w-7"
-                                    />
-                                    <span className="text-sm font-bold tabular-nums text-cyan-300 sm:text-base">
-                                        +{totalDiamonds.toLocaleString()}
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                <ClaimAllTotalsBox totalGold={totalGold} totalDiamonds={totalDiamonds} variant="compact" />
 
-                <Button
-                    onClick={onClose}
-                    colorScheme="accent"
-                    className="mt-1 min-h-[2.5rem] w-full shrink-0 !py-2 text-sm font-bold sm:min-h-[2.65rem]"
-                >
+                <Button onClick={onClose} colorScheme="none" bare className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5`} cooldownMs={0}>
                     확인
                 </Button>
             </div>
@@ -287,46 +312,12 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
 
                     {(totalGold > 0 || totalDiamonds > 0) && (
                         <div className="mb-3 flex justify-center">
-                            <div className="w-fit max-w-[15rem] space-y-2 rounded-lg border border-green-500/35 bg-gradient-to-r from-green-900/35 to-blue-900/35 px-3 py-2.5 text-center sm:max-w-[16rem] sm:px-4 sm:py-3">
-                                <h3 className="text-base font-bold">총 합계</h3>
-                                <div className="space-y-2">
-                                    {totalGold > 0 && (
-                                        <div className="flex items-center justify-center gap-2.5">
-                                            <img
-                                                src="/images/icon/Gold.png"
-                                                alt="골드"
-                                                className="h-7 w-7 shrink-0 sm:h-8 sm:w-8"
-                                            />
-                                            <span className="text-lg font-bold tabular-nums text-yellow-300 sm:text-xl">
-                                                +{totalGold.toLocaleString()}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {totalDiamonds > 0 && (
-                                        <div className="flex items-center justify-center gap-2.5">
-                                            <img
-                                                src="/images/icon/Zem.png"
-                                                alt="다이아"
-                                                className="h-7 w-7 shrink-0 sm:h-8 sm:w-8"
-                                            />
-                                            <span className="text-lg font-bold tabular-nums text-cyan-300 sm:text-xl">
-                                                +{totalDiamonds.toLocaleString()}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
+                            <ClaimAllTotalsBox totalGold={totalGold} totalDiamonds={totalDiamonds} variant="comfortable" />
                         </div>
                     )}
 
                     <div className="flex justify-center pt-1">
-                        <Button
-                            onClick={onClose}
-                            colorScheme="none"
-                            bare
-                            className={PREMIUM_QUEST_BTN.confirmModal}
-                            cooldownMs={0}
-                        >
+                        <Button onClick={onClose} colorScheme="none" bare className={PREMIUM_QUEST_BTN.claimAllConfirm} cooldownMs={0}>
                             확인
                         </Button>
                     </div>

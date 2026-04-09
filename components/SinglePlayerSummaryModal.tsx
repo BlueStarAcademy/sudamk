@@ -421,7 +421,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             uniformPcScale={false}
             mobileViewportFit
             mobileViewportMaxHeightVh={97}
-            headerShowTitle={!isMobile || isScoring}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}

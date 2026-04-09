@@ -30,7 +30,6 @@ import { calculateUserEffects } from '../services/effectService.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
-import { getWasmGnuGoMove, isAvailable as isWasmGnuGoAvailable } from '../services/wasmGnuGo.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
 import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
@@ -6012,34 +6011,12 @@ export const useApp = () => {
                 if (move.x === -1 && move.y === -1) {
                     handleAction({ type: 'PASS_TURN', payload: { gameId } } as any).catch((err) => { console.error('[useApp] PASS_TURN (client-side AI) failed:', err); requestServerFallback(err); });
                 } else {
-                    try { console.log('[useApp] Client-side AI: sending move for gameId=', gameId, 'WASM=', usedWasm); } catch (_) {}
+                    try { console.log('[useApp] Client-side AI: sending move for gameId=', gameId); } catch (_) {}
                     handleAction({ type: 'PLACE_STONE', payload: { gameId, x: move.x, y: move.y, clientSideAiMove: true } }).catch((err) => { console.error('[useApp] Client-side AI PLACE_STONE failed:', err); requestServerFallback(err); });
                 }
             };
 
-            let usedWasm = false;
             (async () => {
-                if (isWasmGnuGoAvailable()) {
-                    const boardSize = latestGame.settings?.boardSize ?? 19;
-                    const playerStr = latestGame.currentPlayer === Player.Black ? 'black' : 'white';
-                    const moveHistoryForWasm = (latestGame.moveHistory || []).map((m: { x: number; y: number; player: Player }) => ({
-                        x: m.x,
-                        y: m.y,
-                        player: (m as any).player === Player.Black ? 1 : 2
-                    }));
-                    const wasmResult = await getWasmGnuGoMove({
-                        boardState: latestGame.boardState || [],
-                        boardSize,
-                        player: playerStr,
-                        moveHistory: moveHistoryForWasm,
-                        level: effectiveLevel
-                    });
-                    if (!wasmResult?.error && wasmResult?.move != null) {
-                        usedWasm = true;
-                        applyMove(wasmResult.move);
-                        return;
-                    }
-                }
                 const result = getLightGoAiMove(latestGame, effectiveLevel);
                 if (result?.move == null) { requestServerFallback('no move'); return; }
                 applyMove(result.move);

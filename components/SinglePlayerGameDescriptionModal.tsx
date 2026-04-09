@@ -245,7 +245,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             initialHeight={isCompactUi ? 2400 : frameHeight}
             modal={true}
             closeOnOutsideClick={!!onClose}
-            headerShowTitle={false}
             uniformPcScale={!isCompactUi}
             mobileViewportFit={isCompactUi}
             bodyNoScroll={isCompactUi}

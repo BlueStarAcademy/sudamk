@@ -10,7 +10,7 @@ import {
     PLAYFUL_GAME_MODES,     STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST,
 } from '../constants.js';
 import { audioService } from '../services/audioService.js';
-import { loadWasmGnuGo, shouldUseClientSideAi } from '../services/wasmGnuGo.js';
+import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import Avatar from './Avatar.js';
@@ -90,11 +90,6 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const isAiGame = opponent.id === aiUserId;
   const isRanked = negotiation.isRanked ?? false;
   const isCasual = !isRanked; // 친선전
-
-  // AI 대국 설정 시 WASM GnuGo 프리로드
-  useEffect(() => {
-    if (isAiGame) loadWasmGnuGo().catch(() => {});
-  }, [isAiGame]);
 
   const onDecline = useCallback(() => {
     onAction({ type: 'DECLINE_NEGOTIATION', payload: { negotiationId: negotiation.id } });

@@ -12,7 +12,7 @@ import {
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
-import { shouldUseClientSideAi, loadWasmGnuGo } from '../../services/wasmGnuGo.js';
+import { shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 
 interface AiChallengeModalProps {
@@ -173,11 +173,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         });
     };
 
-    // 전략바둑 AI 도전 시 WASM GnuGo 프리로드 (도전 클릭 전에 로드 시작해 두면 첫 수에서 WASM 사용 가능)
-    useEffect(() => {
-        if (lobbyType === 'strategic') loadWasmGnuGo().catch(() => {});
-    }, [lobbyType]);
-
     // 믹스로 전환 시 mixedModes가 비어 있으면 PVP 기본과 같이 유효한 조합을 채움 (신청 화면에서 규칙 선택이 보이도록)
     useEffect(() => {
         if (selectedGameMode !== GameMode.Mix) {
@@ -219,11 +214,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                 GameMode.Mix,
             ];
             const isGoMode = goModes.includes(selectedGameMode);
-            // 전략바둑 대기실에서 시작하는 AI 대국은 항상 서버 AI(그누고/서버 goAiBot)를 사용한다.
-            // 클라이언트 측 AI(WASM/로컬 GnuGo)는 놀이바둑 등 다른 컨텐츠에서만 사용.
+            // 전략바둑 대기실에서 시작하는 AI 대국은 항상 서버 AI를 사용한다.
+            // 클라이언트 측 AI(lightGoAi)는 놀이바둑 등 다른 컨텐츠에서만 사용.
             const useClientSideAi = lobbyType === 'strategic'
                 ? false
-                : (isGoMode && (shouldUseClientSideAi() || typeof (window as any).electron === 'undefined'));
+                : (isGoMode && shouldUseClientSideAi());
 
             // AI 대국은 모두 시간 무제한으로 고정:
             // - timeLimit: 0, byoyomiTime: 0, byoyomiCount: 0, timeIncrement: 0
