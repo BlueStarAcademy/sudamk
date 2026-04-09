@@ -195,7 +195,7 @@ html[data-theme="green"] {
    * 자식의 text-sm/text-xs는 본문 가독성을 해치지 않도록 한 단계 보정.
    */
   .sudamr-mobile-modal-body {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
   }
@@ -205,12 +205,12 @@ html[data-theme="green"] {
   }
 
   .sudamr-mobile-modal-body .text-sm {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     line-height: 1.55;
   }
 
   .sudamr-mobile-modal-body .text-xs {
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     line-height: 1.5;
   }
 
@@ -302,17 +302,17 @@ html[data-theme="green"] {
   }
 
   .sudamr-modal-panel {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     line-height: 1.55;
   }
 
   .sudamr-modal-panel .text-sm {
-    font-size: 0.9375rem;
+    font-size: 1rem;
     line-height: 1.55;
   }
 
   .sudamr-modal-panel .text-xs {
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     line-height: 1.5;
   }
 
@@ -335,13 +335,13 @@ html {
  */
 @media (max-width: 1024px) {
   html {
-    font-size: 17px;
+    font-size: 18px;
   }
 }
 
 @media (max-width: 640px) {
   html {
-    font-size: 18px;
+    font-size: 19px;
   }
 }
 

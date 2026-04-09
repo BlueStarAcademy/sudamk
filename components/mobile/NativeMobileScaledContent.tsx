@@ -45,9 +45,9 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode; className
             ref={containerRef}
             className={`flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch overflow-hidden overflow-x-hidden overscroll-y-none ${className}`.trim()}
         >
-            <div className="min-h-0 w-full flex-1 overflow-x-hidden overflow-hidden overscroll-y-none">
+            <div className="flex min-h-0 w-full flex-1 justify-center overflow-x-hidden overflow-hidden overscroll-y-none">
                 <div
-                    className="relative overflow-hidden"
+                    className="relative shrink-0 overflow-hidden"
                     style={{
                         width: bw * scale,
                         height: logicalHeight * scale,

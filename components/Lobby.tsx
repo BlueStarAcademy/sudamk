@@ -63,8 +63,8 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
         <img src="/images/button/back.png" alt="Back" className={isNativeMobile ? 'h-8 w-8' : 'h-10 w-10 sm:h-12 sm:w-12'} />
       </button>
       <div className="min-w-0 flex-grow text-center">
-        <h1 className={`font-bold ${isNativeMobile ? 'text-sm' : 'text-2xl sm:text-4xl'}`}>{title} 로비</h1>
-        <p className={`text-secondary ${isNativeMobile ? 'mt-0.5 text-[10px]' : 'mt-2 text-sm sm:text-base'}`}>플레이할 게임을 선택하세요.</p>
+        <h1 className={`font-bold ${isNativeMobile ? 'text-base' : 'text-2xl sm:text-4xl'}`}>{title} 로비</h1>
+        <p className={`text-secondary ${isNativeMobile ? 'mt-0.5 text-xs' : 'mt-2 text-sm sm:text-base'}`}>플레이할 게임을 선택하세요.</p>
       </div>
       <div className={isNativeMobile ? 'w-8 shrink-0' : 'w-10 shrink-0 sm:w-24'} />
     </header>
@@ -73,7 +73,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
   const modeGrid = (
     <section className="min-h-0">
       <h2
-        className={`font-semibold border-l-4 ${sectionBorderColor} ${isNativeMobile ? 'mb-1 border-l-2 pl-2 text-xs' : 'mb-4 pl-4 text-xl sm:text-2xl'}`}
+        className={`font-semibold border-l-4 ${sectionBorderColor} ${isNativeMobile ? 'mb-1 border-l-2 pl-2 text-sm' : 'mb-4 pl-4 text-xl sm:text-2xl'}`}
       >
         {sectionTitle}
       </h2>
@@ -91,7 +91,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
       <div className={`sudamr-native-route-root flex w-full flex-col p-1 text-primary ${lobbyShellClass}`}>
         <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
           <div className="shrink-0 px-0.5">{lobbyHeader}</div>
-          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 pb-1 [&_.grid]:grid-cols-1 [&_h2]:!text-sm [&_h3]:!text-xs [&_p]:!text-[11px]">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 pb-1 [&_.grid]:grid-cols-1 [&_h2]:!text-base [&_h3]:!text-sm [&_p]:!text-sm">
             {modeGrid}
           </div>
         </div>

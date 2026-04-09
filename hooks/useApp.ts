@@ -3470,6 +3470,19 @@ export const useApp = () => {
                                 inventory: Array.isArray(initialUserData.inventory) ? initialUserData.inventory : (currentUserSnapshot.inventory || []),
                                 equipment: initialUserData.equipment ?? currentUserSnapshot.equipment,
                             };
+                            // 닉네임 설정 직후 등: 늦게 도착한 INITIAL_STATE가 임시 닉네임(user_*)으로 덮어
+                            // 라우터가 다시 set-nickname으로 보내거나 홈 전환이 늦게 느껴지는 레이스 방지
+                            const localNick = currentUserSnapshot.nickname;
+                            const incomingNick = initialUserData.nickname;
+                            if (
+                                typeof localNick === 'string' &&
+                                localNick.trim().length > 0 &&
+                                !localNick.startsWith('user_') &&
+                                typeof incomingNick === 'string' &&
+                                incomingNick.startsWith('user_')
+                            ) {
+                                sanitizedUpdate.nickname = localNick;
+                            }
                             applyUserUpdate(sanitizedUpdate, 'INITIAL_STATE');
                         } catch (error) {
                             console.error('[WebSocket] Error applying initial state update:', error);
@@ -5762,10 +5775,17 @@ export const useApp = () => {
                 setLiveGames(prev => ({ ...prev, [g.id]: g }));
             }
             replaceAppHash(`#/game/${g.id}`);
+            flushSync(() => {
+                setCurrentRoute(parseHash(window.location.hash));
+            });
         } else {
             replaceAppHash('#/profile');
+            // hashchange의 setCurrentRoute는 다음 틱에 반영되어, 닉네임 확정 직후에도 잠시 set-nickname 뷰가 남는다
+            flushSync(() => {
+                setCurrentRoute(parseHash(window.location.hash));
+            });
         }
-    }, [applyUserUpdate]);
+    }, [applyUserUpdate, setActiveGameFromLogin, setCurrentRoute, setLiveGames, setSinglePlayerGames, setTowerGames]);
     
     const openEnhancingItem = useCallback((item: InventoryItem) => {
         setBlacksmithSelectedItemForEnhancement(item);

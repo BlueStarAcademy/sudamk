@@ -33,13 +33,15 @@ const SinglePlayerLobby: React.FC = () => {
 
     const onBackToProfile = () => window.location.hash = '#/profile';
 
+    const [mobileLobbySubTab, setMobileLobbySubTab] = useState<'quests' | 'stages'>('stages');
+
     if (!currentUser || !currentUserWithStatus) {
         return null;
     }
 
     return (
         <div
-            className={`relative mx-auto flex w-full flex-col bg-lobby-shell-singleplayer text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
+            className={`relative mx-auto flex w-full flex-col bg-lobby-shell-singleplayer text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
         >
             {/* Header */}
             <header
@@ -59,19 +61,60 @@ const SinglePlayerLobby: React.FC = () => {
             </header>
 
             {isNativeMobile ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pb-0.5">
-                    {/* 상단: 좌 단계 선택 · 우 수련 과제 */}
-                    <div className="grid min-h-0 min-h-[min(52dvh,540px)] max-h-[min(66dvh,660px)] shrink-0 grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] gap-1.5 overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                            <ClassNavigationPanel selectedClass={selectedClass} onClassSelect={setOverrideClass} compact />
-                        </div>
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                            <TrainingQuestPanel currentUser={currentUserWithStatus} compactTopSlot />
-                        </div>
+                <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-0.5 pb-0.5">
+                    <div className="min-h-0 max-h-[min(40dvh,300px)] shrink-0 overflow-hidden rounded-lg ring-1 ring-emerald-500/15">
+                        <ClassNavigationPanel
+                            selectedClass={selectedClass}
+                            onClassSelect={setOverrideClass}
+                            compact
+                            lobbyMobileTop
+                        />
                     </div>
-                    {/* 하단: 스테이지 패널 */}
-                    <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                        <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} compact />
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                        <div
+                            className="flex shrink-0 gap-1 border-b border-white/10 p-1 sm:p-1.5"
+                            role="tablist"
+                            aria-label="싱글플레이 하단"
+                        >
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={mobileLobbySubTab === 'quests'}
+                                onClick={() => setMobileLobbySubTab('quests')}
+                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm font-bold transition-all sm:py-2.5 sm:text-base ${
+                                    mobileLobbySubTab === 'quests'
+                                        ? 'border border-amber-400/55 bg-gradient-to-b from-emerald-900/50 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                                        : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
+                                }`}
+                            >
+                                수련과제
+                            </button>
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={mobileLobbySubTab === 'stages'}
+                                onClick={() => setMobileLobbySubTab('stages')}
+                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm font-bold transition-all sm:py-2.5 sm:text-base ${
+                                    mobileLobbySubTab === 'stages'
+                                        ? 'border border-amber-400/55 bg-gradient-to-b from-emerald-900/50 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                                        : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
+                                }`}
+                            >
+                                스테이지
+                            </button>
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5" role="tabpanel">
+                            {mobileLobbySubTab === 'quests' ? (
+                                <TrainingQuestPanel currentUser={currentUserWithStatus} embeddedInTab />
+                            ) : (
+                                <StageGrid
+                                    selectedClass={selectedClass}
+                                    currentUser={currentUserWithStatus}
+                                    compact
+                                    mobileTabShelf
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
             ) : (

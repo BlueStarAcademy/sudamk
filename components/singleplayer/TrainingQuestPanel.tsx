@@ -12,9 +12,15 @@ interface TrainingQuestPanelProps {
     currentUser: UserWithStatus;
     /** 네이티브 싱글플레이 상단 우측: 2×3 그리드로 6과제를 스크롤 없이 채움 */
     compactTopSlot?: boolean;
+    /** 싱글플레이 로비 하단 탭 안: 제목 숨김·일괄수령만, 일반 카드 레이아웃 + 스크롤 */
+    embeddedInTab?: boolean;
 }
 
-const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, compactTopSlot = false }) => {
+const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
+    currentUser,
+    compactTopSlot = false,
+    embeddedInTab = false,
+}) => {
     const { handlers } = useAppContext();
     const [selectedMissionForUpgrade, setSelectedMissionForUpgrade] = useState<string | null>(null);
     const [currentTime, setCurrentTime] = useState(Date.now());
@@ -279,30 +285,53 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
         }
     };
 
+    const effectiveCompactTop = compactTopSlot && !embeddedInTab;
+
     return (
         <>
             <div
-                className={`bg-panel flex flex-col overflow-hidden rounded-lg shadow-lg ${compactTopSlot ? 'h-full min-h-0 p-1.5' : 'h-full p-1.5 sm:p-2'}`}
+                className={`bg-panel flex flex-col overflow-hidden rounded-lg shadow-lg ${
+                    embeddedInTab ? 'h-full min-h-0 p-2' : effectiveCompactTop ? 'h-full min-h-0 p-1.5' : 'h-full p-1.5 sm:p-2'
+                }`}
             >
-                <div
-                    className={`flex flex-shrink-0 items-center justify-between border-b border-color ${compactTopSlot ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-1.5 sm:pb-1'}`}
-                >
-                    <h2 className={`font-bold text-on-panel ${compactTopSlot ? 'text-sm' : 'text-base sm:text-lg'}`}>수련 과제</h2>
-                    {claimableQuestsCount > 0 && (
-                        <Button
-                            onClick={handleClaimAllRewards}
-                            colorScheme="none"
-                            className={PREMIUM_QUEST_BTN.claimAll}
-                            disabled={isClaimingAll}
-                        >
-                            {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
-                        </Button>
-                    )}
-                </div>
-                
+                {embeddedInTab ? (
+                    claimableQuestsCount > 0 && (
+                        <div className="mb-2 flex flex-shrink-0 justify-end border-b border-color/60 pb-2">
+                            <Button
+                                onClick={handleClaimAllRewards}
+                                colorScheme="none"
+                                className={`${PREMIUM_QUEST_BTN.claimAll} !text-sm sm:!text-base`}
+                                disabled={isClaimingAll}
+                            >
+                                {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
+                            </Button>
+                        </div>
+                    )
+                ) : (
+                    <div
+                        className={`flex flex-shrink-0 items-center justify-between border-b border-color ${effectiveCompactTop ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-1.5 sm:pb-1'}`}
+                    >
+                        <h2 className={`font-bold text-on-panel ${effectiveCompactTop ? 'text-sm' : 'text-base sm:text-lg'}`}>수련 과제</h2>
+                        {claimableQuestsCount > 0 && (
+                            <Button
+                                onClick={handleClaimAllRewards}
+                                colorScheme="none"
+                                className={PREMIUM_QUEST_BTN.claimAll}
+                                disabled={isClaimingAll}
+                            >
+                                {isClaimingAll ? '수령 중...' : `일괄 수령 (${claimableQuestsCount})`}
+                            </Button>
+                        )}
+                    </div>
+                )}
+
                 {/* 2x3 그리드 */}
-                <div className={`min-h-0 flex-1 ${compactTopSlot ? 'min-h-0 overflow-hidden' : 'overflow-hidden'}`}>
-                    <div className={`grid grid-cols-2 ${compactTopSlot ? 'h-full min-h-0 grid-rows-3 gap-1.5' : 'h-full gap-1 sm:gap-1.5'}`}>
+                <div
+                    className={`min-h-0 flex-1 ${embeddedInTab ? 'overflow-y-auto overscroll-y-contain' : effectiveCompactTop ? 'min-h-0 overflow-hidden' : 'overflow-hidden'}`}
+                >
+                    <div
+                        className={`grid grid-cols-2 ${effectiveCompactTop ? 'h-full min-h-0 grid-rows-3 gap-1.5' : embeddedInTab ? 'content-start gap-2 pb-2' : 'h-full gap-1 sm:gap-1.5'}`}
+                    >
                         {trainingQuests.map((quest) => {
                             const { reward, progress, timeUntilNext, isMax } = calculateRewardAndProgress(quest);
                             const isMaxLevel = quest.currentLevel >= 10;
@@ -314,7 +343,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                     key={quest.id}
                                     className={`
                                         relative bg-tertiary rounded-lg border-2 flex flex-col min-h-0 overflow-hidden
-                                        ${compactTopSlot ? 'h-full min-h-0 p-1.5' : 'p-1 sm:p-1.5'}
+                                        ${effectiveCompactTop ? 'h-full min-h-0 p-1.5' : 'p-1 sm:p-1.5'}
                                         ${quest.isUnlocked ? 'border-primary' : 'border-gray-600'}
                                     `}
                                 >
@@ -327,7 +356,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                                 <div className="flex flex-col items-center gap-1.5">
                                                     <div className="text-2xl sm:text-[1.75rem] filter drop-shadow-[0_3px_8px_rgba(0,0,0,0.85)]">🔒</div>
                                                     <div className="rounded-lg border border-amber-200/60 bg-black/90 px-3 py-1.5 sm:px-3.5 sm:py-2 shadow-lg">
-                                                        <span className={`block whitespace-nowrap text-center font-black leading-tight text-amber-100 ${compactTopSlot ? 'text-[13px] sm:text-[14px]' : 'text-xs sm:text-sm'}`}>
+                                                        <span className={`block whitespace-nowrap text-center font-black leading-tight text-amber-100 ${effectiveCompactTop ? 'text-[13px] sm:text-[14px]' : 'text-xs sm:text-sm'}`}>
                                                             {quest.unlockStageId} 필요
                                                         </span>
                                                     </div>
@@ -336,7 +365,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({ currentUser, co
                                         </>
                                     )}
 
-                                    {compactTopSlot ? (
+                                    {effectiveCompactTop ? (
                                         <>
                                             {/* 네이티브: 썸네일 + 우측 생산/타이머 2줄 */}
                                             <div className={`mb-0.5 sm:mb-1 flex-shrink-0 ${!quest.isUnlocked ? 'opacity-50' : ''}`}>

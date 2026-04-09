@@ -6,6 +6,8 @@ interface ClassNavigationPanelProps {
     onClassSelect: (level: SinglePlayerLevel) => void;
     /** 네이티브 모바일 한 화면용 */
     compact?: boolean;
+    /** 싱글플레이 로비: 하단 탭이 있을 때 상단만 차지 — 이미지·제목 높이 축소 */
+    lobbyMobileTop?: boolean;
 }
 
 const CLASS_INFO = [
@@ -16,7 +18,12 @@ const CLASS_INFO = [
     { level: SinglePlayerLevel.유단자, name: '유단자', image: '/images/single/Academy5.png' },
 ];
 
-const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedClass, onClassSelect, compact = false }) => {
+const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
+    selectedClass,
+    onClassSelect,
+    compact = false,
+    lobbyMobileTop = false,
+}) => {
     const currentIndex = CLASS_INFO.findIndex(c => c.level === selectedClass);
     const currentClass = CLASS_INFO[currentIndex];
 
@@ -33,10 +40,17 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
     };
 
     const isMobile = compact;
+    const topShelf = isMobile && lobbyMobileTop;
 
     return (
         <div className={`flex h-full flex-col rounded-lg bg-gray-800 shadow-lg ${isMobile ? 'p-1' : 'p-4'}`}>
-            <h2 className={`border-b border-gray-700 text-center font-bold text-gray-200 ${isMobile ? 'mb-1 pb-0.5 text-sm' : 'mb-4 pb-2 text-xl'}`}>단계 선택</h2>
+            <h2
+                className={`border-b border-gray-700 text-center font-bold text-gray-200 ${
+                    topShelf ? 'mb-1 pb-0.5 text-base' : isMobile ? 'mb-1 pb-0.5 text-sm' : 'mb-4 pb-2 text-xl'
+                }`}
+            >
+                단계 선택
+            </h2>
             
             {/* 큰 이미지와 좌우 화살표 */}
             <div className="flex-1 flex items-center justify-center relative">
@@ -65,7 +79,13 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
                 {/* 현재 선택된 클래스 이미지 */}
                 <div className={`relative flex h-full flex-1 flex-col items-center justify-center ${isMobile ? 'mx-11' : 'mx-16'}`}>
                     <div
-                        className={`relative h-full w-full overflow-hidden rounded-lg border-2 border-purple-500/90 shadow-[0_0_24px_rgba(168,85,247,0.25)] shadow-xl ring-1 ring-purple-400/30 ${isMobile ? 'max-h-[min(58dvh,440px)] min-h-[min(32dvh,240px)]' : 'max-h-[500px]'}`}
+                        className={`relative h-full w-full overflow-hidden rounded-lg border-2 border-purple-500/90 shadow-[0_0_24px_rgba(168,85,247,0.25)] shadow-xl ring-1 ring-purple-400/30 ${
+                            topShelf
+                                ? 'max-h-[min(30dvh,260px)] min-h-[min(16dvh,128px)]'
+                                : isMobile
+                                  ? 'max-h-[min(58dvh,440px)] min-h-[min(32dvh,240px)]'
+                                  : 'max-h-[500px]'
+                        }`}
                     >
                         <img 
                             src={currentClass.image} 
@@ -83,11 +103,15 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
                         />
                         {/* PC·모바일 공통: 상단 단계명(반투명 패널) + 하단 진행 표시 */}
                         <div
-                            className={`pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/92 via-black/45 to-transparent text-center ${isMobile ? 'px-2 pb-12 pt-2.5' : 'px-4 pb-14 pt-4'}`}
+                            className={`pointer-events-none absolute inset-x-0 top-0 z-10 bg-gradient-to-b from-black/92 via-black/45 to-transparent text-center ${
+                                topShelf ? 'px-2 pb-6 pt-1.5' : isMobile ? 'px-2 pb-12 pt-2.5' : 'px-4 pb-14 pt-4'
+                            }`}
                         >
                             <div className="mx-auto inline-flex items-center justify-center rounded-lg border border-black/55 bg-black/45 shadow-[0_2px_10px_rgba(0,0,0,0.5)] backdrop-blur-[1px]">
                                 <div
-                                    className={`font-black leading-tight tracking-tight text-amber-100 [text-shadow:0_1px_0_rgba(255,255,255,0.12),0_3px_12px_rgba(0,0,0,0.95),0_0_20px_rgba(251,191,36,0.35)] ${isMobile ? 'px-3 py-1 text-2xl' : 'px-4 py-1.5 text-3xl lg:text-4xl'}`}
+                                    className={`font-black leading-tight tracking-tight text-amber-100 [text-shadow:0_1px_0_rgba(255,255,255,0.12),0_3px_12px_rgba(0,0,0,0.95),0_0_20px_rgba(251,191,36,0.35)] ${
+                                        topShelf ? 'px-2.5 py-0.5 text-xl' : isMobile ? 'px-3 py-1 text-2xl' : 'px-4 py-1.5 text-3xl lg:text-4xl'
+                                    }`}
                                 >
                                     {currentClass.name}
                                 </div>
@@ -96,7 +120,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({ selectedCla
                         <div
                             className={`pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/88 via-black/55 to-transparent text-center ${isMobile ? 'px-2 py-2' : 'px-4 py-3'}`}
                         >
-                            <div className={`font-semibold text-gray-200 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                            <div className={`font-semibold text-gray-200 ${topShelf ? 'text-[11px]' : isMobile ? 'text-xs' : 'text-sm'}`}>
                                 {currentIndex + 1} / {CLASS_INFO.length}
                             </div>
                         </div>

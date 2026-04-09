@@ -22,8 +22,11 @@ export const NATIVE_MOBILE_MODAL_MAX_WIDTH_VW = 95;
 /** 모달이 화면을 과도하게 가리지 않도록 세로 상한 */
 export const NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH = 80;
 
-/** 네이티브 메인 컨텐츠 논리 설계 폭 — NativeMobileScaledContent 가 가로를 셸 폭에 맞출 때 기준 */
-export const NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX = 720;
+/**
+ * 네이티브 메인 컨텐츠 논리 설계 폭 — NativeMobileScaledContent 가 scale = min(셸폭/이값, 1) 로 맞춤.
+ * 720이면 폰(~360px)에서 scale≈0.5로 글자가 과도하게 작아지므로 480 전후로 두어 가독성을 우선한다.
+ */
+export const NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX = 480;
 
 /** 세로 논리 높이(약 9:16). 가로 맞춤 후 높이가 남으면 바깥 영역에서 세로 스크롤 */
 export const NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX = 1280;

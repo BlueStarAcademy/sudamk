@@ -13,8 +13,9 @@ const NICKNAME_MAX_LENGTH = 6;
 
 const CONFIRM_MODAL_MIN_H = 420;
 
+/** overflow-y-auto: 아바타 선택 ring·그림자가 상·하단에서 잘리지 않도록 */
 const glassCard =
-    'sudamr-panel-edge-host flex min-h-0 w-full max-w-[min(100%,520px)] max-h-full flex-col overflow-hidden rounded-[20px] border border-amber-300/35 bg-gradient-to-b from-zinc-900/95 via-zinc-950/96 to-zinc-950 shadow-[0_28px_80px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.1),0_0_60px_rgba(245,158,11,0.08)] ring-1 ring-amber-500/25 backdrop-blur-xl';
+    'sudamr-panel-edge-host flex min-h-0 w-full max-w-[min(100%,520px)] max-h-full flex-col overflow-x-hidden overflow-y-auto rounded-[20px] border border-amber-300/35 bg-gradient-to-b from-zinc-900/95 via-zinc-950/96 to-zinc-950 shadow-[0_28px_80px_rgba(0,0,0,0.72),inset_0_1px_0_rgba(255,255,255,0.1),0_0_60px_rgba(245,158,11,0.08)] ring-1 ring-amber-500/25 backdrop-blur-xl';
 
 const modalShell =
     'sudamr-panel-edge-host flex flex-col overflow-hidden rounded-[26px] border border-amber-200/28 bg-gradient-to-b from-zinc-900/[0.97] via-zinc-950/[0.98] to-black/[0.94] shadow-[0_32px_100px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.14)] ring-2 ring-amber-400/20';
@@ -316,13 +317,13 @@ const SetNickname: React.FC = () => {
                         <p className="text-[10px] font-medium text-zinc-500 sm:text-xs">선택 아바타 미리보기</p>
                     </div>
 
-                    <div className="mt-1.5 shrink-0 rounded-lg border border-white/10 bg-black/30 px-1.5 py-1 shadow-inner ring-1 ring-white/[0.06] sm:mt-2 sm:rounded-xl sm:p-2">
+                    <div className="mt-1.5 shrink-0 rounded-lg border border-white/10 bg-black/30 px-2.5 py-2 shadow-inner ring-1 ring-white/[0.06] sm:mt-2 sm:rounded-xl sm:px-3.5 sm:py-2.5">
                         <div
                             ref={avatarScrollRef}
                             tabIndex={0}
                             role="listbox"
                             aria-label="아바타 목록. 마우스 휠로 좌우 스크롤할 수 있습니다."
-                            className="flex h-[52px] w-full cursor-default items-center gap-1.5 overflow-x-auto overflow-y-hidden outline-none [scrollbar-width:thin] focus-visible:ring-2 focus-visible:ring-amber-400/40 sm:h-[58px] sm:gap-2"
+                            className="flex min-h-[80px] w-full cursor-default items-center gap-2 overflow-x-auto overflow-y-visible px-3 py-2.5 outline-none [scrollbar-width:thin] scroll-px-3 focus-visible:ring-2 focus-visible:ring-amber-400/40 sm:min-h-[92px] sm:gap-2.5 sm:px-4 sm:py-3 sm:scroll-px-4"
                             onClick={(e) => {
                                 if (e.target === avatarScrollRef.current) {
                                     avatarScrollRef.current?.focus();
@@ -342,9 +343,9 @@ const SetNickname: React.FC = () => {
                                             avatarScrollRef.current?.focus();
                                         }}
                                         title={avatar.name}
-                                        className={`relative shrink-0 rounded-lg p-0.5 transition sm:rounded-xl sm:p-1 ${
+                                        className={`relative shrink-0 rounded-lg p-1 transition sm:rounded-xl sm:p-1.5 ${
                                             sel
-                                                ? 'bg-amber-500/20 ring-2 ring-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                                                ? 'bg-amber-500/20 ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-950/95 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
                                                 : 'bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.08] hover:ring-amber-400/25'
                                         }`}
                                     >

@@ -379,28 +379,41 @@ const AppContent: React.FC = () => {
                     ) : (
                         <div className="relative flex flex-1 w-full min-h-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain bg-transparent">
                             <MainBackgroundLayer variant="auth" />
-                            <div className="relative z-10 flex min-h-full w-full flex-1 flex-col items-center justify-center gap-5 px-3 py-6 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12">
+                            <div
+                                className={`relative z-10 flex min-h-full w-full flex-1 flex-col items-center justify-center px-3 pt-[max(1.25rem,env(safe-area-inset-top,0px))] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] sm:gap-6 sm:px-6 sm:py-8 lg:gap-8 lg:px-10 lg:py-12 ${
+                                    isNativeMobile ? 'gap-3 py-4' : 'gap-5 py-6'
+                                }`}
+                            >
                                 <header
-                                    className="flex w-full max-w-lg shrink-0 flex-col items-center gap-1 px-2 text-center subpixel-antialiased sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2 [text-rendering:optimizeLegibility]"
+                                    className={`flex w-full shrink-0 flex-col items-center px-2 text-center subpixel-antialiased [text-rendering:optimizeLegibility] sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2 ${
+                                        isNativeMobile ? 'max-w-sm gap-1' : 'max-w-lg gap-1.5'
+                                    }`}
                                     style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
                                 >
-                                    <p className="text-xs font-semibold uppercase tracking-[0.32em] text-amber-300/95 sm:text-sm sm:tracking-[0.38em] lg:text-sm lg:tracking-[0.42em]">
-                                        Online Strategy
-                                    </p>
-                                    <h1 className="bg-gradient-to-br from-stone-50 via-amber-100 to-amber-800 bg-clip-text text-6xl font-black uppercase leading-[0.95] tracking-[0.12em] text-transparent drop-shadow-[0_2px_16px_rgba(0,0,0,0.42)] sm:text-7xl sm:tracking-[0.14em] sm:drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] lg:text-8xl lg:tracking-[0.12em] xl:text-8xl">
+                                    <h1
+                                        className={`bg-gradient-to-br from-white via-amber-50 to-amber-600 bg-clip-text font-black uppercase leading-[0.92] text-transparent drop-shadow-[0_4px_28px_rgba(251,191,36,0.35)] sm:text-7xl sm:tracking-[0.14em] sm:drop-shadow-[0_6px_36px_rgba(251,191,36,0.28)] lg:text-8xl lg:tracking-[0.12em] xl:text-8xl ${
+                                            isNativeMobile
+                                                ? 'text-5xl tracking-[0.11em]'
+                                                : 'text-6xl tracking-[0.12em]'
+                                        }`}
+                                    >
                                         SUDAM
                                     </h1>
-                                    <p className="text-sm font-medium tracking-[0.18em] text-stone-300 sm:text-base sm:tracking-[0.22em] lg:text-lg lg:tracking-[0.24em]">
+                                    <p
+                                        className={`font-semibold tracking-[0.2em] text-stone-100 drop-shadow-[0_2px_12px_rgba(0,0,0,0.55)] sm:text-base sm:tracking-[0.24em] lg:text-lg lg:tracking-[0.26em] ${
+                                            isNativeMobile ? 'text-xs tracking-[0.18em]' : 'text-sm'
+                                        }`}
+                                    >
                                         The Ascending Masters
                                     </p>
                                     <div
-                                        className="mt-3 hidden h-px w-32 max-w-[80%] bg-gradient-to-r from-transparent via-amber-500/45 to-transparent sm:block lg:mt-5 lg:w-48"
+                                        className="mt-2 block h-px w-28 max-w-[85%] bg-gradient-to-r from-transparent via-amber-400/60 to-transparent sm:mt-3 sm:w-36 lg:mt-4 lg:w-48"
                                         aria-hidden
                                     />
-                                    <p className="mt-2 hidden max-w-xl px-2 text-center text-[11px] leading-relaxed text-stone-400 sm:mt-3 sm:block sm:text-xs lg:mt-4 lg:max-w-2xl lg:text-sm">
+                                    <p className="mt-2 max-w-xl px-1 text-center text-[10px] leading-relaxed text-stone-300/95 sm:mt-3 sm:px-2 sm:text-xs lg:mt-4 lg:max-w-2xl lg:text-sm">
                                         Supreme Universe of Dueling Ascending Masters (S.U.D.A.M)
                                         <br />
-                                        <span className="mt-1 inline-block text-[10px] text-stone-500 lg:text-xs">
+                                        <span className="mt-1 inline-block text-[9px] text-amber-200/85 sm:text-[10px] lg:text-xs">
                                             격돌하는 초인들이 승천하는 최고의 세계
                                         </span>
                                     </p>
@@ -518,26 +531,23 @@ const AppContent: React.FC = () => {
                                 <MainBackgroundLayer variant="auth" />
                                 {/* 상단 중앙 브랜드 — 모바일은 컴팩트, PC는 비율만 키움 */}
                                 <header
-                                    className="relative z-[2] flex w-full max-w-lg shrink-0 flex-col items-center gap-0.5 px-2 text-center sm:max-w-xl sm:gap-1 lg:max-w-3xl lg:gap-2"
+                                    className="relative z-[2] flex w-full max-w-lg shrink-0 flex-col items-center gap-1 px-2 text-center sm:max-w-xl sm:gap-1.5 lg:max-w-3xl lg:gap-2"
                                     style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
                                 >
-                                    <p className="text-[8px] font-semibold uppercase tracking-[0.38em] text-amber-400/80 sm:text-[10px] sm:tracking-[0.42em] lg:text-xs lg:tracking-[0.48em]">
-                                        Online Strategy
-                                    </p>
-                                    <h1 className="bg-gradient-to-br from-stone-50 via-amber-100 to-amber-800 bg-clip-text text-2xl font-black uppercase tracking-[0.16em] text-transparent drop-shadow-[0_4px_24px_rgba(0,0,0,0.45)] sm:text-4xl sm:tracking-[0.18em] lg:text-6xl lg:tracking-[0.14em] xl:text-7xl">
+                                    <h1 className="bg-gradient-to-br from-white via-amber-50 to-amber-600 bg-clip-text text-3xl font-black uppercase tracking-[0.14em] text-transparent drop-shadow-[0_4px_28px_rgba(251,191,36,0.32)] sm:text-4xl sm:tracking-[0.16em] lg:text-6xl lg:tracking-[0.14em] xl:text-7xl">
                                         SUDAM
                                     </h1>
-                                    <p className="text-[9px] font-light tracking-[0.22em] text-stone-400 sm:text-xs sm:tracking-[0.26em] lg:text-base lg:tracking-[0.24em]">
+                                    <p className="text-[10px] font-semibold tracking-[0.2em] text-stone-100 drop-shadow-[0_2px_10px_rgba(0,0,0,0.5)] sm:text-xs sm:tracking-[0.24em] lg:text-base lg:tracking-[0.24em]">
                                         The Ascending Masters
                                     </p>
                                     <div
-                                        className="mt-3 hidden h-px w-32 max-w-[80%] bg-gradient-to-r from-transparent via-amber-500/45 to-transparent sm:block lg:mt-5 lg:w-48"
+                                        className="mt-2 block h-px w-28 max-w-[80%] bg-gradient-to-r from-transparent via-amber-400/55 to-transparent sm:mt-3 sm:w-32 lg:mt-4 lg:w-48"
                                         aria-hidden
                                     />
-                                    <p className="mt-2 hidden max-w-xl px-2 text-center text-[11px] leading-relaxed text-stone-400 sm:mt-3 sm:block sm:text-xs lg:mt-4 lg:max-w-2xl lg:text-sm">
+                                    <p className="mt-2 max-w-xl px-1 text-center text-[9px] leading-relaxed text-stone-300/95 sm:mt-2.5 sm:px-2 sm:text-[11px] lg:mt-3 lg:max-w-2xl lg:text-sm">
                                         Supreme Universe of Dueling Ascending Masters (S.U.D.A.M)
                                         <br />
-                                        <span className="mt-1 inline-block text-[10px] text-stone-500 lg:text-xs">
+                                        <span className="mt-0.5 inline-block text-[8px] text-amber-200/85 sm:text-[10px] lg:text-xs">
                                             격돌하는 초인들이 승천하는 최고의 세계
                                         </span>
                                     </p>

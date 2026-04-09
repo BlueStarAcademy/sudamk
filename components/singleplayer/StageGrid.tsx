@@ -19,9 +19,11 @@ interface StageGridProps {
     currentUser: UserWithStatus;
     /** 네이티브 모바일 등 좁은 레이아웃 */
     compact?: boolean;
+    /** 싱글플레이 로비 하단 탭 안: 글자·카드 살짝 키움 */
+    mobileTabShelf?: boolean;
 }
 
-const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compact = false }) => {
+const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compact = false, mobileTabShelf = false }) => {
     const { handlers } = useAppContext();
     const [rewardsModalOpen, setRewardsModalOpen] = useState(false);
 
@@ -112,6 +114,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
     };
 
     const isMobile = compact;
+    const tabShelf = isMobile && mobileTabShelf;
     
     const classLabel =
         selectedClass === SinglePlayerLevel.입문
@@ -125,19 +128,21 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                   : '유단자';
 
     return (
-        <div className={`bg-panel rounded-lg shadow-lg ${isMobile ? 'p-2.5' : 'p-4'} flex flex-col min-h-0 h-full overflow-hidden relative`}>
+        <div
+            className={`bg-panel rounded-lg shadow-lg flex h-full min-h-0 flex-col overflow-hidden relative ${tabShelf ? 'p-3' : isMobile ? 'p-2.5' : 'p-4'}`}
+        >
             <div
-                className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
+                className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${tabShelf ? 'mb-2 pb-1.5' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
             >
                 <h2
-                    className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-on-panel min-w-0 flex-1 leading-tight`}
+                    className={`font-bold text-on-panel min-w-0 flex-1 leading-tight ${tabShelf ? 'text-xl' : isMobile ? 'text-lg' : 'text-xl'}`}
                 >
                     {classLabel} 스테이지
                 </h2>
                 <button
                     type="button"
                     onClick={() => setRewardsModalOpen(true)}
-                    className={`flex-shrink-0 rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-500/25 via-amber-900/35 to-amber-950/50 px-2 py-1 font-bold text-amber-100 shadow-[0_2px_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 active:scale-[0.98] transition-all sm:px-2.5 sm:py-1.5 ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}
+                    className={`flex-shrink-0 rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-500/25 via-amber-900/35 to-amber-950/50 px-2 py-1 font-bold text-amber-100 shadow-[0_2px_12px_rgba(245,158,11,0.25),inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 active:scale-[0.98] transition-all sm:px-2.5 sm:py-1.5 ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}
                     aria-label="스테이지 클리어 보상표 열기"
                 >
                     보상표
@@ -152,10 +157,18 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
             
             <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 pb-2">
                 <div
-                    className={`grid ${isMobile ? 'gap-1.5' : 'gap-2'} min-w-0 pb-2`}
+                    className={`grid min-w-0 pb-2 ${tabShelf ? 'gap-2' : isMobile ? 'gap-1.5' : 'gap-2'}`}
                     style={{
-                        gridTemplateColumns: isMobile ? 'repeat(auto-fill, minmax(108px, 1fr))' : 'repeat(auto-fill, minmax(140px, 1fr))',
-                        gridAutoRows: isMobile ? 'minmax(158px, auto)' : 'minmax(180px, auto)'
+                        gridTemplateColumns: tabShelf
+                            ? 'repeat(auto-fill, minmax(118px, 1fr))'
+                            : isMobile
+                              ? 'repeat(auto-fill, minmax(108px, 1fr))'
+                              : 'repeat(auto-fill, minmax(140px, 1fr))',
+                        gridAutoRows: tabShelf
+                            ? 'minmax(172px, auto)'
+                            : isMobile
+                              ? 'minmax(158px, auto)'
+                              : 'minmax(180px, auto)'
                     }}
                 >
                     {stages.map((stage, index) => {
@@ -200,7 +213,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
 
                                 <div className="w-full mb-1.5">
                                     <div className="rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                        <div className={`font-semibold text-center text-amber-200/95 truncate ${isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
+                                        <div className={`font-semibold text-center text-amber-200/95 truncate ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
                                             {gameModeName}
                                         </div>
                                     </div>
@@ -274,9 +287,11 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         disabled={!hasEnoughAP}
                                         title={`입장 · 행동력 ${stage.actionPointCost}`}
                                         style={
-                                            isMobile
-                                                ? { fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }
-                                                : undefined
+                                            tabShelf
+                                                ? { fontSize: '12px', fontWeight: 700, letterSpacing: '0.02em' }
+                                                : isMobile
+                                                  ? { fontSize: '10px', fontWeight: 700, letterSpacing: '0.02em' }
+                                                  : undefined
                                         }
                                     >
                                         {`입장 ⚡${stage.actionPointCost}`}
