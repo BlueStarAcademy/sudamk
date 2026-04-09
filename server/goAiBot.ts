@@ -1047,8 +1047,6 @@ export async function makeGoAiBotMove(
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
                 : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
 
-            const isStrategicLobbyGo =
-                isStrategicAiGame && SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
             const kataMove = await generateKataServerMove({
                 boardSize: game.settings.boardSize || 19,
                 player: aiPlayerEnum === types.Player.White ? 'white' : 'black',
@@ -1056,10 +1054,11 @@ export async function makeGoAiBotMove(
                 level: kataLevel,
                 komi: game.settings.komi,
                 gameId: game.id,
-                allowPass: isStrategicLobbyGo ? false : undefined,
+                // 전략바둑 Kata 봇(모든 단계): API에 PASS 후보 제외 요청. 로비만이 아니라 싱글/타워 등 동일.
+                allowPass: false,
             });
 
-            if (isStrategicLobbyGo && kataMove.x === -1 && kataMove.y === -1) {
+            if (kataMove.x === -1 && kataMove.y === -1) {
                 const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
                 const aiMoveHistoryForValid = useHiddenMask
                     ? getMoveHistoryForAi(game, aiPlayerEnum)

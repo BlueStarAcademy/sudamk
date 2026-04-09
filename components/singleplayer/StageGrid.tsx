@@ -176,7 +176,8 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                         const isLocked = isStageLocked(index);
                         const stageNumber = parseInt(stage.id.split('-')[1]);
                         const gameModeName = getStageGameModeName(stage);
-                        const hasEnoughAP = currentUser.actionPoints.current >= stage.actionPointCost;
+                        const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
+                        const hasEnoughAP = currentUser.actionPoints.current >= effectiveActionPointCost;
 
                         return (
                             <div
@@ -285,7 +286,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         colorScheme="none"
                                         className={isMobile ? PREMIUM_STAGE_ENTER_CLASS_COMPACT : PREMIUM_STAGE_ENTER_CLASS}
                                         disabled={!hasEnoughAP}
-                                        title={`입장 · 행동력 ${stage.actionPointCost}`}
+                                        title={`입장 · 행동력 ${effectiveActionPointCost}`}
                                         style={
                                             tabShelf
                                                 ? { fontSize: '12px', fontWeight: 700, letterSpacing: '0.02em' }
@@ -294,7 +295,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                                   : undefined
                                         }
                                     >
-                                        {`입장 ⚡${stage.actionPointCost}`}
+                                        {`입장 ⚡${effectiveActionPointCost}`}
                                     </Button>
                                 ) : (
                                     <div className={`mt-auto text-gray-400 text-center ${isMobile ? 'text-xs' : 'text-[10px]'}`}>

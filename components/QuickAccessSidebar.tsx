@@ -132,14 +132,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 disabled: false,
                 notification: false,
             },
-            {
-                label: '설정',
-                gameplay: false,
-                emoji: '⚙️',
-                handler: handlers.openSettingsModal,
-                disabled: false,
-                notification: false,
-            },
         ],
         [handlers, hasClaimableQuest],
     );
@@ -218,7 +210,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 title={btn.label}
                 className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 py-1 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${shell}`}
             >
-                <div className="flex h-[clamp(1rem,5vw,1.35rem)] w-[clamp(1rem,5vw,1.35rem)] shrink-0 items-center justify-center">
+                <div className="flex h-[clamp(1.08rem,5.4vw,1.45rem)] w-[clamp(1.08rem,5.4vw,1.45rem)] shrink-0 items-center justify-center">
                     {renderIcon(
                         btn,
                         btn.iconUrl
@@ -266,10 +258,12 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     <div className="pointer-events-none absolute inset-x-[2.4rem] top-0 h-10 overflow-hidden">
                         <div
                             className={`absolute inset-0 transition-all duration-300 ease-out ${
-                                mobileHeaderDrawer === 'menu1' ? 'translate-x-0 opacity-100' : '-translate-x-8 opacity-0'
+                                mobileHeaderDrawer === 'menu1'
+                                    ? 'pointer-events-auto translate-x-0 opacity-100'
+                                    : 'pointer-events-none -translate-x-8 opacity-0'
                             }`}
                         >
-                                <div className="pointer-events-auto flex h-full w-full items-stretch gap-1 pr-1">
+                                <div className="flex h-full w-full items-stretch gap-1 pr-1">
                                 {gameplayButtons.map((btn) => {
                                     const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
                                         e.preventDefault();
@@ -286,7 +280,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                                         >
                                             {renderIcon(
                                                 btn,
-                                                btn.iconUrl ? 'h-[clamp(0.8rem,3.8vw,1.05rem)] w-[clamp(0.8rem,3.8vw,1.05rem)] object-contain [image-rendering:auto]' : 'text-[clamp(0.65rem,2.8vw,0.88rem)] leading-none',
+                                                btn.iconUrl ? 'h-[clamp(0.88rem,4.2vw,1.14rem)] w-[clamp(0.88rem,4.2vw,1.14rem)] object-contain [image-rendering:auto]' : 'text-[clamp(0.72rem,3.1vw,0.96rem)] leading-none',
                                             )}
                                             <span className="max-w-full truncate text-center text-[clamp(0.34rem,1.8vw,0.45rem)] font-semibold leading-none text-gray-100">
                                                 {btn.label}
@@ -305,10 +299,12 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 
                         <div
                             className={`absolute inset-0 transition-all duration-300 ease-out ${
-                                mobileHeaderDrawer === 'menu2' ? 'translate-x-0 opacity-100' : 'translate-x-8 opacity-0'
+                                mobileHeaderDrawer === 'menu2'
+                                    ? 'pointer-events-auto translate-x-0 opacity-100'
+                                    : 'pointer-events-none translate-x-8 opacity-0'
                             }`}
                         >
-                                <div className="pointer-events-auto flex h-full w-full items-stretch justify-start gap-1 pl-1 pr-1">
+                                <div className="flex h-full w-full items-stretch justify-start gap-1 pl-1 pr-1">
                                 {utilityButtons.map((btn) => {
                                     const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
                                         e.preventDefault();
@@ -325,7 +321,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                                         >
                                             {renderIcon(
                                                 btn,
-                                                btn.iconUrl ? 'h-[clamp(0.8rem,3.8vw,1.05rem)] w-[clamp(0.8rem,3.8vw,1.05rem)] object-contain [image-rendering:auto]' : 'text-[clamp(0.65rem,2.8vw,0.88rem)] leading-none',
+                                                btn.iconUrl ? 'h-[clamp(0.88rem,4.2vw,1.14rem)] w-[clamp(0.88rem,4.2vw,1.14rem)] object-contain [image-rendering:auto]' : 'text-[clamp(0.72rem,3.1vw,0.96rem)] leading-none',
                                             )}
                                             <span className="max-w-full truncate text-center text-[clamp(0.34rem,1.8vw,0.45rem)] font-semibold leading-none text-gray-100">
                                                 {btn.label}
@@ -361,10 +357,10 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         ? 'relative flex w-full flex-col items-center justify-center gap-0.5 rounded-md border border-violet-500/30 bg-gradient-to-br from-violet-950/45 to-slate-900/85 px-0.5 py-1 shadow-sm transition-transform hover:border-violet-400/45 active:scale-[0.98]'
         : 'relative flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-violet-500/40 bg-gradient-to-br from-violet-900/40 via-slate-900/40 to-slate-950/90 px-1 py-1.5 shadow-md transition-transform hover:border-violet-400/55 hover:shadow-lg active:scale-[0.98]';
 
-    const iconPcGameplay = compact ? 'h-9 w-9 object-contain' : 'h-10 w-10 object-contain sm:h-11 sm:w-11';
-    const iconPcUtility = compact ? 'h-9 w-9 object-contain' : 'h-10 w-10 object-contain sm:h-11 sm:w-11';
-    const emojiPcGameplay = compact ? 'text-xl' : 'text-2xl sm:text-[1.65rem]';
-    const emojiPcUtility = compact ? 'text-lg' : 'text-xl sm:text-2xl';
+    const iconPcGameplay = compact ? 'h-10 w-10 object-contain' : 'h-11 w-11 object-contain sm:h-12 sm:w-12';
+    const iconPcUtility = compact ? 'h-10 w-10 object-contain' : 'h-11 w-11 object-contain sm:h-12 sm:w-12';
+    const emojiPcGameplay = compact ? 'text-[1.35rem]' : 'text-[1.7rem] sm:text-[1.85rem]';
+    const emojiPcUtility = compact ? 'text-xl' : 'text-[1.45rem] sm:text-[1.7rem]';
 
     const labelPc = compact ? 'text-[9px] font-semibold text-gray-100' : 'text-[10px] font-semibold text-gray-100 sm:text-[11px]';
 

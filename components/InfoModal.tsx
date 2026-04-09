@@ -1,234 +1,280 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
-import { GAME_RULES } from '../gameRules.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import {
+    HELP_CENTER_CATEGORIES,
+    getDefaultHelpSelection,
+    type HelpArticle,
+    type HelpBlock,
+    type HelpCategory,
+} from '../shared/constants/helpCenterContent.js';
 
 interface InfoModalProps {
     onClose: () => void;
     isTopmost?: boolean;
 }
 
-type InfoTab = 'game' | 'home' | 'waiting' | 'tower' | 'championship' | 'blacksmith' | 'guild' | 'level' | 'ranking' | 'equipment' | 'manner' | 'encyclopedia';
-
-const InfoModal: React.FC<InfoModalProps> = ({ onClose, isTopmost }) => {
-    const [activeTab, setActiveTab] = useState<InfoTab>('game');
-
-    const tabs: { id: InfoTab; label: string }[] = [
-        { id: 'game', label: '게임방법' },
-        { id: 'home', label: '홈화면' },
-        { id: 'waiting', label: '대기실' },
-        { id: 'tower', label: '도전의탑' },
-        { id: 'championship', label: '챔피언십' },
-        { id: 'blacksmith', label: '대장간' },
-        { id: 'guild', label: '길드' },
-        { id: 'level', label: '레벨' },
-        { id: 'ranking', label: '랭킹시스템' },
-        { id: 'equipment', label: '장비' },
-        { id: 'manner', label: '매너등급' },
-        { id: 'encyclopedia', label: '도감' },
-    ];
-
-    const renderContent = () => {
-        switch (activeTab) {
-            case 'game':
-                return (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-bold text-lg text-blue-300">전략 바둑</h3>
-                            <p className="text-sm">클래식 바둑, 따내기 바둑 등 전통적인 규칙을 기반으로 한 모드입니다. 수읽기와 전략을 통해 승리를 쟁취하세요. 각 게임의 자세한 규칙은 대기실의 '?' 버튼을 눌러 확인할 수 있습니다.</p>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-yellow-300">놀이 바둑</h3>
-                            <p className="text-sm">주사위 바둑, 알까기 등 운과 순발력이 필요한 캐주얼 모드입니다. 가볍게 즐기며 새로운 재미를 느껴보세요. 각 게임의 자세한 규칙은 대기실의 '?' 버튼을 눌러 확인할 수 있습니다.</p>
-                        </div>
-                         <div>
-                            <h3 className="font-bold text-lg text-purple-300">챔피언십</h3>
-                            <p className="text-sm">AI 시뮬레이션으로 진행되는 자동 대회입니다. 자신의 능력치와 장비 세팅으로 가상의 선수들과 실력을 겨루고, 결과에 따라 보상을 획득할 수 있습니다. 매일 다른 종류의 대회에 참가할 수 있습니다.</p>
-                        </div>
-                    </div>
-                );
-            case 'level':
-                return (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-bold text-lg text-gray-200">레벨 시스템</h3>
-                            <p className="text-sm">전략/놀이 바둑을 플레이하면 각 분야의 경험치(XP)를 얻습니다. 경험치가 100% 차면 레벨이 오릅니다.</p>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-green-300">스탯 포인트</h3>
-                            <p className="text-sm">전략 레벨과 놀이 레벨이 오를 때마다 각각 2포인트씩 보너스 스탯 포인트를 획득합니다. 프로필 화면의 '포인트 분배' 버튼을 눌러 6가지 핵심 능력치에 투자하고, 챔피언십에서 더 좋은 성적을 거두세요.</p>
-                        </div>
-                    </div>
-                );
-            case 'home':
-                return (
-                    <div className="space-y-3 text-sm">
-                        <h3 className="font-bold text-lg text-amber-200">홈 화면 안내</h3>
-                        <p>프로필, 바둑능력, 대국실 입장카드, 우측 퀵메뉴로 구성됩니다.</p>
-                        <p>입장카드는 이미지+정보 패널 결합형으로 경기장 핵심 정보가 함께 표시됩니다.</p>
-                        <p>퀵메뉴의 도움말 버튼에서 전체 화면 도움말 탭을 바로 확인할 수 있습니다.</p>
-                    </div>
-                );
-            case 'waiting':
-                return (
-                    <div className="space-y-3 text-sm">
-                        <h3 className="font-bold text-lg text-cyan-200">대기실 안내</h3>
-                        <p>플레이어 목록, 진행중 대국, 채팅, 랭킹 및 매칭 패널을 확인할 수 있습니다.</p>
-                        <p>대기실에서도 우측 퀵메뉴를 통해 퀘스트/가방/상점/도움말 등을 빠르게 이용합니다.</p>
-                        <p>도움말은 이 창에서 탭으로 통합 제공됩니다.</p>
-                    </div>
-                );
-            case 'tower':
-                return (
-                    <div className="space-y-3 text-sm">
-                        <h3 className="font-bold text-lg text-violet-200">도전의 탑</h3>
-                        <p>현재 층, 남은 시간, 순위를 기준으로 월간 진행 상태를 관리합니다.</p>
-                        <p>층이 올라갈수록 난이도와 보상이 함께 상승합니다.</p>
-                    </div>
-                );
-            case 'championship':
-                return (
-                    <div className="space-y-3 text-sm">
-                        <h3 className="font-bold text-lg text-fuchsia-200">챔피언십</h3>
-                        <p>시즌 점수와 현재 순위가 핵심 지표입니다.</p>
-                        <p>동네/전국/월드 경기장별 최종 단계 진행도를 통해 장기 성장 상태를 확인합니다.</p>
-                    </div>
-                );
-            case 'blacksmith':
-                return (
-                    <div className="space-y-3 text-sm">
-                        <h3 className="font-bold text-lg text-orange-200">대장간</h3>
-                        <p>강화, 조합, 분해, 전환, 정련 탭으로 장비를 성장시킵니다.</p>
-                        <p>강화 실패/성공 결과는 즉시 반영되며 상세 옵션 변화도 확인할 수 있습니다.</p>
-                    </div>
-                );
-            case 'guild':
-                return (
-                    <div className="space-y-3 text-sm">
-                        <h3 className="font-bold text-lg text-emerald-200">길드</h3>
-                        <p>길드 기부, 연구, 보스전, 전쟁 콘텐츠를 통해 협동 성장합니다.</p>
-                        <p>길드 보스전은 주간 콘텐츠이며 참여/기여도에 따라 보상이 달라집니다.</p>
-                    </div>
-                );
-            case 'ranking':
-                return (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-bold text-lg text-gray-200">랭킹 점수</h3>
-                            <p className="text-sm">각 게임 모드마다 랭킹 점수가 존재하며, 승리하면 오르고 패배하면 떨어집니다. 이 점수를 기준으로 랭킹이 매겨집니다.</p>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-purple-300">시즌 제도</h3>
-                            <ul className="list-disc list-inside text-sm space-y-1 pl-2">
-                                <li>시즌은 3개월 단위로 진행됩니다 (1분기, 2분기, 3분기, 4분기).</li>
-                                <li>시즌 동안 각 게임 모드별로 <strong className="text-yellow-300">최소 20경기</strong>를 플레이해야 해당 모드의 랭킹 티어를 받을 자격이 주어집니다. (배치 경기)</li>
-                                <li>20경기를 채우지 못한 모드는 시즌 종료 시 '새싹' 티어로 마감됩니다.</li>
-                                <li>시즌 종료 시, 배치 경기를 완료한 플레이어들을 대상으로 랭킹 순위에 따라 티어가 결정되고 보상이 우편으로 지급됩니다.</li>
-                                <li>새 시즌이 시작되면 모든 게임 모드의 전적(승/패)과 랭킹 점수가 초기화되며, 다시 20경기의 배치 경기가 필요합니다.</li>
-                            </ul>
-                        </div>
-                    </div>
-                );
-            case 'equipment':
-                return (
-                     <div className="space-y-4">
-                        <div>
-                            <h3 className="font-bold text-lg text-gray-200">장비 시스템</h3>
-                            <p className="text-sm">부채, 바둑판, 의상 등 6가지 종류의 장비를 장착하여 캐릭터의 능력치를 강화할 수 있습니다. 장비는 일반, 고급, 희귀, 에픽, 전설, 신화 등급으로 나뉩니다. 등급이 높을수록 더 강력한 옵션을 가집니다.</p>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-cyan-300">강화</h3>
-                            <p className="text-sm">재료를 사용하여 장비의 별 등급(★)을 최대 5성까지 높일 수 있습니다. 강화에 성공하면 장비의 주옵션이 크게 상승하고, 부옵션이 추가되거나 기존 부옵션 중 하나가 랜덤하게 강화됩니다.</p>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-orange-300">분해</h3>
-                            <p className="text-sm">사용하지 않는 장비를 분해하여 강화에 필요한 재료 아이템을 획득할 수 있습니다. 분해 시 '대박'이 발생하면 2배의 재료를 얻을 수 있습니다.</p>
-                        </div>
-                    </div>
-                );
-            case 'manner':
-                return (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="font-bold text-lg text-gray-200">매너 등급 시스템</h3>
-                            <p className="text-sm">매너 점수는 모든 게임 모드에서 통합 관리됩니다. '보통' 등급을 기준으로, 매너 플레이 시 점수가 오르고 비매너 행동(접속 종료, 시간 초과 등) 시 점수가 하락합니다. 등급이 오를수록 좋은 효과가 누적되며, 등급이 내려가면 나쁜 효과가 단계별로 쌓입니다. 다시 등급을 올리면 가장 최근에 쌓인 페널티부터 하나씩 제거됩니다.</p>
-                        </div>
-                        <div>
-                            <h3 className="font-bold text-lg text-gray-200">등급별 점수 및 효과</h3>
-                            <ul className="list-disc list-inside text-sm space-y-2 pl-2">
-                                <li><span className="text-purple-400 font-semibold">마스터 (2000점 이상):</span> 모든 능력치 +10</li>
-                                <li><span className="text-blue-400 font-semibold">프로 (1600점 ~ 1999점):</span> 장비 분해 시 대박 확률 +20%</li>
-                                <li><span className="text-cyan-400 font-semibold">품격 (1200점 ~ 1599점):</span> 경기 승리 시 보상 상자 획득 확률 +20%</li>
-                                <li><span className="text-teal-400 font-semibold">매우 좋음 (800점 ~ 1199점):</span> 경기 승리 시 골드 보상 +20%</li>
-                                <li><span className="text-green-400 font-semibold">좋음 (400점 ~ 799점):</span> 최대 행동력 +10</li>
-                                <li className="border-t border-gray-600 pt-2"><span className="text-gray-300 font-semibold">보통 (200점 ~ 399점):</span> 기본 상태</li>
-                                <li className="border-t border-gray-600 pt-2"><span className="text-yellow-400 font-semibold">주의 (100점 ~ 199점):</span> 경기 보상 상자 획득 확률 50% 감소</li>
-                                <li><span className="text-orange-400 font-semibold">나쁨 (50점 ~ 99점):</span> 경기 보상 골드 50% 감소</li>
-                                <li><span className="text-red-500 font-semibold">매우 나쁨 (1점 ~ 49점):</span> 행동력 회복 속도 감소 (20분마다 1 회복)</li>
-                                <li><span className="text-red-700 font-semibold">최악 (0점):</span> 최대 행동력 20 감소</li>
-                            </ul>
-                        </div>
-                    </div>
-                );
-            case 'encyclopedia':
-                return (
-                    <div className="space-y-6 text-slate-200">
-                        <h3 className="text-center text-xl font-bold tracking-tight text-amber-200">도감 도움말 및 업데이트 내역</h3>
-                        <div className="rounded-xl border border-emerald-500/25 bg-black/20 p-4">
-                            <h4 className="mb-2 border-b border-emerald-500/25 pb-2 text-sm font-semibold text-emerald-200">최근 업데이트</h4>
-                            <ul className="list-inside list-disc space-y-1.5 text-sm">
-                                <li>장비 주옵션 강화 보너스 규칙이 변경되었습니다. (+4, +7, +10 강화 시 2배 보너스)</li>
-                                <li>소모품 탭의 아이템 정렬 방식이 종류별로 개선되었습니다.</li>
-                            </ul>
-                        </div>
-                        <div className="rounded-xl border border-sky-500/25 bg-black/20 p-4">
-                            <h4 className="mb-2 border-b border-sky-500/25 pb-2 text-sm font-semibold text-sky-200">도감 사용법</h4>
-                            <ul className="list-inside list-disc space-y-2 text-sm">
-                                <li>이 도감에서는 게임 내 모든 장비, 재료, 소모품의 상세 정보를 확인할 수 있습니다.</li>
-                                <li><strong className="text-amber-100">장비 탭:</strong> 부위마다 등급 7종이 나열되며 아이콘을 누르면 말풍선으로 상세 옵션을 확인할 수 있습니다.</li>
-                                <li><strong className="text-amber-100">재료/소모품 탭:</strong> 종류별로 구분되어 있으며 아이콘을 누르면 말풍선으로 설명과 등급을 확인합니다.</li>
-                            </ul>
-                        </div>
-                        <div className="rounded-xl border border-violet-500/25 bg-black/20 p-4">
-                            <h4 className="mb-2 border-b border-violet-500/25 pb-2 text-sm font-semibold text-violet-200">장비 옵션 상세</h4>
-                            <div className="space-y-3 text-sm">
-                                <div>
-                                    <h5 className="font-semibold text-amber-100">주옵션</h5>
-                                    <p className="mt-1 text-slate-300">1강화마다 획득 시 부여되는 수치만큼 추가됩니다. 별 색상이 은색에서 금색(+4), 금색에서 푸른색(+7), 푸른색에서 프리즘색(+10)이 될 때 각각 2배로 강화됩니다.</p>
-                                </div>
-                                <div>
-                                    <h5 className="font-semibold text-sky-200">부옵션</h5>
-                                    <p className="mt-1 text-slate-300">최대 4개까지 부여됩니다. 1강화마다 부옵션이 4개가 될 때까지 우선적으로 추가된 후, 4개가 모두 채워지면 기존 부옵션 중 하나가 랜덤하게 강화됩니다.</p>
-                                </div>
-                                <div>
-                                    <h5 className="font-semibold text-emerald-200">특수 옵션 & 신화 옵션</h5>
-                                    <p className="mt-1 text-slate-300">강화되지 않는 고유한 고정 옵션입니다. 신화 등급 장비에서만 신화 옵션이 등장합니다.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                );
-            default:
-                return null;
+function HelpBlockView({ block }: { block: HelpBlock }) {
+    switch (block.type) {
+        case 'heading': {
+            const Tag = block.level === 3 ? 'h4' : 'h3';
+            const cls =
+                block.level === 3
+                    ? 'mt-5 mb-2 text-sm font-semibold tracking-wide text-amber-200/95'
+                    : 'mt-6 mb-2 text-base font-bold text-amber-100';
+            return <Tag className={cls}>{block.text}</Tag>;
         }
-    };
-
-    return (
-        <DraggableWindow title="도움말" onClose={onClose} windowId="info-modal" initialWidth={600} isTopmost={isTopmost}>
-            <div className="h-[calc(var(--vh,1vh)*60)] flex flex-col">
-                <div className="flex bg-gray-900/70 p-1 rounded-lg mb-4 flex-shrink-0">
-                    {tabs.map(tab => (
-                        <button
-                            key={tab.id}
-                            onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 py-2 text-sm font-semibold rounded-md transition-all ${activeTab === tab.id ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}
+        case 'paragraph':
+            return <p className="text-[13px] leading-relaxed text-slate-300/95 sm:text-sm">{block.text}</p>;
+        case 'bullets':
+            return (
+                <ul className="mt-2 list-none space-y-2.5 text-[13px] leading-relaxed text-slate-300/95 sm:text-sm">
+                    {block.items.map((item, i) => (
+                        <li key={i} className="flex gap-2.5">
+                            <span
+                                className="mt-2 h-1 w-1 shrink-0 rounded-full bg-amber-400/80 shadow-[0_0_6px_rgba(251,191,36,0.5)]"
+                                aria-hidden
+                            />
+                            <span>{item}</span>
+                        </li>
+                    ))}
+                </ul>
+            );
+        case 'callout': {
+            const tone =
+                block.tone === 'warn'
+                    ? 'border-red-500/30 bg-red-950/35 text-red-100/95'
+                    : block.tone === 'tip'
+                      ? 'border-emerald-500/25 bg-emerald-950/30 text-emerald-50/95'
+                      : 'border-sky-500/25 bg-sky-950/25 text-sky-50/95';
+            return (
+                <div className={`mt-4 rounded-xl border px-4 py-3 text-[13px] leading-relaxed shadow-inner sm:text-sm ${tone}`}>
+                    {block.title && <p className="mb-1.5 font-semibold text-current">{block.title}</p>}
+                    <p className="text-slate-200/90">{block.text}</p>
+                </div>
+            );
+        }
+        case 'imageRow':
+            return (
+                <div
+                    className={`mt-4 flex flex-wrap gap-3 ${block.compact ? 'justify-start' : 'justify-center sm:justify-start'}`}
+                >
+                    {block.images.map((img, i) => (
+                        <figure
+                            key={`${img.src}-${i}`}
+                            className="flex w-[4.5rem] flex-col items-center gap-1.5 sm:w-[5.25rem]"
                         >
-                            {tab.label}
-                        </button>
+                            <div className="relative aspect-square w-full overflow-hidden rounded-lg ring-1 ring-white/10 shadow-[0_8px_24px_rgba(0,0,0,0.45)]">
+                                <img src={img.src} alt={img.alt} className="h-full w-full object-cover" loading="lazy" decoding="async" />
+                            </div>
+                            {img.caption && (
+                                <figcaption className="line-clamp-2 text-center text-[10px] font-medium text-slate-400 sm:text-[11px]">
+                                    {img.caption}
+                                </figcaption>
+                            )}
+                        </figure>
                     ))}
                 </div>
-                <div className="flex-grow overflow-y-auto pr-2 bg-gray-900/30 p-4 rounded-md">
-                    {renderContent()}
+            );
+        case 'figure':
+            return (
+                <figure className="mt-4 overflow-hidden rounded-xl ring-1 ring-white/10 shadow-[0_12px_40px_rgba(0,0,0,0.5)]">
+                    <img src={block.src} alt={block.alt} className="max-h-56 w-full object-cover object-center sm:max-h-64" loading="lazy" />
+                    {block.caption && (
+                        <figcaption className="border-t border-white/10 bg-black/40 px-3 py-2 text-center text-xs text-slate-400">
+                            {block.caption}
+                        </figcaption>
+                    )}
+                </figure>
+            );
+        default:
+            return null;
+    }
+}
+
+function HelpArticlePanel({ article }: { article: HelpArticle }) {
+    return (
+        <article className="min-h-0">
+            {article.hero && (
+                <div className="relative mb-5 overflow-hidden rounded-2xl ring-1 ring-amber-500/20 shadow-[0_20px_50px_rgba(0,0,0,0.55)]">
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+                    <img
+                        src={article.hero.src}
+                        alt={article.hero.alt}
+                        className="h-44 w-full object-cover object-center sm:h-52"
+                        loading="lazy"
+                        decoding="async"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-5">
+                        <h2 className="text-xl font-bold tracking-tight text-white drop-shadow-md sm:text-2xl">{article.title}</h2>
+                        {article.tagline && (
+                            <p className="mt-1.5 max-w-2xl text-sm text-amber-100/90 drop-shadow">{article.tagline}</p>
+                        )}
+                    </div>
                 </div>
+            )}
+            {!article.hero && (
+                <header className="mb-5 border-b border-white/10 pb-4">
+                    <h2 className="text-xl font-bold tracking-tight text-amber-100 sm:text-2xl">{article.title}</h2>
+                    {article.tagline && <p className="mt-2 text-sm text-slate-400">{article.tagline}</p>}
+                </header>
+            )}
+            <div className="space-y-1 pb-2">
+                {article.blocks.map((b, i) => (
+                    <HelpBlockView key={i} block={b} />
+                ))}
+            </div>
+        </article>
+    );
+}
+
+type MobilePane = 'list' | 'detail';
+
+const InfoModal: React.FC<InfoModalProps> = ({ onClose, isTopmost }) => {
+    const handheld = useIsHandheldDevice(768);
+    const defaultSel = useMemo(() => getDefaultHelpSelection(), []);
+    const [categoryId, setCategoryId] = useState(defaultSel.categoryId);
+    const [subId, setSubId] = useState(defaultSel.subId);
+    const [mobilePane, setMobilePane] = useState<MobilePane>('list');
+
+    const selectedArticle = useMemo(() => {
+        const cat = HELP_CENTER_CATEGORIES.find((c) => c.id === categoryId);
+        const sub = cat?.subcategories.find((s) => s.id === subId);
+        return sub?.article ?? null;
+    }, [categoryId, subId]);
+
+    useEffect(() => {
+        if (!selectedArticle && HELP_CENTER_CATEGORIES.length > 0) {
+            const d = getDefaultHelpSelection();
+            setCategoryId(d.categoryId);
+            setSubId(d.subId);
+        }
+    }, [selectedArticle]);
+
+    const openArticle = useCallback((cat: HelpCategory, subIdToOpen: string) => {
+        setCategoryId(cat.id);
+        setSubId(subIdToOpen);
+        if (handheld) setMobilePane('detail');
+    }, [handheld]);
+
+    const goBackMobile = useCallback(() => {
+        setMobilePane('list');
+    }, []);
+
+    const navButtonClass = (active: boolean) =>
+        `w-full rounded-lg px-3 py-2.5 text-left text-[13px] font-medium transition-all sm:text-sm ${
+            active
+                ? 'border border-amber-500/35 bg-gradient-to-r from-amber-500/20 via-amber-600/10 to-transparent text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                : 'border border-transparent text-slate-400 hover:border-white/10 hover:bg-white/5 hover:text-slate-200'
+        }`;
+
+    const renderNav = (opts: { forMobileList?: boolean }) => (
+        <nav
+            className={`flex min-h-0 flex-col gap-1 overflow-y-auto overscroll-contain pr-1 ${opts.forMobileList ? 'pb-2' : ''}`}
+            aria-label="도움말 목록"
+        >
+            {HELP_CENTER_CATEGORIES.map((cat) => (
+                <div key={cat.id} className="mb-3 last:mb-0">
+                    <div
+                        className={`mb-1.5 flex items-center gap-2 rounded-lg px-2 py-1.5 ${
+                            cat.accentClass ? `bg-gradient-to-r ${cat.accentClass}` : 'bg-white/5'
+                        }`}
+                    >
+                        {cat.iconSrc && (
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-md ring-1 ring-white/10 bg-black/30">
+                                <img src={cat.iconSrc} alt="" className="h-6 w-6 object-contain" loading="lazy" />
+                            </span>
+                        )}
+                        <span className="text-xs font-bold uppercase tracking-wider text-amber-200/90">{cat.label}</span>
+                    </div>
+                    <ul className="space-y-0.5 border-l border-white/10 pl-3">
+                        {cat.subcategories.map((sub) => {
+                            const active = categoryId === cat.id && subId === sub.id;
+                            return (
+                                <li key={sub.id}>
+                                    <button
+                                        type="button"
+                                        onClick={() => openArticle(cat, sub.id)}
+                                        className={navButtonClass(active)}
+                                    >
+                                        {sub.label}
+                                    </button>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            ))}
+        </nav>
+    );
+
+    return (
+        <DraggableWindow
+            title="도움말 센터"
+            onClose={onClose}
+            windowId="info-modal"
+            initialWidth={960}
+            initialHeight={620}
+            isTopmost={isTopmost}
+            mobileViewportFit={handheld}
+            headerShowTitle
+            bodyPaddingClassName="!p-0"
+            bodyScrollable={false}
+            bodyNoScroll
+            pcViewportMaxHeightCss="min(85vh, 720px)"
+            containerExtraClassName="!max-w-[min(96vw,1040px)]"
+        >
+            <div className="flex h-full min-h-[min(72dvh,560px)] flex-1 flex-col overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-black sm:min-h-[min(76vh,640px)]">
+                {!handheld && (
+                    <div className="flex min-h-0 flex-1">
+                        <aside className="flex w-[min(32%,300px)] shrink-0 flex-col border-r border-white/10 bg-black/25 px-3 py-4 backdrop-blur-sm">
+                            <p className="mb-3 px-1 text-[11px] font-semibold uppercase tracking-widest text-slate-500">목차</p>
+                            {renderNav({})}
+                        </aside>
+                        <section className="min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+                            {selectedArticle ? (
+                                <HelpArticlePanel article={selectedArticle} />
+                            ) : (
+                                <p className="text-center text-slate-500">항목을 선택해 주세요.</p>
+                            )}
+                        </section>
+                    </div>
+                )}
+
+                {handheld && mobilePane === 'list' && (
+                    <div className="flex min-h-0 flex-1 flex-col px-3 py-3">
+                        <p className="mb-2 px-1 text-center text-xs text-slate-500">대분류 · 중분류를 눌러 상세 안내를 엽니다.</p>
+                        {renderNav({ forMobileList: true })}
+                    </div>
+                )}
+
+                {handheld && mobilePane === 'detail' && (
+                    <div className="flex min-h-0 flex-1 flex-col">
+                        <div className="flex shrink-0 items-center gap-2 border-b border-white/10 bg-black/30 px-2 py-2 backdrop-blur-md">
+                            <button
+                                type="button"
+                                onClick={goBackMobile}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-amber-100 transition hover:bg-white/10 active:scale-[0.98]"
+                            >
+                                <span className="text-lg leading-none" aria-hidden>
+                                    ←
+                                </span>
+                                목록
+                            </button>
+                            <span className="min-w-0 flex-1 truncate text-center text-xs font-medium text-slate-400">
+                                {selectedArticle?.title ?? '도움말'}
+                            </span>
+                            <span className="w-[4.5rem]" aria-hidden />
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+                            {selectedArticle ? (
+                                <HelpArticlePanel article={selectedArticle} />
+                            ) : (
+                                <p className="text-center text-slate-500">항목이 없습니다.</p>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </DraggableWindow>
     );

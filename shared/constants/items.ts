@@ -73,12 +73,12 @@ export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipp
     { name: '용안 바둑돌', slot: 'stones', image: 'images/equipments/Stone5.png', grade: ItemGrade.Legendary, stars: 0, type: 'equipment', description: '해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다.' },
     { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', description: '밤하늘의 은하수를 담아놓은 듯한 신화 속 바둑돌입니다.' },
     // --- 초월: 신화 부옵션 2개 — 우편·관리 지급 전용(상자 루트에서는 제외)
-    { name: '천룡 바람 부채', slot: 'fan', image: 'images/equipments/Fan6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 부채입니다.' },
-    { name: '천룡 바둑판', slot: 'board', image: 'images/equipments/Board6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 바둑판입니다.' },
-    { name: '천룡 도복 상의', slot: 'top', image: 'images/equipments/Top6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 상의입니다.' },
-    { name: '천룡 도복 하의', slot: 'bottom', image: 'images/equipments/Bottom6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 하의입니다.' },
-    { name: '천룡 바둑통', slot: 'bowl', image: 'images/equipments/StoneBox6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 바둑통입니다.' },
-    { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신화 부옵션이 두 줄기로 깃든 초월의 바둑돌입니다.' },
+    { name: '천룡 바람 부채', slot: 'fan', image: 'images/equipments/Fan6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '하늘을 가르는 천룡의 숨결을 담아, 전장의 흐름마저 뒤집는 초월의 부채입니다.' },
+    { name: '천룡 바둑판', slot: 'board', image: 'images/equipments/Board6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '별자리의 궤적이 새겨져, 한 수마다 승리의 길을 열어 주는 초월의 바둑판입니다.' },
+    { name: '천룡 도복 상의', slot: 'top', image: 'images/equipments/Top6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '천룡의 비늘빛으로 직조되어, 흔들림 없는 집중을 부여하는 초월의 도복 상의입니다.' },
+    { name: '천룡 도복 하의', slot: 'bottom', image: 'images/equipments/Bottom6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '폭풍 속에서도 균형을 잃지 않게 하는, 천룡의 의지가 깃든 초월의 도복 하의입니다.' },
+    { name: '천룡 바둑통', slot: 'bowl', image: 'images/equipments/StoneBox6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '고대 전장의 기운을 봉인해, 꺼내는 돌마다 위압을 더하는 초월의 바둑통입니다.' },
+    { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '새벽별의 파편을 벼려 만들어, 단 한 수로도 판세를 지배하는 초월의 바둑돌입니다.' },
 ];
 
 export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails' | 'slot'> & {slot: null, usable?: boolean, sellable?: boolean})[] = [

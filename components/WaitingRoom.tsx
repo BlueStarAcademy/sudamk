@@ -35,17 +35,19 @@ const AiChallengePanel: React.FC<{ mode: GameMode | 'strategic' | 'playful'; onO
     const { handlers } = useAppContext();
     const isStrategic = mode === 'strategic' || SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isPlayful = mode === 'playful' || PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+    const panelClass = 'border-amber-500/35 bg-gradient-to-r from-zinc-950/75 via-stone-900/70 to-amber-950/35 shadow-[0_14px_32px_rgba(217,119,6,0.2)]';
+    const titleClass = 'text-amber-200';
 
     if (!isStrategic && !isPlayful) return null;
     
     const botName = `${mode} 봇`;
 
     return (
-        <div className="bg-panel rounded-lg shadow-lg p-4 flex items-center justify-between flex-shrink-0 text-on-panel">
+        <div className={`rounded-xl border p-4 flex items-center justify-between flex-shrink-0 text-on-panel ${panelClass}`}>
             <div className="flex items-center gap-4">
                  <Avatar userId={aiUserId} userName="AI" size={48} className="border-2 border-purple-500" />
                  <div>
-                    <h3 className="text-lg font-bold text-purple-300">AI와 대결하기</h3>
+                    <h3 className={`text-lg font-bold ${titleClass}`}>AI와 대결하기</h3>
                     <p className="text-sm text-tertiary">{botName}와(과) 즉시 대국을 시작합니다.</p>
                  </div>
             </div>
@@ -58,6 +60,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
     const [currentIndex, setCurrentIndex] = useState(0);
     const announcementIds = useMemo(() => announcements.map(a => a.id).join(','), [announcements]);
+    const boardClass = 'border-amber-500/35 bg-gradient-to-r from-zinc-950/75 via-stone-900/70 to-amber-950/35 shadow-[0_14px_32px_rgba(217,119,6,0.2)]';
 
     useEffect(() => {
         if (!announcements || announcements.length <= 1) {
@@ -74,7 +77,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
 
     if (relevantOverride) {
         return (
-            <div className="bg-yellow-800/50 border border-yellow-600 rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10">
+            <div className="bg-yellow-800/50 border border-yellow-600 rounded-xl shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10">
                 <span className="font-bold text-yellow-300 animate-pulse text-center">{globalOverrideAnnouncement.message}</span>
             </div>
         );
@@ -82,14 +85,14 @@ const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
     
     if (!announcements || announcements.length === 0) {
         return (
-            <div className="bg-panel rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel">
+            <div className={`rounded-xl border p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel ${boardClass}`}>
                 <span className="font-bold text-tertiary text-center">[현재 등록된 공지사항이 없습니다.]</span>
             </div>
         );
     }
 
     return (
-        <div className="bg-panel rounded-lg shadow-lg px-4 relative overflow-hidden flex-shrink-0 h-10">
+        <div className={`rounded-xl border px-4 relative overflow-hidden flex-shrink-0 h-10 ${boardClass}`}>
             <div
                 className="w-full absolute top-0 left-0 transition-transform duration-1000 ease-in-out"
                 style={{ transform: `translateY(-${currentIndex * 2.5}rem)` }}
@@ -198,17 +201,33 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const lobbyType: 'strategic' | 'playful' = isStrategic ? 'strategic' : isPlayful ? 'playful' : 'strategic';
   const lobbyTypeName = isStrategic ? '전략' : '놀이';
   const locationPrefix = `[${lobbyTypeName}:${mode}]`;
+  const theme = {
+    shell: 'bg-lobby-shell-playful',
+    accentText: 'text-amber-200',
+    accentSubtext: 'text-amber-100/80',
+    headerCard: 'border-amber-500/35 bg-gradient-to-r from-zinc-950/80 via-stone-900/75 to-amber-950/45',
+    panel: 'border-amber-500/35 bg-gradient-to-br from-zinc-950/75 via-stone-900/70 to-amber-950/35',
+    panelSoft: 'border-amber-500/30 bg-gradient-to-br from-zinc-950/70 via-stone-900/65 to-amber-950/30',
+    glow: 'shadow-[0_18px_40px_rgba(217,119,6,0.22)]',
+  };
+  const roomTitle = lobbyType === 'strategic' ? '전략 바둑 대기실' : '놀이 바둑 대기실';
+  const roomSubtitle = lobbyType === 'strategic' ? '전술 대국 중심' : '캐주얼 대국 중심';
     
   return (
-    <div className="bg-primary text-primary flex flex-col flex-1 p-2 sm:p-4 lg:p-6 max-w-full mx-auto">
-      <header className="flex justify-between items-center mb-4 flex-shrink-0">
+    <div className={`${theme.shell} text-primary flex flex-col flex-1 p-2 sm:p-4 lg:p-6 max-w-full mx-auto`}>
+      <header className={`mb-4 flex flex-shrink-0 items-center justify-between rounded-xl border px-2.5 py-2 sm:px-3 sm:py-2.5 ${theme.headerCard} ${theme.glow}`}>
         <div className="flex-1">
           <button onClick={onBackToLobby} className="p-0 flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-lg transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
             <img src="/images/button/back.png" alt="Back" className="w-full h-full" />
           </button>
         </div>
         <div className='flex-1 text-center flex items-center justify-center'>
-          <h1 className="text-3xl font-bold">{mode} 대기실</h1>
+          <div className="flex items-center gap-2">
+            <span className="rounded-full border border-amber-400/45 bg-amber-900/35 px-2 py-0.5 text-[11px] font-bold tracking-wide text-amber-100">
+              {roomSubtitle}
+            </span>
+            <h1 className={`text-3xl font-black tracking-tight ${theme.accentText}`}>{roomTitle}</h1>
+          </div>
           <button 
             onClick={() => setIsHelpModalOpen(true)}
             className="ml-3 w-8 h-8 flex items-center justify-center transition-transform hover:scale-110"
@@ -219,7 +238,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           </button>
         </div>
         <div className="flex-1 text-right">
-             <p className="text-secondary text-sm">{usersInThisRoom.length}명 접속 중</p>
+             <p className={`text-sm font-semibold ${theme.accentSubtext}`}>{usersInThisRoom.length}명 접속 중</p>
         </div>
       </header>
       <div className="flex-1 min-h-0 relative">
@@ -294,10 +313,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
                 </div>
                 <div className="grid grid-rows-2 gap-4 flex-1 min-h-0">
-                    <div className="min-h-0">
+                    <div className={`min-h-0 rounded-xl border p-1 ${theme.panel} ${theme.glow}`}>
                         <GameList games={ongoingGames} onAction={handlers.handleAction} currentUser={currentUserWithStatus} />
                     </div>
-                    <div className="min-h-0 flex flex-col bg-panel border border-color rounded-lg shadow-lg">
+                    <div className={`min-h-0 flex flex-col rounded-xl border p-1 ${theme.panelSoft} ${theme.glow}`}>
                         <ChatWindow messages={chatMessages} mode={'global'} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
                     </div>
                 </div>
@@ -306,7 +325,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
             {/* Right Sidebar Column */}
             <div className="col-span-2 grid grid-rows-2 gap-4">
               <div className="flex flex-row gap-4 items-stretch min-h-0">
-                <div className="flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0">
+                <div className={`flex-1 min-w-0 rounded-xl border p-1 ${theme.panel} ${theme.glow}`}>
                   <PlayerList users={usersInThisRoom} mode={mode} onAction={handlers.handleAction} currentUser={currentUserWithStatus} negotiations={Object.values(negotiations)} onViewUser={handlers.openViewingUser} lobbyType={lobbyType} />
                 </div>
                 <div className={PC_QUICK_RAIL_COLUMN_CLASS}>
@@ -314,7 +333,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 </div>
               </div>
 
-              <div className="bg-panel border border-color rounded-lg shadow-lg min-h-0">
+              <div className={`min-h-0 rounded-xl border p-1 ${theme.panelSoft} ${theme.glow}`}>
                 <RankingList currentUser={currentUserWithStatus} mode={mode} onViewUser={handlers.openViewingUser} onShowTierInfo={() => setIsTierInfoModalOpen(true)} onShowPastRankings={handlers.openPastRankings} lobbyType={lobbyType} />
               </div>
             </div>

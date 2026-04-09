@@ -3,6 +3,7 @@ import { User } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 type PotionType = 'small' | 'medium' | 'large';
 
@@ -59,6 +60,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
     isTopmost 
 }) => {
     const { handlers, currentUserWithStatus, updateTrigger } = useAppContext();
+    const { isNativeMobile } = useNativeMobileShell();
     // prop으로 받은 currentUser가 있으면 사용하고, 없으면 context에서 가져옴
     const currentUser = currentUserWithStatus || propCurrentUser;
     const [selectedPotionType, setSelectedPotionType] = useState<PotionType | null>(null);
@@ -145,99 +147,135 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
     return (
         <DraggableWindow 
             title="컨디션 회복제 사용" 
-            initialWidth={600} 
-            initialHeight={650}
+            initialWidth={isNativeMobile ? 340 : 600} 
+            initialHeight={isNativeMobile ? 520 : 650}
             onClose={onClose}
             isTopmost={isTopmost}
             windowId="condition-potion-modal"
+            mobileViewportFit={isNativeMobile}
+            mobileViewportMaxHeightVh={94}
+            bodyPaddingClassName={isNativeMobile ? 'p-2' : undefined}
         >
-            <div className="text-white flex flex-col h-full">
-                <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
-                    <div className="grid grid-cols-3 gap-3">
+            <div className={`text-white flex flex-col min-h-0 ${isNativeMobile ? 'h-full gap-2' : 'h-full gap-4'}`}>
+                <div className={`flex-1 flex flex-col min-h-0 overflow-y-auto ${isNativeMobile ? 'gap-2 pr-0.5' : 'gap-4'}`}>
+                    <div className={isNativeMobile ? 'flex flex-col gap-2' : 'grid grid-cols-3 gap-3'}>
                         {(Object.keys(POTION_TYPES) as PotionType[]).map((type) => {
                             const potion = POTION_TYPES[type];
                             const count = potionCounts[type];
                             const isSelected = selectedPotionType === type;
 
                             return (
-                                <div
+                                <button
+                                    type="button"
                                     key={type}
                                     onClick={() => setSelectedPotionType(type)}
-                                    className={`bg-gray-800/50 rounded-lg p-3 border-2 cursor-pointer transition-all ${
-                                        isSelected ? 'border-yellow-400 bg-gray-700/50' : 'border-gray-700 hover:border-gray-600'
+                                    className={`text-left rounded-xl border-2 transition-all w-full ${
+                                        isNativeMobile ? 'p-2.5 active:scale-[0.99]' : 'p-3 rounded-lg cursor-pointer'
+                                    } ${
+                                        isSelected ? 'border-yellow-400 bg-gray-700/60 ring-1 ring-yellow-400/30' : 'border-gray-700 bg-gray-800/50 hover:border-gray-600'
                                     }`}
                                 >
-                                    <div className="flex flex-col items-center gap-2">
-                                        <img src={potion.image} alt={potion.name} className="w-16 h-16" />
-                                        <h3 className="font-bold text-sm text-center">{potion.name}</h3>
-                                        <p className="text-xs text-gray-400 text-center">
-                                            {potion.minRecovery}~{potion.maxRecovery} 회복
-                                        </p>
-                                        <div className="flex items-center gap-1 text-xs">
-                                            <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />
-                                            <span className={currentUser.gold >= potion.price ? 'text-green-400' : 'text-red-400'}>
-                                                {potion.price}
-                                            </span>
+                                    {isNativeMobile ? (
+                                        <div className="flex items-center gap-3">
+                                            <img src={potion.image} alt="" className="w-12 h-12 object-contain flex-shrink-0" />
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-[13px] text-white leading-tight">{potion.name}</h3>
+                                                <p className="text-[11px] text-gray-400 mt-0.5">
+                                                    {potion.minRecovery}~{potion.maxRecovery} 회복
+                                                </p>
+                                                <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 mt-1 text-[11px]">
+                                                    <span className="inline-flex items-center gap-0.5">
+                                                        <img src="/images/icon/Gold.png" alt="" className="w-3.5 h-3.5" />
+                                                        <span className={currentUser.gold >= potion.price ? 'text-green-400' : 'text-red-400'}>
+                                                            {potion.price}
+                                                        </span>
+                                                    </span>
+                                                    <span className={count > 0 ? 'text-blue-300' : 'text-red-400'}>
+                                                        보유 {count}
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <p className={`text-xs ${count > 0 ? 'text-blue-300' : 'text-red-400'}`}>
-                                            보유: {count}개
-                                        </p>
-                                    </div>
-                                </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <img src={potion.image} alt={potion.name} className="w-16 h-16 object-contain" />
+                                            <h3 className="font-bold text-sm text-center">{potion.name}</h3>
+                                            <p className="text-xs text-gray-400 text-center">
+                                                {potion.minRecovery}~{potion.maxRecovery} 회복
+                                            </p>
+                                            <div className="flex items-center gap-1 text-xs">
+                                                <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />
+                                                <span className={currentUser.gold >= potion.price ? 'text-green-400' : 'text-red-400'}>
+                                                    {potion.price}
+                                                </span>
+                                            </div>
+                                            <p className={`text-xs ${count > 0 ? 'text-blue-300' : 'text-red-400'}`}>
+                                                보유: {count}개
+                                            </p>
+                                        </div>
+                                    )}
+                                </button>
                             );
                         })}
                     </div>
 
                     {selectedPotionType && !hasPotion && (
-                        <p className="text-red-400 text-sm text-center">
-                            보유 중인 {POTION_TYPES[selectedPotionType].name}이(가) 없습니다. 상점에서 구매하세요.
+                        <p className={`text-red-400 text-center leading-snug ${isNativeMobile ? 'text-[11px] px-1' : 'text-sm'}`}>
+                            {POTION_TYPES[selectedPotionType].name} 없음. 상점에서 구매할 수 있습니다.
                         </p>
                     )}
 
                     {selectedPotionType && !canAfford && hasPotion && (
-                        <p className="text-red-400 text-sm text-center">
-                            골드가 부족합니다. (필요: {POTION_TYPES[selectedPotionType].price} 골드)
+                        <p className={`text-red-400 text-center ${isNativeMobile ? 'text-[11px] px-1' : 'text-sm'}`}>
+                            골드 부족 (필요 {POTION_TYPES[selectedPotionType].price})
                         </p>
                     )}
                 </div>
 
-                <div className="w-full bg-gray-800/50 rounded-lg p-4 border border-gray-700 flex-shrink-0">
-                    <div className="flex justify-between items-center mb-2 relative">
-                        <span className="text-gray-300">현재 컨디션:</span>
-                        <span className={`text-yellow-300 font-bold text-lg relative transition-all duration-300 ${
-                            showConditionIncrease ? 'scale-125 text-green-300' : ''
-                        }`}>
+                <div className={`w-full bg-gray-800/50 rounded-lg border border-gray-700 flex-shrink-0 ${isNativeMobile ? 'p-2.5' : 'p-4'}`}>
+                    <div className={`flex justify-between items-center relative ${isNativeMobile ? 'mb-1.5' : 'mb-2'}`}>
+                        <span className={`text-gray-300 ${isNativeMobile ? 'text-xs' : ''}`}>현재 컨디션</span>
+                        <span className={`text-yellow-300 font-bold relative transition-all duration-300 tabular-nums ${
+                            isNativeMobile ? 'text-base' : 'text-lg'
+                        } ${showConditionIncrease ? 'scale-110 text-green-300' : ''}`}>
                             {currentCondition === 1000 ? '-' : currentCondition}
                         </span>
                         {showConditionIncrease && conditionIncreaseAmount > 0 && (
-                            <span className="absolute right-0 top-[-24px] text-base font-bold text-green-400 pointer-events-none whitespace-nowrap" style={{
-                                animation: 'fadeUp 2s ease-out forwards',
-                                textShadow: '0 0 8px rgba(34, 197, 94, 0.8)'
-                            }}>
+                            <span
+                                className={`absolute font-bold text-green-400 pointer-events-none whitespace-nowrap ${
+                                    isNativeMobile ? 'right-0 -top-5 text-sm' : 'right-0 top-[-24px] text-base'
+                                }`}
+                                style={{
+                                    animation: 'fadeUp 2s ease-out forwards',
+                                    textShadow: '0 0 8px rgba(34, 197, 94, 0.8)',
+                                }}
+                            >
                                 +{conditionIncreaseAmount}
                             </span>
                         )}
                     </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-gray-300">예상 회복 후 컨디션:</span>
-                        <span className="text-green-300 font-bold text-lg">
-                            {expectedRecovery ? `${expectedRecovery.min} ~ ${expectedRecovery.max}` : '—'}
+                    <div className="flex justify-between items-center gap-2">
+                        <span className={`text-gray-300 ${isNativeMobile ? 'text-xs leading-tight' : ''}`}>
+                            {isNativeMobile ? '회복 후(예상)' : '예상 회복 후 컨디션:'}
+                        </span>
+                        <span className={`text-green-300 font-bold tabular-nums text-right ${isNativeMobile ? 'text-sm' : 'text-lg'}`}>
+                            {expectedRecovery ? `${expectedRecovery.min}~${expectedRecovery.max}` : '—'}
                         </span>
                     </div>
                 </div>
 
-                <div className="flex gap-4 w-full mt-4 flex-shrink-0">
+                <div className={`flex w-full flex-shrink-0 ${isNativeMobile ? 'gap-2 mt-2' : 'gap-4 mt-4'}`}>
                     <Button 
                         onClick={onClose} 
                         colorScheme="gray" 
-                        className="flex-1"
+                        className={`flex-1 ${isNativeMobile ? '!py-3 text-sm min-h-[44px]' : ''}`}
                     >
                         취소
                     </Button>
                     <Button 
                         onClick={handleConfirm} 
                         colorScheme="green" 
-                        className="flex-1"
+                        className={`flex-1 ${isNativeMobile ? '!py-3 text-sm min-h-[44px]' : ''}`}
                         disabled={!selectedPotionType}
                     >
                         {selectedPotionType && !hasPotion ? '상점 가기' : '사용'}

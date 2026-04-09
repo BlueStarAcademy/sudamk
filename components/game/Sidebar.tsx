@@ -22,9 +22,31 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { getGuildWarBoardMode, getGuildWarStarConditionLines } from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
-import MatchPlayGuideModal from './MatchPlayGuideModal.js';
 import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
+import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import {
+    arenaGameRoomAdminStripClass,
+    arenaGameRoomAdminTitleClass,
+    arenaGameRoomChatBodyClass,
+    arenaGameRoomChatIconToggleClass,
+    arenaGameRoomChatInputClass,
+    arenaGameRoomChatShellClass,
+    arenaGameRoomChatTabActiveClass,
+    arenaGameRoomChatTabBarClass,
+    arenaGameRoomChatTabInactiveClass,
+    arenaGameRoomGuildStarPanelClass,
+    arenaGameRoomPanelClass,
+    arenaGameRoomPanelTitleClass,
+    arenaGameRoomQuickChatEmojiBtnClass,
+    arenaGameRoomQuickChatPhraseBtnClass,
+    arenaGameRoomQuickChatPopoverClass,
+    arenaGameRoomSettingsIconBtnClass,
+    arenaGameRoomSidebarLeaveBtnClass,
+    arenaGameRoomSidebarPauseBtnClass,
+    arenaGameRoomSidebarShell,
+    arenaGameRoomSmallCtaClass,
+} from './arenaGameRoomStyles.js';
 
 
 interface SidebarProps extends GameProps {
@@ -47,8 +69,8 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
     const renderSetting = (label: string, value: React.ReactNode) => (
         value !== undefined && value !== null && value !== '' && (
             <React.Fragment key={label}>
-                <div className="font-semibold text-gray-400 whitespace-nowrap">{label}:</div>
-                <div className="min-w-0 break-words text-gray-100">{value}</div>
+                <div className="font-semibold text-slate-400 whitespace-nowrap">{label}:</div>
+                <div className="min-w-0 break-words text-slate-100">{value}</div>
             </React.Fragment>
         )
     );
@@ -208,15 +230,15 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
 
     return (
         <>
-            <div className="bg-gray-800 p-2 rounded-md flex-shrink-0 border border-color">
-                <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex items-center justify-between gap-2">
+            <div className={`${arenaGameRoomPanelClass} flex-shrink-0`}>
+                <h3 className={arenaGameRoomPanelTitleClass}>
                     <span className="min-w-0 shrink">대국 정보</span>
                     <div className="flex items-center gap-1 shrink-0">
                         <button
                             type="button"
                             onClick={() => setMatchGuideOpen(true)}
-                            className="text-[10px] sm:text-xs font-semibold px-1.5 sm:px-2 py-0.5 rounded-md bg-sky-900/70 text-sky-100 hover:bg-sky-800 border border-sky-600/40 transition-colors whitespace-nowrap"
-                            title="승리 조건·유의사항·이번 시합 팁"
+                            className={arenaGameRoomSmallCtaClass}
+                            title="시작 전 게임 설명과 동일한 규칙·설정 안내"
                             aria-label="경기방법 안내 열기"
                         >
                             경기방법
@@ -224,7 +246,7 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
                         {onOpenSettings && (
                             <button
                                 onClick={onOpenSettings}
-                                className="text-lg p-1 rounded hover:bg-gray-700/50 transition-colors"
+                                className={arenaGameRoomSettingsIconBtnClass}
                                 title="설정"
                                 aria-label="대국 설정 열기"
                             >
@@ -243,7 +265,7 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
                 </div>
             </div>
             {matchGuideOpen && (
-                (session.isSinglePlayer || session.gameCategory === 'singleplayer') ? (
+                session.isSinglePlayer || session.gameCategory === 'singleplayer' || session.gameCategory === 'tower' ? (
                     <SinglePlayerGameDescriptionModal
                         session={session}
                         readOnly
@@ -251,7 +273,12 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
                         onClose={() => setMatchGuideOpen(false)}
                     />
                 ) : (
-                    <MatchPlayGuideModal session={session} onClose={() => setMatchGuideOpen(false)} />
+                    <AiGameDescriptionModal
+                        session={session}
+                        readOnly
+                        onClose={() => setMatchGuideOpen(false)}
+                        onAction={() => {}}
+                    />
                 )
             )}
         </>
@@ -297,7 +324,7 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
         const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
 
         return (
-            <div key={user.id} className={`flex items-center gap-2 p-1 rounded ${isMe ? 'bg-blue-900/50' : ''}`}>
+            <div key={user.id} className={`flex items-center gap-2 p-1 rounded-lg transition-colors ${isMe ? 'bg-sky-950/45 ring-1 ring-inset ring-sky-500/15' : 'hover:bg-white/[0.04]'}`}>
                 <Avatar userId={user.id} userName={user.nickname} size={28} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                 <div 
                     className={`flex items-center gap-2 flex-grow overflow-hidden ${!isMe ? 'cursor-pointer' : ''}`}
@@ -313,8 +340,8 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
     }
 
     return (
-        <div className="bg-gray-800 p-2 rounded-md flex flex-col border border-color">
-            <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex-shrink-0 flex justify-between items-center">
+        <div className={`${arenaGameRoomPanelClass} flex flex-col`}>
+            <h3 className={`${arenaGameRoomPanelTitleClass} flex-shrink-0`}>
                 유저 목록
                 {onClose && (
                     <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label="닫기">
@@ -443,26 +470,26 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
             : "[메시지 입력]";
     
     return (
-        <div className="flex min-h-0 flex-col h-full bg-gray-800 p-2 rounded-md border border-color">
+        <div className={arenaGameRoomChatShellClass}>
             {isAiGame ? (
                 currentUserWithStatus?.guildId ? (
-                    <div className="flex bg-gray-900/70 p-1 rounded-lg mb-2 flex-shrink-0">
-                        <button onClick={() => setActiveTab('global')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>전체채팅</button>
-                        <button onClick={() => setActiveTab('guild')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>길드채팅</button>
+                    <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
+                        <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>전체채팅</button>
+                        <button type="button" onClick={() => setActiveTab('guild')} className={activeTab === 'guild' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>길드채팅</button>
                     </div>
                 ) : (
-                    <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300 flex-shrink-0">전체채팅</h3>
+                    <h3 className={`${arenaGameRoomPanelTitleClass} flex-shrink-0 border-b-0 mb-2 pb-0`}>전체채팅</h3>
                 )
             ) : (
-                <div className="flex bg-gray-900/70 p-1 rounded-lg mb-2 flex-shrink-0">
-                    <button onClick={() => setActiveTab('game')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'game' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>대국실</button>
-                    <button onClick={() => setActiveTab('global')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>전체채팅</button>
+                <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
+                    <button type="button" onClick={() => setActiveTab('game')} className={activeTab === 'game' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>대국실</button>
+                    <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>전체채팅</button>
                     {currentUserWithStatus?.guildId && (
-                        <button onClick={() => setActiveTab('guild')} className={`flex-1 py-1.5 text-sm font-semibold rounded-md ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}>길드채팅</button>
+                        <button type="button" onClick={() => setActiveTab('guild')} className={activeTab === 'guild' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>길드채팅</button>
                     )}
                 </div>
             )}
-            <div ref={chatBodyRef} className="flex-grow space-y-1 overflow-y-auto pr-2 mb-2 bg-gray-900/40 p-1.5 rounded-md min-h-0">
+            <div ref={chatBodyRef} className={arenaGameRoomChatBodyClass}>
                 {activeTab === 'guild' ? (
                     // 길드 채팅 메시지 표시 (파란색)
                     activeChatMessages.length > 0 ? (
@@ -611,17 +638,17 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
             {!isSpectator && (
                 <div className="relative flex-shrink-0">
                    {showQuickChat && (
-                       <div ref={quickChatRef} className="absolute bottom-full mb-2 w-full bg-gray-600 rounded-lg shadow-xl p-2 z-10 max-h-64 overflow-y-auto">
-                           <div className="grid grid-cols-5 gap-2 text-2xl mb-2 border-b border-gray-500 pb-2">
-                              {GAME_CHAT_EMOJIS.map(emoji => ( <button key={emoji} onClick={() => handleSend({ emoji })} className="w-full p-2 rounded-md hover:bg-blue-600 transition-colors text-center"> {emoji} </button> ))}
+                       <div ref={quickChatRef} className={arenaGameRoomQuickChatPopoverClass}>
+                           <div className="grid grid-cols-5 gap-2 text-2xl mb-2 border-b border-slate-600/45 pb-2">
+                              {GAME_CHAT_EMOJIS.map(emoji => ( <button key={emoji} type="button" onClick={() => handleSend({ emoji })} className={arenaGameRoomQuickChatEmojiBtnClass}> {emoji} </button> ))}
                            </div>
                            <ul className="space-y-1">
-                              {GAME_CHAT_MESSAGES.map(msg => ( <li key={msg}> <button onClick={() => handleSend({ text: msg })} className="w-full text-left text-sm p-2 rounded-md hover:bg-blue-600 transition-colors"> {msg} </button> </li> ))}
+                              {GAME_CHAT_MESSAGES.map(msg => ( <li key={msg}> <button type="button" onClick={() => handleSend({ text: msg })} className={arenaGameRoomQuickChatPhraseBtnClass}> {msg} </button> </li> ))}
                            </ul>
                        </div>
                    )}
                    <form onSubmit={handleSendTextSubmit} className="flex gap-2">
-                        <button type="button" onClick={() => setShowQuickChat(s => !s)} className="bg-gray-700 hover:bg-gray-600 text-white font-bold px-2.5 rounded-md transition-colors text-lg flex items-center justify-center" title="빠른 채팅" disabled={isInputDisabled}>
+                        <button type="button" onClick={() => setShowQuickChat(s => !s)} className={arenaGameRoomChatIconToggleClass} title="빠른 채팅" disabled={isInputDisabled}>
                             <span>🙂</span>
                         </button>
                        <input
@@ -629,11 +656,11 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                            value={chatInput}
                            onChange={e => setChatInput(e.target.value)}
                            placeholder={placeholderText}
-                           className="flex-grow bg-gray-900 border border-gray-600 rounded-md p-1.5 focus:ring-blue-500 focus:border-blue-500 text-sm disabled:bg-gray-800 disabled:text-gray-500"
+                           className={arenaGameRoomChatInputClass}
                            maxLength={30}
                            disabled={isInputDisabled}
                        />
-                       <Button type="submit" disabled={!chatInput.trim() || isInputDisabled} className="!px-2.5 !py-1.5" title="보내기">
+                       <Button type="submit" bare disabled={!chatInput.trim() || isInputDisabled} colorScheme="none" title="보내기" className="!px-3 !py-2 rounded-lg border border-sky-600/40 bg-gradient-to-b from-sky-700/90 to-sky-950 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 disabled:opacity-40 disabled:grayscale">
                             💬
                        </Button>
                    </form>
@@ -650,8 +677,8 @@ const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession }> = ({ s
     const lines = getGuildWarStarConditionLines(boardMode, boardId);
 
     return (
-        <div className="bg-gray-800 p-2 rounded-md border border-yellow-600/40">
-            <h3 className="text-base font-bold border-b border-gray-700 pb-1 mb-2 text-yellow-300">별 획득 조건</h3>
+        <div className={arenaGameRoomGuildStarPanelClass}>
+            <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>별 획득 조건</h3>
             <div className="space-y-1">
                 {lines.map((line) => (
                     <div key={line} className="text-xs text-gray-200">
@@ -672,10 +699,9 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     const isPauseButtonDisabled = (isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0) || pauseDisabledBecauseAiTurn;
 
     const leaveButtonText = isNoContestLeaveAvailable ? '무효처리' : (isGameEnded ? '대기실로' : (isSpectator ? '관전종료' : '기권하기'));
-    const leaveButtonColor = isNoContestLeaveAvailable ? 'yellow' : 'red';
-    
+
     return (
-        <div className="flex min-h-0 flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
+        <div className={`${arenaGameRoomSidebarShell} gap-2`}>
             <div className="flex-shrink-0 space-y-2">
                 <GameInfoPanel session={session} currentUser={props.currentUser} onClose={props.onClose} onOpenSettings={props.onOpenSettings} />
                 <UserListPanel {...props} />
@@ -687,28 +713,30 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 <ChatPanel {...props} />
             </div>
             {isSpectator && props.currentUser?.isAdmin && !isGameEnded && (
-                <div className="flex-shrink-0 py-2 border-t border-gray-700">
-                    <h3 className="text-xs font-bold text-purple-300 mb-1.5">관리자 기능</h3>
+                <div className={arenaGameRoomAdminStripClass}>
+                    <h3 className={arenaGameRoomAdminTitleClass}>관리자 기능</h3>
                     <div className="flex flex-wrap gap-2">
                         <Button
+                            bare
                             onClick={() => {
                                 if (window.confirm(`${session.player2?.nickname}님 기권승(승자: ${session.player1?.nickname}) 처리하시겠습니까?`)) {
                                     props.onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId: session.id, winnerId: session.player1?.id } });
                                 }
                             }}
-                            colorScheme="red"
-                            className="!py-1 !px-2 text-xs"
+                            colorScheme="none"
+                            className={`${arenaGameRoomSidebarLeaveBtnClass(false)} !py-2 !px-3 !text-xs !min-h-0`}
                         >
                             {session.player2?.nickname} 기권승
                         </Button>
                         <Button
+                            bare
                             onClick={() => {
                                 if (window.confirm(`${session.player1?.nickname}님 기권승(승자: ${session.player2?.nickname}) 처리하시겠습니까?`)) {
                                     props.onAction({ type: 'ADMIN_FORCE_WIN', payload: { gameId: session.id, winnerId: session.player2?.id } });
                                 }
                             }}
-                            colorScheme="red"
-                            className="!py-1 !px-2 text-xs"
+                            colorScheme="none"
+                            className={`${arenaGameRoomSidebarLeaveBtnClass(false)} !py-2 !px-3 !text-xs !min-h-0`}
                         >
                             {session.player1?.nickname} 기권승
                         </Button>
@@ -718,9 +746,10 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
             <div className="flex-shrink-0 pt-2">
                 {isPausableAiGame && !isGameEnded && !isSpectator && onTogglePause ? (
                     <Button
+                        bare
                         onClick={onTogglePause}
-                        colorScheme={isPaused ? 'green' : 'yellow'}
-                        className="w-full"
+                        colorScheme="none"
+                        className={`w-full ${arenaGameRoomSidebarPauseBtnClass(isPaused)}`}
                         disabled={isPauseButtonDisabled}
                         title={pauseDisabledBecauseAiTurn ? '내 차례에만 일시정지할 수 있습니다' : undefined}
                     >
@@ -729,7 +758,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                             : (pauseButtonCooldown > 0 ? `일시 정지 (${pauseButtonCooldown})` : (pauseDisabledBecauseAiTurn ? '일시 정지 (AI 차례)' : '일시 정지'))}
                     </Button>
                 ) : (
-                    <Button onClick={onLeaveOrResign} colorScheme={leaveButtonColor} className="w-full">
+                    <Button bare onClick={onLeaveOrResign} colorScheme="none" className={`w-full ${arenaGameRoomSidebarLeaveBtnClass(isNoContestLeaveAvailable)}`}>
                         {leaveButtonText}
                     </Button>
                 )}

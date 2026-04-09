@@ -325,7 +325,7 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean }> = ({ piece,
 
     return (
         <div
-            className={`relative ${fluid ? 'mx-auto w-full min-w-0 max-w-[3rem] sm:max-w-[3.25rem]' : 'shrink-0'} ${tipOnly ? 'touch-manipulation' : ''}`}
+            className={`relative ${fluid ? 'mx-auto w-full min-w-0 max-w-[2.4rem] sm:max-w-[2.85rem] md:max-w-[3rem] lg:max-w-[3.25rem]' : 'shrink-0'} ${tipOnly ? 'touch-manipulation' : ''}`}
             onPointerDown={tipOnly ? () => setPressTip(true) : undefined}
             onPointerUp={tipOnly ? () => setPressTip(false) : undefined}
             onPointerCancel={tipOnly ? () => setPressTip(false) : undefined}
@@ -436,14 +436,14 @@ const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
         <div className={`flex min-w-0 w-full shrink-0 ${layoutClass}`}>
             <RewardThumb piece={piece} fluid={!hasCaption} />
             {hasCaption ? (
-                <div className="min-w-0 flex flex-1 flex-col justify-center gap-0.5 text-[9px] leading-snug text-zinc-300 sm:text-[10px]">
+                <div className="min-w-0 flex flex-1 flex-col justify-center gap-0.5 text-[8px] leading-tight text-zinc-300 max-sm:leading-snug sm:text-[9px] md:text-[10px]">
                     {piece.captionBesideThumb!.map((line, i) => (
                         <div key={i}>{line}</div>
                     ))}
                 </div>
             ) : !piece.quantityOnThumbOnly && !hasBelow ? (
                 <span
-                    className="min-w-0 flex-1 truncate whitespace-nowrap text-[11px] font-medium text-zinc-200 sm:text-xs"
+                    className="min-w-0 flex-1 truncate whitespace-nowrap text-[9px] font-medium text-zinc-200 max-sm:text-[8px] sm:text-[11px] md:text-xs"
                     title={`${piece.label} ${piece.quantity}`}
                 >
                     {piece.label}
@@ -451,7 +451,7 @@ const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
                 </span>
             ) : null}
             {hasBelow ? (
-                <span className="max-w-full text-center text-[10px] font-semibold leading-none text-zinc-400 sm:text-[11px]">
+                <span className="max-w-full text-center text-[8px] font-semibold leading-tight text-zinc-400 sm:text-[10px] md:text-[11px]">
                     {piece.captionBelowThumb}
                 </span>
             ) : null}
@@ -492,16 +492,16 @@ const MyStatCompareCell: React.FC<{ my: number; opponentExpected: number; border
 }) => {
     const tone = compareToneVsExpected(my, opponentExpected);
     const diff = my - opponentExpected;
-    const valueCls = `font-mono text-sm font-bold tabular-nums leading-none sm:text-base ${myStatValueToneClass(tone)}`;
+    const valueCls = `font-mono text-xs font-bold tabular-nums leading-none max-sm:text-[9px] sm:text-sm md:text-base ${myStatValueToneClass(tone)}`;
     return (
         <div
-            className={`flex min-h-[2.5rem] flex-col items-center justify-center gap-0.5 border-r border-white/[0.07] px-1 py-1.5 ${borderBottom ? 'border-b border-white/[0.07]' : ''}`}
+            className={`flex min-h-[2rem] flex-col items-center justify-center gap-0.5 border-r border-white/[0.07] px-0.5 py-1 max-sm:min-h-[2rem] sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 ${borderBottom ? 'border-b border-white/[0.07]' : ''}`}
         >
-            <div className="flex flex-wrap items-baseline justify-center gap-x-1.5 gap-y-0.5">
+            <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 sm:gap-x-1.5">
                 <span className={valueCls}>{my.toLocaleString()}</span>
                 {diff !== 0 && (
                     <span
-                        className={`whitespace-nowrap text-[11px] font-bold tabular-nums leading-none sm:text-xs ${diffArrowBadgeClass(diff, tone)}`}
+                        className={`whitespace-nowrap text-[9px] font-bold tabular-nums leading-none max-sm:text-[8px] sm:text-[11px] md:text-xs ${diffArrowBadgeClass(diff, tone)}`}
                         title={diff > 0 ? `+${diff}` : `${diff}`}
                     >
                         {diff > 0 ? `↑${diff}` : `↓${Math.abs(diff)}`}
@@ -519,8 +519,12 @@ const SectionTitle: React.FC<{ children: React.ReactNode; accent: 'cyan' | 'ambe
             : 'from-amber-400/50 via-amber-300/15 to-transparent';
     const text = accent === 'cyan' ? 'text-cyan-100/95' : 'text-amber-100/95';
     return (
-        <div className="mb-1.5 flex items-center gap-2">
-            <span className={`whitespace-nowrap text-xs font-bold uppercase tracking-[0.12em] sm:text-sm ${text}`}>{children}</span>
+        <div className="mb-1 flex items-center gap-1.5 max-sm:mb-0.5 max-sm:gap-1 sm:mb-1.5 sm:gap-2">
+            <span
+                className={`whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.08em] max-sm:tracking-[0.06em] sm:text-xs md:text-sm ${text}`}
+            >
+                {children}
+            </span>
             <span className={`h-px min-w-0 flex-1 bg-gradient-to-r ${line}`} aria-hidden />
         </div>
     );
@@ -665,7 +669,6 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
             mobileViewportFit
             mobileViewportMaxHeightCss="92dvh"
             mobileViewportMaxHeightVh={94}
-            bodyNoScroll
             hideFooter
             bodyPaddingClassName="!p-0"
         >
@@ -681,27 +684,33 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                 <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-purple-600/15 blur-3xl" aria-hidden />
                 <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
 
-                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-1 p-2 sm:gap-1.5 sm:p-3">
-                    <div className="relative flex h-[3.35rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5rem]">
+                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-0.5 p-1 sm:gap-1 sm:p-2 md:gap-1.5 md:p-3">
+                    <div className="relative flex h-[2.45rem] shrink-0 overflow-hidden rounded-lg ring-1 ring-amber-500/25 sm:h-[3.35rem] sm:rounded-xl md:h-[5rem]">
                         <img src={definition.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
-                        <div className="relative z-[1] flex flex-1 flex-col justify-center px-3.5 py-2">
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-200/80 sm:text-xs">Championship</span>
-                            <span className="line-clamp-1 text-lg font-bold leading-tight text-white drop-shadow-md sm:text-xl">
+                        <div className="relative z-[1] flex flex-1 flex-col justify-center px-2 py-1 sm:px-3.5 sm:py-2">
+                            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-amber-200/80 sm:text-[10px] sm:tracking-[0.2em] md:text-xs">
+                                Championship
+                            </span>
+                            <span className="line-clamp-1 text-sm font-bold leading-tight text-white drop-shadow-md sm:text-lg md:text-xl">
                                 {definition.name}
                             </span>
                         </div>
-                        <div className="relative z-[1] flex items-center pr-3 sm:pr-4">
-                            <div className="rounded-lg bg-black/55 px-3 py-1.5 ring-1 ring-amber-400/30 backdrop-blur-sm">
-                                <span className="block text-center text-[10px] font-semibold uppercase tracking-wider text-amber-200/85 sm:text-xs">단계</span>
-                                <span className="block text-center text-2xl font-black tabular-nums leading-none text-white sm:text-3xl">{selectedStage}</span>
+                        <div className="relative z-[1] flex items-center pr-1.5 sm:pr-3 md:pr-4">
+                            <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-amber-400/30 backdrop-blur-sm sm:rounded-lg sm:px-3 sm:py-1.5">
+                                <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-amber-200/85 sm:text-[10px] md:text-xs">
+                                    단계
+                                </span>
+                                <span className="block text-center text-lg font-black tabular-nums leading-none text-white sm:text-2xl md:text-3xl">
+                                    {selectedStage}
+                                </span>
                             </div>
                         </div>
                     </div>
 
                     {showContinueFlow && (
-                        <div className="shrink-0 rounded-xl border border-amber-400/35 bg-gradient-to-r from-amber-950/50 via-yellow-950/25 to-amber-950/40 p-2.5 ring-1 ring-inset ring-amber-500/15 sm:p-3">
-                            <p className="mb-2 text-center text-sm leading-snug text-amber-50/90 sm:text-base">
+                        <div className="shrink-0 rounded-lg border border-amber-400/35 bg-gradient-to-r from-amber-950/50 via-yellow-950/25 to-amber-950/40 p-1.5 ring-1 ring-inset ring-amber-500/15 sm:rounded-xl sm:p-2.5 md:p-3">
+                            <p className="mb-1.5 text-center text-[11px] leading-snug text-amber-50/90 sm:mb-2 sm:text-sm md:text-base">
                                 {isCompletedToday ||
                                 (isDungeonMode && inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated'))
                                     ? '오늘 진행한 경기가 있습니다. 결과를 확인하세요.'
@@ -713,7 +722,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                     onClose();
                                 }}
                                 colorScheme="none"
-                                className="w-full border border-amber-400/40 bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 py-2.5 text-base font-bold text-amber-950 shadow-lg shadow-amber-900/30 hover:from-amber-500 hover:to-yellow-500 sm:py-3 sm:text-lg"
+                                className="w-full border border-amber-400/40 bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 py-2 text-xs font-bold text-amber-950 shadow-lg shadow-amber-900/30 hover:from-amber-500 hover:to-yellow-500 sm:py-2.5 sm:text-base md:py-3 md:text-lg"
                             >
                                 {continueLabel}
                             </Button>
@@ -722,7 +731,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
 
                     <div className="shrink-0">
                         <SectionTitle accent="cyan">단계 선택</SectionTitle>
-                        <div className="grid grid-cols-5 gap-1.5 sm:gap-2">
+                        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 md:gap-2">
                             {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
                                 const unlocked = dungeonProgress.unlockedStages.includes(stage);
                                 const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
@@ -735,7 +744,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                         type="button"
                                         disabled={!unlocked}
                                         onClick={() => unlocked && setSelectedStage(stage)}
-                                        className={`relative rounded-lg py-2 text-center text-sm font-bold tabular-nums transition-all sm:py-2.5 sm:text-base ${
+                                        className={`relative rounded-md py-1 text-center text-[11px] font-bold tabular-nums transition-all max-sm:text-[10px] sm:rounded-lg sm:py-2 sm:text-sm md:py-2.5 md:text-base ${
                                             !unlocked
                                                 ? 'cursor-not-allowed bg-zinc-950/80 text-zinc-600 ring-1 ring-zinc-800'
                                                 : active
@@ -749,7 +758,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                     >
                                         {stage}
                                         {cleared && (
-                                            <span className="absolute right-1 top-1 text-[10px] leading-none text-emerald-300 sm:text-xs" aria-hidden>
+                                            <span className="absolute right-0.5 top-0.5 text-[8px] leading-none text-emerald-300 sm:right-1 sm:top-1 sm:text-[10px] md:text-xs" aria-hidden>
                                                 ✓
                                             </span>
                                         )}
@@ -759,41 +768,41 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                         </div>
                     </div>
 
-                    <div className="shrink-0 rounded-xl border border-violet-500/25 bg-black/35 p-1.5 ring-1 ring-inset ring-violet-500/10 sm:p-2">
+                    <div className="shrink-0 rounded-lg border border-violet-500/25 bg-black/35 p-1 ring-1 ring-inset ring-violet-500/10 sm:rounded-xl sm:p-1.5 md:p-2">
                         <SectionTitle accent="cyan">나 vs 상대 (참고)</SectionTitle>
                         <div className="mt-0.5 overflow-hidden rounded-lg border border-white/[0.06] bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <div className="grid grid-cols-[minmax(4.75rem,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-0 text-center">
-                                <div className="border-b border-r border-white/[0.07] bg-black/35 py-1.5 text-xs font-bold tracking-wide text-zinc-400 sm:py-2 sm:text-sm">
+                            <div className="grid grid-cols-[minmax(3.2rem,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-0 text-center sm:grid-cols-[minmax(4.75rem,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
+                                <div className="flex min-h-[2rem] items-center justify-center border-b border-r border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-zinc-400 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
                                     항목
                                 </div>
-                                <div className="border-b border-r border-white/[0.07] bg-black/35 py-1.5 text-xs font-bold tracking-wide text-cyan-200 sm:py-2 sm:text-sm">
+                                <div className="flex min-h-[2rem] items-center justify-center border-b border-r border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-cyan-200 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
                                     나
                                 </div>
-                                <div className="border-b border-white/[0.07] bg-black/35 py-1.5 text-xs font-bold tracking-wide text-violet-200 sm:py-2 sm:text-sm">
+                                <div className="flex min-h-[2rem] items-center justify-center border-b border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-violet-200 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
                                     상대
                                 </div>
 
-                                <div className="border-b border-r border-white/[0.07] px-1 py-2 text-center text-xs font-semibold leading-snug text-zinc-300 sm:px-2 sm:text-sm">
+                                <div className="flex min-h-[2.25rem] items-center justify-center border-b border-r border-white/[0.07] px-0.5 py-1 text-center text-[9px] font-semibold leading-tight text-zinc-300 sm:min-h-[2.5rem] sm:px-1 sm:py-2 sm:text-xs sm:leading-snug md:min-h-0 md:px-2 md:text-sm">
                                     평균 능력치
                                 </div>
                                 <MyStatCompareCell my={myAvgStat} opponentExpected={botAvgStat} borderBottom />
-                                <div className="flex flex-col items-center justify-center border-b border-white/[0.07] px-0.5 py-1.5 sm:px-1 sm:py-2">
-                                    <div className="flex flex-wrap items-baseline justify-center gap-x-1">
-                                        <span className="font-mono text-sm font-bold tabular-nums text-violet-100 sm:text-base">
+                                <div className="flex min-h-[2.25rem] flex-col items-center justify-center border-b border-white/[0.07] px-0.5 py-1 sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 md:min-h-0 md:py-2">
+                                    <div className="flex flex-wrap items-center justify-center gap-x-0.5 sm:gap-x-1">
+                                        <span className="font-mono text-xs font-bold tabular-nums text-violet-100 max-sm:text-[9px] sm:text-sm md:text-base">
                                             {botAvgStat.toLocaleString()}
                                         </span>
-                                        <span className="font-mono text-[10px] font-medium tabular-nums text-zinc-400 sm:text-[11px]">
+                                        <span className="font-mono text-[8px] font-medium tabular-nums text-zinc-400 max-sm:text-[7px] sm:text-[10px] md:text-[11px]">
                                             ({botStatRange.minStat}~{botStatRange.maxStat})
                                         </span>
                                     </div>
                                 </div>
 
-                                <div className="border-r border-white/[0.07] px-1 py-2 text-center text-xs font-semibold leading-snug text-zinc-300 sm:px-2 sm:text-sm">
+                                <div className="flex min-h-[2.25rem] items-center justify-center border-r border-white/[0.07] px-0.5 py-1 text-center text-[9px] font-semibold leading-tight text-zinc-300 sm:min-h-[2.5rem] sm:px-1 sm:py-2 sm:text-xs sm:leading-snug md:min-h-0 md:px-2 md:text-sm">
                                     바둑능력
                                 </div>
                                 <MyStatCompareCell my={myBadukAbilityTotal} opponentExpected={botBadukAbilityAvg} borderBottom={false} />
-                                <div className="flex flex-col items-center justify-center px-0.5 py-1.5 sm:px-1 sm:py-2">
-                                    <span className="font-mono text-sm font-bold tabular-nums text-violet-100 sm:text-base">
+                                <div className="flex min-h-[2.25rem] flex-col items-center justify-center px-0.5 py-1 sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 md:min-h-0 md:py-2">
+                                    <span className="font-mono text-xs font-bold tabular-nums text-violet-100 max-sm:text-[9px] sm:text-sm md:text-base">
                                         {botBadukAbilityAvg.toLocaleString()}
                                     </span>
                                 </div>
@@ -801,12 +810,12 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                         </div>
                     </div>
 
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-zinc-600/35 bg-zinc-950/55 ring-1 ring-inset ring-white/[0.06]">
-                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-1.5 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-2">
+                    <div className="flex min-h-[min(7rem,24dvh)] min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-zinc-600/35 bg-zinc-950/55 ring-1 ring-inset ring-white/[0.06] sm:rounded-xl">
+                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-1 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-1.5 md:p-2">
                             <div className="flex w-full min-w-0 flex-nowrap items-stretch gap-0">
                                 <div className="flex min-w-0 flex-1 basis-0 flex-col items-stretch gap-0 pr-px">
-                                    <div className="flex min-h-8 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center">
-                                        <span className="text-xs font-bold leading-tight text-emerald-400 sm:text-sm">
+                                    <div className="flex min-h-6 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center sm:min-h-8">
+                                        <span className="whitespace-nowrap text-[8px] font-bold leading-none text-emerald-400 sm:text-xs sm:leading-tight md:text-sm">
                                             기본 보상
                                         </span>
                                     </div>
@@ -818,7 +827,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                         }`}
                                     >
                                         {basePieces.length === 0 ? (
-                                            <span className="text-sm text-zinc-500">—</span>
+                                            <span className="text-[10px] text-zinc-500 sm:text-sm">—</span>
                                         ) : type === 'world' && basePieces.length > 1 ? (
                                             basePieces.map(p => (
                                                 <div key={p.key} className="flex min-w-0 w-full justify-center">
@@ -832,42 +841,42 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                 </div>
                                 {rankRewardGroups.length === 0 ? (
                                     <div className="flex min-w-0 flex-1 basis-0 flex-col items-center justify-center border-l border-white/[0.08] pl-px sm:pl-0.5">
-                                        <span className="text-center text-xs leading-tight text-zinc-500 sm:text-sm">없음</span>
+                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">없음</span>
                                     </div>
                                 ) : (
                                     rankRewardGroups.map(({ ranks, headRank, rankLabel, pieces }) => {
                                         const noReward = pieces.length === 0;
                                         return (
-                                        <div
-                                            key={ranks.join('-')}
-                                            className="flex min-w-0 flex-1 basis-0 flex-col items-stretch gap-0 border-l border-white/[0.08] pl-px sm:pl-0.5"
-                                        >
-                                            <div className="flex min-h-8 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center">
-                                                <span
-                                                    className={`max-w-full text-xs font-bold leading-tight sm:text-sm ${
-                                                        noReward ? 'truncate' : 'whitespace-nowrap'
-                                                    } ${
-                                                        headRank === 1
-                                                            ? 'text-amber-300'
-                                                            : headRank === 2
-                                                              ? 'text-slate-200'
-                                                              : headRank === 3
-                                                                ? 'text-orange-300/95'
-                                                                : 'text-zinc-300'
-                                                    }`}
-                                                    title={rankLabel}
-                                                >
-                                                    {rankLabel}
-                                                </span>
+                                            <div
+                                                key={ranks.join('-')}
+                                                className="flex min-w-0 flex-1 basis-0 flex-col items-stretch gap-0 border-l border-white/[0.08] pl-px sm:pl-0.5"
+                                            >
+                                                <div className="flex min-h-6 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center sm:min-h-8">
+                                                    <span
+                                                        className={`max-w-full text-[9px] font-bold leading-tight sm:text-xs md:text-sm ${
+                                                            noReward ? 'truncate' : 'whitespace-nowrap'
+                                                        } ${
+                                                            headRank === 1
+                                                                ? 'text-amber-300'
+                                                                : headRank === 2
+                                                                  ? 'text-slate-200'
+                                                                  : headRank === 3
+                                                                    ? 'text-orange-300/95'
+                                                                    : 'text-zinc-300'
+                                                        }`}
+                                                        title={rankLabel}
+                                                    >
+                                                        {rankLabel}
+                                                    </span>
+                                                </div>
+                                                <div className="flex w-full min-w-0 flex-col items-stretch gap-1 pt-1">
+                                                    {noReward ? (
+                                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">없음</span>
+                                                    ) : (
+                                                        pieces.map(p => <RewardStripRow key={p.key} piece={p} />)
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex w-full min-w-0 flex-col items-stretch gap-1 pt-1">
-                                                {noReward ? (
-                                                    <span className="text-center text-xs leading-tight text-zinc-500 sm:text-sm">없음</span>
-                                                ) : (
-                                                    pieces.map(p => <RewardStripRow key={p.key} piece={p} />)
-                                                )}
-                                            </div>
-                                        </div>
                                         );
                                     })
                                 )}
@@ -876,7 +885,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                     </div>
 
                     {!showContinueFlow && (
-                        <div className="relative z-10 flex shrink-0 flex-col items-center gap-1.5 border-t border-white/10 bg-[#07080c]/95 pt-2.5 pb-[max(0.35rem,env(safe-area-inset-bottom,0px))] backdrop-blur-[2px] sm:gap-2 sm:pt-3">
+                        <div className="relative z-10 flex shrink-0 flex-col items-center gap-1 border-t border-white/10 bg-[#07080c]/95 pt-1.5 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] backdrop-blur-[2px] sm:gap-1.5 sm:pt-2.5 md:gap-2 md:pt-3">
                             <button
                                 type="button"
                                 onClick={() => {
@@ -886,7 +895,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                     }
                                 }}
                                 disabled={!canEnterFresh}
-                                className="group relative mx-auto w-auto min-w-[13rem] max-w-[min(17rem,90vw)] overflow-hidden rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 px-9 py-3 text-base font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none sm:min-w-[14.5rem] sm:px-11 sm:py-3.5 sm:text-lg"
+                                className="group relative mx-auto w-auto min-w-[10.5rem] max-w-[min(17rem,92vw)] overflow-hidden rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 px-5 py-2 text-xs font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none sm:min-w-[13rem] sm:px-9 sm:py-3 sm:text-base md:min-w-[14.5rem] md:px-11 md:py-3.5 md:text-lg"
                             >
                                 <span
                                     className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/12 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
@@ -894,13 +903,15 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                 />
                                 <span className="relative flex items-center justify-center gap-2">
                                     <span className="tracking-wide">입장하기</span>
-                                    <span className="rounded-full bg-black/25 px-2 py-0.5 text-sm font-extrabold tabular-nums text-violet-100 ring-1 ring-white/15 sm:text-base">
+                                    <span className="rounded-full bg-black/25 px-1.5 py-px text-[10px] font-extrabold tabular-nums text-violet-100 ring-1 ring-white/15 sm:px-2 sm:py-0.5 sm:text-sm md:text-base">
                                         {selectedStage}단계
                                     </span>
                                 </span>
                             </button>
                             {!isUnlocked && (
-                                <p className="text-center text-sm text-red-300/90 sm:text-base">선택한 단계는 아직 잠겨 있습니다.</p>
+                                <p className="text-center text-[10px] leading-tight text-red-300/90 sm:text-sm md:text-base">
+                                    선택한 단계는 아직 잠겨 있습니다.
+                                </p>
                             )}
                         </div>
                     )}

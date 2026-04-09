@@ -30,6 +30,7 @@ const AdInterstitial: React.FC = () => {
 
   return (
     <div
+      data-sudamr-ad-ui
       className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 backdrop-blur-sm"
       onClick={(e) => {
         // 배경 클릭 시 스킵 가능하면 닫기 (이벤트가 아래 경기장 UI로 새지 않도록 차단)

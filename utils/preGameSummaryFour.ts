@@ -6,6 +6,14 @@ export type PreGameSpecialHighlight = {
   text: string;
 };
 
+/** 게임 정보 모달: 아이템은 아이콘 + 우하단 숫자만 — `title`은 툴팁·접근성용 */
+export type PreGameItemSlot = {
+  key: string;
+  img: string;
+  count: number;
+  title?: string;
+};
+
 export type PreGameSummaryFour = {
   winGoal: string;
   /** 승리/패배 조건 패널 아랫줄 */
@@ -15,7 +23,9 @@ export type PreGameSummaryFour = {
   timeRules: string;
   /** 모드별 특수 규칙(이미지+문구). 없으면 빈 배열 → UI에서 '없음' */
   specialHighlights: PreGameSpecialHighlight[];
+  /** 레거시·호환용 한 줄 텍스트 */
   items: string;
+  itemSlots: PreGameItemSlot[];
 };
 
 const NONE = '없음';
@@ -63,6 +73,17 @@ function autoScoringLine(settings: GameSettings, mode: GameMode, mix: GameMode[]
     return `${n}턴(수) 도달 시 자동 계가 진행`;
   }
   return `${n}수(턴) 후 자동 계가에서 승리하기`;
+}
+
+/** `autoScoringLine`과 짝 — 딱따로(표준·스피드·베이스 등) 자동 계가 시 패배 한 줄 */
+function autoScoringLoseLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): string | null {
+  const n = settings.scoringTurnLimit;
+  if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) return null;
+  if (!usesTerritoryScoring(mode, mix)) return null;
+  if (mode === GameMode.Capture || hasMix(mix, GameMode.Capture)) {
+    return null;
+  }
+  return `${n}수(턴) 후 자동 계가에서 패배`;
 }
 
 function timeLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): string {
@@ -132,6 +153,57 @@ function itemLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
     }
   }
   return chunks.length ? chunks.join(' · ') : NONE;
+}
+
+function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[]): PreGameItemSlot[] {
+  const slots: PreGameItemSlot[] = [];
+  const effectiveModes = mode === GameMode.Mix ? mix : [mode];
+
+  if (effectiveModes.includes(GameMode.Hidden)) {
+    const h = settings.hiddenStoneCount ?? 0;
+    const s = settings.scanCount ?? 0;
+    if (h > 0) slots.push({ key: 'hidden', img: '/images/button/hidden.png', count: h, title: '히든 돌' });
+    if (s > 0) slots.push({ key: 'scan', img: '/images/button/scan.png', count: s, title: '스캔' });
+  }
+  if (effectiveModes.includes(GameMode.Missile)) {
+    const n = settings.missileCount ?? 0;
+    if (n > 0) slots.push({ key: 'missile', img: '/images/button/missile.png', count: n, title: '미사일' });
+  }
+  if (effectiveModes.includes(GameMode.Dice)) {
+    const o = settings.oddDiceCount ?? 0;
+    const e = settings.evenDiceCount ?? 0;
+    const l = settings.lowDiceCount ?? 0;
+    const h = settings.highDiceCount ?? 0;
+    const diceImg = '/images/simbols/simbolp1.png';
+    if (o > 0) slots.push({ key: 'dice-odd', img: diceImg, count: o, title: '홀수 주사위 아이템' });
+    if (e > 0) slots.push({ key: 'dice-even', img: diceImg, count: e, title: '짝수 주사위 아이템' });
+    if (l > 0) slots.push({ key: 'dice-low', img: diceImg, count: l, title: '낮은 수(1~3) 주사위 아이템' });
+    if (h > 0) slots.push({ key: 'dice-high', img: diceImg, count: h, title: '높은 수(4~6) 주사위 아이템' });
+  }
+  if (effectiveModes.includes(GameMode.Alkkagi)) {
+    const slow = settings.alkkagiSlowItemCount ?? 0;
+    const aim = settings.alkkagiAimingLineItemCount ?? 0;
+    if (slow > 0) slots.push({ key: 'alk-slow', img: '/images/button/slow.png', count: slow, title: '슬로우' });
+    if (aim > 0) slots.push({ key: 'alk-aim', img: '/images/button/target.png', count: aim, title: '조준선' });
+  }
+  if (effectiveModes.includes(GameMode.Curling)) {
+    const slow = settings.curlingSlowItemCount ?? 0;
+    const aim = settings.curlingAimingLineItemCount ?? 0;
+    if (slow > 0) slots.push({ key: 'curl-slow', img: '/images/button/slow.png', count: slow, title: '슬로우' });
+    if (aim > 0) slots.push({ key: 'curl-aim', img: '/images/button/target.png', count: aim, title: '조준선' });
+  }
+  return slots;
+}
+
+function buildSinglePlayerStageItemSlots(stage: SinglePlayerStageInfo): PreGameItemSlot[] {
+  const slots: PreGameItemSlot[] = [];
+  const m = stage.missileCount ?? 0;
+  if (m > 0) slots.push({ key: 'missile', img: '/images/button/missile.png', count: m, title: '미사일' });
+  const h = stage.hiddenCount ?? 0;
+  if (h > 0) slots.push({ key: 'hidden', img: '/images/button/hidden.png', count: h, title: '히든 돌' });
+  const s = stage.scanCount ?? 0;
+  if (s > 0) slots.push({ key: 'scan', img: '/images/button/scan.png', count: s, title: '스캔' });
+  return slots;
 }
 
 function mixWinGoal(settings: GameSettings, mix: GameMode[]): string {
@@ -260,6 +332,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: mixSpecialHighlights(settings, mix),
       items: itemLine(settings, mode, mix),
+      itemSlots: buildItemSlots(settings, GameMode.Mix, mix),
     };
   }
 
@@ -273,28 +346,32 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [{ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' }],
       items: NONE,
+      itemSlots: [],
     };
   }
 
   if (mode === GameMode.Speed) {
     const auto = autoScoringLine(settings, mode, mix);
+    const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 종합 점수가 높은 쪽 승리',
-      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : '계가 후 종합 점수가 낮으면 패배',
+      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : '계가 후 종합 점수가 낮으면 패배'),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [
         { img: '/images/icon/timer.png', text: '피셔 시계 · 사용 시간에 따른 계가 시간 보너스' },
       ],
       items: NONE,
+      itemSlots: [],
     };
   }
 
   if (mode === GameMode.Base) {
     const auto = autoScoringLine(settings, mode, mix);
+    const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
+      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [
@@ -304,42 +381,49 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
         },
       ],
       items: NONE,
+      itemSlots: [],
     };
   }
 
   if (mode === GameMode.Hidden) {
     const auto = autoScoringLine(settings, mode, mix);
+    const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
+      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [{ img: '/images/button/hidden.png', text: '히든 착수 · 스캔으로 탐색' }],
       items: itemLine(settings, mode, mix),
+      itemSlots: buildItemSlots(settings, GameMode.Hidden, mix),
     };
   }
 
   if (mode === GameMode.Missile) {
     const auto = autoScoringLine(settings, mode, mix);
+    const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
+      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: [{ img: '/images/button/missile.png', text: '미사일로 돌 직선 이동' }],
       items: itemLine(settings, mode, mix),
+      itemSlots: buildItemSlots(settings, GameMode.Missile, mix),
     };
   }
 
   if (mode === GameMode.Standard) {
     const auto = autoScoringLine(settings, mode, mix);
+    const autoLose = autoScoringLoseLine(settings, mode, mix);
     return {
       winGoal: auto ?? '계가 후 집이 많은 쪽 승리',
-      loseGoal: auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY,
+      loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : LOSE_TERRITORY),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
       specialHighlights: auto ? [{ img: '/images/simbols/simbol7.png', text: auto }] : [],
       items: NONE,
+      itemSlots: [],
     };
   }
 
@@ -353,6 +437,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp2.png', text: `${f33} · ${fo}` }],
       items: NONE,
+      itemSlots: [],
     };
   }
 
@@ -370,6 +455,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
         { img: '/images/simbols/simbol2.png', text: `따내기 ${cap}점 선달성 시 승리` },
       ],
       items: NONE,
+      itemSlots: [],
     };
   }
 
@@ -382,6 +468,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp1.png', text: '주사위 눈만큼 흑 착수 · 백은 활로에만 배치' }],
       items: itemLine(settings, mode, mix),
+      itemSlots: buildItemSlots(settings, GameMode.Dice, mix),
     };
   }
 
@@ -393,6 +480,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp4.png', text: '도둑(흑)·경찰(백) 역할 교대' }],
       items: NONE,
+      itemSlots: [],
     };
   }
 
@@ -404,6 +492,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp5.png', text: '게이지로 힘 조절 · 벽 반사' }],
       items: itemLine(settings, mode, mix),
+      itemSlots: buildItemSlots(settings, GameMode.Alkkagi, mix),
     };
   }
 
@@ -415,6 +504,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp6.png', text: '스톤 미끄러뜨리기 · 라운드제' }],
       items: itemLine(settings, mode, mix),
+      itemSlots: buildItemSlots(settings, GameMode.Curling, mix),
     };
   }
 
@@ -425,6 +515,7 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
     timeRules: NONE,
     specialHighlights: [],
     items: NONE,
+    itemSlots: [],
   };
 }
 
@@ -506,5 +597,6 @@ function getSinglePlayerStageSummary(session: LiveGameSession, stage: SinglePlay
     timeRules: singlePlayerStageTimeRules(stage),
     specialHighlights,
     items: itemBits.length ? itemBits.join(' · ') : NONE,
+    itemSlots: buildSinglePlayerStageItemSlots(stage),
   };
 }

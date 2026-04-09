@@ -46,6 +46,21 @@ const TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS = [
     'text-amber-300',
 ] as const;
 
+const formatTowerRewardItemLabel = (itemId: string): string => {
+    const m = itemId.match(/^장비상자(\d+)$/);
+    if (!m) return itemId;
+    const n = Number(m[1]);
+    const romanMap: Record<number, string> = {
+        1: 'I',
+        2: 'II',
+        3: 'III',
+        4: 'IV',
+        5: 'V',
+        6: 'VI',
+    };
+    return `장비 상자 ${romanMap[n] ?? m[1]}`;
+};
+
 const TowerLobby: React.FC = () => {
         const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
@@ -150,12 +165,18 @@ const TowerLobby: React.FC = () => {
         ?? (currentUserWithStatus as any)?.towerBestFloor
         ?? (currentUserWithStatus as any)?.highestTowerFloor
         ?? towerProgressFloor;
-    const monthlyBestFloor = (currentUserWithStatus as any)?.monthlyTowerFloor ?? 0;
+    /** 월간 보상 구간 산정용 층수: 유저 상태·랭킹 API·진행 층 중 최대 (PC 등에서 monthlyTowerFloor만 비어 있는 경우 보강) */
+    const effectiveMonthlyFloorForReward = useMemo(() => {
+        const fromUser = Number((currentUserWithStatus as any)?.monthlyTowerFloor) || 0;
+        const fromRanking = Number(myRankingEntry?.displayFloor) || 0;
+        const fromTower = Number((currentUserWithStatus as any)?.towerFloor) || 0;
+        return Math.max(fromUser, fromRanking, fromTower);
+    }, [currentUserWithStatus, myRankingEntry]);
+
     const myRewardTier = useMemo(() => {
-        if (monthlyBestFloor < 10) return null;
-        const tier = TOWER_MONTHLY_REWARD_TIERS.find(t => monthlyBestFloor >= t.floor);
-        return tier ?? null;
-    }, [monthlyBestFloor]);
+        if (effectiveMonthlyFloorForReward < 10) return null;
+        return TOWER_MONTHLY_REWARD_TIERS.find(t => effectiveMonthlyFloorForReward >= t.floor) ?? null;
+    }, [effectiveMonthlyFloorForReward]);
 
     // 스테이지(층) 데이터 (1층부터 100층까지, 역순으로 표시하여 아래에서 위로 스크롤)
     const stages = Array.from({ length: 100 }, (_, i) => i + 1).reverse();
@@ -556,7 +577,7 @@ const TowerLobby: React.FC = () => {
 
             const mobileRankingList = (
                 <>
-                    {!myRankingEntry && monthlyBestFloor < 10 && (
+                    {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
                         <p className="px-0.5 py-2 text-center text-xs text-amber-300/80">
                             10층 이상 클리어 시 랭킹에 표시됩니다.
                         </p>
@@ -720,7 +741,7 @@ const TowerLobby: React.FC = () => {
                                                         </div>
                                                         <div className="rounded-lg border border-amber-500/30 bg-black/35 px-2 py-1.5 text-center">
                                                             <p className="text-[10px] font-semibold tracking-wide text-amber-200/80">현재 층수</p>
-                                                            <p className="mt-0.5 text-lg font-black tabular-nums text-amber-50">{monthlyBestFloor}층</p>
+                                                            <p className="mt-0.5 text-lg font-black tabular-nums text-amber-50">{effectiveMonthlyFloorForReward}층</p>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -861,42 +882,65 @@ const TowerLobby: React.FC = () => {
                             보상정보
                         </Button>
                     </div>
-                    <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
-                        {/* 내 정보 전용 박스: 역대 최고 층수, 현재 순위, 해당 보상 */}
-                        <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40 overflow-hidden mb-3">
-                            <div className="px-3 py-2.5 border-b border-amber-600/50 bg-amber-900/30">
-                                <h3 className="text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-amber-200">내 기록</h3>
+                    {/* PC: 내 기록·예정 보상은 스크롤 밖에 두어 좁은 열에서도 항상 보이게 */}
+                    <div className="mb-2 flex-shrink-0">
+                        <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40 overflow-hidden">
+                            <div className="border-b border-amber-600/50 bg-amber-900/30 px-3 py-2.5">
+                                <h3 className="bg-gradient-to-r from-yellow-200 to-amber-200 bg-clip-text text-sm font-bold text-transparent">내 기록</h3>
                             </div>
-                            <div className="p-3 space-y-3 text-sm">
-                                <div className="flex justify-between items-center">
+                            <div className="space-y-3 p-3 text-sm">
+                                <div className="flex items-center justify-between">
                                     <span className="text-amber-300/90">역대 최고 층수</span>
                                     <span className="font-bold text-yellow-200">{bestFloorAllTime}층</span>
                                 </div>
-                                <div className="flex justify-between items-center">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-amber-300/90">이번 달 최고 층</span>
+                                    <span className="font-bold text-amber-100">{effectiveMonthlyFloorForReward}층</span>
+                                </div>
+                                <div className="flex items-center justify-between">
                                     <span className="text-amber-300/90">현재 나의 순위</span>
                                     <span className="font-bold text-yellow-200">{myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}</span>
                                 </div>
-                                <div className="pt-2 border-t border-amber-700/40">
-                                    <p className="text-amber-300/90 text-xs mb-1.5">이번 달 예정 보상 (현재 기록 기준)</p>
+                                <div className="border-t border-amber-700/40 pt-2">
+                                    <p className="mb-1.5 text-xs text-amber-300/90">이번 달 예정 보상 (현재 기록 기준)</p>
                                     {myRewardTier ? (
-                                        <div className="flex flex-wrap items-center gap-2 text-xs">
-                                            <span className="inline-flex items-center gap-1 text-yellow-200"><img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4" />{myRewardTier.gold.toLocaleString()}</span>
-                                            <span className="inline-flex items-center gap-1 text-cyan-200"><img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4" />{myRewardTier.diamonds}</span>
-                                            {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
-                                                <span key={i} className="inline-flex items-center gap-1 text-amber-200">
-                                                    <img src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`} alt={it.itemId} className="w-4 h-4" />
-                                                    ×{it.quantity}
+                                        <div className="flex flex-col gap-1.5 text-xs">
+                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                                <span className="inline-flex items-center gap-1 text-yellow-200">
+                                                    <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 shrink-0" />
+                                                    {myRewardTier.gold.toLocaleString()}
                                                 </span>
-                                            ))}
+                                                <span className="inline-flex items-center gap-1 text-cyan-200">
+                                                    <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 shrink-0" />
+                                                    {myRewardTier.diamonds}
+                                                </span>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
+                                                    <span key={i} className="inline-flex items-center gap-1 text-amber-200">
+                                                        <img
+                                                            src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
+                                                            alt={it.itemId}
+                                                            className="h-4 w-4 shrink-0"
+                                                        />
+                                                        ×{it.quantity}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            <p className="text-[10px] leading-snug text-amber-400/85">
+                                                {myRewardTier.floor}층 구간 보상 · 월말 정산 시 지급
+                                            </p>
                                         </div>
                                     ) : (
-                                        <p className="text-amber-400/80 text-xs">10층 이상 클리어 시 월간 보상을 받을 수 있습니다.</p>
+                                        <p className="text-xs text-amber-400/80">10층 이상 클리어 시 월간 보상을 받을 수 있습니다.</p>
                                     )}
                                 </div>
                             </div>
                         </div>
-                        {!myRankingEntry && monthlyBestFloor < 10 && (
-                            <p className="text-center text-amber-300/70 text-xs py-2 px-1">10층 이상 클리어 시 랭킹에 표시됩니다.</p>
+                    </div>
+                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+                        {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
+                            <p className="px-1 py-2 text-center text-xs text-amber-300/70">10층 이상 클리어 시 랭킹에 표시됩니다.</p>
                         )}
                         {/* Top 100 */}
                         {towerRankingsLoading && towerRankings.length === 0 ? (
@@ -1095,65 +1139,71 @@ const TowerLobby: React.FC = () => {
                     title="도전의 탑 보상정보"
                     onClose={() => setIsRewardModalOpen(false)}
                     windowId="tower-reward-info"
-                    initialWidth={900}
-                    initialHeight={760}
+                    initialWidth={isNativeMobile ? 680 : 640}
+                    initialHeight={isNativeMobile ? 620 : 760}
                     isTopmost
                 >
-                    <div className="h-full overflow-y-auto pr-2 text-sm text-amber-100 space-y-5">
-                        <div className="bg-gradient-to-r from-amber-900/30 to-yellow-900/20 border border-amber-700/40 rounded-lg p-4">
-                            <h3 className="text-lg font-bold text-yellow-300 mb-2">월간 보상</h3>
-                            <p className="text-sm text-amber-200/85">
-                                한 달 동안 클리어한 최고 층수에 따라 보상이 지급됩니다. 누적이 아닌 월간 최고 기록만 반영되며, 매월 1일 0시 KST에 정산됩니다.
+                    <div className="h-full space-y-3 overflow-y-auto pr-1 text-sm text-amber-100">
+                        <div className="rounded-lg border border-amber-700/40 bg-gradient-to-r from-amber-900/25 to-yellow-900/15 px-3 py-2.5 text-center">
+                            <p className="text-xs font-semibold text-amber-200/90 sm:text-sm">보상 정산까지 남은 시간</p>
+                            <p className="mt-0.5 text-sm font-bold text-yellow-300 sm:text-base">{timeUntilReset}</p>
+                        </div>
+
+                        {myRewardTier && (
+                            <p className="rounded-lg border border-amber-500/40 bg-amber-950/40 px-2.5 py-2 text-center text-xs font-semibold text-amber-100 sm:text-sm">
+                                현재{' '}
+                                <span className="font-black text-yellow-200">{effectiveMonthlyFloorForReward}층</span> 기록 →{' '}
+                                <span className="text-amber-50">{myRewardTier.floor}층</span> 구간 보상이 적용됩니다.
                             </p>
-                        </div>
+                        )}
 
-                        <div className="space-y-3">
-                            {TOWER_MONTHLY_REWARD_TIERS.map((tier, idx) => (
-                                <div
-                                    key={tier.floor}
-                                    className="grid grid-cols-[80px_1fr] gap-3 items-start rounded-lg border border-amber-700/30 bg-black/20 p-3"
-                                >
-                                    <span
-                                        className={`${TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS[idx] ?? 'text-amber-300'} font-bold text-base`}
+                        <div className="space-y-2 pb-1">
+                            {TOWER_MONTHLY_REWARD_TIERS.map((tier, idx) => {
+                                const isMyCurrentTier = myRewardTier !== null && tier.floor === myRewardTier.floor;
+                                return (
+                                    <div
+                                        key={tier.floor}
+                                        className={`relative grid grid-cols-[58px_minmax(0,1fr)] items-center gap-2 rounded-lg px-2.5 py-2 sm:grid-cols-[68px_minmax(0,1fr)] sm:px-3 sm:py-2.5 ${
+                                            isMyCurrentTier
+                                                ? 'border-[3px] border-amber-400/95 bg-gradient-to-r from-amber-950/55 to-yellow-950/35 shadow-[0_0_0_1px_rgba(251,191,36,0.35),0_12px_28px_-8px_rgba(251,191,36,0.45)] ring-2 ring-amber-300/50'
+                                                : 'border border-amber-700/30 bg-black/20'
+                                        }`}
                                     >
-                                        {tier.floor}층
-                                    </span>
-                                    <div className="flex items-center gap-4 flex-wrap text-sm">
-                                        <span className="inline-flex items-center gap-1">
-                                            <img src="/images/icon/Gold.png" alt="골드" className="w-5 h-5" />
-                                            {tier.gold.toLocaleString()}
+                                        {isMyCurrentTier && (
+                                            <div className="absolute -top-2 left-1/2 z-[1] -translate-x-1/2 whitespace-nowrap rounded-md border-2 border-amber-300/80 bg-gradient-to-b from-amber-600 to-amber-800 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-50 shadow-md sm:text-[11px]">
+                                                내 현재 보상
+                                            </div>
+                                        )}
+                                        <span
+                                            className={`${TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS[idx] ?? 'text-amber-300'} font-bold text-sm sm:text-lg ${isMyCurrentTier ? 'pt-2 sm:pt-2.5' : ''}`}
+                                        >
+                                            {tier.floor}층
                                         </span>
-                                        <span className="inline-flex items-center gap-1">
-                                            <img src="/images/icon/Zem.png" alt="다이아몬드" className="w-5 h-5" />
-                                            {tier.diamonds.toLocaleString()}
-                                        </span>
-                                        {tier.items.map((it) => (
-                                            <span key={`${it.itemId}-${it.quantity}`} className="inline-flex items-center gap-1">
-                                                <img
-                                                    src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
-                                                    alt={it.itemId}
-                                                    className="w-5 h-5"
-                                                />
-                                                {it.itemId} ×{it.quantity}
+                                        <div
+                                            className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-[11px] sm:gap-3 sm:text-base ${isMyCurrentTier ? 'pt-2 sm:pt-2.5' : ''}`}
+                                        >
+                                            <span className="inline-flex items-center gap-1">
+                                                <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 sm:h-6 sm:w-6" />
+                                                {tier.gold.toLocaleString()}
                                             </span>
-                                        ))}
+                                            <span className="inline-flex items-center gap-1">
+                                                <img src="/images/icon/Zem.png" alt="다이아몬드" className="h-4 w-4 sm:h-6 sm:w-6" />
+                                                {tier.diamonds.toLocaleString()}
+                                            </span>
+                                            {tier.items.map((it) => (
+                                                <span key={`${it.itemId}-${it.quantity}`} className="inline-flex items-center gap-1">
+                                                    <img
+                                                        src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
+                                                        alt={it.itemId}
+                                                        className="h-4 w-4 sm:h-6 sm:w-6"
+                                                    />
+                                                    {formatTowerRewardItemLabel(it.itemId)} x{it.quantity}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="rounded-lg border border-amber-700/40 bg-amber-950/25 p-4 space-y-2 text-sm">
-                            <h3 className="text-base font-bold text-yellow-300">안내</h3>
-                            <p className="text-amber-200/85">10층 미만 클리어 시 월간 보상이 지급되지 않습니다.</p>
-                            <p className="text-amber-200/85">보상은 매월 1일 0시(KST)에 메일로 지급되며, 30일 이내에 수령해주세요.</p>
-                        </div>
-
-                        <div className="border-t border-amber-700/40 pt-4">
-                            <h3 className="text-base font-bold text-yellow-300 mb-2">층별 클리어 보상</h3>
-                            <div className="space-y-1 text-sm text-amber-200/90">
-                                <p>각 층을 클리어하면 골드와 전략 경험치를 획득할 수 있습니다.</p>
-                                <p>높은 층일수록 더 많은 보상을 받을 수 있습니다.</p>
-                            </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </DraggableWindow>

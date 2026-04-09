@@ -135,5 +135,16 @@ export function repairEquipmentStatBounds(item: InventoryItem): InventoryItem {
         return { ...m, value: safe };
     });
 
+    // 등급별 허용 신화옵션 개수 강제:
+    // - normal~legendary: 0줄
+    // - mythic: 1줄
+    // - transcendent: 2줄
+    // 레거시/비정상 데이터로 에픽 이하에 신화옵션이 섞인 경우 로드 시 정리한다.
+    const mythicRule = GRADE_SUB_OPTION_RULES[grade]?.mythicCount ?? [0, 0];
+    const maxMythicLines = Math.max(0, Math.floor(Number(mythicRule[1]) || 0));
+    if (item.options.mythicSubs.length > maxMythicLines) {
+        item.options.mythicSubs = item.options.mythicSubs.slice(0, maxMythicLines);
+    }
+
     return item;
 }

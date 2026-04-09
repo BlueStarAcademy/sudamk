@@ -100,10 +100,10 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             role="tab"
                                             aria-selected={selected}
                                             onClick={() => setMobilePanelTab(id)}
-                                            className={`min-h-[36px] shrink-0 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-all active:scale-[0.98] ${
+                                            className={`min-h-[31px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${
                                                 selected
-                                                    ? 'border-amber-400/45 bg-gradient-to-r from-amber-600/90 to-yellow-600/85 text-amber-50 shadow-md shadow-amber-900/40'
-                                                    : 'border-white/10 bg-black/35 text-zinc-400 hover:border-white/20 hover:bg-white/[0.06] hover:text-zinc-200'
+                                                    ? 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-700/75 to-amber-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_10px_22px_-12px_rgba(251,191,36,0.55)] ring-1 ring-amber-300/25'
+                                                    : 'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-amber-400/30 hover:text-amber-100'
                                             }`}
                                         >
                                             {label}
@@ -117,7 +117,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     setGuideMainTab(mobilePanelTab);
                                     setIsTipModalOpen(true);
                                 }}
-                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/40 bg-amber-500/20 text-base shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/40 bg-amber-500/20 text-[13px] shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
                                 title="스코어 가이드 보기"
                                 aria-label="스코어 가이드 보기"
                             >
@@ -135,11 +135,11 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                         </div>
                         {isTipModalOpen && (
                             <div
-                                className="absolute inset-0 z-20 flex items-center justify-center bg-black/65 p-2 backdrop-blur-[2px]"
+                                className="sudamr-modal-inner-scrim absolute inset-0 z-20 flex items-center justify-center p-2"
                                 onClick={() => setIsTipModalOpen(false)}
                             >
                                 <div
-                                    className="flex h-[min(80dvh,620px)] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-zinc-950 shadow-2xl shadow-black/60"
+                                    className="sudamr-floating-modal-surface relative flex h-[min(80dvh,620px)] w-full max-w-[560px] flex-col overflow-hidden rounded-2xl text-on-panel shadow-2xl ring-1 ring-inset ring-amber-400/18"
                                     onClick={(e) => e.stopPropagation()}
                                 >
                                     <div className="flex items-center justify-between border-b border-white/10 px-3 py-2">

@@ -8,6 +8,7 @@ import Avatar from './Avatar.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
+import { isInsideSudamrAdUi } from '../constants/ads.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
 
@@ -162,6 +163,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
         const handleClickOutside = (event: MouseEvent) => {
             const target = event.target as HTMLElement;
             if (!isSpecialResourcesOpen) return;
+            if (isInsideSudamrAdUi(target)) return;
             if (specialResourcesRef.current?.contains(target)) return;
             if (specialResourcesPopoverPortalRef.current?.contains(target)) return;
             setIsSpecialResourcesOpen(false);
@@ -200,16 +202,28 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             ).map((resource) => (
                 <div
                     key={resource.key}
-                    className="flex items-center gap-[clamp(0.35rem,1.5vw,0.5rem)] px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:gap-2 sm:px-3 sm:py-1.5"
+                    className={`flex items-center px-[clamp(0.65rem,2.2vw,0.85rem)] py-1 transition-colors hover:bg-secondary sm:px-3 sm:py-1.5 ${
+                        isMobile ? 'gap-[clamp(0.18rem,0.95vw,0.3rem)]' : 'gap-[clamp(0.35rem,1.5vw,0.5rem)] sm:gap-2'
+                    }`}
                 >
-                    <img
-                        src={resource.icon}
-                        alt={resource.label}
-                        className="h-[clamp(1rem,3.5vw,1.35rem)] w-[clamp(1rem,3.5vw,1.35rem)] shrink-0 object-contain sm:h-5 sm:w-5"
-                        loading="lazy"
-                        decoding="async"
-                    />
-                    <span className="min-w-0 font-bold tabular-nums text-primary text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] whitespace-nowrap sm:text-sm">
+                    <div className={`${isMobile ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]' : ''} flex shrink-0 items-center justify-center rounded-full bg-primary`}>
+                        <img
+                            src={resource.icon}
+                            alt={resource.label}
+                            className={`shrink-0 object-contain ${
+                                isMobile
+                                    ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
+                                    : 'h-[clamp(1rem,3.5vw,1.35rem)] w-[clamp(1rem,3.5vw,1.35rem)] sm:h-5 sm:w-5'
+                            }`}
+                            loading="lazy"
+                            decoding="async"
+                        />
+                    </div>
+                    <span className={`min-w-0 font-bold tabular-nums text-primary whitespace-nowrap ${
+                        isMobile
+                            ? 'text-[clamp(0.34rem,calc(0.03rem+2.05vw),0.82rem)] leading-none tracking-tight'
+                            : 'text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] sm:text-sm'
+                    }`}>
                         {resource.value.toLocaleString()}
                     </span>
                 </div>
@@ -261,7 +275,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     <div
                         className={`flex items-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner ${
                             isMobile
-                                ? 'min-w-0 shrink gap-[clamp(0.08rem,0.7vw,0.2rem)] py-[clamp(0.06rem,0.45vw,0.16rem)] pl-[clamp(0.3rem,1.5vw,0.45rem)] pr-[clamp(0.12rem,0.7vw,0.22rem)] sm:gap-1'
+                                ? 'min-w-0 shrink h-[clamp(1.45rem,4.8vw,1.85rem)] gap-[clamp(0.08rem,0.7vw,0.2rem)] pl-[clamp(0.3rem,1.5vw,0.45rem)] pr-[clamp(0.12rem,0.7vw,0.22rem)] sm:gap-1'
                                 : dense
                                   ? 'flex-shrink-0 gap-0.5 py-1 pl-1.5 pr-1 sm:gap-1'
                                   : 'flex-shrink-0 gap-0.5 py-1 pl-2 pr-1 sm:gap-1'
@@ -288,7 +302,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             onClick={handlers.openActionPointModal}
                             className={`flex flex-shrink-0 items-center justify-center transition-colors ${
                                 isMobile
-                                    ? 'min-h-[clamp(1.15rem,3.8vw,1.5rem)] min-w-[clamp(1.15rem,3.8vw,1.5rem)] rounded-none border-0 bg-transparent p-[clamp(0.1rem,0.5vw,0.2rem)] hover:bg-primary/20 active:bg-primary/30'
+                                    ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] rounded-none border-0 bg-transparent p-[clamp(0.1rem,0.5vw,0.2rem)] hover:bg-primary/20 active:bg-primary/30'
                                     : `rounded-full border-0 bg-primary/70 hover:bg-primary ${
                                           dense ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'
                                       }`
@@ -314,37 +328,56 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         className={`relative min-w-[4.5rem] shrink-0 ${isMobile ? 'flex-1' : 'sm:min-w-0'}`}
                         ref={specialResourcesRef}
                     >
-                        <div className={`flex min-w-0 w-full max-w-full items-center ${isMobile ? 'gap-[clamp(0.1rem,0.8vw,0.24rem)]' : 'gap-[clamp(0.125rem,1vw,0.35rem)] sm:gap-1'}`}>
-                            <div className="min-w-0 flex-1 overflow-hidden">
-                                <ResourceDisplay icon={isMobile ? 'gold' : 'diamonds'} value={isMobile ? safeGold : safeDiamonds} dense={dense} fluid={isMobile} />
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
-                                aria-expanded={isSpecialResourcesOpen}
-                                className={`flex shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 ${
-                                    isMobile
-                                        ? 'h-[clamp(1.1rem,4.1vw,1.5rem)] w-[clamp(1.1rem,4.1vw,1.5rem)] active:scale-95'
-                                        : dense
-                                          ? 'h-[clamp(1.35rem,2.6vw,1.75rem)] w-[clamp(1.35rem,2.6vw,1.75rem)] active:scale-95'
-                                          : 'h-[clamp(1.45rem,2.2vw,1.85rem)] w-[clamp(1.45rem,2.2vw,1.85rem)] sm:h-7 sm:w-7 active:scale-95'
-                                } ${isSpecialResourcesOpen ? 'bg-tertiary/80' : ''}`}
-                                title={isMobile ? '다른 재화' : '특수 재화'}
-                            >
-                                <span
-                                    className={`text-primary transition-transform duration-200 ${
-                                        isMobile
-                                            ? 'text-[clamp(0.44rem,1.9vw,0.62rem)]'
-                                            : dense
-                                              ? 'text-[clamp(0.5rem,calc(0.28rem+1.1vw),0.65rem)]'
-                                              : 'text-[clamp(0.55rem,calc(0.35rem+0.9vw),0.75rem)] sm:text-xs'
-                                    } ${isSpecialResourcesOpen ? 'rotate-180' : ''}`}
-                                    aria-hidden
+                        {isMobile ? (
+                            <div className="flex min-w-0 w-full max-w-full items-center gap-[clamp(0.1rem,0.8vw,0.24rem)]">
+                                <div className="min-w-0 flex-1 overflow-hidden">
+                                    <ResourceDisplay
+                                        icon="gold"
+                                        value={safeGold}
+                                        dense={dense}
+                                        fluid
+                                        className="h-[clamp(1.45rem,4.8vw,1.85rem)]"
+                                    />
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsSpecialResourcesOpen(!isSpecialResourcesOpen)}
+                                    aria-expanded={isSpecialResourcesOpen}
+                                    className={`flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] shrink-0 touch-manipulation items-center justify-center rounded-full border border-tertiary/40 bg-tertiary/60 transition-all hover:bg-tertiary/80 active:scale-95 ${
+                                        isSpecialResourcesOpen ? 'bg-tertiary/80' : ''
+                                    }`}
+                                    title="다른 재화"
                                 >
-                                    ▼
-                                </span>
-                            </button>
-                        </div>
+                                    <span
+                                        className={`text-[clamp(0.44rem,1.9vw,0.62rem)] text-primary transition-transform duration-200 ${
+                                            isSpecialResourcesOpen ? 'rotate-180' : ''
+                                        }`}
+                                        aria-hidden
+                                    >
+                                        ▼
+                                    </span>
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="flex min-w-0 w-full max-w-full items-center gap-1">
+                                <ResourceDisplay icon="gold" value={safeGold} dense={dense} />
+                                <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} />
+                                <div className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-tertiary/50 py-0.5 pl-0.5 pr-1.5 shadow-inner">
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary">
+                                        <img
+                                            src={specialResourceIcons.guildCoins}
+                                            alt={SPECIAL_RESOURCE_LABEL.guildCoins}
+                                            className="h-5 w-5 object-contain"
+                                            loading="lazy"
+                                            decoding="async"
+                                        />
+                                    </div>
+                                    <span className="min-w-0 tabular-nums text-[clamp(0.5625rem,calc(0.42rem+1.1vw),0.8125rem)] font-bold leading-none text-primary whitespace-nowrap sm:text-[11px]">
+                                        {(guildCoins ?? 0).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     
                     <div
@@ -402,27 +435,27 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             />
                         )}
                     </button>
-                    {!isMobile && (
-                        <button
-                            type="button"
-                            onClick={openSettingsModal}
-                            className={
-                                dense
-                                    ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm transition-colors hover:bg-primary'
-                                    : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
-                            }
-                            title="설정"
-                            aria-label="설정 열기"
-                        >
-                            ⚙️
-                        </button>
-                    )}
+                    <button
+                        type="button"
+                        onClick={openSettingsModal}
+                        className={
+                            isMobile
+                                ? 'relative flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-[clamp(0.7rem,2.5vw,0.95rem)] transition-colors hover:bg-primary'
+                                : dense
+                                  ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm transition-colors hover:bg-primary'
+                                  : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
+                        }
+                        title="설정"
+                        aria-label="설정 열기"
+                    >
+                        ⚙️
+                    </button>
                     <button
                         type="button"
                         onClick={() => setShowLogoutConfirm(true)}
                         className={`flex shrink-0 items-center justify-center rounded-full border-2 border-red-800/85 bg-red-500 text-black shadow-sm transition-colors hover:bg-red-600 ${
                             isMobile
-                                ? 'h-[clamp(1.65rem,5.5vw,2.15rem)] w-[clamp(1.65rem,5.5vw,2.15rem)]'
+                                ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)]'
                                 : dense
                                   ? 'h-9 w-9'
                                   : 'h-10 w-10'
@@ -484,6 +517,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 onCancel={() => setShowLogoutConfirm(false)}
                 isTopmost
                 windowId="logout-confirm-modal"
+                variant="premium-danger"
             />
         )}
         </>

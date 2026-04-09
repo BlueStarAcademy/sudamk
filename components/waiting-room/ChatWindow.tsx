@@ -5,6 +5,18 @@ import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID, ADMIN_NICKNAME } f
 import { containsProfanity } from '../../profanity.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import {
+    arenaGameRoomChatBodyClass,
+    arenaGameRoomChatIconToggleClass,
+    arenaGameRoomChatInputClass,
+    arenaGameRoomChatTabActiveClass,
+    arenaGameRoomChatTabBarClass,
+    arenaGameRoomChatTabInactiveClass,
+    arenaGameRoomPanelTitleClass,
+    arenaGameRoomQuickChatEmojiBtnClass,
+    arenaGameRoomQuickChatPhraseBtnClass,
+    arenaGameRoomQuickChatPopoverClass,
+} from '../game/arenaGameRoomStyles.js';
 
 interface ChatWindowProps {
     messages: ChatMessage[];
@@ -16,6 +28,8 @@ interface ChatWindowProps {
     compactHome?: boolean;
     /** 네이티브 챔피언십: 하단 독과 비슷한 글자 크기 + 본문은 스크롤 유지 (compactHome과 달리 overflow-y-auto) */
     compactTournamentMobile?: boolean;
+    /** 퀵메뉴 채팅 모달: 인게임 대국실과 같은 슬레이트·스카이 톤 UI */
+    arenaPremium?: boolean;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -26,6 +40,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     locationPrefix,
     compactHome = false,
     compactTournamentMobile = false,
+    arenaPremium = false,
 }) => {
     const chatBodyRef = useRef<HTMLDivElement>(null);
     const quickChatRef = useRef<HTMLDivElement>(null);
@@ -150,36 +165,60 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const compactMsg = compactUi ? 'text-[11px] leading-snug' : 'text-xs';
     const compactEmpty = compactUi ? 'text-[11px] leading-snug' : 'text-sm';
 
+    const rootClass = arenaPremium
+        ? 'flex h-full min-h-0 flex-col text-slate-100 p-0'
+        : `flex h-full flex-col text-on-panel ${compactHome || compactTournamentMobile ? 'min-h-0 p-1' : 'min-h-[220px] p-4 sm:min-h-0'}`;
+
+    const tabBarClass = arenaPremium
+        ? `${arenaGameRoomChatTabBarClass} ${compactUi ? 'mb-1.5' : 'mb-2'}`
+        : `flex flex-shrink-0 rounded-lg bg-gray-900/70 ${compactUi ? 'mb-1 p-0.5' : 'mb-2 p-1'}`;
+
+    const tabBtnBase = compactUi ? 'py-1 text-[12px]' : 'py-1.5 text-sm';
+    const globalTabClass = arenaPremium
+        ? `${activeTab === 'global' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass} flex-1 font-semibold ${tabBtnBase}`
+        : `flex-1 rounded-md font-semibold ${tabBtnBase} ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`;
+    const guildTabClass = arenaPremium
+        ? `${activeTab === 'guild' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass} flex-1 font-semibold ${tabBtnBase}`
+        : `flex-1 rounded-md font-semibold ${tabBtnBase} ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`;
+
+    const securityBannerClass = arenaPremium
+        ? `mb-1.5 rounded-lg border border-amber-500/28 bg-gradient-to-r from-amber-950/55 via-slate-900/50 to-amber-950/45 px-2 py-1.5 text-center text-amber-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/12 ${compactUi ? 'text-[10px] leading-tight' : 'text-[11px] leading-snug'}`
+        : `text-center text-yellow-400 bg-tertiary/50 ${compactUi ? 'mb-0.5 rounded-sm p-0.5 text-[11px] leading-tight' : 'rounded-sm p-0.5 text-[10px]'}`;
+
+    const chatBodyClass = arenaPremium
+        ? `${arenaGameRoomChatBodyClass} min-h-0 flex-1 space-y-0.5 ${compactHome ? 'overflow-hidden' : compactTournamentMobile ? 'overflow-y-auto' : 'overflow-y-auto'}`
+        : `min-h-0 flex-1 space-y-0.5 rounded-md bg-tertiary/40 p-1 pr-1 ${
+              compactHome ? 'overflow-hidden' : compactTournamentMobile ? 'overflow-y-auto' : 'min-h-[160px] flex-grow overflow-y-auto sm:min-h-0'
+          }`;
+
+    const emptyMuted = arenaPremium ? 'text-slate-500' : 'text-tertiary';
+
     return (
-        <div
-            className={`flex h-full flex-col text-on-panel ${compactHome || compactTournamentMobile ? 'min-h-0 p-1' : 'min-h-[220px] p-4 sm:min-h-0'}`}
-        >
+        <div className={rootClass}>
             {hasGuild ? (
-                <div className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 ${compactUi ? 'mb-1 p-0.5' : 'mb-2 p-1'}`}>
-                    <button 
-                        onClick={() => setActiveTab('global')} 
-                        className={`flex-1 rounded-md font-semibold ${compactUi ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'global' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
-                    >
+                <div className={tabBarClass}>
+                    <button type="button" onClick={() => setActiveTab('global')} className={globalTabClass}>
                         전체채팅
                     </button>
-                    <button 
-                        onClick={() => setActiveTab('guild')} 
-                        className={`flex-1 rounded-md font-semibold ${compactUi ? 'py-1 text-[12px]' : 'py-1.5 text-sm'} ${activeTab === 'guild' ? 'bg-blue-600 text-white' : 'text-gray-400'}`}
-                    >
+                    <button type="button" onClick={() => setActiveTab('guild')} className={guildTabClass}>
                         길드채팅
                     </button>
                 </div>
             ) : (
-                <h2 className={`flex-shrink-0 border-b border-color font-semibold ${compactUi ? 'pb-0.5 text-sm' : 'pb-1 text-lg'}`}>전체채팅</h2>
+                <h2
+                    className={
+                        arenaPremium
+                            ? `${arenaGameRoomPanelTitleClass} flex-shrink-0 ${compactUi ? 'text-sm pb-1 mb-1.5' : 'pb-1.5 mb-2'}`
+                            : `flex-shrink-0 border-b border-color font-semibold ${compactUi ? 'pb-0.5 text-sm' : 'pb-1 text-lg'}`
+                    }
+                >
+                    전체채팅
+                </h2>
             )}
-            {activeTab === 'global' && (
-                <p className={`text-center text-yellow-400 bg-tertiary/50 ${compactUi ? 'mb-0.5 rounded-sm p-0.5 text-[11px] leading-tight' : 'rounded-sm p-0.5 text-[10px]'}`}>AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓</p>
-            )}
+            {activeTab === 'global' && <p className={securityBannerClass}>AI 보안관봇이 부적절한 언어 사용을 감지하고 있습니다. 🚓</p>}
             <div
                 ref={chatBodyRef}
-                className={`min-h-0 flex-1 space-y-0.5 rounded-md bg-tertiary/40 p-1 pr-1 ${
-                    compactHome ? 'overflow-hidden' : compactTournamentMobile ? 'overflow-y-auto' : 'min-h-[160px] flex-grow overflow-y-auto sm:min-h-0'
-                }`}
+                className={chatBodyClass}
             >
                 {activeTab === 'guild' ? (
                     // 길드 채팅 메시지 표시
@@ -200,7 +239,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                             );
                         })
                     ) : (
-                        <div className={`flex h-full items-center justify-center text-tertiary ${compactEmpty}`}>길드 채팅 메시지가 없습니다.</div>
+                        <div className={`flex h-full items-center justify-center ${emptyMuted} ${compactEmpty}`}>길드 채팅 메시지가 없습니다.</div>
                     )
                 ) : (
                     // 전체 채팅 메시지 표시
@@ -314,23 +353,65 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                                 </div>
                             );
                         })}
-                        {messages.length === 0 && <div className={`flex h-full items-center justify-center text-tertiary ${compactEmpty}`}>채팅 메시지가 없습니다.</div>}
+                        {messages.length === 0 && <div className={`flex h-full items-center justify-center ${emptyMuted} ${compactEmpty}`}>채팅 메시지가 없습니다.</div>}
                     </>
                 )}
             </div>
-            <div className="relative flex-shrink-0">
+            <div className={`relative flex-shrink-0 ${arenaPremium ? 'mt-1.5 pt-1' : ''}`}>
                {showQuickChat && (
-                   <div ref={quickChatRef} className="absolute bottom-full mb-2 w-full bg-secondary rounded-lg shadow-xl p-1 z-10 max-h-64 overflow-y-auto">
-                       <div className="grid grid-cols-5 gap-1 text-xl mb-1 border-b border-color pb-1">
-                          {GAME_CHAT_EMOJIS.map(emoji => ( <button key={emoji} onClick={() => handleSend({ emoji })} className="w-full p-1 rounded-md hover:bg-accent transition-colors text-center"> {emoji} </button> ))}
+                   <div
+                       ref={quickChatRef}
+                       className={
+                           arenaPremium
+                               ? `${arenaGameRoomQuickChatPopoverClass} z-20`
+                               : 'absolute bottom-full mb-2 w-full bg-secondary rounded-lg shadow-xl p-1 z-10 max-h-64 overflow-y-auto'
+                       }
+                   >
+                       <div
+                           className={
+                               arenaPremium
+                                   ? 'mb-2 grid grid-cols-5 gap-2 border-b border-slate-600/45 pb-2 text-2xl'
+                                   : 'grid grid-cols-5 gap-1 text-xl mb-1 border-b border-color pb-1'
+                           }
+                       >
+                          {GAME_CHAT_EMOJIS.map(emoji => (
+                              <button
+                                  key={emoji}
+                                  type="button"
+                                  onClick={() => handleSend({ emoji })}
+                                  className={arenaPremium ? arenaGameRoomQuickChatEmojiBtnClass : 'w-full p-1 rounded-md hover:bg-accent transition-colors text-center'}
+                              >
+                                  {emoji}
+                              </button>
+                          ))}
                        </div>
-                       <ul className="space-y-0.5">
-                          {GAME_CHAT_MESSAGES.map(msg => ( <li key={msg}> <button onClick={() => handleSend({ text: msg })} className="w-full text-left text-xs p-1 rounded-md hover:bg-accent transition-colors"> {msg} </button> </li> ))}
+                       <ul className={arenaPremium ? 'space-y-1' : 'space-y-0.5'}>
+                          {GAME_CHAT_MESSAGES.map(msg => (
+                              <li key={msg}>
+                                  <button
+                                      type="button"
+                                      onClick={() => handleSend({ text: msg })}
+                                      className={arenaPremium ? arenaGameRoomQuickChatPhraseBtnClass : 'w-full text-left text-xs p-1 rounded-md hover:bg-accent transition-colors'}
+                                  >
+                                      {msg}
+                                  </button>
+                              </li>
+                          ))}
                        </ul>
                    </div>
                )}
-               <form onSubmit={handleSendTextSubmit} className="flex gap-1">
-                    <button type="button" onClick={() => setShowQuickChat(s => !s)} className="bg-secondary hover:bg-tertiary text-primary font-bold px-2.5 rounded-md transition-colors text-lg flex items-center justify-center" title="빠른 채팅" disabled={isInputDisabled}>
+               <form onSubmit={handleSendTextSubmit} className={arenaPremium ? 'flex gap-2' : 'flex gap-1'}>
+                    <button
+                        type="button"
+                        onClick={() => setShowQuickChat(s => !s)}
+                        className={
+                            arenaPremium
+                                ? arenaGameRoomChatIconToggleClass
+                                : 'bg-secondary hover:bg-tertiary text-primary font-bold px-2.5 rounded-md transition-colors text-lg flex items-center justify-center'
+                        }
+                        title="빠른 채팅"
+                        disabled={isInputDisabled}
+                    >
                         <span>🙂</span>
                     </button>
                    <input
@@ -338,11 +419,26 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                        value={chatInput}
                        onChange={e => setChatInput(e.target.value)}
                        placeholder={placeholderText}
-                       className={`flex-grow bg-tertiary border border-color rounded-md p-1 focus:ring-accent focus:border-accent disabled:bg-secondary disabled:text-tertiary ${compactUi ? 'text-[11px]' : 'text-xs'}`}
+                       className={
+                           arenaPremium
+                               ? `${arenaGameRoomChatInputClass} ${compactUi ? 'text-[11px]' : 'text-sm'}`
+                               : `flex-grow bg-tertiary border border-color rounded-md p-1 focus:ring-accent focus:border-accent disabled:bg-secondary disabled:text-tertiary ${compactUi ? 'text-[11px]' : 'text-xs'}`
+                       }
                        maxLength={30}
                        disabled={isInputDisabled}
                    />
-                   <Button type="submit" disabled={!chatInput.trim() || isInputDisabled} className="!px-2 !py-1" title="보내기">
+                   <Button
+                       type="submit"
+                       bare={arenaPremium}
+                       disabled={!chatInput.trim() || isInputDisabled}
+                       className={
+                           arenaPremium
+                               ? '!px-3 !py-2 rounded-lg border border-sky-600/40 bg-gradient-to-b from-sky-700/90 to-sky-950 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 disabled:opacity-40 disabled:grayscale'
+                               : '!px-2 !py-1'
+                       }
+                       {...(arenaPremium ? { colorScheme: 'none' as const } : {})}
+                       title="보내기"
+                   >
                         💬
                    </Button>
                </form>

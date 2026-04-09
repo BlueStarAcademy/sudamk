@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { LiveGameSession, Player, GameStatus, GameMode, User, ServerAction } from '../../types.js';
 import { PLAYFUL_GAME_MODES, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS } from '../../constants';
 import { audioService } from '../../services/audioService.js';
+import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
 
@@ -283,21 +284,23 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     const isSinglePlayer = session.isSinglePlayer;
     const baseClasses = `flex-shrink-0 rounded-lg flex flex-col items-center justify-center border shadow-inner ${
-        isMobile ? 'min-h-[3.25rem] px-2 py-1.5' : 'h-12 py-1'
+        isMobile ? 'min-h-[2.6rem] px-1.5 py-1' : 'min-h-[3.25rem] py-2 px-3 min-[1025px]:min-h-[3.5rem] min-[1025px]:px-4'
     }`;
-    const themeClasses = isSinglePlayer 
-        ? "bg-stone-800/70 backdrop-blur-sm border-stone-700/50" 
-        : "bg-secondary border-color";
-    const textClass = isSinglePlayer ? "text-amber-300" : "text-highlight";
+    const themeClasses = isSinglePlayer
+        ? 'bg-stone-800/85 backdrop-blur-sm border-stone-600/55'
+        : `${arenaGameRoomTurnDisplayBgClass} shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_8px_28px_-14px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-amber-500/15`;
+    const textClass = isSinglePlayer
+        ? 'text-amber-100'
+        : 'text-amber-100 drop-shadow-[0_1px_3px_rgba(0,0,0,0.95)]';
 
     const showSidebarButton = Boolean(isMobile && onOpenSidebar);
-    const paddingClass = showSidebarButton ? 'pr-[3.5rem] sm:pr-14' : '';
+    const paddingClass = showSidebarButton ? 'pr-[2.85rem] sm:pr-[3.5rem] md:pr-14' : '';
 
     const sidebarToggle = showSidebarButton ? (
         <button
             type="button"
             onClick={onOpenSidebar}
-            className={`group absolute top-1/2 right-1.5 z-10 flex h-[3.375rem] w-[3rem] -translate-y-1/2 flex-col items-center justify-center gap-1 rounded-l-2xl border border-r-0 border-white/18 bg-gradient-to-br from-white/[0.14] via-white/[0.05] to-black/45 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(0,0,0,0.25)] transition-all duration-300 ease-out hover:scale-[1.03] hover:border-white/28 hover:shadow-[0_14px_44px_rgba(0,0,0,0.52)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100 ${
+            className={`group absolute top-1/2 right-1.5 z-10 flex h-[2.85rem] w-[2.65rem] -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-l-2xl border border-r-0 border-white/18 bg-gradient-to-br from-white/[0.14] via-white/[0.05] to-black/45 backdrop-blur-md shadow-[0_10px_36px_rgba(0,0,0,0.42),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(0,0,0,0.25)] transition-all duration-300 ease-out hover:scale-[1.03] hover:border-white/28 hover:shadow-[0_14px_44px_rgba(0,0,0,0.52)] active:scale-[0.96] motion-reduce:transition-none motion-reduce:hover:scale-100 sm:h-[3.375rem] sm:w-[3rem] sm:gap-1 ${
                 isSinglePlayer
                     ? 'hover:from-amber-400/18 hover:via-stone-900/82 hover:to-stone-950 hover:border-amber-400/35'
                     : 'hover:from-cyan-400/14 hover:via-slate-900/88 hover:to-slate-950 hover:border-cyan-400/32'
@@ -340,10 +343,14 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     if (boardRuleFlashMessage) {
         return wrapContent(
-            `${baseClasses} ${themeClasses} px-4 gap-1.5 min-h-[3rem] border-2 border-amber-400/55`,
-            <div className="w-full overflow-hidden flex-shrink-0 relative min-h-[1.5rem] flex items-center justify-center">
+            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-4 min-h-[3rem]'} border-2 border-amber-400/55`,
+            <div
+                className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center ${isMobile ? 'min-h-[1.15rem]' : 'min-h-[1.5rem]'}`}
+            >
                 <div
-                    className={`font-bold tracking-wider text-[clamp(0.8rem,2.5vmin,1rem)] text-center px-1 text-amber-100`}
+                    className={`font-bold tracking-wider text-center px-1 text-amber-100 ${
+                        isMobile ? 'text-[clamp(0.62rem,2vmin,0.72rem)] leading-tight' : 'text-[clamp(0.8rem,2.5vmin,1rem)]'
+                    }`}
                     style={{
                         textShadow: '0 0 10px rgba(251, 191, 36, 0.55), 0 0 18px rgba(251, 191, 36, 0.3)',
                     }}
@@ -356,20 +363,32 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     
     if (foulMessage) {
         return wrapContent(
-            "flex-shrink-0 bg-danger rounded-lg flex items-center justify-center shadow-inner animate-pulse py-1 h-12 border-2 border-red-500",
-            <p className="font-bold text-white tracking-wider text-[clamp(0.875rem,3vmin,1.125rem)]">{foulMessage}</p>
+            `flex-shrink-0 bg-danger rounded-lg flex items-center justify-center shadow-inner animate-pulse border-2 border-red-500 ${
+                isMobile ? 'py-0.5 min-h-[2.25rem]' : 'py-1 h-12'
+            }`,
+            <p
+                className={`px-1 text-center font-bold text-white tracking-wider ${
+                    isMobile ? 'text-[clamp(0.65rem,2.2vmin,0.8rem)] leading-tight' : 'text-[clamp(0.875rem,3vmin,1.125rem)]'
+                }`}
+            >
+                {foulMessage}
+            </p>
         );
     }
     
     if (session.mode === GameMode.Dice && session.gameStatus === 'dice_placing' && session.dice) {
         const diceGuidance = '상대보다 더 많은 돌을 따내기 위해 돌을 놓아보세요.';
         return wrapContent(
-            `${baseClasses} ${themeClasses} px-3 gap-1.5 min-w-0 min-h-[3rem]`,
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-3 min-h-[3rem]'}`,
             <>
-                <div className="flex w-full flex-col items-center justify-center gap-1 min-w-0">
-                    <div className="w-full overflow-hidden flex-shrink-0 relative min-h-[1.35rem] flex items-center justify-center px-0.5">
+                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-1">
+                    <div
+                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
+                    >
                         <p
-                            className={`font-bold ${textClass} text-center text-[clamp(0.68rem,1.9vmin,0.82rem)] leading-snug tracking-wide`}
+                            className={`font-bold ${textClass} text-center leading-snug tracking-wide ${
+                                isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
+                            }`}
                             style={{
                                 textShadow: isSinglePlayer
                                     ? '0 0 8px rgba(251, 191, 36, 0.35)'
@@ -381,8 +400,8 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                     </div>
                 </div>
                 {isPlayfulTurn && (
-                    <div className="w-full h-1 bg-tertiary rounded-full mt-0.5 flex-shrink-0">
-                        <div className="h-1 bg-red-500 rounded-full" style={{ width: `${percentage}%` }} />
+                    <div className="mt-0.5 h-0.5 w-full flex-shrink-0 rounded-full bg-tertiary sm:h-1">
+                        <div className="h-full rounded-full bg-red-500" style={{ width: `${percentage}%` }} />
                     </div>
                 )}
             </>
@@ -392,15 +411,17 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     if (session.mode === GameMode.Thief && session.gameStatus === 'thief_placing' && session.dice) {
         const { dice1, dice2 } = session.dice;
         const diceDisplay = dice2 > 0 ? `${dice1}, ${dice2}` : `${dice1}`;
+        const thiefLabel = isMobile ? 'text-[clamp(0.62rem,1.9vmin,0.72rem)]' : 'text-[clamp(0.75rem,2.2vmin,0.95rem)]';
+        const thiefValue = isMobile ? 'text-[clamp(0.68rem,2vmin,0.78rem)]' : 'text-[clamp(0.85rem,2.5vmin,1rem)]';
         return wrapContent(
-            `${baseClasses} ${themeClasses} px-3 gap-1 min-w-0`,
-            <div className="flex items-center gap-1.5 flex-nowrap min-w-0 overflow-hidden">
-                <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
-                    주사위: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{diceDisplay}</span>
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0.5 px-2' : 'gap-1 px-3'}`,
+            <div className="flex min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:gap-1.5">
+                <span className={`shrink-0 whitespace-nowrap font-bold text-tertiary ${thiefLabel}`}>
+                    주사위: <span className={`${textClass} ${thiefValue}`}>{diceDisplay}</span>
                 </span>
                 <span className={`text-tertiary/70 shrink-0 ${isSinglePlayer ? 'text-stone-500' : ''}`}>·</span>
-                <span className={`font-bold text-tertiary text-[clamp(0.75rem,2.2vmin,0.95rem)] whitespace-nowrap shrink-0`}>
-                    남은 착수: <span className={`${textClass} text-[clamp(0.85rem,2.5vmin,1rem)]`}>{Math.max(0, session.stonesToPlace ?? 0)}</span>
+                <span className={`shrink-0 whitespace-nowrap font-bold text-tertiary ${thiefLabel}`}>
+                    남은 착수: <span className={`${textClass} ${thiefValue}`}>{Math.max(0, session.stonesToPlace ?? 0)}</span>
                 </span>
             </div>
         );
@@ -420,20 +441,34 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         const tickerText = `${itemText} ${timeLeft}초`;
 
         return wrapContent(
-            `${baseClasses} ${themeClasses} px-4 gap-1.5 min-h-[3rem]`,
+            `${baseClasses} ${themeClasses} ${isMobile ? 'gap-1 px-2 min-h-[2.45rem]' : 'gap-1.5 px-4 min-h-[3rem]'}`,
             <>
                 {/* 전광판 스타일 텍스트 */}
-                <div className="w-full overflow-hidden flex-shrink-0 relative h-6">
-                    <div 
-                        className={`font-bold ${textClass} tracking-wider text-[clamp(0.8rem,2.5vmin,1rem)] whitespace-nowrap absolute inset-0 flex items-center justify-center`}
+                <div
+                    className={`w-full flex-shrink-0 overflow-hidden ${
+                        isMobile
+                            ? 'flex min-h-[1.15rem] items-center justify-center py-0.5'
+                            : 'relative h-6'
+                    }`}
+                >
+                    <div
+                        className={`flex items-center justify-center text-center font-bold ${textClass} tracking-wider ${
+                            isMobile
+                                ? 'px-0.5 text-[clamp(0.58rem,1.85vmin,0.68rem)] leading-tight whitespace-normal'
+                                : 'absolute inset-0 whitespace-nowrap text-[clamp(0.8rem,2.5vmin,1rem)]'
+                        }`}
                         style={{
-                            textShadow: '0 0 8px rgba(255, 255, 255, 0.5), 0 0 16px rgba(255, 255, 255, 0.3)'
+                            textShadow: '0 0 8px rgba(255, 255, 255, 0.5), 0 0 16px rgba(255, 255, 255, 0.3)',
                         }}
                     >
-                        <span className="inline-block">{tickerText}</span>
+                        <span className={isMobile ? 'inline' : 'inline-block'}>{tickerText}</span>
                     </div>
                 </div>
-                <div className={`w-full rounded-full h-[clamp(0.5rem,1.5vh,0.75rem)] relative overflow-hidden border-2 ${isSinglePlayer ? 'bg-stone-900/70 border-black/20' : 'bg-tertiary border-tertiary'} flex-shrink-0`}>
+                <div
+                    className={`relative w-full flex-shrink-0 overflow-hidden rounded-full border-2 ${isSinglePlayer ? 'border-black/20 bg-stone-900/70' : 'border-tertiary bg-tertiary'} ${
+                        isMobile ? 'h-1 border' : 'h-[clamp(0.5rem,1.5vh,0.75rem)] border-2'
+                    }`}
+                >
                     <div
                         className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-400 to-amber-300"
                         style={{ width: `${percentage}%`, transition: 'width 0.5s linear' }}
@@ -445,19 +480,26 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     
     const statusText = getGameStatusText(session);
 
+    const statusTextShadow = isSinglePlayer
+        ? { textShadow: '0 0 12px rgba(251, 191, 36, 0.35), 0 1px 2px rgba(0,0,0,0.85)' }
+        : { textShadow: '0 0 14px rgba(251, 191, 36, 0.45), 0 1px 3px rgba(0,0,0,0.95)' };
+
     return wrapContent(
         `${baseClasses} ${themeClasses}`,
         <>
             <p
                 className={`text-center font-bold tracking-wider ${textClass} ${
-                    isMobile ? 'text-sm leading-snug sm:text-base' : 'px-2 text-[clamp(0.8rem,2.5vmin,1rem)]'
+                    isMobile
+                        ? 'px-0.5 text-[0.6875rem] leading-tight sm:text-sm sm:leading-snug'
+                        : 'px-2 text-[clamp(0.88rem,2.7vmin,1.08rem)] min-[1025px]:text-[clamp(0.95rem,2.2vmin,1.15rem)]'
                 }`}
+                style={statusTextShadow}
             >
                 {statusText}
             </p>
             {isPlayfulTurn && (
-                <div className="w-11/12 h-1 bg-tertiary rounded-full mt-1">
-                    <div className="h-1 bg-red-500 rounded-full" style={{ width: `${percentage}%` }} />
+                <div className="mt-0.5 h-0.5 w-11/12 rounded-full bg-tertiary sm:mt-1 sm:h-1">
+                    <div className="h-full rounded-full bg-red-500" style={{ width: `${percentage}%` }} />
                 </div>
             )}
         </>

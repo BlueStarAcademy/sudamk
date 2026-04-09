@@ -4,6 +4,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
 import { GUILD_RESEARCH_PROJECTS } from '../../constants/index.js';
 import DraggableWindow from '../DraggableWindow.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
 interface GuildResearchPanelProps {
     guild: Guild;
@@ -70,7 +71,8 @@ const ResearchItemPanel: React.FC<{
     myMemberInfo: GuildMember | undefined;
     isResearchingThis: boolean;
     isAnyResearchActive: boolean;
-}> = ({ researchId, project, guild, myMemberInfo, isResearchingThis, isAnyResearchActive }) => {
+    isNativeMobile: boolean;
+}> = ({ researchId, project, guild, myMemberInfo, isResearchingThis, isAnyResearchActive, isNativeMobile }) => {
     const { handlers } = useAppContext();
     const [timeLeft, setTimeLeft] = useState(0);
 
@@ -126,6 +128,81 @@ const ResearchItemPanel: React.FC<{
     }
 
 
+    const effectBoxes = (
+        <div className={`grid gap-1.5 ${isNativeMobile ? 'grid-cols-1 text-[11px]' : 'grid-cols-2 text-xs'}`}>
+            <div className={`bg-stone-800/40 rounded-lg border border-stone-700/50 ${isNativeMobile ? 'px-2 py-1' : 'px-2 py-1.5'}`}>
+                <span className="text-stone-400">현재:</span>
+                <span className="font-bold text-emerald-400 ml-1 break-words">{currentEffectString}</span>
+            </div>
+            {!isMaxLevel && (
+                <div className={`bg-stone-800/40 rounded-lg border border-stone-700/50 ${isNativeMobile ? 'px-2 py-1' : 'px-2 py-1.5'}`}>
+                    <span className="text-stone-400">다음:</span>
+                    <span className="font-bold text-cyan-400 ml-1 break-words">{nextEffectString}</span>
+                </div>
+            )}
+        </div>
+    );
+
+    const sidePanel = (
+        <div className="flex-shrink-0 flex flex-col gap-2">
+            {isResearchingThis ? (
+                <div className={`text-center bg-gradient-to-br from-emerald-900/90 via-teal-800/80 to-emerald-900/90 rounded-xl border-2 border-emerald-500/70 shadow-2xl relative overflow-hidden ${isNativeMobile ? 'p-2' : 'p-3'}`}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-400/10 to-emerald-500/15 pointer-events-none"></div>
+                    <div className="relative z-10">
+                        <p className={`text-emerald-300 mb-0.5 font-semibold ${isNativeMobile ? 'text-[9px]' : 'text-[10px]'}`}>연구 진행 중</p>
+                        <p className={`font-mono font-bold text-emerald-200 drop-shadow-lg ${isNativeMobile ? 'text-base' : 'text-xl'}`}>{formatTimeLeft(timeLeft)}</p>
+                    </div>
+                </div>
+            ) : (
+                <div className={`bg-gradient-to-br from-stone-800/80 to-stone-900/80 rounded-xl border-2 border-stone-600/60 shadow-lg ${isNativeMobile ? 'p-2 text-[10px] space-y-1' : 'p-2.5 text-xs space-y-1.5'}`}>
+                    {isMaxLevel ? (
+                        <p className="text-center font-bold text-emerald-400 text-xs py-1">✨ 최고 레벨 ✨</p>
+                    ) : (
+                        <>
+                            <div className="flex justify-between items-center gap-1">
+                                <span className="text-stone-400">포인트:</span>
+                                <span className={`font-bold tabular-nums ${canAfford ? 'text-amber-300' : 'text-red-400'}`}>{cost.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between items-center gap-1">
+                                <span className="text-stone-400">시간:</span>
+                                <span className="font-semibold text-stone-300 text-[10px]">{formatTimeLeft(timeMs)}</span>
+                            </div>
+                            <div className="flex justify-between items-center gap-1">
+                                <span className="text-stone-400">길드Lv:</span>
+                                <span className={`font-bold text-[10px] ${meetsGuildLevel ? 'text-stone-300' : 'text-red-400'}`}>{project.requiredGuildLevel?.[currentLevel] ?? nextLevel}</span>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+            <button
+                onClick={handleStartResearch}
+                disabled={!canStartResearch}
+                className={`w-full rounded-xl font-bold transition-all duration-200 relative overflow-hidden group ${
+                    isNativeMobile ? 'py-2 text-xs' : 'py-2.5 text-sm'
+                } ${
+                    canStartResearch
+                        ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/50 active:scale-[0.98]'
+                        : 'bg-stone-700/50 text-stone-400 cursor-not-allowed'
+                }`}
+            >
+                {canStartResearch && (
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+                )}
+                <span className="relative z-10 flex items-center justify-center gap-1.5">
+                    {isMaxLevel ? (
+                        <>✨ 최고 레벨</>
+                    ) : (
+                        <>
+                            <span>🔬</span>
+                            <span>연구 시작</span>
+                        </>
+                    )}
+                </span>
+            </button>
+        </div>
+    );
+
     return (
          <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl transition-all duration-300 border-2 relative overflow-hidden ${
             isResearchingThis 
@@ -133,103 +210,57 @@ const ResearchItemPanel: React.FC<{
                 : 'border-stone-600/60 hover:border-stone-500/80 hover:shadow-xl'
         }`}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <div className="relative z-10 p-4">
-                <div className="grid grid-cols-[80px_1fr_280px] gap-4 items-center">
-                    {/* 아이콘 */}
-                    <div className="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-stone-800/90 to-stone-900/90 rounded-xl flex items-center justify-center border-2 border-stone-600/60 shadow-xl relative overflow-hidden">
-                        <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-emerald-500/15 pointer-events-none"></div>
-                        <img src={project.image} alt={project.name} className="w-16 h-16 object-contain drop-shadow-2xl relative z-10" />
-                    </div>
-                    
-                    {/* 연구 정보 */}
-                    <div className="flex-grow min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-2">
+            <div className={`relative z-10 ${isNativeMobile ? 'p-2.5' : 'p-4'}`}>
+                {isNativeMobile ? (
+                    <div className="flex flex-col gap-2.5">
+                        <div className="flex items-start gap-2.5">
+                            <div className="flex-shrink-0 w-[3.25rem] h-[3.25rem] bg-gradient-to-br from-stone-800/90 to-stone-900/90 rounded-lg flex items-center justify-center border-2 border-stone-600/60 shadow-xl relative overflow-hidden">
+                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-emerald-500/15 pointer-events-none"></div>
+                                <img src={project.image} alt={project.name} className="w-[2.6rem] h-[2.6rem] object-contain drop-shadow-2xl relative z-10" />
+                            </div>
                             <div className="flex-grow min-w-0">
-                                <h4 className="font-bold text-base text-white truncate mb-1 drop-shadow-lg">{project.name}</h4>
-                                <p className="text-xs text-stone-300/80 line-clamp-1 leading-relaxed">{project.description}</p>
-                            </div>
-                            <div className="flex-shrink-0 flex items-center gap-2 bg-stone-800/60 px-3 py-1 rounded-lg border border-stone-700/50">
-                                <span className="text-xs text-stone-400">레벨</span>
-                                <span className="font-bold text-amber-300 text-sm">{currentLevel}/{project.maxLevel}</span>
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                    <h4 className="font-bold text-[13px] text-white leading-tight drop-shadow-lg line-clamp-2">{project.name}</h4>
+                                    <div className="flex-shrink-0 flex items-center gap-1 bg-stone-800/60 px-2 py-0.5 rounded-md border border-stone-700/50">
+                                        <span className="text-[10px] text-stone-400">Lv</span>
+                                        <span className="font-bold text-amber-300 text-xs">{currentLevel}/{project.maxLevel}</span>
+                                    </div>
+                                </div>
+                                <p className="text-[11px] text-stone-300/80 line-clamp-2 leading-snug mb-2">{project.description}</p>
+                                {effectBoxes}
                             </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="bg-stone-800/40 px-2 py-1.5 rounded-lg border border-stone-700/50">
-                                <span className="text-stone-400">현재:</span>
-                                <span className="font-bold text-emerald-400 ml-1">{currentEffectString}</span>
-                            </div>
-                            {!isMaxLevel && (
-                                <div className="bg-stone-800/40 px-2 py-1.5 rounded-lg border border-stone-700/50">
-                                    <span className="text-stone-400">다음:</span>
-                                    <span className="font-bold text-cyan-400 ml-1">{nextEffectString}</span>
-                                </div>
-                            )}
+                        {sidePanel}
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-[80px_1fr_280px] gap-4 items-center">
+                        <div className="flex-shrink-0 w-20 h-20 bg-gradient-to-br from-stone-800/90 to-stone-900/90 rounded-xl flex items-center justify-center border-2 border-stone-600/60 shadow-xl relative overflow-hidden">
+                            <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-500/10 to-emerald-500/15 pointer-events-none"></div>
+                            <img src={project.image} alt={project.name} className="w-16 h-16 object-contain drop-shadow-2xl relative z-10" />
                         </div>
-                    </div>
-                    
-                    {/* 우측 정보 및 버튼 */}
-                    <div className="flex-shrink-0 flex flex-col gap-2">
-                        {isResearchingThis ? (
-                            <div className="text-center bg-gradient-to-br from-emerald-900/90 via-teal-800/80 to-emerald-900/90 p-3 rounded-xl border-2 border-emerald-500/70 shadow-2xl relative overflow-hidden">
-                                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 via-teal-400/10 to-emerald-500/15 pointer-events-none"></div>
-                                <div className="relative z-10">
-                                    <p className="text-[10px] text-emerald-300 mb-1 font-semibold">연구 진행 중</p>
-                                    <p className="font-mono font-bold text-xl text-emerald-200 drop-shadow-lg">{formatTimeLeft(timeLeft)}</p>
+                        <div className="flex-grow min-w-0">
+                            <div className="flex items-start justify-between gap-3 mb-2">
+                                <div className="flex-grow min-w-0">
+                                    <h4 className="font-bold text-base text-white truncate mb-1 drop-shadow-lg">{project.name}</h4>
+                                    <p className="text-xs text-stone-300/80 line-clamp-1 leading-relaxed">{project.description}</p>
+                                </div>
+                                <div className="flex-shrink-0 flex items-center gap-2 bg-stone-800/60 px-3 py-1 rounded-lg border border-stone-700/50">
+                                    <span className="text-xs text-stone-400">레벨</span>
+                                    <span className="font-bold text-amber-300 text-sm">{currentLevel}/{project.maxLevel}</span>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="bg-gradient-to-br from-stone-800/80 to-stone-900/80 p-2.5 rounded-xl text-xs space-y-1.5 border-2 border-stone-600/60 shadow-lg">
-                                {isMaxLevel ? (
-                                    <p className="text-center font-bold text-emerald-400 text-xs py-1">✨ 최고 레벨 ✨</p>
-                                ) : (
-                                    <>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-stone-400">포인트:</span>
-                                            <span className={`font-bold ${canAfford ? 'text-amber-300' : 'text-red-400'}`}>{cost.toLocaleString()}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-stone-400">시간:</span>
-                                            <span className="font-semibold text-stone-300 text-[10px]">{formatTimeLeft(timeMs)}</span>
-                                        </div>
-                                        <div className="flex justify-between items-center">
-                                            <span className="text-stone-400">길드Lv:</span>
-                                            <span className={`font-bold text-[10px] ${meetsGuildLevel ? 'text-stone-300' : 'text-red-400'}`}>{project.requiredGuildLevel?.[currentLevel] ?? nextLevel}</span>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                        <button
-                            onClick={handleStartResearch}
-                            disabled={!canStartResearch}
-                            className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all duration-200 relative overflow-hidden group ${
-                                canStartResearch 
-                                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white shadow-lg shadow-emerald-500/40 hover:shadow-xl hover:shadow-emerald-500/50 hover:scale-[1.02] active:scale-[0.98]' 
-                                    : 'bg-stone-700/50 text-stone-400 cursor-not-allowed'
-                            }`}
-                        >
-                            {canStartResearch && (
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-                            )}
-                            <span className="relative z-10 flex items-center justify-center gap-2">
-                                {isMaxLevel ? (
-                                    <>✨ 최고 레벨</>
-                                ) : (
-                                    <>
-                                        <span>🔬</span>
-                                        <span>연구 시작</span>
-                                    </>
-                                )}
-                            </span>
-                        </button>
+                            {effectBoxes}
+                        </div>
+                        {sidePanel}
                     </div>
-                </div>
+                )}
             </div>
         </div>
     );
 };
 
 const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => void }> = ({ guild, myMemberInfo, onClose }) => {
+    const { isNativeMobile } = useNativeMobileShell();
     // FIX: Replaced string literal with GuildResearchCategory enum member for initial state.
     const [activeTab, setActiveTab] = useState<GuildResearchCategory>(GuildResearchCategory.development);
     const researchInProgressId = guild.researchTask?.researchId;
@@ -249,26 +280,39 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
     ];
 
     return (
-        <DraggableWindow title="길드 연구소" onClose={onClose} windowId="guild-research" initialWidth={1100} initialHeight={850} variant="store">
+        <DraggableWindow
+            title="길드 연구소"
+            onClose={onClose}
+            windowId="guild-research"
+            initialWidth={1100}
+            initialHeight={850}
+            variant="store"
+            mobileViewportFit={isNativeMobile}
+            mobileViewportMaxHeightVh={94}
+            bodyPaddingClassName={isNativeMobile ? 'p-2' : undefined}
+        >
             <div className="flex flex-col h-full relative overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-stone-950/50 via-neutral-900/30 to-stone-950/50 pointer-events-none"></div>
                 <div className="relative z-10 flex flex-col h-full">
-                <div className="flex justify-between items-center mb-4 flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 bg-gradient-to-br from-emerald-600/80 to-teal-600/80 rounded-xl flex items-center justify-center border-2 border-emerald-400/50 shadow-lg shadow-emerald-500/20">
-                            <span className="text-2xl">🔬</span>
+                <div className={`flex justify-between items-center flex-shrink-0 gap-2 ${isNativeMobile ? 'mb-2' : 'mb-4'}`}>
+                    <div className={`flex items-center min-w-0 ${isNativeMobile ? 'gap-2' : 'gap-3'}`}>
+                        <div className={`bg-gradient-to-br from-emerald-600/80 to-teal-600/80 rounded-xl flex items-center justify-center border-2 border-emerald-400/50 shadow-lg shadow-emerald-500/20 flex-shrink-0 ${isNativeMobile ? 'w-9 h-9' : 'w-12 h-12'}`}>
+                            <span className={isNativeMobile ? 'text-lg' : 'text-2xl'}>🔬</span>
                         </div>
-                        <h3 className="text-2xl font-bold bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent">길드 연구소</h3>
+                        <h3 className={`font-bold bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent truncate ${isNativeMobile ? 'text-base' : 'text-2xl'}`}>길드 연구소</h3>
                     </div>
-                    <div className="bg-gradient-to-br from-amber-900/90 via-yellow-800/80 to-amber-900/90 p-4 rounded-xl text-center border-2 border-amber-500/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
+                    <div className={`bg-gradient-to-br from-amber-900/90 via-yellow-800/80 to-amber-900/90 rounded-xl text-center border-2 border-amber-500/60 shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0 ${isNativeMobile ? 'px-2.5 py-2' : 'p-4'}`}>
                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/20 via-yellow-400/10 to-amber-500/15 pointer-events-none"></div>
                         <div className="relative z-10">
-                            <p className="text-xs text-amber-200/80 mb-1 font-semibold">보유 연구 포인트</p>
-                            <p className="font-bold text-2xl text-yellow-300 drop-shadow-lg">{(guild.researchPoints ?? 0).toLocaleString()} <span className="text-lg">RP</span></p>
+                            <p className={`text-amber-200/80 font-semibold ${isNativeMobile ? 'text-[9px] mb-0' : 'text-xs mb-1'}`}>연구 포인트</p>
+                            <p className={`font-bold text-yellow-300 drop-shadow-lg tabular-nums ${isNativeMobile ? 'text-sm' : 'text-2xl'}`}>
+                                {(guild.researchPoints ?? 0).toLocaleString()} {!isNativeMobile && <span className="text-lg">RP</span>}
+                                {isNativeMobile && <span className="text-xs font-semibold text-amber-200/90"> RP</span>}
+                            </p>
                         </div>
                     </div>
                 </div>
-                <div className="flex bg-gradient-to-r from-stone-800/90 via-neutral-800/80 to-stone-800/90 p-1.5 rounded-xl mb-4 flex-shrink-0 border border-stone-600/50 shadow-lg">
+                <div className={`flex bg-gradient-to-r from-stone-800/90 via-neutral-800/80 to-stone-800/90 rounded-xl flex-shrink-0 border border-stone-600/50 shadow-lg ${isNativeMobile ? 'p-1 mb-2' : 'p-1.5 mb-4'}`}>
                     {tabs.map(tab => {
                         const tabColors = {
                             [GuildResearchCategory.development]: { active: 'from-emerald-600 to-teal-600', inactive: 'text-emerald-300/70 hover:text-emerald-300' },
@@ -281,7 +325,7 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id)}
-                                className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition-all ${
+                                className={`flex-1 font-bold rounded-lg transition-all ${isNativeMobile ? 'py-2 text-[11px]' : 'py-2.5 text-sm'} ${
                                     activeTab === tab.id 
                                         ? `bg-gradient-to-r ${colors.active} text-white shadow-lg shadow-${colors.active.split(' ')[1]}/30` 
                                         : `${colors.inactive} hover:bg-stone-700/50`
@@ -292,7 +336,7 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                         );
                     })}
                 </div>
-                <div className="space-y-3 overflow-y-auto pr-2 flex-1">
+                <div className={`overflow-y-auto flex-1 ${isNativeMobile ? 'space-y-2 pr-1' : 'space-y-3 pr-2'}`}>
                     {researchProjectsForTab.map(({ id, project }) => (
                         <ResearchItemPanel
                             key={id}
@@ -302,6 +346,7 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                             myMemberInfo={myMemberInfo}
                             isResearchingThis={researchInProgressId === id}
                             isAnyResearchActive={!!researchInProgressId}
+                            isNativeMobile={isNativeMobile}
                         />
                     ))}
                 </div>

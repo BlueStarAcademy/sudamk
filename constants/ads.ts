@@ -23,6 +23,17 @@ export const NATIVE_MOBILE_MODAL_MAX_WIDTH_VW = 95;
 export const NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH = 80;
 
 /**
+ * 광고 루트에 부여하는 data 속성.
+ * `DraggableWindow` 등 document 레벨 `mousedown` 바깥클릭 닫기 시 이 안의 포인터 이벤트는 무시해,
+ * 전면/배너 닫기·클릭으로 그 아래 결과 모달이 함께 닫히지 않게 한다.
+ */
+export const SUDAMR_AD_UI_SELECTOR = '[data-sudamr-ad-ui]';
+
+export function isInsideSudamrAdUi(target: EventTarget | null): boolean {
+    return target instanceof Element && Boolean(target.closest(SUDAMR_AD_UI_SELECTOR));
+}
+
+/**
  * 네이티브 메인 컨텐츠 논리 설계 폭 — NativeMobileScaledContent 가 scale = min(셸폭/이값, 1) 로 맞춤.
  * 720이면 폰(~360px)에서 scale≈0.5로 글자가 과도하게 작아지므로 480 전후로 두어 가독성을 우선한다.
  */

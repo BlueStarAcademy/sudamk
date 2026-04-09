@@ -4238,6 +4238,14 @@ export const useApp = () => {
                                 const isScanAnimExitToPlaying =
                                     existingForThrottle?.gameStatus === 'scanning_animating' &&
                                     game.gameStatus === 'playing';
+                                // 미사일: moveHistory 길이는 그대로라 쓰로틀에 걸리면 LAUNCH_MISSILE 보드 반영 또는 애니 종료(playing) 전환이 누락되어
+                                // 애니메이션만 재생되고 돌이 원래 칸에 남아 보이는 현상이 난다.
+                                const isMissileSelectToAnimating =
+                                    existingForThrottle?.gameStatus === 'missile_selecting' &&
+                                    game.gameStatus === 'missile_animating';
+                                const isMissileAnimExitToPlaying =
+                                    existingForThrottle?.gameStatus === 'missile_animating' &&
+                                    game.gameStatus === 'playing';
                                 // 주사위/도둑 오버샷(또는 굴림 애니 종료) 후 rolling 단계로 복귀할 때
                                 // moveHistory 변화가 없어도 currentPlayer가 바뀔 수 있으므로 반드시 반영
                                 const isDiceThiefAnimExitToRolling =
@@ -4277,6 +4285,8 @@ export const useApp = () => {
                                     !isDiceThiefAnimExitToRolling &&
                                     !isDiceThiefTurnOwnerChanged &&
                                     !isScanAnimExitToPlaying &&
+                                    !isMissileSelectToAnimating &&
+                                    !isMissileAnimExitToPlaying &&
                                     !disconnectStateChanged &&
                                     now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS
                                 ) {
@@ -4591,12 +4601,16 @@ export const useApp = () => {
                                                 // 일반 상태에서는 서버에서 온 게임 상태 사용
                                                 // 스캔 애니메이션 종료(scanning_animating → playing) 시 보드/수순 반드시 보존
                                                 const wasScanningAnimating = existingGame?.gameStatus === 'scanning_animating';
+                                                const wasMissileAnimatingToPlaying =
+                                                    existingGame?.gameStatus === 'missile_animating' && game.gameStatus === 'playing';
                                                 const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]);
                                                 const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
                                                 const existingBoardValid = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
                                                 const existingMoveHistoryValid = existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0;
-                                                const preserveBoardFromExisting = wasScanningAnimating && (!serverBoardValid && existingBoardValid);
-                                                const preserveMoveHistoryFromExisting = wasScanningAnimating && (!serverMoveHistoryValid && existingMoveHistoryValid);
+                                                const preserveBoardFromExisting =
+                                                    (wasScanningAnimating || wasMissileAnimatingToPlaying) && (!serverBoardValid && existingBoardValid);
+                                                const preserveMoveHistoryFromExisting =
+                                                    (wasScanningAnimating || wasMissileAnimatingToPlaying) && (!serverMoveHistoryValid && existingMoveHistoryValid);
                                                 const finalBoardState = preserveBoardFromExisting ? existingGame.boardState : (serverBoardValid ? game.boardState : (existingGame?.boardState ?? game.boardState));
                                                 const finalMoveHistory = preserveMoveHistoryFromExisting ? existingGame.moveHistory : (serverMoveHistoryValid ? game.moveHistory : (existingGame?.moveHistory ?? game.moveHistory));
                                                 const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
@@ -4769,7 +4783,8 @@ export const useApp = () => {
                                         }
                                         // 스캔 애니메이션 종료(scanning_animating → playing) 시 보드/수순 보존 (대국 복원)
                                         const wasTowerScanningAnimating = existingGame?.gameStatus === 'scanning_animating' && game.gameStatus === 'playing';
-                                        if (wasTowerScanningAnimating && existingGame) {
+                                        const wasTowerMissileAnimating = existingGame?.gameStatus === 'missile_animating' && game.gameStatus === 'playing';
+                                        if ((wasTowerScanningAnimating || wasTowerMissileAnimating) && existingGame) {
                                             const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]);
                                             const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
                                             const existingBoardValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
@@ -4948,7 +4963,9 @@ export const useApp = () => {
                                         // 온라인 히든: 스캔 애니 종료(scanning_animating → playing) 시 서버가 보드/수순을 생략하면 클라 유지
                                         const wasLiveScanningAnimating =
                                             existingGame?.gameStatus === 'scanning_animating' && game.gameStatus === 'playing';
-                                        if (wasLiveScanningAnimating && existingGame) {
+                                        const wasLiveMissileAnimating =
+                                            existingGame?.gameStatus === 'missile_animating' && game.gameStatus === 'playing';
+                                        if ((wasLiveScanningAnimating || wasLiveMissileAnimating) && existingGame) {
                                             const serverBoardValid = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 && game.boardState[0] && Array.isArray(game.boardState[0]);
                                             const serverMoveHistoryValid = game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0;
                                             const existingBoardValid = existingGame.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
@@ -4961,7 +4978,12 @@ export const useApp = () => {
                                             }
                                             const clientRevealed = existingGame.revealedHiddenMoves;
                                             const serverRevealed = game.revealedHiddenMoves;
-                                            if (clientRevealed && typeof clientRevealed === 'object' && (!serverRevealed || Object.keys(serverRevealed).length === 0)) {
+                                            if (
+                                                wasLiveScanningAnimating &&
+                                                clientRevealed &&
+                                                typeof clientRevealed === 'object' &&
+                                                (!serverRevealed || Object.keys(serverRevealed).length === 0)
+                                            ) {
                                                 mergedGame = { ...mergedGame, revealedHiddenMoves: clientRevealed };
                                             }
                                         }

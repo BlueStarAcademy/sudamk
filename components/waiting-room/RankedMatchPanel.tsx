@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
+import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
 import RankedMatchSelectionModal from './RankedMatchSelectionModal.js';
 import { RANKING_TIERS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
@@ -14,6 +15,106 @@ const getTier = (score: number, rank: number, totalGames: number) => {
     return RANKING_TIERS[RANKING_TIERS.length - 1];
 };
 
+const lobbyModesFor = (lobbyType: 'strategic' | 'playful'): GameMode[] =>
+    lobbyType === 'strategic' ? SPECIAL_GAME_MODES.map((m) => m.mode) : PLAYFUL_GAME_MODES.map((m) => m.mode);
+
+/** seasonHistory 한 시즌 객체에서 모드 키 불일치(문자열) 대비 */
+function readTierFromHistorySlice(hist: unknown, mode: GameMode): string | undefined {
+    if (!hist || typeof hist !== 'object') return undefined;
+    const o = hist as Record<string, unknown>;
+    const key = mode as string;
+    const direct = o[key];
+    if (typeof direct === 'string') return direct;
+    for (const k of Object.keys(o)) {
+        if (k === key) {
+            const v = o[k];
+            return typeof v === 'string' ? v : undefined;
+        }
+    }
+    return undefined;
+}
+
+function bestTierInHistoryObject(hist: unknown, lobbyModes: GameMode[]): string | null {
+    const tierOrder = RANKING_TIERS.map((t) => t.name);
+    let bestTier: string | null = null;
+    let bestIndex = tierOrder.length;
+    for (const mode of lobbyModes) {
+        const t = readTierFromHistorySlice(hist, mode);
+        if (!t || t === '미참여' || !tierOrder.includes(t)) continue;
+        const idx = tierOrder.indexOf(t);
+        if (idx < bestIndex) {
+            bestIndex = idx;
+            bestTier = t;
+        }
+    }
+    return bestTier;
+}
+
+/** 모든 시즌 키를 훑어 역대 최고 티어 + 그 시즌 이름(랭킹 캐시와 동일 티어 문자열) */
+function computeAllTimeBestSeasonRecord(
+    seasonHistory: UserWithStatus['seasonHistory'],
+    lobbyModes: GameMode[],
+): { tierName: string; seasonName: string } | null {
+    if (!seasonHistory || typeof seasonHistory !== 'object') return null;
+    const tierOrder = RANKING_TIERS.map((t) => t.name);
+    let best: { tierName: string; seasonName: string; idx: number } | null = null;
+    for (const seasonName of Object.keys(seasonHistory)) {
+        const tier = bestTierInHistoryObject(seasonHistory[seasonName], lobbyModes);
+        if (!tier) continue;
+        const idx = tierOrder.indexOf(tier);
+        const next = { tierName: tier, seasonName, idx };
+        if (!best || idx < best.idx) {
+            best = next;
+        } else if (idx === best.idx && seasonName > best.seasonName) {
+            best = next;
+        }
+    }
+    return best;
+}
+
+function tierMetaByName(name: string | null | undefined) {
+    if (!name) return null;
+    return RANKING_TIERS.find((t) => t.name === name) ?? null;
+}
+
+/** 랭킹 API에 본인이 없을 때(랭킹전 10판 미만 등) stats로 동일 산식 폴백 — rankingCache.calculateSeasonRanking 과 맞춤 */
+function computeSeasonSnapshotFromUserStats(
+    user: UserWithStatus,
+    lobbyType: 'strategic' | 'playful',
+    rankings: RankingEntry[],
+): { score: number; rank: number; totalGames: number; wins: number; losses: number } | null {
+    const gameModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
+    let wins = 0;
+    let losses = 0;
+    let totalScore = 0;
+    let modeCount = 0;
+    for (const { mode } of gameModes) {
+        const st = user.stats?.[mode];
+        if (st) {
+            wins += st.wins ?? 0;
+            losses += st.losses ?? 0;
+            if (st.rankingScore !== undefined) {
+                totalScore += st.rankingScore;
+                modeCount++;
+            }
+        }
+    }
+    const totalGames = wins + losses;
+    if (modeCount === 0 && totalGames === 0) return null;
+
+    const avgScore = modeCount > 0 ? Math.round(totalScore / modeCount) : 1200;
+    const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);
+    const myEntry = rankings.find((r) => r.id === user.id);
+    let rank: number;
+    if (myEntry) {
+        const rankAmongEligible = eligible.findIndex((r) => r.id === user.id) + 1;
+        rank = rankAmongEligible > 0 ? rankAmongEligible : eligible.length + 1;
+    } else {
+        rank = Math.max(eligible.length + 1, 500);
+    }
+    return { score: avgScore, rank, totalGames, wins, losses };
+}
+
 interface RankedMatchPanelProps {
     lobbyType: 'strategic' | 'playful';
     currentUser: UserWithStatus;
@@ -24,6 +125,8 @@ interface RankedMatchPanelProps {
     onMatchingStateChange?: (isMatching: boolean, startTime: number) => void;
     /** 네이티브 대기실: 유저 목록 우측 좁은 열 — 현재/최고 시즌 카드를 세로로만 배치 */
     variant?: 'default' | 'nativeNarrow';
+    /** PC 집계 대기실 좌열: 패널 높이를 본문에 맞춤(남는 세로 공간을 늘리지 않음) */
+    shrinkToContent?: boolean;
 }
 
 const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({ 
@@ -35,6 +138,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     onCancelMatching,
     onMatchingStateChange,
     variant = 'default',
+    shrinkToContent = false,
 }) => {
     const nativeNarrow = variant === 'nativeNarrow';
     const [elapsedTime, setElapsedTime] = useState(0);
@@ -43,19 +147,28 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     const rankingType = lobbyType === 'strategic' ? 'strategic' : 'playful';
     const { rankings } = useRanking(rankingType, undefined, undefined, true);
 
+    const lobbyModes = useMemo(() => lobbyModesFor(lobbyType), [lobbyType]);
+
     const currentSeasonTierAndScore = useMemo(() => {
         const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);
         const myEntry = rankings.find((r) => r.id === currentUser.id);
-        if (!myEntry) return null;
-        const rankAmongEligible = eligible.findIndex((r) => r.id === currentUser.id) + 1;
-        const rank = rankAmongEligible > 0 ? rankAmongEligible : eligible.length + 1;
-        const score = myEntry.score ?? 0;
-        const totalGames = myEntry.totalGames ?? 0;
-        const wins = myEntry.wins ?? 0;
-        const losses = myEntry.losses ?? 0;
-        const tier = getTier(score, rank, totalGames);
-        return { tier, score, rank, totalGames, wins, losses };
-    }, [rankings, currentUser.id]);
+        const fromApi = myEntry
+            ? (() => {
+                  const rankAmongEligible = eligible.findIndex((r) => r.id === currentUser.id) + 1;
+                  const rank = rankAmongEligible > 0 ? rankAmongEligible : eligible.length + 1;
+                  return {
+                      score: myEntry.score ?? 0,
+                      rank,
+                      totalGames: myEntry.totalGames ?? 0,
+                      wins: myEntry.wins ?? 0,
+                      losses: myEntry.losses ?? 0,
+                  };
+              })()
+            : computeSeasonSnapshotFromUserStats(currentUser, lobbyType, rankings);
+        if (!fromApi) return null;
+        const tier = getTier(fromApi.score, fromApi.rank, fromApi.totalGames);
+        return { tier, ...fromApi };
+    }, [rankings, currentUser, lobbyType]);
 
     const isFirstSeason = useMemo(() => {
         const prevSeason = getPreviousSeason();
@@ -64,30 +177,16 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         return !hasPrevData && !currentUser.previousSeasonTier;
     }, [currentUser.seasonHistory, currentUser.previousSeasonTier]);
 
-    const previousBestTier = useMemo(() => {
-        const prevSeason = getPreviousSeason();
-        const history = currentUser.seasonHistory?.[prevSeason.name];
-        if (!history || typeof history !== 'object') {
-            return currentUser.previousSeasonTier ?? null;
+    /** 역대 최고 티어 + 달성 시즌명(시즌 히스토리 전체 스캔, 없으면 서버 previousSeasonTier + 직전 시즌) */
+    const allTimeBestSeason = useMemo(() => {
+        const fromHistory = computeAllTimeBestSeasonRecord(currentUser.seasonHistory, lobbyModes);
+        if (fromHistory) return fromHistory;
+        const pt = currentUser.previousSeasonTier;
+        if (pt && RANKING_TIERS.some((t) => t.name === pt)) {
+            return { tierName: pt, seasonName: getPreviousSeason().name };
         }
-        const lobbyModes = lobbyType === 'strategic'
-            ? SPECIAL_GAME_MODES.map((m) => m.mode)
-            : PLAYFUL_GAME_MODES.map((m) => m.mode);
-        const tierOrder = RANKING_TIERS.map((t) => t.name);
-        let bestTier: string | null = null;
-        let bestIndex = tierOrder.length;
-        for (const mode of lobbyModes) {
-            const t = (history as Record<string, string>)[mode];
-            if (t && tierOrder.includes(t)) {
-                const idx = tierOrder.indexOf(t);
-                if (idx < bestIndex) {
-                    bestIndex = idx;
-                    bestTier = t;
-                }
-            }
-        }
-        return bestTier ?? currentUser.previousSeasonTier ?? null;
-    }, [currentUser.seasonHistory, currentUser.previousSeasonTier, lobbyType]);
+        return null;
+    }, [currentUser.seasonHistory, currentUser.previousSeasonTier, lobbyModes]);
 
     // 매칭 중일 때 경과 시간 업데이트
     useEffect(() => {
@@ -121,14 +220,9 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
             // handleAction은 result 객체를 반환하거나, clientResponse를 포함할 수 있음
             const matchingInfo = result?.matchingInfo || result?.clientResponse?.matchingInfo;
             if (matchingInfo && onMatchingStateChange) {
-                console.log('[RankedMatchPanel] Matching started, updating state:', matchingInfo);
                 onMatchingStateChange(true, matchingInfo.startTime || Date.now());
-            } else {
-                // 매칭 정보가 없으면 현재 시간을 시작 시간으로 사용 (WebSocket 메시지 대기)
-                console.log('[RankedMatchPanel] No matchingInfo in response, using current time');
-                if (onMatchingStateChange) {
-                    onMatchingStateChange(true, Date.now());
-                }
+            } else if (onMatchingStateChange) {
+                onMatchingStateChange(true, Date.now());
             }
         } catch (error) {
             console.error('Failed to start ranked matching:', error);
@@ -150,15 +244,21 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     };
 
     const currentSeasonName = getCurrentSeason().name;
-    /** 최고 시즌이 현재 시즌과 같을 때(첫 시즌이거나 역대 최고가 없을 때) 현재 시즌과 동일한 내용 표시 */
-    const bestSeasonSameAsCurrent = isFirstSeason || !previousBestTier;
+
+    /** 최고 시즌 카드 = 현재 시즌 카드 복제: 첫 시즌·역대 기록 없음·(히스토리상) 현재 시즌 키와 동일할 때만 */
+    const bestSeasonSameAsCurrent = useMemo(() => {
+        if (isFirstSeason) return true;
+        if (!allTimeBestSeason) return true;
+        if (allTimeBestSeason.seasonName === currentSeasonName) return true;
+        return false;
+    }, [isFirstSeason, allTimeBestSeason, currentSeasonName]);
 
     return (
         <>
             <div
-                className={`flex h-full min-h-0 flex-col text-on-panel relative ${
-                    nativeNarrow ? 'overflow-y-auto overflow-x-hidden p-2' : 'overflow-x-auto p-3 sm:p-3.5 lg:p-4'
-                }`}
+                className={`flex min-h-0 flex-col text-on-panel relative ${
+                    shrinkToContent ? 'h-auto flex-none overflow-x-hidden overflow-y-visible' : 'h-full'
+                } ${nativeNarrow ? 'overflow-y-auto overflow-x-hidden p-2' : shrinkToContent ? 'p-3 sm:p-3.5' : 'overflow-x-auto p-3 sm:p-3.5 lg:p-4'}`}
             >
                 {/* 배경 그라데이션 효과 */}
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-blue-900/10 pointer-events-none rounded-lg"></div>
@@ -336,17 +436,35 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                                 <p className="text-xs text-amber-300/70 text-center">첫 시즌 (없음)</p>
                                                 <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 text-center">{currentSeasonName}</p>
                                             </div>
-                                        ) : previousBestTier ? (
+                                        ) : allTimeBestSeason ? (
                                             <>
-                                                <div className="flex-1 flex flex-col justify-center py-2">
-                                                    <div className="flex flex-col items-center gap-1">
-                                                        <p className={`text-sm font-bold ${RANKING_TIERS.find(t => t.name === previousBestTier)?.color ?? 'text-highlight'} drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)]`}>
-                                                            {previousBestTier}
+                                                <div className="flex items-center gap-2 py-1">
+                                                    <div className="relative shrink-0">
+                                                        <img
+                                                            src={
+                                                                tierMetaByName(allTimeBestSeason.tierName)?.icon ??
+                                                                RANKING_TIERS[RANKING_TIERS.length - 1].icon
+                                                            }
+                                                            alt=""
+                                                            className="h-9 w-9 object-contain drop-shadow-[0_2px_8px_rgba(251,191,36,0.45)] sm:h-10 sm:w-10"
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p
+                                                            className={`text-sm font-bold leading-snug break-words ${
+                                                                tierMetaByName(allTimeBestSeason.tierName)?.color ?? 'text-amber-200'
+                                                            } drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
+                                                        >
+                                                            {allTimeBestSeason.tierName}
                                                         </p>
-                                                        <div className="w-10 h-0.5 bg-gradient-to-r from-transparent via-amber-400/50 to-transparent"></div>
+                                                        <p className="mt-0.5 whitespace-nowrap text-[10px] font-semibold text-amber-200/90 sm:text-xs">
+                                                            {allTimeBestSeason.seasonName}
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <p className="text-[10px] sm:text-xs text-amber-300/80 pt-1 border-t border-amber-400/20 text-center">역대 최고 등급</p>
+                                                <p className="border-t border-amber-400/20 pt-1 text-center text-[10px] text-amber-300/80 sm:text-xs">
+                                                    역대 최고 등급
+                                                </p>
                                             </>
                                         ) : (
                                             <div className="flex-1 flex flex-col justify-center py-2">
@@ -360,7 +478,11 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         </div>
                     </>
                 ) : (
-                    <div className="relative z-10 flex flex-col gap-3 flex-1 min-h-0 overflow-hidden">
+                    <div
+                        className={`relative z-10 flex flex-col gap-3 overflow-hidden ${
+                            shrinkToContent ? 'flex-shrink-0' : 'min-h-0 flex-1'
+                        }`}
+                    >
                         <div
                             className={`relative flex-shrink-0 overflow-hidden rounded-xl border-2 border-yellow-500/60 bg-gradient-to-br from-yellow-900/50 via-amber-900/40 to-yellow-900/50 shadow-[0_8px_32px_rgba(234,179,8,0.4)] ${
                                 nativeNarrow ? 'p-2' : 'p-4'

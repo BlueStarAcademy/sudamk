@@ -6,6 +6,8 @@ import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import Avatar from './Avatar.js';
 
 const CHAMPIONSHIP_TOP = 100;
+const MOBILE_RANK_ROW_CLASS = 'min-h-[2.75rem]';
+const MOBILE_RANK_TEXT_CLASS = 'text-[11px]';
 /** 첫 화면에 약 6명 분량이 보이도록 행 높이와 맞춘 초기 로드 개수 */
 const INITIAL_DISPLAY = 6;
 const LOAD_MORE = 8;
@@ -35,12 +37,12 @@ const CompactRankRow: React.FC<{
     const accent = compactRankAccent(r, isCurrentUser, Boolean(dense), lobbyNativeMobile);
     return (
         <div
-            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : 'p-1'} ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
+            className={`flex items-center rounded-md ${dense ? 'px-0.5 py-0' : lobbyNativeMobile ? 'px-1.5 py-0.5' : 'p-1'} ${lobbyNativeMobile ? MOBILE_RANK_ROW_CLASS : ''} ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
             onClick={!isCurrentUser && onViewUser ? () => onViewUser(entry.id) : undefined}
             title={!isCurrentUser ? `${entry.nickname} 프로필 보기` : ''}
         >
             <span
-                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? 'w-8 text-[11px]' : 'w-8 text-xs'} ${
+                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? `w-8 ${MOBILE_RANK_TEXT_CLASS}` : 'w-8 text-xs'} ${
                     !dense && r === 1
                         ? 'text-amber-300'
                         : !dense && r === 2
@@ -52,14 +54,14 @@ const CompactRankRow: React.FC<{
             >
                 {entry.rank === 0 ? '-' : entry.rank}
             </span>
-            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : lobbyNativeMobile ? 30 : 28} />
+            <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : lobbyNativeMobile ? 34 : 28} />
             <span
-                className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : lobbyNativeMobile ? 'ml-1 text-[11px]' : 'ml-1.5 text-xs'}`}
+                className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : lobbyNativeMobile ? `ml-1.5 ${MOBILE_RANK_TEXT_CLASS}` : 'ml-1.5 text-xs'}`}
             >
                 {entry.nickname}
             </span>
             <span
-                className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : lobbyNativeMobile ? 'w-[3.25rem] text-[11px]' : 'w-16 text-xs'}`}
+                className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : lobbyNativeMobile ? `w-[4.25rem] ${MOBILE_RANK_TEXT_CLASS}` : 'w-16 text-xs'}`}
             >
                 {entry.score.toLocaleString()}
             </span>

@@ -58,49 +58,66 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild, comp
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
             <div className="relative z-10 flex h-full flex-col">
                 {isEditingProfile && (
-                    <DraggableWindow title="길드 정보 수정" onClose={() => setIsEditingProfile(false)} windowId={`guild-profile-edit-${guild.id}`}>
-                        <div className="space-y-4 p-2">
+                    <DraggableWindow
+                        title="길드 정보 수정"
+                        onClose={() => setIsEditingProfile(false)}
+                        windowId={`guild-profile-edit-${guild.id}`}
+                        initialWidth={compact ? 360 : 520}
+                        initialHeight={compact ? 480 : 540}
+                        mobileViewportFit={compact}
+                        mobileViewportMaxHeightVh={92}
+                        mobileViewportMaxHeightCss={compact ? '92dvh' : undefined}
+                        bodyPaddingClassName={compact ? 'p-2' : 'p-3'}
+                    >
+                        <div className={`flex min-h-0 flex-col ${compact ? 'gap-2 p-1' : 'gap-4 p-2'}`}>
                             <div>
-                                <label className="block mb-2 text-sm font-semibold text-highlight">길드 소개</label>
-                                <textarea value={description} onChange={e => setDescription(e.target.value)} maxLength={100} className="w-full bg-gradient-to-br from-stone-800/90 to-neutral-700/90 p-3 rounded-lg border-2 border-stone-600/50 h-24 text-primary focus:border-cyan-500/60 focus:outline-none transition-all shadow-inner backdrop-blur-sm" />
+                                <label className={`block font-semibold text-highlight ${compact ? 'mb-1 text-xs' : 'mb-2 text-sm'}`}>길드 소개</label>
+                                <textarea
+                                    value={description}
+                                    onChange={e => setDescription(e.target.value)}
+                                    maxLength={100}
+                                    className={`w-full rounded-lg border-2 border-stone-600/50 bg-gradient-to-br from-stone-800/90 to-neutral-700/90 text-primary transition-all shadow-inner backdrop-blur-sm focus:border-cyan-500/60 focus:outline-none ${
+                                        compact ? 'h-20 p-2 text-xs leading-snug' : 'h-24 p-3 text-sm'
+                                    }`}
+                                />
                             </div>
-                            <div className="flex items-center justify-between p-3 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 rounded-lg border border-stone-600/40">
-                                <label className="text-sm font-semibold text-highlight">공개 설정</label>
+                            <div className={`flex items-center justify-between rounded-lg border border-stone-600/40 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 ${compact ? 'p-2' : 'p-3'}`}>
+                                <label className={`font-semibold text-highlight ${compact ? 'text-xs' : 'text-sm'}`}>공개 설정</label>
                                 <ToggleSwitch checked={!!isPublic} onChange={setIsPublic} />
                             </div>
-                            <div className="p-3 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 rounded-lg border border-stone-600/40">
-                                <label className="block mb-2 text-sm font-semibold text-highlight">가입 방식</label>
-                                <div className="flex gap-3">
+                            <div className={`rounded-lg border border-stone-600/40 bg-gradient-to-r from-stone-800/60 to-neutral-700/60 ${compact ? 'p-2' : 'p-3'}`}>
+                                <label className={`block font-semibold text-highlight ${compact ? 'mb-1 text-xs' : 'mb-2 text-sm'}`}>가입 방식</label>
+                                <div className={`flex ${compact ? 'gap-2' : 'gap-3'}`}>
                                     <button
                                         onClick={() => setJoinType('application')}
-                                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+                                        className={`flex-1 rounded-lg font-semibold transition-all ${
                                             joinType === 'application'
                                                 ? 'bg-gradient-to-r from-purple-600/90 to-indigo-600/90 text-white shadow-lg'
                                                 : 'bg-stone-700/50 text-tertiary hover:bg-stone-700/70'
-                                        }`}
+                                        } ${compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
                                     >
                                         신청가입
                                     </button>
                                     <button
                                         onClick={() => setJoinType('free')}
-                                        className={`flex-1 py-2 px-3 rounded-lg text-sm font-semibold transition-all ${
+                                        className={`flex-1 rounded-lg font-semibold transition-all ${
                                             joinType === 'free'
                                                 ? 'bg-gradient-to-r from-green-600/90 to-emerald-600/90 text-white shadow-lg'
                                                 : 'bg-stone-700/50 text-tertiary hover:bg-stone-700/70'
-                                        }`}
+                                        } ${compact ? 'px-2 py-1.5 text-xs' : 'px-3 py-2 text-sm'}`}
                                     >
                                         자유가입
                                     </button>
                                 </div>
-                                <p className="text-xs text-tertiary mt-2">
+                                <p className={`text-tertiary ${compact ? 'mt-1 text-[10px] leading-tight' : 'mt-2 text-xs'}`}>
                                     {joinType === 'application' 
                                         ? '길드장 또는 부길드장이 승인해야 가입됩니다.'
                                         : '빈자리가 있으면 자동으로 가입됩니다.'}
                                 </p>
                             </div>
-                            <div className="flex justify-end gap-3 pt-3 border-t border-stone-600/50">
-                                <Button onClick={() => setIsEditingProfile(false)} className="border-2 border-stone-500/50 bg-gradient-to-r from-stone-700/90 to-neutral-700/90 text-white shadow-lg hover:shadow-xl transition-all">취소</Button>
-                                <Button onClick={handleSaveProfile} className="border-2 border-green-500/50 bg-gradient-to-r from-green-600/90 to-emerald-600/90 text-white shadow-lg hover:shadow-xl transition-all">저장</Button>
+                            <div className={`flex justify-end border-t border-stone-600/50 ${compact ? 'gap-2 pt-2' : 'gap-3 pt-3'}`}>
+                                <Button onClick={() => setIsEditingProfile(false)} className={`border-2 border-stone-500/50 bg-gradient-to-r from-stone-700/90 to-neutral-700/90 text-white shadow-lg transition-all hover:shadow-xl ${compact ? '!px-3 !py-1.5 !text-xs' : ''}`}>취소</Button>
+                                <Button onClick={handleSaveProfile} className={`border-2 border-green-500/50 bg-gradient-to-r from-green-600/90 to-emerald-600/90 text-white shadow-lg transition-all hover:shadow-xl ${compact ? '!px-3 !py-1.5 !text-xs' : ''}`}>저장</Button>
                             </div>
                         </div>
                     </DraggableWindow>

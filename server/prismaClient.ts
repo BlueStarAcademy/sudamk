@@ -145,46 +145,74 @@ const getDatabaseUrl = () => {
   }
   
   // 연결 풀링 파라미터 추가 (Railway 환경 최적화)
-  // Railway Postgres 연결 안정성을 위한 설정
-  // connection_limit: Railway의 연결 제한을 고려하여 낮게 설정 (연결 끊김 방지)
-  // pool_timeout: 연결 대기 시간
-  // connect_timeout: 연결 타임아웃
-  // statement_cache_size: 쿼리 캐시 크기
-  // pgbouncer_mode: transaction 모드로 설정하여 연결 재사용 최적화
+  // connection_limit: Postgres max_connections / (앱 프로세스 수 + 스크립트) — 너무 크면 "too many clients" 발생
+  // pool_timeout / connect_timeout / statement_cache_size: 안정성
   const separator = url.includes('?') ? '&' : '?';
-  // Railway DB 연결 최적화
-  // Railway Postgres는 연결 수 제한이 있으므로 보수적으로 설정
-  // 연결이 끊어지는 문제를 방지하기 위해 connection_limit을 낮춤
-  const connectionLimit = isRailway ? '20' : '50'; // Railway: 20개 (연결 끊김 방지), 로컬: 50개
-  const poolTimeout = isRailway ? '30' : '20'; // Railway: 30초, 로컬: 20초
-  const connectTimeout = isRailway ? '10' : '5'; // Railway: 10초, 로컬: 5초
-  const statementCacheSize = '250'; // 쿼리 캐시 크기
-  // Railway 내부 네트워크에서 연결이 끊어지는 것을 방지하기 위한 설정
+  const envLimit = process.env.PRISMA_CONNECTION_LIMIT || process.env.DATABASE_CONNECTION_LIMIT;
+  const parsedEnv = envLimit != null && envLimit !== '' ? parseInt(envLimit, 10) : NaN;
+  const defaultLimit = isRailway ? 5 : 15; // Railway(원격 DB): 프로세스당 5권장. 로컬 전용 Postgres만 높게.
+  const connectionLimitNum =
+    Number.isFinite(parsedEnv) && parsedEnv > 0 ? Math.min(parsedEnv, 100) : defaultLimit;
+  const connectionLimit = String(connectionLimitNum);
+  const poolTimeout = isRailway ? '30' : '20';
+  const connectTimeout = isRailway ? '10' : '5';
+  const statementCacheSize = '250';
   return `${url}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}&connect_timeout=${connectTimeout}&statement_cache_size=${statementCacheSize}`;
 };
 
 const _databaseUrl = getDatabaseUrl();
-const prisma = new PrismaClient({
-  // error는 이벤트로만 받아 "Engine is not yet connected" 스팸 억제
-  log: [
-    { level: 'error', emit: 'event' },
-    ...(process.env.NODE_ENV === 'development' ? [{ level: 'warn', emit: 'stdout' }] : []),
-  ],
-  datasources: {
-    db: {
-      url: _databaseUrl,
+
+type SudamrPrismaGlobal = typeof globalThis & {
+  __SUDAMR_PRISMA__?: InstanceType<typeof PrismaClient>;
+  __SUDAMR_PRISMA_SETUP__?: boolean;
+  __SUDAMR_PRISMA_BG_TASKS__?: boolean;
+};
+
+const sudamrG = globalThis as SudamrPrismaGlobal;
+
+const prisma: InstanceType<typeof PrismaClient> =
+  sudamrG.__SUDAMR_PRISMA__ ??
+  new PrismaClient({
+    // error는 이벤트로만 받아 "Engine is not yet connected" 스팸 억제
+    log: [
+      { level: 'error', emit: 'event' },
+      ...(process.env.NODE_ENV === 'development' ? [{ level: 'warn', emit: 'stdout' }] : []),
+    ],
+    datasources: {
+      db: {
+        url: _databaseUrl,
+      },
     },
-  },
-});
+  });
+
+if (!sudamrG.__SUDAMR_PRISMA__) {
+  sudamrG.__SUDAMR_PRISMA__ = prisma;
+}
 
 const ENGINE_NOT_CONNECTED_MSG = 'Engine is not yet connected';
 
-// 연결 오류 처리 (Engine is not yet connected 반복 로그 억제)
-prisma.$on('error' as never, (e: any) => {
-  const msg = typeof e?.message === 'string' ? e.message : String(e?.message ?? e);
-  if (msg.includes(ENGINE_NOT_CONNECTED_MSG)) return;
-  console.error('[Prisma] Database error:', e);
-});
+// tsx watch / 중복 import 시 리스너·interval·beforeExit 중복 등록 방지
+if (!sudamrG.__SUDAMR_PRISMA_SETUP__) {
+  sudamrG.__SUDAMR_PRISMA_SETUP__ = true;
+
+  const poolHint = _databaseUrl?.match(/connection_limit=(\d+)/);
+  console.log(
+    `[Prisma] Client ready (process pid=${process.pid}, pool connection_limit=${poolHint?.[1] ?? 'see DATABASE_URL'})` +
+      `. Set PRISMA_CONNECTION_LIMIT if you hit "too many clients".`
+  );
+
+  // 연결 오류 처리 (Engine is not yet connected 반복 로그 억제)
+  prisma.$on('error' as never, (e: any) => {
+    const msg = typeof e?.message === 'string' ? e.message : String(e?.message ?? e);
+    if (msg.includes(ENGINE_NOT_CONNECTED_MSG)) return;
+    console.error('[Prisma] Database error:', e);
+    if (msg.includes('too many clients')) {
+      console.error(
+        '[Prisma] Postgres connection slots are full. Stop extra `npm start` / `npx tsx` processes using the same DATABASE_URL, or set a lower PRISMA_CONNECTION_LIMIT.'
+      );
+    }
+  });
+}
 
 // 연결 끊김 시 재연결 시도
 let isReconnecting = false;
@@ -296,66 +324,67 @@ export const ensurePrismaConnected = async (): Promise<boolean> => {
   }
 };
 
-// DATABASE_URL이 있을 때만 주기적으로 연결 상태 확인 (없으면 쿼리 시 Prisma 에러 반복 방지)
-const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
-const connectionCheckInterval = isRailway ? 10000 : 15000; // Railway: 10초, 로컬: 15초
+// DATABASE_URL이 있을 때만 주기적으로 연결 상태 확인 (reconnectPrisma 정의 이후, tsx watch 시 중복 등록 방지)
+if (!sudamrG.__SUDAMR_PRISMA_BG_TASKS__) {
+  sudamrG.__SUDAMR_PRISMA_BG_TASKS__ = true;
 
-if (_databaseUrl) {
-  // 부팅·초기화와 겹치면 SELECT 1이 느려질 수 있음 — 즉시 주기 실행 시 race timeout이 $disconnect를 유발하지 않도록 지연 시작
-  const healthCheckStartupDelayMs = isRailway ? 25_000 : 12_000;
-  const healthCheckQueryTimeoutMs = isRailway ? 12_000 : 6_000;
+  const isRailway = process.env.RAILWAY_ENVIRONMENT || process.env.DATABASE_URL?.includes('railway');
+  const connectionCheckInterval = isRailway ? 10000 : 15000;
 
-  const runConnectionHealthCheck = async () => {
-    try {
-      await Promise.race([
-        prisma.$queryRaw`SELECT 1`,
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(PRISMA_HEALTH_CHECK_RACE_TIMEOUT)), healthCheckQueryTimeoutMs)
-        ),
-      ]);
-      if (consecutiveConnectionFailures > 0) {
-        consecutiveConnectionFailures = 0;
-      }
-    } catch (error: any) {
-      // 느린 쿼리/부하: 실제 끊김이 아님 — 절대 reconnect(=disconnect)하지 않음
-      if (error?.message === PRISMA_HEALTH_CHECK_RACE_TIMEOUT) {
-        return;
-      }
-      if (error.message?.includes?.('Engine is not yet connected')) {
-        return;
-      }
-      const isConnectionError =
-        error.code === 'P1017' ||
-        error.code === 'P1001' ||
-        error.code === 'P1008' ||
-        error.code === 'P2024' ||
-        error.message?.includes('closed the connection') ||
-        error.message?.includes("Can't reach database server") ||
-        error.kind === 'Closed';
+  if (_databaseUrl) {
+    const healthCheckStartupDelayMs = isRailway ? 25_000 : 12_000;
+    const healthCheckQueryTimeoutMs = isRailway ? 12_000 : 6_000;
 
-      if (isConnectionError) {
-        console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
-        const reconnected = await reconnectPrisma();
-        if (!reconnected && consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
-          console.error('[Prisma] CRITICAL: Too many reconnection failures. Exiting for Railway restart.');
-          process.stderr.write('[CRITICAL] Database connection lost - exiting for restart\n');
-          setTimeout(() => {
-            process.exit(1);
-          }, 5000);
+    const runConnectionHealthCheck = async () => {
+      try {
+        await Promise.race([
+          prisma.$queryRaw`SELECT 1`,
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(PRISMA_HEALTH_CHECK_RACE_TIMEOUT)), healthCheckQueryTimeoutMs)
+          ),
+        ]);
+        if (consecutiveConnectionFailures > 0) {
+          consecutiveConnectionFailures = 0;
+        }
+      } catch (error: any) {
+        if (error?.message === PRISMA_HEALTH_CHECK_RACE_TIMEOUT) {
+          return;
+        }
+        if (error.message?.includes?.('Engine is not yet connected')) {
+          return;
+        }
+        const isConnectionError =
+          error.code === 'P1017' ||
+          error.code === 'P1001' ||
+          error.code === 'P1008' ||
+          error.code === 'P2024' ||
+          error.message?.includes('closed the connection') ||
+          error.message?.includes("Can't reach database server") ||
+          error.kind === 'Closed';
+
+        if (isConnectionError) {
+          console.warn('[Prisma] Connection lost or timeout, attempting to reconnect...');
+          const reconnected = await reconnectPrisma();
+          if (!reconnected && consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
+            console.error('[Prisma] CRITICAL: Too many reconnection failures. Exiting for Railway restart.');
+            process.stderr.write('[CRITICAL] Database connection lost - exiting for restart\n');
+            setTimeout(() => {
+              process.exit(1);
+            }, 5000);
+          }
         }
       }
-    }
-  };
+    };
 
-  setTimeout(() => {
-    setInterval(runConnectionHealthCheck, connectionCheckInterval);
-  }, healthCheckStartupDelayMs);
+    setTimeout(() => {
+      setInterval(runConnectionHealthCheck, connectionCheckInterval);
+    }, healthCheckStartupDelayMs);
+  }
+
+  process.on('beforeExit', async () => {
+    await prisma.$disconnect();
+  });
 }
-
-// 프로세스 종료 시 정리
-process.on('beforeExit', async () => {
-  await prisma.$disconnect();
-});
 
 export default prisma;
 

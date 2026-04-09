@@ -3,6 +3,7 @@ import { Guild as GuildType, GuildMember, GuildMemberRole } from '../../types/in
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import Avatar from '../Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, GUILD_INITIAL_MEMBER_LIMIT, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 import { formatLastSeenGuild } from '../../utils/timeUtils.js';
@@ -37,10 +38,12 @@ const MemberManagementModal: React.FC<{
     onTransfer: () => void;
     onClose: () => void;
 }> = ({ member, memberDisplayName, roleLabel, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
+    const isMobileShell = useNativeMobileShell();
     const canPromoteToVice = isMaster && member.role === GuildMemberRole.Member;
     const canDemote = isMaster && member.role === GuildMemberRole.Vice;
     const canKick = (isMaster && member.role !== GuildMemberRole.Master) || (isVice && member.role === GuildMemberRole.Member);
     const canTransfer = isMaster && member.role !== GuildMemberRole.Master;
+    const actionButtonClass = `flex w-full ${isMobileShell ? 'max-w-[320px]' : 'max-w-[360px]'} items-center justify-center text-center !min-h-[40px] sm:!min-h-[46px] whitespace-normal break-words !rounded-xl !px-3 !py-2.5 sm:!py-3 !text-sm !font-bold text-white leading-tight transition-all hover:brightness-110`;
     const roleBadgeClass =
         member.role === 'leader'
             ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
@@ -53,34 +56,49 @@ const MemberManagementModal: React.FC<{
             title="길드원 관리"
             windowId="guild-member-management-modal"
             onClose={onClose}
-            initialWidth={400}
-            initialHeight={520}
+            initialWidth={isMobileShell ? 400 : 460}
+            initialHeight={isMobileShell ? 520 : 560}
             modal={true}
             closeOnOutsideClick={true}
         >
-            <div className="flex flex-col min-h-0 flex-1 overflow-y-auto">
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto rounded-b-[inherit] bg-gradient-to-b from-[#171923] via-[#11131a] to-[#0a0b10] p-3">
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300/35 to-transparent" aria-hidden />
+                <div className="pointer-events-none absolute -left-16 top-6 h-28 w-28 rounded-full bg-cyan-500/10 blur-2xl" aria-hidden />
+                <div className="pointer-events-none absolute -right-16 bottom-10 h-28 w-28 rounded-full bg-amber-500/10 blur-2xl" aria-hidden />
                 {/* 대상 멤버 헤더 */}
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-stone-800/60 border border-stone-600/40 mb-4">
+                <div className="relative mb-3 flex shrink-0 items-center gap-3 overflow-hidden rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-slate-800/80 via-slate-900/75 to-black/85 p-3 shadow-[0_18px_44px_-26px_rgba(34,211,238,0.6)] ring-1 ring-white/[0.04]">
+                    <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-amber-500/10" aria-hidden />
                     <Avatar userId={member.userId} userName={memberDisplayName} size={52} />
                     <div className="flex-1 min-w-0">
-                        <p className="font-bold text-lg text-white truncate" title={memberDisplayName}>{memberDisplayName}</p>
+                        <p className="truncate text-lg font-bold text-white drop-shadow-sm" title={memberDisplayName}>{memberDisplayName}</p>
                         <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${roleBadgeClass}`}>
                             {roleLabel}
                         </span>
                     </div>
                 </div>
 
-                {/* 안내 문구 */}
-                <p className="text-stone-400 text-sm mb-4 px-0.5">
-                    아래 작업 중 선택하세요. 내용이 길어도 모두 표시됩니다.
-                </p>
+                {/* 선택 길드원 요약 정보 */}
+                <div className="mb-3 grid shrink-0 grid-cols-3 gap-1.5 rounded-xl border border-white/10 bg-black/25 p-1.5">
+                    <div className="rounded-lg border border-amber-300/20 bg-amber-500/10 px-1.5 py-1 text-center">
+                        <p className="text-[10px] text-amber-200/85">누적 기여도</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-amber-100">{member.contributionTotal || 0}</p>
+                    </div>
+                    <div className="rounded-lg border border-cyan-300/20 bg-cyan-500/10 px-1.5 py-1 text-center">
+                        <p className="text-[10px] text-cyan-200/85">주간 기여도</p>
+                        <p className="mt-0.5 text-sm font-semibold tabular-nums text-cyan-100">{member.weeklyContribution || 0}</p>
+                    </div>
+                    <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/10 px-1.5 py-1 text-center">
+                        <p className="text-[10px] text-emerald-200/85">최근 접속</p>
+                        <p className="mt-0.5 text-[11px] font-semibold text-emerald-100">{formatLastSeenGuild(member.lastLoginAt)}</p>
+                    </div>
+                </div>
 
                 {/* 작업 버튼 영역 - 내용 잘림 방지 */}
-                <div className="flex flex-col gap-3 flex-1 min-h-0">
+                <div className="flex min-h-0 flex-1 flex-col items-center gap-2 overflow-y-auto pb-1">
                     {canPromoteToVice && (
                         <Button
                             onClick={onPromote}
-                            className="w-full !text-sm !py-3 !min-h-[44px] border border-blue-500/50 bg-gradient-to-r from-blue-600/90 to-indigo-600/90 text-white shadow-lg hover:shadow-xl hover:from-blue-500/95 hover:to-indigo-500/95 transition-all whitespace-normal break-words"
+                            className={`${actionButtonClass} !border !border-sky-400/55 !bg-gradient-to-r !from-sky-500/92 !via-blue-600/92 !to-indigo-700/92 shadow-[0_16px_36px_-20px_rgba(56,189,248,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(96,165,250,0.82)]`}
                         >
                             부길드장 임명
                         </Button>
@@ -88,7 +106,7 @@ const MemberManagementModal: React.FC<{
                     {canDemote && (
                         <Button
                             onClick={onDemote}
-                            className="w-full !text-sm !py-3 !min-h-[44px] border border-yellow-500/50 bg-gradient-to-r from-yellow-600/90 to-amber-600/90 text-white shadow-lg hover:shadow-xl hover:from-yellow-500/95 hover:to-amber-500/95 transition-all whitespace-normal break-words"
+                            className={`${actionButtonClass} !border !border-amber-400/60 !bg-gradient-to-r !from-amber-500/92 !via-yellow-600/92 !to-orange-600/92 shadow-[0_16px_36px_-20px_rgba(251,191,36,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(251,191,36,0.82)]`}
                         >
                             부길드장 해임
                         </Button>
@@ -96,7 +114,7 @@ const MemberManagementModal: React.FC<{
                     {canTransfer && (
                         <Button
                             onClick={onTransfer}
-                            className="w-full !text-sm !py-3 !min-h-[44px] border border-orange-500/50 bg-gradient-to-r from-orange-600/90 to-red-600/90 text-white shadow-lg hover:shadow-xl hover:from-orange-500/95 hover:to-red-500/95 transition-all whitespace-normal break-words"
+                            className={`${actionButtonClass} !border !border-orange-400/60 !bg-gradient-to-r !from-orange-500/92 !via-orange-600/92 !to-rose-700/92 shadow-[0_16px_36px_-20px_rgba(251,146,60,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(251,146,60,0.82)]`}
                         >
                             길드장 위임
                         </Button>
@@ -104,21 +122,11 @@ const MemberManagementModal: React.FC<{
                     {canKick && (
                         <Button
                             onClick={onKick}
-                            className="w-full !text-sm !py-3 !min-h-[44px] border border-red-500/50 bg-gradient-to-r from-red-600/90 to-rose-600/90 text-white shadow-lg hover:shadow-xl hover:from-red-500/95 hover:to-rose-500/95 transition-all whitespace-normal break-words"
+                            className={`${actionButtonClass} !border !border-red-400/60 !bg-gradient-to-r !from-red-500/92 !via-red-600/92 !to-rose-700/92 shadow-[0_16px_36px_-20px_rgba(248,113,113,0.75)] hover:shadow-[0_20px_42px_-18px_rgba(248,113,113,0.82)]`}
                         >
                             추방
                         </Button>
                     )}
-                </div>
-
-                {/* 닫기 */}
-                <div className="mt-4 pt-4 border-t border-stone-600/50">
-                    <Button
-                        onClick={onClose}
-                        className="w-full !text-sm !py-3 !min-h-[44px] border border-stone-500/50 bg-stone-700/80 hover:bg-stone-600/80 text-stone-200 shadow transition-all"
-                    >
-                        닫기
-                    </Button>
                 </div>
             </div>
         </DraggableWindow>
@@ -387,16 +395,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                             </div>
                         </div>
                     ) : (
-                        <table className={`w-full border-collapse ${compact ? 'table-fixed' : ''}`}>
-                        {compact && (
-                            <colgroup>
-                                <col className="min-w-0" />
-                                <col className="w-[17%]" />
-                                <col className="w-[17%]" />
-                                <col className="w-[22%]" />
-                                {canManage && <col className="w-[14%]" />}
-                            </colgroup>
-                        )}
+                        <table className="w-full border-collapse">
                         <thead className="sticky top-0 z-10">
                             <tr
                                 className={`border-b-2 border-stone-600/50 bg-gradient-to-r from-stone-800/95 via-neutral-700/85 to-stone-800/95 font-bold text-highlight ${
@@ -448,14 +447,14 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                             </div>
                                             <div className="min-w-0 flex-1 overflow-hidden">
                                                 <p
-                                                    className={`flex items-center gap-1.5 truncate font-bold drop-shadow-lg ${
-                                                        compact ? 'text-sm leading-snug' : 'mb-1 gap-2 text-xl'
+                                                    className={`flex items-center gap-1.5 font-bold drop-shadow-lg ${
+                                                        compact ? 'text-[11px] leading-snug' : 'mb-1 gap-2 text-lg'
                                                     }`}
                                                 >
                                                     <span className={`flex-shrink-0 rounded-full ${compact ? 'h-2 w-2' : 'h-2.5 w-2.5'} ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} title={isOnline ? '온라인' : '오프라인'} />
-                                                    <span className="truncate">{memberDisplayName}</span>
+                                                    <span className="whitespace-normal break-words">{memberDisplayName}</span>
                                                 </p>
-                                                <p className={`truncate font-bold ${getRoleColor(member.role)} drop-shadow-md ${compact ? 'text-xs leading-snug' : 'text-sm'}`}>{getRoleName(member.role)}</p>
+                                                <p className={`font-bold ${getRoleColor(member.role)} drop-shadow-md ${compact ? 'text-[10px] leading-snug' : 'text-sm'}`}>{getRoleName(member.role)}</p>
                                             </div>
                                         </div>
                                     </td>
@@ -466,7 +465,9 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                         <p className={`font-bold tabular-nums text-accent drop-shadow-lg ${compact ? 'text-sm leading-tight' : 'text-lg'}`}>{member.contributionTotal || 0}</p>
                                     </td>
                                     <td className={`min-w-0 text-center align-middle ${compact ? 'px-2 py-2' : 'w-28'}`}>
-                                        <p className={`truncate font-semibold ${compact ? 'text-xs leading-snug' : 'text-sm'}`}>{isOnline ? <span className="text-green-400 drop-shadow-lg">온</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}</p>
+                                        <p className={`font-semibold ${compact ? 'text-[10px] leading-snug' : 'text-sm'}`}>
+                                            {isOnline ? <span className="text-green-400 drop-shadow-lg">온라인</span> : <span className="text-tertiary">{formatLastSeenGuild(member.lastLoginAt ?? user?.lastLoginAt)}</span>}
+                                        </p>
                                     </td>
                                     {canManage && (
                                         <td className={`text-center align-middle ${compact ? 'px-2 py-2' : 'w-20'}`} onClick={(e) => e.stopPropagation()}>

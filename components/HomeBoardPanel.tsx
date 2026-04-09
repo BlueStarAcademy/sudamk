@@ -33,6 +33,92 @@ const toStoredTitle = (rawTitle: string, category: BoardCategory): string => {
     return category === 'patch' ? `${PATCH_PREFIX} ${clean}` : clean;
 };
 
+type HomeBoardDraftEditorProps = {
+    editingPost: HomeBoardPost | null;
+    draftTitle: string;
+    setDraftTitle: (v: string) => void;
+    draftContent: string;
+    setDraftContent: (v: string) => void;
+    draftPinned: boolean;
+    setDraftPinned: (v: boolean) => void;
+    draftCategory: BoardCategory;
+    setDraftCategory: (v: BoardCategory) => void;
+    onSave: () => void;
+    onCancel: () => void;
+    /** 공지 모달 상단 인라인: 터치·세로 공간 확보 */
+    layout: 'manage' | 'modalInline';
+};
+
+const HomeBoardDraftEditor: React.FC<HomeBoardDraftEditorProps> = ({
+    editingPost,
+    draftTitle,
+    setDraftTitle,
+    draftContent,
+    setDraftContent,
+    draftPinned,
+    setDraftPinned,
+    draftCategory,
+    setDraftCategory,
+    onSave,
+    onCancel,
+    layout,
+}) => {
+    const inline = layout === 'modalInline';
+    const shell = inline
+        ? 'rounded-lg border border-amber-400/35 bg-black/50 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-3'
+        : 'shrink-0 rounded-lg border border-slate-500/35 bg-slate-900/45 p-3';
+    return (
+        <div className={shell}>
+            <div className={`mb-2 flex items-center justify-between gap-2 ${inline ? 'flex-wrap' : ''}`}>
+                <h4 className={`font-bold ${inline ? 'text-sm text-amber-100 sm:text-base' : 'text-sm'}`}>
+                    {editingPost ? '게시글 수정' : '새 게시글 작성'}
+                </h4>
+                <button
+                    type="button"
+                    className={`shrink-0 rounded border border-slate-500/40 font-semibold text-slate-200 hover:bg-slate-700/35 ${inline ? 'px-2.5 py-1.5 text-xs sm:px-3 sm:text-sm' : 'px-2 py-0.5 text-xs'}`}
+                    onClick={onCancel}
+                >
+                    취소
+                </button>
+            </div>
+            <div className="grid grid-cols-1 gap-2">
+                <select
+                    value={draftCategory}
+                    onChange={(e) => setDraftCategory(e.target.value as BoardCategory)}
+                    className={`rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'px-2 py-2 text-sm' : 'px-2 py-1 text-xs'}`}
+                >
+                    <option value="notice">공지사항</option>
+                    <option value="patch">패치/업데이트</option>
+                </select>
+                <input
+                    type="text"
+                    value={draftTitle}
+                    onChange={(e) => setDraftTitle(e.target.value)}
+                    placeholder="제목"
+                    className={`rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'px-3 py-2.5 text-base sm:text-sm' : 'px-2 py-1.5 text-sm'}`}
+                />
+                <textarea
+                    value={draftContent}
+                    onChange={(e) => setDraftContent(e.target.value)}
+                    placeholder="내용"
+                    className={`resize-y rounded border border-slate-600 bg-slate-800 text-slate-100 ${inline ? 'min-h-[11rem] px-3 py-2.5 text-base leading-relaxed sm:min-h-[9rem] sm:text-sm' : 'h-28 px-2 py-1.5 text-sm'}`}
+                />
+                <label className={`flex items-center gap-2 text-slate-200 ${inline ? 'text-sm' : 'text-xs'}`}>
+                    <input type="checkbox" checked={draftPinned} onChange={(e) => setDraftPinned(e.target.checked)} className="h-4 w-4 shrink-0" />
+                    상단 고정
+                </label>
+                <button
+                    type="button"
+                    className={`rounded-md border border-emerald-400/45 bg-emerald-800/35 font-semibold text-emerald-100 hover:bg-emerald-700/40 ${inline ? 'w-full px-3 py-2.5 text-sm sm:w-auto sm:py-2' : 'px-3 py-1.5 text-xs'}`}
+                    onClick={onSave}
+                >
+                    저장
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false, onAction, fitViewport = false, modalMode = false, onClose }) => {
     const useCompactList = fitViewport && !modalMode;
     const [selectedPost, setSelectedPost] = useState<HomeBoardPost | null>(null);
@@ -293,14 +379,40 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                     >
                         {modalMode ? '공지 게시판' : '홈 게시판'}
                     </h3>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
+                        {isAdmin && onAction && modalMode && (
+                            <>
+                                <button
+                                    type="button"
+                                    className="rounded-md border border-cyan-400/45 bg-cyan-950/40 px-2 py-1 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-900/45 sm:px-2.5 sm:text-xs"
+                                    onClick={() => {
+                                        openCreate('notice');
+                                        setIsManageOpen(false);
+                                    }}
+                                >
+                                    공지 작성
+                                </button>
+                                <button
+                                    type="button"
+                                    className="rounded-md border border-amber-400/45 bg-amber-950/40 px-2 py-1 text-[10px] font-semibold text-amber-100 hover:bg-amber-900/45 sm:px-2.5 sm:text-xs"
+                                    onClick={() => {
+                                        openCreate('patch');
+                                        setIsManageOpen(false);
+                                    }}
+                                >
+                                    패치 작성
+                                </button>
+                            </>
+                        )}
                         {isAdmin && onAction && (
                             <button
                                 type="button"
                                 className={
                                     useCompactList
                                         ? 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-0.5 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35'
-                                        : 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-800/35'
+                                        : modalMode
+                                          ? 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2 py-1 text-[10px] font-semibold text-amber-200 hover:bg-amber-800/35 sm:px-2.5 sm:text-xs'
+                                          : 'rounded-md border border-amber-400/50 bg-amber-900/30 px-2.5 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-800/35'
                                 }
                                 onClick={() => setIsManageOpen(true)}
                             >
@@ -319,6 +431,24 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                         )}
                     </div>
                 </div>
+                {editorOpen && isAdmin && onAction && modalMode && !isManageOpen && (
+                    <div className="shrink-0 border-b border-amber-200/15 px-2 pb-2 pt-1 sm:px-4 sm:pb-3">
+                        <HomeBoardDraftEditor
+                            editingPost={editingPost}
+                            draftTitle={draftTitle}
+                            setDraftTitle={setDraftTitle}
+                            draftContent={draftContent}
+                            setDraftContent={setDraftContent}
+                            draftPinned={draftPinned}
+                            setDraftPinned={setDraftPinned}
+                            draftCategory={draftCategory}
+                            setDraftCategory={setDraftCategory}
+                            onSave={handleSave}
+                            onCancel={closeEditor}
+                            layout="modalInline"
+                        />
+                    </div>
+                )}
                 <div
                     className={
                         useCompactList
@@ -369,7 +499,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
 
             {selectedPost && (useCompactList || modalMode) && (
                 <div
-                    className={`sudamr-modal-overlay z-[280] p-3 ${modalMode ? 'bg-black/50 backdrop-blur-[2px]' : ''}`}
+                    className={`sudamr-modal-overlay z-[280] p-3`}
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="home-board-modal-title"
@@ -469,8 +599,13 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                     initialHeight={680}
                     isTopmost
                     variant="store"
+                    modal
+                    mobileViewportFit
+                    mobileViewportMaxHeightCss="92dvh"
+                    hideFooter
+                    bodyPaddingClassName="!p-3 sm:!p-4"
                 >
-                    <div className="flex h-full min-h-0 flex-col gap-3 text-slate-100">
+                    <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-y-contain text-slate-100">
                         <div className="flex shrink-0 flex-wrap gap-2">
                             <button
                                 type="button"
@@ -489,59 +624,23 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                         </div>
 
                         {editorOpen && (
-                            <div className="shrink-0 rounded-lg border border-slate-500/35 bg-slate-900/45 p-3">
-                                <div className="mb-2 flex items-center justify-between">
-                                    <h4 className="text-sm font-bold">{editingPost ? '게시글 수정' : '새 게시글 작성'}</h4>
-                                    <button
-                                        type="button"
-                                        className="rounded border border-slate-500/40 px-2 py-0.5 text-xs text-slate-200 hover:bg-slate-700/35"
-                                        onClick={closeEditor}
-                                    >
-                                        취소
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-1 gap-2">
-                                    <select
-                                        value={draftCategory}
-                                        onChange={(e) => setDraftCategory(e.target.value as BoardCategory)}
-                                        className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs"
-                                    >
-                                        <option value="notice">공지사항</option>
-                                        <option value="patch">패치/업데이트</option>
-                                    </select>
-                                    <input
-                                        type="text"
-                                        value={draftTitle}
-                                        onChange={(e) => setDraftTitle(e.target.value)}
-                                        placeholder="제목"
-                                        className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-sm"
-                                    />
-                                    <textarea
-                                        value={draftContent}
-                                        onChange={(e) => setDraftContent(e.target.value)}
-                                        placeholder="내용"
-                                        className="h-28 resize-y rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-sm"
-                                    />
-                                    <label className="flex items-center gap-2 text-xs text-slate-200">
-                                        <input
-                                            type="checkbox"
-                                            checked={draftPinned}
-                                            onChange={(e) => setDraftPinned(e.target.checked)}
-                                        />
-                                        상단 고정
-                                    </label>
-                                    <button
-                                        type="button"
-                                        className="rounded-md border border-emerald-400/45 bg-emerald-800/35 px-3 py-1.5 text-xs font-semibold text-emerald-100 hover:bg-emerald-700/40"
-                                        onClick={handleSave}
-                                    >
-                                        저장
-                                    </button>
-                                </div>
-                            </div>
+                            <HomeBoardDraftEditor
+                                editingPost={editingPost}
+                                draftTitle={draftTitle}
+                                setDraftTitle={setDraftTitle}
+                                draftContent={draftContent}
+                                setDraftContent={setDraftContent}
+                                draftPinned={draftPinned}
+                                setDraftPinned={setDraftPinned}
+                                draftCategory={draftCategory}
+                                setDraftCategory={setDraftCategory}
+                                onSave={handleSave}
+                                onCancel={closeEditor}
+                                layout="manage"
+                            />
                         )}
 
-                        <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+                        <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
                             <div className="min-h-0 overflow-hidden rounded-lg border border-cyan-400/25 bg-slate-900/35">
                                 <div className="border-b border-cyan-400/20 px-3 py-2 text-sm font-bold text-cyan-200">
                                     공지사항 ({noticePosts.length})

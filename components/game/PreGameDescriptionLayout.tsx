@@ -2,7 +2,7 @@ import React, { useLayoutEffect, useRef } from 'react';
 import { LiveGameSession, GameMode } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
 import { MatchPlayGuideSection } from '../../utils/matchPlayGuide.js';
-import type { PreGameSummaryFour } from '../../utils/preGameSummaryFour.js';
+import type { PreGameItemSlot, PreGameSummaryFour } from '../../utils/preGameSummaryFour.js';
 
 const SUMMARY_NONE = '없음';
 
@@ -54,7 +54,14 @@ function preGameScoreBoxImage(session: LiveGameSession): string {
 /**
  * 점수 요인·시간 규칙 등: `\n`이 있으면 의도적 여러 줄, 없으면 한 줄 유지(넘치면 글자만 축소).
  */
-export function PreGameSummaryCellBody({ text }: { text: string }) {
+export function PreGameSummaryCellBody({
+  text,
+  density = 'default',
+}: {
+  text: string;
+  /** compact: 시작 전 요약 그리드 등 여백 최소화 */
+  density?: 'default' | 'compact';
+}) {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   const isMultiline = lines.length > 1;
   const singleLine = (lines.length === 1 ? lines[0] : text.trim()) || text;
@@ -70,7 +77,7 @@ export function PreGameSummaryCellBody({ text }: { text: string }) {
       el.style.whiteSpace = 'nowrap';
       el.style.fontSize = '';
       let px = parseFloat(window.getComputedStyle(el).fontSize) || 15;
-      const minPx = 9;
+      const minPx = density === 'compact' ? 8.5 : 9;
       const maxW = parent.clientWidth;
       el.style.fontSize = `${px}px`;
       while (px > minPx && el.scrollWidth > maxW) {
@@ -84,14 +91,16 @@ export function PreGameSummaryCellBody({ text }: { text: string }) {
     const ro = new ResizeObserver(() => fit());
     ro.observe(parent);
     return () => ro.disconnect();
-  }, [singleLine, isMultiline]);
+  }, [singleLine, isMultiline, density]);
 
   const lineClass =
-    'text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]';
+    density === 'compact'
+      ? 'text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm md:text-[0.9rem]'
+      : 'text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]';
 
   if (isMultiline) {
     return (
-      <div className="mt-1 space-y-1">
+      <div className={density === 'compact' ? 'mt-0.5 space-y-0.5' : 'mt-1 space-y-1'}>
         {lines.map((line, i) => (
           <p key={i} className={lineClass}>
             {line}
@@ -102,23 +111,48 @@ export function PreGameSummaryCellBody({ text }: { text: string }) {
   }
 
   return (
-    <p ref={ref} className={`mt-1 ${lineClass} min-w-0 max-w-full`}>
+    <p ref={ref} className={`${density === 'compact' ? 'mt-0.5' : 'mt-1'} ${lineClass} min-w-0 max-w-full`}>
       {singleLine}
     </p>
   );
 }
 
-function preGameItemsBoxImage(summary: PreGameSummaryFour): string {
-  if (summary.items === SUMMARY_NONE) return '/images/simbols/simbol1.png';
-  if (summary.items.includes('미사일')) return '/images/button/missile.png';
-  if (summary.items.includes('히든')) return '/images/button/hidden.png';
-  if (summary.items.includes('스캔')) return '/images/button/scan.png';
-  if (summary.items.includes('주사위')) return '/images/simbols/simbolp1.png';
-  if (summary.items.includes('슬로우') || summary.items.includes('조준')) return '/images/simbols/simbolp5.png';
-  return '/images/icon/Gold.png';
+function preGameItemSlotRingClass(slot: PreGameItemSlot): string {
+  if (slot.key.startsWith('dice-')) {
+    if (slot.key === 'dice-odd') return 'border-amber-400/40 ring-amber-500/25';
+    if (slot.key === 'dice-even') return 'border-sky-400/38 ring-sky-500/22';
+    if (slot.key === 'dice-low') return 'border-emerald-400/35 ring-emerald-500/20';
+    if (slot.key === 'dice-high') return 'border-rose-400/38 ring-rose-500/22';
+  }
+  return 'border-amber-400/28 ring-amber-400/12';
 }
 
-/** 시작 전 모달용 요약: 2×2(승리/패배·점수·시간·아이템) + 특수 규칙 전체 행 */
+function PreGameItemSlotIcon({ slot }: { slot: PreGameItemSlot }) {
+  const ring = preGameItemSlotRingClass(slot);
+  const a11y = slot.title ? `${slot.title} ${slot.count}개` : `수량 ${slot.count}`;
+  return (
+    <div
+      className="relative h-10 w-10 flex-shrink-0 sm:h-11 sm:w-11"
+      title={slot.title ?? undefined}
+      aria-label={a11y}
+      role="img"
+    >
+      <div
+        className={`flex h-full w-full items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ${ring}`}
+      >
+        <img src={slot.img} alt="" aria-hidden className="max-h-full max-w-full object-contain drop-shadow-md" />
+      </div>
+      <span
+        className="pointer-events-none absolute -bottom-0.5 -right-0.5 min-w-[1.15rem] rounded-md border border-amber-500/45 bg-zinc-950/95 px-0.5 py-px text-center text-[0.62rem] font-black leading-none tabular-nums text-amber-100 shadow-[0_2px_8px_rgba(0,0,0,0.65)] sm:text-[0.68rem]"
+        aria-hidden
+      >
+        {slot.count}
+      </span>
+    </div>
+  );
+}
+
+/** 시작 전 모달용 요약: 승리·패배 분리 + 점수·시간 + 아이템(가로 전체) + 특수 규칙 */
 export function PreGameSummaryGrid({
   session,
   summary,
@@ -129,11 +163,17 @@ export function PreGameSummaryGrid({
   /** 모바일 풀폭: 한 줄에 한 카드씩 세로 스택 */
   singleColumn?: boolean;
 }) {
-  const topCells: (
-    | { key: string; title: string; kind: 'win'; winLine: string; loseLine: string }
-    | { key: string; title: string; kind: 'img'; body: string; img: string }
-  )[] = [
-    { key: 'win', title: '승리/패배 조건', kind: 'win', winLine: summary.winGoal, loseLine: summary.loseGoal },
+  const panelShell =
+    'group relative min-w-0 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_12px_36px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/20';
+
+  type TopCell =
+    | { key: string; title: string; kind: 'goal'; goalKind: 'win' | 'lose'; line: string }
+    | { key: string; title: string; kind: 'img'; body: string; img: string; span2?: boolean }
+    | { key: string; title: string; kind: 'itemStrip'; span2?: boolean };
+
+  const topCells: TopCell[] = [
+    { key: 'win', title: '승리 조건', kind: 'goal', goalKind: 'win', line: summary.winGoal },
+    { key: 'lose', title: '패배 조건', kind: 'goal', goalKind: 'lose', line: summary.loseGoal },
     {
       key: 'score',
       title: '점수 요인',
@@ -151,104 +191,127 @@ export function PreGameSummaryGrid({
     {
       key: 'items',
       title: '아이템',
-      kind: 'img',
-      body: summary.items,
-      img: preGameItemsBoxImage(summary),
+      kind: 'itemStrip',
+      span2: true,
     },
   ];
 
+  const gridGap = singleColumn ? 'gap-2' : 'gap-2 sm:gap-2.5';
+
   return (
-    <div className="space-y-3.5">
-      {/*
-        모바일에서도 PC와 동일하게 2×2(승리·점수 / 시간·아이템). 부모 모달의 균일 scale로 한 화면에 맞춤.
-      */}
-      <div
-        className={
-          singleColumn
-            ? 'grid grid-cols-1 gap-3'
-            : 'grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:gap-4'
-        }
-      >
-        {topCells.map((c) =>
-          c.kind === 'win' ? (
-            <div
-              key={c.key}
-              className="group relative flex min-w-0 flex-col gap-2 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-2.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/22 sm:gap-2.5 sm:p-3.5 lg:p-4"
-            >
-              <div
-                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
-                aria-hidden
-              />
-              <div className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 max-[480px]:text-[0.78rem] sm:text-xs sm:tracking-[0.12em] md:text-[0.8rem] lg:text-sm">
-                {c.title}
-              </div>
-              <div className="flex min-w-0 flex-row items-center gap-2 sm:gap-3.5 lg:gap-4">
-                <div className="flex h-[3.25rem] w-[3.25rem] flex-shrink-0 flex-col items-center justify-center gap-0.5 rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 px-0.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[4rem] sm:w-[4rem] sm:gap-1 sm:py-1.5 lg:h-[4.5rem] lg:w-[4.5rem]">
-                  <span
-                    className="select-none text-center text-sm font-black italic leading-none tracking-tight text-amber-200 drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] sm:text-base md:text-lg lg:text-xl"
-                    aria-hidden
-                  >
-                    WIN
-                  </span>
-                  <span
-                    className="select-none text-center text-sm font-black italic leading-none tracking-tight text-rose-200/95 drop-shadow-[0_2px_8px_rgba(0,0,0,0.55)] sm:text-base md:text-lg lg:text-xl"
-                    aria-hidden
-                  >
-                    LOSE
-                  </span>
-                </div>
-                <div className="relative min-w-0 flex-1 space-y-1.5 sm:space-y-1.5 lg:space-y-2">
-                  <p className="text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">
-                    {c.winLine}
-                  </p>
-                  <p className="text-[0.95rem] font-semibold leading-snug text-rose-100/88 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]">
-                    {c.loseLine}
-                  </p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div
-              key={c.key}
-              className="group relative flex min-w-0 items-start gap-2 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-2.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/22 sm:gap-3.5 sm:p-3.5 lg:gap-4 lg:p-4"
-            >
-              <div
-                className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-amber-400/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
-                aria-hidden
-              />
-              <div className="flex h-[3.25rem] w-[3.25rem] flex-shrink-0 items-center justify-center rounded-xl border border-amber-400/30 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:h-[3.85rem] sm:w-[3.85rem] sm:p-1.5 lg:h-[4.35rem] lg:w-[4.35rem]">
-                <img src={c.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]" />
-              </div>
-              <div className="relative min-w-0 flex-1">
-                <div className="text-[0.72rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 max-[480px]:text-[0.78rem] sm:text-xs sm:tracking-[0.12em] md:text-[0.8rem] lg:text-sm">
+    <div className="space-y-2 sm:space-y-2.5">
+      <div className={singleColumn ? `grid grid-cols-1 ${gridGap}` : `grid grid-cols-2 ${gridGap}`}>
+        {topCells.map((c) => {
+          const spanClass = !singleColumn && c.kind === 'img' && c.span2 ? 'col-span-2' : '';
+
+          if (c.kind === 'itemStrip') {
+            return (
+              <div key={c.key} className={`${panelShell} flex flex-col gap-2 p-2 sm:p-2.5 ${spanClass}`}>
+                <div
+                  className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-400/[0.05] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+                  aria-hidden
+                />
+                <div className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-amber-200/88 sm:text-[0.72rem] sm:tracking-[0.1em]">
                   {c.title}
                 </div>
-                <PreGameSummaryCellBody text={c.body} />
+                {summary.itemSlots.length === 0 ? (
+                  <div
+                    className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-10 sm:w-10"
+                    aria-label="아이템 없음"
+                    role="img"
+                  >
+                    <img
+                      src="/images/simbols/simbol1.png"
+                      alt=""
+                      className="max-h-full max-w-full object-contain opacity-70 grayscale"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2 sm:gap-2.5">
+                    {summary.itemSlots.map((slot) => (
+                      <PreGameItemSlotIcon key={slot.key} slot={slot} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          if (c.kind === 'goal') {
+            const isWin = c.goalKind === 'win';
+            return (
+              <div key={c.key} className={`${panelShell} flex flex-col p-2 sm:p-2.5 ${spanClass}`}>
+                <div
+                  className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl transition-opacity duration-200 group-hover:opacity-90 ${
+                    isWin ? 'bg-amber-400/[0.07]' : 'bg-rose-500/[0.06]'
+                  }`}
+                  aria-hidden
+                />
+                <div className="flex min-w-0 items-start gap-2">
+                  <div
+                    className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-10 sm:w-10 ${
+                      isWin ? 'border-amber-400/35' : 'border-rose-400/35'
+                    }`}
+                  >
+                    <span
+                      className={`select-none text-center text-[0.65rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs ${
+                        isWin ? 'text-amber-200' : 'text-rose-200/95'
+                      }`}
+                      aria-hidden
+                    >
+                      {isWin ? 'WIN' : 'LOSE'}
+                    </span>
+                  </div>
+                  <div className="relative min-w-0 flex-1">
+                    <div className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-amber-200/88 sm:text-[0.72rem] sm:tracking-[0.1em]">
+                      {c.title}
+                    </div>
+                    <PreGameSummaryCellBody text={c.line} density="compact" />
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={c.key} className={`${panelShell} flex items-start gap-2 p-2 sm:gap-2.5 sm:p-2.5 ${spanClass}`}>
+              <div
+                className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-400/[0.05] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+                aria-hidden
+              />
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/28 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-10 sm:w-10 sm:p-1">
+                <img src={c.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)]" />
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <div className="text-[0.68rem] font-bold uppercase tracking-[0.08em] text-amber-200/88 sm:text-[0.72rem] sm:tracking-[0.1em]">
+                  {c.title}
+                </div>
+                <PreGameSummaryCellBody text={c.body} density="compact" />
               </div>
             </div>
-          )
-        )}
+          );
+        })}
       </div>
 
-      <div className="group relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] p-3.5 shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12 sm:col-span-2 lg:p-4">
+      <div className={`${panelShell} p-2.5 sm:p-3`}>
         <div
-          className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-violet-500/[0.07] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+          className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-violet-500/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
           aria-hidden
         />
-        <div className="text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs md:text-[0.8rem] lg:text-sm">특수 규칙</div>
+        <div className="text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.7rem]">특수 규칙</div>
         {summary.specialHighlights.length === 0 ? (
-          <p className="mt-2 text-sm font-semibold text-slate-400 sm:text-base lg:text-[1.05rem]">{SUMMARY_NONE}</p>
+          <p className="mt-1.5 text-xs font-semibold text-slate-400 sm:text-sm">{SUMMARY_NONE}</p>
         ) : (
-          <div className="mt-3 flex flex-wrap gap-2.5 sm:gap-3 lg:gap-3.5">
+          <div className="mt-2 flex flex-wrap gap-2 sm:gap-2">
             {summary.specialHighlights.map((row, idx) => (
               <div
                 key={`${row.text}-${idx}`}
-                className="flex min-w-0 max-w-full items-center gap-2.5 rounded-lg border border-amber-500/25 bg-black/35 px-2.5 py-2 ring-1 ring-inset ring-white/[0.05] sm:gap-3 sm:px-3 sm:py-2.5 lg:px-3.5 lg:py-3"
+                className="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-amber-500/22 bg-black/32 px-2 py-1.5 ring-1 ring-inset ring-white/[0.04] sm:gap-2 sm:px-2.5 sm:py-2"
               >
-                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/25 bg-gradient-to-br from-zinc-950/90 to-black/80 p-1 shadow-inner sm:h-12 sm:w-12 lg:h-[3.25rem] lg:w-[3.25rem]">
+                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-10 sm:w-10">
                   <img src={row.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
                 </div>
-                <p className="min-w-0 flex-1 text-sm font-semibold leading-snug text-white/95 sm:text-base lg:text-[1.05rem]">{row.text}</p>
+                <p className="min-w-0 flex-1 text-xs font-semibold leading-snug text-white/95 sm:text-sm">{row.text}</p>
               </div>
             ))}
           </div>
@@ -258,33 +321,51 @@ export function PreGameSummaryGrid({
   );
 }
 
-/** 시작 전 설명 모달 공통: 승리/패배 조건 강조 + 규칙 섹션 + 선택적 특징 아이콘 줄 */
+/** 시작 전 설명 모달 공통: 승리·패배 문구 분리 표시 + 선택 보조 목록 */
 export function PreGameWinGoalCard({
-  primaryText,
+  winLine,
+  loseLine,
   secondaryLines = [],
   size = 'hero',
 }: {
-  primaryText: string;
+  winLine: string;
+  loseLine: string;
   secondaryLines?: string[];
-  /** hero: AI 대국용 큰 제목 / compact: 긴 문장(싱글 스테이지)용 */
+  /** hero: AI 대국용 큰 본문 / compact: 긴 문장용 */
   size?: 'hero' | 'compact';
 }) {
-  const primaryClass =
+  const bodyClass =
     size === 'compact'
-      ? 'mt-2 text-base font-black leading-relaxed text-white sm:text-lg'
-      : 'mt-2 text-xl font-black leading-snug text-white sm:text-2xl';
+      ? 'mt-1.5 text-sm font-bold leading-snug text-white sm:text-base'
+      : 'mt-1.5 text-lg font-black leading-snug text-white sm:text-xl';
+  const loseClass =
+    size === 'compact'
+      ? 'mt-2 text-sm font-bold leading-snug text-rose-100/90 sm:text-base'
+      : 'mt-2 text-lg font-black leading-snug text-rose-100/88 sm:text-xl';
   return (
-    <div className="flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 p-4 shadow-[0_0_40px_-12px_rgba(251,191,36,0.35)]">
-      <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-amber-200/90">
-        <span className="flex h-7 min-w-[2.25rem] flex-col items-center justify-center gap-0.5 rounded-md border border-amber-400/40 bg-black/40 px-1 py-0.5 text-[0.65rem] font-black italic leading-none shadow-inner">
-          <span className="text-amber-100">WIN</span>
-          <span className="text-rose-200/95">LOSE</span>
-        </span>
-        승리/패배 조건
+    <div className="flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 p-3 shadow-[0_0_40px_-12px_rgba(251,191,36,0.35)] sm:p-3.5">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+        <div className="min-w-0 rounded-lg border border-amber-400/30 bg-black/25 p-2 ring-1 ring-inset ring-amber-400/10">
+          <div className="flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-wider text-amber-200/90 sm:text-xs">
+            <span className="flex h-6 min-w-[1.75rem] items-center justify-center rounded border border-amber-400/40 bg-black/40 px-1 text-[0.6rem] font-black italic text-amber-100 shadow-inner">
+              WIN
+            </span>
+            승리 조건
+          </div>
+          <p className={bodyClass}>{winLine}</p>
+        </div>
+        <div className="min-w-0 rounded-lg border border-rose-400/28 bg-black/25 p-2 ring-1 ring-inset ring-rose-400/10">
+          <div className="flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-wider text-rose-200/88 sm:text-xs">
+            <span className="flex h-6 min-w-[1.75rem] items-center justify-center rounded border border-rose-400/40 bg-black/40 px-1 text-[0.6rem] font-black italic text-rose-100 shadow-inner">
+              LOSE
+            </span>
+            패배 조건
+          </div>
+          <p className={loseClass}>{loseLine}</p>
+        </div>
       </div>
-      <p className={primaryClass}>{primaryText}</p>
       {secondaryLines.length > 0 && (
-        <ul className="mt-3 space-y-1.5 border-t border-amber-500/20 pt-3 text-sm leading-relaxed text-amber-100/85">
+        <ul className="mt-2.5 space-y-1 border-t border-amber-500/20 pt-2.5 text-xs leading-relaxed text-amber-100/85 sm:text-sm">
           {secondaryLines.map((line, i) => (
             <li key={i} className="flex gap-2">
               <span className="mt-1.5 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400/90" />

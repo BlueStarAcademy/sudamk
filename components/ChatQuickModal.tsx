@@ -56,15 +56,30 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
             bodyScrollable={false}
         >
             <div className={bodyClass}>
-                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color/50 bg-panel shadow-inner">
-                    <ChatWindow
-                        messages={messages}
-                        mode="global"
-                        onAction={onAction}
-                        onViewUser={onViewUser}
-                        locationPrefix="[홈]"
-                        compactTournamentMobile={isMobile}
+                <div
+                    className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-sky-500/18 bg-gradient-to-br from-slate-900/94 via-slate-950/97 to-[#050608] shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_56px_-24px_rgba(0,0,0,0.82)] ring-1 ring-inset ring-white/[0.05] ${
+                        isMobile ? 'p-2' : 'p-3 sm:p-3.5'
+                    }`}
+                >
+                    <div
+                        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/35 to-transparent"
+                        aria-hidden
                     />
+                    <div
+                        className="pointer-events-none absolute inset-x-8 top-2 h-10 rounded-full bg-sky-400/[0.08] blur-2xl"
+                        aria-hidden
+                    />
+                    <div className="relative z-[1] flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                        <ChatWindow
+                            messages={messages}
+                            mode="global"
+                            onAction={onAction}
+                            onViewUser={onViewUser}
+                            locationPrefix="[홈]"
+                            compactTournamentMobile={isMobile}
+                            arenaPremium
+                        />
+                    </div>
                 </div>
             </div>
         </DraggableWindow>

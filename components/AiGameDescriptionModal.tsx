@@ -14,13 +14,14 @@ import {
   PRE_GAME_MODAL_LAYER_CLASS,
   PRE_GAME_MODAL_FOOTER_CLASS,
   PRE_GAME_MODAL_PRIMARY_BTN_CLASS,
-  PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
 
 interface Props {
   session: LiveGameSession;
   onAction: (action: ServerAction) => void;
+  /** 인게임 「경기방법」: 확인만 표시 */
+  readOnly?: boolean;
   onClose?: () => void;
 }
 
@@ -132,7 +133,7 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
   return rows;
 };
 
-const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
+const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly = false, onClose }) => {
   const { modalLayerUsesDesignPixels } = useAppContext();
   const isHandheld = useIsHandheldDevice(1025);
   const { isNativeMobile } = useNativeMobileShell();
@@ -140,8 +141,18 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
   const isMobileSheet = isHandheld || isNativeMobile;
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
   const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session]);
-  const settingsRows = useMemo(() => getSettingsRows(session), [session]);
+  /** AI 대기실 입장 모달·인게임 경기방법: 설정 표는 생략(요약 그리드만) */
+  const showMatchSettingsTable = !session.isAiGame;
+  const settingsRows = useMemo(
+    () => (showMatchSettingsTable ? getSettingsRows(session) : []),
+    [session, showMatchSettingsTable],
+  );
   const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
+  const sessionBadgeLabel = isGuildWarAi
+    ? '길드 전쟁'
+    : session.isAiGame
+      ? 'AI 대전'
+      : '온라인 대국';
   const shellRef = useRef<HTMLDivElement>(null);
   const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
   /** PC만 균일 scale — 모바일은 width 100% + 내부 스크롤로 잘림·미시청 방지 */
@@ -165,10 +176,6 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
-  };
-
-  const handleLeave = () => {
-    onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } });
   };
 
   const portalTarget =
@@ -221,12 +228,17 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
               {meta?.name ?? session.mode}
             </h2>
             <span className="rounded-full border border-amber-400/45 bg-gradient-to-r from-amber-950/80 to-zinc-900/90 px-2.5 py-1 text-xs font-bold tracking-wide text-amber-100/95 shadow-sm ring-1 ring-amber-500/25 sm:px-3.5 sm:py-1.5 sm:text-sm">
-              {isGuildWarAi ? '길드 전쟁' : 'AI 대전'}
+              {sessionBadgeLabel}
             </span>
           </div>
           <p className="mt-2 text-xs leading-relaxed text-zinc-300 sm:mt-2.5 sm:text-sm md:text-base lg:text-lg">
-            네 가지 요약을 확인한 뒤{' '}
-            <span className="font-semibold text-violet-300">경기 시작</span>을 눌러주세요.
+            {readOnly ? (
+              <>시작 전에 안내된 규칙·설정과 동일합니다. 확인 후 창을 닫아 주세요.</>
+            ) : (
+              <>
+                네 가지 요약을 확인한 뒤 <span className="font-semibold text-violet-300">경기 시작</span>을 눌러주세요.
+              </>
+            )}
           </p>
         </div>
       </div>
@@ -270,29 +282,24 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
     </div>
   );
 
-  const footerBlock = (
-    <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap gap-3 px-4 py-4 sm:gap-4`}>
-      {!isGuildWarAi && (
-        <Button
-          onClick={handleLeave}
-          colorScheme="gray"
-          className={`min-w-0 px-6 py-3 text-base sm:px-8 ${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} ${
-            isMobileSheet ? '!flex-1 basis-0' : '!w-auto shrink-0'
-          }`}
-        >
-          대기실로
-        </Button>
-      )}
+  const footerBlock = readOnly ? (
+    <div className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap justify-center gap-3 px-4 py-4 sm:gap-4`}>
+      <Button
+        onClick={() => onClose?.()}
+        colorScheme="purple"
+        className={`min-w-0 px-8 py-3 text-base sm:px-10 ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} !w-auto shrink-0 !min-w-[10rem]`}
+      >
+        확인
+      </Button>
+    </div>
+  ) : (
+    <div
+      className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap justify-center gap-3 px-4 py-4 sm:gap-4`}
+    >
       <Button
         onClick={handleStart}
         colorScheme="purple"
-        className={`min-w-0 px-6 py-3 text-base sm:px-8 ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} ${
-          isMobileSheet
-            ? isGuildWarAi
-              ? '!w-auto shrink-0 !min-w-[11rem] sm:!min-w-[12rem]'
-              : '!flex-1 basis-0'
-            : '!w-auto shrink-0'
-        }`}
+        className={`min-w-0 px-6 py-3 text-base sm:px-8 ${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} !w-auto shrink-0 !min-w-[11rem] sm:!min-w-[12rem]`}
       >
         경기 시작
       </Button>
@@ -302,7 +309,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction }) => {
   const mainBody = (
     <div className={`${PRE_GAME_MODAL_LAYER_CLASS} px-3 pb-2 pt-3 sm:px-5 sm:pt-5 md:px-6`}>
       <PreGameSummaryGrid session={session} summary={summaryFour} singleColumn={isMobileSheet} />
-      {settingsTableBlock}
+      {showMatchSettingsTable ? settingsTableBlock : null}
     </div>
   );
 

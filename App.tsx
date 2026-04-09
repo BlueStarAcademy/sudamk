@@ -60,6 +60,7 @@ function snapUniformCanvasScale(fitW: number, fitH: number, designW: number, des
 const AppContent: React.FC = () => {
     const {
         currentUser,
+        currentUserWithStatus,
         currentRoute,
         showExitToast,
         serverReconnectNotice,
@@ -233,7 +234,38 @@ const AppContent: React.FC = () => {
     const showLobbySideAds = Boolean(currentUser && !isGameView && !isNativeMobile);
     /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
     const lockPcMainScroll = currentUser && currentRoute.view === 'set-nickname';
-    /** 네이티브 셸 상단 퀵스트립은 프로필 홈/경기장 탭 + 챔피언십 로비/경기장에서 노출 */
+    /** 챔피언십 인게임 경기장: 퀵스트립 없이 본문만 풀 높이 (로비 #/tournament 는 유지) */
+    const championshipVenueType =
+        currentRoute.view === 'tournament' && currentRoute.params?.type
+            ? String(currentRoute.params.type)
+            : null;
+    const isChampionshipDungeonVenueType =
+        championshipVenueType === 'neighborhood' ||
+        championshipVenueType === 'national' ||
+        championshipVenueType === 'world';
+    const hasChampionshipVenueSession = Boolean(
+        currentUserWithStatus &&
+            isChampionshipDungeonVenueType &&
+            ((championshipVenueType === 'neighborhood' && currentUserWithStatus.lastNeighborhoodTournament) ||
+                (championshipVenueType === 'national' && currentUserWithStatus.lastNationalTournament) ||
+                (championshipVenueType === 'world' && currentUserWithStatus.lastWorldTournament)),
+    );
+    let hasPendingChampionshipDungeon = false;
+    if (typeof window !== 'undefined' && championshipVenueType && isChampionshipDungeonVenueType) {
+        try {
+            hasPendingChampionshipDungeon = Boolean(
+                window.sessionStorage.getItem(`pendingDungeon_${championshipVenueType}`),
+            );
+        } catch {
+            hasPendingChampionshipDungeon = false;
+        }
+    }
+    const hideNativeTopQuickStripForChampionshipArena =
+        currentRoute.view === 'tournament' &&
+        Boolean(championshipVenueType) &&
+        (hasChampionshipVenueSession || hasPendingChampionshipDungeon);
+
+    /** 네이티브 셸 상단 퀵스트립은 프로필 홈/경기장, 전략/놀이 대기실, 길드, 챔피언십 로비에서 노출 (인게임 경기장 제외) */
     const showNativeTopQuickStrip =
         Boolean(currentUser) &&
         isNativeMobile &&
@@ -241,7 +273,9 @@ const AppContent: React.FC = () => {
         !hideAppHeader &&
         ((currentRoute.view === 'profile' &&
             ['home', 'arena'].includes(((currentRoute.params?.tab as string | undefined) ?? 'home')) ) ||
-            currentRoute.view === 'tournament');
+            currentRoute.view === 'waiting' ||
+            currentRoute.view === 'guild' ||
+            (currentRoute.view === 'tournament' && !hideNativeTopQuickStripForChampionshipArena));
 
     // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)
     const DESIGN_W = 1920;

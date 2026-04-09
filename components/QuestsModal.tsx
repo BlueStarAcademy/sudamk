@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 
 import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS } from '../constants';
-import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
+import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../constants/ads.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -219,6 +219,7 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
     useEffect(() => {
         if (!bubbleOpen) return;
         const onDocDown = (e: MouseEvent) => {
+            if (isInsideSudamrAdUi(e.target)) return;
             const t = e.target as Node;
             if (titleWrapRef.current?.contains(t)) return;
             if (bubbleRef.current?.contains(t)) return;

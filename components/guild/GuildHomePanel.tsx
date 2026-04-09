@@ -16,7 +16,7 @@ import { containsProfanity } from '../../profanity.js';
 // 고급 버튼 스타일 함수
 const luxuryButtonBase = "relative overflow-hidden whitespace-normal break-keep text-sm px-4 py-2 rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1";
 
-const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'accent' | 'success' | 'green' | 'gray' = 'primary') => {
+export const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'accent' | 'success' | 'green' | 'gray' = 'primary') => {
     const variants: Record<string, string> = {
         primary: `${luxuryButtonBase} border border-cyan-200/40 bg-gradient-to-br from-cyan-500/85 via-sky-500/80 to-indigo-500/80 text-white shadow-[0_18px_34px_-18px_rgba(59,130,246,0.55)] hover:-translate-y-0.5 hover:shadow-[0_24px_40px_-18px_rgba(96,165,250,0.6)]`,
         danger: `${luxuryButtonBase} border border-rose-300/45 bg-gradient-to-br from-rose-600/90 via-red-500/85 to-amber-400/80 text-white shadow-[0_18px_36px_-16px_rgba(248,113,113,0.55)] hover:-translate-y-0.5 hover:shadow-[0_24px_42px_-18px_rgba(248,113,113,0.65)]`,
@@ -29,7 +29,7 @@ const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'acc
     return variants[variant] || variants.primary;
 };
 
-export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => {
+export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.ReactNode }> = ({ guild, leftAction }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
 
@@ -101,14 +101,17 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType }> = ({ guild }) => 
                         <span className="text-base sm:text-xl">📅</span>
                         <span className="whitespace-nowrap">길드 출석부</span>
                     </h3>
-                    <Button 
-                        onClick={handleCheckIn} 
-                        disabled={hasCheckedInToday} 
-                        colorScheme="none"
-                        className={`${hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
-                    >
-                        {hasCheckedInToday ? '출석 완료' : '출석하기'}
-                    </Button>
+                    <div className="flex items-center gap-1.5 sm:gap-2">
+                        {leftAction}
+                        <Button 
+                            onClick={handleCheckIn} 
+                            disabled={hasCheckedInToday} 
+                            colorScheme="none"
+                            className={`${hasCheckedInToday ? getLuxuryButtonClasses('gray') : getLuxuryButtonClasses('green')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
+                        >
+                            {hasCheckedInToday ? '출석 완료' : '출석하기'}
+                        </Button>
+                    </div>
                 </div>
                 <p className="text-xs sm:text-sm text-tertiary mb-2 flex-shrink-0">
                     오늘 출석: <span className="font-bold text-primary text-sm sm:text-base">{todaysCheckIns} / {totalMembers}</span>명

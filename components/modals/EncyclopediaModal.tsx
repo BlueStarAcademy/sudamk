@@ -300,6 +300,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         setItemBubble(null);
     }, [mainTab]);
 
+
     useEffect(() => {
         if (!itemBubble) return;
         const onKey = (e: KeyboardEvent) => {
@@ -361,7 +362,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             type="button"
             key={id}
             onClick={() => setMainTab(id)}
-            className={`relative flex-1 overflow-hidden rounded-lg py-2.5 text-xs font-semibold tracking-wide transition-all duration-300 sm:text-sm ${
+            className={`relative flex-1 overflow-hidden rounded-lg py-1.5 text-[11px] font-semibold tracking-wide transition-all duration-300 sm:py-2 sm:text-sm ${
                 mainTab === id
                     ? 'text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_24px_-4px_rgba(251,191,36,0.35)]'
                     : 'text-slate-400 hover:bg-white/[0.04] hover:text-slate-200'
@@ -395,7 +396,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                             <h4 className="text-sm font-bold tracking-tight text-amber-100 sm:text-base">{slotNames[slot]}</h4>
                             <span className="ml-auto rounded-md bg-black/35 px-2 py-0.5 text-[10px] tabular-nums text-slate-400">{items.length}</span>
                         </div>
-                        <div className="grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(58px,1fr))] sm:gap-2.5">
+                        <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(58px,1fr))] sm:gap-2.5">
                             {items.map((item) => (
                                 <EncyclopediaIconCell
                                     key={encyclopediaItemKey(item)}
@@ -412,7 +413,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     );
 
     const miscIconGridClass =
-        'grid grid-cols-[repeat(auto-fill,minmax(52px,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(58px,1fr))] sm:gap-2.5';
+        'grid grid-cols-4 gap-1.5 sm:grid-cols-[repeat(auto-fill,minmax(58px,1fr))] sm:gap-2.5';
 
     const renderMaterialIconGrid = () => {
         const { tickets, stones, other } = materialItemsByGroup;
@@ -559,22 +560,40 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                 {hasMythic && (
                     <div className={sectionShellClass}>
                         {sectionTitle(`신화 옵션 (랜덤 ${formatCount(rules.mythicCount)}개)`, 'text-rose-200/95')}
-                        <ul className={optGridClass}>
-                            {Object.values(MythicStat).map((stat) => {
-                                const data = MYTHIC_STATS_DATA[stat];
-                                return (
-                                    <li key={stat} className="min-w-0 break-words">
-                                        <span
-                                            className="inline cursor-help border-b border-dotted border-rose-400/35 decoration-rose-400/40 underline-offset-2"
-                                            title={data.description}
-                                        >
-                                            <strong className="text-rose-300">{data.abbrevLabel}</strong>
-                                            <span className="text-rose-200/90"> · {data.shortDescription}</span>
-                                        </span>
-                                    </li>
-                                );
-                            })}
-                        </ul>
+                        {(item.grade === 'mythic' || item.grade === 'transcendent') ? (
+                            <div className="mt-1.5 rounded-lg border border-rose-300/30 bg-rose-500/10 px-2 py-2 text-[10px] leading-snug text-rose-100/95 sm:text-xs">
+                                <p className="break-words">
+                                    {Object.values(MythicStat).map((stat, index) => {
+                                        const label = MYTHIC_STATS_DATA[stat].abbrevLabel;
+                                        return (
+                                            <React.Fragment key={stat}>
+                                                <span className="font-semibold text-rose-300">{label}</span>
+                                                {index < Object.values(MythicStat).length - 1 && (
+                                                    <span className="px-1 text-rose-100/55">/</span>
+                                                )}
+                                            </React.Fragment>
+                                        );
+                                    })}
+                                </p>
+                            </div>
+                        ) : (
+                            <ul className={optGridClass}>
+                                {Object.values(MythicStat).map((stat) => {
+                                    const data = MYTHIC_STATS_DATA[stat];
+                                    return (
+                                        <li key={stat} className="min-w-0 break-words">
+                                            <span
+                                                className="inline cursor-help border-b border-dotted border-rose-400/35 decoration-rose-400/40 underline-offset-2"
+                                                title={data.description}
+                                            >
+                                                <strong className="text-rose-300">{data.abbrevLabel}</strong>
+                                                <span className="text-rose-200/90"> · {data.shortDescription}</span>
+                                            </span>
+                                        </li>
+                                    );
+                                })}
+                            </ul>
+                        )}
                     </div>
                 )}
             </div>

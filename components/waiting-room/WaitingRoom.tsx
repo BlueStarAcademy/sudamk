@@ -1,7 +1,6 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithStatus, LiveGameSession, UserStatus } from '../../types.js';
 import Avatar from '../Avatar.js';
-import HelpModal from '../HelpModal.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 
 // Import newly created sub-components
@@ -17,7 +16,11 @@ import AiChallengeModal from './AiChallengeModal.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
 import MatchFoundModal from './MatchFoundModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
-import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import {
+  waitingLobbyPcCenterColumnClass,
+  waitingLobbyPcPanelShellClass,
+  waitingLobbyPcPanelTopHairlineClassFor,
+} from './waitingLobbyHomePanelStyles.js';
 
 
 interface WaitingRoomComponentProps {
@@ -155,12 +158,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { isNativeMobile } = useNativeMobileShell();
 
   const [isTierInfoModalOpen, setIsTierInfoModalOpen] = useState(false);
-  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
   const [isAiChallengeModalOpen, setIsAiChallengeModalOpen] = useState(false);
+  const [nativeWaitingTab, setNativeWaitingTab] = useState<'users' | 'games' | 'ranked' | 'rankingInfo'>('users');
   const [isRankedMatching, setIsRankedMatching] = useState(false);
   const [rankedMatchingStartTime, setRankedMatchingStartTime] = useState(0);
   const [matchFoundData, setMatchFoundData] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
-  const [isNativeAuxDrawerOpen, setIsNativeAuxDrawerOpen] = useState(false);
   const desktopContainerRef = useRef<HTMLDivElement>(null);
   const [lobbySwitchCooldownTick, setLobbySwitchCooldownTick] = useState(0);
 
@@ -360,6 +362,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     ? ({ ['--custom-panel-bg' as string]: 'rgb(var(--bg-secondary) / 0.82)' } as React.CSSProperties)
     : undefined;
   const waitingLobbyGlass = isStrategicPlayfulLobby ? WAITING_LOBBY_PANEL_GLASS : '';
+  const pcLobbyHomeTone: 'strategic' | 'playful' | null =
+    mode === 'strategic' ? 'strategic' : mode === 'playful' ? 'playful' : null;
+  const waitingLobbyPcShellClass = pcLobbyHomeTone ? waitingLobbyPcPanelShellClass(pcLobbyHomeTone) : '';
+  const waitingLobbyPcCenterShellClass = pcLobbyHomeTone ? waitingLobbyPcCenterColumnClass(pcLobbyHomeTone) : '';
+  const waitingLobbyPcHairlineClass = pcLobbyHomeTone ? waitingLobbyPcPanelTopHairlineClassFor(pcLobbyHomeTone) : '';
   const waitingLobbyHeaderChrome = isStrategicPlayfulLobby
     ? 'rounded-b-2xl border-b border-color/60 bg-secondary/92 shadow-[0_10px_36px_rgba(0,0,0,0.42)] backdrop-blur-[4px] pb-2'
     : '';
@@ -369,18 +376,25 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       className={`${waitingShellBgClass} text-primary flex flex-col h-full max-w-full`}
       style={waitingLobbyPanelOpaqueStyle}
     >
+      {isNativeMobile && isStrategicPlayfulLobby && (
+        <div className="shrink-0 px-2 pt-2">
+          <div className="overflow-hidden rounded-lg">
+            <AnnouncementBoard mode={mode} />
+          </div>
+        </div>
+      )}
       <header
         className={`relative mb-2 flex flex-shrink-0 items-center justify-between sm:mb-4 ${waitingLobbyHeaderChrome} ${
           isNativeMobile && isStrategicPlayfulLobby
-            ? 'px-2 pt-2'
+            ? 'px-2 pt-1.5'
             : 'px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6'
         }`}
       >
         {isNativeMobile && isStrategicPlayfulLobby ? (
           <div className="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1">
             <div className="w-10 shrink-0" aria-hidden />
-            <div className="flex min-w-0 items-center justify-center gap-1.5">
-              <h1 className="truncate text-center text-sm font-bold sm:text-2xl lg:text-3xl">
+            <div className="mx-auto flex min-w-0 max-w-[min(100%,16rem)] items-center justify-center gap-1.5">
+              <h1 className="truncate text-center text-sm font-bold">
                 {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
               </h1>
               <button
@@ -410,21 +424,11 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 </span>
               </button>
             </div>
-            <div className="flex justify-end">
-              <button
-                type="button"
-                onClick={() => setIsHelpModalOpen(true)}
-                className="flex h-8 w-8 items-center justify-center transition-transform hover:scale-110"
-                aria-label="게임 방법 보기"
-                title="게임 방법 보기"
-              >
-                <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
-              </button>
-            </div>
+            <div className="w-10 shrink-0" aria-hidden />
           </div>
         ) : (
           <>
-            <div className="relative z-20 flex-1">
+            <div className="relative z-20 w-10 shrink-0 sm:w-12">
               <button
                 onClick={onBackToLobby}
                 className="pointer-events-auto relative z-20 flex h-10 w-10 items-center justify-center rounded-lg p-0 transition-all duration-100 active:translate-y-0.5 active:scale-95 active:shadow-inner sm:h-12 sm:w-12"
@@ -432,9 +436,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
               </button>
             </div>
-            <div className="pointer-events-none flex h-full min-w-0 flex-1 items-center justify-center text-center">
-              <div className="flex h-full flex-nowrap items-center gap-2 sm:gap-3">
-                <h1 className="whitespace-nowrap text-lg font-bold sm:text-2xl lg:text-3xl">
+            <div className="pointer-events-none flex min-w-0 flex-1 justify-center px-2 text-center">
+              <div className="flex max-w-md min-w-0 flex-nowrap items-center justify-center gap-2 sm:gap-3">
+                <h1 className="truncate text-base font-bold sm:text-xl lg:text-2xl">
                   {mode === 'strategic' ? '전략바둑 대기실' : mode === 'playful' ? '놀이바둑 대기실' : `${mode} 대기실`}
                 </h1>
                 {(mode === 'strategic' || mode === 'playful') && (
@@ -450,39 +454,25 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     }
                     disabled={isLobbySwitchDisabled}
                     onClick={navigateToOtherWaitingLobby}
-                    className={`pointer-events-auto group relative flex w-8 items-center justify-center overflow-hidden rounded-lg text-on-panel transition-all duration-300 sm:w-10 ${
+                    className={`pointer-events-auto group relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-on-panel transition-all duration-300 sm:h-9 sm:w-9 ${
                       isLobbySwitchDisabled ? 'cursor-not-allowed opacity-40' : 'hover:scale-110 active:scale-95'
                     }`}
                     style={{
-                      height: '60%',
-                      marginTop: '4px',
                       background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)',
                       border: '1px solid rgba(139, 92, 246, 0.4)',
                       boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
                     }}
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-purple-500/20 to-indigo-500/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                    <span className="relative z-10 flex flex-col items-center justify-center gap-0 text-base font-bold leading-none drop-shadow-sm sm:text-lg">
-                      <span className="-mb-2.5 transition-transform duration-300 group-hover:-translate-x-0.5">←</span>
-                      <span className="-mt-2.5 transition-transform duration-300 group-hover:translate-x-0.5">→</span>
+                    <span className="relative z-10 flex flex-col items-center justify-center gap-0 text-sm font-bold leading-none drop-shadow-sm sm:text-base">
+                      <span className="-mb-2 transition-transform duration-300 group-hover:-translate-x-0.5">←</span>
+                      <span className="-mt-2 transition-transform duration-300 group-hover:translate-x-0.5">→</span>
                     </span>
                   </button>
                 )}
               </div>
             </div>
-            <div className="flex flex-1 items-center justify-end">
-              {(mode === 'strategic' || mode === 'playful') && (
-                <button
-                  type="button"
-                  onClick={() => setIsHelpModalOpen(true)}
-                  className="flex h-8 w-8 items-center justify-center transition-transform hover:scale-110"
-                  aria-label="게임 방법 보기"
-                  title="게임 방법 보기"
-                >
-                  <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
-                </button>
-              )}
-            </div>
+            <div className="w-10 shrink-0 sm:w-12" aria-hidden />
           </>
         )}
       </header>
@@ -490,70 +480,125 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         className={`flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 ${isNativeMobile ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
       >
           {isNativeMobile && isStrategicPlayfulLobby ? (
-            <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
-              {/* 상단 flex-[0.68]: 좌(전광판+랭킹전|유저) · 우 6rem(퀵 flex-1 + 사이드 버튼) */}
-              <div className="flex min-h-0 flex-[0.68] flex-col gap-1 overflow-hidden">
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1 overflow-hidden">
-                  <div className="shrink-0 overflow-hidden rounded-lg">
-                    <AnnouncementBoard mode={mode} />
-                  </div>
-                  <div className="flex min-h-0 flex-1 gap-1 overflow-hidden">
-                    <div className={`flex w-[min(13rem,44%)] min-w-[10.25rem] max-w-[14rem] shrink-0 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
-                      <RankedMatchPanel
-                        variant="nativeNarrow"
-                        lobbyType={isStrategic ? 'strategic' : 'playful'}
-                        currentUser={currentUserWithStatus}
-                        onAction={handlers.handleAction}
-                        isMatching={isRankedMatching}
-                        matchingStartTime={rankedMatchingStartTime}
-                        onMatchingStateChange={(isMatching, startTime) => {
-                          setIsRankedMatching(isMatching);
-                          setRankedMatchingStartTime(startTime);
-                        }}
-                        onCancelMatching={() => {
-                          setIsRankedMatching(false);
-                          setRankedMatchingStartTime(0);
-                        }}
-                      />
-                    </div>
-                    <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
-                      <PlayerList
-                        users={usersInThisRoom}
-                        mode={mode}
-                        onAction={handlers.handleAction}
-                        currentUser={currentUserWithStatus}
-                        negotiations={Object.values(negotiations)}
-                        onViewUser={handlers.openViewingUser}
-                        lobbyType={isStrategic ? 'strategic' : 'playful'}
-                        userCount={usersInThisRoom.length}
-                        onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
-                      />
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsNativeAuxDrawerOpen(true)}
-                  title="진행 중인 대국"
-                  className="flex h-[2.75rem] w-full shrink-0 flex-row items-center justify-center gap-1 rounded-lg border border-indigo-400/40 bg-gradient-to-b from-indigo-900/70 via-slate-900/85 to-purple-900/70 px-2 text-[9px] font-bold leading-none text-indigo-100 shadow-md active:scale-[0.98]"
-                >
-                  <span className="shrink-0 text-base leading-none">☰</span>
-                  <span className="whitespace-nowrap leading-tight">진행 대국</span>
-                </button>
+            <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-0.5 pb-0.5">
+              <div className="mb-0.5 flex shrink-0 gap-0.5" role="tablist" aria-label="대기실 보기">
+                {(
+                  [
+                    { id: 'users' as const, label: '유저목록' },
+                    { id: 'games' as const, label: '대국실목록' },
+                    { id: 'ranked' as const, label: '랭킹전' },
+                    { id: 'rankingInfo' as const, label: '랭킹정보' },
+                  ]
+                ).map(({ id, label }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    role="tab"
+                    aria-selected={nativeWaitingTab === id}
+                    onClick={() => setNativeWaitingTab(id)}
+                    className={`min-h-0 min-w-0 flex-1 rounded-lg px-1 py-2 text-[10px] font-bold transition-all sm:px-1.5 sm:text-[11px] ${
+                      nativeWaitingTab === id
+                        ? 'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
+                        : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
+                    }`}
+                  >
+                    <span className="block leading-tight">{label}</span>
+                  </button>
+                ))}
               </div>
-
-              {/* 홈과 동일 flex-[0.72]: 채팅 50% · 랭킹 정보 50% */}
-              <div className="grid min-h-0 flex-[0.72] grid-cols-2 gap-1 overflow-hidden">
-                <div className={`min-h-0 min-w-0 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
-                  <ChatWindow
-                    messages={chatMessages}
-                    mode={chatChannel}
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden" role="tabpanel">
+                {nativeWaitingTab === 'users' && (
+                  <div
+                    className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                  >
+                    <PlayerList
+                      users={usersInThisRoom}
+                      mode={mode}
+                      onAction={handlers.handleAction}
+                      currentUser={currentUserWithStatus}
+                      negotiations={Object.values(negotiations)}
+                      onViewUser={handlers.openViewingUser}
+                      lobbyType={isStrategic ? 'strategic' : 'playful'}
+                      userCount={usersInThisRoom.length}
+                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
+                    />
+                  </div>
+                )}
+                {nativeWaitingTab === 'games' && (
+                  <div
+                    className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                  >
+                    <GameList
+                      games={ongoingGames}
+                      onAction={handlers.handleAction}
+                      currentUser={currentUserWithStatus}
+                      panelExtraClassName={waitingLobbyGlass}
+                    />
+                  </div>
+                )}
+                {nativeWaitingTab === 'ranked' && (
+                  <div
+                    className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                  >
+                    <RankedMatchPanel
+                      lobbyType={isStrategic ? 'strategic' : 'playful'}
+                      currentUser={currentUserWithStatus}
+                      onAction={handlers.handleAction}
+                      isMatching={isRankedMatching}
+                      matchingStartTime={rankedMatchingStartTime}
+                      onMatchingStateChange={(isMatching, startTime) => {
+                        setIsRankedMatching(isMatching);
+                        setRankedMatchingStartTime(startTime);
+                      }}
+                      onCancelMatching={() => {
+                        setIsRankedMatching(false);
+                        setRankedMatchingStartTime(0);
+                      }}
+                    />
+                  </div>
+                )}
+                {nativeWaitingTab === 'rankingInfo' && (
+                  <div
+                    className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                  >
+                    <RankingList
+                      currentUser={currentUserWithStatus}
+                      mode={mode}
+                      onViewUser={handlers.openViewingUser}
+                      onShowTierInfo={() => setIsTierInfoModalOpen(true)}
+                      onShowPastRankings={handlers.openPastRankings}
+                      lobbyType={isStrategic ? 'strategic' : 'playful'}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : isStrategicPlayfulLobby ? (
+            <div
+              ref={desktopContainerRef}
+              className="flex h-full min-h-0 w-full flex-row gap-1.5 overflow-hidden sm:gap-2 lg:gap-2"
+            >
+              {/* 좌: 랭킹전(채팅 자리·내용 높이) + 랭킹보드 */}
+              <div className="flex h-full min-h-0 w-[min(43%,500px)] min-w-[292px] max-w-[500px] shrink-0 flex-col gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden">
+                <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
+                  <RankedMatchPanel
+                    lobbyType={isStrategic ? 'strategic' : 'playful'}
+                    currentUser={currentUserWithStatus}
                     onAction={handlers.handleAction}
-                    locationPrefix={locationPrefix}
-                    onViewUser={handlers.openViewingUser}
+                    isMatching={isRankedMatching}
+                    matchingStartTime={rankedMatchingStartTime}
+                    shrinkToContent
+                    onMatchingStateChange={(isMatching, startTime) => {
+                      setIsRankedMatching(isMatching);
+                      setRankedMatchingStartTime(startTime);
+                    }}
+                    onCancelMatching={() => {
+                      setIsRankedMatching(false);
+                      setRankedMatchingStartTime(0);
+                    }}
                   />
                 </div>
-                <div className={`min-h-0 min-w-0 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}>
+                <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
                   <RankingList
                     currentUser={currentUserWithStatus}
                     mode={mode}
@@ -564,118 +609,135 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   />
                 </div>
               </div>
-
-              {isNativeAuxDrawerOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40 bg-black/55"
-                    aria-hidden
-                    onClick={() => setIsNativeAuxDrawerOpen(false)}
+              {/* 중앙: 공지 전광판 + 진행 중 대국 */}
+              <div className={waitingLobbyPcCenterShellClass}>
+                <div className={waitingLobbyPcHairlineClass} aria-hidden />
+                <div className="relative z-[2] shrink-0 px-0.5 pt-0.5 sm:px-1">
+                  <AnnouncementBoard mode={mode} />
+                </div>
+                <div className="relative z-[2] flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <GameList
+                    games={ongoingGames}
+                    onAction={handlers.handleAction}
+                    currentUser={currentUserWithStatus}
+                    embedInHomeLobbyPanel
                   />
-                  <aside
-                    className="fixed inset-y-0 right-0 z-50 flex w-[min(60vw,calc(100vw-0.75rem))] max-w-full min-h-0 flex-col border-l border-color bg-primary shadow-[-8px_0_24px_rgba(0,0,0,0.35)]"
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="진행 중인 대국"
-                  >
-                    <div className="flex shrink-0 items-center justify-between border-b border-color bg-secondary/50 px-3 py-2">
-                      <span className="text-sm font-bold text-on-panel">진행 중인 대국</span>
-                      <button
-                        type="button"
-                        onClick={() => setIsNativeAuxDrawerOpen(false)}
-                        className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
-                        aria-label="닫기"
-                      >
-                        닫기
-                      </button>
-                    </div>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden overscroll-contain px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2">
-                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        <GameList
-                          games={ongoingGames}
-                          onAction={handlers.handleAction}
-                          currentUser={currentUserWithStatus}
-                          panelExtraClassName={waitingLobbyGlass}
-                        />
-                      </div>
-                    </div>
-                  </aside>
-                </>
-              )}
-            </div>
-          ) : (
-          <div ref={desktopContainerRef} className="grid grid-cols-5 h-full gap-4 overflow-hidden">
-              {/* Main Content Column */}
-                  <div className="col-span-3 flex flex-col gap-4 min-h-0 overflow-hidden">
-                      <div className="flex-shrink-0">
-                          <AnnouncementBoard mode={mode} />
-                      </div>
-                      
-                      {/* 진행중인 대국: 남은 세로 공간을 채워 화면 하단까지 활용 */}
-                      <div className="flex min-h-0 flex-[1.25] flex-col overflow-hidden">
-                          <GameList
-                            games={ongoingGames}
-                            onAction={handlers.handleAction}
-                            currentUser={currentUserWithStatus}
-                            panelExtraClassName={waitingLobbyGlass}
-                          />
-                      </div>
-                      
-                      {/* 채팅창과 랭킹전 패널 — 채팅은 좁게, 랭킹전은 넓게(비율 + 최소 폭) */}
-                      <div className="flex min-h-0 flex-1 flex-row gap-3 overflow-hidden">
-                          <div className={`min-w-0 flex-[0.42] lg:flex-[0.38] flex flex-col bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden ${waitingLobbyGlass}`}>
-                              <ChatWindow messages={chatMessages} mode={chatChannel} onAction={handlers.handleAction} locationPrefix={locationPrefix} onViewUser={handlers.openViewingUser} />
-                          </div>
-                          <div className={`min-w-0 flex-[0.58] lg:flex-[0.62] sm:min-w-[25rem] lg:min-w-[30rem] bg-panel border border-color rounded-lg shadow-lg min-h-0 flex flex-col overflow-hidden ${waitingLobbyGlass}`}>
-                              <RankedMatchPanel 
-                                lobbyType={isStrategic ? 'strategic' : 'playful'}
-                                currentUser={currentUserWithStatus}
-                                onAction={handlers.handleAction}
-                                isMatching={isRankedMatching}
-                                matchingStartTime={rankedMatchingStartTime}
-                                onMatchingStateChange={(isMatching, startTime) => {
-                                  setIsRankedMatching(isMatching);
-                                  setRankedMatchingStartTime(startTime);
-                                }}
-                                onCancelMatching={() => {
-                                  setIsRankedMatching(false);
-                                  setRankedMatchingStartTime(0);
-                                }}
-                              />
-                          </div>
-                      </div>
-                  </div>
-              
-              {/* Right Sidebar Column */}
-              <div className="col-span-2 flex flex-col gap-4 min-h-0 overflow-hidden">
-                <div className="flex-1 flex flex-row gap-4 items-stretch min-h-0 overflow-hidden">
-                  <div className={`flex-1 bg-panel border border-color rounded-lg shadow-lg min-w-0 min-h-0 overflow-hidden ${waitingLobbyGlass}`}>
-                    <PlayerList 
-                      users={usersInThisRoom} 
-                      mode={mode} 
-                      onAction={handlers.handleAction} 
-                      currentUser={currentUserWithStatus} 
-                      negotiations={Object.values(negotiations)} 
-                      onViewUser={handlers.openViewingUser} 
-                      lobbyType={isStrategic ? 'strategic' : 'playful'} 
+                </div>
+              </div>
+              {/* 우: 유저 목록(하단까지) + 퀵 메뉴 — shrink-0으로 중앙 대국 열이 유저 폭을 과도하게 잡아먹지 않도록 */}
+              <div className="flex h-full min-h-0 shrink-0 flex-row gap-1.5 overflow-hidden sm:gap-2">
+                <div className="flex h-full min-h-0 min-w-0 w-[min(100%,40rem)] max-w-2xl flex-1 flex-col overflow-hidden sm:min-w-[30rem]">
+                  <div className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
+                    <PlayerList
+                      users={usersInThisRoom}
+                      mode={mode}
+                      onAction={handlers.handleAction}
+                      currentUser={currentUserWithStatus}
+                      negotiations={Object.values(negotiations)}
+                      onViewUser={handlers.openViewingUser}
+                      lobbyType={isStrategic ? 'strategic' : 'playful'}
                       userCount={usersInThisRoom.length}
                       onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
                     />
                   </div>
-                  <div className={PC_QUICK_RAIL_COLUMN_CLASS}>
-                    <QuickAccessSidebar className={waitingLobbyGlass} />
+                </div>
+                <div
+                  className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
+                  aria-label="퀵 메뉴"
+                >
+                  <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                    <QuickAccessSidebar fillHeight />
                   </div>
                 </div>
-
-                <div className={`flex-1 bg-panel border border-color rounded-lg shadow-lg min-h-0 overflow-hidden ${waitingLobbyGlass}`}>
-                  <RankingList currentUser={currentUserWithStatus} mode={mode} onViewUser={handlers.openViewingUser} onShowTierInfo={() => setIsTierInfoModalOpen(true)} onShowPastRankings={handlers.openPastRankings} lobbyType={isStrategic ? 'strategic' : 'playful'} />
+              </div>
+            </div>
+          ) : (
+            <div ref={desktopContainerRef} className="grid h-full grid-cols-5 gap-4 overflow-hidden">
+              <div className="col-span-3 flex min-h-0 flex-col gap-4 overflow-hidden">
+                <div className="flex-shrink-0">
+                  <AnnouncementBoard mode={mode} />
+                </div>
+                <div className="flex min-h-0 flex-[1.25] flex-col overflow-hidden">
+                  <GameList
+                    games={ongoingGames}
+                    onAction={handlers.handleAction}
+                    currentUser={currentUserWithStatus}
+                    panelExtraClassName={waitingLobbyGlass}
+                  />
+                </div>
+                <div className="flex min-h-0 flex-1 flex-row gap-3 overflow-hidden">
+                  <div
+                    className={`flex min-h-0 min-w-0 flex-[0.42] flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg lg:flex-[0.38] ${waitingLobbyGlass}`}
+                  >
+                    <ChatWindow
+                      messages={chatMessages}
+                      mode={chatChannel}
+                      onAction={handlers.handleAction}
+                      locationPrefix={locationPrefix}
+                      onViewUser={handlers.openViewingUser}
+                    />
+                  </div>
+                  <div
+                    className={`flex min-h-0 min-w-0 flex-[0.58] flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg sm:min-w-[25rem] lg:min-w-[30rem] lg:flex-[0.62] ${waitingLobbyGlass}`}
+                  >
+                    <RankedMatchPanel
+                      lobbyType={isStrategic ? 'strategic' : 'playful'}
+                      currentUser={currentUserWithStatus}
+                      onAction={handlers.handleAction}
+                      isMatching={isRankedMatching}
+                      matchingStartTime={rankedMatchingStartTime}
+                      onMatchingStateChange={(isMatching, startTime) => {
+                        setIsRankedMatching(isMatching);
+                        setRankedMatchingStartTime(startTime);
+                      }}
+                      onCancelMatching={() => {
+                        setIsRankedMatching(false);
+                        setRankedMatchingStartTime(0);
+                      }}
+                    />
+                  </div>
                 </div>
               </div>
-          </div>
+              <div className="col-span-2 flex min-h-0 flex-col gap-4 overflow-hidden">
+                <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4 overflow-hidden">
+                  <div
+                    className={`min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                  >
+                    <PlayerList
+                      users={usersInThisRoom}
+                      mode={mode}
+                      onAction={handlers.handleAction}
+                      currentUser={currentUserWithStatus}
+                      negotiations={Object.values(negotiations)}
+                      onViewUser={handlers.openViewingUser}
+                      lobbyType={isStrategic ? 'strategic' : 'playful'}
+                      userCount={usersInThisRoom.length}
+                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
+                    />
+                  </div>
+                  <div className={`${PC_QUICK_RAIL_COLUMN_CLASS} flex flex-col overflow-hidden`}>
+                    <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                      <QuickAccessSidebar fillHeight />
+                    </div>
+                  </div>
+                </div>
+                <div
+                  className={`min-h-0 flex-1 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                >
+                  <RankingList
+                    currentUser={currentUserWithStatus}
+                    mode={mode}
+                    onViewUser={handlers.openViewingUser}
+                    onShowTierInfo={() => setIsTierInfoModalOpen(true)}
+                    onShowPastRankings={handlers.openPastRankings}
+                    lobbyType={isStrategic ? 'strategic' : 'playful'}
+                  />
+                </div>
+              </div>
+            </div>
           )}
       </div>
       {isTierInfoModalOpen && <TierInfoModal onClose={() => setIsTierInfoModalOpen(false)} />}
-      {isHelpModalOpen && <HelpModal mode={mode} onClose={() => setIsHelpModalOpen(false)} />}
       {isAiChallengeModalOpen && (
         <AiChallengeModal 
           lobbyType={isStrategic ? 'strategic' : 'playful'} 

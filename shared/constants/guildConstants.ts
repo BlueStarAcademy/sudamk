@@ -230,8 +230,8 @@ export function normalizeGuildWarBoardModes(war: { boards?: Record<string, any> 
 export const GUILD_WAR_MIN_PARTICIPANTS = 5;
 export const GUILD_WAR_MAX_PARTICIPANTS = 10;
 
-/** 길드전 1인당 하루 도전 가능 횟수 */
-export const GUILD_WAR_PERSONAL_DAILY_ATTEMPTS = 3;
+/** 길드전 1인당 전쟁당 도전 가능 횟수 */
+export const GUILD_WAR_PERSONAL_DAILY_ATTEMPTS = 2;
 /** 길드전 1인당 월간 출전 가능 횟수 (KST 기준 월) */
 export const GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT = 5;
 

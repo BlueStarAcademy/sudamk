@@ -8,9 +8,11 @@ interface GameListProps {
     currentUser: UserWithStatus;
     /** 전략·놀이 대기실 등: 패널 루트에 추가 클래스(예: backdrop-blur) */
     panelExtraClassName?: string;
+    /** PC 홈형 패널 안에 넣을 때: 외곽 카드와 이중 테두리 방지 */
+    embedInHomeLobbyPanel?: boolean;
 }
 
-const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panelExtraClassName = '' }) => {
+const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panelExtraClassName = '', embedInHomeLobbyPanel = false }) => {
     const [spectateRoomNumber, setSpectateRoomNumber] = useState('');
     const [adminMenuGameId, setAdminMenuGameId] = useState<string | null>(null);
     const [adminSearchQuery, setAdminSearchQuery] = useState('');
@@ -93,14 +95,13 @@ const GameList: React.FC<GameListProps> = ({ games, onAction, currentUser, panel
         setSelectedGameIds([]);
     };
 
+    const rootShell = embedInHomeLobbyPanel
+        ? 'rounded-xl border border-white/[0.08] bg-black/28 text-on-panel shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] p-3 sm:p-4 flex flex-col min-h-0 h-full'
+        : 'bg-panel border border-color text-on-panel rounded-lg shadow-lg p-4 flex flex-col min-h-0 h-full';
+
     return (
       <div
-        className={[
-          'bg-panel border border-color text-on-panel rounded-lg shadow-lg p-4 flex flex-col min-h-0 h-full',
-          panelExtraClassName,
-        ]
-          .filter(Boolean)
-          .join(' ')}
+        className={[rootShell, embedInHomeLobbyPanel ? '' : panelExtraClassName].filter(Boolean).join(' ').trim()}
       >
         <div className="flex justify-between items-center mb-3 border-b border-color pb-2 flex-shrink-0">
             <h2 className="text-xl font-semibold">진행중인 대국</h2>

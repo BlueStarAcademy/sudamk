@@ -216,7 +216,7 @@ const SINGLE_PLAYER_STAGES_BASE: SinglePlayerStageInfo[] = [
 
 export const SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = SINGLE_PLAYER_STAGES_BASE.map((stage) => ({
     ...stage,
-    actionPointCost: 0,
+    actionPointCost: stage.actionPointCost,
     rewards: {
         ...stage.rewards,
         repeatClear: {

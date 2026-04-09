@@ -2148,7 +2148,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
 
     const warType = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun'; // 월23시→화수 전쟁, 목23시→금일 전쟁
     const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
-    const maxAttemptsPerGuild = warType === 'tue_wed' ? 2 : 3;
+    const maxAttemptsPerGuild = 0;
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
     const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
     console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 23:00 KST (${kstDay === 1 ? 'Mon→Tue' : 'Thu→Fri'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${matchingQueue.length}, DEMO=${DEMO_GUILD_WAR}`);
@@ -2184,26 +2184,20 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             const boards: Record<string, any> = {};
             for (const boardId of boardIds) {
                 const gameMode = getGuildWarBoardMode(boardId);
-                const botStars = Math.floor(Math.random() * 2) + 2;
-                const botScoreDiff = Math.floor(Math.random() * 11) + 5;
                 boards[boardId] = {
                     boardSize: getGuildWarBoardLineSize(boardId),
                     gameMode,
                     initialStones: [getGuildWarCaptureInitialStones(boardId)],
                     guild1Stars: 0,
-                    guild2Stars: botStars,
+                    guild2Stars: 0,
                     guild1BestResult: null,
-                    guild2BestResult: {
-                        userId: botGuildId,
-                        stars: botStars,
-                        captures: Math.floor(Math.random() * 10) + 5,
-                        score: 100 + Math.floor(Math.random() * 50),
-                        scoreDiff: botScoreDiff,
-                    },
+                    guild2BestResult: null,
                     guild1Attempts: 0,
-                    guild2Attempts: maxAttemptsPerGuild,
+                    guild2Attempts: 0,
                 };
             }
+            const botDay1Used = 15 + Math.floor(Math.random() * 6);
+            const botDay2Used = 5 + Math.floor(Math.random() * 11);
             const war: any = {
                 id: dbWar.id,
                 guild1Id: guildId,
@@ -2214,17 +2208,19 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 warType,
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
-                guild2TotalAttempts: maxAttemptsPerGuild,
+                guild2TotalAttempts: 0,
                 guild1ParticipantIds,
                 guild2ParticipantIds: [],
                 dailyAttempts: {},
+                userAttempts: {},
                 result: undefined,
                 boards,
                 isBotGuild: true,
+                botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
+                botPlannedTotalAttempts: botDay1Used + botDay2Used,
                 createdAt: now,
                 updatedAt: now,
             };
-            await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
             activeWars.push(war);
             matchedGuildIds.push(guildId);
             delete (g as any).guildWarMatching;
@@ -2302,13 +2298,12 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             guild1ParticipantIds,
             guild2ParticipantIds,
             dailyAttempts: {},
+            userAttempts: {},
             result: undefined,
             boards: boards,
             createdAt: now,
             updatedAt: now,
         };
-        await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
-        await increaseGuildWarMonthlyParticipationCounts(guild2ParticipantIds, now);
         activeWars.push(war);
         matchedGuildIds.push(guild1Id, guild2Id);
         delete (guild1 as any).guildWarMatching;
@@ -2340,26 +2335,20 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             
             for (const boardId of boardIds) {
                 const gameMode = getGuildWarBoardMode(boardId);
-                const botStars = Math.floor(Math.random() * 2) + 2; // 2~3개
-                const botScoreDiff = Math.floor(Math.random() * 11) + 5; // 5~15집 차
                 boards[boardId] = {
                     boardSize: getGuildWarBoardLineSize(boardId),
                     gameMode: gameMode,
                     initialStones: [getGuildWarCaptureInitialStones(boardId)],
                     guild1Stars: 0,
-                    guild2Stars: botStars,
+                    guild2Stars: 0,
                     guild1BestResult: null,
-                    guild2BestResult: {
-                        userId: botGuildId,
-                        stars: botStars,
-                        captures: Math.floor(Math.random() * 10) + 5,
-                        score: 100 + Math.floor(Math.random() * 50),
-                        scoreDiff: botScoreDiff,
-                    },
+                    guild2BestResult: null,
                     guild1Attempts: 0,
-                    guild2Attempts: maxAttemptsPerGuild, // 봇은 참여권 전부 사용한 것처럼 표시
+                    guild2Attempts: 0,
                 };
             }
+            const botDay1Used = 15 + Math.floor(Math.random() * 6);
+            const botDay2Used = 5 + Math.floor(Math.random() * 11);
 
             const war: any = {
                 id: dbWar.id,
@@ -2371,18 +2360,19 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 warType,
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
-                guild2TotalAttempts: maxAttemptsPerGuild, // 봇은 전부 사용한 것처럼
+                guild2TotalAttempts: 0,
                 guild1ParticipantIds,
                 guild2ParticipantIds: [],
                 dailyAttempts: {},
+                userAttempts: {},
                 result: undefined,
                 boards: boards,
                 isBotGuild: true,
+                botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
+                botPlannedTotalAttempts: botDay1Used + botDay2Used,
                 createdAt: now,
                 updatedAt: now,
             };
-            await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
-            
             activeWars.push(war);
             matchedGuildIds.push(remainingGuildId);
             
@@ -2474,26 +2464,20 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     const boards: Record<string, any> = {};
     for (const boardId of boardIds) {
         const gameMode = getGuildWarBoardMode(boardId);
-        const botStars = Math.floor(Math.random() * 2) + 2;
-        const botScoreDiff = Math.floor(Math.random() * 11) + 5;
         boards[boardId] = {
             boardSize: getGuildWarBoardLineSize(boardId),
             gameMode: gameMode,
             initialStones: [getGuildWarCaptureInitialStones(boardId)],
             guild1Stars: 0,
-            guild2Stars: botStars,
+            guild2Stars: 0,
             guild1BestResult: null,
-            guild2BestResult: {
-                userId: botGuildId,
-                stars: botStars,
-                captures: Math.floor(Math.random() * 10) + 5,
-                score: 100 + Math.floor(Math.random() * 50),
-                scoreDiff: botScoreDiff,
-            },
+            guild2BestResult: null,
             guild1Attempts: 0,
-            guild2Attempts: maxAttemptsPerGuild,
+            guild2Attempts: 0,
         };
     }
+    const botDay1Used = 15 + Math.floor(Math.random() * 6);
+    const botDay2Used = 5 + Math.floor(Math.random() * 11);
 
     const war: any = {
         id: dbWar.id,
@@ -2505,18 +2489,19 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
         warType,
         maxAttemptsPerGuild,
         guild1TotalAttempts: 0,
-        guild2TotalAttempts: maxAttemptsPerGuild,
+        guild2TotalAttempts: 0,
         guild1ParticipantIds,
         guild2ParticipantIds: [],
         dailyAttempts: {},
+        userAttempts: {},
         result: undefined,
         boards,
         isBotGuild: true,
+        botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
+        botPlannedTotalAttempts: botDay1Used + botDay2Used,
         createdAt: now,
         updatedAt: now,
     };
-    await increaseGuildWarMonthlyParticipationCounts(guild1ParticipantIds, now);
-
     (guilds as Record<string, any>)[botGuildId] = {
         id: botGuildId,
         name: '[데모]길드전AI',

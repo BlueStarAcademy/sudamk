@@ -5,6 +5,10 @@ import Avatar from '../Avatar.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ALKKAGI_TURN_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, aiUserId, AVATAR_POOL, BORDER_POOL, PLAYFUL_MODE_FOUL_LIMIT, THIEF_NIGHTS_PER_SEGMENT } from '../../constants';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
+import {
+    resolveAiLobbyProfileStepFromSettings,
+    strategicAiDisplayLevelFromProfileStep,
+} from '../../shared/utils/strategicAiDifficulty.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -150,11 +154,12 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const levelLabel = isStrategic ? '전략' : '놀이';
     let levelText = `${levelLabel} Lv.${levelToDisplay}`;
 
-    // 전략바둑 AI 대국: 상단 패널에서 봇 이름 옆에 AI 난이도(레벨 1~10) 표시
+    // 전략바둑 AI 대국: 상단 패널에서 봇 이름 옆에 AI 난이도(단계 1~10 → 표시 레벨 1,3,5,…,50)
     const isStrategicAiGame = session.isAiGame && isStrategic && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
-    const goAiLevel = (session.settings as any)?.goAiBotLevel ?? (session.settings as any)?.aiDifficulty;
-    if (isStrategicAiGame && isAiPlayer && typeof goAiLevel === 'number') {
-        levelText = `${levelText} · AI Lv.${goAiLevel}`;
+    if (isStrategicAiGame && isAiPlayer) {
+        const profileStep = resolveAiLobbyProfileStepFromSettings(session.settings as GameSettings);
+        const displayAiLevel = strategicAiDisplayLevelFromProfileStep(profileStep);
+        levelText = `${levelText} · AI Lv.${displayAiLevel}`;
     }
 
     const orderClass = isLeft ? 'flex-row' : 'flex-row-reverse';
@@ -547,7 +552,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         (session as any).blackTurnLimitBonus,
     ]);
     
-    const turnInfoSize = isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'w-24 h-24 md:w-28 md:h-28';
+    const turnInfoSize = isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'w-[5.25rem] h-[5.25rem] md:w-24 md:h-24';
     const turnInfoLabelSize = isMobile ? 'text-xs' : 'text-[11px] md:text-xs';
     const turnInfoValueSize = isMobile ? 'text-2xl' : 'text-2xl md:text-3xl';
     const turnInfoTotalSize = isMobile ? 'text-sm' : 'text-sm md:text-base';
@@ -567,14 +572,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         mode === GameMode.Thief
             ? isMobile
                 ? 'min-h-[5.75rem] w-[5rem]'
-                : 'w-[5.5rem] sm:w-24 md:w-[6.5rem] min-h-[5.25rem]'
+                : 'w-[5.25rem] sm:w-[5.5rem] md:w-24 min-h-[5rem]'
             : isMobile
               ? 'min-h-[5rem] w-[4.25rem]'
-              : 'w-[4.75rem] sm:w-20 md:w-24 min-h-[4.5rem]';
+              : 'w-[4.5rem] sm:w-[4.75rem] md:w-[5.25rem] min-h-[4.25rem]';
+
+    const playerColClass = 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
 
     return (
-        <div className={`flex justify-between items-stretch ${isMobile ? 'gap-1.5' : 'gap-2'} flex-shrink-0 h-full`}>
-            <div className="flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]">
+        <div
+            className={`flex w-full items-stretch ${isMobile ? 'justify-between gap-1.5' : 'gap-2 min-[1025px]:gap-1.5'} flex-shrink-0 h-full`}
+        >
+            <div className={playerColClass}>
                 <SinglePlayerPanel
                     user={leftPlayerUser}
                     playerEnum={leftPlayerEnum}
@@ -654,7 +663,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     </span>
                 </div>
             )}
-            <div className="flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]">
+            <div className={playerColClass}>
             <SinglePlayerPanel
                 user={rightPlayerUser}
                 playerEnum={rightPlayerEnum}

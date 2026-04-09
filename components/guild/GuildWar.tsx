@@ -392,9 +392,8 @@ const GuildWar = () => {
                 setMyMembersChallenging(myChallengers);
                 setOpponentMembersChallenging(opponentChallengers);
                 
-                const todayKST = getTodayKSTDateString();
                 const uid = currentUserWithStatus.isAdmin ? ADMIN_USER_ID : currentUserWithStatus.id;
-                const myAttempts = war.dailyAttempts?.[uid]?.[todayKST] || 0;
+                const myAttempts = Number((war as any).userAttempts?.[uid] ?? 0) || 0;
                 setMyDailyAttempts(myAttempts);
 
                 if (guildWarTicketSummary) {
@@ -482,7 +481,7 @@ const GuildWar = () => {
         if (!isDemoMode) {
             // 하루 도전 횟수 확인
             if (myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) {
-                alert(`오늘 도전 횟수를 모두 사용했습니다. (하루 ${GUILD_WAR_PERSONAL_DAILY_LIMIT}회)`);
+                alert(`이번 길드전 도전 횟수를 모두 사용했습니다. (총 ${GUILD_WAR_PERSONAL_DAILY_LIMIT}회)`);
                 return;
             }
         }
@@ -509,118 +508,6 @@ const GuildWar = () => {
             console.error('[GuildWar] Failed to start game:', error);
             alert('게임 시작에 실패했습니다.');
         }
-    };
-    
-    // 데모 모드 시작
-    const startDemoMode = () => {
-        if (!currentUserWithStatus?.guildId) {
-            alert('길드에 가입되어 있지 않습니다.');
-            return;
-        }
-        
-        const myGuildId = currentUserWithStatus.guildId;
-        const myGuildData = guilds[myGuildId] ?? {
-            id: myGuildId,
-            name: '내 길드',
-            icon: '/images/guild/profile/icon1.png',
-            members: [],
-        };
-        
-        // 데모용 가짜 전쟁 데이터 생성
-        const demoWar: any = {
-            id: 'demo-war',
-            guild1Id: myGuildId,
-            guild2Id: 'demo-opponent-guild',
-            status: 'active',
-            startTime: Date.now(),
-            endTime: Date.now() + (48 * 60 * 60 * 1000),
-            boards: {},
-        };
-        
-        // 9개 바둑판 초기화
-        const boardIds = [...GUILD_WAR_BOARD_ORDER];
-        const boardNames: Record<string, string> = {
-            'top-left': '좌상귀',
-            'top-mid': '상변',
-            'top-right': '우상귀',
-            'mid-left': '좌변',
-            'center': '중앙',
-            'mid-right': '우변',
-            'bottom-left': '좌하귀',
-            'bottom-mid': '하변',
-            'bottom-right': '우하귀',
-        };
-        
-        boardIds.forEach(boardId => {
-            const gameMode = getGuildWarBoardMode(boardId);
-            demoWar.boards[boardId] = {
-                boardSize: getGuildWarBoardLineSize(boardId),
-                gameMode: gameMode,
-                guild1Stars: 0,
-                guild2Stars: Math.floor(Math.random() * 2) + 2, // 봇이 2-3개 별 획득
-                guild1BestResult: null,
-                guild2BestResult: {
-                    userId: 'demo-bot',
-                    stars: Math.floor(Math.random() * 2) + 2,
-                    captures: Math.floor(Math.random() * 10) + 5,
-                    score: 100 + Math.floor(Math.random() * 50),
-                    scoreDiff: Math.floor(Math.random() * 11) + 5, // 5-15집 차이
-                },
-                guild1Attempts: 0,
-                guild2Attempts: 3, // 봇은 이미 3번 공격 완료
-                initialStones: [getGuildWarCaptureInitialStoneCountsByBoardId(boardId)],
-            };
-        });
-        
-        // 데모용 상대 길드 생성
-        const demoOpponentGuild = {
-            id: 'demo-opponent-guild',
-            name: '데모 상대 길드',
-            icon: '/images/guild/profile/icon1.png',
-        };
-        
-        // 바둑판 데이터 변환
-        const convertedBoards: Board[] = boardIds.map(boardId => {
-            const board = demoWar.boards[boardId];
-            const initialStoneCounts = getGuildWarCaptureInitialStoneCountsByBoardId(boardId);
-            const ownerG = board.guild2BestResult ? demoOpponentGuild.id : undefined;
-            const botSeed = board.guild2BestResult
-                ? guildWarBotSeededDisplay(String(demoWar.id), boardId, 'demo-bot')
-                : null;
-            return {
-                id: boardId,
-                name: boardNames[boardId],
-                myStars: board.guild1Stars || 0,
-                opponentStars: board.guild2Stars || 0,
-                boardSize: getGuildWarBoardLineSize(boardId),
-                ownerGuildId: ownerG,
-                gameMode: board.gameMode,
-                initialStoneCounts,
-                initialStones: board.initialStones?.[0],
-                occupierNickname: board.guild2BestResult ? getGuildWarAiBotDisplayName(boardId) : undefined,
-                occupierAvatarUrl: botSeed?.avatarUrl,
-                occupierBorderId: board.guild2BestResult ? 'default' : undefined,
-                occupierLevel: botSeed?.level,
-                occupierIsAiBot: !!board.guild2BestResult,
-                occupierCaptures: board.guild2BestResult?.captures,
-                occupierScoreDiff: board.guild2BestResult?.scoreDiff,
-                occupierIsMyGuild: false,
-                myGuildBoardAttempts: board.guild1Attempts ?? 0,
-                opponentGuildBoardAttempts: board.guild2Attempts ?? 0,
-                scoreDiff: board.guild2BestResult?.scoreDiff,
-            };
-        });
-        
-        setActiveWar(demoWar);
-        setMyGuild(myGuildData);
-        setOpponentGuild(demoOpponentGuild);
-        setBoards(convertedBoards);
-        setIsDemoMode(true);
-        setMyDailyAttempts(0);
-        const demoRosterN = Math.min(10, myGuildData.members?.length || 1);
-        setMyTeamTickets({ used: 0, total: demoRosterN * GUILD_WAR_PERSONAL_DAILY_LIMIT });
-        setOpponentTeamTickets({ used: 0, total: 0, unknown: true });
-        setRemainingTime('데모 모드');
     };
     
     const StarDisplay = ({ count, total = 3, size = 'w-6 h-6' }: { count: number, total?: number, size?: string }) => {
@@ -662,13 +549,7 @@ const GuildWar = () => {
                     <div className="text-center text-white" style={{textShadow: '2px 2px 4px black'}}>
                         <p className="text-2xl font-bold mb-4">진행 중인 길드전이 없습니다.</p>
                         <p className="text-lg mb-6">다음 매칭을 기다려주세요.</p>
-                        <Button
-                            onClick={startDemoMode}
-                            className="bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-500 hover:to-purple-400 text-white shadow-lg hover:shadow-xl px-6 py-3 text-lg font-semibold"
-                        >
-                            🎮 데모 버전 입장
-                        </Button>
-                        <p className="text-sm text-gray-300 mt-4">데모 버전에서는 테스트용 전쟁을 체험할 수 있습니다.</p>
+                        <p className="text-sm text-gray-300 mt-4">길드전은 자동 매칭으로 진행됩니다.</p>
                     </div>
                 </main>
             </div>
@@ -1145,7 +1026,7 @@ const GuildWar = () => {
                      }
                  }} />
                 <h1 className={`font-bold text-white ${isNativeMobile ? 'text-xl' : 'text-3xl'}`} style={{textShadow: '2px 2px 5px black'}}>
-                    길드 전쟁 {isDemoMode && <span className="text-lg text-yellow-400">(데모)</span>}
+                    길드 전쟁
                 </h1>
                  <div className={isNativeMobile ? 'max-w-[38%] text-right' : 'w-40 text-right'}>
                     <p className={`font-semibold text-white ${isNativeMobile ? 'text-xs leading-tight' : 'text-sm'}`} style={{textShadow: '1px 1px 3px black'}}>

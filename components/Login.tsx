@@ -353,10 +353,12 @@ const Login: React.FC = () => {
               />
             </div>
             <div
-              className={`grid w-full grid-cols-2 pt-0.5 ${isNativeMobile ? 'gap-x-2 gap-y-1' : 'gap-x-3 gap-y-1.5'}`}
+              className={`flex w-full items-center justify-center pt-0.5 ${
+                isNativeMobile ? 'gap-x-3 gap-y-1' : 'gap-x-5 gap-y-1.5'
+              }`}
             >
               <label
-                className={`flex min-w-0 cursor-pointer select-none items-center gap-1.5 leading-tight text-stone-300 active:opacity-90 ${
+                className={`flex cursor-pointer select-none items-center justify-center gap-1.5 leading-tight text-stone-300 active:opacity-90 ${
                   isNativeMobile ? 'text-[11px]' : 'text-xs sm:text-[13px]'
                 }`}
               >
@@ -373,7 +375,7 @@ const Login: React.FC = () => {
                 <span className="truncate">아이디 저장</span>
               </label>
               <label
-                className={`flex min-w-0 cursor-pointer select-none items-center gap-1.5 leading-tight text-stone-300 active:opacity-90 ${
+                className={`flex cursor-pointer select-none items-center justify-center gap-1.5 leading-tight text-stone-300 active:opacity-90 ${
                   isNativeMobile ? 'text-[11px]' : 'text-xs sm:text-[13px]'
                 }`}
               >
@@ -387,7 +389,7 @@ const Login: React.FC = () => {
                     if (v) setRememberUsername(true);
                   }}
                 />
-                <span className="truncate">자동 로그인</span>
+                <span>자동 로그인</span>
               </label>
             </div>
           </div>

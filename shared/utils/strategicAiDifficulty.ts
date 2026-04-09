@@ -20,6 +20,28 @@ export function profileStepFromKataServerLevel(kataLevel: number): number | unde
   return entry ? Math.max(1, Math.min(10, parseInt(entry[0], 10))) : undefined;
 }
 
+/**
+ * 전략바둑 AI: 대기실 1~10 단계 → 경기장 패널에 보이는 “레벨” 숫자.
+ * (실제 강도는 Kata/단계 설정과 동일하고, 표기만 유저 레벨 스케일에 맞춤)
+ */
+export const STRATEGIC_AI_DISPLAY_LEVEL_BY_PROFILE_STEP: Readonly<Record<number, number>> = {
+  1: 1,
+  2: 3,
+  3: 5,
+  4: 10,
+  5: 15,
+  6: 20,
+  7: 25,
+  8: 30,
+  9: 40,
+  10: 50,
+};
+
+export function strategicAiDisplayLevelFromProfileStep(profileStep: number): number {
+  const s = Math.max(1, Math.min(10, Math.round(profileStep)));
+  return STRATEGIC_AI_DISPLAY_LEVEL_BY_PROFILE_STEP[s] ?? s;
+}
+
 /** 대기실 AI 대국 설정에서 1~10 프로필 단계 (summary·보상용, 서버 makeAiMove 분기와 동일 규칙) */
 export function resolveAiLobbyProfileStepFromSettings(settings: {
   kataServerLevel?: number;

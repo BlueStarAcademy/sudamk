@@ -5,7 +5,11 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
-import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_WIDTH_VW } from '../constants/ads.js';
+import {
+    NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
+    NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
+    isInsideSudamrAdUi,
+} from '../constants/ads.js';
 import {
     INGAME_BOARD_FRAME_MAX_HEIGHT_PX,
     INGAME_BOARD_FRAME_MAX_WIDTH_PX,
@@ -30,6 +34,12 @@ interface DraggableWindowProps {
     initialWidth?: number;
 
     initialHeight?: number; // Added
+
+    /**
+     * true이고 `initialHeight`를 넘기지 않았을 때: 넓은 모달도 기본 설계 높이(너비 비례)를 쓰지 않고
+     * 내용 높이에 맞춘다. `initialHeight`를 숫자로 주면 그 값은 그대로 사용된다.
+     */
+    shrinkHeightToContent?: boolean;
 
     modal?: boolean;
 
@@ -86,6 +96,12 @@ interface DraggableWindowProps {
      * (모바일·스케일 캔버스 안에서도 동일)
      */
     uniformPcScale?: boolean;
+
+    /**
+     * true이고 uniformPcScale 사용 시: 본문 래퍼를 flex-1로 늘리지 않아
+     * 내용·하단 푸터(창 위치 기억하기) 사이에 빈 세로 공간이 생기지 않게 함.
+     */
+    bodyAvoidVerticalStretch?: boolean;
 
     /**
      * true: 헤더에 제목(h2) 표시. 기본 false(닫기·드래그만).
@@ -256,6 +272,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     children,
     initialWidth = 800,
     initialHeight,
+    shrinkHeightToContent = false,
     modal = true,
     closeOnOutsideClick = true,
     isTopmost = true,
@@ -272,6 +289,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     skipSavedPosition = false,
     bodyPaddingClassName,
     uniformPcScale = false,
+    bodyAvoidVerticalStretch = false,
     headerShowTitle = false,
     containerExtraClassName,
     footerClassName,
@@ -350,6 +368,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             isTopmost &&
             windowRef.current
         ) {
+            /** 전면·배너 광고는 모달 밖에 있으나 클릭이 document까지 올라오므로 닫기에서 제외 */
+            if (isInsideSudamrAdUi(event.target)) return;
+
             const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
             const clickedInside = path.includes(windowRef.current) || windowRef.current.contains(event.target as Node);
             if (clickedInside) return;
@@ -459,6 +480,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             }
             return initialHeight;
         }
+        if (shrinkHeightToContent) {
+            return undefined;
+        }
         const baseWidth = designInitialWidth;
         if (baseWidth < 700) return undefined;
         const derived = Math.round(baseWidth * 0.72);
@@ -467,7 +491,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             h = Math.min(h, INGAME_BOARD_FRAME_MAX_HEIGHT_PX);
         }
         return h;
-    }, [initialHeight, designInitialWidth, modalLayerUsesDesignPixels, ingameBoardFrame]);
+    }, [initialHeight, designInitialWidth, modalLayerUsesDesignPixels, ingameBoardFrame, shrinkHeightToContent]);
 
     const nativeClampedWidthPx = useMemo(() => {
         if (!isNativeMobile) return undefined;
@@ -569,6 +593,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     /** 실측 scale: 본문이 flex-1에 눌려 잘리지 않도록 자연 높이 (아래 containerBaseClass보다 먼저 선언) */
     const bodyScaleToFitNaturalLayout = useCompactScaleToFitLayout;
 
+    const bodyInnerNoFlexGrow =
+        bodyScaleToFitNaturalLayout || (bodyAvoidVerticalStretch && useUniformPcScaleLayout);
+
     const compactFitScaleEstimate = useMemo(() => {
         if (!useCompactScaleToFitLayout) return 1;
         const baseWidth = designInitialWidth || 800;
@@ -599,12 +626,23 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const mobileViewportFitHeightPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
+        if (shrinkHeightToContent && initialHeight === undefined) {
+            return undefined;
+        }
         const ih = resolvedInitialHeight ?? 600;
         const capH = isNativeMobile
             ? windowHeight * (effectiveMobileMaxHeightVh / 100)
             : Math.max(280, windowHeight - 28);
         return Math.max(240, Math.min(ih, capH));
-    }, [useMobileViewportFitLayout, resolvedInitialHeight, windowHeight, isNativeMobile, effectiveMobileMaxHeightVh]);
+    }, [
+        useMobileViewportFitLayout,
+        resolvedInitialHeight,
+        windowHeight,
+        isNativeMobile,
+        effectiveMobileMaxHeightVh,
+        shrinkHeightToContent,
+        initialHeight,
+    ]);
 
     useLayoutEffect(() => {
         if (!useCompactScaleToFitLayout || !isInitialized) {
@@ -962,7 +1000,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const headerVariantClass =
         'relative z-[11] border-b border-amber-400/28 bg-gradient-to-b from-zinc-800/98 via-zinc-950 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]';
     const footerVariantClass =
-        'relative z-[11] border-t border-amber-400/22 bg-gradient-to-t from-zinc-950 via-zinc-900/96 to-zinc-900/92 text-amber-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
+        'relative z-[11] border-t border-amber-400/25 bg-gradient-to-t from-zinc-950 via-zinc-900/96 to-zinc-900/92 text-amber-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
     /** 좁은 뷰포트·네이티브: 본문 글자·여백을 키워 가독성 확보 */
     const isMobileModalShell = effectiveIsCompactViewport || isNativeMobile;
     const bodyPaddingClass =
@@ -1002,7 +1040,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         <>
             {modal && (
                 <div
-                    className={`${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0 bg-slate-950/[0.5] backdrop-blur-md [-webkit-backdrop-filter:blur(12px)]`}
+                    className={`sudamr-draggable-modal-backdrop ${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0`}
                     style={{ zIndex: effectiveZIndex - 1, pointerEvents: 'auto' }}
                 />
             )}
@@ -1051,7 +1089,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     height: uniformLayout
                         ? `${uniformDesignH}px`
                         : useMobileViewportFitLayout
-                          ? `${mobileViewportFitHeightPx}px`
+                          ? mobileViewportFitHeightPx != null
+                              ? `${mobileViewportFitHeightPx}px`
+                              : undefined
                           : useCompactScaleToFitLayout
                             ? undefined
                             : effectiveIsCompactViewport
@@ -1142,7 +1182,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     ) : (
                         <div
                             className={`${
-                                bodyScaleToFitNaturalLayout
+                                bodyInnerNoFlexGrow
                                     ? 'flex w-full min-h-0 flex-shrink-0 flex-col'
                                     : 'flex min-h-0 flex-1 flex-col'
                             } ${bodyScrollOverflowClass} ${bodyPaddingClass} ${uniformLayout ? 'antialiased' : ''}${
@@ -1156,12 +1196,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         <div
                             className={
                                 footerClassName
-                                    ? `relative flex min-h-[44px] shrink-0 flex-wrap items-center justify-end gap-2 ${footerBottomRounded} ${footerClassName}`
-                                    : `relative flex min-h-[44px] shrink-0 items-center justify-end p-2 ${footerBottomRounded} ${footerVariantClass}`
+                                    ? `relative flex min-h-[46px] shrink-0 flex-wrap items-center justify-end gap-2 ${footerBottomRounded} ${footerClassName}`
+                                    : `relative flex min-h-[46px] shrink-0 items-center justify-end p-2 ${footerBottomRounded} ${footerVariantClass}`
                             }
                         >
                             <label
-                                className={`flex cursor-pointer select-none items-center gap-2 ${
+                                className={`flex cursor-pointer select-none items-center gap-2 rounded-lg border border-amber-300/20 bg-black/25 px-2.5 py-1.5 text-amber-50/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-colors hover:border-amber-300/35 hover:bg-black/35 ${
                                     uniformLayout ? 'text-sm' : isMobileModalShell ? 'text-sm' : 'text-xs'
                                 }`}
                             >
@@ -1169,7 +1209,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                     type="checkbox"
                                     checked={rememberPosition}
                                     onChange={handleRememberChange}
-                                    className="h-4 w-4 rounded border-color bg-tertiary focus:ring-accent"
+                                    className="h-4 w-4 cursor-pointer rounded border border-amber-300/45 bg-zinc-900/90 text-amber-400 focus:ring-1 focus:ring-amber-300/50"
                                 />
                                 창 위치 기억하기
                             </label>

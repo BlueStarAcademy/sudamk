@@ -89,20 +89,22 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!stage) {
                 return { error: 'Stage not found.' };
             }
+
+            const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === stageId);
+            if (currentStageIndex < 0) {
+                return { error: '스테이지를 찾을 수 없습니다.' };
+            }
+
+            const clearedStages = user.clearedSinglePlayerStages || [];
+            const singlePlayerProgress = user.singlePlayerProgress ?? 0;
+            const isCleared = clearedStages.includes(stageId) || singlePlayerProgress > currentStageIndex;
+            const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
             
             // 관리자가 아닌 경우 스테이지 잠금 확인
             if (!user.isAdmin) {
-                // 전체 스테이지 배열에서 현재 스테이지의 인덱스 찾기
-                const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === stageId);
-                
-                if (currentStageIndex < 0) {
-                    return { error: '스테이지를 찾을 수 없습니다.' };
-                }
-                
                 // 첫 번째 스테이지가 아니면 이전 스테이지 클리어 여부 확인
                 if (currentStageIndex > 0) {
                     const previousStage = SINGLE_PLAYER_STAGES[currentStageIndex - 1];
-                    const clearedStages = user.clearedSinglePlayerStages || [];
                     
                     if (!clearedStages.includes(previousStage.id)) {
                         console.log(`[START_SINGLE_PLAYER_GAME] Stage ${stageId} locked - previous stage ${previousStage.id} not cleared. Cleared stages: ${JSON.stringify(clearedStages)}`);
@@ -111,12 +113,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 }
             }
             
-            if (user.actionPoints.current < stage.actionPointCost) {
-                return { error: `액션 포인트가 부족합니다. (필요: ${stage.actionPointCost})` };
+            if (user.actionPoints.current < effectiveActionPointCost) {
+                return { error: `액션 포인트가 부족합니다. (필요: ${effectiveActionPointCost})` };
             }
 
-            user.actionPoints.current -= stage.actionPointCost;
-            user.lastActionPointUpdate = now;
+            if (effectiveActionPointCost > 0) {
+                user.actionPoints.current -= effectiveActionPointCost;
+                user.lastActionPointUpdate = now;
+            }
             
             // 게임 모드 결정
             // 우선순위: Hidden > Missile > Speed (autoScoringTurns) > Capture > Speed (fischer) > Standard

@@ -14,12 +14,12 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId } from '../../shared/constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId } from '../../shared/constants/index.js';
 import { EquipmentSlot, ItemGrade } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
 import * as guildService from '../guildService.js';
-import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, getNextGuildWarMatchDate, getTodayKSTDateString, getKSTFullYear, getKSTMonth } from '../../utils/timeUtils.js';
+import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, getNextGuildWarMatchDate, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { addItemsToInventory, getItemTemplateByName } from '../../utils/inventoryUtils.js';
 import { openGuildGradeBox } from '../shop.js';
 import { randomUUID } from 'crypto';
@@ -102,9 +102,18 @@ function buildGuildWarTicketSummary(
         : [];
     const oppIsBot = oppGuildId === GUILD_WAR_BOT_GUILD_ID || war.isBotGuild === true;
     if (oppRoster.length === 0 && oppIsBot) {
+        const botUsed = Number(
+            isG1
+                ? (war.guild2TotalAttempts ?? 0)
+                : (war.guild1TotalAttempts ?? 0)
+        ) || 0;
+        const botTotal =
+            Number((war as any).botPlannedTotalAttempts) ||
+            Number(war.maxAttemptsPerGuild ?? 0) ||
+            botUsed;
         return {
             myRoster: { used: myUsed, total: myTotal },
-            opponentRoster: { used: 0, total: 0, unknown: true },
+            opponentRoster: { used: botUsed, total: botTotal, unknown: false },
         };
     }
     if (oppRoster.length === 0) {
@@ -117,6 +126,81 @@ function buildGuildWarTicketSummary(
         myRoster: { used: myUsed, total: myTotal },
         opponentRoster: { used: oppUsed, total: oppTotal },
     };
+}
+
+function guildWarSeededHash(input: string): number {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < input.length; i++) {
+        h ^= input.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+    }
+    return h >>> 0;
+}
+
+function seededRangeByWar(warId: string, tag: string, min: number, max: number): number {
+    const h = guildWarSeededHash(`${warId}|${tag}`);
+    return min + (h % (max - min + 1));
+}
+
+function applyBotGuildWarAttemptScript(war: any, now: number = Date.now()): boolean {
+    if (!war || war.status !== 'active' || !war.isBotGuild) return false;
+    if (!war.startTime || !war.boards || typeof war.boards !== 'object') return false;
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const elapsedDays = Math.floor(Math.max(0, now - Number(war.startTime || 0)) / dayMs);
+    const day1Used = seededRangeByWar(String(war.id), 'bot-day1', 15, 20);
+    const day2Used = seededRangeByWar(String(war.id), 'bot-day2', 5, 15);
+    const isSecondDay = elapsedDays >= 1;
+    const targetUsed = isSecondDay ? day1Used + day2Used : day1Used;
+
+    const opponentIsGuild2 = war.guild2Id === GUILD_WAR_BOT_GUILD_ID;
+    const totalKey = opponentIsGuild2 ? 'guild2TotalAttempts' : 'guild1TotalAttempts';
+    const boardKey = opponentIsGuild2 ? 'guild2Attempts' : 'guild1Attempts';
+
+    const currentUsed = Number(war[totalKey] ?? 0) || 0;
+    const appliedUsed = Math.max(currentUsed, targetUsed);
+    if (appliedUsed === currentUsed && Number((war as any).botPlannedTotalAttempts ?? 0) === day1Used + day2Used) {
+        return false;
+    }
+
+    war[totalKey] = appliedUsed;
+    (war as any).botPlannedTotalAttempts = day1Used + day2Used;
+    (war as any).botAttemptScript = { day1Used, day2Used };
+
+    const boardIds = Object.keys(war.boards || {});
+    if (boardIds.length === 0) return true;
+
+    const boardWeight = (boardId: string, day: 1 | 2) => {
+        // 1일차: 상단/중단 중심, 2일차: 하단 가중을 높여 추가 공격 연출
+        let base = 10;
+        if (boardId.startsWith('top-')) base += day === 1 ? 8 : 3;
+        else if (boardId.startsWith('mid-') || boardId === 'center') base += day === 1 ? 10 : 5;
+        else base += day === 1 ? 4 : 9;
+        const jitter = guildWarSeededHash(`${war.id}|${boardId}|d${day}`) % 7;
+        return base + jitter;
+    };
+    const allocate = (amount: number, day: 1 | 2) => {
+        const weights = boardIds.map((id) => boardWeight(id, day));
+        const weightSum = weights.reduce((s, w) => s + w, 0);
+        let remain = amount;
+        return boardIds.map((_, idx) => {
+            if (idx === boardIds.length - 1) return remain;
+            const portion = Math.floor((amount * weights[idx]) / Math.max(1, weightSum));
+            const safe = Math.max(0, Math.min(remain, portion));
+            remain -= safe;
+            return safe;
+        });
+    };
+    const day1Alloc = allocate(day1Used, 1);
+    const day2Alloc = isSecondDay ? allocate(day2Used, 2) : new Array(boardIds.length).fill(0);
+    const allocated = boardIds.map((_, i) => day1Alloc[i] + day2Alloc[i]);
+    for (let i = 0; i < boardIds.length; i++) {
+        const bid = boardIds[i];
+        const b = war.boards[bid];
+        if (!b || typeof b !== 'object') continue;
+        b[boardKey] = allocated[i];
+    }
+    return true;
 }
 
 const getResearchCost = (researchId: GuildResearchId, level: number): number => {
@@ -1522,18 +1606,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         }
 
         case 'SET_GUILD_WAR_PARTICIPATION': {
-            if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
-            const guild = guilds[user.guildId];
-            if (!guild) return { error: '길드를 찾을 수 없습니다.' };
-            const isMember = (guild.members || []).some((m) => m.userId === effectiveUserId);
-            if (!isMember) return { error: '길드원만 설정할 수 있습니다.' };
-
-            const enabled = !!(payload as any)?.enabled;
-            user.guildWarParticipationEnabled = enabled;
-            await db.updateUser(user);
-            const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['guildWarParticipationEnabled']);
-            return { clientResponse: { updatedUser: user, guildWarParticipationEnabled: enabled } };
+            return { error: '길드전 참여 설정 기능이 제거되었습니다. 모든 길드원이 자동으로 참여합니다.' };
         }
 
         case 'START_GUILD_WAR': {
@@ -1541,14 +1614,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             const guild = guilds[user.guildId];
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
-            
-            // 길드장 또는 부길드장 권한 확인 (길드장은 leaderId로도 허용 - 방금 창설한 경우 members 동기화 전일 수 있음)
-            const myMemberInfo = guild.members?.find(m => m.userId === effectiveUserId);
-            const isLeaderById = guild.leaderId === effectiveUserId;
-            const canStartWar = isLeaderById || myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
-            if (!canStartWar) {
-                return { error: '길드장 또는 부길드장만 전쟁을 시작할 수 있습니다.' };
-            }
             
             const now = Date.now();
             const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
@@ -1580,42 +1645,22 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: '이미 진행 중인 전쟁이 있습니다.' };
             }
 
-            const payloadWar = payload && typeof payload === 'object' ? (payload as Record<string, unknown>) : {};
-            const requestedParticipantIds = payloadWar.participantUserIds as string[] | undefined;
-            const monthKey = `${getKSTFullYear(now)}-${String(getKSTMonth(now) + 1).padStart(2, '0')}`;
             const memberIds = (guild.members || []).map((m) => m.userId);
             const memberIdSet = new Set(memberIds);
             const participantEligibleIdSet = new Set<string>();
             for (const id of memberIds) {
-                const memberUser = await db.getUser(id, { includeEquipment: false, includeInventory: false }) as any;
-                const monthCount = Number(memberUser?.guildWarMonthlyParticipations?.[monthKey] ?? 0) || 0;
-                // 기본값은 참여(true)로 간주, 명시적으로 false인 경우만 제외
-                if (memberUser?.guildWarParticipationEnabled !== false && monthCount < GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT) {
-                    participantEligibleIdSet.add(id);
-                }
+                participantEligibleIdSet.add(id);
             }
-            const memberCount = guild.members?.length ?? 0;
 
             // 데모 모드: 매칭 큐에 넣은 뒤 즉시 매칭 실행 → 화/금 0시 매칭과 동일 경로로 봇과 매칭 (테스트용)
             if (DEMO_GUILD_WAR) {
-                if (Array.isArray(requestedParticipantIds) && requestedParticipantIds.length > 0) {
-                    const uniq = [...new Set(requestedParticipantIds)]
-                        .filter((id) => typeof id === 'string' && memberIdSet.has(id) && participantEligibleIdSet.has(id))
-                        .slice(0, GUILD_WAR_MAX_PARTICIPANTS);
-                    if (uniq.length < GUILD_WAR_MIN_PARTICIPANTS) {
-                        return { error: `출전 참여로 설정된 길드원 중 ${GUILD_WAR_MIN_PARTICIPANTS}명 이상을 선택해 주세요.` };
-                    }
-                    (guild as any).guildWarPendingParticipantIds = uniq;
-                } else {
-                    const defaults = (guild.members || [])
-                        .map((m) => m.userId)
-                        .filter((id) => participantEligibleIdSet.has(id))
-                        .slice(0, GUILD_WAR_MAX_PARTICIPANTS);
-                    if (defaults.length < GUILD_WAR_MIN_PARTICIPANTS) {
-                        return { error: `출전 참여로 설정된 길드원이 ${GUILD_WAR_MIN_PARTICIPANTS}명 이상이어야 신청할 수 있습니다.` };
-                    }
-                    (guild as any).guildWarPendingParticipantIds = defaults;
+                const defaults = (guild.members || [])
+                    .map((m) => m.userId)
+                    .filter((id) => memberIdSet.has(id) && participantEligibleIdSet.has(id));
+                if (defaults.length === 0) {
+                    return { error: '자동 매칭 가능한 길드원이 없습니다.' };
                 }
+                (guild as any).guildWarPendingParticipantIds = defaults;
                 const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
                 if (!matchingQueue.includes(user.guildId)) {
                     matchingQueue.push(user.guildId);
@@ -1645,33 +1690,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 };
             }
 
-            if (memberCount < GUILD_WAR_MIN_PARTICIPANTS) {
-                return { error: `길드전 신청은 길드원이 ${GUILD_WAR_MIN_PARTICIPANTS}명 이상일 때 가능합니다.` };
+            const defaults = (guild.members || [])
+                .map((m) => m.userId)
+                .filter((id) => memberIdSet.has(id) && participantEligibleIdSet.has(id));
+            if (defaults.length === 0) {
+                return { error: '자동 매칭 가능한 길드원이 없습니다.' };
             }
-            if (!Array.isArray(requestedParticipantIds)) {
-                return { error: `출전 길드원을 ${GUILD_WAR_MIN_PARTICIPANTS}~${GUILD_WAR_MAX_PARTICIPANTS}명 선택해 주세요.` };
-            }
-            const uniqParticipants = [...new Set(requestedParticipantIds)];
-            if (uniqParticipants.length !== requestedParticipantIds.length) {
-                return { error: '출전 명단에 중복된 길드원이 있습니다.' };
-            }
-            if (!uniqParticipants.every((id) => typeof id === 'string' && memberIdSet.has(id))) {
-                return { error: '길드원이 아닌 계정이 출전 명단에 포함되어 있습니다.' };
-            }
-            if (!uniqParticipants.every((id) => participantEligibleIdSet.has(id))) {
-                return {
-                    error: `출전 참여 설정 + 월 ${GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT}회 미만인 길드원만 명단에 선택할 수 있습니다.`,
-                };
-            }
-            if (
-                uniqParticipants.length < GUILD_WAR_MIN_PARTICIPANTS ||
-                uniqParticipants.length > GUILD_WAR_MAX_PARTICIPANTS
-            ) {
-                return {
-                    error: `출전 길드원은 ${GUILD_WAR_MIN_PARTICIPANTS}~${GUILD_WAR_MAX_PARTICIPANTS}명으로 선택해 주세요.`,
-                };
-            }
-            (guild as any).guildWarPendingParticipantIds = uniqParticipants;
+            (guild as any).guildWarPendingParticipantIds = defaults;
             
             // 이미 매칭 중인지 확인
             if ((guild as any).guildWarMatching) {
@@ -1688,12 +1713,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: `전쟁 취소 후 1시간이 지나야 신청할 수 있습니다. (남은 시간: ${minutes}분 ${seconds}초)` };
             }
             
-            // 신청 마감: 월요일 23:00(화요일 매칭용), 목요일 23:00(금요일 매칭용)
             const nextMatchDate = getNextGuildWarMatchDate(now);
-            const applicationDeadline = nextMatchDate - (60 * 60 * 1000); // 매칭 1시간 전 = 23시
-            if (now >= applicationDeadline) {
-                return { error: '신청 마감되었습니다. (월/목 23:00 마감, 화/금 0:00 매칭) 다음 매칭일에 참여해 주세요.' };
-            }
             
             // 매칭 큐 가져오기
             const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
@@ -1871,12 +1891,19 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             // 길드???�이??가?�오�?
             const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
-            const warInProgress = activeWars.find(
+            let warInProgress = activeWars.find(
                 (w) =>
                     (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && w.status === 'active'
             );
             if (warInProgress && normalizeGuildWarBoardModes(warInProgress)) {
                 await db.setKV('activeGuildWars', activeWars);
+            }
+            let botWarChanged = false;
+            if (warInProgress) {
+                botWarChanged = applyBotGuildWarAttemptScript(warInProgress, Date.now());
+                if (botWarChanged) {
+                    await db.setKV('activeGuildWars', activeWars);
+                }
             }
             
             // ?�음 매칭 ?�짜 가?�오�?(길드???�정?�어 ?�으�??�용, ?�으�?계산)
@@ -1906,7 +1933,36 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             // 매칭 중 여부 확인 (guildWarMatching 또는 매칭큐에 있으면 true)
             const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
             const isInQueue = matchingQueue.includes(user.guildId);
-            const isMatching = (guild as any).guildWarMatching || isInQueue;
+            let isMatching = (guild as any).guildWarMatching || isInQueue;
+
+            // 신청 없이 자동 매칭: 활성 전쟁/매칭 대기가 아니면 즉시 큐 등록 후 매칭 시도
+            if (!warInProgress && !isMatching) {
+                matchingQueue.push(user.guildId);
+                (guild as any).guildWarMatching = true;
+                await db.setKV('guildWarMatchingQueue', matchingQueue);
+                await db.setKV('guilds', guilds);
+                const { processGuildWarMatching } = await import('../scheduledTasks.js');
+                await processGuildWarMatching(true);
+                const refreshedActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
+                const refreshedGuilds = await db.getKV<Record<string, Guild>>('guilds') || {};
+                const refreshedWar = refreshedActiveWars.find(
+                    (w: any) => (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && w.status === 'active'
+                );
+                if (refreshedWar && applyBotGuildWarAttemptScript(refreshedWar, Date.now())) {
+                    await db.setKV('activeGuildWars', refreshedActiveWars);
+                }
+                Object.assign(guilds, refreshedGuilds);
+                activeWars.splice(0, activeWars.length, ...refreshedActiveWars);
+                isMatching = !!((refreshedGuilds[user.guildId] as any)?.guildWarMatching);
+                // 방금 매칭으로 생성된 전쟁 반영: 위에서 읽은 warInProgress는 여전히 null일 수 있음
+                warInProgress = activeWars.find(
+                    (w) =>
+                        (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && w.status === 'active'
+                );
+                if (warInProgress && normalizeGuildWarBoardModes(warInProgress)) {
+                    await db.setKV('activeGuildWars', activeWars);
+                }
+            }
             
             // 다음 매칭: 화/금 0:00. 신청 마감: 월/목 23:00 (매칭 1시간 전)
             let nextMatchTime: number | undefined = undefined;
@@ -2003,7 +2059,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             let guildWarTicketSummary: ReturnType<typeof buildGuildWarTicketSummary> | null = null;
             if (activeWarForUser) {
                 const isG1 = activeWarForUser.guild1Id === myGuildId;
-                const attempts = activeWarForUser.dailyAttempts?.[effectiveUserId]?.[todayKSTWar] ?? 0;
+                const attempts = Number(activeWarForUser.userAttempts?.[effectiveUserId] ?? 0) || 0;
                 const maxAttempts = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
                 let contributedStars = 0;
                 for (const board of Object.values(activeWarForUser.boards || {})) {
@@ -2132,22 +2188,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     board.initialStones = [getGuildWarCaptureInitialStones(boardId)];
                 }
 
-                const todayKST = getTodayKSTDateString();
-                const isWarG1 = activeWar.guild1Id === user.guildId;
-                let roster: string[] = isWarG1
-                    ? activeWar.guild1ParticipantIds || []
-                    : activeWar.guild2ParticipantIds || [];
-                if (!Array.isArray(roster) || roster.length === 0) {
-                    roster = (guild.members || []).map((m) => m.userId).slice(0, GUILD_WAR_MAX_PARTICIPANTS);
-                }
-                if (!roster.includes(effectiveUserId)) {
-                    return { error: '출전 명단에 포함된 길드원만 도전할 수 있습니다.' };
-                }
-                if (!activeWar.dailyAttempts) activeWar.dailyAttempts = {};
-                const usedToday = activeWar.dailyAttempts[effectiveUserId]?.[todayKST] ?? 0;
-                if (usedToday >= GUILD_WAR_PERSONAL_DAILY_ATTEMPTS) {
+                const usedAttempts = Number(activeWar.userAttempts?.[effectiveUserId] ?? 0) || 0;
+                if (usedAttempts >= GUILD_WAR_PERSONAL_DAILY_ATTEMPTS) {
                     return {
-                        error: `오늘 도전 가능 횟수를 모두 사용했습니다. (1인당 ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`,
+                        error: `이번 길드전 도전 가능 횟수를 모두 사용했습니다. (1인당 ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`,
                     };
                 }
             }
@@ -2270,11 +2314,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             if (!isDemo && activeWar) {
                 const now = Date.now();
-                const todayKST = getTodayKSTDateString();
                 if (!activeWar.dailyAttempts) activeWar.dailyAttempts = {};
-                if (!activeWar.dailyAttempts[effectiveUserId]) activeWar.dailyAttempts[effectiveUserId] = {};
-                const prev = activeWar.dailyAttempts[effectiveUserId][todayKST] ?? 0;
-                activeWar.dailyAttempts[effectiveUserId][todayKST] = prev + 1;
+                if (!activeWar.userAttempts) activeWar.userAttempts = {};
+                activeWar.userAttempts[effectiveUserId] = (Number(activeWar.userAttempts[effectiveUserId] ?? 0) || 0) + 1;
 
                 // 바둑판 도전 중 상태 업데이트
                 if (!board.challenging) {

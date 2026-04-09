@@ -294,6 +294,8 @@ const LocalItemDetailDisplay: React.FC<{
     emptySlot?: EquipmentSlot | null; // 빈 슬롯일 때 슬롯 타입
     /** 뷰어 영역에서 아이콘·텍스트 기준 크기 배율 (모바일 선택 패널 확대 등) */
     detailScaleMultiplier?: number;
+    /** 모바일 장비 비교용: 좌측(이미지+기본정보), 우측(옵션 전체) 분리 레이아웃 */
+    compactCompareLayout?: boolean;
 }> = ({
     item,
     title,
@@ -303,8 +305,10 @@ const LocalItemDetailDisplay: React.FC<{
     mobileTextScale = 1,
     emptySlot,
     detailScaleMultiplier = 1,
+    compactCompareLayout = false,
 }) => {
     const imgBox = Math.max(52, Math.round(80 * scaleFactor * detailScaleMultiplier));
+    const [compactCompareTab, setCompactCompareTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
     // item이 없을 때도 "선택 장비" 뷰어와 동일한 구조로 표시
     if (!item) {
         return (
@@ -437,6 +441,273 @@ const LocalItemDetailDisplay: React.FC<{
         return String(a).localeCompare(String(b));
     });
 
+    const optionRows = sortedOptionTypes.map(type => {
+        const { current, comparison } = optionMap.get(type)!;
+
+        // 메인 옵션은 별도 렌더링
+        if (item.options?.main?.type === type) return null;
+
+        if (current && comparison) {
+            const difference = current.value - comparison.value;
+            const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
+            const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
+            let colorClass = 'text-blue-300';
+            if (Object.values(SpecialStat).includes(current.type as SpecialStat)) colorClass = 'text-green-300';
+            if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
+            const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
+            const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
+            return (
+                <p key={type} className={`${colorClass} flex justify-between items-center`}>
+                    <span>
+                        {isMythicOpt ? (
+                            <>
+                                <MythicOptionAbbrev option={current} textClassName={colorClass} />
+                                {rangeText}
+                            </>
+                        ) : (
+                            <>
+                                {current.display}{rangeText}
+                            </>
+                        )}
+                    </span>
+                    {difference !== 0 && (
+                        <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
+                    )}
+                </p>
+            );
+        } else if (current && !comparison) {
+            const difference = current.value;
+            const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
+            const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
+            let colorClass = 'text-blue-300';
+            if (Object.values(SpecialStat).includes(current.type as SpecialStat)) colorClass = 'text-green-300';
+            if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
+            const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
+            const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
+            return (
+                <p key={type} className={`${colorClass} flex justify-between items-center`}>
+                    <span>
+                        {isMythicOpt ? (
+                            <>
+                                <MythicOptionAbbrev option={current} textClassName={colorClass} />
+                                {rangeText}
+                            </>
+                        ) : (
+                            <>
+                                {current.display}{rangeText}
+                            </>
+                        )}
+                    </span>
+                    {difference !== 0 && (
+                        <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
+                    )}
+                </p>
+            );
+        } else if (!current && comparison) {
+            let colorClass = 'text-red-400';
+            if (Object.values(SpecialStat).includes(comparison.type as SpecialStat)) colorClass = 'text-green-300';
+            if (Object.values(MythicStat).includes(comparison.type as MythicStat)) colorClass = 'text-orange-400';
+            const rangeText = comparison.range && !comparison.display.includes('[') ? ` [${comparison.range[0]}~${comparison.range[1]}]` : '';
+            const isMythicRm = Object.values(MythicStat).includes(comparison.type as MythicStat);
+            return (
+                <p key={type} className={`${colorClass} line-through flex justify-between items-center`}>
+                    <span>
+                        {isMythicRm ? (
+                            <>
+                                <MythicOptionAbbrev option={comparison} textClassName={colorClass} />
+                                {rangeText}
+                            </>
+                        ) : (
+                            <>
+                                {comparison.display}{rangeText}
+                            </>
+                        )}
+                    </span>
+                </p>
+            );
+        }
+        return null;
+    });
+
+    const compareCurrent = item.type === 'equipment' ? item : null;
+    const compareSelected = comparisonItem && comparisonItem.type === 'equipment' ? comparisonItem : null;
+
+    const pickOptionByType = (invItem: InventoryItem | null, optionType: ItemOptionType): ItemOption | null => {
+        if (!invItem) return null;
+        return getAllOptions(invItem).find(opt => opt.type === optionType) ?? null;
+    };
+
+    const collectTypesByFilter = (predicate: (opt: ItemOption) => boolean): ItemOptionType[] => {
+        const typeSet = new Set<ItemOptionType>();
+        getAllOptions(compareCurrent).forEach((opt) => {
+            if (predicate(opt)) typeSet.add(opt.type);
+        });
+        getAllOptions(compareSelected).forEach((opt) => {
+            if (predicate(opt)) typeSet.add(opt.type);
+        });
+        return Array.from(typeSet.values()).sort((a, b) => String(a).localeCompare(String(b)));
+    };
+
+    const mainAndCombatTypes = collectTypesByFilter(
+        (opt) => !!(compareCurrent?.options?.main?.type === opt.type || compareSelected?.options?.main?.type === opt.type || Object.values(CoreStat).includes(opt.type as CoreStat)),
+    );
+    const specialTypes = collectTypesByFilter((opt) => Object.values(SpecialStat).includes(opt.type as SpecialStat));
+    const mythicTypes = collectTypesByFilter((opt) => Object.values(MythicStat).includes(opt.type as MythicStat));
+
+    const renderCompareOptionRow = (type: ItemOptionType) => {
+        const currentOpt = pickOptionByType(compareCurrent, type);
+        const selectedOpt = pickOptionByType(compareSelected, type);
+        const currentVal = currentOpt?.value ?? 0;
+        const selectedVal = selectedOpt?.value ?? 0;
+        const delta = selectedVal - currentVal;
+        const deltaCls = delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-stone-400';
+        const labelSource = currentOpt ?? selectedOpt;
+        const rangeText = labelSource?.range && !labelSource.display.includes('[') ? ` [${labelSource.range[0]}~${labelSource.range[1]}]` : '';
+        const isMythicType = !!labelSource && Object.values(MythicStat).includes(labelSource.type as MythicStat);
+
+        return (
+            <div key={String(type)} className="rounded-md bg-black/25 px-1.5 py-1">
+                <div className="truncate text-[10px] font-semibold text-stone-300">
+                    {isMythicType && labelSource ? (
+                        <>
+                            <MythicOptionAbbrev option={labelSource} textClassName="text-orange-300" />
+                            {rangeText}
+                        </>
+                    ) : (
+                        <span>{labelSource?.display ?? String(type)}{rangeText}</span>
+                    )}
+                </div>
+                <div className="mt-0.5 grid grid-cols-[1fr_auto_1fr] items-center gap-1 text-[10px] tabular-nums">
+                    <span className="truncate text-cyan-200">{currentOpt ? currentOpt.value : '-'}</span>
+                    <span className="text-stone-500">→</span>
+                    <span className="truncate text-amber-200">{selectedOpt ? selectedOpt.value : '-'}</span>
+                </div>
+                <div className={`mt-0.5 text-right text-[10px] font-bold ${deltaCls}`}>
+                    {delta > 0 ? `+${delta}` : `${delta}`}
+                </div>
+            </div>
+        );
+    };
+
+    if (compactCompareLayout && item.type === 'equipment') {
+        return (
+            <div className="flex h-full min-h-0 gap-2" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                <div className="flex min-h-0 w-[43%] min-w-0 flex-col">
+                    <div
+                        className="relative mx-auto rounded-lg"
+                        style={{
+                            width: `${imgBox}px`,
+                            height: `${imgBox}px`,
+                            aspectRatio: '1 / 1',
+                            maxWidth: '100%',
+                        }}
+                    >
+                        <img src={styles.background} alt={item.grade} className="absolute inset-0 h-full w-full rounded-lg object-cover" />
+                        {item.image && (
+                            <img
+                                src={item.image}
+                                alt={item.name}
+                                className="absolute object-contain"
+                                style={{
+                                    width: '80%',
+                                    height: '80%',
+                                    padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`,
+                                    left: '50%',
+                                    top: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                }}
+                            />
+                        )}
+                        {renderStarDisplay(item.stars)}
+                    </div>
+                    <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-900/50 p-2">
+                        <h3 className={`break-words font-bold ${styles.color}`} style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                            {item.name}
+                        </h3>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5" style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
+                            <span className={styles.color}>[{styles.name}]</span>
+                            {showRequirement && (
+                                <span className={`${levelRequirementMet ? 'text-gray-300' : 'text-red-400'} whitespace-nowrap`}>
+                                    착용 레벨 {requiredLevel}
+                                </span>
+                            )}
+                        </div>
+                        <p className={`mt-1 text-xs font-semibold ${item.grade !== 'normal' && (item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
+                            제련 가능: {item.grade !== 'normal' && (item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-lg bg-gray-900/50 p-1.5" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                    <div className="mb-1 grid grid-cols-2 gap-1">
+                        {[
+                            ['info', '장비정보'],
+                            ['mainSub', '주/부옵션'],
+                            ['special', '특수옵션'],
+                            ['mythic', '신화옵션'],
+                        ].map(([key, label]) => {
+                            const active = compactCompareTab === key;
+                            return (
+                                <button
+                                    key={key}
+                                    type="button"
+                                    onClick={() => setCompactCompareTab(key as 'info' | 'mainSub' | 'special' | 'mythic')}
+                                    className={`rounded-md border px-1 py-1 text-[10px] font-semibold leading-none transition-colors ${
+                                        active
+                                            ? 'border-amber-400/70 bg-amber-900/40 text-amber-100'
+                                            : 'border-gray-600/60 bg-black/25 text-gray-300'
+                                    }`}
+                                >
+                                    {label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <div className="mb-1 grid grid-cols-2 gap-1 rounded-md bg-black/20 px-1.5 py-1 text-[10px] font-semibold">
+                        <span className="text-cyan-200">현재 장착</span>
+                        <span className="text-right text-amber-200">선택 장비</span>
+                    </div>
+                    <div className="min-h-0 flex-1 overflow-y-auto space-y-1 pr-0.5">
+                        {compactCompareTab === 'info' && (
+                            <>
+                                <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
+                                    <div className="text-stone-400">등급</div>
+                                    <div className="mt-0.5 grid grid-cols-2 gap-1">
+                                        <span className={`${styles.color}`}>{styles.name}</span>
+                                        <span className="text-right text-stone-200">{compareSelected ? gradeStyles[compareSelected.grade].name : '-'}</span>
+                                    </div>
+                                </div>
+                                <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
+                                    <div className="text-stone-400">착용 레벨</div>
+                                    <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
+                                        <span>{requiredLevel}</span>
+                                        <span className="text-right">{compareSelected ? GRADE_LEVEL_REQUIREMENTS[compareSelected.grade] : '-'}</span>
+                                    </div>
+                                </div>
+                                <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
+                                    <div className="text-stone-400">제련 가능</div>
+                                    <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
+                                        <span>{compareCurrent && compareCurrent.grade !== 'normal' && ((compareCurrent as any)?.refinementCount ?? 0) > 0 ? `${(compareCurrent as any).refinementCount}회` : '제련불가'}</span>
+                                        <span className="text-right">{compareSelected && compareSelected.grade !== 'normal' && ((compareSelected as any)?.refinementCount ?? 0) > 0 ? `${(compareSelected as any).refinementCount}회` : '제련불가'}</span>
+                                    </div>
+                                </div>
+                                <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
+                                    <div className="text-stone-400">강화 수치</div>
+                                    <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
+                                        <span>+{compareCurrent?.stars ?? 0}</span>
+                                        <span className="text-right">+{compareSelected?.stars ?? 0}</span>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                        {compactCompareTab === 'mainSub' && (mainAndCombatTypes.length > 0 ? mainAndCombatTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">옵션 없음</p>)}
+                        {compactCompareTab === 'special' && (specialTypes.length > 0 ? specialTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">옵션 없음</p>)}
+                        {compactCompareTab === 'mythic' && (mythicTypes.length > 0 ? mythicTypes.map(renderCompareOptionRow) : <p className="px-1 py-1 text-[10px] text-stone-500">옵션 없음</p>)}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col h-full" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
             {/* Top Section: Image (left), Name & Main Option (right) */}
@@ -553,9 +824,9 @@ const LocalItemDetailDisplay: React.FC<{
                         )}
                     </div>
                     {/* 제련 가능 횟수 표시 (장비인 경우에만) */}
-                    {item.type === 'equipment' && item.grade !== 'normal' && (
-                        <p className={`text-xs font-semibold ${(item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
-                            제련 가능: {(item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
+                    {item.type === 'equipment' && (
+                        <p className={`text-xs font-semibold ${item.grade !== 'normal' && (item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}>
+                            제련 가능: {item.grade !== 'normal' && (item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
                         </p>
                     )}
                     {item.options?.main && ( // Only display main option if it exists
@@ -581,99 +852,7 @@ const LocalItemDetailDisplay: React.FC<{
 
             {/* Bottom Section: Sub Options */}
             <div className="w-full text-left space-y-1 bg-gray-900/50 p-2 rounded-lg flex-grow overflow-y-auto min-h-0 max-h-[200px]" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                {sortedOptionTypes.map(type => {
-                    const { current, comparison } = optionMap.get(type)!;
-
-                    // Skip main option as it's handled in the top section
-                    if (item.options?.main?.type === type) return null;
-
-                    if (current && comparison) {
-                        // Stat exists in both, show difference
-                        const difference = current.value - comparison.value;
-                        const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
-                        const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
-                        let colorClass = 'text-blue-300'; // Default for combat subs
-                        if (Object.values(SpecialStat).includes(current.type as SpecialStat)) colorClass = 'text-green-300';
-                        if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
-
-                        // display에 이미 범위값이 포함되어 있으면 추가하지 않음
-                        const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
-                        const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
-                        return (
-                            <p key={type} className={`${colorClass} flex justify-between items-center`}>
-                                <span>
-                                    {isMythicOpt ? (
-                                        <>
-                                            <MythicOptionAbbrev option={current} textClassName={colorClass} />
-                                            {rangeText}
-                                        </>
-                                    ) : (
-                                        <>
-                                            {current.display}{rangeText}
-                                        </>
-                                    )}
-                                </span>
-                                {difference !== 0 && (
-                                    <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
-                                )}
-                            </p>
-                        );
-                    } else if (current && !comparison) {
-                        // 장착 측에 동일 타입 옵션이 없음 → 비교값 0과의 차이 (빈 슬롯·해당 부옵션 없음)
-                        const difference = current.value;
-                        const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
-                        const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
-                        let colorClass = 'text-blue-300';
-                        if (Object.values(SpecialStat).includes(current.type as SpecialStat)) colorClass = 'text-green-300';
-                        if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
-                        const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
-                        const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
-                        return (
-                            <p key={type} className={`${colorClass} flex justify-between items-center`}>
-                                <span>
-                                    {isMythicOpt ? (
-                                        <>
-                                            <MythicOptionAbbrev option={current} textClassName={colorClass} />
-                                            {rangeText}
-                                        </>
-                                    ) : (
-                                        <>
-                                            {current.display}{rangeText}
-                                        </>
-                                    )}
-                                </span>
-                                {difference !== 0 && (
-                                    <span className={`font-bold ${differenceColorClass} text-right`}>{differenceText}</span>
-                                )}
-                            </p>
-                        );
-                    } else if (!current && comparison) {
-                        // Stat is removed
-                        let colorClass = 'text-red-400';
-                        if (Object.values(SpecialStat).includes(comparison.type as SpecialStat)) colorClass = 'text-green-300';
-                        if (Object.values(MythicStat).includes(comparison.type as MythicStat)) colorClass = 'text-orange-400';
-                        // display에 이미 범위값이 포함되어 있으면 추가하지 않음
-                        const rangeText = comparison.range && !comparison.display.includes('[') ? ` [${comparison.range[0]}~${comparison.range[1]}]` : '';
-                        const isMythicRm = Object.values(MythicStat).includes(comparison.type as MythicStat);
-                        return (
-                            <p key={type} className={`${colorClass} line-through flex justify-between items-center`}>
-                                <span>
-                                    {isMythicRm ? (
-                                        <>
-                                            <MythicOptionAbbrev option={comparison} textClassName={colorClass} />
-                                            {rangeText}
-                                        </>
-                                    ) : (
-                                        <>
-                                            {comparison.display}{rangeText}
-                                        </>
-                                    )}
-                                </span>
-                            </p>
-                        );
-                    }
-                    return null;
-                })}
+                {optionRows}
             </div>
         </div>
     );
@@ -762,6 +941,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const [itemToSellBulk, setItemToSellBulk] = useState<InventoryItem | null>(null);
     const [isExpandModalOpen, setIsExpandModalOpen] = useState(false);
     const [isEquipCompareOpen, setIsEquipCompareOpen] = useState(false);
+    const [equipCompareViewerTab, setEquipCompareViewerTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
     const [isMobileItemDetailOpen, setIsMobileItemDetailOpen] = useState(false);
     const [isMobileEquippedModalOpen, setIsMobileEquippedModalOpen] = useState(false);
 
@@ -804,7 +984,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         if (windowWidth < 560) return 7;
         return 8;
     }, [narrowInventoryLayout, windowWidth]);
-
     // 창 크기에 비례한 스케일 팩터 계산 (기준: 950px 너비)
     // 캔버스 밖 모바일: DraggableWindow가 뷰포트 맞춤이므로 여기서는 PC와 동일 비율(축소 없음)
     const baseWidth = 950;
@@ -826,6 +1005,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         if (narrowInventoryLayout && modalLayerUsesDesignPixels) return 1.2;
         return 1.0;
     }, [narrowInventoryLayout, modalLayerUsesDesignPixels]);
+    const detailTextScale = narrowInventoryLayout ? mobileTextScale : mobileTextScale * 1.3;
+    const compareModalTextScale = narrowInventoryLayout ? mobileTextScale : mobileTextScale * 1.35;
     const luxuryTabButtonBase = 'rounded-lg border font-semibold tracking-wide transition-all duration-200 shadow-[0_12px_24px_-16px_rgba(15,23,42,0.85)] hover:-translate-y-0.5 active:translate-y-0';
     const getLuxuryTabButtonClass = (isActive: boolean) =>
         isActive
@@ -1249,14 +1430,14 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         <div className={`flex flex-row gap-0 flex-1`}>
                             {/* Middle panel: Currently equipped item for comparison */}
                             <div className={`flex flex-col flex-1 h-full bg-panel-secondary rounded-lg p-2 relative overflow-hidden border-r border-gray-700`}>
-                                <h3 className="font-bold text-on-panel mb-1 flex-shrink-0" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>현재 장착</h3>
+                                <h3 className="font-bold text-on-panel mb-1 flex-shrink-0" style={{ fontSize: `${Math.max(15, Math.round(19 * scaleFactor * detailTextScale))}px` }}>현재 장착</h3>
                                 <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                     <LocalItemDetailDisplay 
                                         item={correspondingEquippedItem} 
                                         title="장착된 장비 없음" 
-                                        comparisonItem={selectedItem} 
+                                        comparisonItem={undefined}
                                         scaleFactor={scaleFactor} 
-                                        mobileTextScale={mobileTextScale} 
+                                        mobileTextScale={detailTextScale} 
                                         userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
                                         emptySlot={selectedItem?.slot}
                                     />
@@ -1267,9 +1448,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             <div className={`flex flex-col flex-1 h-full bg-panel-secondary rounded-lg p-3 relative overflow-hidden`}>
                                 <div className="mb-1 flex flex-shrink-0 items-center justify-between gap-2">
                                     <div className="flex min-w-0 items-center gap-2">
-                                        <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>선택 장비</h3>
+                                        <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(15, Math.round(19 * scaleFactor * detailTextScale))}px` }}>선택 장비</h3>
                                         {combatPowerChange !== null && combatPowerChange !== 0 && (
-                                            <span className={`font-bold ${combatPowerChange > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
+                                            <span className={`font-bold ${combatPowerChange > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(13, Math.round(15 * scaleFactor * detailTextScale))}px` }}>
                                                 {combatPowerChange > 0 ? '+' : ''}{combatPowerChange}
                                             </span>
                                         )}
@@ -1287,7 +1468,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     )}
                                 </div>
                                 <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
-                                    <LocalItemDetailDisplay item={selectedItem} title="선택된 아이템 없음" comparisonItem={correspondingEquippedItem} scaleFactor={scaleFactor} mobileTextScale={mobileTextScale} userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel} />
+                                    <LocalItemDetailDisplay item={selectedItem} title="선택된 아이템 없음" comparisonItem={undefined} scaleFactor={scaleFactor} mobileTextScale={detailTextScale} userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel} />
                                 </div>
                                 <div className={`absolute bottom-2 left-0 right-0 flex justify-center gap-2 px-2 flex-shrink-0 bg-panel-secondary/95 backdrop-blur-sm`}>
                                     {selectedItem.id === correspondingEquippedItem?.id ? (
@@ -1756,59 +1937,289 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         bodyPaddingClassName="p-2 sm:p-3"
                     >
                         <div
-                            className="flex max-h-[min(78dvh,720px)] min-h-[min(50dvh,360px)] flex-col gap-2 overflow-y-auto overscroll-y-contain rounded-b-xl"
+                            className="flex h-[min(78dvh,720px)] min-h-[min(50dvh,360px)] flex-col gap-1 overscroll-y-contain rounded-b-xl"
                             style={{ WebkitOverflowScrolling: 'touch' }}
                         >
-                            <div className="flex min-h-0 min-h-[200px] flex-1 flex-row gap-2">
-                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-500/35 bg-panel-secondary/90 shadow-inner">
-                                    <h4
-                                        className="shrink-0 border-b border-cyan-500/20 px-2 py-1 font-bold text-cyan-200/95"
-                                        style={{ fontSize: `${Math.max(11, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
-                                    >
-                                        현재 장착
-                                    </h4>
-                                    <div className="min-h-0 flex-1 overflow-y-auto p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                        <LocalItemDetailDisplay
-                                            item={correspondingEquippedItem}
-                                            title="장착된 장비 없음"
-                                            comparisonItem={selectedItem}
-                                            scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
-                                            mobileTextScale={mobileTextScale}
-                                            userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
-                                            emptySlot={selectedItem.slot}
-                                            detailScaleMultiplier={0.92}
-                                        />
+                            {narrowInventoryLayout ? (
+                                <div className="flex min-h-0 flex-[1.15_1_0%] flex-col overflow-hidden rounded-lg border border-cyan-500/35 bg-panel-secondary/90 shadow-inner">
+                                    <div className="shrink-0 grid grid-cols-4 gap-0.5 border-b border-cyan-500/20 px-1 py-1.5">
+                                        {[
+                                            ['info', '장비정보'],
+                                            ['mainSub', '주/부옵션'],
+                                            ['special', '특수옵션'],
+                                            ['mythic', '신화옵션'],
+                                        ].map(([key, label]) => {
+                                            const active = equipCompareViewerTab === key;
+                                            return (
+                                                <button
+                                                    key={key}
+                                                    type="button"
+                                                    onClick={() => setEquipCompareViewerTab(key as 'info' | 'mainSub' | 'special' | 'mythic')}
+                                                    className={`rounded-md border px-0.5 py-1.5 text-[10px] font-semibold leading-none ${
+                                                        active
+                                                            ? 'border-amber-400/70 bg-amber-900/40 text-amber-100'
+                                                            : 'border-gray-600/60 bg-black/25 text-gray-300'
+                                                    }`}
+                                                >
+                                                    {label}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="min-h-0 flex-1 p-1">
+                                        <div className="flex h-full min-h-0 gap-1.5">
+                                            <div className="flex min-h-0 w-[24%] min-w-0 flex-col gap-1">
+                                                <div className="flex min-h-0 flex-1 basis-0 flex-col rounded-md border border-cyan-500/35 bg-black/25 p-0.5">
+                                                    <div className="mb-0.5 text-center text-[10px] font-semibold text-cyan-200">현재 장착</div>
+                                                    <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+                                                        <div className="mx-auto w-[84%] shrink-0">
+                                                            <EquipmentSlotDisplay
+                                                                slot={selectedItem.slot}
+                                                                item={correspondingEquippedItem ?? undefined}
+                                                                scaleFactor={Math.max(0.2, scaleFactor * 0.42)}
+                                                            />
+                                                        </div>
+                                                        <div className="mt-0.5 text-center leading-tight">
+                                                            <div className="text-[10px] font-semibold text-cyan-200 whitespace-normal break-words">
+                                                                {correspondingEquippedItem?.name ?? '장비 없음'}
+                                                            </div>
+                                                            <div className="text-[10px] text-cyan-300/90">
+                                                                [{correspondingEquippedItem ? gradeStyles[correspondingEquippedItem.grade].name : '-'}]
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex min-h-0 flex-1 basis-0 flex-col rounded-md border border-amber-500/35 bg-black/25 p-0.5">
+                                                    <div className="mb-0.5 text-center text-[10px] font-semibold text-amber-200">선택 장비</div>
+                                                    <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+                                                        <div className="mx-auto w-[84%] shrink-0">
+                                                            <EquipmentSlotDisplay
+                                                                slot={selectedItem.slot}
+                                                                item={selectedItem}
+                                                                scaleFactor={Math.max(0.2, scaleFactor * 0.42)}
+                                                            />
+                                                        </div>
+                                                        <div className="mt-0.5 text-center leading-tight">
+                                                            <div className="text-[10px] font-semibold text-amber-200 whitespace-normal break-words">
+                                                                {selectedItem.name}
+                                                            </div>
+                                                            <div className="text-[10px] text-amber-300/90">
+                                                                [{gradeStyles[selectedItem.grade].name}]
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-md bg-gray-900/50 p-1">
+                                                <div className="min-h-0 flex-1 text-[11px]">
+                                                    {(() => {
+                                                        const currentEquip = correspondingEquippedItem ?? null;
+                                                        const selectedEquip = selectedItem;
+                                                        const getAllOptions = (invItem: InventoryItem | null | undefined): ItemOption[] =>
+                                                            !invItem || !invItem.options
+                                                                ? []
+                                                                : [
+                                                                      ...(invItem.options.main ? [invItem.options.main] : []),
+                                                                      ...(invItem.options.combatSubs || []),
+                                                                      ...(invItem.options.specialSubs || []),
+                                                                      ...(invItem.options.mythicSubs || []),
+                                                                  ].filter(Boolean) as ItemOption[];
+                                                        const findOpt = (invItem: InventoryItem | null | undefined, type: ItemOptionType) =>
+                                                            getAllOptions(invItem).find((o) => o.type === type) ?? null;
+                                                        const collectBy = (predicate: (opt: ItemOption) => boolean): ItemOptionType[] => {
+                                                            const s = new Set<ItemOptionType>();
+                                                            getAllOptions(currentEquip).forEach((o) => predicate(o) && s.add(o.type));
+                                                            getAllOptions(selectedEquip).forEach((o) => predicate(o) && s.add(o.type));
+                                                            return Array.from(s).sort((a, b) => String(a).localeCompare(String(b)));
+                                                        };
+                                                        const mainTypeCurrent = currentEquip?.options?.main?.type;
+                                                        const mainTypeSelected = selectedEquip?.options?.main?.type;
+                                                        const mainSubTypesRaw = collectBy((o) => Object.values(CoreStat).includes(o.type as CoreStat) || o.type === mainTypeCurrent || o.type === mainTypeSelected);
+                                                        const mainPriorityTypes = [mainTypeCurrent, mainTypeSelected].filter(Boolean) as ItemOptionType[];
+                                                        const uniqueMainPriorityTypes = Array.from(new Set(mainPriorityTypes));
+                                                        const mainSubTypes = [
+                                                            ...uniqueMainPriorityTypes.filter((t) => mainSubTypesRaw.includes(t)),
+                                                            ...mainSubTypesRaw.filter((t) => !uniqueMainPriorityTypes.includes(t)),
+                                                        ];
+                                                        const specialTypes = collectBy((o) => Object.values(SpecialStat).includes(o.type as SpecialStat));
+                                                        const mythicTypes = collectBy((o) => Object.values(MythicStat).includes(o.type as MythicStat));
+                                                        const renderOptRowsForItem = (
+                                                            types: ItemOptionType[],
+                                                            baseItem: InventoryItem | null | undefined,
+                                                            _compareItem: InventoryItem | null | undefined,
+                                                            tone: 'cyan' | 'amber',
+                                                        ) => {
+                                                            const ownTypeSet = new Set<ItemOptionType>(getAllOptions(baseItem).map((opt) => opt.type));
+                                                            const ownTypes = types.filter((type) => ownTypeSet.has(type));
+                                                            return ownTypes.length > 0 ? (
+                                                                ownTypes.map((type) => {
+                                                                    const base = findOpt(baseItem, type);
+                                                                    const labelSrc = base;
+                                                                    const isMainOptionType =
+                                                                        type === (baseItem?.options?.main?.type ?? null) ||
+                                                                        type === (_compareItem?.options?.main?.type ?? null);
+                                                                    const labelClass = isMainOptionType
+                                                                        ? 'text-yellow-300'
+                                                                        : Object.values(SpecialStat).includes(type as SpecialStat)
+                                                                          ? 'text-green-300'
+                                                                          : Object.values(MythicStat).includes(type as MythicStat)
+                                                                            ? 'text-orange-400'
+                                                                            : Object.values(CoreStat).includes(type as CoreStat)
+                                                                              ? 'text-blue-300'
+                                                                              : 'text-stone-300';
+                                                                    return (
+                                                                        <div key={`${tone}-${String(type)}`} className="rounded-md bg-black/25 px-1.5 py-0.5">
+                                                                            <div className="flex items-center justify-between gap-0.5 tabular-nums leading-tight">
+                                                                                <span className={`min-w-0 flex-1 truncate font-semibold ${labelClass}`}>
+                                                                                    {labelSrc?.display ?? String(type)}
+                                                                                </span>
+                                                                                <span className={tone === 'cyan' ? 'shrink-0 text-cyan-200 text-[11px]' : 'shrink-0 text-amber-200 text-[11px]'}>
+                                                                                    {base ? base.value : '-'}
+                                                                                </span>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            ) : (
+                                                                <p className="px-1 py-1 text-stone-500">옵션 없음</p>
+                                                            );
+                                                        };
+
+                                                        const renderViewerPane = (
+                                                            tone: 'cyan' | 'amber',
+                                                            itemRef: InventoryItem | null | undefined,
+                                                            body: React.ReactNode,
+                                                        ) => (
+                                                            <div className={`flex min-h-0 flex-1 basis-0 flex-col rounded-md border bg-black/20 p-0.5 ${tone === 'cyan' ? 'border-cyan-500/35' : 'border-amber-500/35'}`}>
+                                                                <div className="min-h-0 flex-1 overflow-hidden pr-0.5">
+                                                                    {!itemRef ? (
+                                                                        <p className="text-stone-500">장비 없음</p>
+                                                                    ) : (
+                                                                        body
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+
+                                                        if (equipCompareViewerTab === 'info') {
+                                                            const currentReq = currentEquip ? GRADE_LEVEL_REQUIREMENTS[currentEquip.grade] : '-';
+                                                            const selectedReq = GRADE_LEVEL_REQUIREMENTS[selectedEquip.grade];
+                                                            const currentRefine = currentEquip
+                                                                ? (currentEquip.grade !== 'normal' && ((currentEquip as any).refinementCount ?? 0) > 0
+                                                                    ? `${(currentEquip as any).refinementCount}회`
+                                                                    : '제련불가')
+                                                                : '-';
+                                                            const selectedRefine =
+                                                                selectedEquip.grade !== 'normal' && ((selectedEquip as any).refinementCount ?? 0) > 0
+                                                                    ? `${(selectedEquip as any).refinementCount}회`
+                                                                    : '제련불가';
+                                                            return (
+                                                                <div className="flex h-full min-h-0 flex-col gap-0.5">
+                                                                    {renderViewerPane(
+                                                                        'cyan',
+                                                                        currentEquip,
+                                                                        <div className="rounded-md bg-black/25 px-1.5 py-0.75 text-[11px] leading-[1.2]">
+                                                                            <span className="block whitespace-normal break-words text-cyan-200">
+                                                                                {`착용레벨 : ${currentReq}`}
+                                                                            </span>
+                                                                            <span className="mt-0.5 block whitespace-normal break-words text-cyan-200">
+                                                                                {`제련 가능 : ${currentRefine}`}
+                                                                            </span>
+                                                                        </div>,
+                                                                    )}
+                                                                    {renderViewerPane(
+                                                                        'amber',
+                                                                        selectedEquip,
+                                                                        <div className="rounded-md bg-black/25 px-1.5 py-0.75 text-[11px] leading-[1.2]">
+                                                                            <span className="block whitespace-normal break-words text-amber-200">
+                                                                                {`착용레벨 : ${selectedReq}`}
+                                                                            </span>
+                                                                            <span className="mt-0.5 block whitespace-normal break-words text-amber-200">
+                                                                                {`제련 가능 : ${selectedRefine}`}
+                                                                            </span>
+                                                                        </div>,
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        }
+                                                        const activeTypes =
+                                                            equipCompareViewerTab === 'mainSub'
+                                                                ? mainSubTypes
+                                                                : equipCompareViewerTab === 'special'
+                                                                  ? specialTypes
+                                                                  : mythicTypes;
+                                                        return (
+                                                            <div className="flex h-full min-h-0 flex-col gap-0.5">
+                                                                {renderViewerPane(
+                                                                    'cyan',
+                                                                    currentEquip,
+                                                                    <div className="space-y-0">{renderOptRowsForItem(activeTypes, currentEquip, selectedEquip, 'cyan')}</div>,
+                                                                )}
+                                                                {renderViewerPane(
+                                                                    'amber',
+                                                                    selectedEquip,
+                                                                    <div className="space-y-0">{renderOptRowsForItem(activeTypes, selectedEquip, currentEquip, 'amber')}</div>,
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-600/55 bg-panel-secondary shadow-inner">
-                                    <h4
-                                        className="shrink-0 border-b border-gray-600/40 px-2 py-1 font-bold text-on-panel"
-                                        style={{ fontSize: `${Math.max(11, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
-                                    >
-                                        선택 장비
-                                    </h4>
-                                    <div className="min-h-0 flex-1 overflow-y-auto p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
-                                        <LocalItemDetailDisplay
-                                            item={selectedItem}
-                                            title="선택된 아이템 없음"
-                                            comparisonItem={correspondingEquippedItem ?? undefined}
-                                            scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
-                                            mobileTextScale={mobileTextScale}
-                                            userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
-                                            detailScaleMultiplier={0.92}
-                                        />
+                            ) : (
+                                <div className="flex min-h-0 min-h-[200px] flex-1 flex-row gap-2">
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-500/35 bg-panel-secondary/90 shadow-inner">
+                                        <h4
+                                            className="shrink-0 border-b border-cyan-500/20 px-2 py-1 font-bold text-cyan-200/95"
+                                            style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
+                                        >
+                                            현재 장착
+                                        </h4>
+                                        <div className="min-h-0 flex-1 overflow-y-auto p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                            <LocalItemDetailDisplay
+                                                item={correspondingEquippedItem}
+                                                title="장착된 장비 없음"
+                                                comparisonItem={selectedItem}
+                                                scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
+                                                mobileTextScale={compareModalTextScale}
+                                                userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                                emptySlot={selectedItem.slot}
+                                                detailScaleMultiplier={0.92}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-gray-600/55 bg-panel-secondary shadow-inner">
+                                        <h4
+                                            className="shrink-0 border-b border-gray-600/40 px-2 py-1 font-bold text-on-panel"
+                                            style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
+                                        >
+                                            선택 장비
+                                        </h4>
+                                        <div className="min-h-0 flex-1 overflow-y-auto p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                            <LocalItemDetailDisplay
+                                                item={selectedItem}
+                                                title="선택된 아이템 없음"
+                                                comparisonItem={correspondingEquippedItem ?? undefined}
+                                                scaleFactor={Math.max(0.42, scaleFactor * 0.92)}
+                                                mobileTextScale={compareModalTextScale}
+                                                userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                                detailScaleMultiplier={0.92}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                             {equipSwapStatPreview && (
-                                <div className="shrink-0 rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/40 via-gray-900/90 to-gray-950/95 p-2 shadow-inner">
+                                <div className="min-h-0 flex-[0.85_1_0%] overflow-y-auto rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/40 via-gray-900/90 to-gray-950/95 p-1.5 shadow-inner">
                                     <h4
-                                        className="mb-1.5 font-bold text-amber-100/95"
-                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                        className="mb-0.5 font-bold text-amber-100/95 leading-tight"
+                                        style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
                                     >
                                         교체 시 바둑 능력치 변화
                                     </h4>
-                                    <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 sm:grid-cols-3">
+                                    <div className={`grid grid-cols-1 ${narrowInventoryLayout ? 'gap-y-0' : 'gap-y-1'}`}>
                                         {Object.values(CoreStat).map((stat) => {
                                             const cur = equipSwapStatPreview.currentStats[stat];
                                             const next = equipSwapStatPreview.afterStats[stat];
@@ -1816,37 +2227,41 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             const deltaClass =
                                                 d > 0 ? 'text-green-400' : d < 0 ? 'text-red-400' : 'text-stone-500';
                                             return (
-                                                <div key={stat} className="min-w-0 rounded-md bg-black/25 px-1.5 py-1">
+                                                <div
+                                                    key={stat}
+                                                    className={`min-w-0 rounded-md bg-black/25 ${
+                                                        narrowInventoryLayout ? 'px-1 py-[2px]' : 'px-1.5 py-1'
+                                                    }`}
+                                                >
                                                     <div
-                                                        className="truncate font-semibold text-stone-400"
-                                                        style={{ fontSize: `${Math.max(9, Math.round(10 * scaleFactor * mobileTextScale))}px` }}
+                                                        className={`flex items-center justify-center font-mono tabular-nums leading-none text-stone-100 ${
+                                                            narrowInventoryLayout ? 'gap-1.5' : 'gap-3'
+                                                        }`}
+                                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * compareModalTextScale))}px` }}
                                                     >
-                                                        {stat}
-                                                    </div>
-                                                    <div
-                                                        className="mt-0.5 font-mono tabular-nums text-stone-100"
-                                                        style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
-                                                    >
-                                                        <span className="text-stone-400">{cur}</span>
-                                                        <span className="mx-0.5 text-stone-600">→</span>
-                                                        <span>{next}</span>
-                                                        {d !== 0 && (
-                                                            <span className={`ml-1 font-bold ${deltaClass}`}>
-                                                                ({d > 0 ? '+' : ''}
-                                                                {d})
-                                                            </span>
-                                                        )}
+                                                        <span className={`${narrowInventoryLayout ? 'w-[4.6rem]' : 'w-[6.2rem]'} shrink-0 text-right font-semibold text-stone-300 whitespace-nowrap`}>{stat}</span>
+                                                        <span className={`${narrowInventoryLayout ? 'w-[5.8rem]' : 'w-[7.6rem]'} shrink-0 whitespace-nowrap text-center`}>
+                                                            <span className="text-stone-400">{cur}</span>
+                                                            <span className="mx-[1px] text-stone-600">→</span>
+                                                            <span>{next}</span>
+                                                            {d !== 0 && (
+                                                                <span className={`ml-[2px] font-bold ${deltaClass}`}>
+                                                                    ({d > 0 ? '+' : ''}
+                                                                    {d})
+                                                                </span>
+                                                            )}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             );
                                         })}
                                     </div>
                                     <div
-                                        className="mt-2 flex flex-wrap items-center justify-between gap-1 border-t border-amber-500/20 pt-1.5 font-bold text-stone-100"
-                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                        className="mt-1 flex items-center justify-center gap-1.5 border-t border-amber-500/20 pt-0.5 font-bold text-stone-100"
+                                        style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
                                     >
-                                        <span className="text-amber-200/90">종합 능력</span>
-                                        <span className="font-mono tabular-nums">
+                                        <span className={`${narrowInventoryLayout ? 'w-[4.6rem]' : 'w-[6.2rem]'} shrink-0 text-right text-amber-200/90 whitespace-nowrap`}>종합 능력</span>
+                                        <span className={`${narrowInventoryLayout ? 'w-[5.8rem]' : 'w-[7.6rem]'} shrink-0 text-center font-mono tabular-nums whitespace-nowrap`}>
                                             <span className="text-stone-400">{equipSwapStatPreview.currentSum}</span>
                                             <span className="mx-1 text-stone-600">→</span>
                                             <span>{equipSwapStatPreview.afterSum}</span>

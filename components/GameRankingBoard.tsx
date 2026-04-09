@@ -8,6 +8,8 @@ import { calculateTotalStats } from '../services/statService.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 
 const IS_DEV = import.meta.env.DEV;
+const MOBILE_RANK_ROW_CLASS = 'min-h-[2.75rem]';
+const MOBILE_RANK_TEXT_CLASS = 'text-[11px]';
 
 /** 랭킹 모달용: 1~3위 강조 / 본인 행 강조 */
 function rankRowAccent(rank: number | string, isCurrentUser: boolean, dense: boolean, mobileWide: boolean): string {
@@ -53,12 +55,12 @@ const RankingRow = ({
     if (mobileWide) {
         return (
             <div
-                className={`flex min-h-[3rem] items-center rounded-lg px-1.5 py-1 transition-colors ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
+                className={`flex ${MOBILE_RANK_ROW_CLASS} items-center rounded-lg px-1.5 py-0.5 transition-colors ${accent} ${!isCurrentUser && onViewUser ? 'cursor-pointer hover:bg-white/[0.04]' : ''}`}
                 onClick={handleClick}
                 title={!isCurrentUser && onViewUser ? `${user.nickname} 프로필 보기` : ''}
             >
                 <span
-                    className={`w-8 shrink-0 text-center text-[11px] font-black tabular-nums ${
+                    className={`w-8 shrink-0 text-center ${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums ${
                         typeof rank === 'number' && rank === 1
                             ? 'text-amber-300'
                             : typeof rank === 'number' && rank === 2
@@ -70,9 +72,9 @@ const RankingRow = ({
                 >
                     {rank}
                 </span>
-                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={40} />
-                <span className="ml-2 min-w-0 flex-1 truncate text-sm font-semibold">{user.nickname}</span>
-                <span className="w-[4.5rem] shrink-0 text-right font-mono text-sm tabular-nums">{value.toLocaleString()}</span>
+                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={34} />
+                <span className={`ml-1.5 min-w-0 flex-1 truncate ${MOBILE_RANK_TEXT_CLASS} font-semibold`}>{user.nickname}</span>
+                <span className={`w-[4.25rem] shrink-0 text-right font-mono ${MOBILE_RANK_TEXT_CLASS} tabular-nums`}>{value.toLocaleString()}</span>
             </div>
         );
     }
@@ -214,7 +216,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense, m
                     type="button"
                     onClick={() => setActiveTab('combat')}
                     className={`flex-1 rounded-lg font-semibold transition-all ${
-                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
+                        wide ? 'py-1.5 text-[11px]' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
                     } ${
                         activeTab === 'combat'
                             ? 'bg-gradient-to-r from-indigo-600 to-blue-600 text-white shadow-md shadow-blue-500/25'
@@ -227,7 +229,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({ isTopmost, dense, m
                     type="button"
                     onClick={() => setActiveTab('manner')}
                     className={`flex-1 rounded-lg font-semibold transition-all ${
-                        wide ? 'py-2 text-sm' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
+                        wide ? 'py-1.5 text-[11px]' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
                     } ${
                         activeTab === 'manner'
                             ? 'bg-gradient-to-r from-amber-500 to-yellow-600 text-white shadow-md shadow-amber-500/25'

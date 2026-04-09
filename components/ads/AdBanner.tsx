@@ -76,6 +76,7 @@ const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
   if (isProduction && clientId && slotId) {
     return (
       <div
+        data-sudamr-ad-ui
         className={`ad-container ad-${position} flex items-center justify-center ${className}`}
         style={{ minHeight: size.height }}
       >
@@ -95,6 +96,7 @@ const AdBanner: React.FC<AdBannerProps> = ({ position, className = '' }) => {
   // 개발 환경: 플레이스홀더
   return (
     <div
+      data-sudamr-ad-ui
       className={`ad-container ad-${position} flex items-center justify-center ${className}`}
       style={{ minHeight: size.height }}
     >

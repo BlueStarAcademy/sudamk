@@ -250,7 +250,8 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
     const panelCardClass =
         'rounded-xl border border-amber-500/18 bg-gradient-to-br from-slate-950/92 via-slate-900/78 to-violet-950/18 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-white/[0.06]';
     const sectionTitleClass =
-        'border-b border-white/[0.08] pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200/65 sm:text-[11px]';
+        'border-b border-white/[0.08] pb-1.5 font-bold uppercase tracking-[0.14em] text-amber-200/65 ' +
+        (isMobile ? 'text-[11px]' : 'text-[10px] sm:text-[11px]');
 
     return (
         <DraggableWindow
@@ -285,7 +286,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
 
                 <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
-                    <div className="relative flex h-[4.25rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[5.25rem]">
+                    <div className="relative flex h-[3.65rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-amber-500/25 sm:h-[4.25rem] md:h-[5.25rem]">
                         <img src={venueHeroImageUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
                         <div className="relative z-[1] flex flex-1 flex-col justify-center px-3.5 py-2">
@@ -305,7 +306,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                     <div
                         className={`min-h-0 flex-1 overflow-x-hidden px-2.5 pb-2 pt-2.5 sm:px-3.5 sm:pb-3 sm:pt-3 sm:p-3 ${
                             isMobile
-                                ? 'overflow-y-visible'
+                                ? 'overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent]'
                                 : `max-h-[min(52vh,420px)] overflow-y-auto overscroll-contain [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.35)_transparent]`
                         }`}
                     >
@@ -380,65 +381,132 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                                 </div>
                             </div>
 
-                            <div className={`${panelCardClass} flex min-h-[140px] flex-col p-2.5 sm:min-h-[160px] sm:p-3`}>
+                            <div
+                                className={`${panelCardClass} flex flex-col p-2.5 sm:p-3 ${
+                                    isMobile ? 'min-h-0' : 'min-h-[140px] sm:min-h-[160px]'
+                                }`}
+                            >
                                 <h3 className={`${sectionTitleClass} mb-2 flex-shrink-0`}>보상 내역</h3>
                                 {rewardItems.length > 0 ? (
-                                    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-5 sm:gap-2">
-                                        {rewardItems.map((item, index) => {
-                                            const maybeEquip = item as typeof item & { grade?: ItemGrade };
-                                            const isWorldEquip = dungeonType === 'world' && maybeEquip.grade;
+                                    isMobile ? (
+                                        <ul className="flex flex-col gap-2" role="list">
+                                            {rewardItems.map((item, index) => {
+                                                const maybeEquip = item as typeof item & { grade?: ItemGrade };
+                                                const isWorldEquip = dungeonType === 'world' && maybeEquip.grade;
 
-                                            if (isWorldEquip && maybeEquip.grade) {
-                                                const grade = maybeEquip.grade;
-                                                const bg = gradeBackgrounds[grade] || gradeBackgrounds[ItemGrade.Normal];
-                                                const thumbSize = isMobile ? 'w-16 h-16' : 'w-14 h-14';
+                                                if (isWorldEquip && maybeEquip.grade) {
+                                                    const grade = maybeEquip.grade;
+                                                    const bg = gradeBackgrounds[grade] || gradeBackgrounds[ItemGrade.Normal];
+                                                    return (
+                                                        <li
+                                                            key={index}
+                                                            className="flex min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-black/40 p-2.5 ring-1 ring-inset ring-white/[0.04]"
+                                                        >
+                                                            <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-1 ring-amber-400/25">
+                                                                <img
+                                                                    src={bg}
+                                                                    alt=""
+                                                                    className="absolute inset-0 h-full w-full rounded-md object-cover"
+                                                                    aria-hidden
+                                                                />
+                                                                <img
+                                                                    src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
+                                                                    alt={item.name}
+                                                                    className="pointer-events-none absolute left-1/2 top-1/2 w-[78%] max-h-[78%] -translate-x-1/2 -translate-y-1/2 object-contain"
+                                                                    loading="lazy"
+                                                                    decoding="async"
+                                                                />
+                                                            </div>
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="text-[13px] font-semibold leading-snug text-zinc-100 break-words">
+                                                                    {item.name}
+                                                                </p>
+                                                            </div>
+                                                        </li>
+                                                    );
+                                                }
+
+                                                return (
+                                                    <li
+                                                        key={index}
+                                                        className="flex min-w-0 items-center gap-3 rounded-xl border border-white/10 bg-black/40 p-2.5 ring-1 ring-inset ring-white/[0.04]"
+                                                    >
+                                                        <img
+                                                            src={item.image}
+                                                            alt=""
+                                                            className="h-12 w-12 shrink-0 object-contain"
+                                                            loading="lazy"
+                                                            decoding="async"
+                                                        />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-[13px] font-medium leading-snug text-zinc-100 break-words">
+                                                                {item.name}
+                                                            </p>
+                                                            {item.quantity > 1 && (
+                                                                <p className="mt-0.5 text-xs font-bold tabular-nums text-amber-200">
+                                                                    ×{item.quantity}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    </li>
+                                                );
+                                            })}
+                                        </ul>
+                                    ) : (
+                                        <div className="grid grid-cols-5 gap-2">
+                                            {rewardItems.map((item, index) => {
+                                                const maybeEquip = item as typeof item & { grade?: ItemGrade };
+                                                const isWorldEquip = dungeonType === 'world' && maybeEquip.grade;
+
+                                                if (isWorldEquip && maybeEquip.grade) {
+                                                    const grade = maybeEquip.grade;
+                                                    const bg = gradeBackgrounds[grade] || gradeBackgrounds[ItemGrade.Normal];
+
+                                                    return (
+                                                        <div
+                                                            key={index}
+                                                            className="flex min-w-0 flex-col items-center justify-center rounded-lg"
+                                                            title={item.name}
+                                                        >
+                                                            <div className="relative aspect-square h-14 w-14 overflow-hidden rounded-lg ring-1 ring-amber-400/25">
+                                                                <img
+                                                                    src={bg}
+                                                                    alt={grade}
+                                                                    className="absolute inset-0 h-full w-full rounded-md object-cover"
+                                                                    aria-hidden
+                                                                />
+                                                                <img
+                                                                    src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
+                                                                    alt={item.name}
+                                                                    className="pointer-events-none absolute left-1/2 top-1/2 w-[78%] max-h-[78%] -translate-x-1/2 -translate-y-1/2 object-contain"
+                                                                    loading="lazy"
+                                                                    decoding="async"
+                                                                />
+                                                            </div>
+                                                            <span className="mt-1 line-clamp-2 w-full text-center text-[10px] leading-tight text-zinc-200">
+                                                                {item.name}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                }
 
                                                 return (
                                                     <div
                                                         key={index}
-                                                        className="flex min-w-0 flex-col items-center justify-center rounded-lg"
-                                                        title={item.name}
+                                                        className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/35 p-2 ring-1 ring-inset ring-white/[0.04]"
                                                     >
-                                                        <div className={`relative aspect-square ${thumbSize} overflow-hidden rounded-lg ring-1 ring-amber-400/25`}>
-                                                            <img
-                                                                src={bg}
-                                                                alt={grade}
-                                                                className="absolute inset-0 h-full w-full rounded-md object-cover"
-                                                                aria-hidden
-                                                            />
-                                                            <img
-                                                                src={item.image?.startsWith('/') ? item.image : `/${item.image}`}
-                                                                alt={item.name}
-                                                                className="pointer-events-none absolute left-1/2 top-1/2 w-[78%] max-h-[78%] -translate-x-1/2 -translate-y-1/2 object-contain"
-                                                                loading="lazy"
-                                                                decoding="async"
-                                                            />
-                                                        </div>
-                                                        <span className="mt-1 line-clamp-2 w-full text-center text-[11px] leading-tight text-zinc-200 sm:text-[10px]">
+                                                        <img src={item.image} alt="" className="h-8 w-8 object-contain" />
+                                                        <span className="mt-1 line-clamp-2 w-full text-center text-[10px] leading-tight text-zinc-200">
                                                             {item.name}
                                                         </span>
+                                                        {item.quantity > 1 && (
+                                                            <span className="text-[10px] font-bold text-amber-200">×{item.quantity}</span>
+                                                        )}
                                                     </div>
                                                 );
-                                            }
-
-                                            const iconSize = isMobile ? 'h-11 w-11' : 'h-8 w-8';
-
-                                            return (
-                                                <div
-                                                    key={index}
-                                                    className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/35 p-1.5 ring-1 ring-inset ring-white/[0.04] sm:p-2"
-                                                >
-                                                    <img src={item.image} alt="" className={`${iconSize} object-contain`} />
-                                                    <span className="mt-1 line-clamp-2 w-full text-center text-[11px] leading-tight text-zinc-200 sm:text-[10px]">
-                                                        {item.name}
-                                                    </span>
-                                                    {item.quantity > 1 && (
-                                                        <span className="text-[11px] font-bold text-amber-200 sm:text-[10px]">×{item.quantity}</span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                            })}
+                                        </div>
+                                    )
                                 ) : (
                                     <p className="py-2 text-sm text-zinc-500">보상 없음</p>
                                 )}

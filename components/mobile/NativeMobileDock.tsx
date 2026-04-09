@@ -70,7 +70,7 @@ const NativeMobileDock: React.FC = () => {
                         const on = activeTab === tab;
                         const disabled = tab === 'adventure';
                         const labelClass =
-                            'bg-gradient-to-b from-white via-amber-100 to-amber-300 bg-clip-text text-center text-[9px] font-bold tracking-tight text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.65)] min-[380px]:text-[10px] sm:text-[11px]';
+                            'bg-gradient-to-b from-white via-amber-100 to-amber-300 bg-clip-text text-center text-[10px] font-bold tracking-tight text-transparent drop-shadow-[0_1px_1px_rgba(0,0,0,0.65)] min-[380px]:text-[11px] sm:text-[12px]';
                         return (
                             <button
                                 key={tab}

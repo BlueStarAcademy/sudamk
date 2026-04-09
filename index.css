@@ -118,7 +118,7 @@ html[data-theme="green"] {
 
 
 @layer components {
-  /* Full-viewport modal shell — 어두운 글래스 딤 (개별 오버레이에서 bg를 덮어쓸 수 있음) */
+  /* Full-viewport modal shell — 홈(MainBackgroundLayer)과 맞춘 따뜻한 비네트 + 상단 앰버·측면 바이올렛 힌트 */
   .sudamr-modal-overlay {
     position: fixed;
     inset: 0;
@@ -126,33 +126,70 @@ html[data-theme="green"] {
     align-items: center;
     justify-content: center;
     padding: 1rem;
-    background: rgba(2, 6, 23, 0.58);
+    background:
+      radial-gradient(ellipse 100% 72% at 50% 0%, rgba(251, 191, 36, 0.14), transparent 56%),
+      radial-gradient(ellipse 82% 58% at 100% 58%, rgba(99, 102, 241, 0.1), transparent 52%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.58) 0%, rgba(0, 0, 0, 0.38) 48%, rgba(0, 0, 0, 0.7) 100%);
     -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
   }
 
   @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
     .sudamr-modal-overlay {
-      background: rgba(2, 6, 23, 0.72);
+      background:
+        radial-gradient(ellipse 100% 72% at 50% 0%, rgba(251, 191, 36, 0.12), transparent 56%),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.78) 0%, rgba(0, 0, 0, 0.72) 100%);
     }
   }
 
-  /* 고정·드래그 모달 공통 프레임: 징크 딥 그라데이션 + 앰버 림 하이라이트 */
+  /* 카드·랭킹 등 내부 전체 덮개 — 동일 톤, 약한 블러 */
+  .sudamr-modal-inner-scrim {
+    background:
+      radial-gradient(ellipse 100% 70% at 50% 0%, rgba(251, 191, 36, 0.1), transparent 55%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.42) 100%);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .sudamr-modal-inner-scrim {
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.65) 100%);
+    }
+  }
+
+  /* DraggableWindow `modal` 딤 — 전역 오버레이와 동일 톤 */
+  .sudamr-draggable-modal-backdrop {
+    background:
+      radial-gradient(ellipse 100% 72% at 50% 0%, rgba(251, 191, 36, 0.12), transparent 56%),
+      radial-gradient(ellipse 82% 58% at 100% 58%, rgba(99, 102, 241, 0.08), transparent 52%),
+      linear-gradient(180deg, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.34) 48%, rgba(0, 0, 0, 0.62) 100%);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .sudamr-draggable-modal-backdrop {
+      background: linear-gradient(180deg, rgba(0, 0, 0, 0.74) 0%, rgba(0, 0, 0, 0.68) 100%);
+    }
+  }
+
+  /* 고정·드래그 모달 공통 프레임: 숲 톤 + 홈과 맞는 웜 딥 섀도 + 앰버 림 */
   .sudamr-modal-panel,
   .sudamr-floating-modal-surface {
     border: 1px solid rgba(251, 191, 36, 0.22);
     background: linear-gradient(
       168deg,
-      rgb(var(--bg-secondary) / 0.99) 0%,
-      rgb(15 23 42 / 0.97) 40%,
-      rgb(var(--bg-primary) / 0.98) 70%,
-      rgb(9 12 22 / 1) 100%
+      rgb(var(--bg-secondary) / 0.98) 0%,
+      rgb(42 36 30 / 0.96) 30%,
+      rgb(var(--bg-primary) / 0.97) 58%,
+      rgb(14 11 9 / 0.99) 100%
     );
     box-shadow:
       0 44px 120px -36px rgba(0, 0, 0, 0.92),
       0 0 0 1px rgba(255, 255, 255, 0.05),
       inset 0 1px 0 0 rgba(255, 255, 255, 0.1),
-      0 0 100px -52px rgba(251, 191, 36, 0.16);
+      0 0 100px -48px rgba(251, 191, 36, 0.18),
+      0 0 80px -56px rgba(99, 102, 241, 0.08);
     color: var(--text-on-panel);
   }
 
@@ -173,9 +210,9 @@ html[data-theme="green"] {
     border: 1px solid rgba(255, 255, 255, 0.09);
     background: linear-gradient(
       168deg,
-      rgb(var(--bg-secondary) / 0.44) 0%,
-      rgb(var(--bg-primary) / 0.58) 48%,
-      rgb(var(--bg-tertiary) / 0.42) 100%
+      rgb(var(--bg-secondary) / 0.48) 0%,
+      rgb(38 32 28 / 0.52) 45%,
+      rgb(var(--bg-primary) / 0.55) 100%
     );
     box-shadow:
       inset 0 1px 0 rgba(255, 255, 255, 0.055),
@@ -184,9 +221,14 @@ html[data-theme="green"] {
 
   .sudamr-modal-message-panel {
     border-radius: 0.75rem;
-    border: 1px solid rgba(251, 191, 36, 0.12);
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.14));
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(251, 191, 36, 0.14);
+    background: linear-gradient(
+      165deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(251, 191, 36, 0.04) 40%,
+      rgba(0, 0, 0, 0.16) 100%
+    );
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
     padding: 1rem 1.25rem;
   }
 

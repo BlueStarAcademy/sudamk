@@ -14,6 +14,7 @@ import {
     PRE_GAME_MODAL_FOOTER_CLASS,
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
+import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
 
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
@@ -395,7 +396,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const xpChange = displaySummary?.xp?.change ?? 0;
     const previousXp = Math.max(0, clampedXp - xpChange);
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
-    const xpChangePercent = Math.min(100 - previousXpPercent, (xpChange / (xpRequirement || 1)) * 100);
     const xpPercent = Math.min(100, (clampedXp / (xpRequirement || 1)) * 100);
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
@@ -457,12 +457,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 
                 <div
                     className={`flex min-h-0 flex-row gap-1.5 sm:gap-3 ${
-                        isMobile ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible' : 'items-start overflow-visible'
+                        isMobile ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible' : 'items-stretch overflow-visible'
                     }`}
                 >
                     {/* Left Panel: 경기 결과 */}
                     <div
-                        className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 shrink-0 overflow-visible p-2.5'} sp-summary-left-panel`}
+                        className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 min-h-0 shrink-0 overflow-visible p-2.5'} sp-summary-left-panel`}
                     >
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
                             경기 결과
@@ -523,7 +523,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     {/* Right Panel: 획득 보상 */}
                     <div
                         className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${
-                            isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 flex-1 overflow-visible p-2.5'
+                            isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 min-h-0 flex-1 overflow-visible p-2.5'
                         }`}
                     >
                         <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
@@ -550,23 +550,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             {/* 경험치 표시 */}
                             {displaySummary?.xp && (
                                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${isMobile ? 'p-1.5' : 'p-2'}`}>
-                                    <div className="relative h-2.5 w-full overflow-hidden rounded-full border border-amber-500/20 bg-black/40">
-                                        {/* 이전 경험치 */}
-                                        <div
-                                            className="h-full bg-gradient-to-r from-sky-400 via-blue-500 to-indigo-500 transition-all duration-700 ease-out absolute left-0 top-0"
-                                            style={{ width: `${previousXpPercent}%` }}
-                                        />
-                                        {/* 증가한 경험치 */}
-                                        {xpChange > 0 && (
-                                            <div
-                                                className="h-full bg-gradient-to-r from-green-400 via-emerald-500 to-teal-500 transition-all duration-700 ease-out absolute left-0 top-0"
-                                                style={{ 
-                                                    width: `${xpChangePercent}%`,
-                                                    left: `${previousXpPercent}%`
-                                                }}
-                                            />
-                                        )}
-                                    </div>
+                                    <StrategyXpResultBar
+                                        previousXpPercent={previousXpPercent}
+                                        finalXpPercent={xpPercent}
+                                        xpGain={xpChange}
+                                    />
                                     <div className="flex items-center justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
                                         <span className="font-mono text-zinc-300/95">
                                             {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP

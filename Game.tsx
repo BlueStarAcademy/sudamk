@@ -80,12 +80,12 @@ const MoveConfirmDraggable: React.FC<MoveConfirmDraggableProps> = ({
             onClick={pendingMove ? handleConfirmMove : undefined}
             disabled={!pendingMove || !mobileConfirm}
             colorScheme="none"
-            className={`w-full !py-2 rounded-xl border border-emerald-300/55 bg-gradient-to-br from-emerald-500/85 via-lime-500/75 to-green-500/80 text-slate-900 font-bold ${!pendingMove || !mobileConfirm ? 'opacity-40 cursor-not-allowed' : ''}`}
+            className={`w-full !py-2.5 rounded-xl border border-emerald-400/45 bg-gradient-to-b from-emerald-400/95 via-emerald-600/90 to-emerald-950/95 text-slate-950 font-bold shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_10px_28px_-12px_rgba(16,185,129,0.45)] ring-1 ring-inset ring-white/10 ${!pendingMove || !mobileConfirm ? 'opacity-40 cursor-not-allowed' : 'hover:brightness-[1.05] active:scale-[0.99]'}`}
             title={!mobileConfirm ? '착수 버튼 모드가 OFF입니다.' : pendingMove ? '착수 확정' : '바둑판을 클릭해 착점을 선택하세요'}
         >
             착수
         </Button>
-        <div className="w-full h-px bg-gray-700/70" />
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-slate-600/50 to-transparent" />
         <div className="flex w-full items-center justify-between gap-2">
             <span className="whitespace-nowrap text-[10px] text-gray-300">착수 버튼</span>
             <ToggleSwitch
@@ -2427,13 +2427,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
-                        <div className="w-full h-full max-h-full max-w-full flex flex-col items-center gap-1 lg:gap-2">
-                        <div className="flex-shrink-0 w-full flex items-center gap-2">
-                                <div className="flex-1 min-w-0 px-2 pt-1">
+                        <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
+                        <div className="flex w-full flex-shrink-0 justify-center">
+                                <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
                                     <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isSinglePlayer={true} isMobile={isMobile} />
                                 </div>
                             </div>
-                            <div className="flex-1 w-full relative min-w-0 min-h-0 overflow-hidden">
+                            <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
                                 <div className="absolute inset-0">
                                     <GameArena 
                                         {...gameProps}
@@ -2582,13 +2582,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
-                        <div className="w-full h-full max-h-full max-w-full flex flex-col items-center gap-1 lg:gap-2">
-                        <div className="flex-shrink-0 w-full flex items-center gap-2">
-                            <div className="flex-1 min-w-0 px-2 pt-1">
+                        <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
+                        <div className="flex w-full flex-shrink-0 justify-center">
+                            <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
                                     <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isSinglePlayer={true} isMobile={isMobile} />
                                 </div>
                             </div>
-                            <div className="flex-1 w-full relative min-w-0 min-h-0 overflow-hidden">
+                            <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
                                 <div className="absolute inset-0">
                                 <GameArena 
                                         {...gameProps}
@@ -2766,8 +2766,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
                 <main className="flex-1 flex min-w-0 min-h-0 overflow-hidden items-stretch justify-center">
                     <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
-                        <div className="flex-shrink-0 w-full flex items-center gap-2">
-                            <div className="flex-1 min-w-0 px-2 pt-1">
+                        <div className="flex-shrink-0 w-full flex justify-center">
+                            <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
                                 <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isMobile={isMobile} />
                             </div>
                         </div>

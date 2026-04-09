@@ -157,7 +157,7 @@ const AppModalLayer: React.FC = () => {
             {modals.isInfoModalOpen && <InfoModal onClose={handlers.closeInfoModal} isTopmost={topmostModalId === 'infoModal'} />}
             {modals.isAnnouncementsModalOpen && (
                 <div
-                    className="sudamr-modal-overlay z-[230] bg-black/60 backdrop-blur-[3px]"
+                    className="sudamr-modal-overlay z-[230]"
                     role="dialog"
                     aria-modal="true"
                     aria-labelledby="announcements-board-shell-title"
@@ -169,7 +169,7 @@ const AppModalLayer: React.FC = () => {
                     >
                         <HomeBoardPanel
                             posts={homeBoardPosts}
-                            isAdmin={false}
+                            isAdmin={Boolean(currentUserWithStatus?.isAdmin)}
                             onAction={handlers.handleAction}
                             modalMode
                             onClose={handlers.closeAnnouncementsModal}
@@ -312,8 +312,17 @@ const AppModalLayer: React.FC = () => {
                         }
                     >
                         <h2 id="other-device-login-title" className="mb-3 text-lg font-bold tracking-tight text-primary">로그아웃 안내</h2>
-                        <p className="mb-6 text-sm leading-relaxed text-secondary">다른 곳에서 로그인 되었습니다. 로그아웃 됩니다.</p>
-                        <button type="button" onClick={handlers.confirmOtherDeviceLoginAndLogout} className="rounded-xl border border-white/15 bg-gradient-to-b from-secondary/90 to-tertiary px-8 py-2.5 text-sm font-semibold text-primary shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition hover:brightness-110">확인</button>
+                        <p className="mb-6 text-sm leading-relaxed text-secondary">
+                            <span className="block">다른 곳에서 로그인 되었습니다.</span>
+                            <span className="block">로그아웃 됩니다.</span>
+                        </p>
+                        <button
+                            type="button"
+                            onClick={handlers.confirmOtherDeviceLoginAndLogout}
+                            className="rounded-xl border border-red-400/45 bg-gradient-to-r from-red-500/95 via-rose-600/95 to-red-700/95 px-8 py-2.5 text-sm font-bold text-white shadow-[0_16px_34px_-20px_rgba(248,113,113,0.85)] transition hover:brightness-110"
+                        >
+                            확인
+                        </button>
                     </div>
                 </div>
             )}
