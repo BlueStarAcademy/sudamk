@@ -47,8 +47,8 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
     const renderSetting = (label: string, value: React.ReactNode) => (
         value !== undefined && value !== null && value !== '' && (
             <React.Fragment key={label}>
-                <div className="font-semibold text-gray-400">{label}:</div>
-                <div className="whitespace-nowrap">{value}</div>
+                <div className="font-semibold text-gray-400 whitespace-nowrap">{label}:</div>
+                <div className="min-w-0 break-words text-gray-100">{value}</div>
             </React.Fragment>
         )
     );
@@ -238,7 +238,7 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
                         )}
                     </div>
                 </h3>
-                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-xs">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-1 text-xs">
                     {gameDetails}
                 </div>
             </div>

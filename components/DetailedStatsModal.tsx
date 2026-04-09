@@ -3,6 +3,7 @@ import React, { useMemo } from 'react';
 import { UserWithStatus, GameMode, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import DraggableWindow from './DraggableWindow.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface DetailedStatsModalProps {
     currentUser: UserWithStatus;
@@ -35,6 +36,7 @@ const DiamondPrice: React.FC<{ amount: number; className?: string; iconClassName
 
 const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, statsType, onClose, onAction }) => {
     const isStrategic = statsType === 'strategic';
+    const { isNativeMobile } = useNativeMobileShell();
     const title = isStrategic ? '전략 바둑 상세 전적' : '놀이 바둑 상세 전적';
     const modes = isStrategic ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const { stats, diamonds } = currentUser;
@@ -46,32 +48,30 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
         () =>
             isStrategic
                 ? {
-                      intro:
-                          '모드별 통산 승·패·승률입니다. 랭킹은 전략 바둑 전체가 합산된 하나의 시즌 점수로 집계됩니다.',
                       accent: 'border-amber-500/35',
-                      rowHover: 'hover:bg-amber-500/[0.06]',
+                      rowHover: 'hover:bg-amber-400/[0.07]',
                       labelMuted: 'text-amber-200/55',
-                      unifiedBg: 'bg-amber-950/30 border-amber-500/25',
+                      unifiedBg:
+                          'border-amber-400/35 bg-gradient-to-r from-amber-950/45 via-zinc-950/80 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_28px_-18px_rgba(251,191,36,0.35)]',
                       unifiedScore: 'text-amber-100',
-                      winText: 'text-amber-100',
+                      winText: 'text-amber-100/95',
                       singleBtn:
-                          'border border-amber-400/40 bg-amber-950/80 text-amber-50 hover:border-amber-300/60 hover:bg-amber-900/50 active:translate-y-px disabled:opacity-40',
+                          'border border-amber-400/45 bg-gradient-to-r from-amber-900/45 to-zinc-900/85 text-amber-50 hover:border-amber-300/70 hover:from-amber-800/50 hover:to-zinc-800/90 active:translate-y-px disabled:opacity-40',
                       categoryBtn:
-                          'border border-amber-400/35 bg-slate-950/80 text-amber-50/95 hover:border-amber-300/50 hover:bg-amber-950/40 active:translate-y-px disabled:opacity-40',
+                          'border border-amber-400/40 bg-gradient-to-r from-slate-950/90 via-zinc-950/90 to-amber-950/35 text-amber-50/95 hover:border-amber-300/55 hover:from-zinc-900/90 hover:to-amber-900/40 active:translate-y-px disabled:opacity-40',
                   }
                 : {
-                      intro:
-                          '모드별 통산 승·패·승률입니다. 랭킹은 놀이 바둑 전체가 합산된 하나의 시즌 점수로 집계됩니다.',
                       accent: 'border-fuchsia-500/35',
-                      rowHover: 'hover:bg-fuchsia-500/[0.06]',
+                      rowHover: 'hover:bg-fuchsia-400/[0.07]',
                       labelMuted: 'text-fuchsia-200/50',
-                      unifiedBg: 'bg-fuchsia-950/25 border-fuchsia-500/22',
+                      unifiedBg:
+                          'border-fuchsia-400/35 bg-gradient-to-r from-fuchsia-950/40 via-zinc-950/80 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_28px_-18px_rgba(217,70,239,0.35)]',
                       unifiedScore: 'text-fuchsia-100',
-                      winText: 'text-fuchsia-100',
+                      winText: 'text-fuchsia-100/95',
                       singleBtn:
-                          'border border-fuchsia-400/40 bg-fuchsia-950/75 text-fuchsia-50 hover:border-fuchsia-300/55 hover:bg-fuchsia-900/45 active:translate-y-px disabled:opacity-40',
+                          'border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-900/40 to-zinc-900/85 text-fuchsia-50 hover:border-fuchsia-300/65 hover:from-fuchsia-800/45 hover:to-zinc-800/90 active:translate-y-px disabled:opacity-40',
                       categoryBtn:
-                          'border border-fuchsia-400/35 bg-slate-950/80 text-fuchsia-50/95 hover:border-fuchsia-300/45 hover:bg-fuchsia-950/35 active:translate-y-px disabled:opacity-40',
+                          'border border-fuchsia-400/40 bg-gradient-to-r from-slate-950/90 via-zinc-950/90 to-fuchsia-950/30 text-fuchsia-50/95 hover:border-fuchsia-300/55 hover:from-zinc-900/90 hover:to-fuchsia-900/38 active:translate-y-px disabled:opacity-40',
                   },
         [isStrategic]
     );
@@ -138,35 +138,45 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
     const unifiedLabel = isStrategic ? '전략 바둑 통합 랭킹' : '놀이 바둑 통합 랭킹';
 
     return (
-        <DraggableWindow title={title} onClose={onClose} windowId="detailed-stats" initialWidth={640} bodyPaddingClassName="p-3 sm:p-4">
+        <DraggableWindow
+            title={title}
+            onClose={onClose}
+            windowId="detailed-stats"
+            initialWidth={isNativeMobile ? 420 : 640}
+            initialHeight={isNativeMobile ? 700 : 760}
+            bodyPaddingClassName={isNativeMobile ? 'p-2.5' : 'p-3 sm:p-4'}
+        >
             <div className="space-y-3 text-primary">
-                <p className="text-xs sm:text-[0.8rem] leading-snug text-secondary border-l-2 border-accent/40 pl-2.5">{theme.intro}</p>
-
                 <div
-                    className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 rounded-lg border px-3 py-2 ${theme.unifiedBg}`}
+                    className={`relative overflow-hidden rounded-xl border px-3 py-2.5 sm:px-3.5 sm:py-3 ${theme.unifiedBg}`}
                 >
-                    <div className="min-w-0">
-                        <p className={`text-[10px] font-semibold uppercase tracking-wider ${theme.labelMuted}`}>{unifiedLabel}</p>
-                        <p className={`text-lg font-bold tabular-nums sm:text-xl ${theme.unifiedScore}`}>
-                            {unifiedRanking.score.toLocaleString()}
-                            <span className="text-sm font-semibold text-secondary/90">점</span>
-                        </p>
-                    </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-secondary">
-                        {unifiedRanking.rank != null && unifiedRanking.rank > 0 && unifiedRanking.rank < 9999 ? (
-                            <span>
-                                순위 <span className="font-mono font-semibold text-primary">{unifiedRanking.rank}</span>위
-                            </span>
-                        ) : (
-                            <span className="text-tertiary">순위 집계 전</span>
-                        )}
-                        <span className="text-tertiary">
-                            랭킹전 대국 <span className="font-mono text-secondary">{unifiedRanking.totalGames}</span>국
-                        </span>
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/35 to-transparent" aria-hidden />
+                    <div className="flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                            <p className={`text-[10px] font-semibold uppercase tracking-[0.13em] ${theme.labelMuted}`}>{unifiedLabel}</p>
+                            <p className={`mt-0.5 text-xl font-black tabular-nums tracking-tight sm:text-2xl ${theme.unifiedScore}`}>
+                                {unifiedRanking.score.toLocaleString()}
+                                <span className="ml-1 text-[0.72em] font-semibold text-secondary/85">점</span>
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            disabled={!canAffordCategory}
+                            title={
+                                canAffordCategory
+                                    ? `다이아 ${CATEGORY_RESET_COST.toLocaleString()} — ${isStrategic ? '전략' : '놀이'} 전체`
+                                    : `다이아 부족 (필요 ${CATEGORY_RESET_COST.toLocaleString()})`
+                            }
+                            onClick={handleResetAll}
+                            className={`inline-flex shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 text-[11px] font-semibold ${theme.categoryBtn}`}
+                        >
+                            <span>전체 초기화</span>
+                            <DiamondPrice amount={CATEGORY_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem]" className="text-cyan-100/90" />
+                        </button>
                     </div>
                 </div>
 
-                <div className="max-h-[min(48vh,380px)] overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable]">
+                <div className={`${isNativeMobile ? 'max-h-[min(56dvh,460px)] pr-0.5' : 'max-h-[min(50vh,420px)] pr-1'} overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]`}>
                     <div className={`divide-y divide-white/[0.06] rounded-lg border ${theme.accent} bg-slate-950/40`}>
                         {modes.map(({ mode, name }) => {
                             const gameStats = stats?.[mode];
@@ -178,24 +188,24 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                             return (
                                 <div
                                     key={mode}
-                                    className={`flex flex-nowrap items-center gap-x-2 overflow-x-auto px-2.5 py-1.5 sm:px-3 sm:py-2 ${theme.rowHover}`}
+                                    className={`grid items-center gap-x-2 px-2.5 py-1.5 sm:px-3 sm:py-1.5 ${theme.rowHover}`}
+                                    style={{ gridTemplateColumns: 'minmax(5.25rem, 0.95fr) minmax(0, 1fr) auto' }}
                                 >
-                                    <div className="min-w-[5.5rem] max-w-[40%] shrink-0 sm:min-w-[7rem]">
-                                        <p className="truncate text-sm font-semibold text-primary sm:text-[0.95rem]">{name}</p>
+                                    <div className="min-w-0">
+                                        <p className="truncate text-[12px] font-semibold tracking-tight text-primary sm:text-[0.92rem]">
+                                            {name}
+                                        </p>
                                     </div>
                                     <div
-                                        className={`flex min-w-0 flex-1 items-center gap-x-2 text-xs tabular-nums sm:text-[0.8rem] ${theme.winText}`}
+                                        className={`flex min-w-0 items-center justify-start gap-x-1.5 text-[11px] sm:text-[0.8rem] tabular-nums ${theme.winText}`}
                                     >
-                                        <span>
+                                        <span className="shrink-0">
                                             <span className="font-bold">{wins}</span>
                                             <span className="text-secondary/75">승 </span>
                                             <span className="font-bold text-slate-200">{losses}</span>
                                             <span className="text-secondary/75">패</span>
+                                            <span className="ml-1 text-sky-200/95">({winRate}%)</span>
                                         </span>
-                                        <span className="text-secondary/50">·</span>
-                                        <span className="text-sky-200/95">{winRate}%</span>
-                                        <span className="text-secondary/50">·</span>
-                                        <span className="text-tertiary">{totalGames}국</span>
                                     </div>
                                     <button
                                         type="button"
@@ -206,7 +216,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                                                 : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
                                         }
                                         onClick={() => handleResetSingle(mode, name)}
-                                        className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors sm:text-xs ${theme.singleBtn}`}
+                                        className={`inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors sm:h-7 sm:text-[11px] ${theme.singleBtn}`}
                                     >
                                         <span>초기화</span>
                                         <DiamondPrice amount={SINGLE_RESET_COST} className="text-cyan-100/90" />
@@ -217,23 +227,6 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5 border-t border-white/[0.07] pt-3">
-                    <p className="text-center text-[10px] font-medium uppercase tracking-wider text-secondary">카테고리 일괄 초기화</p>
-                    <button
-                        type="button"
-                        disabled={!canAffordCategory}
-                        title={
-                            canAffordCategory
-                                ? `다이아 ${CATEGORY_RESET_COST} — ${isStrategic ? '전략' : '놀이'} 전체`
-                                : `다이아 부족 (필요 ${CATEGORY_RESET_COST})`
-                        }
-                        onClick={handleResetAll}
-                        className={`mx-auto flex max-w-md items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold sm:text-sm ${theme.categoryBtn}`}
-                    >
-                        <span>{isStrategic ? '전략' : '놀이'} 전체 전적 초기화</span>
-                        <DiamondPrice amount={CATEGORY_RESET_COST} iconClassName="h-4 w-4 min-w-[1rem]" className="text-cyan-100/90" />
-                    </button>
-                </div>
             </div>
         </DraggableWindow>
     );
