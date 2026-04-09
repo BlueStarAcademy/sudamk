@@ -41,6 +41,7 @@ database*.backup*
 *.backup
 *.bak
 *.tmp
+server/scripts/user-status-backup-*.json
 
 # Environment files
 .env
