@@ -1,8 +1,5 @@
 import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { replaceAppHash } from '../utils/appUtils.js';
-import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
-import { isClientAdmin } from '../utils/clientAdmin.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
     compact?: boolean;
@@ -47,18 +44,11 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     className = '',
     mobileHeaderStrip = false,
 }) => {
-    const { handlers, hasClaimableQuest, currentUserWithStatus, arenaEntranceAvailability } = useAppContext();
+    const { handlers, hasClaimableQuest, currentUserWithStatus } = useAppContext();
 
     if (showOnlyWhenQuestCompleted && !hasClaimableQuest) {
         return null;
     }
-
-    const adventureDefeatTotal = currentUserWithStatus?.adventureProfile?.monstersDefeatedTotal ?? 0;
-    const mergedArena = useMemo(
-        () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
-        [arenaEntranceAvailability],
-    );
-    const adventureClosed = !isClientAdmin(currentUserWithStatus) && !mergedArena.adventure;
 
     const buttons: QuickBtn[] = useMemo(
         () => [
@@ -69,15 +59,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 handler: handlers.openQuests,
                 disabled: false,
                 notification: hasClaimableQuest,
-            },
-            {
-                label: '모험',
-                gameplay: true,
-                iconUrl: '/images/adventure.png',
-                handler: () => replaceAppHash('#/adventure'),
-                disabled: adventureClosed,
-                notification: adventureDefeatTotal > 0,
-                count: adventureDefeatTotal > 0 ? Math.min(99, adventureDefeatTotal) : undefined,
             },
             {
                 label: '기보',
@@ -151,8 +132,16 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 disabled: false,
                 notification: false,
             },
+            {
+                label: '설정',
+                gameplay: false,
+                emoji: '⚙️',
+                handler: handlers.openSettingsModal,
+                disabled: false,
+                notification: false,
+            },
         ],
-        [handlers, hasClaimableQuest, adventureDefeatTotal, adventureClosed],
+        [handlers, hasClaimableQuest],
     );
 
     const gameplayButtons = buttons.filter((b) => b.gameplay);
