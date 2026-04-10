@@ -740,7 +740,7 @@ input, textarea {
 }
 
 .missile-flight-group {
-  animation: missile-flight-animation var(--animation-duration, 2s) linear forwards;
+  animation: missile-flight-animation var(--animation-duration, 3s) linear forwards;
   pointer-events: none;
   filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 4px rgba(251, 146, 60, 0.8));
   will-change: transform;
@@ -1112,7 +1112,7 @@ input, textarea {
 }
 
 .hidden-missile-flight-group {
-  animation: hidden-missile-flight-animation var(--animation-duration, 2s) linear forwards;
+  animation: hidden-missile-flight-animation var(--animation-duration, 3s) linear forwards;
   pointer-events: none;
   filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 4px rgba(251, 146, 60, 0.8));
   will-change: transform;
@@ -1121,7 +1121,7 @@ input, textarea {
 
 
 .hidden-missile-flight-group {
-  animation: hidden-missile-flight-animation var(--animation-duration, 2s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+  animation: hidden-missile-flight-animation var(--animation-duration, 3s) cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
   pointer-events: none;
   filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.6)) drop-shadow(0 0 4px rgba(251, 146, 60, 0.8));
 }

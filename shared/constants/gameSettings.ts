@@ -10,6 +10,8 @@ export const THIEF_BOARD_SIZES = [9, 13, 19];
 /** 도둑 1턴 + 경찰 1턴 = 1라운드(밤). 역할이 고정된 한 세그먼트당 총 라운드 수 (서버 THIEF_NIGHTS_PER_ROUND와 동일) */
 export const THIEF_NIGHTS_PER_SEGMENT = 5;
 export const MISSILE_BOARD_SIZES = [19, 13, 9];
+/** 미사일 이동: 출발~도착까지 고정 시간(ms). 거리가 멀수록 시각적 속도만 빨라짐(선형 보간). 서버·클라이언트 동기화용. */
+export const MISSILE_FLIGHT_DURATION_MS = 3000;
 export const STRATEGIC_CLASSIC_SPEED_BOARD_SIZES = [9, 13, 19] as const;
 export const STRATEGIC_SPECIAL_BOARD_SIZES = [9, 11, 13] as const;
 export const getStrategicBoardSizesByMode = (mode: GameMode): readonly number[] => {

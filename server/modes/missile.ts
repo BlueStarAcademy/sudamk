@@ -1,5 +1,6 @@
 
 import * as types from '../../types/index.js';
+import { MISSILE_FLIGHT_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import { getGoLogic } from '../goLogic.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
 import {
@@ -631,7 +632,7 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 game.turnStartTime = now;
             }
             
-            // 애니메이션 설정 (2초)
+            // 애니메이션 설정 (MISSILE_FLIGHT_DURATION_MS와 동기)
             // 새로운 애니메이션 시작 시 이전 처리 기록 초기화
             (game as any).lastProcessedMissileAnimationTime = undefined;
             
@@ -641,7 +642,7 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                 to,
                 player: myPlayerEnum,
                 startTime: now,
-                duration: 3000
+                duration: MISSILE_FLIGHT_DURATION_MS
             };
             
             if (revealedHiddenStone) {

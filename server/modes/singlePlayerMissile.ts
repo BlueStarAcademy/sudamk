@@ -1,4 +1,5 @@
 import * as types from '../../types/index.js';
+import { MISSILE_FLIGHT_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import * as db from '../db.js';
 import { processMove } from '../goLogic.js';
 import { resumeGameTimer, pauseGameTimer } from './shared.js';
@@ -191,11 +192,12 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
             const animNonNull = anim!;
             const elapsed = now - animNonNull.startTime;
             const duration = animNonNull.duration;
+            const animDurationMs = duration > 0 ? duration : MISSILE_FLIGHT_DURATION_MS;
             const animationStartTime = animNonNull.startTime;
             
-            // 강제 종료: 애니메이션이 시작된 지 3초가 지나면 무조건 종료
-            if (elapsed > 3000) {
-                console.warn(`[SinglePlayer Missile] FORCING animation end: elapsed=${elapsed}ms > 3000ms, gameId=${game.id}`);
+            // 강제 종료: 정상 길이를 넘겼는데도 아래 분기에서 처리되지 않은 경우
+            if (elapsed > animDurationMs) {
+                console.warn(`[SinglePlayer Missile] FORCING animation end: elapsed=${elapsed}ms > ${animDurationMs}ms, gameId=${game.id}`);
                 // 처리된 애니메이션의 startTime을 기록 (중복 처리 방지)
                 (game as any).lastProcessedMissileAnimationTime = animationStartTime;
                 
@@ -281,8 +283,8 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                 return false;
             }
             
-            // 애니메이션이 종료되었는지 확인 (정상 종료: elapsed >= duration)
-            if (elapsed >= duration - 100 || elapsed >= 2500) { // 100ms 여유를 두고 조금 일찍 종료, 또는 2.5초 경과 시 무조건 종료
+            // 애니메이션이 종료되었는지 확인 (정상 종료: elapsed >= duration; 클라이언트와 동일한 animDurationMs)
+            if (elapsed >= animDurationMs - 100) { // ~100ms 여유(네트워크·틱 지터)
                 // 이미 처리된 애니메이션인지 확인 (중복 처리 방지)
                 const lastProcessedAnimationTime = (game as any).lastProcessedMissileAnimationTime;
                 if (lastProcessedAnimationTime === animationStartTime) {
@@ -444,11 +446,11 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
             
             // 애니메이션이 이미 종료되었어야 하는 경우 즉시 정리 (DB에서 다시 읽혀서 이전 상태로 돌아온 경우 대비)
             // 더 짧은 시간(500ms)에도 강제 종료
-            if (elapsed > duration + 500) {
+            if (elapsed > animDurationMs + 500) {
                 // 처리된 애니메이션의 startTime을 기록 (중복 처리 방지)
                 (game as any).lastProcessedMissileAnimationTime = animationStartTime;
                 
-                console.warn(`[SinglePlayer Missile] Game ${game.id} animation should have ended (elapsed=${elapsed}ms, duration=${duration}ms), forcing cleanup...`);
+                console.warn(`[SinglePlayer Missile] Game ${game.id} animation should have ended (elapsed=${elapsed}ms, duration=${animDurationMs}ms), forcing cleanup...`);
                 const playerWhoMoved = game.currentPlayer;
                 const animationFrom = (animNonNull as any).from as types.Point | undefined;
                 const animationTo = (animNonNull as any).to as types.Point | undefined;
@@ -515,9 +517,8 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                 return true;
             }
             
-            // 애니메이션이 너무 오래 지속된 경우 강제로 정리 (서버 재시작 등으로 인한 문제 방지)
-            // 더 짧은 시간(3초)에도 강제 종료
-            const MAX_ANIMATION_DURATION = 3000; // 3초
+            // 애니메이션이 비정상적으로 오래 지속된 경우 강제로 정리 (서버 재시작 등)
+            const MAX_ANIMATION_DURATION = 10000;
             if (elapsed > MAX_ANIMATION_DURATION) {
                 // 처리된 애니메이션의 startTime을 먼저 기록 (중복 처리 방지)
                 (game as any).lastProcessedMissileAnimationTime = animationStartTime;
@@ -948,7 +949,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             // 미사일 아이템은 턴을 사용하는 행동이 아니므로 totalTurns를 증가시키지 않음
             // totalTurns는 유지되어야 함 (자동계가까지 남은 턴이 초기화되지 않도록)
             
-            // 애니메이션 설정 (3초)
+            // 애니메이션 설정 (MISSILE_FLIGHT_DURATION_MS와 동기)
             // 새로운 애니메이션 시작 시 이전 처리 기록 초기화
             (game as any).lastProcessedMissileAnimationTime = undefined;
             
@@ -958,7 +959,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 to,
                 player: myPlayerEnum,
                 startTime: now,
-                duration: 3000
+                duration: MISSILE_FLIGHT_DURATION_MS
             };
             
             if (revealedHiddenStone) {

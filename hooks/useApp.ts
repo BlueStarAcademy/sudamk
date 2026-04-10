@@ -4446,7 +4446,7 @@ export const useApp = () => {
                                                     ? game.captures
                                                     : preservedCaptures;
                                                 
-                                                // moveHistory도 보존
+                                                // moveHistory: 미사일은 수순 길이가 같고 중간 좌표만 바뀌므로, 애니 중에는 반드시 서버 수순을 써야 보드·마커·히든 인덱스가 일치함
                                                 const existingMoveHistoryValid = existingGame?.moveHistory && 
                                                     Array.isArray(existingGame.moveHistory) && 
                                                     existingGame.moveHistory.length > 0;
@@ -4455,9 +4455,12 @@ export const useApp = () => {
                                                     Array.isArray(game.moveHistory) && 
                                                     game.moveHistory.length > 0;
                                                 
-                                                const finalMoveHistory = existingMoveHistoryValid
-                                                    ? existingGame.moveHistory
-                                                    : (serverMoveHistoryValid ? game.moveHistory : existingGame?.moveHistory);
+                                                const finalMoveHistory =
+                                                    isMissileAnimating && serverMoveHistoryValid
+                                                        ? game.moveHistory
+                                                        : existingMoveHistoryValid
+                                                            ? existingGame.moveHistory
+                                                            : (serverMoveHistoryValid ? game.moveHistory : existingGame?.moveHistory);
                                                 
                                                 // 서버의 permanentlyRevealedStones 우선 (히든 따냄/따임·상대 착수 시도 시 영구 공개 반영)
                                                 const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
@@ -5053,6 +5056,7 @@ export const useApp = () => {
                                             !playfulPlacingStaleMerge &&
                                             game.mode !== GameMode.Dice &&
                                             game.mode !== GameMode.Thief &&
+                                            game.gameStatus !== 'missile_animating' &&
                                             incomingMoveCount === existingMoveCount &&
                                             existingBoardValid &&
                                             existingGame?.moveHistory?.length > 0
@@ -5073,6 +5077,31 @@ export const useApp = () => {
                                             } else if (serverTurnStale) {
                                                 mergedGame = { ...mergedGame, currentPlayer: existingGame.currentPlayer };
                                             }
+                                        }
+                                        // 미사일 비행 중 GAME_UPDATE: 앞선 병합이 낡은 보드/수순을 남겨도 서버 최종 상태로 덮어 애니 종료 시점과 보드가 일치하게 함
+                                        if (
+                                            game.gameStatus === 'missile_animating' &&
+                                            hasServerBoard &&
+                                            game.moveHistory &&
+                                            Array.isArray(game.moveHistory) &&
+                                            game.moveHistory.length > 0
+                                        ) {
+                                            mergedGame = {
+                                                ...mergedGame,
+                                                boardState: game.boardState,
+                                                moveHistory: game.moveHistory,
+                                                captures: game.captures ?? mergedGame.captures,
+                                                lastMove: game.lastMove ?? mergedGame.lastMove,
+                                                koInfo: game.koInfo !== undefined ? game.koInfo : mergedGame.koInfo,
+                                                justCaptured: game.justCaptured ?? mergedGame.justCaptured,
+                                                animation: game.animation ?? mergedGame.animation,
+                                                permanentlyRevealedStones:
+                                                    game.permanentlyRevealedStones ?? mergedGame.permanentlyRevealedStones,
+                                                baseStones: game.baseStones ?? mergedGame.baseStones,
+                                                blackPatternStones: game.blackPatternStones ?? mergedGame.blackPatternStones,
+                                                whitePatternStones: game.whitePatternStones ?? mergedGame.whitePatternStones,
+                                                hiddenMoves: game.hiddenMoves ?? mergedGame.hiddenMoves,
+                                            };
                                         }
                                         updatedGames[gameId] = mergedGame;
 
