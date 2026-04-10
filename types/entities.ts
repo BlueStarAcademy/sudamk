@@ -921,7 +921,9 @@ export type LiveGameSession = {
   };
   pendingSystemMessages?: ChatMessage[];
   isSinglePlayer?: boolean;  // Deprecated: Use gameCategory instead
-  gameCategory?: GameCategory;  // 게임 카테고리: normal, singleplayer, tower
+  gameCategory?: GameCategory;  // 게임 카테고리: normal, singleplayer, tower, adventure
+  /** 모험 스테이지 id (`neighborhood_hill` 등) — 배경 webp 매핑용 */
+  adventureStageId?: string;
   stageId?: string;
   towerFloor?: number;  // 도전의 탑 층수
   blackPatternStones?: Point[];

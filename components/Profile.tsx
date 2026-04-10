@@ -19,6 +19,7 @@ import GuildCreateModal from './guild/GuildCreateModal.js';
 import GuildJoinModal from './guild/GuildJoinModal.js';
 import type { Guild } from '../types/entities.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
 
 interface ProfileProps {
 }
@@ -1355,7 +1356,6 @@ const Profile: React.FC<ProfileProps> = () => {
     const strategicWinRate = strategicTotal > 0 ? Math.round((aggregatedStats.strategic.wins / strategicTotal) * 100) : 0;
     const playfulWinRate = playfulTotal > 0 ? Math.round((aggregatedStats.playful.wins / playfulTotal) * 100) : 0;
     const dungeonProgress = (currentUserWithStatus as any)?.dungeonProgress ?? {};
-
     /** 2×3: 1행 싱글·탑 / 2행 전략·놀이 / 3행 챔피언십·모험 (PC·모바일 홈 외 공용; 모바일 경기장 전용 화면은 별도) */
     const lobbyGridShell = isNativeMobile
         ? (profileTab === 'home'
@@ -1524,16 +1524,32 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard title="모험" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" isComingSoon={true} compact={true} />
+                    <PveCard
+                        title="모험"
+                        imageUrl={ADVENTURE_STAGES[0].mapWebp}
+                        layout="tall"
+                        onClick={() => { window.location.hash = '#/adventure'; }}
+                        compact={true}
+                    />
                 ) : (
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
-                            <PveCard title="모험" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" isComingSoon={true} compact={false} hideOverlayText={true} />
+                            <PveCard
+                                title="모험"
+                                imageUrl={ADVENTURE_STAGES[0].mapWebp}
+                                layout="tall"
+                                onClick={() => { window.location.hash = '#/adventure'; }}
+                                compact={false}
+                                hideOverlayText={true}
+                            />
                         </div>
                         <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>모험</div>
                             <div className={infoPanelMiddleClass}>
-                                <div className={infoRowClass}><span className={infoLabelClass}>상태</span><span className={infoValueClass}>오픈 예정</span></div>
+                                <div className={infoRowClass}>
+                                    <span className={infoLabelClass}>안내</span>
+                                    <span className={infoValueClass}>카드를 눌러 스테이지 로비로 이동</span>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -1,4 +1,5 @@
 import { User, LiveGameSession, AppState, UserCredentials, AdminLog, Announcement, OverrideAnnouncement, GameMode, HomeBoardPost } from '../types.ts';
+import { ADMIN_LOGIN_USERNAME } from '../shared/constants/auth.js';
 import { deepClone } from './utils/cloneHelper.js';
 import { getInitialState } from './initialData.ts';
 import {
@@ -99,25 +100,24 @@ const seedInitialData = async () => {
 
 // 관리자 계정이 항상 존재하도록 보장하는 함수
 const ensureAdminAccount = async () => {
-    const ADMIN_USERNAME = '푸른별바둑학원';
     const ADMIN_ID = 'user-admin-static-id';
     
     // 관리자 계정이 존재하는지 확인 (username으로)
-    const adminCreds = await getUserCredentialByUsername(ADMIN_USERNAME);
+    const adminCreds = await getUserCredentialByUsername(ADMIN_LOGIN_USERNAME);
     if (adminCreds) {
         // credentials가 있으면 사용자도 존재하는지 확인
         const adminUser = await prismaGetUserById(adminCreds.userId);
         if (adminUser && adminUser.isAdmin) {
-            console.log(`[DB] Admin account already exists: ${ADMIN_USERNAME}`);
+            console.log(`[DB] Admin account already exists: ${ADMIN_LOGIN_USERNAME}`);
             return;
         }
     }
     
     // 관리자 계정이 없으면 생성
-    console.log(`[DB] Admin account not found. Creating admin account: ${ADMIN_USERNAME}`);
+    console.log(`[DB] Admin account not found. Creating admin account: ${ADMIN_LOGIN_USERNAME}`);
     const initialState = getInitialState();
     const adminUser = initialState.users[ADMIN_ID];
-    const adminCredentials = initialState.userCredentials[ADMIN_USERNAME];
+    const adminCredentials = initialState.userCredentials[ADMIN_LOGIN_USERNAME];
     
     if (!adminUser || !adminCredentials) {
         console.error('[DB] Failed to get admin user/credentials from initial state');
@@ -129,15 +129,15 @@ const ensureAdminAccount = async () => {
         const existingUser = await prismaGetUserById(adminUser.id);
         if (!existingUser) {
             await prismaCreateUser(adminUser);
-            console.log(`[DB] Created admin user: ${ADMIN_USERNAME}`);
+            console.log(`[DB] Created admin user: ${ADMIN_LOGIN_USERNAME}`);
         }
         
         // credentials 생성
-        const existingCreds = await getUserCredentialByUsername(ADMIN_USERNAME);
+        const existingCreds = await getUserCredentialByUsername(ADMIN_LOGIN_USERNAME);
         if (!existingCreds) {
             const passwordHash = (adminCredentials as any).hash || (adminCredentials as any).passwordHash;
             await createUserCredential(adminUser.username, passwordHash, adminUser.id);
-            console.log(`[DB] Created admin credentials: ${ADMIN_USERNAME}`);
+            console.log(`[DB] Created admin credentials: ${ADMIN_LOGIN_USERNAME}`);
         }
     } catch (error: any) {
         if (error.message && error.message.includes('UNIQUE constraint')) {

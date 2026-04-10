@@ -45,6 +45,7 @@ import ToggleSwitch from './components/ui/ToggleSwitch.js';
 import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfirmPanel.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { replaceAppHash } from './utils/appUtils.js';
+import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { useAdContext } from './components/ads/AdProvider.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
@@ -238,7 +239,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const isSinglePlayer = session.isSinglePlayer;
     const isTower = session.gameCategory === 'tower';
+    const isAdventureGame = session.gameCategory === 'adventure';
     const isGuildWarGame = session.gameCategory === 'guildwar';
+    const adventureBackgroundImage =
+        isAdventureGame && session.adventureStageId ? getAdventureMapWebpPath(session.adventureStageId) : null;
     const isGuildWarTowerStyleUi =
         isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
@@ -1087,7 +1091,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         audioService.unlockFromUserGesture();
         audioService.stopTimerWarning();
         if (isSpectator || gameStatus === 'missile_animating') return;
-        const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+        const isPausableAiGame =
+            session.isAiGame &&
+            !session.isSinglePlayer &&
+            session.gameCategory !== 'tower' &&
+            session.gameCategory !== 'singleplayer' &&
+            session.gameCategory !== 'adventure';
         if ((session.isSinglePlayer || isTower || isPausableAiGame) && isPaused) return;
         if ((session.isSinglePlayer || isTower) && isBoardLocked) {
             console.log('[Game] Board is locked, ignoring click', { isBoardLocked, serverRevision: session.serverRevision });
@@ -1668,7 +1677,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const handlePauseToggle = useCallback(() => {
         const isTower = session.gameCategory === 'tower';
-        const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+        const isPausableAiGame =
+            session.isAiGame &&
+            !session.isSinglePlayer &&
+            session.gameCategory !== 'tower' &&
+            session.gameCategory !== 'singleplayer' &&
+            session.gameCategory !== 'adventure';
         if (!(session.isSinglePlayer || isTower || isPausableAiGame)) return;
         if (!isPaused) {
             initiatePause();
@@ -2392,7 +2406,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     };
 
     // AI 게임 일시 정지 관련 변수 (gameControlsProps보다 먼저 정의)
-    const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const isPausableAiGame =
+        session.isAiGame &&
+        !session.isSinglePlayer &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'singleplayer' &&
+        session.gameCategory !== 'adventure';
 
     const gameControlsProps = {
         session, isMyTurn, isSpectator, onAction: handlers.handleAction, setShowResultModal, setConfirmModalType, currentUser: currentUserWithStatus,
@@ -2406,7 +2425,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         resumeCountdown: isPausableAiGame ? resumeCountdown : undefined,
         pauseButtonCooldown: isPausableAiGame ? pauseButtonCooldown : undefined,
         onPauseToggle: isPausableAiGame ? handlePauseToggle : undefined,
-        onOpenRematchSettings: (session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar')
+        onOpenRematchSettings: (session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar' && session.gameCategory !== 'adventure')
             ? () => setIsAiRematchModalOpen(true)
             : undefined,
         onOpenGameRecordList: handlers.openGameRecordList,
@@ -2416,7 +2435,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     if (isSinglePlayer) {
         return (
             <InGameModalLayoutProvider>
-            <div className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full bg-single-player-background text-stone-200 min-h-0`} style={{ height: '100%', maxHeight: '100%', paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px' }}>
+            <div
+                className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full text-stone-200 min-h-0 ${adventureBackgroundImage ? '' : 'bg-single-player-background'}`}
+                style={{
+                    height: '100%',
+                    maxHeight: '100%',
+                    paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
+                    ...(adventureBackgroundImage
+                        ? {
+                              backgroundImage: `url(${adventureBackgroundImage})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat',
+                          }
+                        : {}),
+                }}
+            >
                 {showGameDescription && (
                     <SinglePlayerGameDescriptionModal 
                         session={sessionWithRestoredPatternStones}
@@ -2564,12 +2598,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     height: '100%',
                     maxHeight: '100%',
                     paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
-                    ...(towerBackgroundImage ? {
-                        backgroundImage: `url(${towerBackgroundImage})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat'
-                    } : {})
+                    ...((adventureBackgroundImage || towerBackgroundImage)
+                        ? {
+                              backgroundImage: `url(${adventureBackgroundImage || towerBackgroundImage})`,
+                              backgroundSize: 'cover',
+                              backgroundPosition: 'center',
+                              backgroundRepeat: 'no-repeat',
+                          }
+                        : {}),
                 }}
             >
                 {showTowerGameDescription && (
@@ -2724,24 +2760,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     // isPausableAiGame은 위에서 이미 정의됨
-    const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
+    const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame || isAdventureGame) ? isPaused : false;
 
     return (
         <InGameModalLayoutProvider>
         <div
-            className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${pvpBackgroundClass}`}
+            className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${adventureBackgroundImage ? '' : pvpBackgroundClass}`}
             style={{
                 height: '100%',
                 maxHeight: '100%',
                 paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
-                ...(isGuildWarGame
+                ...(adventureBackgroundImage
                     ? {
-                          backgroundImage: "url('/images/guild/guildwar/warmap.png')",
+                          backgroundImage: `url(${adventureBackgroundImage})`,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
                       }
-                    : {}),
+                    : isGuildWarGame
+                      ? {
+                            backgroundImage: "url('/images/guild/guildwar/warmap.png')",
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat',
+                        }
+                      : {}),
             }}
         >
             {session.disconnectionState && <DisconnectionModal session={session} currentUser={currentUser} />}

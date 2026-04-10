@@ -28,7 +28,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     transcendent: {
         name: '초월',
         color: 'text-cyan-300',
-        background: '/images/equipments/mythicbgi.png',
+        background: '/images/equipments/transcendentbgi.png',
         frame: 'from-cyan-500/30 via-teal-600/20 to-cyan-950/25 ring-cyan-400/50',
     },
 };

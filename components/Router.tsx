@@ -20,6 +20,8 @@ import TowerLobby from './TowerLobby.js';
 import GuildHome from './guild/GuildHome.js';
 import GuildBoss from './guild/GuildBoss.js';
 import GuildWar from './guild/GuildWar.js';
+import AdventureLobby from './adventure/AdventureLobby.js';
+import AdventureStageMap from './adventure/AdventureStageMap.js';
 import { replaceAppHash } from '../utils/appUtils.js';
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
@@ -104,7 +106,12 @@ const Router: React.FC = () => {
     // 단, 라우트가 이미 게임 페이지(#/game/${gameId})로 설정되어 있으면 "재접속 중..."을 표시하지 않음
     // (새 게임을 시작한 직후 activeGame이 아직 업데이트되지 않았을 수 있음)
     // scoring 상태의 게임도 포함 (계가 진행 중)
-    if (activeGame && currentRoute.view !== 'game' && !currentRoute.params?.id) {
+    if (
+        activeGame &&
+        currentRoute.view !== 'game' &&
+        !currentRoute.params?.id &&
+        currentRoute.view !== 'adventure'
+    ) {
         // The logic in useApp hook will handle the redirect, we can show a loading state here
         return <div className="flex items-center justify-center h-full">재접속 중...</div>;
     }
@@ -189,6 +196,13 @@ const Router: React.FC = () => {
              return <SinglePlayerLobby />;
         case 'tower':
             return <TowerLobby />;
+        case 'adventure': {
+            const sid = currentRoute.params?.stageId;
+            if (sid) {
+                return <AdventureStageMap stageId={String(sid)} />;
+            }
+            return <AdventureLobby />;
+        }
         case 'guild':
             return <GuildHome />;
         case 'guildboss':

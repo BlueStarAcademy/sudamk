@@ -2,7 +2,7 @@
 import { GameMode } from "../types/index.js";
 
 export type AppRoute = {
-    view: 'login' | 'register' | 'kakao-callback' | 'google-callback' | 'set-nickname' | 'profile' | 'lobby' | 'waiting' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower';
+    view: 'login' | 'register' | 'kakao-callback' | 'google-callback' | 'set-nickname' | 'profile' | 'lobby' | 'waiting' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower' | 'adventure';
     params: any;
 };
 
@@ -49,6 +49,7 @@ export function parseHash(hash: string): AppRoute {
         case 'guldwar': // 흔한 오타
             return { view: 'guildwar', params: {} };
         case 'tower': return { view: 'tower', params: {} };
+        case 'adventure': return { view: 'adventure', params: { stageId: rest[0] || null } };
         case 'admin': return { view: 'admin', params: {} };
         case 'register': return { view: 'register', params: {} };
         case 'set-nickname': return { view: 'set-nickname', params: {} };

@@ -20,6 +20,7 @@ const priorityImages = [
   '/images/equipments/epicbgi.png',
   '/images/equipments/legendarybgi.png',
   '/images/equipments/mythicbgi.png',
+  '/images/equipments/transcendentbgi.png',
   '/images/equipments/Star1.png',
   '/images/equipments/Star2.png',
   '/images/equipments/Star3.png',

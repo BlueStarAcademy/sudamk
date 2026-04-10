@@ -786,19 +786,29 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         const svg = svgRef.current;
         if (!svg) return null;
         const rect = svg.getBoundingClientRect();
-        if (rect.width <= 0 || rect.height <= 0) return null;
+        const W = rect.width;
+        const H = rect.height;
+        if (W <= 0 || H <= 0) return null;
 
-        // iOS Safari + scaled container 환경에서 getScreenCTM이 어긋나는 경우가 있어
-        // 실제 렌더링된 SVG 사각형 기준으로 직접 루트(viewBox) 좌표로 매핑한다.
-        const nx = (clientX - rect.left) / rect.width;
-        const ny = (clientY - rect.top) / rect.height;
-        const rootX = nx * boardSizePx;
-        const rootY = ny * boardSizePx;
+        // viewBox는 정사각형(boardSizePx×boardSizePx). 기본 preserveAspectRatio(xMidYMid meet)이면
+        // 비정사각 컨테이너(16:9 PC 셸, 네이티브 모바일 세로 영역 등)에서 실제 판은 가운데에 균일 스케일로 그려지고
+        // 좌우 또는 상하에 레터박스가 생긴다. rect 전체를 0~boardSizePx에 선형 매핑하면 격자·hover 미리보기 돌이 어긋난다.
+        const vb = boardSizePx;
+        const s = Math.min(W / vb, H / vb);
+        const ox = rect.left + (W - vb * s) / 2;
+        const oy = rect.top + (H - vb * s) / 2;
+        let rootX = (clientX - ox) / s;
+        let rootY = (clientY - oy) / s;
 
-        if (!isRotated) return { x: rootX, y: rootY };
-        const cx = boardSizePx / 2;
-        const cy = boardSizePx / 2;
-        return { x: 2 * cx - rootX, y: 2 * cy - rootY };
+        // 회전은 내부 <g rotate(180)> — viewBox 좌표계에서 중심 대칭과 동일
+        if (isRotated) {
+            const cx = vb / 2;
+            const cy = vb / 2;
+            rootX = 2 * cx - rootX;
+            rootY = 2 * cy - rootY;
+        }
+
+        return { x: rootX, y: rootY };
     };
     
     const getBoardCoordinates = (e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>): Point | null => {

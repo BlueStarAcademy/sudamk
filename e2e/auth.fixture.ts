@@ -1,4 +1,5 @@
 import { test as base } from '@playwright/test';
+import { dismissBlockingLiveGameIfNeeded } from './dismissBlockingGame.js';
 
 const E2E_USERNAME = process.env.E2E_USERNAME || '푸른별';
 const E2E_PASSWORD = process.env.E2E_PASSWORD || '1217';
@@ -15,7 +16,7 @@ export const test = base.extend<{ authenticatedPage: void }>({
             await page.locator('#username-login').fill(E2E_USERNAME);
             await page.locator('#password-login').fill(E2E_PASSWORD);
             await page.locator('form').filter({ has: page.locator('#username-login') }).locator('button[type="submit"]').click();
-            await page.waitForURL(/\#\/profile|\#\/set-nickname/, { timeout: 20000 }).catch(() => {});
+            await page.waitForURL(/\#\/profile|\#\/set-nickname|\#\/game\//, { timeout: 20000 }).catch(() => {});
             await page.waitForTimeout(1500);
             if (page.url().includes('set-nickname')) {
                 const nickInput = page.locator('input[type="text"]').first();
@@ -26,6 +27,8 @@ export const test = base.extend<{ authenticatedPage: void }>({
                 await page.waitForTimeout(2000);
             }
         }
+        // 진행 중 대국이 있으면 로비·싱글·탑으로 가도 앱이 다시 경기장으로 끌고 가 E2E가 실패함
+        await dismissBlockingLiveGameIfNeeded(page);
         await use();
     },
 });

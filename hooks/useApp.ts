@@ -5547,8 +5547,13 @@ export const useApp = () => {
         }
         
         const isGamePage = currentHash.startsWith('#/game/');
+        const isAdventurePage = currentHash.startsWith('#/adventure');
 
         if (activeGame && !isGamePage) {
+            // 관리자 모험 테스트: 진행 중 대국이 있어도 #/adventure 유지 (강제 복귀 방지)
+            if (isAdventurePage) {
+                return;
+            }
             // 종료·무효·재대결 대기 대국은 "대국으로 복귀"시키지 않음(나가기 직후 라우팅 레이스·전면 광고 이후 유령 복귀 방지)
             const gs = activeGame.gameStatus;
             if (gs === 'ended' || gs === 'no_contest' || gs === 'rematch_pending') {

@@ -16,10 +16,10 @@ test.describe('KataServer AI games E2E', () => {
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 
-        // AI 대결 모달 열기
-        const aiRow = page.locator('text=AI와 대결하기').first();
-        await expect(aiRow).toBeVisible({ timeout: 10000 });
-        await aiRow.click();
+        await expect(page.getByRole('heading', { name: '전략바둑 대기실' })).toBeVisible({ timeout: 20000 });
+        const openAiModal = page.getByRole('button', { name: '설정 및 시작' }).first();
+        await expect(openAiModal).toBeVisible({ timeout: 15000 });
+        await openAiModal.click();
         await page.waitForTimeout(800);
 
         const modal = page.locator('[title="AI와 대결하기"]').first();
@@ -60,9 +60,10 @@ test.describe('KataServer AI games E2E', () => {
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 
-        const aiRow = page.locator('text=AI와 대결하기').first();
-        await expect(aiRow).toBeVisible({ timeout: 10000 });
-        await aiRow.click();
+        await expect(page.getByRole('heading', { name: '전략바둑 대기실' })).toBeVisible({ timeout: 20000 });
+        const openAiModal = page.getByRole('button', { name: '설정 및 시작' }).first();
+        await expect(openAiModal).toBeVisible({ timeout: 15000 });
+        await openAiModal.click();
         await page.waitForTimeout(800);
 
         const modal = page.locator('[title="AI와 대결하기"]').first();
@@ -89,9 +90,10 @@ test.describe('KataServer AI games E2E', () => {
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 
-        const aiRow = page.locator('text=AI와 대결하기').first();
-        await expect(aiRow).toBeVisible({ timeout: 10000 });
-        await aiRow.click();
+        await expect(page.getByRole('heading', { name: '전략바둑 대기실' })).toBeVisible({ timeout: 20000 });
+        const openAiModal = page.getByRole('button', { name: '설정 및 시작' }).first();
+        await expect(openAiModal).toBeVisible({ timeout: 15000 });
+        await openAiModal.click();
         await page.waitForTimeout(800);
 
         const modal = page.locator('[title="AI와 대결하기"]').first();
@@ -126,9 +128,10 @@ test.describe('KataServer AI games E2E', () => {
         await page.waitForLoadState('domcontentloaded');
         await page.waitForTimeout(3000);
 
-        const aiRow = page.locator('text=AI와 대결하기').first();
-        await expect(aiRow).toBeVisible({ timeout: 10000 });
-        await aiRow.click();
+        await expect(page.getByRole('heading', { name: '놀이바둑 대기실' })).toBeVisible({ timeout: 20000 });
+        const openAiModal = page.getByRole('button', { name: '설정 및 시작' }).first();
+        await expect(openAiModal).toBeVisible({ timeout: 15000 });
+        await openAiModal.click();
         await page.waitForTimeout(800);
 
         const modal = page.locator('[title="AI와 대결하기"]').first();
