@@ -21,6 +21,15 @@ const SPECIAL_RESOURCE_LABEL: Record<SpecialResourceIconKey, string> = {
     guildCoins: '길드 코인',
 };
 
+/**
+ * 헤더 재화 숫자 — 골드·다이아·길드 코인 동일 클래스 (이전 9px 하한·dense 맞춤으로 길드만 작아지던 문제 방지)
+ */
+const HEADER_RESOURCE_VALUE_CLASS = {
+    pc: 'tabular-nums leading-none text-sm sm:text-base',
+    dense: 'min-w-0 tabular-nums leading-none text-xs sm:text-sm',
+    fluid: 'min-w-0 flex-1 tabular-nums leading-none tracking-tight text-[clamp(0.5rem,calc(0.1rem+2.5vw),0.95rem)]',
+} as const;
+
 /** 네이티브 모바일 특수재화 팝오버: 전면 광고·모달 루트(z-180)·인터스티셜(z-99999) 위에 표시 */
 const SPECIAL_RESOURCES_POPOVER_Z = 200_000;
 
@@ -37,10 +46,10 @@ const ResourceDisplay = memo<{
         ? 'min-w-0 flex-1'
         : 'flex-shrink-0';
     const valueClass = fluid
-        ? 'min-w-0 flex-1 tabular-nums leading-none tracking-tight text-[clamp(0.34rem,calc(0.03rem+2.05vw),0.82rem)]'
+        ? HEADER_RESOURCE_VALUE_CLASS.fluid
         : dense
-          ? 'min-w-0 tabular-nums leading-none text-[clamp(0.5625rem,calc(0.42rem+1.1vw),0.8125rem)] sm:text-[11px]'
-          : 'text-[9px] sm:text-sm';
+          ? HEADER_RESOURCE_VALUE_CLASS.dense
+          : HEADER_RESOURCE_VALUE_CLASS.pc;
     const iconShell = fluid
         ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]'
         : dense
@@ -107,7 +116,7 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean
             className={`font-mono text-tertiary text-center whitespace-nowrap ${
                 mobile
                     ? 'text-[clamp(0.5625rem,calc(0.45rem+1.8vw),0.6875rem)]'
-                    : 'text-[10px] sm:text-xs'
+                    : 'text-xs sm:text-sm'
             }`}
         >
             ({timeLeft})
@@ -247,18 +256,24 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
             >
                 {!isMobile && (
                 <div
-                    className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-1.5 sm:gap-3 ${dense ? 'max-w-[min(40%,10.5rem)]' : ''} relative`}
+                    className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-2 sm:gap-3 ${dense ? 'max-w-[min(48%,14rem)]' : ''} relative`}
                     onClick={openProfileEditModal}
                 >
                      <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 36 : compact ? 32 : 40} />
-                     <div className="min-w-0 flex-1">
-                        <h1 className={`font-bold text-primary truncate ${dense ? 'max-w-full text-sm leading-tight sm:text-base' : ''}`}>{currentUserWithStatus.nickname}</h1>
-                        <p className={`truncate text-tertiary ${dense ? 'text-xs leading-tight sm:text-sm' : 'text-xs'}`}>
-                            Lv.{combinedUserLevel}
-                        </p>
-                     </div>
+                     <p
+                        className={`shrink-0 whitespace-nowrap font-extrabold tabular-nums tracking-tight text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)] ${
+                            dense ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                        }`}
+                     >
+                        Lv.{combinedUserLevel}
+                     </p>
+                     <h1
+                        className={`min-w-0 flex-1 truncate font-bold text-primary ${dense ? 'text-sm leading-tight sm:text-base' : 'text-base sm:text-lg'}`}
+                     >
+                        {currentUserWithStatus.nickname}
+                     </h1>
                      {!mbti && (
-                        <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
+                        <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-red-500" aria-hidden />
                      )}
                 </div>
                 )}
@@ -286,8 +301,8 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 isMobile
                                     ? 'gap-[clamp(0.05rem,0.5vw,0.2rem)] text-[clamp(0.6rem,calc(0.42rem+2.35vw),0.84rem)] sm:gap-1'
                                     : dense
-                                      ? 'gap-0.5 text-[11px] sm:gap-1'
-                                      : 'gap-0.5 text-[9px] sm:gap-1 sm:text-xs'
+                                      ? 'gap-0.5 text-xs sm:gap-1 sm:text-sm'
+                                      : 'gap-0.5 text-sm sm:gap-1 sm:text-base'
                             }`}
                         >
                             <span
@@ -362,17 +377,25 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             <div className="flex min-w-0 w-full max-w-full items-center gap-1">
                                 <ResourceDisplay icon="gold" value={safeGold} dense={dense} />
                                 <ResourceDisplay icon="diamonds" value={safeDiamonds} dense={dense} />
-                                <div className="flex flex-shrink-0 items-center gap-0.5 rounded-full bg-tertiary/50 py-0.5 pl-0.5 pr-1.5 shadow-inner">
-                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary">
+                                <div
+                                    className={`flex flex-shrink-0 items-center rounded-full bg-tertiary/50 shadow-inner ${
+                                        dense ? 'gap-0.5 py-0.5 pl-0.5 pr-1.5' : 'gap-1 py-1 pl-1 pr-2 sm:gap-2 sm:pr-3'
+                                    }`}
+                                >
+                                    <div
+                                        className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${
+                                            dense ? 'h-6 w-6' : 'h-7 w-7 text-lg'
+                                        }`}
+                                    >
                                         <img
                                             src={specialResourceIcons.guildCoins}
                                             alt={SPECIAL_RESOURCE_LABEL.guildCoins}
-                                            className="h-5 w-5 object-contain"
+                                            className={`object-contain ${dense ? 'h-4 w-4' : 'h-5 w-5'}`}
                                             loading="lazy"
                                             decoding="async"
                                         />
                                     </div>
-                                    <span className="min-w-0 tabular-nums text-[clamp(0.5625rem,calc(0.42rem+1.1vw),0.8125rem)] font-bold leading-none text-primary whitespace-nowrap sm:text-[11px]">
+                                    <span className={`min-w-0 font-bold text-primary whitespace-nowrap ${dense ? HEADER_RESOURCE_VALUE_CLASS.dense : HEADER_RESOURCE_VALUE_CLASS.pc}`}>
                                         {(guildCoins ?? 0).toLocaleString()}
                                     </span>
                                 </div>

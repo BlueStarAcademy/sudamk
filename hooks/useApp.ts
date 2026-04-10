@@ -232,6 +232,8 @@ export const useApp = () => {
             const keyFieldsChanged = 
                 prevUser.gold !== mergedUser.gold ||
                 prevUser.diamonds !== mergedUser.diamonds ||
+                prevUser.towerFloor !== mergedUser.towerFloor ||
+                prevUser.monthlyTowerFloor !== mergedUser.monthlyTowerFloor ||
                 prevUser.strategyXp !== mergedUser.strategyXp ||
                 prevUser.playfulXp !== mergedUser.playfulXp ||
                 prevUser.avatarId !== mergedUser.avatarId ||
@@ -312,6 +314,19 @@ export const useApp = () => {
         
         return mergedUser;
     }, [mergeUserState]);
+
+    /** 서버 END_TOWER_GAME 응답 전에 하단 "다음 단계"가 눌리면 START_TOWER_GAME 잠금 검사가 옛 towerFloor로 실패하는 레이스 방지 */
+    const applyOptimisticTowerClearOnBlackWin = useCallback((floor: number | undefined | null, winner: Player) => {
+        if (winner !== Player.Black || floor == null || floor < 1) return;
+        const prev = currentUserRef.current;
+        if (!prev) return;
+        const prevTf = prev.towerFloor ?? 0;
+        const prevM = prev.monthlyTowerFloor ?? 0;
+        const nextTf = Math.max(prevTf, floor);
+        const nextM = Math.max(prevM, floor);
+        if (nextTf === prevTf && nextM === prevM) return;
+        applyUserUpdate({ towerFloor: nextTf, monthlyTowerFloor: nextM }, 'tower-clear-optimistic');
+    }, [applyUserUpdate]);
     
     // --- App Settings State ---
     const [settings, setSettings] = useState<AppSettings>(() => {
@@ -1886,7 +1901,8 @@ export const useApp = () => {
                 
                 // 승리 조건 체크 (도전의 탑 및 싱글플레이)
                 if (updateResult.shouldCheckVictory && updateResult.checkInfo) {
-                    checkVictoryCondition(updateResult.checkInfo, gameId, game.effectiveCaptureTargets).then(result => {
+                    const victoryCheckInfo = updateResult.checkInfo;
+                    checkVictoryCondition(victoryCheckInfo, gameId, game.effectiveCaptureTargets).then(async (result) => {
                         if (result) {
                             victoryCheckResult = result;
                             // 게임 상태를 즉시 ended로 업데이트하고 winner도 설정
@@ -1898,18 +1914,22 @@ export const useApp = () => {
                                 }
                                 return currentGames;
                             });
-                            // 게임 종료 액션 호출
                             const endGameActionType = isTower ? 'END_TOWER_GAME' : 'END_SINGLE_PLAYER_GAME';
-                            handleAction({
-                                type: endGameActionType,
-                                payload: {
-                                    gameId,
-                                    winner: result.winner,
-                                    winReason: result.winReason
-                                }
-                            } as any).catch(err => {
+                            if (isTower && result.winner === Player.Black) {
+                                applyOptimisticTowerClearOnBlackWin(victoryCheckInfo.towerFloor, result.winner);
+                            }
+                            try {
+                                await handleAction({
+                                    type: endGameActionType,
+                                    payload: {
+                                        gameId,
+                                        winner: result.winner,
+                                        winReason: result.winReason
+                                    }
+                                } as any);
+                            } catch (err) {
                                 console.error(`[handleAction] Failed to end ${gameType} game:`, err);
-                            });
+                            }
                         }
                     });
                 }
@@ -2410,18 +2430,22 @@ export const useApp = () => {
                         };
                     });
                     
-                    // 게임 종료 액션 호출
                     const endGameActionType = isTower ? 'END_TOWER_GAME' : 'END_SINGLE_PLAYER_GAME';
-                    handleAction({
-                        type: endGameActionType,
-                        payload: {
-                            gameId,
-                            winner,
-                            winReason: 'score'
-                        }
-                    } as any).catch(err => {
+                    if (isTower && winner === Player.Black) {
+                        applyOptimisticTowerClearOnBlackWin(game.towerFloor, winner);
+                    }
+                    try {
+                        await handleAction({
+                            type: endGameActionType,
+                            payload: {
+                                gameId,
+                                winner,
+                                winReason: 'score'
+                            }
+                        } as any);
+                    } catch (err) {
                         console.error(`[handleAction] Failed to end ${isTower ? 'tower' : 'single player'} game:`, err);
-                    });
+                    }
                     
                     return;
                 }
@@ -3325,7 +3349,7 @@ export const useApp = () => {
                 else pvpDicePlaceInFlightRef.current[gid] = n;
             }
         }
-    }, [currentUser?.id]);
+    }, [currentUser?.id, applyOptimisticTowerClearOnBlackWin]);
 
     const handleLogout = useCallback(async () => {
         if (!currentUser) return;
@@ -5704,8 +5728,9 @@ export const useApp = () => {
     // --- Misc UseEffects ---
     useEffect(() => {
         const updateViewportVars = () => {
+            // 레이아웃 뷰포트 높이만 사용: iOS Safari에서 visualViewport는 주소창·스크롤 바운스마다 달라져
+            // #root·모바일 셸 높이가 안드로이드와 달리 흔들리는 원인이 됨. 웹·앱 공통으로 innerHeight 기준 통일.
             const height = window.innerHeight;
-            // vh 보정 (모바일 브라우저 주소창 등 대응)
             document.documentElement.style.setProperty('--vh', `${height * 0.01}px`);
         };
 

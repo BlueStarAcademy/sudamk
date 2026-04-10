@@ -376,38 +376,43 @@ const AppContent: React.FC = () => {
                     />
                     {currentUser ? (
                         <>
-                            {!isGameView && !hideAppHeader && (
-                                <>
-                                    <div className="w-full min-w-0 shrink-0">
-                                        <Header />
-                                    </div>
-                                    {showNativeTopQuickStrip && (
-                                        <div className="relative z-[45] w-full min-w-0 shrink-0">
-                                            <QuickAccessSidebar mobileHeaderStrip />
-                                        </div>
-                                    )}
-                                </>
-                            )}
                             <div
                                 className="mx-auto flex h-full min-h-0 w-full max-h-full min-w-0 flex-1 flex-col overflow-hidden"
-                                style={{ maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH, maxHeight: '100dvh' }}
+                                style={{
+                                    maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH,
+                                    maxHeight: 'calc(var(--vh, 1vh) * 100)',
+                                }}
                             >
                             <main
                                 className={`relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden overscroll-y-none ${lockPcMainScroll ? 'overflow-y-hidden' : 'overflow-hidden'} ${showMainBg ? 'bg-transparent' : ''}`}
                             >
                                 {showMainBg && <MainBackgroundLayer variant="app" />}
                                 <NativeMobileScaledContent className="relative z-[1] min-h-0 w-full flex-1">
-                                    <Router />
+                                    {!isGameView && !hideAppHeader && (
+                                        <>
+                                            <div className="w-full min-w-0 shrink-0">
+                                                <Header />
+                                            </div>
+                                            {showNativeTopQuickStrip && (
+                                                <div className="relative z-[45] w-full min-w-0 shrink-0">
+                                                    <QuickAccessSidebar mobileHeaderStrip />
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                        <Router />
+                                    </div>
+                                    {!isGameView && !hideAppHeader && (
+                                        <>
+                                            <NativeMobileDock />
+                                            <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
+                                                <AdBanner position="bottom" className="py-1" />
+                                            </div>
+                                        </>
+                                    )}
                                 </NativeMobileScaledContent>
                             </main>
-                            {!isGameView && !hideAppHeader && (
-                                <>
-                                    <NativeMobileDock />
-                                    <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
-                                        <AdBanner position="bottom" className="py-1" />
-                                    </div>
-                                </>
-                            )}
                             </div>
                         </>
                     ) : (

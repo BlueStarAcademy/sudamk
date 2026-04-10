@@ -21,6 +21,13 @@ import {
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
 import { arenaPostGameButtonClass, arenaPostGameButtonGridClass } from './game/arenaPostGameButtonStyles.js';
+import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import {
+    ResultModalGoldCurrencySlot,
+    ResultModalItemRewardSlot,
+    RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
+} from './game/ResultModalRewardSlot.js';
+import { MATERIAL_ITEMS } from '../constants/items.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 
 interface GameSummaryModalProps {
@@ -641,6 +648,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
+    const hasPvpRewardSlots = useMemo(() => {
+        if (!mySummary) return false;
+        return (
+            (mySummary.gold ?? 0) > 0 ||
+            (mySummary.xp?.change ?? 0) > 0 ||
+            (mySummary.items?.length ?? 0) > 0
+        );
+    }, [mySummary]);
     const isGuildWar = isGuildWarLiveSession(session as any);
     const guildWarStars = mySummary?.guildWarStars ?? 0;
     const guildWarHouseScore = useMemo(() => {
@@ -1084,7 +1099,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                         </div>
                                     </div>
                                     {mySummary?.level ? (
-                                        <div className="flex-shrink-0">
+                                        <div className="flex min-h-[2.85rem] flex-shrink-0 flex-col justify-center">
                                             <XpBar
                                                 initial={mySummary.level.progress.initial}
                                                 final={mySummary.level.progress.final}
@@ -1097,7 +1112,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                             />
                                         </div>
                                     ) : (
-                                        <div className="flex-shrink-0">
+                                        <div className="flex min-h-[2.85rem] flex-shrink-0 flex-col justify-center">
                                             <div className="flex items-center gap-1.5">
                                                 <span
                                                     className="w-12 text-xs font-bold text-right text-slate-400"
@@ -1181,7 +1196,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                         <div
                             className={
                                 isMobile
-                                    ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
+                                    ? 'min-h-[10.5rem] min-w-0 flex-1 overflow-x-hidden overflow-y-visible'
                                     : 'overflow-visible'
                             }
                         >
@@ -1262,7 +1277,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                 <div
                                     className={
                                         isMobile
-                                            ? 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]'
+                                            ? 'flex min-h-[10.5rem] min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden pr-0.5 [scrollbar-width:thin]'
                                             : 'overflow-visible'
                                     }
                                 >
@@ -1306,62 +1321,88 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                             >
                                 {isGuildWar ? '길드 전쟁 보상' : '획득 보상'}
                             </h2>
-                            <div className="flex items-stretch justify-center gap-1.5 sm:gap-2">
-                                <div
-                                    className={`flex ${isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'h-24 w-24'} flex-col items-center justify-center rounded-lg border border-amber-400/45 bg-gradient-to-br from-amber-950/95 via-yellow-900/55 to-amber-950/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_36px_-16px_rgba(245,158,11,0.35)] sm:rounded-xl sm:p-1.5`}
-                                >
-                                    <img
-                                        src="/images/icon/Gold.png"
-                                        alt="골드"
-                                        className={`${isMobile ? 'mb-0.5 h-8 w-8' : 'mb-0.5 h-9 w-9'} object-contain drop-shadow-md`}
-                                    />
+                            <div
+                                className={
+                                    isMobile
+                                        ? `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} w-full min-w-0 flex-row flex-nowrap items-center gap-1.5 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]`
+                                        : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
+                                }
+                            >
+                                {!mySummary ? (
                                     <p
-                                        className="text-center text-sm font-black tabular-nums text-amber-100 min-[1024px]:text-base"
-                                        style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}
+                                        className="px-2 text-center text-slate-500"
+                                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
                                     >
-                                        {(mySummary?.gold ?? 0).toLocaleString()}
+                                        보상 정보가 없습니다.
                                     </p>
-                                    <p className="text-[0.55rem] font-bold uppercase tracking-wider text-amber-200/60">골드</p>
-                                </div>
-                                {mySummary?.items && mySummary.items.length > 0 ? (
-                                    <div className="flex max-w-[12rem] flex-wrap content-center justify-center gap-1.5">
-                                        {mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {
-                                            const itemTemplate = CONSUMABLE_ITEMS.find((ci: { name: string }) => ci.name === item.name);
-                                            return (
-                                                <div
-                                                    key={idx}
-                                                    className={`flex ${isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'h-24 w-[5.75rem]'} flex-col items-center justify-center rounded-lg border border-violet-400/40 bg-gradient-to-br from-violet-950/90 via-purple-950/70 to-[#0c0614] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_10px_32px_-14px_rgba(139,92,246,0.35)] sm:rounded-xl sm:p-1.5`}
-                                                >
-                                                    {itemTemplate?.image && (
-                                                        <img
-                                                            src={itemTemplate.image}
-                                                            alt={item.name}
-                                                            className={`${isMobile ? 'mb-0.5 h-7 w-7' : 'mb-0.5 h-8 w-8'} object-contain drop-shadow`}
-                                                        />
-                                                    )}
-                                                    <p
-                                                        className="line-clamp-2 text-center text-[0.6rem] font-bold leading-tight text-violet-100 sm:text-[0.65rem]"
-                                                        style={{ fontSize: isMobile ? `${5 * mobileTextScale}px` : undefined }}
-                                                    >
-                                                        {item.name}
-                                                    </p>
-                                                </div>
-                                            );
-                                        })}
-                                        {mySummary.items.length > 3 && (
-                                            <div
-                                                className={`flex ${isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'h-24 w-[5.75rem]'} items-center justify-center rounded-lg border border-white/15 bg-slate-950/60 p-1.5 sm:rounded-xl`}
-                                            >
-                                                <p className="text-center text-xs font-bold text-slate-400 sm:text-sm">+{mySummary.items.length - 3}</p>
+                                ) : !hasPvpRewardSlots ? (
+                                    <p
+                                        className="px-2 text-center text-slate-500"
+                                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                                    >
+                                        보상이 없습니다.
+                                    </p>
+                                ) : (
+                                    <>
+                                        {(mySummary.gold ?? 0) > 0 && (
+                                            <ResultModalGoldCurrencySlot
+                                                amount={mySummary.gold ?? 0}
+                                                compact={isMobile}
+                                            />
+                                        )}
+                                        {(mySummary.xp?.change ?? 0) > 0 && (
+                                            <div className="flex shrink-0 flex-col items-center justify-center">
+                                                <ResultModalXpRewardBadge
+                                                    variant={isPlayful ? 'playful' : 'strategy'}
+                                                    amount={mySummary.xp!.change}
+                                                    density={isMobile ? 'compact' : 'comfortable'}
+                                                />
                                             </div>
                                         )}
-                                    </div>
-                                ) : (
-                                    <div
-                                        className={`flex ${isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'h-24 w-24'} items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-slate-950/90 to-zinc-950 ring-1 ring-inset ring-white/[0.04] sm:rounded-xl`}
-                                    >
-                                        <span className="text-xs font-semibold text-slate-500 sm:text-sm">보상 없음</span>
-                                    </div>
+                                        {mySummary.items &&
+                                            mySummary.items.length > 0 &&
+                                            mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {
+                                                const displayName = item.name;
+                                                const nameWithSpace = displayName.includes('골드꾸러미')
+                                                    ? displayName.replace('골드꾸러미', '골드 꾸러미')
+                                                    : displayName;
+                                                const nameWithoutSpace = displayName.includes('골드 꾸러미')
+                                                    ? displayName.replace('골드 꾸러미', '골드꾸러미')
+                                                    : displayName;
+                                                const imagePath =
+                                                    (item as { image?: string }).image ||
+                                                    CONSUMABLE_ITEMS.find(
+                                                        (ci: { name: string }) =>
+                                                            ci.name === displayName ||
+                                                            ci.name === nameWithSpace ||
+                                                            ci.name === nameWithoutSpace
+                                                    )?.image ||
+                                                    MATERIAL_ITEMS[displayName]?.image ||
+                                                    MATERIAL_ITEMS[nameWithSpace]?.image ||
+                                                    MATERIAL_ITEMS[nameWithoutSpace]?.image;
+                                                return (
+                                                    <ResultModalItemRewardSlot
+                                                        key={item.id || idx}
+                                                        imageSrc={imagePath || null}
+                                                        name={displayName}
+                                                        quantity={item.quantity}
+                                                        compact={isMobile}
+                                                        onImageError={(e) => {
+                                                            (e.target as HTMLImageElement).style.display = 'none';
+                                                        }}
+                                                    />
+                                                );
+                                            })}
+                                        {mySummary.items && mySummary.items.length > 3 && (
+                                            <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
+                                                <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg border-2 border-white/25 bg-slate-950/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/10 min-[1024px]:h-[4.75rem] min-[1024px]:w-[4.75rem]">
+                                                    <span className="text-center text-xs font-bold tabular-nums text-slate-400 min-[1024px]:text-sm">
+                                                        +{mySummary.items.length - 3}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>

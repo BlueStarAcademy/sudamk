@@ -15,6 +15,12 @@ import {
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
+import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import {
+    ResultModalGoldCurrencySlot,
+    ResultModalItemRewardSlot,
+    RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
+} from './game/ResultModalRewardSlot.js';
 
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
@@ -390,7 +396,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     // calculatedSummary를 사용하여 보상 표시 (summary가 없을 때도 계산된 보상 사용)
     const displaySummary = calculatedSummary || summary;
-    
+    const hasRewardSlots =
+        !!displaySummary &&
+        ((displaySummary.gold ?? 0) > 0 ||
+            (displaySummary.xp?.change ?? 0) > 0 ||
+            (Array.isArray(displaySummary.items) && displaySummary.items.length > 0));
+
     const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.strategyLevel));
     const clampedXp = Math.min(currentUser.strategyXp, xpRequirement);
     const xpChange = displaySummary?.xp?.change ?? 0;
@@ -568,64 +579,67 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 </div>
                             )}
                             
-                            {/* 보상 박스들 */}
-                            {displaySummary ? (
-                                <>
-                                    {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
-                                        <div className="flex gap-1.5 justify-center items-stretch flex-wrap">
-                                            {/* Gold Reward */}
-                                            {(displaySummary.gold ?? 0) > 0 && (
-                                                <div className={`${isMobile ? 'h-14 w-14' : 'h-24 w-24'} flex flex-col items-center justify-center rounded-xl border-2 border-amber-400/40 bg-gradient-to-br from-amber-950/55 via-yellow-900/25 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/15 ${isMobile ? 'p-1' : 'p-2'}`}>
-                                                    <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} mb-0.5`} />
-                                                    <p className="text-center font-bold text-amber-200" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
-                                                        {(displaySummary.gold ?? 0).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            )}
-                                            {/* XP Reward (박스 형태) */}
-                                            {displaySummary.xp && displaySummary.xp.change > 0 && (
-                                                <div className={`${isMobile ? 'h-14 w-14' : 'h-24 w-24'} flex flex-col items-center justify-center rounded-xl border-2 border-emerald-500/40 bg-gradient-to-br from-emerald-950/50 via-green-900/20 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-emerald-400/12 ${isMobile ? 'p-1' : 'p-2'}`}>
-                                                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} mb-0.5 font-bold text-emerald-200`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '12px' }}>전략</p>
-                                                    <p className="text-center font-bold text-emerald-200" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
-                                                        +{displaySummary.xp.change} XP
-                                                    </p>
-                                                </div>
-                                            )}
-                                            {/* Item Rewards */}
-                                            {displaySummary.items && displaySummary.items.length > 0 && displaySummary.items.slice(0, 2).map((item, idx) => (
-                                                <div key={item.id || idx} className={`${isMobile ? 'h-14 w-14' : 'h-24 w-24'} flex flex-col items-center justify-center rounded-xl border-2 border-violet-500/40 bg-gradient-to-br from-violet-950/50 via-purple-900/25 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-violet-400/12 ${isMobile ? 'p-1' : 'p-2'}`}>
-                                                    {item.image && (
-                                                        <img 
-                                                            src={item.image} 
-                                                            alt={item.name} 
-                                                            className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-0.5 object-contain`}
-                                                        />
-                                                    )}
-                                                    <p className="text-center font-semibold leading-tight text-violet-200" style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : '12px' }}>
-                                                        {item.name}
-                                                    </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className={`flex items-center justify-center ${isMobile ? 'py-2' : 'py-4'}`}>
-                                            <p className="text-center text-zinc-500" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}>
-                                                보상이 없습니다.
-                                            </p>
-                                        </div>
-                                    )}
-                                    {displaySummary.items && displaySummary.items.length > 2 && (
-                                        <p className="text-center text-zinc-500" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
-                                            외 {displaySummary.items.length - 2}개 아이템
-                                        </p>
-                                    )}
-                                </>
-                            ) : (
-                                <div className={`flex items-center justify-center ${isMobile ? 'py-2' : 'py-4'}`}>
-                                    <p className="text-center text-zinc-500" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}>
+                            {/* 보상 줄: 고정 최소 높이로 요약 도착 시 레이아웃 흔들림 방지 */}
+                            <div
+                                className={`flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`}
+                            >
+                                {!displaySummary ? (
+                                    <p
+                                        className="px-2 text-center text-zinc-500"
+                                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                                    >
                                         {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
                                     </p>
-                                </div>
+                                ) : !hasRewardSlots ? (
+                                    <p
+                                        className="px-2 text-center text-zinc-500"
+                                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                                    >
+                                        보상이 없습니다.
+                                    </p>
+                                ) : (
+                                    <>
+                                        {(displaySummary.gold ?? 0) > 0 && (
+                                            <ResultModalGoldCurrencySlot
+                                                amount={displaySummary.gold ?? 0}
+                                                compact={isMobile}
+                                                dimmed={!summary}
+                                            />
+                                        )}
+                                        {displaySummary.xp && displaySummary.xp.change > 0 && (
+                                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
+                                                <ResultModalXpRewardBadge
+                                                    variant="strategy"
+                                                    amount={displaySummary.xp.change}
+                                                    density={isMobile ? 'compact' : 'comfortable'}
+                                                />
+                                            </div>
+                                        )}
+                                        {displaySummary.items &&
+                                            displaySummary.items.length > 0 &&
+                                            displaySummary.items.slice(0, 2).map((item, idx) => (
+                                                <ResultModalItemRewardSlot
+                                                    key={item.id || idx}
+                                                    imageSrc={item.image || null}
+                                                    name={item.name}
+                                                    quantity={item.quantity}
+                                                    compact={isMobile}
+                                                    dimmed={!summary}
+                                                    onImageError={(e) => {
+                                                        (e.target as HTMLImageElement).style.display = 'none';
+                                                    }}
+                                                />
+                                            ))}
+                                    </>
+                                )}
+                            </div>
+                            {displaySummary && displaySummary.items && displaySummary.items.length > 2 && (
+                                <p
+                                    className="text-center text-zinc-500"
+                                    style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}
+                                >
+                                    외 {displaySummary.items.length - 2}개 아이템
+                                </p>
                             )}
                         </div>
                     </div>

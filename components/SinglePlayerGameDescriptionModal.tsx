@@ -17,6 +17,7 @@ import {
   PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
   PRE_GAME_MODAL_ACCENT_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
+import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
 
 interface SinglePlayerGameDescriptionModalProps {
     session: LiveGameSession;
@@ -118,13 +119,24 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         return eq?.image ?? null;
     };
 
-    const spacingY = isCompactUi ? 'space-y-3' : 'space-y-3.5';
+    /** 컴팩트: 세로 간격을 조금 줄여 같은 뷰포트 안에 더 많이 들어가게 함 */
+    const spacingY = isCompactUi ? 'space-y-2 sm:space-y-2.5' : 'space-y-3.5';
     const mainBlocks = (
         <div className={`${spacingY} pr-0.5`}>
-            <div className="rounded-xl border border-amber-500/28 bg-gradient-to-r from-amber-950/50 via-zinc-900/85 to-zinc-950/90 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] sm:p-3.5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-4">
-                    <div className="flex min-w-0 flex-1 gap-3 sm:items-center">
-                        <div className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-amber-500/20 sm:h-[5.25rem] sm:w-[5.25rem]">
+            <div
+                className={`rounded-xl border border-amber-500/28 bg-gradient-to-r from-amber-950/50 via-zinc-900/85 to-zinc-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] ${isCompactUi ? 'p-2.5' : 'p-3 sm:p-3.5'}`}
+            >
+                <div className="flex flex-row items-stretch gap-2 sm:gap-3 md:gap-4">
+                    <div
+                        className={`flex min-w-0 flex-1 gap-2 sm:gap-3 ${isCompactUi ? '' : 'sm:items-center'}`}
+                    >
+                        <div
+                            className={`relative flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-amber-500/20 ${
+                                isCompactUi
+                                    ? 'h-[4.5rem] w-[4.5rem] sm:h-[5.25rem] sm:w-[5.25rem]'
+                                    : 'h-20 w-20 sm:h-[5.25rem] sm:w-[5.25rem]'
+                            }`}
+                        >
                             {modeMeta?.image ? (
                                 <img src={modeMeta.image} alt="" className="h-full w-full object-contain p-1.5 drop-shadow-md sm:p-2" />
                             ) : (
@@ -132,65 +144,87 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                             )}
                         </div>
                         <div className="min-w-0 flex-1 text-left">
-                            <p className="text-[0.62rem] font-bold uppercase tracking-[0.12em] text-amber-200/78 sm:text-[0.65rem]">
+                            <p
+                                className={`font-bold uppercase tracking-[0.12em] text-amber-200/78 ${
+                                    isCompactUi ? 'text-[0.68rem] sm:text-[0.7rem]' : 'text-[0.62rem] sm:text-[0.65rem]'
+                                }`}
+                            >
                                 {isTower ? '도전의 탑' : '싱글 스테이지'}
                             </p>
-                            <h3 className="mt-0.5 text-lg font-black leading-tight tracking-tight text-white drop-shadow-sm max-[480px]:text-[1.2rem] sm:text-xl">
+                            <h3
+                                className={`mt-0.5 font-black leading-tight tracking-tight text-white drop-shadow-sm ${
+                                    isCompactUi
+                                        ? 'text-[1.05rem] leading-snug sm:text-xl'
+                                        : 'text-lg max-[480px]:text-[1.2rem] sm:text-xl'
+                                }`}
+                            >
                                 {stageDisplayName}
                             </h3>
-                            <p className="mt-1 text-sm text-sky-200/88 sm:text-[0.95rem]">
+                            <p className={`mt-1 text-sky-200/88 ${isCompactUi ? 'text-[0.8125rem] sm:text-[0.95rem]' : 'text-sm sm:text-[0.95rem]'}`}>
                                 모드{' '}
                                 <span className="whitespace-nowrap font-semibold text-sky-100/95">{gameModeName}</span>
                             </p>
                         </div>
                     </div>
 
-                    <div className="flex flex-col items-center justify-center border-t border-amber-500/25 pt-3 text-center sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 md:min-w-[12rem]">
-                        <p className="w-full text-center text-[0.65rem] font-bold uppercase tracking-[0.14em] text-amber-200/88 sm:text-xs">
+                    <div
+                        className={
+                            isCompactUi
+                                ? 'flex w-[min(10.25rem,40%)] shrink-0 flex-col border-l border-amber-500/25 pl-2 text-center'
+                                : 'flex w-auto min-w-[11.5rem] max-w-[16rem] shrink-0 flex-col border-l border-amber-500/25 pl-3 text-center sm:min-w-[12rem] sm:pl-4'
+                        }
+                    >
+                        <p className="w-full shrink-0 whitespace-nowrap text-[0.68rem] font-bold uppercase tracking-[0.12em] text-amber-200/88 sm:text-[0.7rem] sm:tracking-[0.12em] md:text-xs">
                             클리어 보상
                         </p>
                         {clearReward ? (
-                            <div className="mt-2 flex w-full max-w-[16rem] flex-col items-center gap-1.5">
+                            <div className="mt-1.5 flex w-full min-w-0 flex-row flex-wrap content-start items-start justify-center gap-x-2 gap-y-2 sm:mt-2 sm:gap-x-2.5">
                                 {(clearReward.gold ?? 0) > 0 && (
-                                    <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-amber-400/35 bg-black/45 px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                        <img
-                                            src="/images/icon/Gold.png"
-                                            alt=""
-                                            className="h-3.5 w-3.5 shrink-0 object-contain sm:h-4 sm:w-4"
-                                            aria-hidden
-                                        />
-                                        <span className="text-[0.8125rem] font-semibold tabular-nums leading-snug text-amber-100 sm:text-sm">
+                                    <div className="flex flex-col items-center gap-0.5">
+                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/40 bg-gradient-to-br from-black/55 via-amber-950/35 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-500/25 sm:h-10 sm:w-10">
+                                            <img
+                                                src="/images/icon/Gold.png"
+                                                alt=""
+                                                className="h-6 w-6 object-contain sm:h-7 sm:w-7"
+                                                aria-hidden
+                                            />
+                                        </div>
+                                        <span className="max-w-[4.75rem] text-center text-[0.65rem] font-semibold tabular-nums leading-tight text-amber-100 sm:text-[0.7rem]">
                                             {(clearReward.gold ?? 0).toLocaleString()}
                                         </span>
                                     </div>
                                 )}
                                 {(clearReward.exp ?? 0) > 0 && (
-                                    <div className="flex w-full items-center justify-center rounded-lg border border-emerald-400/35 bg-emerald-950/30 px-2.5 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                                        <span className="text-[0.8125rem] font-semibold leading-snug text-emerald-100 sm:text-sm">
-                                            전략 EXP +{(clearReward.exp ?? 0).toLocaleString()}
-                                        </span>
-                                    </div>
+                                    <ResultModalXpRewardBadge
+                                        variant="strategy"
+                                        amount={clearReward.exp ?? 0}
+                                        density="comfortable"
+                                    />
                                 )}
-                                {clearReward.items && clearReward.items.length > 0 && (
-                                    <div className="flex w-full flex-wrap justify-center gap-1.5">
-                                        {clearReward.items.map((rewardItem, idx) => {
-                                            const image = resolveItemImage(rewardItem.itemId);
-                                            return (
-                                                <div
-                                                    key={`${rewardItem.itemId}-${idx}`}
-                                                    className="inline-flex h-7 min-w-[3.25rem] items-center justify-center gap-1 rounded-lg border border-violet-500/30 bg-violet-950/25 px-2 text-[10px] font-semibold text-violet-100"
-                                                    title={rewardItem.itemId}
-                                                >
-                                                    {image ? <img src={image} alt="" className="h-3 w-3 object-contain" /> : <span>🎁</span>}
-                                                    ×{rewardItem.quantity}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                {clearReward.items?.map((rewardItem, idx) => {
+                                    const image = resolveItemImage(rewardItem.itemId);
+                                    return (
+                                        <div
+                                            key={`${rewardItem.itemId}-${idx}`}
+                                            className="flex flex-col items-center gap-0.5"
+                                            title={rewardItem.itemId}
+                                        >
+                                            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-500/35 bg-violet-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-violet-400/20 sm:h-10 sm:w-10">
+                                                {image ? (
+                                                    <img src={image} alt="" className="h-6 w-6 object-contain sm:h-7 sm:w-7" />
+                                                ) : (
+                                                    <span className="text-lg leading-none">🎁</span>
+                                                )}
+                                            </div>
+                                            <span className="text-center text-[0.62rem] font-semibold tabular-nums leading-tight text-violet-100 sm:text-[0.65rem]">
+                                                ×{rewardItem.quantity}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         ) : (
-                            <p className="mt-1.5 text-center text-xs text-amber-100/75">보상 정보 없음</p>
+                            <p className="mt-1 text-center text-[0.8125rem] text-amber-100/75 sm:text-xs">보상 정보 없음</p>
                         )}
                     </div>
                 </div>
@@ -277,7 +311,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             >
                 {isCompactUi ? (
                     <div
-                        className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [zoom:0.5] ${PRE_GAME_MODAL_LAYER_CLASS}`}
+                        className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] ${PRE_GAME_MODAL_LAYER_CLASS}`}
                     >
                         {mainBlocks}
                     </div>

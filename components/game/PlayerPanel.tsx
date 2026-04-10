@@ -9,6 +9,7 @@ import {
     resolveAiLobbyProfileStepFromSettings,
     strategicAiDisplayLevelFromProfileStep,
 } from '../../shared/utils/strategicAiDifficulty.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -129,10 +130,34 @@ interface SinglePlayerPanelProps {
     showElapsedOnly?: boolean;
     /** 경과 시간을 표시할지 여부 (유저 패널에만 true로 전달) */
     isCurrentUser?: boolean;
+    /** 네이티브 모바일·좁은 뷰포트 상단 바: 말줄임 대신 줄바꿈·가변 글자로 전체 표시 */
+    fluidTextLayout?: boolean;
 }
 
 const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
-    const { user, playerEnum, score, isActive, timeLeft, totalTime, mainTimeLeft, byoyomiPeriodsLeft, totalByoyomi, byoyomiTime, isLeft, session, captureTarget, role, isAiPlayer, mode, isSinglePlayer, isMobile = false, showElapsedOnly = false, isCurrentUser = false } = props;
+    const {
+        user,
+        playerEnum,
+        score,
+        isActive,
+        timeLeft,
+        totalTime,
+        mainTimeLeft,
+        byoyomiPeriodsLeft,
+        totalByoyomi,
+        byoyomiTime,
+        isLeft,
+        session,
+        captureTarget,
+        role,
+        isAiPlayer,
+        mode,
+        isSinglePlayer,
+        isMobile = false,
+        showElapsedOnly = false,
+        isCurrentUser = false,
+        fluidTextLayout = false,
+    } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
@@ -233,31 +258,61 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const stonesThrown = session.stonesThrownThisRound?.[user.id] || 0;
     const stonesLeft = totalStones - stonesThrown;
 
-    const avatarSize = isMobile ? 44 : 48;
-    const nameTextSize = isMobile ? 'text-sm' : 'text-[clamp(0.8rem,3vmin,1.125rem)]';
-    const levelTextSize = isMobile ? 'text-xs' : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
+    const avatarSize = isMobile ? 40 : 48;
+    const nameTextSize = fluidTextLayout
+        ? 'text-[clamp(0.625rem,2.85vmin,0.8125rem)] min-[380px]:text-[clamp(0.6875rem,2.6vmin,0.875rem)]'
+        : isMobile
+          ? 'text-sm'
+          : 'text-[clamp(0.8rem,3vmin,1.125rem)]';
+    const levelTextSize = fluidTextLayout
+        ? 'text-[clamp(0.5625rem,2.5vmin,0.6875rem)] min-[380px]:text-[clamp(0.625rem,2.2vmin,0.75rem)]'
+        : isMobile
+          ? 'text-xs'
+          : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
     const timeTextSize = isMobile ? 'text-base' : 'text-[clamp(1rem,3.5vmin,1.25rem)]';
     const winLoseTextSize = isMobile ? 'text-xl' : 'text-2xl';
     const padding = isMobile ? 'p-1.5' : 'p-1';
-    const gap = isMobile ? 'gap-2' : 'gap-2';
+    const gap = isMobile ? 'gap-1.5' : 'gap-2';
+
+    const nameTitle = `${user.nickname}${isAiPlayer ? ' 🤖' : ''}${role ? ` (${role})` : ''}`;
 
     return (
-        <div className={`relative flex items-stretch ${gap} flex-1 ${orderClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}>
+        <div className={`relative flex min-w-0 items-stretch ${gap} flex-1 ${orderClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}>
             {showActiveBorderPulse && (
                 <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
             )}
             <div className={`flex flex-col ${textAlignClass} flex-grow justify-between min-w-0`}>
-                <div className={`flex items-center ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}>
+                <div
+                    className={`flex min-w-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
+                >
                     <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                    <div className="min-w-0">
-                         <div className={`flex items-baseline ${gap} ${justifyClass}`}>
-                            {!isLeft && isGameEnded && isWinner && <span className={`${winLoseTextSize} font-black text-blue-400`}>승</span>}
-                            {!isLeft && isGameEnded && isLoser && <span className={`${winLoseTextSize} font-black text-red-400`}>패</span>}
-                            <h2 className={`font-bold ${nameTextSize} leading-tight whitespace-nowrap ${finalNameClass}`}>{user.nickname} {isAiPlayer && '🤖'} {role && `(${role})`}</h2>
-                            {isLeft && isGameEnded && isWinner && <span className={`${winLoseTextSize} font-black text-blue-400`}>승</span>}
-                            {isLeft && isGameEnded && isLoser && <span className={`${winLoseTextSize} font-black text-red-400`}>패</span>}
+                    <div className="min-w-0 flex-1">
+                        <div
+                            className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-wrap content-start gap-x-1 gap-y-0 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
+                        >
+                            {!isLeft && isGameEnded && isWinner && <span className={`shrink-0 ${winLoseTextSize} font-black text-blue-400`}>승</span>}
+                            {!isLeft && isGameEnded && isLoser && <span className={`shrink-0 ${winLoseTextSize} font-black text-red-400`}>패</span>}
+                            <h2
+                                className={`min-w-0 max-w-full font-bold leading-snug [overflow-wrap:anywhere] [word-break:keep-all] ${nameTextSize} ${finalNameClass} ${
+                                    fluidTextLayout ? 'w-full' : 'flex-1 truncate'
+                                }`}
+                                title={nameTitle}
+                            >
+                                {user.nickname}
+                                {isAiPlayer ? ' 🤖' : ''}
+                                {role ? ` (${role})` : ''}
+                            </h2>
+                            {isLeft && isGameEnded && isWinner && <span className={`shrink-0 ${winLoseTextSize} font-black text-blue-400`}>승</span>}
+                            {isLeft && isGameEnded && isLoser && <span className={`shrink-0 ${winLoseTextSize} font-black text-red-400`}>패</span>}
                         </div>
-                        <p className={`${levelTextSize} ${levelTextClasses}`}>{levelText}</p>
+                        <p
+                            className={`mt-0.5 max-w-full leading-snug [overflow-wrap:anywhere] [word-break:keep-all] ${levelTextSize} ${levelTextClasses} ${
+                                fluidTextLayout ? '' : 'truncate'
+                            }`}
+                            title={fluidTextLayout ? undefined : levelText}
+                        >
+                            {levelText}
+                        </p>
                          {isCurling && (
                             <div className={`mt-0.5 flex items-center gap-2 text-xs ${justifyClass} ${levelTextClasses}`}>
                                 <span>{session.curlingRound || 1}/{session.settings.curlingRounds || 3}R</span>
@@ -362,6 +417,9 @@ const getTurnDuration = (mode: GameMode, gameStatus: GameStatus, settings: GameS
 
 const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const { session, clientTimes, isSinglePlayer, isMobile = false, currentUser } = props;
+    /** PC 창을 좁혔거나 태블릿 폭: 네이티브 모바일이 아니어도 상단 바가 같은 폭 제약을 받음 */
+    const isHandheldViewport = useIsHandheldDevice(1025);
+    const compactPlayerBar = isMobile || isHandheldViewport;
     const { player1, player2, blackPlayerId, whitePlayerId, captures, mode, settings, effectiveCaptureTargets, scores, currentPlayer } = session;
 
     const enforceTime = showTimeControl(session);
@@ -552,10 +610,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         (session as any).blackTurnLimitBonus,
     ]);
     
-    const turnInfoSize = isMobile ? 'h-[5.25rem] w-[5.25rem]' : 'w-[5.25rem] h-[5.25rem] md:w-24 md:h-24';
-    const turnInfoLabelSize = isMobile ? 'text-xs' : 'text-[11px] md:text-xs';
-    const turnInfoValueSize = isMobile ? 'text-2xl' : 'text-2xl md:text-3xl';
-    const turnInfoTotalSize = isMobile ? 'text-sm' : 'text-sm md:text-base';
+    const turnInfoSize = compactPlayerBar ? 'h-[5.25rem] w-[5.25rem]' : 'w-[5.25rem] h-[5.25rem] md:w-24 md:h-24';
+    const turnInfoLabelSize = compactPlayerBar ? 'text-xs' : 'text-[11px] md:text-xs';
+    const turnInfoValueSize = compactPlayerBar ? 'text-2xl' : 'text-2xl md:text-3xl';
+    const turnInfoTotalSize = compactPlayerBar ? 'text-sm' : 'text-sm md:text-base';
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
 
@@ -570,18 +628,20 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : null;
     const playfulStonesBoxSize =
         mode === GameMode.Thief
-            ? isMobile
+            ? compactPlayerBar
                 ? 'min-h-[5.75rem] w-[5rem]'
                 : 'w-[5.25rem] sm:w-[5.5rem] md:w-24 min-h-[5rem]'
-            : isMobile
+            : compactPlayerBar
               ? 'min-h-[5rem] w-[4.25rem]'
               : 'w-[4.5rem] sm:w-[4.75rem] md:w-[5.25rem] min-h-[4.25rem]';
 
-    const playerColClass = 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
+    const playerColClass = compactPlayerBar
+        ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
+        : 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
 
     return (
         <div
-            className={`flex w-full items-stretch ${isMobile ? 'justify-between gap-1.5' : 'gap-2 min-[1025px]:gap-1.5'} flex-shrink-0 h-full`}
+            className={`flex w-full items-stretch ${compactPlayerBar ? 'min-h-[4.5rem] justify-between gap-1.5' : 'h-full gap-2 min-[1025px]:gap-1.5'} flex-shrink-0`}
         >
             <div className={playerColClass}>
                 <SinglePlayerPanel
@@ -603,6 +663,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     mode={mode}
                     isSinglePlayer={isSinglePlayer}
                     isMobile={isMobile}
+                    fluidTextLayout={compactPlayerBar}
                     showElapsedOnly={leftShowElapsedOnly}
                     isCurrentUser={leftPlayerUser.id === currentUser?.id}
                 />
@@ -610,7 +671,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             {((isSinglePlayer || session.gameCategory === 'tower') && turnInfo) && (
                 <div className={`flex items-center justify-center ${turnInfoSize} flex-shrink-0 bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
                     <div className="flex flex-col items-center justify-center text-center px-1">
-                        <span className={`${turnInfoLabelSize} text-stone-300 ${isMobile ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{turnInfo.label}</span>
+                        <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{turnInfo.label}</span>
                         <div className="flex items-baseline justify-center gap-0.5">
                             <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
                             <span className={`${turnInfoTotalSize} text-stone-400`}>/{turnInfo.total}</span>
@@ -621,7 +682,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             {showStrategicTurnBox && strategicLobbyTurnInfo && (
                 <div className={`flex items-center justify-center ${turnInfoSize} flex-shrink-0 bg-gray-800/95 rounded-lg border-2 border-gray-500 shadow-xl`}>
                     <div className="flex flex-col items-center justify-center text-center px-1">
-                        <span className={`${turnInfoLabelSize} text-gray-300 ${isMobile ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{strategicLobbyTurnInfo.label}</span>
+                        <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{strategicLobbyTurnInfo.label}</span>
                         {strategicLobbyTurnInfo.type === 'moves_only' ? (
                             <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}수</span>
                         ) : (
@@ -646,18 +707,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 >
                     {thiefUiRound != null && (
                         <span
-                            className={`${isMobile ? 'text-[0.65rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
+                            className={`${compactPlayerBar ? 'text-[0.65rem]' : 'text-[clamp(0.55rem,1.8vmin,0.72rem)]'} mb-0.5 text-center font-bold tabular-nums leading-none text-amber-100/95`}
                         >
                             라운드 {thiefUiRound}/{THIEF_NIGHTS_PER_SEGMENT}
                         </span>
                     )}
                     <span
-                        className={`${isMobile ? 'text-xs' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
+                        className={`${compactPlayerBar ? 'text-xs' : 'text-[clamp(0.55rem,1.8vmin,0.7rem)]'} text-center font-semibold leading-tight whitespace-nowrap text-amber-200/85`}
                     >
                         남은 돌
                     </span>
                     <span
-                        className={`font-mono font-bold tabular-nums text-amber-300 ${isMobile ? 'text-3xl' : 'text-3xl md:text-4xl'} mt-0.5 leading-none`}
+                        className={`font-mono font-bold tabular-nums text-amber-300 ${compactPlayerBar ? 'text-3xl' : 'text-3xl md:text-4xl'} mt-0.5 leading-none`}
                     >
                         {Math.max(0, typeof session.stonesToPlace === 'number' ? session.stonesToPlace : 0)}
                     </span>
@@ -683,6 +744,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 mode={mode}
                 isSinglePlayer={isSinglePlayer}
                 isMobile={isMobile}
+                fluidTextLayout={compactPlayerBar}
                 showElapsedOnly={rightShowElapsedOnly}
                 isCurrentUser={rightPlayerUser.id === currentUser?.id}
             />

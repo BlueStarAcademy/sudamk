@@ -372,18 +372,25 @@ html {
 }
 
 /*
- * 좁은 뷰포트·모바일: 루트 rem을 키워 text-sm/text-xs 등 전역 UI 가독성 향상.
- * (네이티브 세로 셸의 scale 콘텐츠도 동일 rem을 쓰므로 시각 크기에 함께 반영됨)
+ * 좁은 데스크톱 창(마우스): rem만 키움.
+ * 터치 기기는 아래 (pointer: coarse)에서 16px 고정 — NativeMobileScaledContent scale만으로
+ * 기기 간 비율을 맞추고, iOS·안드로이드에서 서로 다른 rem 보정으로 어긋나지 않게 함.
  */
-@media (max-width: 1024px) {
+@media (max-width: 1024px) and (pointer: fine) {
   html {
     font-size: 18px;
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 640px) and (pointer: fine) {
   html {
     font-size: 19px;
+  }
+}
+
+@media (pointer: coarse) {
+  html {
+    font-size: 16px;
   }
 }
 

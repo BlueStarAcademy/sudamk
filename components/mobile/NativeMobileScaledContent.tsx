@@ -5,7 +5,16 @@ import {
 } from '../../constants/ads.js';
 
 /**
- * 720×(최대 1280) 논리 프레임: 가로는 셸 폭에 맞추고(scale = min(sw/720,1)),
+ * 레이아웃 박스만 사용(Safari·Chrome 공통). visualViewport 교차는 iOS에서 주소창/바운스마다 달라져
+ * 기기별 스케일·비율이 어긋나므로 쓰지 않는다. pinch-zoom은 브라우저 기본 동작에 맡긴다.
+ */
+function readLayoutBoxSize(el: HTMLElement): { sw: number; sh: number } {
+    const r = el.getBoundingClientRect();
+    return { sw: r.width, sh: r.height };
+}
+
+/**
+ * 480×(최대 1280) 논리 프레임: 가로는 셸 폭에 맞추고(scale = min(sw/480,1)),
  * 세로는 할당된 main 높이에 맞게 논리 높이만 줄여 한 화면에 넣는다.
  * 고정 1280 + 가로만 스케일하면 시각 높이가 뷰포트를 넘겨 바깥 스크롤이 생기고 하단 그리드가 잘린다.
  */
@@ -21,9 +30,7 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode; className
         const el = containerRef.current;
         if (!el) return;
         const measure = () => {
-            const r = el.getBoundingClientRect();
-            const sw = r.width;
-            const sh = r.height;
+            const { sw, sh } = readLayoutBoxSize(el);
             if (sw <= 0 || sh <= 0) return;
             const sx = sw / NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX;
             const s = Math.min(sx, 1);
@@ -33,9 +40,15 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode; className
             setLogicalHeight(Number.isFinite(logicalH) && logicalH > 0 ? logicalH : NATIVE_MOBILE_CONTENT_BASE_HEIGHT_PX);
         };
         measure();
-        const ro = new ResizeObserver(measure);
-        ro.observe(el);
-        return () => ro.disconnect();
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+        if (ro) ro.observe(el);
+        window.addEventListener('resize', measure);
+        window.addEventListener('orientationchange', measure);
+        return () => {
+            ro?.disconnect();
+            window.removeEventListener('resize', measure);
+            window.removeEventListener('orientationchange', measure);
+        };
     }, []);
 
     const bw = NATIVE_MOBILE_CONTENT_BASE_WIDTH_PX;

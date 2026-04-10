@@ -19,6 +19,12 @@ import {
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
+import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import {
+    ResultModalGoldCurrencySlot,
+    ResultModalItemRewardSlot,
+    RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
+} from './game/ResultModalRewardSlot.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -181,6 +187,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     // summary가 있으면 summary 사용, 없으면 expectedRewards 사용
     // summary가 나중에 도착하더라도 expectedRewards를 먼저 표시하여 0.5초 안에 보상 정보가 나타나도록 함
     const displaySummary = summary || expectedRewards;
+    const hasRewardSlots =
+        !!displaySummary &&
+        ((displaySummary.gold ?? 0) > 0 ||
+            (displaySummary.xp?.change ?? 0) > 0 ||
+            (Array.isArray(displaySummary.items) && displaySummary.items.length > 0));
     
     // 다음 층으로 갈 수 있는지 확인: 이번 게임에서 승리했거나, 이미 이 층을 한 번이라도 클리어한 적이 있으면 다음 층 가능
     // (재도전에서 실패해도 한 번 클리어한 층이면 다음 층으로 진행 가능)
@@ -492,7 +503,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 </div>
                             )}
                             
-                            {/* 보상 박스들 — 최소 높이로 영역 고정해 모달 크기 흔들림 방지 */}
+                            {/* 보상 줄: 고정 최소 높이로 서버 요약 도착 시 레이아웃 흔들림 방지 */}
                             <div
                                 className={
                                     isMobile
@@ -500,81 +511,84 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         : 'flex min-w-0 flex-col overflow-visible'
                                 }
                             >
-                            {displaySummary ? (
-                                <>
-                                    {((displaySummary.gold ?? 0) > 0 || (displaySummary.xp?.change ?? 0) > 0 || (displaySummary.items && displaySummary.items.length > 0)) ? (
-                                        <div className="flex w-full flex-wrap items-stretch justify-center gap-1.5">
-                                            {/* Gold Reward */}
-                                            {(displaySummary.gold ?? 0) > 0 && (
-                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-yellow-600/30 to-yellow-800/30 border-2 border-yellow-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
-                                                    <img src="/images/icon/Gold.png" alt="골드" className={`${isMobile ? 'w-6 h-6' : 'w-10 h-10'} mb-0.5`} />
-                                                    <p className="font-bold text-yellow-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
-                                                        {(displaySummary.gold ?? 0).toLocaleString()}
-                                                    </p>
-                                                </div>
-                                            )}
-                                            {/* XP Reward (박스 형태) */}
-                                            {displaySummary.xp && displaySummary.xp.change > 0 && (
-                                                <div className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-green-600/30 to-green-800/30 border-2 border-green-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
-                                                    <p className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-green-300 mb-0.5`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '13px' }}>전략</p>
-                                                    <p className="font-bold text-green-300 text-center" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
-                                                        +{displaySummary.xp.change} XP
-                                                    </p>
-                                                </div>
-                                            )}
-                                            {/* Item Rewards */}
-                                            {displaySummary.items && displaySummary.items.length > 0 && displaySummary.items.map((item, idx) => {
-                                                // 표시 이름: 서버는 name, 스테이지 예상 보상은 itemId로 옴
-                                                const displayName = item.name ?? ('itemId' in item ? (item as any).itemId : undefined);
-                                                if (!displayName) return null;
-                                                // 이미지 경로 찾기: item.image가 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                                                const nameWithSpace = displayName.includes('골드꾸러미') ? displayName.replace('골드꾸러미', '골드 꾸러미') : displayName;
-                                                const nameWithoutSpace = displayName.includes('골드 꾸러미') ? displayName.replace('골드 꾸러미', '골드꾸러미') : displayName;
-                                                const imagePath = ('image' in item && item.image) ||
-                                                    CONSUMABLE_ITEMS.find(ci => ci.name === displayName || ci.name === nameWithSpace || ci.name === nameWithoutSpace)?.image ||
-                                                    MATERIAL_ITEMS[displayName]?.image ||
-                                                    MATERIAL_ITEMS[nameWithSpace]?.image ||
-                                                    MATERIAL_ITEMS[nameWithoutSpace]?.image;
-                                                return (
-                                                    <div key={'id' in item && item.id ? item.id : idx} className={`${isMobile ? 'w-16 h-16' : 'w-24 h-24'} bg-gradient-to-br from-purple-600/30 to-purple-800/30 border-2 border-purple-500/50 rounded-lg flex flex-col items-center justify-center ${isMobile ? 'p-1' : 'p-2'} shadow-lg ${!summary ? 'opacity-80' : ''}`}>
-                                                        {imagePath ? (
-                                                            <img
-                                                                src={imagePath}
-                                                                alt={displayName}
-                                                                className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-0.5 object-contain`}
-                                                                onError={(e) => {
-                                                                    console.error(`[TowerSummaryModal] Failed to load image: ${imagePath} for item:`, item);
-                                                                    (e.target as HTMLImageElement).style.display = 'none';
-                                                                }}
-                                                            />
-                                                        ) : (
-                                                            <div className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} mb-0.5 flex items-center justify-center`}>
-                                                                <span className="text-xs text-gray-300 text-center px-1 line-clamp-2">{displayName}</span>
-                                                            </div>
-                                                        )}
-                                                        <p className="font-semibold text-purple-300 text-center leading-tight" style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : '12px' }}>
-                                                            {displayName}
-                                                            {item.quantity && item.quantity > 1 ? ` x${item.quantity}` : ''}
-                                                        </p>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                                <div
+                                    className={`flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`}
+                                >
+                                    {!displaySummary ? (
+                                        <p
+                                            className="px-2 text-center text-gray-400"
+                                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                                        >
+                                            {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
+                                        </p>
+                                    ) : !hasRewardSlots ? (
+                                        <p
+                                            className="px-2 text-center text-gray-400"
+                                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                                        >
+                                            보상이 없습니다.
+                                        </p>
                                     ) : (
-                                        <div className="flex items-center justify-center py-4">
-                                            <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}>
-                                                보상이 없습니다.
-                                            </p>
-                                        </div>
+                                        <>
+                                            {(displaySummary.gold ?? 0) > 0 && (
+                                                <ResultModalGoldCurrencySlot
+                                                    amount={displaySummary.gold ?? 0}
+                                                    compact={isMobile}
+                                                    dimmed={!summary}
+                                                />
+                                            )}
+                                            {displaySummary.xp && displaySummary.xp.change > 0 && (
+                                                <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
+                                                    <ResultModalXpRewardBadge
+                                                        variant="strategy"
+                                                        amount={displaySummary.xp.change}
+                                                        density={isMobile ? 'compact' : 'comfortable'}
+                                                    />
+                                                </div>
+                                            )}
+                                            {displaySummary.items &&
+                                                displaySummary.items.length > 0 &&
+                                                displaySummary.items.map((item, idx) => {
+                                                    const displayName = item.name ?? ('itemId' in item ? (item as any).itemId : undefined);
+                                                    if (!displayName) return null;
+                                                    const nameWithSpace = displayName.includes('골드꾸러미')
+                                                        ? displayName.replace('골드꾸러미', '골드 꾸러미')
+                                                        : displayName;
+                                                    const nameWithoutSpace = displayName.includes('골드 꾸러미')
+                                                        ? displayName.replace('골드 꾸러미', '골드꾸러미')
+                                                        : displayName;
+                                                    const imagePath =
+                                                        ('image' in item && item.image) ||
+                                                        CONSUMABLE_ITEMS.find(
+                                                            (ci) =>
+                                                                ci.name === displayName ||
+                                                                ci.name === nameWithSpace ||
+                                                                ci.name === nameWithoutSpace
+                                                        )?.image ||
+                                                        MATERIAL_ITEMS[displayName]?.image ||
+                                                        MATERIAL_ITEMS[nameWithSpace]?.image ||
+                                                        MATERIAL_ITEMS[nameWithoutSpace]?.image;
+                                                    return (
+                                                        <ResultModalItemRewardSlot
+                                                            key={'id' in item && item.id ? item.id : idx}
+                                                            imageSrc={imagePath || null}
+                                                            name={displayName}
+                                                            quantity={item.quantity}
+                                                            compact={isMobile}
+                                                            dimmed={!summary}
+                                                            onImageError={(e) => {
+                                                                console.error(
+                                                                    `[TowerSummaryModal] Failed to load image: ${imagePath} for item:`,
+                                                                    item
+                                                                );
+                                                                (e.target as HTMLImageElement).style.display = 'none';
+                                                            }}
+                                                        />
+                                                    );
+                                                })}
+                                        </>
                                     )}
-                                </>
-                            ) : (
-                                <div className={`flex items-center justify-center py-4 ${isMobile ? 'flex-1' : ''}`}>
-                                    <p className="text-gray-400 text-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}>
-                                        {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
-                                    </p>
                                 </div>
-                            )}
                             </div>
                         </div>
                     </div>

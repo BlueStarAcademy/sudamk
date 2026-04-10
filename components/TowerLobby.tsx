@@ -799,7 +799,6 @@ const TowerLobby: React.FC = () => {
                                                     )}
                                                 </div>
                                             </div>
-                                            <p className="text-center text-[11px] text-amber-300/75">이번 달 예정 보상은 현재 월간 기록 기준입니다.</p>
                                         </div>
                                     )}
                                     {mobileHeroDrawer === 'ranking' && (
@@ -882,7 +881,7 @@ const TowerLobby: React.FC = () => {
                             보상정보
                         </Button>
                     </div>
-                    {/* PC: 내 기록·예정 보상은 스크롤 밖에 두어 좁은 열에서도 항상 보이게 */}
+                    {/* PC: 내 기록은 스크롤 밖에 두어 좁은 열에서도 항상 보이게 */}
                     <div className="mb-2 flex-shrink-0">
                         <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40 overflow-hidden">
                             <div className="border-b border-amber-600/50 bg-amber-900/30 px-3 py-2.5">
@@ -902,7 +901,6 @@ const TowerLobby: React.FC = () => {
                                     <span className="font-bold text-yellow-200">{myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}</span>
                                 </div>
                                 <div className="border-t border-amber-700/40 pt-2">
-                                    <p className="mb-1.5 text-xs text-amber-300/90">이번 달 예정 보상 (현재 기록 기준)</p>
                                     {myRewardTier ? (
                                         <div className="flex flex-col gap-1.5 text-xs">
                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
