@@ -147,7 +147,7 @@ export const createDefaultUser = (id: string, username: string, nickname: string
 };
 
 
-export const getInitialState = (): Omit<AppState, 'liveGames' | 'negotiations' | 'userStatuses' | 'userConnections' | 'userLastChatMessage' | 'waitingRoomChats' | 'gameChats' | 'adminLogs' | 'announcements' | 'globalOverrideAnnouncement' | 'gameModeAvailability' | 'announcementInterval' | 'towerRankings' | 'userLastChatMessage'> => {
+export const getInitialState = (): Omit<AppState, 'liveGames' | 'negotiations' | 'userStatuses' | 'userConnections' | 'userLastChatMessage' | 'waitingRoomChats' | 'gameChats' | 'adminLogs' | 'announcements' | 'globalOverrideAnnouncement' | 'gameModeAvailability' | 'arenaEntranceAvailability' | 'announcementInterval' | 'towerRankings' | 'userLastChatMessage'> => {
     const adminUser = createDefaultUser('user-admin-static-id', '푸른별바둑학원', '관리자', true);
     const testUser1 = createDefaultUser('user-test-1', '푸른별', '푸른별');
     const testUser2 = createDefaultUser('user-test-2', '노란별', '노란별');

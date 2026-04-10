@@ -5,6 +5,7 @@ import {
 } from './entities.js';
 import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move } from './enums.js';
 import type { WinReason } from './enums.js';
+import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 
 /** 싱글/탑 PVE: 클라 전용 수순 반영 후 서버 캐시가 뒤처질 때 히든·스캔 액션과 함께 전송 */
 export type PveItemActionClientSync = {
@@ -66,6 +67,7 @@ export interface AppState {
     userLastChatMessage: Record<string, number>;
     adminLogs: AdminLog[];
     gameModeAvailability: Partial<Record<GameMode, boolean>>;
+    arenaEntranceAvailability: Record<ArenaEntranceKey, boolean>;
     announcements: Announcement[];
     globalOverrideAnnouncement: OverrideAnnouncement | null;
     announcementInterval: number;
@@ -258,6 +260,7 @@ export type ServerAction =
     | { type: 'ADMIN_SET_OVERRIDE_ANNOUNCEMENT', payload: { message: string } }
     | { type: 'ADMIN_CLEAR_OVERRIDE_ANNOUNCEMENT', payload?: never }
     | { type: 'ADMIN_TOGGLE_GAME_MODE', payload: { mode: GameMode; isAvailable: boolean } }
+    | { type: 'ADMIN_TOGGLE_ARENA_ENTRANCE', payload: { arena: ArenaEntranceKey; isOpen: boolean } }
     | { type: 'ADMIN_SET_GAME_DESCRIPTION', payload: { gameId: string, description: string } }
     | { type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId: string } }
     | { type: 'ADMIN_FORCE_WIN', payload: { gameId: string, winnerId: string } }
@@ -381,6 +384,7 @@ export interface AdminProps {
     onAction: (action: ServerAction) => void | Promise<void | { gameId?: string; claimAllTrainingQuestRewards?: any }>;
     onBack: () => void;
     gameModeAvailability: Partial<Record<GameMode, boolean>>;
+    arenaEntranceAvailability: Record<ArenaEntranceKey, boolean>;
     announcements: Announcement[];
     globalOverrideAnnouncement: OverrideAnnouncement | null;
     announcementInterval: number;

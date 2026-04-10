@@ -262,9 +262,18 @@ export interface LeagueRewardTier {
 }
 
 export type UserCredentials = {
-    username: string;
-    passwordHash: string;
-    userId: string;
+  username: string;
+  passwordHash: string;
+  userId: string;
+};
+
+/** 모험 전용 진행·전적(메인 프로필·랭킹 전적과 분리). 서버 `status` JSON 등에 동기화 가능 */
+export type AdventureProfile = {
+  monstersDefeatedByMode?: Partial<Record<string, number>>;
+  monstersDefeatedTotal?: number;
+  understandingXpByStage?: Partial<Record<string, number>>;
+  uniqueMonsterIdsCaught?: string[];
+  lastPlayedStageId?: string | null;
 };
 
 export type SinglePlayerMissionLevelInfo = {
@@ -420,6 +429,7 @@ export type User = {
   /** 당일(KST) 사용한 보스전 참여 횟수 (0|1|2). 날짜가 바뀌면 0으로 리셋, 미사용 시 누적 없음 */
   guildBossAttemptsUsedToday?: number;
   guildApplications?: Array<{ guildId: string; appliedAt: number }>;
+  adventureProfile?: AdventureProfile;
 };
 
 export type GameRecord = {

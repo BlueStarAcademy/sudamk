@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ServerAction, AdminProps, GameMode, Announcement, OverrideAnnouncement } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import { ARENA_ENTRANCE_KEYS, ARENA_ENTRANCE_LABELS, type ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import Button from '../Button.js';
 
 interface KataGoStatus {
@@ -23,6 +24,7 @@ interface KataGoStatus {
 // The extended `AdminProps` type is likely incomplete. Defining the props directly fixes the type error.
 interface ServerSettingsPanelProps {
     gameModeAvailability?: Partial<Record<GameMode, boolean>>;
+    arenaEntranceAvailability?: Record<ArenaEntranceKey, boolean>;
     announcements?: Announcement[];
     globalOverrideAnnouncement: OverrideAnnouncement | null;
     announcementInterval?: number;
@@ -33,6 +35,7 @@ interface ServerSettingsPanelProps {
 const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
     const {
         gameModeAvailability = {},
+        arenaEntranceAvailability = {} as Record<ArenaEntranceKey, boolean>,
         announcements = [],
         globalOverrideAnnouncement,
         announcementInterval = 10,
@@ -121,6 +124,26 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
                                 <label key={m.mode} className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md">
                                     <input type="checkbox" checked={gameModeAvailability[m.mode] ?? m.available} onChange={e => onAction({ type: 'ADMIN_TOGGLE_GAME_MODE', payload: { mode: m.mode, isAvailable: e.target.checked } })} className="w-4 h-4" />
                                     <span>{m.mode}</span>
+                                </label>
+                            ))}
+                        </div>
+                        <h3 className="text-base font-semibold mt-6 mb-2 text-secondary">경기장 입장</h3>
+                        <p className="text-xs text-tertiary mb-3">로비·대기실·챔피언십·모험 등 허브 입장을 막습니다. (게임 모드 활성화와 별도)</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                            {ARENA_ENTRANCE_KEYS.map((key) => (
+                                <label key={key} className="flex items-center gap-2 p-2 bg-secondary/50 rounded-md">
+                                    <input
+                                        type="checkbox"
+                                        checked={arenaEntranceAvailability[key] ?? true}
+                                        onChange={(e) =>
+                                            onAction({
+                                                type: 'ADMIN_TOGGLE_ARENA_ENTRANCE',
+                                                payload: { arena: key, isOpen: e.target.checked },
+                                            })
+                                        }
+                                        className="w-4 h-4"
+                                    />
+                                    <span>{ARENA_ENTRANCE_LABELS[key]} 입장 허용</span>
                                 </label>
                             ))}
                         </div>

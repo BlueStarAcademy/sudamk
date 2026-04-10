@@ -1,10 +1,13 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { GameMode } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
+import { isClientAdmin } from '../utils/clientAdmin.js';
+import { replaceAppHash } from '../utils/appUtils.js';
 
 interface LobbyProps {
   lobbyType: 'strategic' | 'playful';
@@ -39,8 +42,19 @@ const GameCard: React.FC<{ mode: GameMode, description: string, image: string, a
 };
 
 const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
-  const { gameModeAvailability, handlers } = useAppContext();
+  const { gameModeAvailability, handlers, arenaEntranceAvailability, currentUser } = useAppContext();
   const { isNativeMobile } = useNativeMobileShell();
+
+  const mergedArena = useMemo(
+    () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
+    [arenaEntranceAvailability],
+  );
+
+  useEffect(() => {
+    if (!currentUser || isClientAdmin(currentUser)) return;
+    const ok = lobbyType === 'strategic' ? mergedArena.strategicLobby : mergedArena.playfulLobby;
+    if (!ok) replaceAppHash('#/profile');
+  }, [currentUser, lobbyType, mergedArena.strategicLobby, mergedArena.playfulLobby]);
 
   const isStrategic = lobbyType === 'strategic';
   const title = isStrategic ? '전략 게임' : '놀이 게임';

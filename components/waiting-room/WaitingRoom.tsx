@@ -16,6 +16,9 @@ import AiChallengeModal from './AiChallengeModal.js';
 import RankedMatchPanel from './RankedMatchPanel.js';
 import MatchFoundModal from './MatchFoundModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { mergeArenaEntranceAvailability } from '../../constants/arenaEntrance.js';
+import { isClientAdmin } from '../../utils/clientAdmin.js';
+import { replaceAppHash } from '../../utils/appUtils.js';
 import {
   waitingLobbyPcCenterColumnClass,
   waitingLobbyPcPanelShellClass,
@@ -153,7 +156,7 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
 const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { 
     currentUserWithStatus, onlineUsers, allUsers, liveGames, 
-    waitingRoomChats, negotiations, handlers 
+    waitingRoomChats, negotiations, handlers, arenaEntranceAvailability,
   } = useAppContext();
   const { isNativeMobile } = useNativeMobileShell();
 
@@ -183,6 +186,14 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     const targetMode = mode === 'strategic' ? 'playful' : 'strategic';
     window.location.hash = `#/waiting/${targetMode}`;
   }, [mode]);
+
+  useEffect(() => {
+    if (mode !== 'strategic' && mode !== 'playful') return;
+    if (isClientAdmin(currentUserWithStatus)) return;
+    const m = mergeArenaEntranceAvailability(arenaEntranceAvailability);
+    if (mode === 'strategic' && !m.strategicLobby) replaceAppHash('#/profile');
+    if (mode === 'playful' && !m.playfulLobby) replaceAppHash('#/profile');
+  }, [mode, arenaEntranceAvailability, currentUserWithStatus]);
 
   // 전략바둑과 놀이바둑 대기실은 각각의 채널 사용
   const chatChannel = mode === 'strategic' ? 'strategic' : mode === 'playful' ? 'playful' : 'global';

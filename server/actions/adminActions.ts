@@ -16,6 +16,7 @@ import { clearAiSession } from '../aiSessionManager.js';
 import { getCachedUser, updateUserCache, removeUserFromCache } from '../gameCache.js';
 import { invalidateUserCache } from '../db.js';
 import { ADMIN_USER_ID } from '../../shared/constants/auth.js';
+import { mergeArenaEntranceAvailability, type ArenaEntranceKey, ARENA_ENTRANCE_KEYS } from '../../constants/arenaEntrance.js';
 import { GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../shared/constants/guildConstants.js';
 import { parseEquipmentStarsFromPayload } from '../../shared/utils/equipmentEnhancementStars.js';
 import { normalizeLegacyDivineMythicInventoryItem } from '../../shared/utils/inventoryLegacyNormalize.js';
@@ -556,6 +557,18 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             await db.setKV('gameModeAvailability', availability);
             broadcast({ type: 'GAME_MODE_AVAILABILITY_UPDATE', payload: { gameModeAvailability: availability } });
             return { clientResponse: { gameModeAvailability: availability } };
+        }
+        case 'ADMIN_TOGGLE_ARENA_ENTRANCE': {
+            const { arena, isOpen } = payload as { arena: ArenaEntranceKey; isOpen: boolean };
+            if (!ARENA_ENTRANCE_KEYS.includes(arena)) {
+                return { error: '유효하지 않은 경기장 키입니다.' };
+            }
+            const stored = await db.getKV<Partial<Record<string, boolean>>>('arenaEntranceAvailability') || {};
+            stored[arena] = isOpen;
+            await db.setKV('arenaEntranceAvailability', stored);
+            const arenaEntranceAvailability = mergeArenaEntranceAvailability(stored);
+            broadcast({ type: 'ARENA_ENTRANCE_AVAILABILITY_UPDATE', payload: { arenaEntranceAvailability } });
+            return { clientResponse: { arenaEntranceAvailability } };
         }
         case 'ADMIN_SET_GAME_DESCRIPTION': {
             const { gameId, description } = payload;

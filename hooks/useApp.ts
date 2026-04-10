@@ -29,6 +29,12 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId } from '../constants/auth.js';
+import {
+    mergeArenaEntranceAvailability,
+    ARENA_ENTRANCE_CLOSED_MESSAGE,
+    type ArenaEntranceKey,
+} from '../constants/arenaEntrance.js';
+import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
@@ -458,6 +464,9 @@ export const useApp = () => {
     const [gameChats, setGameChats] = useState<Record<string, ChatMessage[]>>({});
     const [adminLogs, setAdminLogs] = useState<AdminLog[]>([]);
     const [gameModeAvailability, setGameModeAvailability] = useState<Partial<Record<GameMode, boolean>>>({});
+    const [arenaEntranceAvailability, setArenaEntranceAvailability] = useState<Record<ArenaEntranceKey, boolean>>(() =>
+        mergeArenaEntranceAvailability({}),
+    );
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [globalOverrideAnnouncement, setGlobalOverrideAnnouncement] = useState<OverrideAnnouncement | null>(null);
     const [announcementInterval, setAnnouncementInterval] = useState(3);
@@ -2460,6 +2469,13 @@ export const useApp = () => {
                 if (action.type === 'ADMIN_TOGGLE_GAME_MODE' && (result.gameModeAvailability ?? result.clientResponse?.gameModeAvailability)) {
                     setGameModeAvailability(result.gameModeAvailability ?? result.clientResponse.gameModeAvailability);
                 }
+                if (action.type === 'ADMIN_TOGGLE_ARENA_ENTRANCE' && (result.arenaEntranceAvailability ?? result.clientResponse?.arenaEntranceAvailability)) {
+                    setArenaEntranceAvailability(
+                        mergeArenaEntranceAvailability(
+                            result.arenaEntranceAvailability ?? result.clientResponse.arenaEntranceAvailability,
+                        ),
+                    );
+                }
 
                 // CONFIRM_TOWER_GAME_START 액션에 대한 상세 로깅
                 if (action.type === 'CONFIRM_TOWER_GAME_START') {
@@ -3451,6 +3467,7 @@ export const useApp = () => {
             announcements?: any[];
             globalOverrideAnnouncement?: any;
             gameModeAvailability?: Record<string, boolean>;
+            arenaEntranceAvailability?: Partial<Record<string, boolean>>;
             announcementInterval?: number;
             homeBoardPosts?: any[];
             guilds?: Record<string, any>;
@@ -3702,6 +3719,9 @@ export const useApp = () => {
                 if (otherData.announcements !== undefined) setAnnouncements(otherData.announcements || []);
                 if (otherData.globalOverrideAnnouncement !== undefined) setGlobalOverrideAnnouncement(otherData.globalOverrideAnnouncement || null);
                 if (otherData.gameModeAvailability !== undefined) setGameModeAvailability(otherData.gameModeAvailability || {});
+                if (otherData.arenaEntranceAvailability !== undefined) {
+                    setArenaEntranceAvailability(mergeArenaEntranceAvailability(otherData.arenaEntranceAvailability));
+                }
                 if (otherData.announcementInterval !== undefined) setAnnouncementInterval(otherData.announcementInterval || 3);
                 if (otherData.homeBoardPosts !== undefined) setHomeBoardPosts(otherData.homeBoardPosts || []);
                 // 길드: INITIAL_STATE와 기존 상태 병합 (GET_GUILD_INFO 등으로 이미 가져온 데이터 우선)
@@ -3919,6 +3939,7 @@ export const useApp = () => {
                                 announcements: message.payload.announcements,
                                 globalOverrideAnnouncement: message.payload.globalOverrideAnnouncement,
                                 gameModeAvailability: message.payload.gameModeAvailability,
+                                arenaEntranceAvailability: message.payload.arenaEntranceAvailability,
                                 announcementInterval: message.payload.announcementInterval,
                                 homeBoardPosts: message.payload.homeBoardPosts,
                                 guilds: message.payload.guilds || {}
@@ -3962,6 +3983,7 @@ export const useApp = () => {
                                     announcements: message.payload.announcements,
                                     globalOverrideAnnouncement: message.payload.globalOverrideAnnouncement,
                                     gameModeAvailability: message.payload.gameModeAvailability,
+                                    arenaEntranceAvailability: message.payload.arenaEntranceAvailability,
                                     announcementInterval: message.payload.announcementInterval,
                                     homeBoardPosts: message.payload.homeBoardPosts,
                                     guilds: message.payload.guilds || chunkBuffer.otherData?.guilds || {}
@@ -3992,6 +4014,7 @@ export const useApp = () => {
                                 announcements,
                                 globalOverrideAnnouncement,
                                 gameModeAvailability,
+                                arenaEntranceAvailability,
                                 announcementInterval,
                                 homeBoardPosts,
                                 guilds
@@ -4008,6 +4031,7 @@ export const useApp = () => {
                                 announcements,
                                 globalOverrideAnnouncement,
                                 gameModeAvailability,
+                                arenaEntranceAvailability,
                                 announcementInterval,
                                 homeBoardPosts,
                                 guilds
@@ -5297,6 +5321,13 @@ export const useApp = () => {
                             if (availability) setGameModeAvailability(availability);
                             return;
                         }
+                        case 'ARENA_ENTRANCE_AVAILABILITY_UPDATE': {
+                            const { arenaEntranceAvailability: arenaAvail } = message.payload || {};
+                            if (arenaAvail && typeof arenaAvail === 'object') {
+                                setArenaEntranceAvailability(mergeArenaEntranceAvailability(arenaAvail));
+                            }
+                            return;
+                        }
                         case 'HOME_BOARD_POSTS_UPDATE': {
                             const { homeBoardPosts: posts } = message.payload || {};
                             if (Array.isArray(posts)) setHomeBoardPosts(posts);
@@ -5352,7 +5383,7 @@ export const useApp = () => {
                                 setGuilds(prev => ({ ...prev, ...message.payload.guilds }));
                             }
                             // 기존 default 처리 (이미 다른 case에서 처리되지 않은 경우)
-                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE'].includes(message.type)) {
+                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE'].includes(message.type)) {
                                 console.warn('[WebSocket] Unhandled message type:', message.type);
                             }
                             return;
@@ -5787,6 +5818,18 @@ export const useApp = () => {
     }, [enhancementResult]);
 
     const handleEnterWaitingRoom = (mode: GameMode) => {
+        if (!isClientAdmin(currentUser)) {
+            const m = mergeArenaEntranceAvailability(arenaEntranceAvailability);
+            const lobbyKey: ArenaEntranceKey | null = SPECIAL_GAME_MODES.some((x) => x.mode === mode)
+                ? 'strategicLobby'
+                : PLAYFUL_GAME_MODES.some((x) => x.mode === mode)
+                  ? 'playfulLobby'
+                  : null;
+            if (lobbyKey && !m[lobbyKey]) {
+                window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[lobbyKey]);
+                return;
+            }
+        }
         handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode } });
         window.location.hash = `#/waiting/${encodeURIComponent(mode)}`;
     };
@@ -6143,6 +6186,7 @@ export const useApp = () => {
         gameChats,
         adminLogs,
         gameModeAvailability,
+        arenaEntranceAvailability,
         announcements,
         globalOverrideAnnouncement,
         announcementInterval,

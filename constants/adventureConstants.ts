@@ -95,3 +95,36 @@ export function getAdventureMonsterLifetimeMs(level: number): number {
  * 예: `classic: '/images/adventure/monsters/classic.webp'`
  */
 export const ADVENTURE_MONSTER_IMAGE_SRC: Partial<Record<AdventureMonsterBattleMode, string>> = {};
+
+// --- 지역 이해도 (아이온2 종족 이해도처럼 지역(스테이지)별 누적 XP → 티어 → 패시브 보너스) ---
+
+/** 누적 이해도 XP 하한(해당 값 이상이면 티어). 0=낯설음, 1=익숙함 … */
+export const ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS = [0, 80, 240, 520, 1000] as const;
+
+export const ADVENTURE_UNDERSTANDING_TIER_LABELS = ['낯설음', '익숙함', '친숙함', '정복자', '전설'] as const;
+
+export type AdventureUnderstandingTierIndex = 0 | 1 | 2 | 3 | 4;
+
+export function getAdventureUnderstandingTierFromXp(xp: number): AdventureUnderstandingTierIndex {
+    const x = Math.max(0, Math.floor(xp));
+    let tier: AdventureUnderstandingTierIndex = 0;
+    for (let i = ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS.length - 1; i >= 0; i--) {
+        if (x >= ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[i]) {
+            tier = i as AdventureUnderstandingTierIndex;
+            break;
+        }
+    }
+    return tier;
+}
+
+/** 스테이지별 이해도 티어가 주는 모험 골드 보너스(%) — 표시·향후 서버 정산에 동일 적용 권장 */
+export const ADVENTURE_UNDERSTANDING_GOLD_BONUS_BY_TIER = [0, 1, 2, 3, 5] as const;
+
+/** 이해도 2티어 이상인 지역 수에 비례해 표시하는 “코어 능력치 유효” 보너스 상한(%) */
+export const ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP = 3;
+
+/** 모든 스테이지 골드 보너스 합산 상한(%) */
+export const ADVENTURE_UNDERSTANDING_GOLD_BONUS_CAP = 15;
+
+/** 입장 카드 권장 가로세로 비 (와이드 배너) */
+export const ADVENTURE_LOBBY_CARD_ASPECT = 'aspect-[16/7]';

@@ -6,6 +6,7 @@ import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
 import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
+import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -93,6 +94,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
 
     switch(type) {
         case 'START_TOWER_GAME': {
+            const towerGate = await requireArenaEntranceOpen(user.isAdmin, 'tower');
+            if (!towerGate.ok) return { error: towerGate.error };
             const { floor, useClientSideAi } = payload;
             const stage = TOWER_STAGES.find(s => {
                 const stageFloor = parseInt(s.id.replace('tower-', ''));

@@ -20,6 +20,12 @@ import GuildJoinModal from './guild/GuildJoinModal.js';
 import type { Guild } from '../types/entities.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
+import {
+    mergeArenaEntranceAvailability,
+    ARENA_ENTRANCE_CLOSED_MESSAGE,
+    type ArenaEntranceKey,
+} from '../constants/arenaEntrance.js';
+import { isClientAdmin } from '../utils/clientAdmin.js';
 
 interface ProfileProps {
 }
@@ -502,7 +508,7 @@ const ArenaMobilePvpStatStrip: React.FC = () => (
 
 
 const Profile: React.FC<ProfileProps> = () => {
-    const { currentUserWithStatus, allUsers, handlers, hasClaimableQuest, presets, guilds, currentRoute } = useAppContext();
+    const { currentUserWithStatus, allUsers, handlers, hasClaimableQuest, presets, guilds, currentRoute, arenaEntranceAvailability } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
     const usePcHomePanelStyle = isNativeMobile && profileTab === 'home';
@@ -742,10 +748,23 @@ const Profile: React.FC<ProfileProps> = () => {
         return Object.values(currentUserWithStatus.spentStatPoints || {}).reduce((sum, points) => sum + points, 0);
     }, [currentUserWithStatus.spentStatPoints]);
     const availablePoints = totalPoints - spentPoints;
+
+    const mergedArena = useMemo(() => mergeArenaEntranceAvailability(arenaEntranceAvailability), [arenaEntranceAvailability]);
+    const arenaAdminBypass = isClientAdmin(currentUserWithStatus);
+    const tryArenaEnter = useCallback(
+        (key: ArenaEntranceKey, fn: () => void) => {
+            if (arenaAdminBypass || mergedArena[key]) fn();
+            else window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+        },
+        [arenaAdminBypass, mergedArena],
+    );
     
-    const onSelectLobby = (type: 'strategic' | 'playful') => window.location.hash = `#/waiting/${type}`;
-    const onSelectTournamentLobby = () => window.location.hash = '#/tournament';
-    const onSelectSinglePlayerLobby = () => window.location.hash = '#/singleplayer';
+    const onSelectLobby = (type: 'strategic' | 'playful') => {
+        const key: ArenaEntranceKey = type === 'strategic' ? 'strategicLobby' : 'playfulLobby';
+        tryArenaEnter(key, () => { window.location.hash = `#/waiting/${type}`; });
+    };
+    const onSelectTournamentLobby = () => tryArenaEnter('championship', () => { window.location.hash = '#/tournament'; });
+    const onSelectSinglePlayerLobby = () => tryArenaEnter('singleplayer', () => { window.location.hash = '#/singleplayer'; });
 
     // 수련과제 보상이 가득 찬지 확인
     const hasFullTrainingQuestReward = useMemo(() => {
@@ -1415,11 +1434,11 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => window.location.hash = '#/tower'} compact={true} />
+                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} />
                 ) : (
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
-                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => window.location.hash = '#/tower'} compact={false} hideOverlayText={true} />
+                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} />
                         </div>
                         <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>도전의 탑</div>
@@ -1528,7 +1547,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         title="모험"
                         imageUrl={ADVENTURE_STAGES[0].mapWebp}
                         layout="tall"
-                        onClick={() => { window.location.hash = '#/adventure'; }}
+                        onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
                         compact={true}
                     />
                 ) : (
@@ -1538,7 +1557,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 title="모험"
                                 imageUrl={ADVENTURE_STAGES[0].mapWebp}
                                 layout="tall"
-                                onClick={() => { window.location.hash = '#/adventure'; }}
+                                onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
                                 compact={false}
                                 hideOverlayText={true}
                             />

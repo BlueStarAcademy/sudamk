@@ -8,6 +8,7 @@ import {
     generateStrategicRandomBoard,
     isInvalidStrategicInitialStonePlacement,
 } from '../strategicInitialBoard.js';
+import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -83,6 +84,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
     switch(type) {
         case 'START_SINGLE_PLAYER_GAME': {
+            const spGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer');
+            if (!spGate.ok) return { error: spGate.error };
             const { stageId } = payload;
             const stage = SINGLE_PLAYER_STAGES.find(s => s.id === stageId);
 
@@ -430,6 +433,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             return { clientResponse: { updatedUser: user, game } };
         }
         case 'START_SINGLE_PLAYER_MISSION': {
+            const spMissionGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer');
+            if (!spMissionGate.ok) return { error: spMissionGate.error };
             const { missionId } = payload;
             const missionInfo = SINGLE_PLAYER_MISSIONS.find(m => m.id === missionId);
             if (!missionInfo) return { error: '미션을 찾을 수 없습니다.' };

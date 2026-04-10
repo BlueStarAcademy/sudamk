@@ -10,6 +10,7 @@ import { broadcast } from '../socket.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/index.js';
 import { clearAiSession } from '../aiSessionManager.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
+import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 
 
 type HandleActionResult = { 
@@ -251,6 +252,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         }
         case 'ENTER_WAITING_ROOM': {
             const { mode } = payload;
+            if (mode === 'strategic') {
+                const gate = await requireArenaEntranceOpen(user.isAdmin, 'strategicLobby');
+                if (!gate.ok) return { error: gate.error };
+            } else if (mode === 'playful') {
+                const gate = await requireArenaEntranceOpen(user.isAdmin, 'playfulLobby');
+                if (!gate.ok) return { error: gate.error };
+            }
             const currentStatus = volatileState.userStatuses[user.id];
             
             // 이미 같은 상태로 대기실에 있으면 중복 요청 무시
@@ -577,6 +585,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
         case 'START_RANKED_MATCHING': {
             const { lobbyType, selectedModes } = payload;
+            const gateKey = lobbyType === 'strategic' ? 'strategicLobby' : 'playfulLobby';
+            const rankedGate = await requireArenaEntranceOpen(user.isAdmin, gateKey);
+            if (!rankedGate.ok) return { error: rankedGate.error };
             
             // 이미 매칭 중이면 에러
             if (volatileState.rankedMatchingQueue?.[lobbyType]?.[user.id]) {

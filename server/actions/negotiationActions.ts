@@ -5,6 +5,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PL
 import { initializeGame } from '../gameModes.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
+import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -438,6 +439,22 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 if (!user.isAdmin) {
                     user.actionPoints.current -= cost;
                     user.lastActionPointUpdate = now;
+                }
+
+                const aiLobbyKey = SPECIAL_GAME_MODES.some((m) => m.mode === mode)
+                    ? 'strategicLobby'
+                    : PLAYFUL_GAME_MODES.some((m) => m.mode === mode)
+                      ? 'playfulLobby'
+                      : null;
+                if (aiLobbyKey) {
+                    const aiGate = await requireArenaEntranceOpen(user.isAdmin, aiLobbyKey);
+                    if (!aiGate.ok) {
+                        if (!user.isAdmin) {
+                            user.actionPoints.current += cost;
+                            user.lastActionPointUpdate = now;
+                        }
+                        return { error: aiGate.error };
+                    }
                 }
             
                 const negotiation: Negotiation = {

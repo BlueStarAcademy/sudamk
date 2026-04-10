@@ -700,7 +700,7 @@ export const cleanupOrphanedGamesInDb = async (): Promise<number> => {
 };
 
 // --- Full State Retrieval (for client sync) ---
-export const getAllData = async (): Promise<Pick<AppState, 'users' | 'userCredentials' | 'liveGames' | 'singlePlayerGames' | 'towerGames' | 'adminLogs' | 'announcements' | 'globalOverrideAnnouncement' | 'gameModeAvailability' | 'announcementInterval' | 'homeBoardPosts'> & { guilds?: Record<string, any> }> => {
+export const getAllData = async (): Promise<Pick<AppState, 'users' | 'userCredentials' | 'liveGames' | 'singlePlayerGames' | 'towerGames' | 'adminLogs' | 'announcements' | 'globalOverrideAnnouncement' | 'gameModeAvailability' | 'arenaEntranceAvailability' | 'announcementInterval' | 'homeBoardPosts'> & { guilds?: Record<string, any> }> => {
     // Railway DB 성능 최적화: equipment/inventory 제외하여 쿼리 속도 향상
     const users = await listUsers({ includeEquipment: false, includeInventory: false });
     const allGames = await getAllActiveGames();
@@ -726,6 +726,10 @@ export const getAllData = async (): Promise<Pick<AppState, 'users' | 'userCreden
     const announcements = await kvRepository.getKV<Announcement[]>('announcements') || [];
     const globalOverrideAnnouncement = await kvRepository.getKV<OverrideAnnouncement | null>('globalOverrideAnnouncement');
     const gameModeAvailability = await kvRepository.getKV<Record<GameMode, boolean>>('gameModeAvailability') || {};
+    const { mergeArenaEntranceAvailability } = await import('../constants/arenaEntrance.js');
+    const arenaEntranceAvailability = mergeArenaEntranceAvailability(
+        await kvRepository.getKV<Partial<Record<string, boolean>>>('arenaEntranceAvailability'),
+    );
     const announcementInterval = await kvRepository.getKV<number>('announcementInterval') || 3;
     const homeBoardPosts = await getAllHomeBoardPosts();
     const guilds = await kvRepository.getKV<Record<string, any>>('guilds') || {};
@@ -773,6 +777,7 @@ export const getAllData = async (): Promise<Pick<AppState, 'users' | 'userCreden
         announcements,
         globalOverrideAnnouncement,
         gameModeAvailability,
+        arenaEntranceAvailability,
         announcementInterval,
         homeBoardPosts,
         guilds,

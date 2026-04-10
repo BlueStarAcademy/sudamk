@@ -1,6 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
+import { isClientAdmin } from '../utils/clientAdmin.js';
 import { LiveGameSession } from '../types.js';
 import { GameMode } from '../types.js';
 import Login from './Login.js';
@@ -73,7 +75,34 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
 };
 
 const Router: React.FC = () => {
-    const { currentRoute, currentUser, activeGame, singlePlayerGames, towerGames, liveGames } = useAppContext();
+    const { currentRoute, currentUser, activeGame, singlePlayerGames, towerGames, liveGames, arenaEntranceAvailability } = useAppContext();
+
+    const mergedArena = useMemo(
+        () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
+        [arenaEntranceAvailability],
+    );
+    const arenaAdminBypass = isClientAdmin(currentUser);
+
+    useEffect(() => {
+        if (!currentUser || arenaAdminBypass) return;
+        const v = currentRoute.view;
+        if (v === 'lobby') {
+            const t = currentRoute.params?.type === 'playful' ? 'playful' : 'strategic';
+            const ok = t === 'playful' ? mergedArena.playfulLobby : mergedArena.strategicLobby;
+            if (!ok) replaceAppHash('#/profile');
+            return;
+        }
+        if (v === 'waiting') {
+            const m = currentRoute.params?.mode;
+            if (m === 'strategic' && !mergedArena.strategicLobby) replaceAppHash('#/profile');
+            if (m === 'playful' && !mergedArena.playfulLobby) replaceAppHash('#/profile');
+            return;
+        }
+        if (v === 'singleplayer' && !mergedArena.singleplayer) replaceAppHash('#/profile');
+        if (v === 'tower' && !mergedArena.tower) replaceAppHash('#/profile');
+        if (v === 'tournament' && !mergedArena.championship) replaceAppHash('#/profile');
+        if (v === 'adventure' && !mergedArena.adventure) replaceAppHash('#/profile');
+    }, [currentUser, arenaAdminBypass, currentRoute.view, currentRoute.params?.type, currentRoute.params?.mode, mergedArena]);
 
     if (!currentUser) {
         if (currentRoute.view === 'register') {

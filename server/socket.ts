@@ -284,6 +284,7 @@ export const createWebSocketServer = (server: Server) => {
                 let announcements: any[] = [];
                 let globalOverrideAnnouncement: any = null;
                 let gameModeAvailability: Record<string, boolean> = {};
+                let arenaEntranceKv: Partial<Record<string, boolean>> = {};
                 let announcementInterval = 3;
                 let homeBoardPosts: any[] = [];
                 let guilds: Record<string, any> = {};
@@ -301,7 +302,8 @@ export const createWebSocketServer = (server: Server) => {
                         kvRepository.getKV<Record<string, boolean>>('gameModeAvailability').catch(() => ({})),
                         kvRepository.getKV<number>('announcementInterval').catch(() => 3),
                         (await import('./db.js')).getAllHomeBoardPosts().catch(() => []),
-                        kvRepository.getKV<Record<string, any>>('guilds').catch(() => ({}))
+                        kvRepository.getKV<Record<string, any>>('guilds').catch(() => ({})),
+                        kvRepository.getKV<Record<string, boolean>>('arenaEntranceAvailability').catch(() => ({})),
                     ];
                     
                     const kvResults = await Promise.race([
@@ -317,10 +319,25 @@ export const createWebSocketServer = (server: Server) => {
                         announcementInterval = kvResults[4]?.status === 'fulfilled' ? (kvResults[4].value || 3) : 3;
                         homeBoardPosts = kvResults[5]?.status === 'fulfilled' ? (kvResults[5].value || []) : [];
                         guilds = kvResults[6]?.status === 'fulfilled' ? (kvResults[6].value || {}) : {};
+                        arenaEntranceKv = kvResults[7]?.status === 'fulfilled' ? (kvResults[7].value || {}) : {};
                     }
                 } catch (error) {
                     console.warn('[WebSocket] Failed to load KV data:', error);
                     // 기본값 사용
+                }
+                let arenaEntranceAvailability: Record<string, boolean>;
+                try {
+                    const { mergeArenaEntranceAvailability } = await import('../constants/arenaEntrance.js');
+                    arenaEntranceAvailability = mergeArenaEntranceAvailability(arenaEntranceKv);
+                } catch {
+                    arenaEntranceAvailability = {
+                        singleplayer: true,
+                        tower: true,
+                        strategicLobby: true,
+                        playfulLobby: true,
+                        championship: true,
+                        adventure: true,
+                    };
                 }
                 
                 const allData = {
@@ -332,6 +349,7 @@ export const createWebSocketServer = (server: Server) => {
                     announcements,
                     globalOverrideAnnouncement,
                     gameModeAvailability,
+                    arenaEntranceAvailability,
                     announcementInterval,
                     homeBoardPosts,
                     guilds

@@ -15,6 +15,7 @@ import { generateNewItem } from './inventoryActions.js';
 import { broadcast } from '../socket.js';
 import { createDefaultQuests } from '../initialData.js';
 import { getCachedUser, updateUserCache } from '../gameCache.js';
+import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 
 
 type HandleActionResult = { 
@@ -382,6 +383,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
         switch (type) {
         case 'START_TOURNAMENT_SESSION': {
             const { type } = payload as { type: TournamentType };
+            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship');
+            if (!champGate.ok) return { error: champGate.error };
             const definition = TOURNAMENT_DEFINITIONS[type];
             if (!definition) return { error: '유효하지 않은 토너먼트 타입입니다.' };
             
@@ -1597,6 +1600,9 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
             
             console.log('[START_DUNGEON_STAGE] Validation passed, proceeding with dungeon stage creation');
+
+            const dungeonGate = await requireArenaEntranceOpen(user.isAdmin, 'championship');
+            if (!dungeonGate.ok) return { error: dungeonGate.error };
             
             // 던전 진행 상태 확인
             const freshUser = await getCachedUser(user.id) || await db.getUser(user.id);
