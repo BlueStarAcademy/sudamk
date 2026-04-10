@@ -15,7 +15,7 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
-    transcendent: { color: 'text-cyan-300', background: '/images/equipments/mythicbgi.png' },
+    transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.png' },
 };
 
 const SLOT_NAMES_KO: Record<string, string> = {

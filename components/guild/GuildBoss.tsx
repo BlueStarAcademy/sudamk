@@ -62,7 +62,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
-    transcendent: '/images/equipments/mythicbgi.png',
+    transcendent: '/images/equipments/transcendentbgi.png',
 };
 
 const renderStarDisplay = (stars: number) => {
