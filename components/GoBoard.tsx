@@ -785,16 +785,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const screenToSvgRootPoint = (clientX: number, clientY: number): { x: number; y: number } | null => {
         const svg = svgRef.current;
         if (!svg) return null;
-        const pt = svg.createSVGPoint();
-        pt.x = clientX;
-        pt.y = clientY;
-        const ctm = svg.getScreenCTM();
-        if (!ctm) return null;
-        const rootP = pt.matrixTransform(ctm.inverse());
-        if (!isRotated) return { x: rootP.x, y: rootP.y };
+        const rect = svg.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return null;
+
+        // iOS Safari + scaled container 환경에서 getScreenCTM이 어긋나는 경우가 있어
+        // 실제 렌더링된 SVG 사각형 기준으로 직접 루트(viewBox) 좌표로 매핑한다.
+        const nx = (clientX - rect.left) / rect.width;
+        const ny = (clientY - rect.top) / rect.height;
+        const rootX = nx * boardSizePx;
+        const rootY = ny * boardSizePx;
+
+        if (!isRotated) return { x: rootX, y: rootY };
         const cx = boardSizePx / 2;
         const cy = boardSizePx / 2;
-        return { x: 2 * cx - rootP.x, y: 2 * cy - rootP.y };
+        return { x: 2 * cx - rootX, y: 2 * cy - rootY };
     };
     
     const getBoardCoordinates = (e: React.MouseEvent<SVGSVGElement> | React.PointerEvent<SVGSVGElement>): Point | null => {
