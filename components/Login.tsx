@@ -77,10 +77,13 @@ const Login: React.FC = () => {
     initialPrefs?.autoLogin && initialPrefs?.password ? initialPrefs.password : '',
   );
   const [error, setError] = useState<string | null>(null);
+  /** 자동 로그인을 실제로 시도할 때만 true. 이미 이 탭에서 시도했으면(MOBILE_AUTO_LOGIN_TRIED_KEY) 이펙트는 스킵되므로 초기 로딩도 false여야 로그아웃 후 다른 아이디로 로그인 가능 */
   const [isLoading, setIsLoading] = useState(() => {
     if (typeof window === 'undefined') return false;
     const p = readMobileLoginPrefs();
-    return !!(p?.autoLogin && p.username?.trim() && p.password);
+    if (!p?.autoLogin || !p.username?.trim() || !p.password) return false;
+    if (sessionStorage.getItem(MOBILE_AUTO_LOGIN_TRIED_KEY)) return false;
+    return true;
   });
   const [banInfo, setBanInfo] = useState<{
     reason: string;
