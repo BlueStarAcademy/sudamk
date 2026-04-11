@@ -10,7 +10,7 @@ import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js'
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import TowerItemShopModal from './TowerItemShopModal.js';
-import DraggableWindow, { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
+import DraggableWindow from './DraggableWindow.js';
 import {
     countTowerLobbyInventoryQty,
     TOWER_ITEM_TURN_ADD_NAMES,
@@ -46,6 +46,13 @@ const TOWER_MONTHLY_MODAL_TIER_LABEL_CLASS = [
     'text-amber-300',
 ] as const;
 
+/** 전략/놀이 대기실 `WaitingRoom` 타이틀 스트립과 동일 계열 (앰버 톤) */
+const towerTitleStripVisual =
+    'rounded-xl border border-amber-500/35 bg-black/20 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:p-2';
+const towerTitleStripRow = `${towerTitleStripVisual} flex w-full shrink-0 items-center gap-2 sm:gap-2.5`;
+const towerTitleH1Class =
+    'relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-100 bg-clip-text text-transparent drop-shadow-[0_0_14px_rgba(251,191,36,0.2)]';
+
 const formatTowerRewardItemLabel = (itemId: string): string => {
     const m = itemId.match(/^장비상자(\d+)$/);
     if (!m) return itemId;
@@ -64,7 +71,6 @@ const formatTowerRewardItemLabel = (itemId: string): string => {
 const TowerLobby: React.FC = () => {
         const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
-    const [isHelpOpen, setIsHelpOpen] = useState(false);
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
     const [isItemShopOpen, setIsItemShopOpen] = useState(false);
     /** 네이티브 모바일: 도전의 탑 히어로 우측 슬라이드 패널 */
@@ -862,8 +868,21 @@ const TowerLobby: React.FC = () => {
 
         return (
             <>
-                    {/* 좌측: 랭킹 Top 100 + 보유 아이템 (아래쪽 별도 패널) */}
+                    {/* 좌측: 랭킹 Top 100 + 보유 아이템 (아래쪽 별도 패널). PC 타이틀·뒤로가기는 랭킹 패널 위에만 둬서 우측 열(이미지·스테이지·퀵메뉴)이 상단까지 올라오게 함 */}
                     <div className={rankingColClass}>
+                    {!isNativeMobile && (
+                        <div className={`shrink-0 ${towerTitleStripRow}`}>
+                            <button
+                                type="button"
+                                onClick={onBackToProfile}
+                                className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
+                                aria-label="뒤로가기"
+                            >
+                                <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                            </button>
+                            <h1 className={towerTitleH1Class}>도전의 탑</h1>
+                        </div>
+                    )}
                     {/* 랭킹 Top 100 (하단 여유 줄여서 보유 아이템 공간 확보) */}
                     <div className="flex-1 min-h-0 flex flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
                     <div className="flex items-center justify-between mb-2 flex-shrink-0">
@@ -1076,59 +1095,26 @@ const TowerLobby: React.FC = () => {
         <div
             className={`relative flex w-full flex-col bg-lobby-shell-tower text-white ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'h-full min-h-0 overflow-hidden'}`}
         >
-            {/* 헤더: (모바일은 뒤로가기 없음) 타이틀, 도움말 */}
-            <header
-                className={`flex flex-shrink-0 items-center justify-between border-b border-amber-600/40 bg-gradient-to-b from-black/60 via-amber-900/20 to-transparent shadow-[0_4px_20px_rgba(217,119,6,0.3)] backdrop-blur-sm ${isNativeMobile ? 'px-1.5 py-2' : 'px-2 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-5'}`}
-            >
-                {isNativeMobile ? (
-                    <div className="h-9 w-9 flex-shrink-0" aria-hidden />
-                ) : (
-                    <button
-                        onClick={onBackToProfile}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-700/30 p-0 transition-transform hover:drop-shadow-lg hover:bg-amber-900/40 active:scale-90 sm:h-12 sm:w-12"
-                        aria-label="뒤로가기"
-                    >
-                        <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
-                    </button>
-                )}
-                <h1
-                    className={`truncate font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-300 to-amber-200 drop-shadow-[0_0_12px_rgba(217,119,6,0.9)] ${isNativeMobile ? 'max-w-[58%] text-center text-lg' : 'text-2xl sm:text-3xl lg:text-4xl'}`}
-                >
-                    도전의 탑
-                </h1>
-                <button
-                    onClick={() => setIsHelpOpen(!isHelpOpen)}
-                    className={`flex items-center justify-center transition-transform hover:scale-110 ${isNativeMobile ? 'h-8 w-8' : 'h-8 w-8 sm:h-10 sm:w-10'}`}
-                    aria-label="도움말"
-                    title="도움말"
-                >
-                    <img src="/images/button/help.webp" alt="도움말" className="h-full w-full" />
-                </button>
-            </header>
-
-            {/* 도움말 모달 */}
-            {isHelpOpen && (
-                <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
-                    <div className="bg-gradient-to-br from-gray-900/95 via-amber-950/90 to-gray-800/95 border-2 border-amber-600/50 rounded-xl p-4 sm:p-6 max-w-md max-h-[80vh] overflow-y-auto shadow-2xl shadow-amber-900/50 backdrop-blur-md">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">도전의 탑 도움말</h2>
+            {/* 네이티브 모바일만 전역 헤더. PC는 랭킹 패널 상단 스트립으로만 표시해 우측 열이 화면 상단까지 올라오게 함 */}
+            {isNativeMobile && (
+                <header className="flex flex-shrink-0 px-1.5 py-2">
+                    <div className={`w-full ${towerTitleStripVisual}`}>
+                        <div className="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1">
                             <button
                                 type="button"
-                                onClick={() => setIsHelpOpen(false)}
-                                className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
-                                aria-label="도전의 탑 도움말 닫기"
+                                onClick={onBackToProfile}
+                                className="relative z-[1] flex h-9 w-9 shrink-0 items-center justify-center transition-transform active:scale-90 hover:drop-shadow-lg"
+                                aria-label="뒤로가기"
                             >
-                                닫기
+                                <img src="/images/button/back.png" alt="" className="h-full w-full" />
                             </button>
-                        </div>
-                        <div className="text-sm text-amber-100 space-y-2">
-                            <p>도전의 탑은 100층으로 구성된 PvE 콘텐츠입니다.</p>
-                            <p>각 층을 클리어하면 보상을 받을 수 있습니다.</p>
-                            <p>랭킹은 클리어한 층 수와 시간으로 결정됩니다.</p>
-                            <p className="text-amber-300 font-semibold mt-3">매월 1일 0시(KST)에 모든 층이 초기화됩니다.</p>
+                            <h1 className="truncate text-center text-sm font-bold bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-100 bg-clip-text text-transparent">
+                                도전의 탑
+                            </h1>
+                            <div className="w-9 shrink-0" aria-hidden />
                         </div>
                     </div>
-                </div>
+                </header>
             )}
 
             {/* 보상정보 모달 */}

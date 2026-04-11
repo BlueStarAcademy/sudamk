@@ -4,6 +4,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, BOT_NAMES, AVATAR_POOL, GUILD_M
 import * as crypto from 'crypto';
 // FIX: Import createDefaultBaseStats from shared utils.
 import { createDefaultBaseStats } from '../utils/statUtils.js';
+import { getDefaultGuildMissionProgress } from './guildService.js';
 
 // Re-export for convenience
 export { createDefaultBaseStats };
@@ -61,6 +62,7 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         username,
         nickname,
         isAdmin,
+        staffNicknameDisplayEligibility: false,
         strategyLevel: 1,
         strategyXp: 0,
         playfulLevel: 1,
@@ -239,5 +241,6 @@ export const createDefaultGuild = (id: string, name: string, description: string
             return acc;
         }, {} as Record<GuildResearchId, { level: number }>),
         researchTask: null,
-    };
+        missionProgress: { ...getDefaultGuildMissionProgress() },
+    } as Guild;
 };

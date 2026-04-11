@@ -6,6 +6,7 @@ import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
 import { SinglePlayerLevel } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
 
 /** singlePlayerProgress(다음 플레이 스테이지 전역 인덱스)에 맞는 반 — 대기실 기본 탭 */
 function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLevel {
@@ -14,6 +15,8 @@ function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLev
     const idx = Math.min(Math.max(0, progress), n - 1);
     return SINGLE_PLAYER_STAGES[idx].level;
 }
+
+const SINGLE_PLAYER_LOBBY_TITLE = '바둑학원';
 
 const SinglePlayerLobby: React.FC = () => {
     const { currentUser, currentUserWithStatus } = useAppContext();
@@ -35,59 +38,64 @@ const SinglePlayerLobby: React.FC = () => {
 
     const [mobileLobbySubTab, setMobileLobbySubTab] = useState<'quests' | 'stages'>('stages');
 
+    const hasTrainingQuestRewardToClaim = useMemo(
+        () => userHasFullTrainingQuestReward(currentUserWithStatus),
+        [currentUserWithStatus],
+    );
+
     if (!currentUser || !currentUserWithStatus) {
         return null;
     }
 
     return (
         <div
-            className={`relative mx-auto flex w-full flex-col bg-lobby-shell-singleplayer text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden px-0.5' : 'h-full min-h-0 p-2 sm:p-4 lg:p-8'}`}
+            className={`relative mx-auto flex w-full flex-col bg-lobby-shell-singleplayer text-gray-100 ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden px-0.5 pt-0.5' : 'h-full min-h-0 px-2 pb-2 pt-1 sm:px-3 sm:pb-3 sm:pt-2 lg:px-6 lg:pb-6 lg:pt-3'}`}
         >
-            {/* Header */}
-            <header
-                className={`flex flex-shrink-0 items-center ${isNativeMobile ? 'mb-0.5 justify-center px-1 py-1' : 'mb-3 justify-between px-2 sm:mb-4 sm:px-0 lg:mb-6'}`}
-            >
-                {!isNativeMobile && (
-                    <button
-                        onClick={onBackToProfile}
-                        className="flex h-10 w-10 items-center justify-center rounded-lg p-0 transition-transform hover:drop-shadow-lg hover:bg-gray-800 active:scale-90 sm:h-12 sm:w-12"
-                        aria-label="뒤로가기"
-                    >
-                        <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
-                    </button>
-                )}
-                <h1 className={`font-bold text-gray-100 ${isNativeMobile ? 'text-lg' : 'text-xl sm:text-2xl lg:text-3xl xl:text-4xl'}`}>싱글플레이</h1>
-                {!isNativeMobile && <div className="w-10" />}
-            </header>
-
             {isNativeMobile ? (
-                <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden px-0.5 pb-0.5">
-                    <div className="min-h-0 max-h-[min(32dvh,248px)] shrink-0 overflow-hidden rounded-xl">
+                <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-hidden px-0.5 pb-0.5">
+                    <div className="min-h-0 max-h-[min(34dvh,300px)] shrink-0 overflow-hidden rounded-xl">
                         <ClassNavigationPanel
                             selectedClass={selectedClass}
                             onClassSelect={setOverrideClass}
                             compact
                             lobbyMobileTop
+                            lobbyChrome={{
+                                onBack: onBackToProfile,
+                                screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
+                                compactTitleBar: true,
+                            }}
                         />
                     </div>
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-emerald-500/20 bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                         <div
                             className="flex shrink-0 gap-1 border-b border-white/10 px-1 py-0.5 sm:p-1.5"
                             role="tablist"
-                            aria-label="싱글플레이 하단"
+                            aria-label="바둑학원 하단"
                         >
                             <button
                                 type="button"
                                 role="tab"
                                 aria-selected={mobileLobbySubTab === 'quests'}
+                                aria-label={
+                                    hasTrainingQuestRewardToClaim
+                                        ? '수련과제, 수령 가능한 보상이 있습니다'
+                                        : '수련과제'
+                                }
                                 onClick={() => setMobileLobbySubTab('quests')}
-                                className={`min-h-0 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm font-bold transition-all sm:py-2 sm:text-base ${
+                                className={`relative min-h-0 min-w-0 flex-1 rounded-lg px-2 py-1.5 text-sm font-bold transition-all sm:py-2 sm:text-base ${
                                     mobileLobbySubTab === 'quests'
                                         ? 'border border-amber-400/55 bg-gradient-to-b from-emerald-900/50 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
                                         : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
                                 }`}
                             >
                                 수련과제
+                                {hasTrainingQuestRewardToClaim && (
+                                    <span
+                                        className="absolute right-1 top-1 z-[1] h-2 w-2 rounded-full border-2 border-slate-950 bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
+                                        aria-hidden
+                                        title="수령 가능한 보상"
+                                    />
+                                )}
                             </button>
                             <button
                                 type="button"
@@ -103,7 +111,10 @@ const SinglePlayerLobby: React.FC = () => {
                                 스테이지
                             </button>
                         </div>
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-1 sm:p-1.5" role="tabpanel">
+                        <div
+                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-contain p-2 sm:p-2.5"
+                            role="tabpanel"
+                        >
                             {mobileLobbySubTab === 'quests' ? (
                                 <TrainingQuestPanel currentUser={currentUserWithStatus} embeddedInTab />
                             ) : (
@@ -118,11 +129,16 @@ const SinglePlayerLobby: React.FC = () => {
                     </div>
                 </div>
             ) : (
-            <div className="grid grid-cols-12 gap-4 xl:gap-6 flex-1 min-h-0">
-                <div className="col-span-4 flex flex-col min-h-0">
-                    <ClassNavigationPanel 
+            <div className="grid min-h-0 flex-1 grid-cols-12 gap-2 sm:gap-3 xl:gap-4">
+                <div className="col-span-4 flex min-h-0 flex-col">
+                    <ClassNavigationPanel
                         selectedClass={selectedClass}
                         onClassSelect={setOverrideClass}
+                        lobbyChrome={{
+                            onBack: onBackToProfile,
+                            screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
+                            compactTitleBar: false,
+                        }}
                     />
                 </div>
 

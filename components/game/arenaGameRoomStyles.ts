@@ -106,14 +106,16 @@ export const arenaGameRoomControlsFooterCompactClass =
     'shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_40px_-18px_rgba(0,0,0,0.72)] ring-1 ring-inset ring-white/[0.03] ' +
     'flex flex-col items-stretch justify-center gap-1.5 min-[1025px]:gap-1 min-[1025px]:p-1';
 
-/** 푸터 내부 서브 패널 (매너 액션 / 대국·특수 기능) */
+/** 푸터 내부 서브 패널 (매너 액션 / 대국·특수 기능) — 모바일은 가독성 위해 배경을 진하게 */
 export const arenaGameRoomControlsInnerPanelClass =
-    'rounded-xl border border-slate-600/32 bg-black/28 p-2 ' +
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.045)] ring-1 ring-inset ring-white/[0.04]';
+    'rounded-xl border border-slate-600/45 bg-slate-950/90 p-2 ' +
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.07] ' +
+    'min-[1025px]:border-slate-600/32 min-[1025px]:bg-black/28 min-[1025px]:ring-white/[0.04]';
 
 export const arenaGameRoomControlsInnerPanelAccentClass =
-    'rounded-xl border border-amber-800/32 bg-gradient-to-b from-black/22 to-amber-950/12 p-2 ' +
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-600/10';
+    'rounded-xl border border-amber-600/40 bg-gradient-to-b from-slate-900/94 via-amber-950/35 to-slate-950/94 p-2 ' +
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/22 ' +
+    'min-[1025px]:border-amber-800/32 min-[1025px]:from-black/22 min-[1025px]:via-amber-950/12 min-[1025px]:to-black/24 min-[1025px]:ring-amber-600/10';
 
 export const arenaGameRoomControlsSectionTitleClass =
     'text-center text-[11px] font-bold tracking-wide text-slate-400/95';
@@ -121,14 +123,14 @@ export const arenaGameRoomControlsSectionTitleClass =
 export const arenaGameRoomControlsDividerClass =
     'w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-500/10 via-slate-500/45 to-slate-500/10';
 
-/** 싱글플레이 푸터 이중 패널 */
+/** 싱글플레이 푸터 이중 패널 — 모바일에서 텍스트 대비 */
 export const arenaGameRoomSinglePlayerSplitPanelClass =
-    'flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-xl border border-slate-600/34 bg-black/22 px-1.5 py-1 ' +
-    'ring-1 ring-inset ring-white/[0.04]';
+    'flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-xl border border-slate-600/42 bg-slate-950/88 px-1.5 py-1 ' +
+    'ring-1 ring-inset ring-white/[0.07] min-[1025px]:border-slate-600/34 min-[1025px]:bg-black/22 min-[1025px]:ring-white/[0.04]';
 
 export const arenaGameRoomSinglePlayerSplitPanelAccentClass =
-    'flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-xl border border-amber-900/28 bg-amber-950/12 px-1.5 py-1 ' +
-    'ring-1 ring-inset ring-amber-700/12';
+    'flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-xl border border-amber-700/38 bg-gradient-to-b from-slate-900/90 to-amber-950/30 px-1.5 py-1 ' +
+    'ring-1 ring-inset ring-amber-500/18 min-[1025px]:border-amber-900/28 min-[1025px]:bg-amber-950/12 min-[1025px]:ring-amber-700/12';
 
 export const arenaGameRoomSinglePlayerOuterBarClass =
     'rounded-xl border border-slate-600/34 bg-black/30 w-full ring-1 ring-inset ring-white/[0.04]';

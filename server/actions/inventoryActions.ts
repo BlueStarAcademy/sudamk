@@ -243,6 +243,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             // 새로 만든 아이템의 createdAt 시간 저장 (나중에 정확히 찾기 위해)
             const newItemCreatedAt = actualAddedItem.createdAt;
 
+            await guildService.recordGuildEpicPlusEquipmentAcquisition(user, [actualAddedItem]);
+
             // 6. Add blacksmith XP
             const xpGainRange = BLACKSMITH_COMBINATION_XP_GAIN[grade];
             const xpGained = getRandomInt(xpGainRange[0], xpGainRange[1]);
@@ -728,6 +730,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             // 새 배열 생성 (성능 최적화)
             user.inventory = [...tempInventoryAfterUse, ...finalItemsToAdd];
+
+            await guildService.recordGuildEpicPlusEquipmentAcquisition(user, allObtainedItems);
             
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'USE_ITEM', { includeAll: true });
@@ -819,6 +823,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             user.inventory = updatedInventory;
             user.gold += totalGoldGained;
             user.diamonds += totalDiamondsGained;
+
+            await guildService.recordGuildEpicPlusEquipmentAcquisition(user, allObtainedItems);
 
             // Prepare client response
             const clientResponseItems = [...allObtainedItems];

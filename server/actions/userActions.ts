@@ -3,6 +3,10 @@ import * as db from '../db.js';
 import * as types from '../../types/index.js';
 import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../../constants';
 import { containsProfanity } from '../../profanity.js';
+import {
+    nicknameContainsReservedStaffTerms,
+    RESERVED_STAFF_NICKNAME_USER_MESSAGE,
+} from '../../shared/utils/staffNicknameDisplay.js';
 import { UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
@@ -68,9 +72,13 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (user.diamonds < cost && !user.isAdmin) return { error: '다이아가 부족합니다.' };
             if (newNickname.trim().length < NICKNAME_MIN_LENGTH || newNickname.trim().length > NICKNAME_MAX_LENGTH) return { error: `닉네임은 ${NICKNAME_MIN_LENGTH}-${NICKNAME_MAX_LENGTH}자여야 합니다.` };
             if (containsProfanity(newNickname)) return { error: "닉네임에 부적절한 단어가 포함되어 있습니다." };
+            const trimmedNick = newNickname.trim();
+            if (!user.isAdmin && nicknameContainsReservedStaffTerms(trimmedNick) && !user.staffNicknameDisplayEligibility) {
+                return { error: RESERVED_STAFF_NICKNAME_USER_MESSAGE };
+            }
 
             // 닉네임 중복 확인 (DB 쿼리로 최적화)
-            const existingUser = await db.getUserByNickname(newNickname.trim());
+            const existingUser = await db.getUserByNickname(trimmedNick);
             if (existingUser && existingUser.id !== user.id) {
                 return { error: '이미 사용 중인 닉네임입니다.' };
             }
@@ -78,7 +86,12 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (!user.isAdmin) {
                 user.diamonds -= cost;
             }
-            user.nickname = newNickname.trim();
+            user.nickname = trimmedNick;
+            if (!user.isAdmin) {
+                if (!nicknameContainsReservedStaffTerms(trimmedNick)) {
+                    user.staffNicknameDisplayEligibility = false;
+                }
+            }
             
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'CHANGE_NICKNAME');

@@ -2,12 +2,39 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import * as db from './db.js';
 import { volatileState } from './state.js';
+import { scheduleWebSocketMetricsSample } from './serverLoadMetrics.js';
 
 let wss: WebSocketServer;
 // WebSocket 연결과 userId 매핑 (대역폭 최적화를 위해 게임 참가자에게만 전송)
 const wsUserIdMap = new Map<WebSocket, string>();
 // userId → 해당 유저의 WebSocket 연결들 (한 유저 다중 탭/기기 지원). 1000명 규모에서 broadcastToGameParticipants O(참가자수)로 최적화
 const userIdToClients = new Map<string, Set<WebSocket>>();
+
+/** 관리자 모니터링·헬스용: 열린 WS 수, 인증된 유저 수(고유), 인증된 소켓 수(다중 탭 포함). */
+export function getWebSocketConnectionStats(): {
+    totalWs: number;
+    authenticatedUsers: number;
+    authenticatedSockets: number;
+} {
+    if (!wss) {
+        return { totalWs: 0, authenticatedUsers: 0, authenticatedSockets: 0 };
+    }
+    let totalWs = 0;
+    for (const c of wss.clients) {
+        if (c.readyState === WebSocket.OPEN) totalWs++;
+    }
+    let authenticatedSockets = 0;
+    for (const set of userIdToClients.values()) {
+        for (const c of set) {
+            if (c.readyState === WebSocket.OPEN) authenticatedSockets++;
+        }
+    }
+    return {
+        totalWs,
+        authenticatedUsers: userIdToClients.size,
+        authenticatedSockets,
+    };
+}
 
 export const getWebSocketServer = (): WebSocketServer | undefined => {
     return wss;
@@ -58,6 +85,7 @@ export const createWebSocketServer = (server: Server) => {
     }
 
     wss.on('connection', async (ws: WebSocket, req) => {
+        scheduleWebSocketMetricsSample(getWebSocketConnectionStats);
         // 연결 처리 중 에러가 발생해도 서버가 크래시하지 않도록 보장
         try {
             let isClosed = false;
@@ -95,6 +123,7 @@ export const createWebSocketServer = (server: Server) => {
                 }
             }
             isClosed = true;
+            scheduleWebSocketMetricsSample(getWebSocketConnectionStats);
         });
 
         // 클라이언트로부터 메시지 수신 (userId 설정용)
@@ -110,6 +139,7 @@ export const createWebSocketServer = (server: Server) => {
                         userIdToClients.set(uid, set);
                     }
                     set.add(ws);
+                    scheduleWebSocketMetricsSample(getWebSocketConnectionStats);
                     // PVP 양쪽 끊김 안내: 재접속 시 한 번만 전송 후 제거
                     const pendingMsg = volatileState.pendingMutualDisconnectByUser?.[uid];
                     if (pendingMsg && ws.readyState === WebSocket.OPEN) {
@@ -614,6 +644,8 @@ export const broadcastUserUpdate = (user: any, changedFields?: string[]) => {
         nickname: user.nickname,
         avatarId: user.avatarId,
         borderId: user.borderId,
+        isAdmin: !!user.isAdmin,
+        staffNicknameDisplayEligibility: !!user.staffNicknameDisplayEligibility,
         league: user.league,
         gold: user.gold,
         diamonds: user.diamonds,

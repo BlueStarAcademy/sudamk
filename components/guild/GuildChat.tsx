@@ -5,6 +5,7 @@ import Button from '../Button.js';
 import Avatar from '../Avatar.js';
 import { formatDateTimeKST } from '../../utils/timeUtils.js';
 import { ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
+import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
 
 interface GuildChatProps {
     guildId: string;
@@ -89,12 +90,23 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
                     const author = allUsers?.find(u => u.id === message.authorId);
                     const msgUser = (message as { user?: { id?: string; nickname?: string }; authorId?: string })?.user;
                     const displayName = message.authorId === 'system' ? '시스템' : (msgUser?.nickname || (message.authorId === ADMIN_USER_ID || author?.isAdmin ? ADMIN_NICKNAME : author?.nickname) || 'Unknown');
+                    const nameClass =
+                        message.authorId === 'system'
+                            ? 'text-sm font-semibold text-blue-400'
+                            : mergeStaffNicknameDisplayClass(
+                                  {
+                                      nickname: displayName,
+                                      isAdmin: message.authorId === ADMIN_USER_ID || !!author?.isAdmin,
+                                      staffNicknameDisplayEligibility: author?.staffNicknameDisplayEligibility,
+                                  },
+                                  'text-sm font-semibold text-white',
+                              );
                     return (
                         <div key={message.id} className="flex gap-3 p-2 hover:bg-gray-800/50 rounded">
                             <Avatar userId={message.authorId} userName={displayName} size={32} />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
-                                    <span className={`text-sm font-semibold ${message.authorId === 'system' ? 'text-blue-400' : 'text-white'}`}>
+                                    <span className={nameClass}>
                                         {displayName}
                                     </span>
                                     <span className="text-xs text-gray-500">

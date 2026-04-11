@@ -428,7 +428,18 @@ export const useApp = () => {
     const [usersMap, setUsersMap] = useState<Record<string, User>>({});
     const [onlineUsers, setOnlineUsers] = useState<UserWithStatus[]>([]);
     // 온디맨드: 프로필 보기/목록 표시 시에만 로드한 유저 brief 캐시 (nickname, avatarId, borderId)
-    const [userBriefCache, setUserBriefCache] = useState<Record<string, { nickname: string; avatarId?: string | null; borderId?: string | null }>>({});
+    const [userBriefCache, setUserBriefCache] = useState<
+        Record<
+            string,
+            {
+                nickname: string;
+                avatarId?: string | null;
+                borderId?: string | null;
+                isAdmin?: boolean;
+                staffNicknameDisplayEligibility?: boolean;
+            }
+        >
+    >({});
     const [liveGames, setLiveGames] = useState<Record<string, LiveGameSession>>({});  // 일반 게임만
     const [singlePlayerGames, setSinglePlayerGames] = useState<Record<string, LiveGameSession>>({});  // 싱글플레이 게임
     const [towerGames, setTowerGames] = useState<Record<string, LiveGameSession>>({});  // 도전의 탑 게임
@@ -621,9 +632,25 @@ export const useApp = () => {
                 if (Array.isArray(data)) {
                     setUserBriefCache(prev => {
                         const next = { ...prev };
-                        data.forEach((b: { id: string; nickname: string; avatarId?: string | null; borderId?: string | null }) => {
-                            if (b?.id) next[b.id] = { nickname: b.nickname || b.id, avatarId: b.avatarId, borderId: b.borderId };
-                        });
+                        data.forEach(
+                            (b: {
+                                id: string;
+                                nickname: string;
+                                avatarId?: string | null;
+                                borderId?: string | null;
+                                isAdmin?: boolean;
+                                staffNicknameDisplayEligibility?: boolean;
+                            }) => {
+                                if (b?.id)
+                                    next[b.id] = {
+                                        nickname: b.nickname || b.id,
+                                        avatarId: b.avatarId,
+                                        borderId: b.borderId,
+                                        isAdmin: b.isAdmin,
+                                        staffNicknameDisplayEligibility: b.staffNicknameDisplayEligibility,
+                                    };
+                            },
+                        );
                         return next;
                     });
                 }
@@ -637,7 +664,16 @@ export const useApp = () => {
     // 현재 사용자 brief를 캐시에 추가 (목록에서 "나" 표시)
     useEffect(() => {
         if (currentUser?.id && !userBriefCache[currentUser.id]) {
-            setUserBriefCache(prev => ({ ...prev, [currentUser.id]: { nickname: currentUser.nickname || currentUser.username || currentUser.id, avatarId: currentUser.avatarId, borderId: currentUser.borderId } }));
+            setUserBriefCache(prev => ({
+                ...prev,
+                [currentUser.id]: {
+                    nickname: currentUser.nickname || currentUser.username || currentUser.id,
+                    avatarId: currentUser.avatarId,
+                    borderId: currentUser.borderId,
+                    isAdmin: currentUser.isAdmin,
+                    staffNicknameDisplayEligibility: currentUser.staffNicknameDisplayEligibility,
+                },
+            }));
         }
     }, [currentUser?.id, currentUser?.nickname, currentUser?.username]);
 
@@ -650,6 +686,9 @@ export const useApp = () => {
                 nickname: brief?.nickname ?? (u as any).nickname ?? '...',
                 avatarId: brief?.avatarId ?? (u as any).avatarId,
                 borderId: brief?.borderId ?? (u as any).borderId,
+                isAdmin: (u as any).isAdmin ?? brief?.isAdmin ?? false,
+                staffNicknameDisplayEligibility:
+                    (u as any).staffNicknameDisplayEligibility ?? brief?.staffNicknameDisplayEligibility ?? false,
             };
         });
     }, [onlineUsers, userBriefCache]);

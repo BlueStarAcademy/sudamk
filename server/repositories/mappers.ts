@@ -1,5 +1,6 @@
 import { createDefaultQuests, createDefaultBaseStats, createDefaultSpentStatPoints, defaultStats } from '../initialData.js';
 import * as types from '../../types/index.js';
+import { normalizeQuestLogProgressCaps } from '../../utils/questProgressCap.js';
 
 const safeParse = (jsonString: string | null, defaultValue: any, contextId: string, fieldName: string) => {
     if (jsonString === null || jsonString === undefined) return defaultValue;
@@ -39,6 +40,8 @@ export const rowToUser = (row: any): types.User | null => {
                  claimedMilestones: questsFromDb.monthly?.claimedMilestones ?? defaultQuests.monthly?.claimedMilestones ?? [false, false, false, false, false],
             }
         };
+
+        normalizeQuestLogProgressCaps(quests);
 
         const actionPointsFromDb = safeParse(row.actionPoints, {}, row.id, 'actionPoints');
         const actionPoints = {

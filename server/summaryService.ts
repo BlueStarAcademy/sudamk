@@ -1132,6 +1132,7 @@ const processPlayerSummary = async (
         if (success) {
             // Update inventory with the returned updatedInventory (includes stacked items)
             updatedPlayer.inventory = updatedInventory;
+            await guildService.recordGuildEpicPlusEquipmentAcquisition(updatedPlayer, rewards.items);
         } else {
             console.error(`[Summary] Insufficient inventory space for user ${updatedPlayer.id}. Items not granted.`);
             // Optionally, send items via mail here in the future
@@ -1157,14 +1158,13 @@ const processPlayerSummary = async (
         }
     }
 
-    // 길드 주간 임무: 휴먼 간 PVP 승리만 (대기실 AI·챔피언십 던전 봇전 제외)
-    if (
-        !isNoContest &&
-        !isAiGame &&
-        isWinner &&
-        updatedPlayer.guildId &&
-        !liveSessionHasChampionshipDungeonBot(game)
-    ) {
+    // 길드 주간 임무: 전략/놀이 승리 (일일 퀘스트와 동일하게 대기실 AI·일반 대국 포함, 싱글·타워·싱글플레이 제외)
+    const isPveGuildMissionExempt =
+        !!game.isSinglePlayer ||
+        game.gameCategory === 'tower' ||
+        (game.gameCategory as string) === 'singleplayer';
+
+    if (!isNoContest && isWinner && updatedPlayer.guildId && !isPveGuildMissionExempt) {
         const guilds = await db.getKV<Record<string, any>>('guilds') || {};
         if (isStrategic) {
             await guildService.updateGuildMissionProgress(updatedPlayer.guildId, 'strategicWins', 1, guilds);

@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Avatar from './Avatar.js';
 import { containsProfanity } from '../profanity.js';
+import {
+    nicknameContainsReservedStaffTerms,
+    RESERVED_STAFF_NICKNAME_USER_MESSAGE,
+} from '../shared/utils/staffNicknameDisplay.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 import { replaceAppHash } from '../utils/appUtils.js';
@@ -86,6 +90,12 @@ const SetNickname: React.FC = () => {
 
         if (containsProfanity(trimmed)) {
             setValidationMessage('닉네임에 부적절한 단어가 포함되어 있습니다.');
+            setIsNicknameChecking(false);
+            return;
+        }
+
+        if (nicknameContainsReservedStaffTerms(trimmed) && !currentUser?.staffNicknameDisplayEligibility && !currentUser?.isAdmin) {
+            setValidationMessage(RESERVED_STAFF_NICKNAME_USER_MESSAGE);
             setIsNicknameChecking(false);
             return;
         }
@@ -217,6 +227,11 @@ const SetNickname: React.FC = () => {
 
         if (containsProfanity(trimmedNickname)) {
             setError('닉네임에 부적절한 단어가 포함되어 있습니다.');
+            return;
+        }
+
+        if (nicknameContainsReservedStaffTerms(trimmedNickname) && !currentUser?.staffNicknameDisplayEligibility && !currentUser?.isAdmin) {
+            setError(RESERVED_STAFF_NICKNAME_USER_MESSAGE);
             return;
         }
 
@@ -436,7 +451,10 @@ const SetNickname: React.FC = () => {
                                 !!validationMessage ||
                                 !nickname.trim() ||
                                 nickname.trim().length < NICKNAME_MIN_LENGTH ||
-                                nickname.trim().length > NICKNAME_MAX_LENGTH
+                                nickname.trim().length > NICKNAME_MAX_LENGTH ||
+                                (nicknameContainsReservedStaffTerms(trimmedNickname) &&
+                                    !currentUser.staffNicknameDisplayEligibility &&
+                                    !currentUser.isAdmin)
                             }
                             className={primaryBtnClass}
                         >

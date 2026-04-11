@@ -65,10 +65,10 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
 
     const backgroundClass = useMemo(() => {
         if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {
-            return 'bg-transparent';
+            return isMobile ? 'bg-slate-950/50' : 'bg-transparent';
         }
         return 'bg-primary';
-    }, [session.mode]);
+    }, [session.mode, isMobile]);
 
     const showDicePlaceChrome =
         !!diceGoPlaceUi &&
@@ -155,12 +155,21 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
             </div>
             {/* Dice controls (mobile): below board */}
             <div
-                className="pointer-events-auto relative z-20 flex shrink-0 flex-wrap items-end justify-center gap-2 px-2 pb-1 pt-0 md:hidden"
+                className="pointer-events-auto relative z-20 flex w-full max-w-full min-w-0 shrink-0 flex-wrap items-end justify-center gap-2 px-2 pb-1 pt-0 md:hidden"
                 aria-label="Dice controls"
             >
-                <DicePanel variant="mainOnly" session={session} isMyTurn={isMyTurn} onAction={onAction} currentUser={currentUser} />
+                <div className="flex min-w-0 max-w-full shrink justify-center">
+                    <DicePanel
+                        variant="mainOnly"
+                        session={session}
+                        isMyTurn={isMyTurn}
+                        onAction={onAction}
+                        currentUser={currentUser}
+                        compactMain={isMobile}
+                    />
+                </div>
                 {showDicePlaceChrome && (
-                        <div className="flex flex-col items-center gap-2 rounded-xl border border-gray-700/80 bg-gray-900/70 px-2.5 py-2 shadow-xl min-w-[100px]">
+                        <div className="flex min-w-0 max-w-[min(100%,7.5rem)] shrink-0 flex-col items-stretch gap-2 rounded-xl border border-slate-600/55 bg-slate-900/92 px-2 py-2 shadow-xl backdrop-blur-sm">
                             <Button
                                 type="button"
                                 onClick={canDicePlaceConfirm ? diceGoPlaceUi!.onConfirmMove : undefined}

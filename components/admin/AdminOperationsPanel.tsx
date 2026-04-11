@@ -1,8 +1,9 @@
-
 import React, { useMemo, useState } from 'react';
 import { LiveGameSession, TournamentType } from '../../types/index.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
+import AdminPageHeader from './AdminPageHeader.js';
+import { adminCard, adminCardTitle, adminPageNarrow, adminSectionGap } from './adminChrome.js';
 import { ServerAction } from '../../types/index.js';
 import type { User } from '../../types/index.js';
 
@@ -13,9 +14,12 @@ interface AdminOperationsPanelProps {
     currentUser: User;
 }
 
+type OpsMobileTab = 'ops' | 'test';
+
 const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, onAction, onBack, currentUser }) => {
     const [isGameManagerOpen, setIsGameManagerOpen] = useState(false);
     const [gameSearchQuery, setGameSearchQuery] = useState('');
+    const [mobileTab, setMobileTab] = useState<OpsMobileTab>('ops');
 
     const activeLiveGames = liveGames.filter((game) => game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest');
     const searchedLiveGames = useMemo(() => {
@@ -88,66 +92,118 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
         }
     };
 
-    const sectionClass = 'bg-panel border border-color text-on-panel p-6 rounded-xl shadow-lg space-y-4';
+    const sectionClass = `${adminCard} space-y-4`;
+
+    const championshipSection = (
+        <section className={sectionClass}>
+            <h2 className={adminCardTitle}>챔피언십 일괄 초기화</h2>
+            <p className="text-sm text-gray-400">전체 유저의 챔피언십 단계·관련 점수를 0으로 되돌립니다. 신중히 사용하세요.</p>
+            <Button onClick={handleResetAllUsersChampionship} colorScheme="red" variant="outline" className="w-full sm:w-auto">
+                전체 유저 챔피언십 초기화
+            </Button>
+        </section>
+    );
+
+    const tournamentSection = (
+        <section className={sectionClass}>
+            <h2 className={adminCardTitle}>챔피언십 토너먼트 (내 세션 재매칭)</h2>
+            <p className="text-sm text-gray-400">관리자 계정 기준 토너먼트 세션을 초기화하고 새 매칭을 만듭니다.</p>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                <Button onClick={() => handleResetTournament('neighborhood')} colorScheme="purple" className="w-full !text-xs">
+                    동네바둑리그
+                </Button>
+                <Button onClick={() => handleResetTournament('national')} colorScheme="purple" className="w-full !text-xs">
+                    전국바둑대회
+                </Button>
+                <Button onClick={() => handleResetTournament('world')} colorScheme="purple" className="w-full !text-xs">
+                    월드챔피언십
+                </Button>
+            </div>
+            <Button onClick={handleResetAllVenues} colorScheme="purple" variant="outline" className="w-full !text-xs">
+                모든 경기장 한 번에 초기화
+            </Button>
+        </section>
+    );
+
+    const guildWarTestSection = (
+        <section className={sectionClass}>
+            <h2 className={adminCardTitle}>길드전 (테스트)</h2>
+            <p className="text-sm text-gray-400">오늘(KST) 길드전 개인 도전 횟수를 초기화합니다.</p>
+            <Button onClick={handleGuildWarRechargeToday} colorScheme="orange" variant="outline" className="w-full sm:w-auto">
+                내 길드전 오늘 도전횟수 충전
+            </Button>
+        </section>
+    );
+
+    const liveGamesSection = (
+        <section className={sectionClass}>
+            <h2 className={adminCardTitle}>진행 중인 대국 ({activeLiveGames.length})</h2>
+            <p className="text-sm text-gray-400">목록은 별도 창에서 검색·강제 종료·방 설명 수정이 가능합니다.</p>
+            <Button onClick={() => setIsGameManagerOpen(true)} colorScheme="yellow" className="w-full sm:w-auto">
+                대국 관리 창 열기
+            </Button>
+        </section>
+    );
+
+    const mobileTabs: { id: OpsMobileTab; label: string }[] = [
+        { id: 'ops', label: '운영' },
+        { id: 'test', label: '테스트' },
+    ];
 
     return (
-        <div className="max-w-5xl mx-auto space-y-8 bg-primary text-primary pb-8">
-            <header className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold">운영 · 테스트 도구</h1>
-                    <p className="mt-1 text-sm text-gray-400">챔피언십·토너먼트·길드전·진행 중 대국을 이 화면에서만 조작합니다.</p>
-                </div>
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5"
+        <div className={`${adminPageNarrow} ${adminSectionGap}`}>
+            <AdminPageHeader
+                title="운영 · 테스트 도구"
+                subtitle="챔피언십·토너먼트·길드전·진행 중 대국을 이 화면에서만 조작합니다."
+                onBack={onBack}
+            />
+
+            <div className="lg:hidden">
+                <div
+                    className="sticky top-0 z-20 -mx-1 mb-4 border-b border-color/40 bg-primary/95 px-1 pb-3 pt-0 backdrop-blur-md"
+                    role="tablist"
+                    aria-label="운영·테스트 구역"
                 >
-                    <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
-                </button>
-            </header>
-
-            <section className={sectionClass}>
-                <h2 className="text-lg font-semibold border-b border-color pb-2">챔피언십 일괄 초기화</h2>
-                <p className="text-sm text-gray-400">전체 유저의 챔피언십 단계·관련 점수를 0으로 되돌립니다. 신중히 사용하세요.</p>
-                <Button onClick={handleResetAllUsersChampionship} colorScheme="red" variant="outline" className="w-full sm:w-auto">
-                    전체 유저 챔피언십 초기화
-                </Button>
-            </section>
-
-            <section className={sectionClass}>
-                <h2 className="text-lg font-semibold border-b border-color pb-2">챔피언십 토너먼트 (내 세션 재매칭)</h2>
-                <p className="text-sm text-gray-400">관리자 계정 기준 토너먼트 세션을 초기화하고 새 매칭을 만듭니다.</p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <Button onClick={() => handleResetTournament('neighborhood')} colorScheme="purple" className="w-full !text-xs">
-                        동네바둑리그
-                    </Button>
-                    <Button onClick={() => handleResetTournament('national')} colorScheme="purple" className="w-full !text-xs">
-                        전국바둑대회
-                    </Button>
-                    <Button onClick={() => handleResetTournament('world')} colorScheme="purple" className="w-full !text-xs">
-                        월드챔피언십
-                    </Button>
+                    <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]">
+                        {mobileTabs.map((tab) => {
+                            const active = mobileTab === tab.id;
+                            return (
+                                <button
+                                    key={tab.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={active}
+                                    onClick={() => setMobileTab(tab.id)}
+                                    className={`shrink-0 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
+                                        active
+                                            ? 'border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-inner'
+                                            : 'border-color/50 bg-secondary/40 text-gray-400 hover:border-color hover:bg-secondary/60 hover:text-primary'
+                                    }`}
+                                >
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
-                <Button onClick={handleResetAllVenues} colorScheme="purple" variant="outline" className="w-full !text-xs">
-                    모든 경기장 한 번에 초기화
-                </Button>
-            </section>
+                <div className={`min-h-[12rem] ${adminSectionGap}`} role="tabpanel">
+                    {mobileTab === 'ops' && (
+                        <>
+                            {championshipSection}
+                            {tournamentSection}
+                            {liveGamesSection}
+                        </>
+                    )}
+                    {mobileTab === 'test' && guildWarTestSection}
+                </div>
+            </div>
 
-            <section className={sectionClass}>
-                <h2 className="text-lg font-semibold border-b border-color pb-2">길드전 (테스트)</h2>
-                <p className="text-sm text-gray-400">오늘(KST) 길드전 개인 도전 횟수를 초기화합니다.</p>
-                <Button onClick={handleGuildWarRechargeToday} colorScheme="orange" variant="outline" className="w-full sm:w-auto">
-                    내 길드전 오늘 도전횟수 충전
-                </Button>
-            </section>
-
-            <section className={sectionClass}>
-                <h2 className="text-lg font-semibold border-b border-color pb-2">진행 중인 대국 ({activeLiveGames.length})</h2>
-                <p className="text-sm text-gray-400">목록은 별도 창에서 검색·강제 종료·방 설명 수정이 가능합니다.</p>
-                <Button onClick={() => setIsGameManagerOpen(true)} colorScheme="yellow" className="w-full sm:w-auto">
-                    대국 관리 창 열기
-                </Button>
-            </section>
+            <div className={`hidden lg:flex lg:flex-col ${adminSectionGap}`}>
+                {championshipSection}
+                {tournamentSection}
+                {guildWarTestSection}
+                {liveGamesSection}
+            </div>
 
             {isGameManagerOpen && (
                 <DraggableWindow
@@ -163,13 +219,13 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
                                 value={gameSearchQuery}
                                 onChange={(e) => setGameSearchQuery(e.target.value)}
                                 placeholder="플레이어 / 모드 / 게임 ID 검색"
-                                className="flex-1 bg-secondary border border-color text-primary rounded-lg p-2.5"
+                                className="flex-1 rounded-lg border border-color bg-secondary p-2.5 text-primary"
                             />
-                            <span className="text-sm text-gray-400 shrink-0">결과 {searchedLiveGames.length}건</span>
+                            <span className="shrink-0 text-sm text-gray-400">결과 {searchedLiveGames.length}건</span>
                         </div>
                         <div className="max-h-[60vh] overflow-y-auto">
-                            <table className="w-full text-sm text-left text-secondary">
-                                <thead className="text-xs text-secondary uppercase bg-secondary sticky top-0">
+                            <table className="w-full text-left text-sm text-secondary">
+                                <thead className="sticky top-0 bg-secondary text-xs uppercase text-secondary">
                                     <tr>
                                         <th scope="col" className="px-4 py-3">
                                             플레이어
@@ -190,8 +246,8 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
                                 </thead>
                                 <tbody>
                                     {searchedLiveGames.map((game) => (
-                                        <tr key={game.id} className="bg-primary border-b border-color hover:bg-secondary/50">
-                                            <td className="px-4 py-3 font-medium text-primary whitespace-nowrap">
+                                        <tr key={game.id} className="border-b border-color bg-primary hover:bg-secondary/50">
+                                            <td className="whitespace-nowrap px-4 py-3 font-medium text-primary">
                                                 {game.player1.nickname} vs {game.player2.nickname}
                                             </td>
                                             <td className="px-4 py-3">{game.mode}</td>

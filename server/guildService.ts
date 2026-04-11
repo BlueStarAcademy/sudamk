@@ -1,7 +1,8 @@
 
 
 // server/guildService.ts
-import { Guild, GuildMemberRole, GuildMission, ChatMessage, Mail, GuildResearchId } from '../types/index.js';
+import { Guild, GuildMemberRole, GuildMission, ChatMessage, Mail, GuildResearchId, InventoryItem } from '../types/index.js';
+import { ItemGrade } from '../types/enums.js';
 import * as db from './db.js';
 import { GUILD_MISSIONS_POOL, GUILD_XP_PER_LEVEL, GUILD_BOSSES } from '../constants/index.js';
 import {
@@ -35,6 +36,59 @@ export const addContribution = (guild: Guild, userId: string, amount: number) =>
     }
 };
 
+/** 주간 미션 카운터 초기값 — 신규 길드·리셋·누락 복구에 동일 사용 */
+export const getDefaultGuildMissionProgress = (): Record<string, number | string[]> => ({
+    checkIns: 0,
+    strategicWins: 0,
+    playfulWins: 0,
+    diamondsSpent: 0,
+    equipmentEnhancements: 0,
+    materialCrafts: 0,
+    equipmentSyntheses: 0,
+    guildDonations: 0,
+    towerFloor50Conquerors: [],
+    towerFloor100Conquerors: [],
+    bossAttempts: 0,
+    epicGearAcquisitions: 0,
+});
+
+const EPIC_PLUS_GRADES: ReadonlySet<ItemGrade> = new Set([
+    ItemGrade.Epic,
+    ItemGrade.Legendary,
+    ItemGrade.Mythic,
+    ItemGrade.Transcendent,
+]);
+
+export const countEpicPlusEquipmentInItems = (items: InventoryItem[]): number => {
+    if (!items?.length) return 0;
+    let n = 0;
+    for (const i of items) {
+        if (i.type === 'equipment' && i.grade && EPIC_PLUS_GRADES.has(i.grade as ItemGrade)) n += 1;
+    }
+    return n;
+};
+
+function ensureGuildMissionProgressShape(guild: Guild): void {
+    const defaults = getDefaultGuildMissionProgress();
+    const cur = (guild as any).missionProgress;
+    const out: Record<string, any> = { ...defaults };
+    if (cur && typeof cur === 'object') {
+        for (const key of Object.keys(defaults)) {
+            const def = defaults[key as keyof typeof defaults];
+            const v = cur[key];
+            if (Array.isArray(def)) {
+                out[key] = Array.isArray(v) ? v : [...def];
+            } else {
+                out[key] = typeof v === 'number' && Number.isFinite(v) ? v : 0;
+            }
+        }
+        for (const key of Object.keys(cur)) {
+            if (!(key in out)) out[key] = cur[key];
+        }
+    }
+    (guild as any).missionProgress = out;
+}
+
 // FIX: Added optional guildsToUpdate parameter to prevent race conditions and allow passing the guilds object from the caller.
 export const updateGuildMissionProgress = async (guildId: string, missionType: string, amount: number | string, guildsToUpdate?: Record<string, Guild>) => {
     // FIX: Add parentheses to clarify operator precedence between '??' and '||'.
@@ -42,8 +96,10 @@ export const updateGuildMissionProgress = async (guildId: string, missionType: s
     const guild = guilds[guildId];
     if (!guild || !guild.weeklyMissions) return;
 
+    ensureGuildMissionProgressShape(guild);
+
     let missionUpdated = false;
-    const missionProgress = (guild as any).missionProgress || {};
+    const missionProgress = (guild as any).missionProgress as Record<string, any>;
 
     if (typeof missionProgress[missionType] === 'number') {
         missionProgress[missionType] = (missionProgress[missionType] as number) + (amount as number);
@@ -97,10 +153,22 @@ export const updateGuildMissionProgress = async (guildId: string, missionType: s
             }
         }
     }
-    
-    if (missionUpdated && !guildsToUpdate) {
+
+    if (missionUpdated) {
         await db.setKV('guilds', guilds);
     }
+};
+
+/** 에픽 이상 장비 획득 길드 미션 (인벤 추가분 기준). `guildsOptional`이 있으면 동일 KV 객체에 이어서 반영 */
+export const recordGuildEpicPlusEquipmentAcquisition = async (
+    user: { guildId?: string | null },
+    acquiredItems: InventoryItem[],
+    guildsOptional?: Record<string, Guild>,
+): Promise<void> => {
+    const add = countEpicPlusEquipmentInItems(acquiredItems);
+    if (!user.guildId || add <= 0) return;
+    const guilds = guildsOptional ?? ((await db.getKV<Record<string, Guild>>('guilds')) || {});
+    await updateGuildMissionProgress(user.guildId, 'epicGearAcquisitions', add, guilds);
 };
 
 export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
@@ -111,20 +179,7 @@ export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
         isCompleted: false,
         claimedBy: [],
     })) as any;
-    (guild as any).missionProgress = {
-        checkIns: 0,
-        strategicWins: 0,
-        playfulWins: 0,
-        diamondsSpent: 0,
-        equipmentEnhancements: 0,
-        materialCrafts: 0,
-        equipmentSyntheses: 0,
-        championshipClaims: 0,
-        towerFloor50Conquerors: [],
-        towerFloor100Conquerors: [],
-        bossAttempts: 0,
-        epicGearAcquisitions: 0,
-    };
+    (guild as any).missionProgress = { ...getDefaultGuildMissionProgress() };
     guild.lastMissionReset = now;
 
     // 길드원 주간 기여도 0으로 초기화 (월요일 0시 KST 리셋)

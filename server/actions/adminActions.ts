@@ -20,6 +20,8 @@ import { mergeArenaEntranceAvailability, type ArenaEntranceKey, ARENA_ENTRANCE_K
 import { GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../shared/constants/guildConstants.js';
 import { parseEquipmentStarsFromPayload } from '../../shared/utils/equipmentEnhancementStars.js';
 import { normalizeLegacyDivineMythicInventoryItem } from '../../shared/utils/inventoryLegacyNormalize.js';
+import { nicknameContainsReservedStaffTerms } from '../../shared/utils/staffNicknameDisplay.js';
+import { hashPassword } from '../utils/passwordUtils.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -317,11 +319,16 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 email?: string;
             };
             if (!username || !password || !nickname) { return { error: '모든 필드를 입력해야 합니다.' }; }
+            const trimmedUsername = username.trim();
+            const trimmedPassword = password.trim();
+            if (trimmedUsername.length < 2 || trimmedPassword.length < 4) {
+                return { error: '아이디는 2자 이상, 비밀번호는 4자 이상이어야 합니다.' };
+            }
             if (nickname.trim().length < NICKNAME_MIN_LENGTH || nickname.trim().length > NICKNAME_MAX_LENGTH) {
                 return { error: `닉네임은 ${NICKNAME_MIN_LENGTH}-${NICKNAME_MAX_LENGTH}자여야 합니다.` };
             }
 
-            const existingByUsername = await db.getUserCredentials(username);
+            const existingByUsername = await db.getUserCredentials(trimmedUsername);
             if (existingByUsername) return { error: '이미 사용 중인 아이디입니다.' };
 
             const allUsers = await db.getAllUsers({ includeEquipment: true, includeInventory: true });
@@ -351,11 +358,13 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 }
             }
 
-            const newUser = createDefaultUser(`user-${randomUUID()}`, username, nickname, false);
+            const newUser = createDefaultUser(`user-${randomUUID()}`, trimmedUsername, nickname, false);
             (newUser as { email?: string | null }).email = emailTrimmed ? emailTrimmed.toLowerCase() : null;
+            newUser.staffNicknameDisplayEligibility = nicknameContainsReservedStaffTerms(nickname.trim());
 
             await db.createUser(newUser);
-            await db.createUserCredentials(username, password, newUser.id);
+            const passwordHash = await hashPassword(trimmedPassword);
+            await db.createUserCredentials(trimmedUsername, passwordHash, newUser.id);
             return {};
         }
         case 'ADMIN_FORCE_LOGOUT': {
@@ -739,6 +748,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 }
                 // If all checks pass, update the nickname
                 targetUser.nickname = newNickname;
+                targetUser.staffNicknameDisplayEligibility = nicknameContainsReservedStaffTerms(newNickname);
             }
 
             const oldMannerScore = targetUser.mannerScore;

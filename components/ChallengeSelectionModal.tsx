@@ -34,10 +34,16 @@ import Avatar from './Avatar';
 import { useAppContext } from '../hooks/useAppContext';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import {
+  LOBBY_MOBILE_BTN_DANGER_CLASS,
+  LOBBY_MOBILE_BTN_DISABLED_WAIT_CLASS,
+  LOBBY_MOBILE_BTN_PRIMARY_CLASS,
+  LOBBY_MOBILE_BTN_SECONDARY_CLASS,
+  LOBBY_MOBILE_MODAL_FOOTER_CLASS,
   PRE_GAME_MODAL_PRIMARY_BTN_CLASS,
   PRE_GAME_MODAL_SECONDARY_BTN_CLASS,
   PRE_GAME_MODAL_DANGER_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout';
 
 interface ChallengeSelectionModalProps {
   opponent: UserWithStatus;
@@ -181,7 +187,8 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   // 창 크기에 비례한 스케일 팩터 (기준 너비를 모달 상한에 맞춤)
   const baseWidth = 960;
   const scaleFactor = Math.max(0.7, Math.min(1.2, calculatedWidth / baseWidth));
-  
+  const isHandheldLobbyUi = useIsHandheldDevice(1024);
+
   // 스케일 팩터를 CSS 변수로 전달
   const containerStyle = {
     '--scale-factor': scaleFactor,
@@ -1265,34 +1272,63 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
             </div>
 
             <div
-              className="flex flex-shrink-0 flex-wrap justify-end border-t border-amber-500/25 bg-gradient-to-t from-black/25 via-transparent to-transparent"
-              style={{ 
-                marginTop: `${Math.max(6, Math.round(8 * scaleFactor))}px`,
-                paddingTop: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
-                gap: `${Math.max(8, Math.round(10 * scaleFactor))}px`
-              }}
+              className={
+                isHandheldLobbyUi
+                  ? `flex flex-shrink-0 flex-col gap-2.5 ${LOBBY_MOBILE_MODAL_FOOTER_CLASS} rounded-b-xl`
+                  : 'flex flex-shrink-0 flex-wrap justify-end border-t border-amber-500/25 bg-gradient-to-t from-black/25 via-transparent to-transparent'
+              }
+              style={
+                isHandheldLobbyUi
+                  ? {
+                      marginTop: `${Math.max(6, Math.round(8 * scaleFactor))}px`,
+                      paddingTop: `${Math.max(10, Math.round(12 * scaleFactor))}px`,
+                    }
+                  : {
+                      marginTop: `${Math.max(6, Math.round(8 * scaleFactor))}px`,
+                      paddingTop: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
+                      gap: `${Math.max(8, Math.round(10 * scaleFactor))}px`,
+                    }
+              }
             >
               {isWaitingForResponse ? (
                 <>
                   <Button
                     onClick={withdrawNegotiationAndClose}
+                    bare={isHandheldLobbyUi}
                     colorScheme="none"
-                    className={`${PRE_GAME_MODAL_DANGER_BTN_CLASS} !min-h-[2.75rem] !px-5 !font-semibold !tracking-wide`}
-                    style={{
-                      fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
-                      lineHeight: 1.3,
-                    }}
+                    className={
+                      isHandheldLobbyUi
+                        ? LOBBY_MOBILE_BTN_DANGER_CLASS
+                        : `${PRE_GAME_MODAL_DANGER_BTN_CLASS} !min-h-[2.75rem] !px-5 !font-semibold !tracking-wide`
+                    }
+                    style={
+                      isHandheldLobbyUi
+                        ? undefined
+                        : {
+                            fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
+                            lineHeight: 1.3,
+                          }
+                    }
                   >
                     신청 취소
                   </Button>
                   <Button
                     disabled
+                    bare={isHandheldLobbyUi}
                     colorScheme="none"
-                    className={`${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !min-h-[2.75rem] !cursor-not-allowed !px-5 !opacity-50 !font-semibold !tracking-wide`}
-                    style={{
-                      fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
-                      lineHeight: 1.3,
-                    }}
+                    className={
+                      isHandheldLobbyUi
+                        ? LOBBY_MOBILE_BTN_DISABLED_WAIT_CLASS
+                        : `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !min-h-[2.75rem] !cursor-not-allowed !px-5 !opacity-50 !font-semibold !tracking-wide`
+                    }
+                    style={
+                      isHandheldLobbyUi
+                        ? undefined
+                        : {
+                            fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
+                            lineHeight: 1.3,
+                          }
+                    }
                   >
                     신청 중
                   </Button>
@@ -1301,12 +1337,21 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                 <>
                   <Button
                     onClick={handleAttemptClose}
+                    bare={isHandheldLobbyUi}
                     colorScheme="none"
-                    className={`${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !min-h-[2.75rem] !px-5 !font-semibold !tracking-wide`}
-                    style={{
-                      fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
-                      lineHeight: 1.3,
-                    }}
+                    className={
+                      isHandheldLobbyUi
+                        ? LOBBY_MOBILE_BTN_SECONDARY_CLASS
+                        : `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} !min-h-[2.75rem] !px-5 !font-semibold !tracking-wide`
+                    }
+                    style={
+                      isHandheldLobbyUi
+                        ? undefined
+                        : {
+                            fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
+                            lineHeight: 1.3,
+                          }
+                    }
                   >
                     취소
                   </Button>
@@ -1317,18 +1362,33 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                       (selectedMode === GameMode.Mix &&
                         (!settings.mixedModes || settings.mixedModes.length < 2))
                     }
+                    bare={isHandheldLobbyUi}
                     colorScheme="none"
-                    className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} !min-h-[2.75rem] !px-5 !font-semibold !tracking-wide ${
-                      !selectedMode ||
-                      (selectedMode === GameMode.Mix &&
-                        (!settings.mixedModes || settings.mixedModes.length < 2))
-                        ? '!cursor-not-allowed !opacity-45'
-                        : ''
-                    }`}
-                    style={{
-                      fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
-                      lineHeight: 1.3,
-                    }}
+                    className={
+                      isHandheldLobbyUi
+                        ? `${LOBBY_MOBILE_BTN_PRIMARY_CLASS} ${
+                            !selectedMode ||
+                            (selectedMode === GameMode.Mix &&
+                              (!settings.mixedModes || settings.mixedModes.length < 2))
+                              ? '!cursor-not-allowed !opacity-45 !hover:brightness-100'
+                              : ''
+                          }`
+                        : `${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} !min-h-[2.75rem] !px-5 !font-semibold !tracking-wide ${
+                            !selectedMode ||
+                            (selectedMode === GameMode.Mix &&
+                              (!settings.mixedModes || settings.mixedModes.length < 2))
+                              ? '!cursor-not-allowed !opacity-45'
+                              : ''
+                          }`
+                    }
+                    style={
+                      isHandheldLobbyUi
+                        ? undefined
+                        : {
+                            fontSize: `${Math.max(14, Math.round(16 * scaleFactor))}px`,
+                            lineHeight: 1.3,
+                          }
+                    }
                   >
                     대국 신청 (⚡{actionPointCost})
                   </Button>

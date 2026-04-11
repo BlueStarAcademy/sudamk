@@ -3,6 +3,7 @@ import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../t
 import DraggableWindow from './DraggableWindow.js';
 import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS } from '../constants';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../constants/ads.js';
+import { clampQuestProgressToTarget } from '../utils/questProgressCap.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -206,8 +207,9 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
     const [bubbleOpen, setBubbleOpen] = useState(false);
     const titleWrapRef = useRef<HTMLDivElement>(null);
     const bubbleRef = useRef<HTMLDivElement>(null);
+    const displayProgress = clampQuestProgressToTarget(quest.progress, quest.target);
     const isComplete = quest.progress >= quest.target;
-    const percentage = Math.min((quest.progress / quest.target) * 100, 100);
+    const percentage = quest.target > 0 ? (displayProgress / quest.target) * 100 : 0;
     const displayTitle = getQuestDisplayTitle(quest.title);
 
     const handleClaimClick = useCallback(() => {
@@ -305,7 +307,7 @@ const QuestItem: React.FC<{ quest: Quest; onClaim: (id: string) => void; isMobil
                 <span
                     className={`shrink-0 tabular-nums font-medium text-amber-200/85 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                 >
-                    {quest.progress}/{quest.target}
+                    {displayProgress}/{quest.target}
                 </span>
             </div>
         </div>
@@ -346,6 +348,7 @@ const ActivityPanel: React.FC<{
 
     const { activityProgress, claimedMilestones } = questData;
     const maxProgress = thresholds[thresholds.length - 1];
+    const displayActivity = clampQuestProgressToTarget(activityProgress, maxProgress);
 
     /** 마일스톤 N 보상은 구간 (이전~N]의 중앙에 둠 — 예: 20보상 → 0~20의 중앙(10/최대) */
     const rewardCenterLeftPct = (index: number, milestone: number): number => {
@@ -367,7 +370,7 @@ const ActivityPanel: React.FC<{
     const barHeight = 'h-3.5';
     const milestoneIcon = 'h-8 w-8';
     const milestoneMinH = isMobile ? '4rem' : '4.25rem';
-    const fillPct = maxProgress > 0 ? Math.min(100, (activityProgress / maxProgress) * 100) : 0;
+    const fillPct = maxProgress > 0 ? (displayActivity / maxProgress) * 100 : 0;
 
     return (
         <div
@@ -396,11 +399,13 @@ const ActivityPanel: React.FC<{
                         <span className={`leading-none text-amber-300 ${isMobile ? 'text-sm' : 'text-base'}`} aria-hidden>
                             ⭐
                         </span>
-                        {activityProgress}
+                        {displayActivity}
                         <span className="mx-0.5 font-normal text-amber-200/45">/</span>
                         {maxProgress}
                     </span>
-                    <span className={`font-medium tabular-nums text-slate-500 ${isMobile ? 'text-[9px]' : 'text-[10px]'}`}>{fillPct.toFixed(0)}% 달성</span>
+                    <span className={`font-medium tabular-nums text-slate-500 ${isMobile ? 'text-[9px]' : 'text-[10px]'}`}>
+                        {Math.min(100, fillPct).toFixed(0)}% 달성
+                    </span>
                 </div>
             </div>
             <div className={trackWrap}>
@@ -412,7 +417,7 @@ const ActivityPanel: React.FC<{
                     >
                     <div
                         className="relative h-full overflow-hidden rounded-full shadow-[0_0_14px_rgba(52,211,153,0.22)]"
-                        style={{ width: `${Math.min(100, (activityProgress / maxProgress) * 100)}%` }}
+                        style={{ width: `${Math.min(100, fillPct)}%` }}
                     >
                         <div className="h-full w-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-lime-400" />
                         <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.18] to-transparent" />

@@ -92,7 +92,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                                 '가방: 장비·소모품·재료 인벤토리를 정리합니다.',
                                 '랭킹·채팅: 순위표와 채널 대화를 빠르게 엽니다.',
                                 '도감: 아이템 도감(별도 창)에서 전체 아이콘과 옵션을 봅니다.',
-                                '도움말: 지금 보고 있는 통합 안내입니다.',
+                                '도움말: 지금 보고 있는 통합 안내입니다. 바둑학원·도전의 탑 규칙은 「바둑학원 · 도전의 탑」 범주에서 확인합니다.',
                                 '공지: 운영 공지와 이벤트를 확인합니다.',
                             ],
                         },
@@ -186,6 +186,73 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             tone: 'info',
                             title: '시즌과 연동',
                             text: '시즌제·최소 대국 수(배치) 등은 「랭킹 · 시즌」 도움말 항목에서 자세히 설명합니다.',
+                        },
+                    ],
+                },
+            },
+        ],
+    },
+    {
+        id: 'pve',
+        label: '바둑학원 · 도전의 탑',
+        iconSrc: '/images/tower/Tower.png',
+        accentClass: 'from-emerald-500/15 to-amber-600/10',
+        subcategories: [
+            {
+                id: 'pve-singleplayer',
+                label: '바둑학원',
+                article: {
+                    id: 'pve-singleplayer',
+                    title: '바둑학원',
+                    tagline: '난이도별 스테이지와 수련과제로 AI와 수읽기를 연습합니다.',
+                    hero: { src: '/images/single/Map.png', alt: '바둑학원' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '입문·초급·중급·고급 등 반(난이도 구간)을 고르고 스테이지를 순서대로 진행합니다. 각 스테이지는 AI 상대와의 대국으로 클리어 여부가 결정됩니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '상단에서 반을 바꾸면 해당 구간의 스테이지 격자가 열립니다.',
+                                '수련과제는 시간이 지나 쌓이는 보상을 수령하는 성장 루틴입니다. 과제마다 해금 스테이지가 있습니다.',
+                                '모바일에서는 하단 탭으로 수련과제와 스테이지 화면을 전환할 수 있습니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            title: '팁',
+                            text: '진행도는 계정에 저장되며, 프로필에서 입장한 뒤에도 퀵 메뉴로 퀘스트·가방 등을 그대로 이용할 수 있습니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'pve-tower',
+                label: '도전의 탑',
+                article: {
+                    id: 'pve-tower',
+                    title: '도전의 탑',
+                    tagline: '100층 PvE, 월간 랭킹과 보상이 함께 갱신됩니다.',
+                    hero: { src: '/images/tower/Tower.png', alt: '도전의 탑' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '도전의 탑은 100층으로 구성된 PvE 콘텐츠입니다. 층을 올라갈수록 난이도가 높아지며, 클리어 시 보상을 받을 수 있습니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '랭킹은 달성한 층수와 기록 시간 등으로 정해집니다.',
+                                '로비에서 인벤토리·아이템 상점 등 탑 전용 도구를 사용할 수 있습니다.',
+                            ],
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'warn',
+                            title: '월간 초기화',
+                            text: '매월 1일 0시(KST)에 층 진행이 초기화됩니다. 월간 최고 층에 따른 정산 보상 구간과 상세 내역은 로비의 「보상정보」에서 확인하세요.',
                         },
                     ],
                 },

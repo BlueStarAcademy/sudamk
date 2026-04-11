@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import DraggableWindow from './DraggableWindow.js';
-import { MBTI_QUESTIONS } from '../constants/mbtiQuestions';
+import { MBTI_QUESTIONS, calculateMbtiFromAnswers } from '../constants/mbtiQuestions.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 
 interface MbtiInfoModalProps {
@@ -60,10 +60,12 @@ const MbtiInfoModal: React.FC<MbtiInfoModalProps> = ({ onClose, isTopmost }) => 
         if (currentQuestionIndex < MBTI_QUESTIONS.length - 1) {
             setCurrentQuestionIndex(prev => prev + 1);
         } else {
-            // All questions answered, calculate MBTI
-            const mbti = calculateMbti();
+            const mbti = calculateMbtiFromAnswers(answers, MBTI_QUESTIONS);
+            if (!mbti) {
+                alert('모든 문항에 답해 주세요.');
+                return;
+            }
             setCalculatedMbti(mbti);
-            // Dispatch action to update MBTI
             const isFirstTime = !hasMbti && !hasClaimedReward;
             await handlers.handleAction({
                 type: 'UPDATE_MBTI',
@@ -73,22 +75,15 @@ const MbtiInfoModal: React.FC<MbtiInfoModalProps> = ({ onClose, isTopmost }) => 
             if (isFirstTime) {
                 setHasClaimedReward(true);
             }
+            setIsSettingMbti(false);
             console.log('MBTI set:', mbti, 'MBTI reward processed.');
         }
-    };
-
-    const calculateMbti = (): string => {
-        let mbti = '';
-        MBTI_QUESTIONS.forEach(q => {
-            mbti += answers[q.id] || '?'; // Use '?' if not answered, though all should be by this point
-        });
-        return mbti;
     };
 
     const currentQuestion = MBTI_QUESTIONS[currentQuestionIndex];
 
     return (
-        <DraggableWindow title="MBTI 성향 안내" onClose={onClose} windowId="mbti-info" initialWidth={400} isTopmost={isTopmost}>
+        <DraggableWindow title="MBTI 성향 안내" onClose={onClose} windowId="mbti-info" initialWidth={440} isTopmost={isTopmost}>
             <div className="max-h-[60vh] overflow-y-auto pr-2">
                 {!isSettingMbti && !hasMbti && !hasClaimedReward && (
                     <div className="text-center mb-4">
@@ -109,6 +104,9 @@ const MbtiInfoModal: React.FC<MbtiInfoModalProps> = ({ onClose, isTopmost }) => 
 
                 {isSettingMbti && !showResult && (
                     <div className="space-y-4">
+                        <p className="text-xs text-gray-400">
+                            질문 {currentQuestionIndex + 1} / {MBTI_QUESTIONS.length} · 축마다 답을 모으면 유형이 정해집니다
+                        </p>
                         <p className="text-lg font-bold text-white">{currentQuestion.question}</p>
                         <div className="space-y-2">
                             {currentQuestion.options.map(option => (
@@ -138,27 +136,45 @@ const MbtiInfoModal: React.FC<MbtiInfoModalProps> = ({ onClose, isTopmost }) => 
                 )}
 
                 {showResult && calculatedMbti && (
-                    <div className="text-center">
-                        <p className="text-2xl font-bold text-yellow-300 mb-4">당신의 MBTI는 {calculatedMbti} 입니다!</p>
-                        <p className="text-lg text-green-400 mb-4">100 다이아몬드 획득!</p>
-                        <button
-                            onClick={onClose}
-                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200"
-                        >
-                            확인
-                        </button>
+                    <div className="space-y-4">
+                        <div className="flex flex-wrap items-center justify-center gap-3 border-b border-white/10 pb-4">
+                            <p className="text-xl font-bold text-yellow-300 sm:text-2xl">
+                                당신의 MBTI는 <span className="tabular-nums">{calculatedMbti}</span> 입니다!
+                            </p>
+                            <button
+                                type="button"
+                                onClick={handleStartMbtiSetting}
+                                className="shrink-0 whitespace-nowrap rounded-lg bg-purple-600 px-3 py-2 text-sm font-bold text-white transition-colors duration-200 hover:bg-purple-700"
+                            >
+                                다시 설정하기
+                            </button>
+                        </div>
+                        <p className="text-center text-lg text-green-400">100 다이아몬드 획득!</p>
+                        <div className="flex justify-center">
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="rounded-lg bg-blue-600 px-5 py-2.5 font-bold text-white transition-colors duration-200 hover:bg-blue-700"
+                            >
+                                확인
+                            </button>
+                        </div>
                     </div>
                 )}
 
-                {!isSettingMbti && (hasMbti || showResult) && (
+                {!isSettingMbti && (hasMbti || showResult) && !showResult && (
                     <>
-                        <p className="text-lg font-bold text-white mb-2">현재 MBTI: {currentUser?.mbti}</p>
-                        <div className="text-center mb-4">
+                        <div className="mb-4 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+                            <p className="text-lg font-bold text-white">
+                                나의 MBTI:{' '}
+                                <span className="tabular-nums text-yellow-300">{currentUser?.mbti}</span>
+                            </p>
                             <button
+                                type="button"
                                 onClick={handleStartMbtiSetting}
-                                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200"
+                                className="shrink-0 whitespace-nowrap rounded-lg bg-purple-600 px-3 py-2 text-sm font-bold text-white transition-colors duration-200 hover:bg-purple-700"
                             >
-                                MBTI 다시 설정하기
+                                다시 설정하기
                             </button>
                         </div>
                         <ul className="space-y-2 mt-4">

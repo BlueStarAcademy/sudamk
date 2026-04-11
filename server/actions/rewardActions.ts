@@ -21,6 +21,7 @@ import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { createItemInstancesFromMailAttachments } from '../mailClaimEquipment.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
+import { clampQuestProgressToTarget } from '../../utils/questProgressCap.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -249,7 +250,15 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             user.inventory = updatedInventory;
             
             if (activityPoints > 0 && user.quests[questType!]) {
-                user.quests[questType!]!.activityProgress += activityPoints;
+                const qd = user.quests[questType!]!;
+                qd.activityProgress += activityPoints;
+                const maxAp =
+                    questType === 'daily'
+                        ? DAILY_MILESTONE_THRESHOLDS[DAILY_MILESTONE_THRESHOLDS.length - 1]!
+                        : questType === 'weekly'
+                          ? WEEKLY_MILESTONE_THRESHOLDS[WEEKLY_MILESTONE_THRESHOLDS.length - 1]!
+                          : MONTHLY_MILESTONE_THRESHOLDS[MONTHLY_MILESTONE_THRESHOLDS.length - 1]!;
+                qd.activityProgress = clampQuestProgressToTarget(qd.activityProgress, maxAp);
             }
 
             // 깊은 복사로 updatedUser 생성하여 React가 변경을 확실히 감지하도록 함

@@ -1,6 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
+import {
+    LOBBY_MOBILE_BTN_PRIMARY_CLASS,
+    LOBBY_MOBILE_BTN_SECONDARY_CLASS,
+    LOBBY_MOBILE_HEADER_BACK_BTN_CLASS,
+    LOBBY_MOBILE_MODAL_FOOTER_CLASS,
+} from '../game/PreGameDescriptionLayout.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../../constants/ads.js';
 import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, aiUserId } from '../../constants';
 import { 
@@ -21,45 +30,48 @@ interface AiChallengeModalProps {
     onAction: (action: ServerAction) => void;
 }
 
-const GameCard: React.FC<{ 
-    mode: GameMode, 
-    image: string, 
-    displayName: string,
-    onSelect: (mode: GameMode) => void,
-    isSelected: boolean,
-}> = ({ mode, image, displayName, onSelect, isSelected }) => {
+const GameCard: React.FC<{
+    mode: GameMode;
+    image: string;
+    displayName: string;
+    onSelect: (mode: GameMode) => void;
+    isSelected: boolean;
+    compact?: boolean;
+}> = ({ mode, image, displayName, onSelect, isSelected, compact }) => {
     const [imgError, setImgError] = useState(false);
+    const imgH = compact ? 68 : 100;
+    const pad = compact ? 6 : 8;
+    const titlePx = compact ? 12 : 14;
 
     return (
         <div
-            className={`bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform ${
+            className={`bg-panel text-on-panel rounded-lg flex flex-col items-center text-center transition-all transform touch-manipulation ${
                 isSelected
-                    ? 'ring-2 ring-purple-500 hover:-translate-y-1 shadow-lg cursor-pointer'
-                    : 'hover:-translate-y-1 shadow-lg cursor-pointer'
+                    ? compact
+                        ? 'cursor-pointer ring-2 ring-violet-400/85 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(167,139,250,0.35),0_10px_28px_-8px_rgba(139,92,246,0.45)] active:scale-[0.98]'
+                        : 'ring-2 ring-purple-500 shadow-lg cursor-pointer active:scale-[0.98]'
+                    : 'shadow-lg cursor-pointer active:scale-[0.98] hover:ring-1 hover:ring-purple-400/40'
             }`}
-            style={{ padding: '8px', gap: '4px' }}
+            style={{ padding: `${pad}px`, gap: compact ? '3px' : '4px' }}
             onClick={() => onSelect(mode)}
         >
-            <div 
+            <div
                 className="w-full flex-shrink-0 bg-tertiary rounded-md flex items-center justify-center text-tertiary overflow-hidden shadow-inner relative"
-                style={{ height: '100px', marginBottom: '4px', padding: '4px' }}
+                style={{ height: `${imgH}px`, marginBottom: compact ? '2px' : '4px', padding: '4px' }}
             >
                 {!imgError ? (
-                    <img 
-                        src={image} 
-                        alt={displayName} 
+                    <img
+                        src={image}
+                        alt={displayName}
                         className="w-full h-full object-contain"
-                        onError={() => setImgError(true)} 
+                        onError={() => setImgError(true)}
                     />
                 ) : (
-                    <span style={{ fontSize: '13px' }}>{displayName}</span>
+                    <span style={{ fontSize: compact ? '11px' : '13px' }}>{displayName}</span>
                 )}
             </div>
-            <div className="flex-grow flex flex-col w-full">
-                <h3 
-                    className="font-bold leading-tight text-primary"
-                    style={{ fontSize: '14px', marginBottom: '2px' }}
-                >
+            <div className="flex-grow flex flex-col w-full min-w-0">
+                <h3 className="font-bold leading-tight text-primary truncate px-0.5" style={{ fontSize: `${titlePx}px`, marginBottom: '2px' }}>
                     {displayName}
                 </h3>
             </div>
@@ -72,6 +84,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(availableGameModes[0]?.mode || null);
     const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
     const prevSelectedGameModeRef = useRef<GameMode | null>(null);
+    const [mobileStep, setMobileStep] = useState<'pickMode' | 'settings'>('pickMode');
 
     const actionPointCost = useMemo(() => {
         if (!selectedGameMode) return STRATEGIC_ACTION_POINT_COST;
@@ -80,12 +93,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         return STRATEGIC_ACTION_POINT_COST;
     }, [selectedGameMode]);
 
-    // 이 모달은 캔버스(scale) 내부에서 같이 축소되어야 하므로,
-    // viewport 높이(window.innerHeight)에 의존하지 말고 PC와 동일한 고정 크기를 사용합니다.
-    // (모바일 landscape에서 windowHeight가 작아져 모달 높이가 작아지는 현상 방지)
-    const calculatedWidth = 900;
-    const calculatedHeight = 780;
-    const isMobile = false;
+    const { isNativeMobile } = useNativeMobileShell();
+    const isCompactViewport = useIsHandheldDevice(1024);
+    const isMobile = isNativeMobile || isCompactViewport;
+    /** PC: 캔버스(scale) 내 고정 프레임. 모바일: 뷰포트 맞춤으로 별도 레이아웃 */
+    const calculatedWidth = isMobile ? 720 : 900;
+    const calculatedHeight = isMobile ? 720 : 780;
     const mobileTextScale = 1.0;
 
     const selectedGameDefinition = useMemo(() => {
@@ -926,6 +939,22 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         );
     };
 
+    const opponentSubtitle = selectedGameDefinition ? `${selectedGameDefinition.name} 봇` : '게임 종류를 선택하세요';
+
+    const mobileHeaderBack =
+        isMobile && mobileStep === 'settings' ? (
+            <button
+                type="button"
+                className={LOBBY_MOBILE_HEADER_BACK_BTN_CLASS}
+                onClick={(e) => {
+                    e.stopPropagation();
+                    setMobileStep('pickMode');
+                }}
+            >
+                뒤로
+            </button>
+        ) : undefined;
+
     return (
         <DraggableWindow
             title="AI와 대결하기"
@@ -933,68 +962,180 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             windowId="ai-challenge"
             initialWidth={calculatedWidth}
             initialHeight={calculatedHeight}
-            uniformPcScale
-            bodyScrollable
+            uniformPcScale={!isMobile}
+            bodyScrollable={!isMobile}
+            bodyNoScroll={isMobile}
             isTopmost
+            variant={isMobile ? 'store' : undefined}
+            headerShowTitle={isMobile}
+            headerContent={mobileHeaderBack}
+            mobileViewportFit={isMobile}
+            mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH : undefined}
+            hideFooter={isMobile}
+            skipSavedPosition={isMobile}
+            bodyPaddingClassName={isMobile ? '!p-2' : undefined}
         >
-            <div className="flex h-full">
-                {/* Left Panel: Game Selection */}
-                <div className={`w-1/3 bg-tertiary/30 ${isMobile ? 'p-2' : 'p-4'} flex flex-col text-on-panel rounded-l-lg border-r border-gray-700`}>
-                    <h3 className="font-bold text-purple-300 mb-3" style={{ fontSize: `${Math.max(15, Math.round(19 * mobileTextScale))}px` }}>게임 종류 선택</h3>
-                    <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto pr-2">
-                        {availableGameModes.map((game) => (
-                            <GameCard
-                                key={game.mode}
-                                mode={game.mode}
-                                image={game.image}
-                                displayName={game.name ?? String(game.mode)}
-                                onSelect={setSelectedGameMode}
-                                isSelected={selectedGameMode === game.mode}
-                            />
-                        ))}
-                    </div>
-                </div>
-
-                {/* Right Panel: AI Profile and Game Settings */}
-                <div className={`w-2/3 bg-primary ${isMobile ? 'p-2' : 'p-4'} flex flex-col rounded-r-lg`}>
-                    {/* AI Profile */}
-                    <div className={`bg-gray-900/50 rounded-lg border border-gray-700 ${isMobile ? 'p-2' : 'p-3'} mb-4 flex-shrink-0`}>
-                        <div className="flex items-center gap-3 mb-3">
-                            <Avatar userId={aiUserId} userName="AI" size={isMobile ? Math.max(36, Math.round(52 * mobileTextScale)) : 54} className="border-2 border-purple-500" />
-                            <div>
-                                <h3 className="font-bold text-purple-300" style={{ fontSize: `${Math.max(15, Math.round(19 * mobileTextScale))}px` }}>AI</h3>
-                                <p className="text-gray-400" style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>
-                                    {selectedGameDefinition ? `${selectedGameDefinition.name} 봇` : 'AI 봇'}
-                                </p>
+            {isMobile ? (
+                <div
+                    className="relative flex min-h-0 max-h-[min(94dvh,880px)] flex-1 flex-col gap-2 overflow-hidden rounded-2xl border border-amber-500/20 bg-gradient-to-br from-zinc-900/92 via-zinc-950/96 to-black/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_64px_-28px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.06] sm:gap-3 sm:p-3"
+                >
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/40 to-transparent" aria-hidden />
+                    {/* 상대(AI) 프로필 — 항상 표시 */}
+                    <div className="relative z-[1] shrink-0 rounded-xl border border-purple-500/35 bg-gray-900/65 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                        <div className="flex items-start gap-2.5">
+                            <Avatar userId={aiUserId} userName="AI" size={52} className="shrink-0 border-2 border-purple-500" />
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-bold text-purple-200 text-base leading-tight">AI</h3>
+                                <p className="text-xs text-gray-400 mt-0.5 leading-snug">{opponentSubtitle}</p>
+                                {selectedGameDefinition ? (
+                                    <div className="mt-2 border-t border-white/10 pt-2">
+                                        <p className="text-[11px] font-semibold text-gray-400 mb-0.5">게임 설명</p>
+                                        <p className="text-[11px] text-gray-500 leading-relaxed line-clamp-4">
+                                            {selectedGameDefinition.description || '선택된 게임에 대한 설명이 없습니다.'}
+                                        </p>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
-                        {selectedGameDefinition && (
-                            <div className="border-t border-gray-700 pt-3 mt-3">
-                                <h4 className="font-semibold text-gray-300 mb-2" style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>게임 설명</h4>
-                                <p className="text-tertiary leading-relaxed" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>
-                                    {selectedGameDefinition.description || '선택된 게임에 대한 설명이 없습니다.'}
-                                </p>
-                            </div>
-                        )}
                     </div>
 
-                    {/* Game Settings — flex-1 + overflow-hidden만 있으면 아래쪽(초읽기 등)이 잘림 */}
-                    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-                        <h4 className="font-semibold text-gray-300 mb-2 flex-shrink-0" style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>대국 설정</h4>
-                        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">
-                            {renderGameSettings()}
+                    {mobileStep === 'pickMode' ? (
+                        <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                            <h3 className="shrink-0 text-sm font-bold tracking-tight text-amber-100/95">게임 종류 선택</h3>
+                            <p className="shrink-0 text-[11px] leading-snug text-zinc-500">항목을 눌러 선택한 뒤 아래에서 대국 설정으로 이동하세요.</p>
+                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-0.5 -mr-0.5">
+                                <div className="grid grid-cols-2 gap-2 pb-1">
+                                    {availableGameModes.map((game) => (
+                                        <GameCard
+                                            key={game.mode}
+                                            mode={game.mode}
+                                            image={game.image}
+                                            displayName={game.name ?? String(game.mode)}
+                                            onSelect={setSelectedGameMode}
+                                            isSelected={selectedGameMode === game.mode}
+                                            compact
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+                            <div
+                                className={`shrink-0 -mx-2 -mb-2 mt-1 flex flex-col gap-2.5 rounded-b-2xl sm:-mx-3 sm:-mb-3 ${LOBBY_MOBILE_MODAL_FOOTER_CLASS}`}
+                            >
+                                <Button
+                                    bare
+                                    colorScheme="none"
+                                    onClick={() => setMobileStep('settings')}
+                                    disabled={!selectedGameMode}
+                                    className={`${LOBBY_MOBILE_BTN_PRIMARY_CLASS} ${!selectedGameMode ? '!cursor-not-allowed !opacity-45 !hover:brightness-100' : ''}`}
+                                >
+                                    다음 — 대국 설정
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                            <h3 className="shrink-0 text-sm font-bold tracking-tight text-amber-100/95">대국 설정</h3>
+                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 -mr-0.5 rounded-lg border border-white/5 bg-black/20 p-1.5">
+                                {renderGameSettings()}
+                            </div>
+                            <div
+                                className={`shrink-0 -mx-2 -mb-2 mt-1 flex flex-col gap-2.5 rounded-b-2xl sm:flex-row sm:-mx-3 sm:-mb-3 ${LOBBY_MOBILE_MODAL_FOOTER_CLASS}`}
+                            >
+                                <Button
+                                    bare
+                                    colorScheme="none"
+                                    onClick={onClose}
+                                    className={LOBBY_MOBILE_BTN_SECONDARY_CLASS}
+                                >
+                                    취소
+                                </Button>
+                                <Button
+                                    bare
+                                    colorScheme="none"
+                                    onClick={handleChallenge}
+                                    disabled={!selectedGameMode}
+                                    className={`${LOBBY_MOBILE_BTN_PRIMARY_CLASS} sm:flex-[1.35] ${!selectedGameMode ? '!cursor-not-allowed !opacity-45 !hover:brightness-100' : ''}`}
+                                >
+                                    시작 (⚡{actionPointCost})
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            ) : (
+                <div className="flex h-full">
+                    <div className="w-1/3 bg-tertiary/30 p-4 flex flex-col text-on-panel rounded-l-lg border-r border-gray-700">
+                        <h3 className="font-bold text-purple-300 mb-3" style={{ fontSize: `${Math.max(15, Math.round(19 * mobileTextScale))}px` }}>
+                            게임 종류 선택
+                        </h3>
+                        <div className="flex-1 grid grid-cols-2 gap-2 overflow-y-auto pr-2">
+                            {availableGameModes.map((game) => (
+                                <GameCard
+                                    key={game.mode}
+                                    mode={game.mode}
+                                    image={game.image}
+                                    displayName={game.name ?? String(game.mode)}
+                                    onSelect={setSelectedGameMode}
+                                    isSelected={selectedGameMode === game.mode}
+                                />
+                            ))}
                         </div>
                     </div>
 
-                    {/* Bottom Buttons */}
-                    <div className="mt-4 flex flex-shrink-0 justify-end gap-3 border-t border-gray-700 pt-4">
-                        <Button onClick={onClose} colorScheme="gray" className="min-h-[2.75rem] px-5 py-2.5 font-semibold" style={{ fontSize: `${Math.max(15, Math.round(17 * mobileTextScale))}px` }}>취소</Button>
-                        <Button onClick={handleChallenge} colorScheme="purple" disabled={!selectedGameMode} className="min-h-[2.75rem] px-5 py-2.5 font-semibold" style={{ fontSize: `${Math.max(15, Math.round(17 * mobileTextScale))}px` }}>
-                            시작 (⚡{actionPointCost})
-                        </Button>
+                    <div className="w-2/3 bg-primary p-4 flex flex-col rounded-r-lg">
+                        <div className="bg-gray-900/50 rounded-lg border border-gray-700 p-3 mb-4 flex-shrink-0">
+                            <div className="flex items-center gap-3 mb-3">
+                                <Avatar userId={aiUserId} userName="AI" size={54} className="border-2 border-purple-500" />
+                                <div>
+                                    <h3 className="font-bold text-purple-300" style={{ fontSize: `${Math.max(15, Math.round(19 * mobileTextScale))}px` }}>
+                                        AI
+                                    </h3>
+                                    <p className="text-gray-400" style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>
+                                        {selectedGameDefinition ? `${selectedGameDefinition.name} 봇` : 'AI 봇'}
+                                    </p>
+                                </div>
+                            </div>
+                            {selectedGameDefinition && (
+                                <div className="border-t border-gray-700 pt-3 mt-3">
+                                    <h4 className="font-semibold text-gray-300 mb-2" style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>
+                                        게임 설명
+                                    </h4>
+                                    <p className="text-tertiary leading-relaxed" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>
+                                        {selectedGameDefinition.description || '선택된 게임에 대한 설명이 없습니다.'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                            <h4 className="font-semibold text-gray-300 mb-2 flex-shrink-0" style={{ fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>
+                                대국 설정
+                            </h4>
+                            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1">{renderGameSettings()}</div>
+                        </div>
+
+                        <div className="mt-4 flex flex-shrink-0 justify-end gap-3 border-t border-gray-700 pt-4">
+                            <Button
+                                onClick={onClose}
+                                colorScheme="gray"
+                                className="min-h-[2.75rem] px-5 py-2.5 font-semibold"
+                                style={{ fontSize: `${Math.max(15, Math.round(17 * mobileTextScale))}px` }}
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                onClick={handleChallenge}
+                                colorScheme="purple"
+                                disabled={!selectedGameMode}
+                                className="min-h-[2.75rem] px-5 py-2.5 font-semibold"
+                                style={{ fontSize: `${Math.max(15, Math.round(17 * mobileTextScale))}px` }}
+                            >
+                                시작 (⚡{actionPointCost})
+                            </Button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </DraggableWindow>
     );
 };

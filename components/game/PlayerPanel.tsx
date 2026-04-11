@@ -10,6 +10,7 @@ import {
     strategicAiDisplayLevelFromProfileStep,
 } from '../../shared/utils/strategicAiDifficulty.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
+import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -298,7 +299,18 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 }`}
                                 title={nameTitle}
                             >
-                                {user.nickname}
+                                <span
+                                    className={mergeStaffNicknameDisplayClass(
+                                        {
+                                            nickname: user.nickname,
+                                            isAdmin: user.isAdmin,
+                                            staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                                        },
+                                        'inline',
+                                    )}
+                                >
+                                    {user.nickname}
+                                </span>
                                 {isAiPlayer ? ' 🤖' : ''}
                                 {role ? ` (${role})` : ''}
                             </h2>

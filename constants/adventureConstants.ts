@@ -1,10 +1,81 @@
+/** 몬스터 시트 1536×1024 기준 균등 격자(셀 크기·배치 동일) */
+export type AdventureMonsterSpriteLayout = {
+    cols: number;
+    rows: number;
+    /** 시트에 그려진 몬스터 마리 수 (≤ cols×rows, 행 우선 인덱스 0부터) */
+    frameCount: number;
+};
+
+/** 실제 스프라이트: 3열×4행 = 12칸(각 512×256px) */
+export const ADVENTURE_MONSTER_SHEET_GRID = { cols: 3, rows: 4 } as const;
+
 /** 모험 스테이지 입장 카드 (맵 webp — 로비·맵 화면·인게임 배경 공용) */
 export const ADVENTURE_STAGES = [
-    { id: 'neighborhood_hill', title: '동네뒷산', stageIndex: 1, mapWebp: '/images/forest.webp' },
-    { id: 'lake_park', title: '호수공원', stageIndex: 2, mapWebp: '/images/lakesidepark.webp' },
-    { id: 'aquarium', title: '아쿠아리움', stageIndex: 3, mapWebp: '/images/aquarium.webp' },
-    { id: 'zoo', title: '동물원', stageIndex: 4, mapWebp: '/images/zoo.webp' },
-    { id: 'amusement_park', title: '놀이동산', stageIndex: 5, mapWebp: '/images/amusementpark.webp' },
+    {
+        id: 'neighborhood_hill',
+        title: '동네뒷산',
+        stageIndex: 1,
+        mapWebp: '/images/forest.webp',
+        monsterSheetWebp: '/images/forestmon.webp',
+        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 12 } satisfies AdventureMonsterSpriteLayout,
+        monsterName: '잎순이',
+        monsterCodexLines: [
+            '숲 그늘에 붙어 사는 잎사귀 같은 몸짓이 특징인 아이예요.',
+            '바람이 스치면 나뭇잎 소리를 흉내 내며 숲길에서 손님을 골라 장난칩니다.',
+        ],
+    },
+    {
+        id: 'lake_park',
+        title: '호수공원',
+        stageIndex: 2,
+        mapWebp: '/images/lakesidepark.webp',
+        monsterSheetWebp: '/images/lakesideparkmon.webp',
+        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 12 } satisfies AdventureMonsterSpriteLayout,
+        monsterName: '잔꼬미',
+        monsterCodexLines: [
+            '잔잔한 물결과 거울 같은 반짝임을 몸에 담고 다니는 귀여운 친구예요.',
+            '발자국이 사라지는 것이 아쉬워 물가를 맴돌며 파장을 따라 춤춥니다.',
+        ],
+    },
+    {
+        id: 'aquarium',
+        title: '아쿠아리움',
+        stageIndex: 3,
+        mapWebp: '/images/aquarium.webp',
+        monsterSheetWebp: '/images/aquariummon.webp',
+        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 12 } satisfies AdventureMonsterSpriteLayout,
+        monsterName: '물방이',
+        monsterCodexLines: [
+            '유리 너머 불빛과 물방울 사이에서 통통 튀는 게 매력인 아이예요.',
+            '지나가는 아이들의 시선을 따라 수조 안에서 몸을 반짝 흐리게 만듭니다.',
+        ],
+    },
+    {
+        id: 'zoo',
+        title: '동물원',
+        stageIndex: 4,
+        mapWebp: '/images/zoo.webp',
+        monsterSheetWebp: '/images/zoomon.webp',
+        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 11 } satisfies AdventureMonsterSpriteLayout,
+        monsterName: '얼룩이',
+        monsterCodexLines: [
+            '줄무늬·얼룩덜룩한 무늬를 자랑하는 호기심 덩어리예요.',
+            '안내판을 읽는 척하다가 금지 구역 쪽으로 코를 벌름거립니다.',
+        ],
+    },
+    {
+        id: 'amusement_park',
+        title: '놀이동산',
+        stageIndex: 5,
+        mapWebp: '/images/amusementpark.webp',
+        monsterSheetWebp: '/images/amusementmon.webp',
+        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 9 } satisfies AdventureMonsterSpriteLayout,
+        monsterName: '팡순이',
+        monsterCodexLines: [
+            '네온과 음악에 맞춰 몸을 팡팡 튕기며 기쁨을 먹고 자라요.',
+            '긴 줄만 보면 직감으로 도망갈 타이밍을 재는 민첩함이 있습니다.',
+        ],
+    },
 ] as const;
 
 export type AdventureStageId = (typeof ADVENTURE_STAGES)[number]['id'];
@@ -88,13 +159,6 @@ export function getAdventureMonsterLifetimeMs(level: number): number {
     const t = (lv - 1) / 49;
     return Math.round(ADVENTURE_MONSTER_LIFETIME_MIN_MS + t * (ADVENTURE_MONSTER_LIFETIME_MAX_MS - ADVENTURE_MONSTER_LIFETIME_MIN_MS));
 }
-
-/**
- * 몬스터 일러스트 (추후 webp 등 배치).
- * 키가 없으면 맵에서 플레이스홀더 박스만 표시.
- * 예: `classic: '/images/adventure/monsters/classic.webp'`
- */
-export const ADVENTURE_MONSTER_IMAGE_SRC: Partial<Record<AdventureMonsterBattleMode, string>> = {};
 
 // --- 지역 이해도 (아이온2 종족 이해도처럼 지역(스테이지)별 누적 XP → 티어 → 패시브 보너스) ---
 

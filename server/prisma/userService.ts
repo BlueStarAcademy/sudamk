@@ -134,22 +134,34 @@ export async function getUserById(id: string, options?: { includeEquipment?: boo
 }
 
 /** 경량 조회: 목록 표시용 (id, nickname, avatarId, borderId만) - 온디맨드 로딩 최적화 */
-export async function getUsersBrief(ids: string[]): Promise<Array<{ id: string; nickname: string; avatarId?: string | null; borderId?: string | null }>> {
+export async function getUsersBrief(ids: string[]): Promise<
+  Array<{
+    id: string;
+    nickname: string;
+    avatarId?: string | null;
+    borderId?: string | null;
+    isAdmin?: boolean;
+    staffNicknameDisplayEligibility?: boolean;
+  }>
+> {
   if (!ids.length) return [];
   const uniqueIds = [...new Set(ids)].slice(0, 200); // 최대 200명
   try {
     await ensurePrismaEngineReady();
     const rows = await prisma.user.findMany({
       where: { id: { in: uniqueIds } },
-      select: { id: true, nickname: true, status: true }
+      select: { id: true, nickname: true, isAdmin: true, status: true }
     });
     return rows.map((r) => {
       const status = r.status as Record<string, unknown> | null;
+      const serialized = status?.serializedUser as { staffNicknameDisplayEligibility?: boolean } | undefined;
       return {
         id: r.id,
         nickname: r.nickname,
         avatarId: (status?.avatarId as string | null) ?? null,
-        borderId: (status?.borderId as string | null) ?? null
+        borderId: (status?.borderId as string | null) ?? null,
+        isAdmin: r.isAdmin,
+        staffNicknameDisplayEligibility: !!serialized?.staffNicknameDisplayEligibility
       };
     });
   } catch (error: any) {

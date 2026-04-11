@@ -314,13 +314,15 @@ const DiceGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 46 : diceSize;
-    const outerSizeClass = compact ? 'h-16 w-16 rounded-xl' : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
+    const effectiveDiceSize = compact ? 28 : diceSize;
+    const outerSizeClass = compact
+        ? 'aspect-square w-full max-w-[min(100%,2.85rem)] min-h-0 shrink rounded-lg'
+        : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
 
     return (
         <div
             title={meta.title}
-            className={`group relative ${outerSizeClass} shrink-0 select-none p-[1px] transition-all duration-300 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
+            className={`group relative ${outerSizeClass} ${compact ? '' : 'shrink-0'} select-none p-[1px] transition-all duration-300 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
             role="group"
             aria-label={meta.ariaLabel}
         >
@@ -361,10 +363,10 @@ const LabeledDiceGoItem: React.FC<{
     children: React.ReactNode;
     compact?: boolean;
 }> = ({ label, disabled, children, compact = false }) => (
-    <div className={`flex min-w-0 max-w-full flex-col items-center gap-1 ${compact ? '' : 'min-w-[3.25rem] sm:min-w-[4rem]'}`}>
+    <div className={`flex min-w-0 max-w-full flex-col items-center gap-0.5 ${compact ? '' : 'min-w-[3.25rem] sm:min-w-[4rem]'}`}>
         {children}
         <span
-            className={`text-center font-semibold leading-none tracking-wide whitespace-nowrap ${compact ? 'text-[9px]' : 'text-[11px]'} ${
+            className={`max-w-full truncate text-center font-semibold leading-none tracking-wide ${compact ? 'text-[8px]' : 'text-[11px] whitespace-nowrap'} ${
                 disabled ? 'text-gray-500' : 'text-amber-100 drop-shadow-sm'
             }`}
         >
@@ -384,7 +386,9 @@ export const DicePanel: React.FC<{
     variant?: DicePanelVariant;
     /** 모바일 경기장 하단 푸터 한 줄 유지 */
     footerCompact?: boolean;
-}> = ({ session, isMyTurn, onAction, currentUser, variant = 'all', footerCompact = false }) => {
+    /** 주사위바둑 판 옆/하단 큰 패널만 좁은 화면에서 축소 */
+    compactMain?: boolean;
+}> = ({ session, isMyTurn, onAction, currentUser, variant = 'all', footerCompact = false, compactMain = false }) => {
     const { id: gameId, gameStatus } = session;
     const [localRollEndTime, setLocalRollEndTime] = React.useState<number>(0);
     const [itemConfirm, setItemConfirm] = React.useState<DiceGoPanelItemKind | null>(null);
@@ -403,7 +407,8 @@ export const DicePanel: React.FC<{
     /** 서버 애니 종료 시각을 클라에서도 맞추기 위해(소켓만으로는 1.5초 중 재렌더가 없을 수 있음) */
     const [, setAnimTick] = React.useState(0);
 
-    const diceAnimation = session.animation?.type === 'dice_roll_main' ? session.animation : null;
+    const diceAnimation =
+        session.animation?.type === 'dice_roll_main' && gameStatus === 'dice_rolling_animating' ? session.animation : null;
     const serverAnimEnd = diceAnimation ? diceAnimation.startTime + diceAnimation.duration : 0;
     /** 서버 startTime과 클라 Date.now() 시차로 굴림이 너무 빨리 끝나면 잘못된 눈이 잠깐 보임 → 수신 기준 최소 굴림 길이 보장 */
     const clientDiceRollEndRef = useRef(0);
@@ -516,15 +521,15 @@ export const DicePanel: React.FC<{
     const mainDice = showMain ? (
         variant === 'mainOnly' ? (
             <div
-                className={`flex flex-col items-center gap-2 rounded-2xl border bg-gradient-to-b from-gray-900/95 via-gray-950/90 to-black/90 px-4 py-4 shadow-[0_0_36px_-10px_rgba(251,191,36,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition-shadow duration-300 ${
-                    canRoll ? 'border-amber-400/55 ring-2 ring-amber-400/20' : 'border-amber-400/35'
-                }`}
+                className={`flex max-w-full min-w-0 flex-col items-center rounded-2xl border bg-gradient-to-b from-slate-900/96 via-gray-950/92 to-black/92 shadow-[0_0_36px_-10px_rgba(251,191,36,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition-shadow duration-300 ${
+                    compactMain ? 'gap-1.5 px-3 py-3' : 'gap-2 px-4 py-4'
+                } ${canRoll ? 'border-amber-400/55 ring-2 ring-amber-400/20' : 'border-amber-400/35'}`}
             >
-                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/85">주사위</span>
+                <span className={`font-bold uppercase tracking-[0.2em] text-amber-200/90 ${compactMain ? 'text-[9px]' : 'text-[10px]'}`}>주사위</span>
                 <Dice
                     value={diceValue ?? null}
                     isRolling={isRolling}
-                    size={64}
+                    size={compactMain ? 52 : 64}
                     onClick={() => handleRoll()}
                     disabled={!canRoll}
                 />
@@ -570,8 +575,8 @@ export const DicePanel: React.FC<{
     const diceGoItemsRow = showItems ? (
         <ArenaFixedColsGrid
             cols={4}
-            gapClass={footerCompact ? 'gap-x-1.5 sm:gap-x-2' : 'gap-x-5 gap-y-2.5'}
-            className={footerCompact ? 'min-w-0' : ''}
+            gapClass={footerCompact ? 'gap-x-0.5 gap-y-1 sm:gap-x-1.5' : 'gap-x-5 gap-y-2.5'}
+            className={footerCompact ? 'min-w-0 max-w-full' : ''}
         >
             <LabeledDiceGoItem label="홀수" disabled={!oddItemUsable} compact={footerCompact}>
                 <DiceGoLuxuryItemCard kind="odd" count={oddCount} usable={oddItemUsable} onUse={() => handleRoll('odd')} compact={footerCompact} />
@@ -804,13 +809,15 @@ const ThiefGoLuxuryItemCard: React.FC<{
     })();
 
     const innerFrame = usable ? meta.innerActive : meta.innerInactive;
-    const effectiveDiceSize = compact ? 46 : diceSize;
-    const outerSizeClass = compact ? 'h-16 w-16 rounded-xl' : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
+    const effectiveDiceSize = compact ? 28 : diceSize;
+    const outerSizeClass = compact
+        ? 'aspect-square w-full max-w-[min(100%,2.85rem)] min-h-0 shrink rounded-lg'
+        : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
 
     return (
         <div
             title={meta.title}
-            className={`group relative ${outerSizeClass} shrink-0 select-none p-[1px] transition-all duration-300 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
+            className={`group relative ${outerSizeClass} ${compact ? '' : 'shrink-0'} select-none p-[1px] transition-all duration-300 bg-gradient-to-b ${meta.outerGrad} ${usable ? meta.hoverOuter : ''}`}
             role="group"
             aria-label={meta.ariaLabel}
         >
@@ -870,7 +877,8 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
     }, [gameId]);
 
     const [, setAnimTick] = React.useState(0);
-    const diceAnimation = animation?.type === 'dice_roll_main' ? animation : null;
+    const diceAnimation =
+        animation?.type === 'dice_roll_main' && gameStatus === 'thief_rolling_animating' ? animation : null;
     const serverAnimEnd = diceAnimation ? diceAnimation.startTime + diceAnimation.duration : 0;
     const clientThiefRollEndRef = useRef(0);
     useLayoutEffect(() => {
@@ -1028,7 +1036,7 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
     };
 
     const thiefItemsRow = showItems ? (
-        <ArenaFixedColsGrid cols={2} gapClass={footerCompact ? 'gap-x-1.5 sm:gap-x-2' : 'gap-x-5 gap-y-2.5'} className={footerCompact ? 'min-w-0' : ''}>
+        <ArenaFixedColsGrid cols={2} gapClass={footerCompact ? 'gap-x-0.5 gap-y-1 sm:gap-x-1.5' : 'gap-x-5 gap-y-2.5'} className={footerCompact ? 'min-w-0 max-w-full' : ''}>
             <LabeledDiceGoItem label="높은수" disabled={!high36Usable} compact={footerCompact}>
                 <ThiefGoLuxuryItemCard kind="high36" count={high36Count} usable={high36Usable} onUse={() => handleRoll('high36')} compact={footerCompact} />
             </LabeledDiceGoItem>
@@ -1902,18 +1910,18 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
                     </div>
                 ) : (
-                    <div className="flex w-full min-w-0 gap-3">
-                        <div className={`flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center ${arenaGameRoomControlsInnerPanelClass}`}>
-                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
+                    <div className="flex w-full min-w-0 max-w-full gap-2 overflow-hidden">
+                        <div className={`flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelClass}`}>
+                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2 sm:gap-4">
                                     {primaryControlsInner}
                                 </ArenaControlStrip>
                             </div>
                         </div>
-                        <div className={`${arenaGameRoomControlsDividerClass} w-0.5`} aria-hidden />
-                        <div className={`flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center ${arenaGameRoomControlsInnerPanelAccentClass}`}>
-                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-4">
+                        <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0`} aria-hidden />
+                        <div className={`flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelAccentClass}`}>
+                            <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2 sm:gap-4">
                                     {specialControlsInner}
                                 </ArenaControlStrip>
                             </div>

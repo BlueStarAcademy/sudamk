@@ -363,11 +363,11 @@ export const GUILD_XP_PER_LEVEL = (level: number): number => {
 
 export const GUILD_MISSIONS_POOL: Omit<GuildMission, 'id' | 'progress' | 'isCompleted' | 'claimedBy' | 'guildId' | 'missionType' | 'status' | 'createdAt' | 'updatedAt'>[] = [
     { title: '길드출석 50회', description: '길드원들이 총 50회 출석하기', target: 50, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'checkIns' },
-    { title: '챔피언십(자동대국) 보상수령 30회', description: '길드원들이 챔피언십 보상 총 30회 수령하기', target: 30, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'championshipClaims' },
+    { title: '길드 기부 누적 50회', description: '길드원들이 골드·다이아 기부를 총 50회 수행하기', target: 50, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'guildDonations' },
     { title: '길드 보스전 참여 30회', description: '길드원들이 길드 보스전에 총 30회 참여하기', target: 30, personalReward: { guildCoins: 100 }, guildReward: { guildXp: 200 }, progressKey: 'bossAttempts' },
-    { title: '전략바둑 승리 30회', description: '길드원들이 전략바둑에서 총 30승 거두기', target: 30, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'strategicWins' },
-    { title: '놀이바둑 승리 30회', description: '길드원들이 놀이바둑에서 총 30승 거두기', target: 30, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'playfulWins' },
-    { title: '강화성공 30회', description: '길드원들이 장비 강화 성공 총 30회 달성하기', target: 30, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'equipmentEnhancements' },
+    { title: '전략바둑 승리 30회', description: '길드원들이 전략바둑에서 총 30승 거두기 (대기실 AI·일반 대국 포함)', target: 30, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'strategicWins' },
+    { title: '놀이바둑 승리 30회', description: '길드원들이 놀이바둑에서 총 30승 거두기 (대기실 AI·일반 대국 포함)', target: 30, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'playfulWins' },
+    { title: '강화시도 50회', description: '길드원들이 장비 강화 시도 총 50회 수행하기', target: 50, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'equipmentEnhancements' },
     { title: '에픽등급이상 장비획득 20회', description: '길드원들이 에픽 등급 이상 장비 20회 획득하기', target: 20, personalReward: { guildCoins: 50 }, guildReward: { guildXp: 150 }, progressKey: 'epicGearAcquisitions' },
     { title: '3000다이아 소모', description: '길드원들이 상점 등에서 다이아 총 3000개 소비하기', target: 3000, personalReward: { guildCoins: 100 }, guildReward: { guildXp: 200 }, progressKey: 'diamondsSpent' },
 ];

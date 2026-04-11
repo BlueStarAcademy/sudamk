@@ -1,8 +1,16 @@
-
 import React from 'react';
 import { LiveGameSession } from '../../types/index.js';
+import AdminPageHeader from './AdminPageHeader.js';
+import { adminPageNarrow, adminTileButton } from './adminChrome.js';
 
-export type AdminView = 'dashboard' | 'userManagement' | 'mailSystem' | 'serverSettings' | 'homeBoard' | 'operations';
+export type AdminView =
+    | 'dashboard'
+    | 'userManagement'
+    | 'mailSystem'
+    | 'serverSettings'
+    | 'serverMonitoring'
+    | 'homeBoard'
+    | 'operations';
 
 interface AdminDashboardProps {
     onNavigate: (view: AdminView) => void;
@@ -45,6 +53,14 @@ const TILES: TileDef[] = [
         ringHover: 'hover:ring-amber-400/40',
     },
     {
+        view: 'serverMonitoring',
+        title: '부하 · 동시접속',
+        description: 'WS·유저 피크, 붐빈 시간대, 메모리·이벤트 루프·과부하 경고 기록',
+        icon: '📈',
+        accent: 'from-cyan-500/20 to-cyan-600/5',
+        ringHover: 'hover:ring-cyan-400/40',
+    },
+    {
         view: 'operations',
         title: '운영 · 테스트',
         description: '챔피언십·토너먼트 초기화, 길드전 충전, 진행 중 대국 관리',
@@ -68,39 +84,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToPro
     ).length;
 
     return (
-        <div className="max-w-5xl mx-auto bg-primary text-primary pb-10 px-1">
-            <header className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-10">
-                <div>
-                    <p className="text-xs font-medium uppercase tracking-wider text-accent/90 mb-1">Admin</p>
-                    <h1 className="text-3xl font-bold tracking-tight">관리자 대시보드</h1>
-                    <p className="mt-2 text-sm text-gray-400 max-w-xl">
-                        아래 패널을 눌러 각 설정 화면으로 이동합니다. 진행 중 대국은{' '}
-                        <span className="text-primary font-medium">{activeCount}건</span>입니다.
-                    </p>
-                </div>
-                <button
-                    type="button"
-                    onClick={onBackToProfile}
-                    className="self-end sm:self-start p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5 shrink-0"
-                    aria-label="프로필로 돌아가기"
-                >
-                    <img src="/images/button/back.png" alt="" className="w-10 h-10 sm:w-12 sm:h-12" />
-                </button>
-            </header>
+        <div className={adminPageNarrow}>
+            <AdminPageHeader
+                title="관리자 대시보드"
+                subtitle={`아래 패널을 눌러 각 설정 화면으로 이동합니다. 진행 중 대국은 ${activeCount}건입니다.`}
+                onBack={onBackToProfile}
+            />
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-5">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:gap-5">
                 {TILES.map((tile) => (
                     <button
                         key={tile.view}
                         type="button"
                         onClick={() => onNavigate(tile.view)}
-                        className={`
-                            group relative text-left rounded-2xl border border-color bg-panel/90 backdrop-blur-sm
-                            p-6 shadow-md transition-all duration-200
-                            hover:shadow-lg hover:border-accent/30 hover:-translate-y-0.5
-                            focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-primary
-                            ${tile.ringHover}
-                        `}
+                        className={`${adminTileButton} ${tile.ringHover}`}
                     >
                         <div
                             className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${tile.accent} opacity-80 pointer-events-none`}
@@ -108,17 +105,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onNavigate, onBackToPro
                         />
                         <div className="relative flex gap-4">
                             <div
-                                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-secondary/80 border border-color text-2xl shadow-inner"
+                                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-color/60 bg-secondary/70 text-2xl shadow-inner"
                                 aria-hidden
                             >
                                 {tile.icon}
                             </div>
                             <div className="min-w-0 flex-1 pt-0.5">
-                                <h2 className="text-lg font-semibold text-primary group-hover:text-accent transition-colors">
+                                <h2 className="text-lg font-semibold text-primary transition-colors group-hover:text-amber-200/95">
                                     {tile.title}
                                 </h2>
                                 <p className="mt-2 text-sm text-gray-400 leading-snug line-clamp-3">{tile.description}</p>
-                                <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-accent/90 group-hover:text-accent">
+                                <span className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-amber-400/90 transition-colors group-hover:text-amber-300">
                                     설정 열기
                                     <span className="transition-transform group-hover:translate-x-0.5" aria-hidden>
                                         →

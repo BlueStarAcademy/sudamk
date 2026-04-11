@@ -17,6 +17,7 @@ import {
 } from '../../constants/index.js';
 import Button from '../Button.js';
 import Avatar from '../Avatar.js';
+import UserNicknameText from '../UserNicknameText.js';
 import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
@@ -331,7 +332,14 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
                     onClick={() => !isMe && onViewUser(user.id)}
                     title={!isMe ? `${user.nickname} 프로필 보기` : ''}
                 >
-                    <span className="font-semibold truncate text-sm">{user.nickname}</span>
+                    <UserNicknameText
+                        user={{
+                            nickname: user.nickname,
+                            isAdmin: user.isAdmin,
+                            staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                        }}
+                        className="font-semibold truncate text-sm"
+                    />
                     {/* 재대결 버튼은 하단 대국 기능 패널로 이동 */}
                 </div>
                 <span className="ml-auto text-xs text-gray-400 flex-shrink-0">{role}</span>

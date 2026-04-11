@@ -81,6 +81,8 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
                 // updatedInventory는 이미 새로운 배열이므로 직접 할당 (성능 최적화)
                 user.inventory = updatedInventory;
+
+                await guildService.recordGuildEpicPlusEquipmentAcquisition(user, obtainedItems);
                 
                 // 선택적 필드만 반환 (메시지 크기 최적화)
                 const updatedUser = getSelectiveUserUpdate(user, 'BUY_SHOP_ITEM', { includeAll: true });

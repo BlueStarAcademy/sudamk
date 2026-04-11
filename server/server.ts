@@ -17,6 +17,7 @@ import { randomUUID, timingSafeEqual } from 'crypto';
 import process from 'process';
 import http from 'http';
 import { createWebSocketServer, broadcast, broadcastUserUpdate, sendToUser } from './socket.js';
+import { startServerLoadMonitoring, buildAdminServerMetricsPayload } from './serverLoadMetrics.js';
 
 // Railway 환경 자동 감지
 // Railway는 RAILWAY_ENVIRONMENT_NAME, RAILWAY_SERVICE_NAME 등을 제공하지만
@@ -46,6 +47,10 @@ import { calculateTotalStats } from './statService.js';
 import { isSameDayKST, getKSTDate } from '../shared/utils/timeUtils.js';
 import { createDefaultBaseStats, createDefaultUser } from './initialData.ts';
 import { containsProfanity } from '../profanity.js';
+import {
+    nicknameContainsReservedStaffTerms,
+    RESERVED_STAFF_NICKNAME_USER_MESSAGE,
+} from '../shared/utils/staffNicknameDisplay.js';
 import { volatileState } from './state.js';
 import { CoreStat } from '../types/index.js';
 import { clearAiSession, syncAiSession } from './aiSessionManager.js';
@@ -730,6 +735,28 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
         }
     });
+
+    /** 관리자 부하 모니터 — 파일 하단보다 먼저 등록해 라우트 누락·호환 포트(4000) 이슈를 피함 */
+    const handleAdminServerMetrics: express.RequestHandler = async (req, res) => {
+        try {
+            const userId = String(req.query.userId || '').trim();
+            if (!userId) {
+                return res.status(401).json({ error: 'Unauthorized', message: 'userId가 필요합니다.' });
+            }
+            const adminUser = await db.getUser(userId, { includeEquipment: false, includeInventory: false });
+            if (!adminUser || !adminUser.isAdmin) {
+                return res.status(403).json({ error: 'Forbidden: Admin access required' });
+            }
+            const volatileOnline = Object.keys(volatileState.userConnections).length;
+            const payload = await buildAdminServerMetricsPayload(volatileOnline);
+            res.json(payload);
+        } catch (error: any) {
+            console.error('[Admin] server-metrics:', error);
+            res.status(500).json({ error: error.message });
+        }
+    };
+    app.get('/api/admin/server-metrics', handleAdminServerMetrics);
+    app.get('/admin/server-metrics', handleAdminServerMetrics);
     
     console.log('[Server] Health check endpoint registered (before server listen)');
     
@@ -815,11 +842,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         const healthCompatPort = 4000;
         const healthCompatServer = http.createServer((req, res) => {
             const url = req.url || '';
-            if (url === '/api/health' || url === '/') {
+            const pathOnly = url.split('?')[0] || '';
+            // 메인 앱이 다른 PORT일 때, 4000으로 오는 /api/* 는 전부 Express로 넘김 (관리자 API·프록시 URL 대응)
+            if (pathOnly === '/' || pathOnly === '/api' || pathOnly.startsWith('/api/')) {
                 app(req, res);
                 return;
             }
-            // Health compatibility port로는 헬스 경로만 허용 (불필요한 트래픽 최소화)
             res.statusCode = 404;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ message: 'Not found' }));
@@ -877,6 +905,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             console.error('[Server] HTTP server will continue without WebSocket support');
             // WebSocket 서버 생성 실패해도 HTTP 서버는 계속 실행
         }
+        startServerLoadMonitoring();
         
         // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
         // NOTE: Railway 멀티서비스 구조에서는 KataGo를 별도 서비스로 운영하므로
@@ -3072,55 +3101,39 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return;
             }
             
-            // 비밀번호 검증
-            // 기존 사용자의 경우 평문 비밀번호나 pbkdf2 해시일 수 있음
+            // 비밀번호 검증 (bcrypt 권장 · 구형 pbkdf2/평문은 로그인 시 bcrypt로 이관)
             let isValidPassword = false;
-            
-            console.log('[/api/auth/login] Password hash length:', credentials.passwordHash?.length);
-            console.log('[/api/auth/login] Password hash starts with:', credentials.passwordHash?.substring(0, 10));
-            
+
             if (credentials.passwordHash) {
-                // bcrypt 해시인지 확인
-                if (credentials.passwordHash.startsWith('$2a$') || 
-                    credentials.passwordHash.startsWith('$2b$') || 
-                    credentials.passwordHash.startsWith('$2y$')) {
-                    // bcrypt 해시
-                    console.log('[/api/auth/login] Detected bcrypt hash');
+                if (
+                    credentials.passwordHash.startsWith('$2a$') ||
+                    credentials.passwordHash.startsWith('$2b$') ||
+                    credentials.passwordHash.startsWith('$2y$')
+                ) {
                     isValidPassword = await verifyPassword(password, credentials.passwordHash);
                 } else if (credentials.passwordHash.length < 20) {
-                    // 평문 비밀번호로 저장된 경우 (마이그레이션 필요)
-                    console.log('[/api/auth/login] Detected plain text password, comparing directly');
+                    // 구형 평문 저장분 → 성공 시 bcrypt로 교체
                     if (password === credentials.passwordHash) {
-                        console.log('[/api/auth/login] Plain text password match, migrating to bcrypt');
-                        // 비밀번호를 bcrypt로 재해시하여 저장
                         const { hashPassword } = await import('./utils/passwordUtils.js');
                         const newHash = await hashPassword(password);
                         await db.updateUserCredentialPassword(credentials.userId, { passwordHash: newHash });
                         isValidPassword = true;
                     } else {
-                        console.log('[/api/auth/login] Plain text password mismatch');
                         isValidPassword = false;
                     }
                 } else {
-                    // pbkdf2 해시일 가능성 (기존 사용자)
-                    console.log('[/api/auth/login] Detected non-bcrypt hash, assuming legacy pbkdf2');
-                    // 기존 관리자 비밀번호는 '1217'이었음
-                    // pbkdf2 해시는 128자 hex 문자열
+                    // pbkdf2 `hash:salt` 또는 salt 없는 128자 hex(구 시드) 등
                     if (credentials.passwordHash.length === 128 && /^[0-9a-f]+$/i.test(credentials.passwordHash)) {
-                        // 기존 사용자의 경우, 비밀번호 '1217'로 직접 시도
+                        // salt가 DB에 없던 초기 시드: 검증 불가 → 알려진 기본 비밀번호로만 이관 (로그인 시 bcrypt로 교체)
                         if (password === '1217') {
-                            console.log('[/api/auth/login] Legacy password match for username:', username);
-                            // 비밀번호를 bcrypt로 재해시하여 저장
                             const { hashPassword } = await import('./utils/passwordUtils.js');
                             const newHash = await hashPassword(password);
                             await db.updateUserCredentialPassword(credentials.userId, { passwordHash: newHash });
                             isValidPassword = true;
                         } else {
-                            console.log('[/api/auth/login] Legacy password mismatch');
                             isValidPassword = false;
                         }
                     } else {
-                        // 다른 형식의 해시인 경우
                         isValidPassword = await verifyPassword(password, credentials.passwordHash);
                     }
                 }
@@ -3884,6 +3897,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(400).json({ available: false, message: '닉네임에 부적절한 단어가 포함되어 있습니다.' });
             }
 
+            const viewer = userId ? await db.getUser(userId) : null;
+            if (!viewer?.isAdmin && nicknameContainsReservedStaffTerms(nickname) && !viewer?.staffNicknameDisplayEligibility) {
+                return res.status(400).json({ available: false, message: RESERVED_STAFF_NICKNAME_USER_MESSAGE });
+            }
+
             const existingUser = await db.getUserByNickname(nickname);
             if (existingUser && existingUser.id !== userId) {
                 return res.status(409).json({ available: false, message: '이미 사용 중인 닉네임입니다.' });
@@ -3920,12 +3938,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             if (containsProfanity(nickname)) {
                 return res.status(400).json({ message: '닉네임에 부적절한 단어가 포함되어 있습니다.' });
             }
-            
+
             const user = await db.getUser(userId);
             if (!user) {
                 return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
             }
-            
+
+            if (!user.isAdmin && nicknameContainsReservedStaffTerms(nickname)) {
+                return res.status(400).json({ message: RESERVED_STAFF_NICKNAME_USER_MESSAGE });
+            }
+
             // 닉네임 중복 확인 (DB 쿼리로 최적화)
             const existingUser = await db.getUserByNickname(nickname.trim());
             if (existingUser && existingUser.id !== userId) {
@@ -3934,6 +3956,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             
             // 닉네임 업데이트
             user.nickname = nickname.trim();
+            if (!user.isAdmin) {
+                user.staffNicknameDisplayEligibility = false;
+            }
 
             if (bodyAvatarId != null && String(bodyAvatarId).trim() !== '') {
                 const aid = String(bodyAvatarId).trim();
@@ -3949,7 +3974,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const updatedUser = (await db.getUser(userId)) ?? user;
 
             // 모든 클라이언트에 닉네임·아바타 변경 브로드캐스트 (대기실·프로필 등에서 즉시 반영)
-            broadcastUserUpdate(updatedUser, ['nickname', 'avatarId']);
+            broadcastUserUpdate(updatedUser, ['nickname', 'avatarId', 'staffNicknameDisplayEligibility']);
 
             res.json({ user: updatedUser });
         } catch (e: any) {

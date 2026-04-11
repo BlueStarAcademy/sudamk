@@ -33,6 +33,13 @@ const HEADER_RESOURCE_VALUE_CLASS = {
 /** 네이티브 모바일 특수재화 팝오버: 전면 광고·모달 루트(z-180)·인터스티셜(z-99999) 위에 표시 */
 const SPECIAL_RESOURCES_POPOVER_Z = 200_000;
 
+/** 모바일 상단 헤더: 우편함·설정·로그아웃 터치 영역 (기존 대비 약 15~25% 확대) */
+const MOBILE_HEADER_ACTION_BTN =
+    'h-[clamp(1.72rem,6vw,2.35rem)] w-[clamp(1.72rem,6vw,2.35rem)]';
+const MOBILE_HEADER_MAIL_ICON = 'h-[clamp(0.92rem,3.4vw,1.18rem)] w-[clamp(0.92rem,3.4vw,1.18rem)]';
+const MOBILE_HEADER_SETTINGS_ICON = 'text-[clamp(0.88rem,3.3vw,1.18rem)]';
+const MOBILE_HEADER_POWER_ICON = 'h-[clamp(1.08rem,3.9vw,1.5rem)] w-[clamp(1.08rem,3.9vw,1.5rem)]';
+
 const ResourceDisplay = memo<{
     icon: ResourceIconKey;
     value: number;
@@ -434,7 +441,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         onClick={openMailbox}
                         className={
                             isMobile
-                                ? 'relative flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
+                                ? `relative flex ${MOBILE_HEADER_ACTION_BTN} flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary`
                                 : dense
                                   ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
                                   : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
@@ -445,7 +452,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             src="/images/icon/mail.png"
                             alt="우편함"
                             className={`object-contain ${
-                                isMobile ? 'h-[clamp(0.75rem,2.6vw,0.95rem)] w-[clamp(0.75rem,2.6vw,0.95rem)]' : dense ? 'h-4 w-4' : 'h-6 w-6'
+                                isMobile ? MOBILE_HEADER_MAIL_ICON : dense ? 'h-4 w-4' : 'h-6 w-6'
                             }`}
                             loading="lazy"
                             decoding="async"
@@ -453,7 +460,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         {unreadMailCount > 0 && (
                             <span
                                 className={`absolute rounded-full border-2 border-primary bg-red-500 ${
-                                    isMobile ? 'right-0 top-0 h-[clamp(0.3rem,1.2vw,0.4rem)] w-[clamp(0.3rem,1.2vw,0.4rem)]' : dense ? 'top-0 right-0 h-1.5 w-1.5' : 'top-1 right-1 h-2.5 w-2.5'
+                                    isMobile ? 'right-0 top-0 h-[clamp(0.36rem,1.45vw,0.5rem)] w-[clamp(0.36rem,1.45vw,0.5rem)]' : dense ? 'top-0 right-0 h-1.5 w-1.5' : 'top-1 right-1 h-2.5 w-2.5'
                                 }`}
                             />
                         )}
@@ -463,7 +470,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         onClick={openSettingsModal}
                         className={
                             isMobile
-                                ? 'relative flex h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)] flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-[clamp(0.7rem,2.5vw,0.95rem)] transition-colors hover:bg-primary'
+                                ? `relative flex ${MOBILE_HEADER_ACTION_BTN} flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 ${MOBILE_HEADER_SETTINGS_ICON} transition-colors hover:bg-primary`
                                 : dense
                                   ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm transition-colors hover:bg-primary'
                                   : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
@@ -477,11 +484,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         type="button"
                         onClick={() => setShowLogoutConfirm(true)}
                         className={`flex shrink-0 items-center justify-center rounded-full border-2 border-red-800/85 bg-red-500 text-black shadow-sm transition-colors hover:bg-red-600 ${
-                            isMobile
-                                ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] w-[clamp(1.45rem,4.8vw,1.85rem)]'
-                                : dense
-                                  ? 'h-9 w-9'
-                                  : 'h-10 w-10'
+                            isMobile ? MOBILE_HEADER_ACTION_BTN : dense ? 'h-9 w-9' : 'h-10 w-10'
                         }`}
                         title="로그아웃"
                         aria-label="로그아웃"
@@ -491,7 +494,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             fill="none"
                             xmlns="http://www.w3.org/2000/svg"
                             className={`text-black ${
-                                isMobile ? 'h-[clamp(0.95rem,3.2vw,1.2rem)] w-[clamp(0.95rem,3.2vw,1.2rem)]' : dense ? 'h-[1.125rem] w-[1.125rem]' : 'h-5 w-5'
+                                isMobile ? MOBILE_HEADER_POWER_ICON : dense ? 'h-[1.125rem] w-[1.125rem]' : 'h-5 w-5'
                             }`}
                             aria-hidden
                         >

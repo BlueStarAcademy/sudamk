@@ -5,6 +5,7 @@ import MailSystemPanel from './admin/MailSystemPanel.js';
 import ServerSettingsPanel from './admin/ServerSettingsPanel.js';
 import HomeBoardPanel from './admin/HomeBoardPanel.js';
 import AdminOperationsPanel from './admin/AdminOperationsPanel.js';
+import ServerMonitoringPanel from './admin/ServerMonitoringPanel.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
@@ -44,6 +45,13 @@ const Admin: React.FC = () => {
                 return <MailSystemPanel {...adminProps} />;
             case 'serverSettings':
                 return <ServerSettingsPanel {...adminProps} />;
+            case 'serverMonitoring':
+                return (
+                    <ServerMonitoringPanel
+                        currentUserId={adminProps.currentUser.id}
+                        onBack={handleBack}
+                    />
+                );
             case 'homeBoard':
                 return <HomeBoardPanel {...adminProps} />;
             case 'operations':

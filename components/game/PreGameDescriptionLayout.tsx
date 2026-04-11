@@ -35,6 +35,29 @@ export const PRE_GAME_MODAL_SUCCESS_BTN_CLASS =
 export const PRE_GAME_MODAL_DANGER_BTN_CLASS =
   'min-h-[3.25rem] !rounded-xl !border-2 !border-red-400/55 !bg-gradient-to-r !from-red-600 !via-rose-600 !to-red-800 !text-white !shadow-[0_14px_40px_-12px_rgba(239,68,68,0.42)] hover:!from-red-500 hover:!via-rose-500 hover:!to-red-700 focus:!ring-red-400/45 focus:!ring-offset-2 focus:!ring-offset-zinc-950';
 
+/**
+ * 모바일·좁은 뷰포트 대기실: AI 대결 / PVP 신청 하단 — `Button`에 `bare`와 함께 사용.
+ * 입체 하이라이트·링·터치 영역 확대.
+ */
+export const LOBBY_MOBILE_MODAL_FOOTER_CLASS =
+  'border-t border-amber-400/35 bg-gradient-to-t from-[#060508] via-[#0f0d14] to-[#16131f] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.09)] sm:px-4 sm:py-3.5';
+
+export const LOBBY_MOBILE_BTN_PRIMARY_CLASS =
+  'inline-flex min-h-[3.35rem] w-full flex-1 items-center justify-center rounded-xl border border-violet-200/40 bg-gradient-to-br from-violet-500 via-fuchsia-600 to-indigo-800 px-4 text-[15px] font-bold tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.24),0_5px_0_0_rgba(55,48,163,0.72),0_22px_48px_-14px_rgba(139,92,246,0.52)] ring-1 ring-violet-300/25 transition-all duration-200 hover:brightness-[1.08] active:translate-y-px active:shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_3px_0_0_rgba(55,48,163,0.62)] disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:brightness-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0812] touch-manipulation';
+
+export const LOBBY_MOBILE_BTN_SECONDARY_CLASS =
+  'inline-flex min-h-[3.35rem] w-full flex-1 items-center justify-center rounded-xl border border-slate-500/55 bg-gradient-to-b from-slate-600/98 via-slate-800 to-slate-950 px-4 text-[15px] font-bold tracking-wide text-slate-50 shadow-[inset_0_2px_0_rgba(255,255,255,0.13),0_5px_0_0_rgba(15,23,42,0.88),0_18px_40px_-12px_rgba(0,0,0,0.58)] ring-1 ring-white/[0.08] transition-all duration-200 hover:from-slate-500 hover:brightness-[1.05] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0812] touch-manipulation';
+
+export const LOBBY_MOBILE_BTN_DANGER_CLASS =
+  'inline-flex min-h-[3.35rem] w-full flex-1 items-center justify-center rounded-xl border border-rose-300/45 bg-gradient-to-br from-rose-600 via-red-600 to-red-950 px-4 text-[15px] font-bold tracking-wide text-white shadow-[inset_0_2px_0_rgba(255,255,255,0.2),0_5px_0_0_rgba(127,29,29,0.72),0_20px_44px_-12px_rgba(239,68,68,0.48)] ring-1 ring-rose-300/30 transition-all duration-200 hover:brightness-105 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400/55 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a0812] touch-manipulation';
+
+export const LOBBY_MOBILE_BTN_DISABLED_WAIT_CLASS =
+  'inline-flex min-h-[3.35rem] w-full flex-1 cursor-not-allowed items-center justify-center rounded-xl border border-white/[0.08] bg-zinc-900/55 px-4 text-[15px] font-semibold tracking-wide text-zinc-500 shadow-inner ring-1 ring-white/[0.04]';
+
+/** 모바일 AI 모달 헤더 「뒤로」 — DraggableWindow headerContent용 */
+export const LOBBY_MOBILE_HEADER_BACK_BTN_CLASS =
+  'rounded-lg border border-amber-400/35 bg-gradient-to-b from-amber-500/25 to-amber-950/40 px-3 py-1.5 text-xs font-bold tracking-wide text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_4px_14px_-6px_rgba(245,158,11,0.35)] ring-1 ring-amber-500/20 transition-all active:scale-[0.98] hover:from-amber-500/35 hover:to-amber-950/50 touch-manipulation sm:text-sm sm:px-4 sm:py-2';
+
 function modeMetaImage(mode: GameMode): string | undefined {
   const meta = SPECIAL_GAME_MODES.find((m) => m.mode === mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === mode);
   return meta?.image;

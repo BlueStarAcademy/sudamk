@@ -12,6 +12,7 @@ import {
   normalizeEquipmentOptionNumbers,
 } from "../../shared/utils/inventoryLegacyNormalize.js";
 import { consolidateRefinementTicketStacks } from "../../utils/inventoryUtils.js";
+import { normalizeQuestLogProgressCaps } from "../../utils/questProgressCap.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
@@ -148,7 +149,7 @@ const safeBoolean = (value: unknown, fallback = false): boolean => {
 
 const ensureQuestLog = (value: unknown): QuestLog => {
   const parsed = parseJson<QuestLog>(value, createDefaultQuests());
-  return {
+  const out: QuestLog = {
     daily: {
       quests: Array.isArray(parsed.daily?.quests) ? parsed.daily?.quests : [],
       activityProgress: parsed.daily?.activityProgress ?? 0,
@@ -168,6 +169,8 @@ const ensureQuestLog = (value: unknown): QuestLog => {
       lastReset: parsed.monthly?.lastReset ?? 0
     }
   };
+  normalizeQuestLogProgressCaps(out);
+  return out;
 };
 
 const ensureInventorySlots = (value: unknown): User["inventorySlots"] => {
@@ -299,6 +302,10 @@ const applyDefaults = (
       `user-${prismaUser.id.slice(-6)}`,
     nickname: user.nickname ?? prismaUser.nickname,
     isAdmin: user.isAdmin ?? prismaUser.isAdmin ?? false,
+    staffNicknameDisplayEligibility: !!(
+      user.staffNicknameDisplayEligibility ??
+      (status?.serializedUser as User | undefined)?.staffNicknameDisplayEligibility
+    ),
     strategyLevel: user.strategyLevel ?? prismaUser.strategyLevel ?? 1,
     strategyXp: user.strategyXp ?? prismaUser.strategyXp ?? 0,
     playfulLevel: user.playfulLevel ?? prismaUser.playfulLevel ?? 1,

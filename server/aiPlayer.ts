@@ -365,6 +365,9 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
     }
     
     if (game.gameStatus === 'dice_rolling') {
+        if (aiPlayerId !== aiUserId) {
+            return;
+        }
         // 주사위 굴리기
         const logic = getGoLogic(game);
         const liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
@@ -734,6 +737,9 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
     const myRole = aiPlayerId === game.thiefPlayerId ? 'thief' : 'police';
     
     if (game.gameStatus === 'thief_rolling') {
+        if (aiPlayerId !== aiUserId) {
+            return;
+        }
         // 주사위 굴리기
         const dice1 = Math.floor(Math.random() * 6) + 1;
         let dice2 = 0;

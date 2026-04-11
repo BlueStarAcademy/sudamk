@@ -1,6 +1,7 @@
 import {
     emptySlotImages, TOURNAMENT_DEFINITIONS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, LEAGUE_DATA, AVATAR_POOL, BORDER_POOL, RANKING_TIERS, EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS
 } from '../constants.js';
+import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
 import { getMainBackgroundUrl } from '../utils/publicAssetUrl.js';
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import { ItemGrade } from '../types.js';
@@ -58,6 +59,8 @@ addUrls(Object.values(gradeBackgrounds));
 addUrls(starImages);
 addUrls(uiImages);
 addUrls([getMainBackgroundUrl()]);
+addUrls(ADVENTURE_STAGES.map((s) => s.monsterSheetWebp));
+addUrls(ADVENTURE_STAGES.map((s) => s.mapWebp));
 
 export const ALL_IMAGE_URLS = Array.from(allUrls);
 

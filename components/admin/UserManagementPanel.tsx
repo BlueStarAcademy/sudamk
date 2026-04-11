@@ -1,5 +1,5 @@
-
 import React, { useState, useMemo, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 // FIX: Import missing types from the centralized types file.
 import { User, ServerAction, AdminProps, LiveGameSession, GameMode, Quest, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentType, InventoryItem, InventoryItemType, Equipment } from '../../types/index.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -7,6 +7,8 @@ import Button from '../Button.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../../constants';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { getApiUrl } from '../../utils/apiConfig.js';
+import AdminPageHeader from './AdminPageHeader.js';
+import { adminCard, adminCardTitle, adminInput, adminPageNarrow, adminShell } from './adminChrome.js';
 
 interface UserManagementModalProps {
     user: User;
@@ -730,6 +732,70 @@ const ROW_ESTIMATE_PX = 52;
 const BATCH_MIN = 15;
 const BATCH_MAX = 100;
 
+type AdminCreateUserFormProps = {
+    username: string;
+    setUsername: (v: string) => void;
+    password: string;
+    setPassword: (v: string) => void;
+    nickname: string;
+    setNickname: (v: string) => void;
+    createUserEmail: string;
+    setCreateUserEmail: (v: string) => void;
+    onSubmit: (e: React.FormEvent) => void;
+};
+
+const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({
+    username,
+    setUsername,
+    password,
+    setPassword,
+    nickname,
+    setNickname,
+    createUserEmail,
+    setCreateUserEmail,
+    onSubmit,
+}) => (
+    <form onSubmit={onSubmit} className="space-y-4">
+        <input
+            type="text"
+            name="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="아이디"
+            className={adminInput}
+        />
+        <input
+            type="password"
+            name="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="비밀번호"
+            className={adminInput}
+        />
+        <input
+            type="email"
+            name="createUserEmail"
+            value={createUserEmail}
+            onChange={(e) => setCreateUserEmail(e.target.value)}
+            placeholder="이메일 (선택사항)"
+            autoComplete="off"
+            className={adminInput}
+        />
+        <input
+            type="text"
+            name="nickname"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            placeholder="닉네임"
+            className={adminInput}
+            maxLength={6}
+        />
+        <Button type="submit" className="w-full">
+            생성하기
+        </Button>
+    </form>
+);
+
 const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _allUsers, onAction, onBack, currentUser }) => {
     const { handlers } = useAppContext();
     const [searchQuery, setSearchQuery] = useState('');
@@ -739,6 +805,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
     const [password, setPassword] = useState('');
     const [nickname, setNickname] = useState('');
     const [createUserEmail, setCreateUserEmail] = useState('');
+    const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
     const [isLoadingUsers, setIsLoadingUsers] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [searchError, setSearchError] = useState<string | null>(null);
@@ -967,15 +1034,31 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
         }
     };
 
-    const handleCreateUser = (e: React.FormEvent) => {
+    const handleCreateUser = (e: React.FormEvent, options?: { closeModal?: boolean }) => {
         e.preventDefault();
-        if (!username || !password || !nickname) { alert('모든 필드를 입력해주세요.'); return; }
+        if (!username || !password || !nickname) {
+            alert('모든 필드를 입력해주세요.');
+            return;
+        }
         const payload: { username: string; password: string; nickname: string; email?: string } = { username, password, nickname };
         const emailTrim = createUserEmail.trim();
         if (emailTrim) payload.email = emailTrim;
         onAction({ type: 'ADMIN_CREATE_USER', payload });
-        setUsername(''); setPassword(''); setNickname(''); setCreateUserEmail('');
+        setUsername('');
+        setPassword('');
+        setNickname('');
+        setCreateUserEmail('');
+        if (options?.closeModal) setIsCreateUserModalOpen(false);
     };
+
+    useEffect(() => {
+        if (!isCreateUserModalOpen) return;
+        const onKey = (ev: KeyboardEvent) => {
+            if (ev.key === 'Escape') setIsCreateUserModalOpen(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isCreateUserModalOpen]);
 
     const searchedUsers = useMemo(() => localUsers, [localUsers]);
 
@@ -986,7 +1069,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
             : `전체 ${totalMatching.toLocaleString()}명 · 표시 ${searchedUsers.length.toLocaleString()}명`;
 
     return (
-        <div className="flex h-full max-h-full min-h-0 min-w-0 flex-1 flex-col bg-primary text-primary">
+        <div className={`${adminShell} flex h-full max-h-full min-h-0 min-w-0 flex-1 flex-col ${adminPageNarrow}`}>
             {panelManagingUser && (
                 <UserManagementModal
                     user={panelManagingUser}
@@ -996,26 +1079,34 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                     onRefreshFullUser={refreshPanelUser}
                 />
             )}
-            <header className="flex shrink-0 justify-between items-center gap-3 pb-4">
-                <h1 className="text-2xl sm:text-3xl font-bold">사용자 관리</h1>
-                <button onClick={onBack} className="p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
-                    <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
-                </button>
-            </header>
+            <AdminPageHeader
+                title="사용자 관리"
+                subtitle="검색·계정 수정, 인벤·장비, 권한 및 제재 등은 목록에서 사용자를 열어 처리합니다."
+                onBack={onBack}
+            />
 
-            <div className="flex flex-col lg:flex-row flex-1 min-h-0 gap-6 lg:gap-8">
-                <div className="flex flex-col flex-1 min-h-0 min-w-0 bg-panel border border-color text-on-panel p-4 sm:p-6 rounded-lg shadow-lg">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-3 shrink-0">
-                        <h2 className="text-lg sm:text-xl font-semibold">
-                            {summaryLabel}
-                            {isLoadingUsers && <span className="ml-2 text-sm text-gray-400">(불러오는 중…)</span>}
-                        </h2>
+            <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
+                <div className={`${adminCard} flex min-h-0 min-w-0 flex-1 flex-col p-4 sm:p-6`}>
+                    <div className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <div className="flex min-w-0 flex-1 items-start justify-between gap-2 sm:min-w-0 sm:items-center">
+                            <h2 className="min-w-0 flex-1 text-lg font-semibold sm:text-xl">
+                                {summaryLabel}
+                                {isLoadingUsers && <span className="ml-2 text-sm text-gray-400">(불러오는 중…)</span>}
+                            </h2>
+                            <button
+                                type="button"
+                                onClick={() => setIsCreateUserModalOpen(true)}
+                                className="shrink-0 rounded-lg border border-amber-400/50 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-200 shadow-sm transition-colors hover:bg-amber-500/25 active:scale-[0.98] lg:hidden"
+                            >
+                                신규 발급
+                            </button>
+                        </div>
                         <input
                             type="text"
                             placeholder="닉네임 또는 아이디 검색 (비우면 전체)"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent w-full sm:w-72 shrink-0 p-2.5"
+                            className={`${adminInput} w-full shrink-0 sm:w-72`}
                         />
                     </div>
                     <p className="text-sm text-gray-400 mb-3 shrink-0">
@@ -1024,33 +1115,71 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                     {searchError && (
                         <div className="mb-3 text-sm text-red-400 shrink-0">{searchError}</div>
                     )}
-                    <div ref={listScrollRef} className="flex-1 min-h-0 overflow-y-auto rounded-md border border-color/60">
-                        <table className="w-full text-base sm:text-[1.05rem] text-left text-secondary">
-                            <thead className="text-sm sm:text-[0.95rem] text-secondary uppercase bg-secondary sticky top-0 z-[1] shadow-sm">
+                    <div
+                        ref={listScrollRef}
+                        className="min-h-0 flex-1 overflow-y-auto overflow-x-auto rounded-md border border-color/60 [-webkit-overflow-scrolling:touch]"
+                    >
+                        <table className="w-full table-fixed text-left text-secondary max-lg:text-[11px] max-lg:leading-tight lg:text-base xl:text-[1.05rem]">
+                            <thead className="bg-secondary text-secondary shadow-sm max-lg:text-[10px] max-lg:uppercase lg:text-sm xl:text-[0.95rem] sticky top-0 z-[1]">
                                 <tr>
-                                    <th scope="col" className="px-4 sm:px-6 py-3.5">닉네임</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3.5">아이디</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3.5">레벨 (전략/놀이)</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3.5">접속 상태</th>
-                                    <th scope="col" className="px-4 sm:px-6 py-3.5">액션</th>
+                                    <th scope="col" className="max-lg:w-[22%] max-lg:px-1.5 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
+                                        닉네임
+                                    </th>
+                                    <th scope="col" className="max-lg:w-[24%] max-lg:px-1.5 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
+                                        아이디
+                                    </th>
+                                    <th scope="col" className="max-lg:w-[14%] max-lg:px-1 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
+                                        <span className="lg:hidden">레벨</span>
+                                        <span className="hidden lg:inline">레벨 (전략/놀이)</span>
+                                    </th>
+                                    <th scope="col" className="max-lg:w-[16%] max-lg:px-1 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
+                                        <span className="lg:hidden">상태</span>
+                                        <span className="hidden lg:inline">접속 상태</span>
+                                    </th>
+                                    <th scope="col" className="max-lg:w-[24%] max-lg:px-1.5 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
+                                        <span className="lg:hidden">동작</span>
+                                        <span className="hidden lg:inline">액션</span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {searchedUsers.map(user => (
-                                    <tr key={user.id} className="bg-primary border-b border-color hover:bg-secondary/50">
-                                        <th 
-                                            scope="row" 
-                                            className="px-4 sm:px-6 py-4 sm:py-5 font-medium text-primary whitespace-nowrap cursor-pointer hover:text-accent"
+                                    <tr
+                                        key={user.id}
+                                        className="border-b border-color bg-primary hover:bg-secondary/50 max-lg:whitespace-nowrap"
+                                    >
+                                        <th
+                                            scope="row"
+                                            className="min-w-0 max-w-0 cursor-pointer truncate px-4 py-4 font-medium text-primary hover:text-accent max-lg:px-1.5 max-lg:py-2 sm:px-6 sm:py-5"
                                             onClick={() => handlers.openViewingUser(user.id)}
-                                            title={`${user.nickname} 프로필 보기`}
-                                        > 
-                                            {user.nickname} {user.isAdmin && <span className="text-sm text-purple-400 ml-2">[관리자]</span>} 
+                                            title={`${user.nickname}${user.isAdmin ? ' (관리자)' : ''} — 프로필 보기`}
+                                        >
+                                            <span className="block min-w-0 truncate">
+                                                {user.nickname}
+                                                {user.isAdmin && (
+                                                    <>
+                                                        <span className="text-[10px] text-purple-400 lg:hidden">[관]</span>
+                                                        <span className="hidden text-sm text-purple-400 lg:inline">[관리자]</span>
+                                                    </>
+                                                )}
+                                            </span>
                                         </th>
-                                        <td className="px-4 sm:px-6 py-4 sm:py-5">{user.username}</td>
-                                        <td className="px-4 sm:px-6 py-4 sm:py-5">S.{user.strategyLevel} / P.{user.playfulLevel}</td>
-                                        <td className="px-4 sm:px-6 py-4 sm:py-5">{renderOnlineLabel(user)}</td>
-                                        <td className="px-4 sm:px-6 py-4 sm:py-5">
-                                            <div className="flex items-center gap-3">
+                                        <td
+                                            className="min-w-0 max-w-0 truncate px-4 py-4 max-lg:px-1.5 max-lg:py-2 sm:px-6 sm:py-5"
+                                            title={user.username}
+                                        >
+                                            {user.username}
+                                        </td>
+                                        <td className="px-4 py-4 max-lg:px-1 max-lg:py-2 sm:px-6 sm:py-5 tabular-nums">
+                                            S.{user.strategyLevel}/P.{user.playfulLevel}
+                                        </td>
+                                        <td className="px-4 py-4 max-lg:px-1 max-lg:py-2 sm:px-6 sm:py-5">
+                                            <span className="max-lg:inline-block max-lg:max-w-full max-lg:truncate">
+                                                {renderOnlineLabel(user)}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-4 max-lg:px-1.5 max-lg:py-2 sm:px-6 sm:py-5">
+                                            <div className="flex max-lg:min-w-0 max-lg:items-center max-lg:justify-end max-lg:gap-1 lg:gap-3">
                                                 <button
                                                     type="button"
                                                     disabled={openingUserId === user.id}
@@ -1058,22 +1187,24 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                                         e.stopPropagation();
                                                         void openUserManage(user.id);
                                                     }}
-                                                    className="font-medium text-blue-500 hover:underline disabled:opacity-50"
+                                                    className="shrink-0 font-medium text-blue-500 hover:underline disabled:opacity-50 max-lg:text-[11px]"
                                                 >
                                                     {openingUserId === user.id ? '열기…' : '관리'}
                                                 </button>
                                                 {Boolean((user as any).isConnected) && user.id !== currentUser.id && (
                                                     <button
                                                         type="button"
+                                                        title="강제 로그아웃"
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             if (window.confirm(`[${user.nickname}] 님을 즉시 로그아웃 처리할까요?`)) {
                                                                 onAction({ type: 'ADMIN_FORCE_LOGOUT', payload: { targetUserId: user.id } });
                                                             }
                                                         }}
-                                                        className="font-medium text-red-400 hover:underline"
+                                                        className="shrink-0 font-medium text-red-400 hover:underline max-lg:max-w-[3.25rem] max-lg:truncate max-lg:text-[11px] lg:max-w-none"
                                                     >
-                                                        강제 로그아웃
+                                                        <span className="lg:hidden">강제</span>
+                                                        <span className="hidden lg:inline">강제 로그아웃</span>
                                                     </button>
                                                 )}
                                             </div>
@@ -1097,17 +1228,66 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                         <div ref={loadMoreSentinelRef} className="h-2 w-full shrink-0" aria-hidden />
                     </div>
                 </div>
-                <div className="shrink-0 lg:w-80 bg-panel border border-color text-on-panel p-4 sm:p-6 rounded-lg shadow-lg lg:overflow-y-auto">
-                    <h2 className="text-xl font-semibold mb-4 border-b border-color pb-2">신규 아이디 발급</h2>
-                    <form onSubmit={handleCreateUser} className="space-y-4">
-                        <input type="text" name="username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="아이디" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" />
-                        <input type="password" name="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="비밀번호" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" />
-                        <input type="email" name="createUserEmail" value={createUserEmail} onChange={(e) => setCreateUserEmail(e.target.value)} placeholder="이메일 (선택사항)" autoComplete="off" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" />
-                        <input type="text" name="nickname" value={nickname} onChange={(e) => setNickname(e.target.value)} placeholder="닉네임" className="bg-secondary border border-color text-primary text-sm rounded-lg focus:ring-accent focus:border-accent block w-full p-2.5" maxLength={6} />
-                        <Button type="submit" className="w-full">생성하기</Button>
-                    </form>
+                <div className={`${adminCard} hidden w-80 shrink-0 flex-col sm:p-6 lg:flex lg:overflow-y-auto`}>
+                    <h2 className={adminCardTitle}>신규 아이디 발급</h2>
+                    <AdminCreateUserForm
+                        username={username}
+                        setUsername={setUsername}
+                        password={password}
+                        setPassword={setPassword}
+                        nickname={nickname}
+                        setNickname={setNickname}
+                        createUserEmail={createUserEmail}
+                        setCreateUserEmail={setCreateUserEmail}
+                        onSubmit={handleCreateUser}
+                    />
                 </div>
             </div>
+
+            {typeof document !== 'undefined' &&
+                isCreateUserModalOpen &&
+                createPortal(
+                    <div
+                        className="fixed inset-0 z-[500] flex items-end justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-12 sm:items-center sm:p-4 lg:hidden"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="admin-create-user-modal-title"
+                    >
+                        <button
+                            type="button"
+                            className="absolute inset-0 bg-black/65 backdrop-blur-[2px]"
+                            aria-label="닫기"
+                            onClick={() => setIsCreateUserModalOpen(false)}
+                        />
+                        <div className={`relative z-[1] max-h-[min(92dvh,32rem)] w-full max-w-md overflow-y-auto ${adminCard} p-4 shadow-2xl sm:p-5`}>
+                            <div className="mb-4 flex items-center justify-between gap-2 border-b border-color/50 pb-3">
+                                <h2 id="admin-create-user-modal-title" className="text-lg font-semibold text-primary">
+                                    신규 아이디 발급
+                                </h2>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsCreateUserModalOpen(false)}
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-color bg-secondary text-lg leading-none text-secondary hover:bg-tertiary"
+                                    aria-label="모달 닫기"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <AdminCreateUserForm
+                                username={username}
+                                setUsername={setUsername}
+                                password={password}
+                                setPassword={setPassword}
+                                nickname={nickname}
+                                setNickname={setNickname}
+                                createUserEmail={createUserEmail}
+                                setCreateUserEmail={setCreateUserEmail}
+                                onSubmit={(e) => handleCreateUser(e, { closeModal: true })}
+                            />
+                        </div>
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 };

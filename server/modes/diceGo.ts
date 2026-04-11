@@ -718,25 +718,9 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                     break;
                 }
 
-                // 타임아웃 시 자동으로 주사위 굴리기 (PVP)
-                const dice1 = Math.floor(Math.random() * 6) + 1;
-                const logic = getGoLogic(game);
-                const liberties = logic.getAllLibertiesOfPlayer(types.Player.White, game.boardState);
-                const isOvershot = liberties.length === 0 || dice1 > liberties.length;
-                
-                console.log(`[updateDiceGoState] Auto-rolling dice due to timeout: dice1=${dice1}, isOvershot=${isOvershot}, liberties=${liberties.length}`);
-                
-                game.animation = { type: 'dice_roll_main', dice: { dice1, dice2: 0, dice3: 0 }, startTime: now, duration: 1500 };
-                game.gameStatus = 'dice_rolling_animating';
-                game.turnDeadline = undefined;
-                game.turnStartTime = undefined;
-                game.dice = undefined;
-    
-                game.stonesToPlace = isOvershot ? -1 : dice1;
-                syncDiceGoOvershotTicker(game, liberties.length, isOvershot);
-                if (game.diceRollHistory && game.diceRollHistory[timedOutPlayerId]) {
-                    game.diceRollHistory[timedOutPlayerId].push(dice1);
-                }
+                // PVP: 굴림 단계 타임아웃 시 파울만 적용하고 자동 굴림은 하지 않음 — 플레이어가 직접 주사위/아이템을 선택하도록
+                game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                game.turnStartTime = now;
             }
             break;
         }

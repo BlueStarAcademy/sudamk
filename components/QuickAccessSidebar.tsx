@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
@@ -146,6 +146,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 
     const gameplayButtons = buttons.filter((b) => b.gameplay);
     const utilityButtons = buttons.filter((b) => !b.gameplay);
+    const [mobileHeaderDrawer, setMobileHeaderDrawer] = useState<'menu1' | 'menu2' | 'collapsed'>('menu1');
 
     const notificationDotClass =
         'absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5';
@@ -166,6 +167,51 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         return null;
     };
 
+    const renderMobileMenuToggleButton = ({
+        label,
+        tone,
+        active,
+        compact,
+        expanded,
+        onClick,
+    }: {
+        label: '메뉴1' | '메뉴2';
+        tone: 'amber' | 'cyan';
+        active: boolean;
+        compact: boolean;
+        expanded: boolean;
+        onClick: () => void;
+    }) => {
+        const isAmber = tone === 'amber';
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                aria-pressed={active}
+                aria-expanded={expanded}
+                className={`group z-10 inline-flex shrink-0 items-center justify-center rounded-md border px-0.5 backdrop-blur-md shadow-[0_6px_18px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.2)] transition-all duration-300 ease-out active:scale-[0.97] ${
+                    compact ? 'h-10 min-h-10 w-7' : 'h-14 min-h-14 w-8'
+                } ${
+                    isAmber
+                        ? 'border-amber-300/35 bg-gradient-to-br from-amber-400/20 via-stone-900/75 to-stone-950 text-amber-100'
+                        : 'border-cyan-300/35 bg-gradient-to-br from-cyan-400/18 via-slate-900/80 to-slate-950 text-cyan-100'
+                } ${active ? 'ring-2 ring-white/25' : 'opacity-90'}`}
+            >
+                <div
+                    className={`flex flex-col rounded-sm bg-black/45 ring-1 ring-inset ${
+                        compact ? 'gap-0.5 px-0.5 py-1' : 'gap-[3px] px-[3px] py-1.5'
+                    } ${isAmber ? 'ring-amber-300/30' : 'ring-cyan-300/25'}`}
+                    aria-hidden
+                >
+                    <span className={`rounded-full bg-white/90 ${compact ? 'h-px w-2.5' : 'h-[1.5px] w-3'}`} />
+                    <span className={`rounded-full bg-white/90 ${compact ? 'h-px w-2.5' : 'h-[1.5px] w-3'}`} />
+                    <span className={`rounded-full bg-white/90 ${compact ? 'h-px w-2.5' : 'h-[1.5px] w-3'}`} />
+                </div>
+                <span className="sr-only">{label}</span>
+            </button>
+        );
+    };
+
     const renderStripButton = (btn: QuickBtn, variant: 'wrap' | 'topBar' = 'wrap') => {
         const g = btn.gameplay;
         const shell = g
@@ -173,17 +219,17 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             : 'border-violet-500/35 bg-gradient-to-b from-violet-950/40 via-slate-900/40 to-slate-950/90 shadow-[inset_0_1px_0_rgba(167,139,250,0.1)]';
         const topBar = variant === 'topBar';
         const iconShell = topBar
-            ? 'flex h-7 w-7 shrink-0 items-center justify-center'
+            ? 'flex h-9 w-9 shrink-0 items-center justify-center'
             : 'flex h-[clamp(1.08rem,5.4vw,1.45rem)] w-[clamp(1.08rem,5.4vw,1.45rem)] shrink-0 items-center justify-center';
         const iconInner = btn.iconUrl
             ? topBar
                 ? 'h-full w-full object-contain drop-shadow-sm [image-rendering:-webkit-optimize-contrast]'
                 : 'h-full w-full object-contain drop-shadow-sm'
             : topBar
-              ? 'text-[1.05rem] leading-none'
+              ? 'text-[1.2rem] leading-none'
               : 'text-[clamp(0.85rem,4.2vw,1.15rem)]';
         const labelClass = topBar
-            ? 'w-full truncate text-center text-[9px] font-semibold leading-none text-gray-100'
+            ? 'w-full truncate text-center text-[10px] font-semibold leading-none text-gray-100'
             : 'w-full truncate text-center text-[clamp(6px,2.5vw,9px)] font-semibold leading-none text-gray-100';
         return (
             <button
@@ -195,7 +241,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 }}
                 disabled={btn.disabled}
                 title={btn.label}
-                className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${topBar ? 'py-0.5' : 'py-1'} ${shell}`}
+                className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${topBar ? 'h-full min-h-0 py-1' : 'py-1'} ${shell}`}
             >
                 <div className={iconShell}>
                     {renderIcon(btn, iconInner)}
@@ -213,24 +259,80 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 
     if (mobileHeaderStrip) {
         if (!currentUserWithStatus) return null;
+        const stripCollapsed = mobileHeaderDrawer === 'collapsed';
         return (
             <div
                 className={[
-                    'flex w-full min-w-0 items-stretch border-b border-amber-900/25 bg-gradient-to-r from-slate-950 via-slate-900/95 to-slate-950 px-0.5 py-1 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]',
+                    'relative flex w-full min-w-0 items-stretch overflow-hidden border-b border-amber-900/25 bg-gradient-to-r from-slate-950 via-slate-900/95 to-slate-950 px-0.5 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)] transition-[padding] duration-300 ease-out',
+                    stripCollapsed ? 'py-1' : 'py-1.5',
                     className,
                 ]
                     .filter(Boolean)
                     .join(' ')}
                 data-quick-access-sidebar-root
             >
-                {/* 논리 폭 480px 스케일 안에서 vw 단위는 뷰포트와 어긋나 깨짐 → 고정 높이·고정 아이콘으로 통일 */}
-                <div className="flex h-[3.25rem] min-h-[3.25rem] w-full flex-nowrap items-stretch gap-0.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {gameplayButtons.map((btn) => renderStripButton(btn, 'topBar'))}
+                <div
+                    className={`relative flex w-full items-center justify-between transition-[min-height] duration-300 ease-out ${
+                        stripCollapsed ? 'min-h-10' : 'min-h-14'
+                    }`}
+                >
+                    {renderMobileMenuToggleButton({
+                        label: '메뉴1',
+                        tone: 'amber',
+                        active: mobileHeaderDrawer === 'menu1',
+                        compact: stripCollapsed,
+                        expanded: !stripCollapsed && mobileHeaderDrawer === 'menu1',
+                        onClick: () =>
+                            setMobileHeaderDrawer((d) => {
+                                if (d === 'menu1') return 'collapsed';
+                                return 'menu1';
+                            }),
+                    })}
+                    {renderMobileMenuToggleButton({
+                        label: '메뉴2',
+                        tone: 'cyan',
+                        active: mobileHeaderDrawer === 'menu2',
+                        expanded: !stripCollapsed && mobileHeaderDrawer === 'menu2',
+                        onClick: () =>
+                            setMobileHeaderDrawer((d) => {
+                                if (d === 'menu2') return 'collapsed';
+                                return 'menu2';
+                            }),
+                    })}
+
                     <div
-                        className="mx-0.5 w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-amber-400/35 to-transparent"
-                        aria-hidden
-                    />
-                    {utilityButtons.map((btn) => renderStripButton(btn, 'topBar'))}
+                        className={`pointer-events-none absolute inset-x-[2.75rem] top-0 overflow-hidden transition-all duration-300 ease-out ${
+                            stripCollapsed
+                                ? 'max-h-0 opacity-0 -translate-y-2'
+                                : 'max-h-14 min-h-14 translate-y-0 opacity-100'
+                        }`}
+                    >
+                        <div className="relative h-14 min-h-14 w-full">
+                            <div
+                                className={`absolute inset-0 transition-all duration-300 ease-out ${
+                                    !stripCollapsed && mobileHeaderDrawer === 'menu1'
+                                        ? 'pointer-events-auto translate-x-0 opacity-100'
+                                        : 'pointer-events-none -translate-x-8 opacity-0'
+                                }`}
+                            >
+                                <div className="flex h-full w-full items-stretch gap-1 pr-1">
+                                    {gameplayButtons.map((btn) => renderStripButton(btn, 'topBar'))}
+                                </div>
+                            </div>
+
+                            <div
+                                className={`absolute inset-0 transition-all duration-300 ease-out ${
+                                    !stripCollapsed && mobileHeaderDrawer === 'menu2'
+                                        ? 'pointer-events-auto translate-x-0 opacity-100'
+                                        : 'pointer-events-none translate-x-8 opacity-0'
+                                }`}
+                            >
+                                <div className="flex h-full w-full items-stretch justify-start gap-1 pl-1 pr-1">
+                                    {utilityButtons.map((btn) => renderStripButton(btn, 'topBar'))}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         );

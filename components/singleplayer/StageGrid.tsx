@@ -129,7 +129,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
 
     return (
         <div
-            className={`bg-panel rounded-lg shadow-lg flex h-full min-h-0 flex-col overflow-hidden relative ${tabShelf ? 'p-2.5' : isMobile ? 'p-2.5' : 'p-4'}`}
+            className={`relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-panel shadow-lg ${tabShelf ? 'p-2.5' : isMobile ? 'p-2.5' : 'p-4'}`}
         >
             <div
                 className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${tabShelf ? 'mb-1.5 pb-1' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
@@ -155,9 +155,11 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                 initialClass={selectedClass}
             />
             
-            <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1 pb-2">
+            <div
+                className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-2 pr-1 pt-2 pl-2 -mr-1 ${tabShelf ? 'sm:pt-2 sm:pl-2' : isMobile ? 'sm:pt-2 sm:pl-2' : 'sm:pt-2.5 sm:pl-2.5'}`}
+            >
                 <div
-                    className={`grid min-w-0 pb-2 ${tabShelf ? 'gap-2' : isMobile ? 'gap-1.5' : 'gap-2'}`}
+                    className={`grid min-w-0 pb-1 ${tabShelf ? 'gap-2.5' : isMobile ? 'gap-2' : 'gap-2.5'}`}
                     style={{
                         gridTemplateColumns: tabShelf
                             ? 'repeat(auto-fill, minmax(118px, 1fr))'

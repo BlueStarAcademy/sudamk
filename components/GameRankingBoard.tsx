@@ -3,6 +3,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { useRanking } from '../hooks/useRanking.js';
 import { User } from '../types.js';
 import Avatar from './Avatar.js';
+import UserNicknameText from './UserNicknameText.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { calculateTotalStats } from '../services/statService.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
@@ -73,7 +74,14 @@ const RankingRow = ({
                     {rank}
                 </span>
                 <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={34} />
-                <span className={`ml-1.5 min-w-0 flex-1 truncate ${MOBILE_RANK_TEXT_CLASS} font-semibold`}>{user.nickname}</span>
+                <UserNicknameText
+                    user={{
+                        nickname: user.nickname,
+                        isAdmin: user.isAdmin,
+                        staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                    }}
+                    className={`ml-1.5 min-w-0 flex-1 truncate ${MOBILE_RANK_TEXT_CLASS} font-semibold`}
+                />
                 <span className={`w-[4.25rem] shrink-0 text-right font-mono ${MOBILE_RANK_TEXT_CLASS} tabular-nums`}>{value.toLocaleString()}</span>
             </div>
         );
@@ -99,7 +107,14 @@ const RankingRow = ({
                 {rank}
             </span>
             <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} />
-            <span className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}>{user.nickname}</span>
+            <UserNicknameText
+                user={{
+                    nickname: user.nickname,
+                    isAdmin: user.isAdmin,
+                    staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                }}
+                className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}
+            />
             <span className={`text-right font-mono ${dense ? 'w-10 text-[7px]' : 'w-16 text-xs'}`}>{value.toLocaleString()}</span>
         </div>
     );

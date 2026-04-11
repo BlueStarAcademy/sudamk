@@ -4,7 +4,6 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import {
     ADVENTURE_MAP_THEMES,
     ADVENTURE_MAP_MAX_MONSTERS,
-    ADVENTURE_MONSTER_IMAGE_SRC,
     ADVENTURE_MONSTER_MODES,
     ADVENTURE_MONSTER_MODE_LABELS,
     ADVENTURE_MONSTER_RESPAWN_AFTER_DEFEAT_MS,
@@ -15,6 +14,7 @@ import {
     type AdventureMonsterBattleMode,
     type AdventureStageId,
 } from '../../constants/adventureConstants.js';
+import { AdventureMonsterSpriteFrame } from './AdventureMonsterSprite.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import Avatar from '../Avatar.js';
 import Button from '../Button.js';
@@ -29,8 +29,12 @@ type MapMonster = {
     xPct: number;
     yPct: number;
     expiresAt: number;
-    /** 비어 있으면 플레이스홀더(추후 `ADVENTURE_MONSTER_IMAGE_SRC` 등) */
-    imageSrc?: string;
+    spriteSheetWebp: string;
+    speciesName: string;
+    spriteCols: number;
+    spriteRows: number;
+    /** 시트 내 행 우선 인덱스 (스테이지별 frameCount 범위) */
+    spriteFrameIndex: number;
 };
 
 const MODE_BADGE_SHORT: Record<AdventureMonsterBattleMode, string> = {
@@ -89,7 +93,8 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         const { xPct, yPct } = randomPosition();
         const level = randomInt(min, max);
         const life = getAdventureMonsterLifetimeMs(level);
-        const imageSrc = ADVENTURE_MONSTER_IMAGE_SRC[mode];
+        const lay = stage.monsterSpriteLayout;
+        const spriteFrameIndex = randomInt(0, Math.max(0, lay.frameCount - 1));
         return {
             id: nextMonsterId(),
             level,
@@ -97,7 +102,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             xPct,
             yPct,
             expiresAt: Date.now() + life,
-            ...(imageSrc ? { imageSrc } : {}),
+            spriteSheetWebp: stage.monsterSheetWebp,
+            speciesName: stage.monsterName,
+            spriteCols: lay.cols,
+            spriteRows: lay.rows,
+            spriteFrameIndex,
         };
     }, [stage, nextMonsterId]);
 
@@ -341,7 +350,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 sel ? 'scale-[1.03]' : 'hover:scale-[1.02] active:scale-[0.99]',
                                             ].join(' ')}
                                             style={{ left: `${m.xPct}%`, top: `${m.yPct}%`, aspectRatio: '3 / 4' }}
-                                            aria-label={`몬스터 레벨 ${m.level} ${ADVENTURE_MONSTER_MODE_LABELS[m.mode]}`}
+                                            aria-label={`${m.speciesName} 레벨 ${m.level} ${ADVENTURE_MONSTER_MODE_LABELS[m.mode]}`}
                                         >
                                             <div
                                                 className={[
@@ -351,27 +360,19 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         : 'border-violet-500/55 hover:border-amber-400/60',
                                                 ].join(' ')}
                                             >
-                                                <div className="relative min-h-0 flex-1 bg-zinc-950/90">
-                                                    {m.imageSrc ? (
-                                                        <img
-                                                            src={m.imageSrc}
-                                                            alt=""
-                                                            className="absolute inset-0 h-full w-full object-cover object-center"
-                                                            draggable={false}
-                                                        />
-                                                    ) : (
-                                                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-gradient-to-b from-zinc-800/95 to-zinc-950 px-1 text-center">
-                                                            <span className="text-[10px] font-bold text-zinc-500 sm:text-xs">몬스터</span>
-                                                            <span className="text-[8px] leading-tight text-zinc-600 sm:text-[9px]">
-                                                                이미지
-                                                                <br />
-                                                                예정
-                                                            </span>
-                                                            <span className="mt-1 rounded border border-white/10 bg-black/40 px-1.5 py-px font-mono text-[9px] text-amber-200/90">
-                                                                LV {m.level}
-                                                            </span>
-                                                        </div>
-                                                    )}
+                                                <div className="relative min-h-0 flex-1 bg-zinc-950/40">
+                                                    <AdventureMonsterSpriteFrame
+                                                        sheetUrl={m.spriteSheetWebp}
+                                                        frameIndex={m.spriteFrameIndex}
+                                                        cols={m.spriteCols}
+                                                        rows={m.spriteRows}
+                                                        className="absolute inset-0 h-full w-full"
+                                                    />
+                                                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-1 pb-1 pt-6">
+                                                        <p className="truncate text-center text-[9px] font-bold text-amber-50/95 drop-shadow sm:text-[10px]">
+                                                            {m.speciesName}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                                 <div className="flex shrink-0 items-center justify-between gap-1 border-t border-white/10 bg-black/80 px-1.5 py-1">
                                                     <span className="font-mono text-[10px] font-black text-amber-200 sm:text-[11px]">LV{m.level}</span>
@@ -412,6 +413,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 />
                                             )}
                                             <div className="relative z-[1] space-y-1.5">
+                                                <p className="text-center text-xs font-bold text-fuchsia-100/95">{selectedMonster.speciesName}</p>
                                                 <div className="flex items-baseline justify-between gap-2 border-b border-white/10 pb-1.5">
                                                     <span className="text-[11px] text-zinc-400">레벨</span>
                                                     <span className="font-mono text-base font-black text-amber-200">LV {selectedMonster.level}</span>

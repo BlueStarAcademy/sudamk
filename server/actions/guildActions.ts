@@ -1312,6 +1312,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             }
 
+            await guildService.updateGuildMissionProgress(user.guildId, 'guildDonations', actualCount, guilds);
+
             if (!guild.donationLog) guild.donationLog = [];
             guild.donationLog.push({
                 userId: user.id,
@@ -1505,6 +1507,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             });
 
             // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
+            await guildService.recordGuildEpicPlusEquipmentAcquisition(user, itemsToAdd, guilds);
+
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'guildCoins']);
             
@@ -1600,6 +1604,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(user, ['inventory', 'guildCoins']);
                 
+            await guildService.recordGuildEpicPlusEquipmentAcquisition(user, itemsToAdd, guilds);
+
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } }); // Broadcast guilds
 
             return { clientResponse: { updatedUser: user, obtainedItemsBulk: itemsToAdd } };
@@ -2817,6 +2823,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 freshUser.guildBossAttemptsUsedToday = (freshUser.guildBossAttemptsUsedToday ?? 0) + 1;
             }
 
+            await guildService.updateGuildMissionProgress(user.guildId!, 'bossAttempts', 1, guilds);
+
             // 딜량 등급별 기여도 계산 (1~5등급)
             let bossContribution = 5;
             const damage = result.damageDealt;
@@ -2962,6 +2970,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const { success, updatedInventory } = addItemsToInventory(freshUser.inventory || [], freshUser.inventorySlots || { equipment: 30, consumable: 30, material: 30 }, itemsToAdd);
                 if (success && updatedInventory) {
                     freshUser.inventory = updatedInventory;
+                    await guildService.recordGuildEpicPlusEquipmentAcquisition(freshUser, itemsToAdd, guilds);
                     console.log(`[START_GUILD_BOSS_BATTLE] Successfully added ${itemsToAdd.length} items to inventory for user ${freshUser.id}. Equipment included: ${generatedEquipment ? 'Yes' : 'No'}`);
                 } else {
                     console.error(`[START_GUILD_BOSS_BATTLE] Failed to add items to inventory for user ${freshUser.id}. Inventory may be full. Items attempted: ${itemsToAdd.length}`);

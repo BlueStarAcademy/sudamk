@@ -1,8 +1,9 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, SINGLE_PLAYER_STAGES, SINGLE_PLAYER_MISSIONS } from '../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, SINGLE_PLAYER_STAGES } from '../constants';
 import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import Avatar from './Avatar.js';
+import UserNicknameText from './UserNicknameText.js';
 import Button from './Button.js';
 import DetailedStatsModal from './DetailedStatsModal.js';
 import ProfileEditModal from './ProfileEditModal.js';
@@ -766,44 +767,6 @@ const Profile: React.FC<ProfileProps> = () => {
     const onSelectTournamentLobby = () => tryArenaEnter('championship', () => { window.location.hash = '#/tournament'; });
     const onSelectSinglePlayerLobby = () => tryArenaEnter('singleplayer', () => { window.location.hash = '#/singleplayer'; });
 
-    // 수련과제 보상이 가득 찬지 확인
-    const hasFullTrainingQuestReward = useMemo(() => {
-        const userMissions = (currentUserWithStatus as any).singlePlayerMissions || {};
-        const clearedStages = (currentUserWithStatus as any).clearedSinglePlayerStages || [];
-        const currentTime = Date.now();
-        
-        return SINGLE_PLAYER_MISSIONS.some(mission => {
-            const missionState = userMissions[mission.id];
-            if (!missionState) return false;
-            
-            // 미션이 언락되어 있고 시작되었는지 확인
-            const isUnlocked = clearedStages.includes(mission.unlockStageId);
-            const isStarted = missionState.isStarted;
-            if (!isUnlocked || !isStarted) return false;
-            
-            const currentLevel = missionState.level || 0;
-            if (currentLevel === 0 || currentLevel > mission.levels.length) return false;
-            
-            const levelInfo = mission.levels[currentLevel - 1];
-            const accumulatedAmount = missionState.accumulatedAmount || 0;
-            
-            // 생산량 계산 (실시간 반영)
-            const productionRateMs = levelInfo.productionRateMinutes * 60 * 1000;
-            const lastCollectionTime = missionState.lastCollectionTime || currentTime;
-            const elapsed = currentTime - lastCollectionTime;
-            const cycles = Math.floor(elapsed / productionRateMs);
-            
-            let reward = accumulatedAmount;
-            if (cycles > 0) {
-                const generatedAmount = cycles * levelInfo.rewardAmount;
-                reward = Math.min(levelInfo.maxCapacity, accumulatedAmount + generatedAmount);
-            }
-            
-            // 가득 찬 상태 확인
-            return reward >= levelInfo.maxCapacity;
-        });
-    }, [currentUserWithStatus]);
-
     const handlePresetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const presetIndex = Number(event.target.value);
         setSelectedPreset(presetIndex);
@@ -1058,7 +1021,15 @@ const Profile: React.FC<ProfileProps> = () => {
                                 usePcHomePanelStyle ? 'px-2 py-1.5 sm:px-2.5 sm:py-2' : 'px-1.5 py-1 sm:px-2'
                             }`}
                         >
-                            <h2
+                            <UserNicknameText
+                                user={{
+                                    nickname,
+                                    isAdmin: currentUserWithStatus.isAdmin,
+                                    staffNicknameDisplayEligibility: currentUserWithStatus.staffNicknameDisplayEligibility,
+                                }}
+                                as="h2"
+                                title={nickname}
+                                style={{ fontSize: nh ? 'clamp(0.8rem, 2.1vw, 0.95rem)' : undefined }}
                                 className={`w-full min-w-0 truncate text-center font-extrabold leading-tight tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] ${
                                     usePcHomePanelStyle
                                         ? 'text-lg sm:text-xl'
@@ -1066,11 +1037,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                           ? 'text-base sm:text-lg'
                                           : 'text-sm sm:text-base'
                                 }`}
-                                style={{ fontSize: nh ? 'clamp(0.8rem, 2.1vw, 0.95rem)' : undefined }}
-                                title={nickname}
-                            >
-                                {nickname}
-                            </h2>
+                            />
                             <div className={`flex justify-center ${usePcHomePanelStyle ? 'mt-1.5 sm:mt-2' : 'mt-1 sm:mt-1'}`}>
                                 <span
                                     className={`inline-flex max-w-full items-center gap-x-1.5 whitespace-nowrap rounded-md border border-indigo-400/45 bg-indigo-950 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:gap-x-2 ${
@@ -1403,9 +1370,9 @@ const Profile: React.FC<ProfileProps> = () => {
                         onClick={onSelectSinglePlayerLobby}
                         className="group border border-emerald-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden p-1"
                     >
-                        <img src={SINGLE_PLAYER_LOBBY_IMG} alt="싱글플레이" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                        <img src={SINGLE_PLAYER_LOBBY_IMG} alt="바둑학원" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                         <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
-                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">싱글플레이</h2>
+                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">바둑학원</h2>
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
@@ -1415,13 +1382,13 @@ const Profile: React.FC<ProfileProps> = () => {
                                 onClick={onSelectSinglePlayerLobby}
                                 className="group flex h-full min-h-0 w-full flex-col rounded-xl text-center transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden"
                             >
-                                <img src={SINGLE_PLAYER_LOBBY_IMG} alt="싱글플레이" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+                                <img src={SINGLE_PLAYER_LOBBY_IMG} alt="바둑학원" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
                                 <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
                                 <div className="flex min-h-0 w-full flex-1 rounded-md" />
                             </div>
                         </div>
                         <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>싱글플레이</div>
+                            <div className={infoTitleClass}>바둑학원</div>
                             <div className={infoPanelMiddleClass}>
                                 <div className={infoRowClass}><span className={infoLabelClass}>현재 위치</span><span className={infoValueClass}>{singleStageLabel}</span></div>
                                 <div className={infoRowClass}><span className={infoLabelClass}>진행도</span><span className={infoValueClass}>{singleProgress} / {SINGLE_PLAYER_STAGES.length}</span></div>

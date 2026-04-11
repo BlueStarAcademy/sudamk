@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import type { Guild as GuildType, ServerAction } from '../../types/index.js';
-import BackButton from '../BackButton.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import ToggleSwitch from '../ui/ToggleSwitch.js';
+import AdminPageHeader from './AdminPageHeader.js';
+import { adminCard, adminInput, adminPageNarrow, adminSectionGap, adminShell } from './adminChrome.js';
 
 interface AdminGuildManagementPanelProps {
     guild: GuildType;
@@ -61,24 +62,25 @@ const AdminGuildManagementPanel: React.FC<AdminGuildManagementPanelProps> = ({ g
     const isSanctioned = guild.recruitmentBanUntil && guild.recruitmentBanUntil > Date.now();
 
     return (
-        <div className="bg-primary text-primary p-4">
-            <header className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold">길드 관리: <span className="text-highlight">{guild.name}</span></h1>
-                <BackButton onClick={onBack} />
-            </header>
-            <div className="bg-panel p-6 rounded-lg shadow-lg space-y-4 text-on-panel max-h-[70vh] overflow-y-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`${adminShell} ${adminPageNarrow} ${adminSectionGap}`}>
+            <AdminPageHeader
+                title={`길드: ${guild.name}`}
+                subtitle="길드 수치·공개 여부·모집 제재를 수정합니다."
+                onBack={onBack}
+            />
+            <div className={`${adminCard} max-h-[70vh] space-y-4 overflow-y-auto`}>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                     <div>
                         <label className="block text-sm font-medium text-secondary">길드 레벨</label>
-                        <input type="number" name="level" value={editedGuild.level || 1} onChange={handleNumberChange} className="w-full bg-secondary p-2 rounded-md border border-color" />
+                        <input type="number" name="level" value={editedGuild.level || 1} onChange={handleNumberChange} className={adminInput} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-secondary">길드 경험치</label>
-                        <input type="number" name="xp" value={editedGuild.xp || 0} onChange={handleNumberChange} className="w-full bg-secondary p-2 rounded-md border border-color" />
+                        <input type="number" name="xp" value={editedGuild.xp || 0} onChange={handleNumberChange} className={adminInput} />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-secondary">연구 포인트</label>
-                        <input type="number" name="researchPoints" value={editedGuild.researchPoints || 0} onChange={handleNumberChange} className="w-full bg-secondary p-2 rounded-md border border-color" />
+                        <input type="number" name="researchPoints" value={editedGuild.researchPoints || 0} onChange={handleNumberChange} className={adminInput} />
                     </div>
                     <div className="flex items-center justify-between bg-tertiary/50 p-2 rounded-md">
                         <label className="text-sm font-medium">공개 설정</label>

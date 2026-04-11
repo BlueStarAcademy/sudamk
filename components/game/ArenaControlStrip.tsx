@@ -20,7 +20,7 @@ export const ArenaControlStrip: React.FC<{
         return (
             <div className={`flex w-full min-w-0 flex-wrap items-center justify-center ${gapClass} ${className}`}>
                 {nodes.map((child, i) => (
-                    <div key={i} className="flex shrink-0 items-center justify-center">
+                    <div key={i} className="flex min-w-0 max-w-full shrink items-center justify-center">
                         {child}
                     </div>
                 ))}

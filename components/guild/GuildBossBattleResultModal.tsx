@@ -4,6 +4,7 @@ import type { GuildBossBattleResult as GuildBossBattleResultType } from '../../t
 import { ItemGrade } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
+import { PRE_GAME_MODAL_ACCENT_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 import { gradeBackgrounds, EQUIPMENT_POOL } from '../../constants/items.js';
 import { GUILD_BOSS_GRADE_NAMES } from '../../constants/index.js';
 
@@ -424,8 +425,13 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     </div>
                 </div>
                 
-                <div className="flex-shrink-0 mt-4 flex justify-center">
-                    <Button onClick={onClose} className="py-2.5 px-10 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 border border-amber-400/50 text-white font-semibold shadow-lg">
+                <div className="flex-shrink-0 mt-4 flex justify-center px-2">
+                    <Button
+                        bare
+                        colorScheme="none"
+                        onClick={onClose}
+                        className={`min-w-[10rem] px-10 ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`}
+                    >
                         확인
                     </Button>
                 </div>

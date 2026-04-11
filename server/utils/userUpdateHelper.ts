@@ -39,7 +39,7 @@ export function getSelectiveUserUpdate(
         // 프로필 관련
         'UPDATE_AVATAR': ['avatarId'],
         'UPDATE_BORDER': ['borderId'],
-        'CHANGE_NICKNAME': ['nickname', 'diamonds'],
+        'CHANGE_NICKNAME': ['nickname', 'diamonds', 'staffNicknameDisplayEligibility'],
         'UPDATE_MBTI': ['mbti', 'isMbtiPublic', 'diamonds'],
         'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints'],
         'RESET_STAT_POINTS': ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday'],

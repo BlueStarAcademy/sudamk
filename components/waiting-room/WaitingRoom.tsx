@@ -381,6 +381,50 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const waitingLobbyHeaderChrome = isStrategicPlayfulLobby
     ? 'rounded-b-2xl border-b border-color/60 bg-secondary/92 shadow-[0_10px_36px_rgba(0,0,0,0.42)] backdrop-blur-[4px] pb-2'
     : '';
+  /** 챔피언십 로비(TournamentLobby) 타이틀 줄과 동일 계열 */
+  const waitingLobbyTitleStripVisual =
+    mode === 'strategic'
+      ? 'rounded-xl border border-cyan-400/45 bg-black/25 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:p-2'
+      : 'rounded-xl border border-amber-500/35 bg-black/20 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:p-2';
+  const waitingLobbyTitleStripRow = `${waitingLobbyTitleStripVisual} flex w-full shrink-0 items-center gap-2 sm:gap-2.5`;
+  const waitingLobbyTitleH1Class =
+    mode === 'strategic'
+      ? 'relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-cyan-100 via-sky-100 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(34,211,238,0.22)]'
+      : 'relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold text-amber-50 sm:text-lg lg:text-xl drop-shadow-[0_0_14px_rgba(251,191,36,0.2)]';
+
+  const lobbySwitchButton = (compact?: boolean) => (
+    <button
+      type="button"
+      aria-label={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
+      title={
+        isLobbySwitchDisabled
+          ? '잠시 후 다시 사용할 수 있습니다'
+          : mode === 'strategic'
+            ? '놀이바둑 대기실로 이동'
+            : '전략바둑 대기실로 이동'
+      }
+      disabled={isLobbySwitchDisabled}
+      onClick={navigateToOtherWaitingLobby}
+      className={`relative z-[1] group flex shrink-0 items-center justify-center overflow-hidden rounded-lg text-on-panel transition-all duration-300 ${
+        compact ? 'h-7 w-7 sm:h-8 sm:w-8' : 'h-8 w-8 sm:h-9 sm:w-9'
+      } ${isLobbySwitchDisabled ? 'cursor-not-allowed opacity-40' : 'hover:scale-105 active:scale-95'}`}
+      style={{
+        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)',
+        border: '1px solid rgba(139, 92, 246, 0.4)',
+        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-purple-500/20 to-indigo-500/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+      <span
+        className={`relative z-10 flex flex-col items-center justify-center font-bold leading-none drop-shadow-sm ${
+          compact ? 'text-[10px] sm:text-[11px]' : 'text-xs sm:text-sm'
+        }`}
+      >
+        <span className="-mb-1 transition-transform duration-300 group-hover:-translate-x-0.5">←</span>
+        <span className="-mt-1 transition-transform duration-300 group-hover:translate-x-0.5">→</span>
+      </span>
+    </button>
+  );
 
   return (
     <div
@@ -394,57 +438,43 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           </div>
         </div>
       )}
+      {(isNativeMobile && isStrategicPlayfulLobby) || !isStrategicPlayfulLobby ? (
       <header
-        className={`relative mb-2 flex flex-shrink-0 items-center justify-between sm:mb-4 ${waitingLobbyHeaderChrome} ${
+        className={`relative flex flex-shrink-0 items-center ${
           isNativeMobile && isStrategicPlayfulLobby
-            ? 'px-2 pt-1.5'
-            : 'px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6'
+            ? `mb-2 justify-between sm:mb-4 ${waitingLobbyHeaderChrome} px-2 pt-1.5`
+            : `mb-2 justify-between sm:mb-4 ${waitingLobbyHeaderChrome} px-2 pt-2 sm:px-4 sm:pt-4 lg:px-6 lg:pt-6`
         }`}
       >
         {isNativeMobile && isStrategicPlayfulLobby ? (
-          <div className="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1">
-            <div className="w-10 shrink-0" aria-hidden />
-            <div className="mx-auto flex min-w-0 max-w-[min(100%,16rem)] items-center justify-center gap-1.5">
-              <h1 className="truncate text-center text-sm font-bold">
-                {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
-              </h1>
-              <button
-                type="button"
-                aria-label={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
-                title={
-                  isLobbySwitchDisabled
-                    ? '잠시 후 다시 사용할 수 있습니다'
-                    : mode === 'strategic'
-                      ? '놀이바둑 대기실로 이동'
-                      : '전략바둑 대기실로 이동'
-                }
-                disabled={isLobbySwitchDisabled}
-                onClick={navigateToOtherWaitingLobby}
-                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-on-panel transition-all duration-300 ${
-                  isLobbySwitchDisabled ? 'cursor-not-allowed opacity-40' : 'hover:scale-105 active:scale-95'
-                }`}
-                style={{
-                  background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.35) 0%, rgba(139, 92, 246, 0.35) 100%)',
-                  border: '1px solid rgba(139, 92, 246, 0.45)',
-                  boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-                }}
-              >
-                <span className="flex flex-col items-center justify-center text-xs font-bold leading-none">
-                  <span className="-mb-1">←</span>
-                  <span className="-mt-1">→</span>
-                </span>
-              </button>
+          <div className={`w-full ${waitingLobbyTitleStripVisual}`}>
+            <div className="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1">
+              <div className="w-10 shrink-0" aria-hidden />
+              <div className="mx-auto flex min-w-0 max-w-[min(100%,18rem)] items-center justify-center gap-1.5">
+                <h1
+                  className={`truncate text-center text-sm font-bold ${
+                    mode === 'strategic'
+                      ? 'bg-gradient-to-r from-cyan-100 to-cyan-200 bg-clip-text text-transparent'
+                      : 'text-amber-50'
+                  }`}
+                >
+                  {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
+                </h1>
+                {lobbySwitchButton(true)}
+              </div>
+              <div className="w-10 shrink-0" aria-hidden />
             </div>
-            <div className="w-10 shrink-0" aria-hidden />
           </div>
         ) : (
           <>
             <div className="relative z-20 w-10 shrink-0 sm:w-12">
               <button
+                type="button"
                 onClick={onBackToLobby}
                 className="pointer-events-auto relative z-20 flex h-10 w-10 items-center justify-center rounded-lg p-0 transition-all duration-100 active:translate-y-0.5 active:scale-95 active:shadow-inner sm:h-12 sm:w-12"
+                aria-label="뒤로가기"
               >
-                <img src="/images/button/back.png" alt="Back" className="h-full w-full" />
+                <img src="/images/button/back.png" alt="" className="h-full w-full" />
               </button>
             </div>
             <div className="pointer-events-none flex min-w-0 flex-1 justify-center px-2 text-center">
@@ -487,8 +517,15 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           </>
         )}
       </header>
+      ) : null}
       <div
-        className={`flex-1 min-h-0 relative px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6 ${isNativeMobile ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'overflow-hidden'}`}
+        className={`flex-1 min-h-0 relative ${
+          isNativeMobile
+            ? 'overflow-x-hidden overflow-y-auto overscroll-y-contain px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6'
+            : isStrategicPlayfulLobby
+              ? 'overflow-hidden px-2 pb-1.5 pt-1.5 sm:px-3 sm:pb-2 sm:pt-2 lg:px-4 lg:pb-3 lg:pt-2'
+              : 'overflow-hidden px-2 sm:px-4 lg:px-6 pb-2 sm:pb-4 lg:pb-6'
+        }`}
       >
           {isNativeMobile && isStrategicPlayfulLobby ? (
             <div className="relative flex h-full min-h-0 flex-1 flex-col gap-1.5 overflow-hidden px-0.5 pb-0.5">
@@ -589,8 +626,22 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               ref={desktopContainerRef}
               className="flex h-full min-h-0 w-full flex-row gap-1.5 overflow-hidden sm:gap-2 lg:gap-2"
             >
-              {/* 좌: 랭킹전(채팅 자리·내용 높이) + 랭킹보드 */}
+              {/* 좌: 챔피언십형 타이틀 + 랭킹전 + 랭킹보드 — 중·우열은 타이틀 행 상단부터 같은 높이로 확장 */}
               <div className="flex h-full min-h-0 w-[min(43%,500px)] min-w-[292px] max-w-[500px] shrink-0 flex-col gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden">
+                <div className={waitingLobbyTitleStripRow}>
+                  <button
+                    type="button"
+                    onClick={onBackToLobby}
+                    className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
+                    aria-label="뒤로가기"
+                  >
+                    <img src="/images/button/back.png" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                  </button>
+                  <h1 className={waitingLobbyTitleH1Class}>
+                    {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
+                  </h1>
+                  {lobbySwitchButton(true)}
+                </div>
                 <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
                   <RankedMatchPanel
                     lobbyType={isStrategic ? 'strategic' : 'playful'}

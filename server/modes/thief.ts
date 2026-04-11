@@ -312,23 +312,9 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                 game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                 game.turnStartTime = now;
             } else {
-
-            // 타임아웃 시 자동으로 주사위 굴리기 (아이템 미사용, PVP)
-            const myRole = timedOutPlayerId === game.thiefPlayerId ? 'thief' : 'police';
-            const { dice1, dice2, stonesToPlace } = rollThiefDiceForRole(myRole);
-            
-            console.log(`[updateThiefState] Auto-rolling dice due to timeout: role=${myRole}, dice1=${dice1}, dice2=${dice2}, stonesToPlace=${stonesToPlace}`);
-            
-            game.animation = { type: 'dice_roll_main', dice: { dice1, dice2, dice3: 0 }, startTime: now, duration: 1500 };
-            game.gameStatus = 'thief_rolling_animating';
-            game.turnDeadline = undefined;
-            game.turnStartTime = undefined;
-            game.dice = undefined;
-            game.stonesToPlace = stonesToPlace;
-            
-            if (!game.thiefDiceRollHistory) game.thiefDiceRollHistory = { [p1Id]: [], [p2Id]: [] };
-            game.thiefDiceRollHistory[timedOutPlayerId].push(dice1);
-            if (dice2 > 0) game.thiefDiceRollHistory[timedOutPlayerId].push(dice2);
+                // PVP: 굴림 타임아웃 시 파울만 적용, 자동 굴림 없음
+                game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
+                game.turnStartTime = now;
             }
         }
     } else if (game.gameStatus === 'thief_rolling_animating') {

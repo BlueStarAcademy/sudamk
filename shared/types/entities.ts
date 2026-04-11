@@ -310,6 +310,8 @@ export type User = {
   username: string;
   nickname: string;
   isAdmin: boolean;
+  /** 관리자 패널에서 예약 닉네임(관리자/운영자 문구)을 허용한 경우 UI 강조용 */
+  staffNicknameDisplayEligibility?: boolean;
   strategyLevel: number;
   strategyXp: number;
   playfulLevel: number;

@@ -3,11 +3,15 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import { UserWithStatus, ServerAction, AvatarInfo, BorderInfo } from '../types.js';
 import { AVATAR_POOL, BORDER_POOL, RANKING_TIERS, SHOP_BORDER_ITEMS } from '../constants';
-import { MBTI_QUESTIONS } from '../constants/mbtiQuestions.js';
+import { MBTI_QUESTIONS, calculateMbtiFromAnswers } from '../constants/mbtiQuestions.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { containsProfanity } from '../profanity.js';
+import {
+    nicknameContainsReservedStaffTerms,
+    RESERVED_STAFF_NICKNAME_USER_MESSAGE,
+} from '../shared/utils/staffNicknameDisplay.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface ProfileEditModalProps {
@@ -143,6 +147,14 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                         alert("닉네임에 부적절한 단어가 포함되어 있습니다.");
                         return;
                     }
+                    if (
+                        nicknameContainsReservedStaffTerms(newNickname) &&
+                        !currentUser.staffNicknameDisplayEligibility &&
+                        !currentUser.isAdmin
+                    ) {
+                        alert(RESERVED_STAFF_NICKNAME_USER_MESSAGE);
+                        return;
+                    }
                     if (window.confirm(`다이아 ${nicknameChangeCost}개를 사용하여 닉네임을 '${newNickname}'(으)로 변경하시겠습니까?`)) {
                         onAction({ type: 'CHANGE_NICKNAME', payload: { newNickname } });
                     }
@@ -157,7 +169,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                         return;
                     } else {
                         // 모든 질문 완료 - MBTI 계산 및 저장
-                        const calculatedMbti = calculateMbtiFromAnswers();
+                        const calculatedMbti = computeMbtiFromQuiz();
                         if (calculatedMbti) {
                             const isFirstTime = !hasMbti;
                             onAction({
@@ -181,21 +193,22 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
         }
     };
 
-    const calculateMbtiFromAnswers = useCallback((): string | null => {
-        let mbtiResult = '';
-        for (const question of MBTI_QUESTIONS) {
-            const answer = mbtiAnswers[question.id];
-            if (!answer) return null;
-            mbtiResult += answer;
-        }
-        return mbtiResult;
-    }, [mbtiAnswers]);
+    const computeMbtiFromQuiz = useCallback((): string | null => calculateMbtiFromAnswers(mbtiAnswers, MBTI_QUESTIONS), [mbtiAnswers]);
 
     const isSaveDisabled = useMemo(() => {
         switch (activeTab) {
             case 'avatar': return selectedAvatarId === currentUser.avatarId;
             case 'border': return selectedBorderId === currentUser.borderId;
-            case 'nickname': return newNickname === currentUser.nickname || !canAffordNicknameChange || newNickname.trim().length < 2 || newNickname.trim().length > 12;
+            case 'nickname':
+                return (
+                    newNickname === currentUser.nickname ||
+                    !canAffordNicknameChange ||
+                    newNickname.trim().length < 2 ||
+                    newNickname.trim().length > 12 ||
+                    (nicknameContainsReservedStaffTerms(newNickname) &&
+                        !currentUser.staffNicknameDisplayEligibility &&
+                        !currentUser.isAdmin)
+                );
             case 'mbti': {
                 if (isMbtiQuestionMode) {
                     // 질문 모드에서는 현재 질문에 답변했는지 확인
@@ -712,12 +725,12 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                             <DichotomySelector title="생활 양식" options={['J', 'P']} selected={mbti.jp} onSelect={(v) => setMbti((p) => ({ ...p, jp: v as 'J' | 'P' }))} />
                         </div>
                         <div
-                            className={`${panelSurface} flex items-center justify-center gap-3 whitespace-nowrap px-3 sm:gap-4 sm:px-4 ${isPcMode ? 'py-2' : 'py-3 sm:py-3.5'}`}
+                            className={`${panelSurface} flex flex-wrap items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 ${isPcMode ? 'py-2' : 'py-2.5 sm:py-3'}`}
                         >
-                            <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 sm:text-sm">나의 MBTI</span>
-                            <span className="min-w-0 truncate text-xl font-black tabular-nums tracking-wider text-emerald-300 sm:text-2xl sm:text-3xl">{finalMbti}</span>
-                        </div>
-                        <div className={`${panelSurface} ${isPcMode ? 'p-2' : 'p-3'}`}>
+                            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
+                                <span className="shrink-0 text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 sm:text-sm">나의 MBTI</span>
+                                <span className="min-w-0 truncate text-xl font-black tabular-nums tracking-wider text-emerald-300 sm:text-2xl sm:text-3xl">{finalMbti}</span>
+                            </div>
                             <Button
                                 onClick={() => {
                                     setIsMbtiQuestionMode(true);
@@ -725,9 +738,9 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                     setMbtiAnswers({});
                                 }}
                                 colorScheme="none"
-                                className={`w-full rounded-xl border border-violet-400/40 bg-gradient-to-b from-violet-950/80 to-zinc-950 font-bold text-violet-100 transition hover:border-violet-300/50 hover:brightness-110 ${isPcMode ? 'py-2 text-xs' : 'py-3 text-sm'}`}
+                                className={`shrink-0 rounded-xl border border-violet-400/40 bg-gradient-to-b from-violet-950/80 to-zinc-950 font-bold text-violet-100 transition hover:border-violet-300/50 hover:brightness-110 ${isPcMode ? 'px-3 py-1.5 text-[11px]' : 'px-3 py-2 text-xs sm:px-4 sm:py-2 sm:text-sm'}`}
                             >
-                                질문으로 다시 설정하기
+                                다시 설정하기
                             </Button>
                         </div>
                     </div>

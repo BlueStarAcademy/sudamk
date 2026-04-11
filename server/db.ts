@@ -34,6 +34,24 @@ import {
 // --- Initialization and Seeding ---
 let isInitialized = false;
 
+/** initialData 자격증명 → DB `passwordHash` 컬럼 값 (pbkdf2는 반드시 `hash:salt`로 저장해야 검증 가능). */
+const passwordHashFromInitialCredential = (cred: {
+    hash?: string;
+    salt?: string;
+    passwordHash?: string;
+}): string => {
+    if (typeof cred.passwordHash === 'string' && cred.passwordHash.length > 0) {
+        return cred.passwordHash;
+    }
+    if (typeof cred.hash === 'string' && cred.hash.length > 0) {
+        if (typeof cred.salt === 'string' && cred.salt.length > 0) {
+            return `${cred.hash}:${cred.salt}`;
+        }
+        return cred.hash;
+    }
+    return '';
+};
+
 const seedInitialData = async () => {
     const initialState = getInitialState();
     const usersToCreate = Object.values(initialState.users);
@@ -80,8 +98,11 @@ const seedInitialData = async () => {
             }
             
             try {
-                // initialData에서 cred는 { hash, salt, userId } 형태
-                const passwordHash = (cred as any).hash || (cred as any).passwordHash;
+                const passwordHash = passwordHashFromInitialCredential(cred as { hash?: string; salt?: string; passwordHash?: string });
+                if (!passwordHash) {
+                    console.error(`[DB] No password hash for credentials: ${username}, skipping`);
+                    continue;
+                }
                 await createUserCredential(originalUser.username, passwordHash, cred.userId);
                 console.log(`[DB] Created credentials for: ${username}`);
             } catch (error: any) {
@@ -135,7 +156,13 @@ const ensureAdminAccount = async () => {
         // credentials 생성
         const existingCreds = await getUserCredentialByUsername(ADMIN_LOGIN_USERNAME);
         if (!existingCreds) {
-            const passwordHash = (adminCredentials as any).hash || (adminCredentials as any).passwordHash;
+            const passwordHash = passwordHashFromInitialCredential(
+                adminCredentials as { hash?: string; salt?: string; passwordHash?: string },
+            );
+            if (!passwordHash) {
+                console.error('[DB] Admin credentials have no hash in initial state');
+                return;
+            }
             await createUserCredential(adminUser.username, passwordHash, adminUser.id);
             console.log(`[DB] Created admin credentials: ${ADMIN_LOGIN_USERNAME}`);
         }
@@ -409,7 +436,18 @@ export const invalidateUserCache = (userId: string) => {
     // getAllUsers 캐시도 무효화 (사용자 정보 변경 시)
     allUsersCache = null;
 };
-export const getUsersBrief = async (ids: string[]): Promise<Array<{ id: string; nickname: string; avatarId?: string | null; borderId?: string | null }>> => {
+export const getUsersBrief = async (
+    ids: string[]
+): Promise<
+    Array<{
+        id: string;
+        nickname: string;
+        avatarId?: string | null;
+        borderId?: string | null;
+        isAdmin?: boolean;
+        staffNicknameDisplayEligibility?: boolean;
+    }>
+> => {
     return prismaGetUsersBrief(ids);
 };
 export const getUserByNickname = async (nickname: string): Promise<User | null> => {

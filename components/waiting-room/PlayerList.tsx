@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { UserWithStatus, ServerAction, UserStatus, GameMode, Negotiation } from '../../types.js';
 import Avatar from '../Avatar.js';
+import UserNicknameText from '../UserNicknameText.js';
 import { AVATAR_POOL, BORDER_POOL, aiUserId, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import Button from '../Button.js';
 import ChallengeSelectionModal from '../ChallengeSelectionModal';
@@ -83,7 +84,15 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                     <Avatar userId={user.id} userName={user.nickname} size={36} className="border-2 border-color" avatarUrl={avatarUrl} borderUrl={borderUrl} />
                     {isDiceGo && <div className="w-5 h-5 rounded-full bg-black border border-gray-300 flex-shrink-0" />}
                     <div className="overflow-hidden">
-                        <h3 className="font-bold text-sm lg:text-base truncate">{user.nickname}</h3>
+                        <UserNicknameText
+                            user={{
+                                nickname: user.nickname,
+                                isAdmin: user.isAdmin,
+                                staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                            }}
+                            as="h3"
+                            className="font-bold text-sm lg:text-base truncate"
+                        />
                         <span className={`text-xs ${statusInfo.color}`}>● {statusInfo.text}</span>
                     </div>
                 </div>

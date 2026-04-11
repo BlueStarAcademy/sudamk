@@ -4,7 +4,12 @@ import * as crypto from 'crypto';
 const SALT_ROUNDS = 10;
 
 /**
- * 비밀번호를 해싱합니다.
+ * 비밀번호는 복호화 불가능한 단방향 해시(bcrypt)로만 저장합니다.
+ * DB가 유출되어도 원문 비밀번호를 되살릴 수 없습니다. (양방향 암호화는 사용하지 않음)
+ */
+
+/**
+ * 비밀번호를 bcrypt로 해싱합니다.
  */
 export const hashPassword = async (password: string): Promise<string> => {
     try {

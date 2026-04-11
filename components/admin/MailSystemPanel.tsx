@@ -20,6 +20,8 @@ import {
     gradeBackgrounds,
     gradeStyles,
 } from '../../constants';
+import AdminPageHeader from './AdminPageHeader.js';
+import { adminCard, adminCardTitle, adminInput, adminPageWide, adminSectionGap } from './adminChrome.js';
 
 export type MailAttachedItemPayload = {
     name: string;
@@ -245,6 +247,8 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
     const [searchError, setSearchError] = useState<string | null>(null);
     const [isItemModalOpen, setIsItemModalOpen] = useState(false);
     const [attachedItems, setAttachedItems] = useState<MailAttachedItemPayload[]>([]);
+    /** 모바일·태블릿: 단계별 화면 (데스크톱 xl+ 에서는 3열 그리드) */
+    const [mobileStep, setMobileStep] = useState<1 | 2 | 3>(1);
 
     const fetchAdminUsers = async (trimmedQuery: string): Promise<User[]> => {
         const candidates = [getApiUrl('/api/admin/users'), getApiUrl('/admin/users')];
@@ -353,213 +357,295 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
         setSearchResults([]);
         setSelectedRecipients([]);
         setAttachedItems([]);
+        setMobileStep(1);
     };
 
-    const panelShell =
-        'bg-panel border border-color rounded-lg shadow-lg text-on-panel flex flex-col min-h-[min(720px,calc(100vh-10rem))] xl:h-[min(720px,calc(100vh-10rem))]';
+    const panelShell = `${adminCard} flex min-h-[min(720px,calc(100vh-10rem))] flex-col text-on-panel xl:h-[min(720px,calc(100vh-10rem))]`;
+    const mobileStepShell = `${adminCard} flex min-h-[12rem] max-h-[calc(100dvh-12.5rem)] flex-col overflow-hidden p-5 text-on-panel sm:max-h-[calc(100dvh-11rem)]`;
+
+    const mailFormId = 'admin-mail-send-form';
+
+    const recipientsInner = (
+        <>
+            <h2 className={`${adminCardTitle} shrink-0`}>받는 사람</h2>
+            <div className="flex shrink-0 flex-wrap gap-x-4 gap-y-2">
+                <label className="flex cursor-pointer items-center">
+                    <input type="radio" name="targetType" value="all" checked={targetType === 'all'} onChange={() => setTargetType('all')} className="mr-2" />
+                    전체 사용자
+                </label>
+                <label className="flex cursor-pointer items-center">
+                    <input type="radio" name="targetType" value="specific" checked={targetType === 'specific'} onChange={() => setTargetType('specific')} className="mr-2" />
+                    특정 사용자
+                </label>
+            </div>
+
+            {targetType === 'all' && (
+                <p className="mt-6 text-sm leading-relaxed text-gray-400">
+                    로그인한 모든 유저에게 동일한 우편이 발송됩니다. 아래 단계에서 내용·보상·첨부를 설정한 뒤 하단에서 발송하세요.
+                </p>
+            )}
+
+            {targetType === 'specific' && (
+                <div className="mt-4 flex min-h-0 flex-1 flex-col gap-4">
+                    <div className="shrink-0 space-y-2">
+                        <label className="block font-medium text-secondary">닉네임 또는 아이디 검색</label>
+                        <input
+                            type="text"
+                            value={targetSearchQuery}
+                            onChange={handleSearchChange}
+                            className={adminInput}
+                            placeholder="검색 후 「선택」으로 추가"
+                        />
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400">
+                            <span>{isSearchingUsers ? '검색 중...' : `검색 결과 ${searchResults.length}명`}</span>
+                            {searchResults.length > 0 && (
+                                <button type="button" onClick={addAllSearchResultsToRecipients} className="text-blue-400 hover:underline">
+                                    현재 결과 전원 추가
+                                </button>
+                            )}
+                        </div>
+                        {searchError && <p className="text-xs text-red-400">{searchError}</p>}
+                    </div>
+
+                    <div className="shrink-0">
+                        <div className="mb-1 text-xs font-medium text-secondary">검색 결과</div>
+                        <div className="h-40 overflow-y-auto rounded-lg border border-color bg-secondary/40 sm:h-44">
+                            {searchResults.length === 0 ? (
+                                <p className="px-3 py-4 text-xs text-gray-400">
+                                    {targetSearchQuery.trim().length < 1 ? '검색어를 입력하세요.' : '결과 없음'}
+                                </p>
+                            ) : (
+                                <ul>
+                                    {searchResults.map((user) => {
+                                        const already = selectedRecipientIds.has(user.id);
+                                        return (
+                                            <li key={user.id} className="flex items-center justify-between gap-2 border-b border-color/50 px-3 py-2 last:border-b-0">
+                                                <div className="min-w-0">
+                                                    <span className="font-medium">{user.nickname}</span>
+                                                    <span className="ml-1 text-xs text-gray-400">({user.username ?? '—'})</span>
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    disabled={already}
+                                                    onClick={() => addRecipient(user)}
+                                                    className={`shrink-0 rounded px-2 py-1 text-xs ${already ? 'cursor-default bg-tertiary text-gray-500' : 'bg-accent text-primary hover:opacity-90'}`}
+                                                >
+                                                    {already ? '추가됨' : '선택'}
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="flex min-h-0 flex-1 flex-col">
+                        <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
+                            <span className="text-xs font-medium text-secondary">선택된 수신자 ({selectedRecipients.length}명)</span>
+                            {selectedRecipients.length > 0 && (
+                                <button type="button" className="text-xs text-red-400 hover:underline" onClick={() => setSelectedRecipients([])}>
+                                    전체 비우기
+                                </button>
+                            )}
+                        </div>
+                        <p className="mb-2 shrink-0 text-[11px] text-gray-500">검색어를 바꿔도 이 목록은 유지됩니다.</p>
+                        <div className="min-h-[10rem] flex-1 overflow-y-auto rounded-lg border border-color bg-tertiary/30 xl:h-56">
+                            {selectedRecipients.length === 0 ? (
+                                <p className="px-3 py-8 text-center text-xs text-gray-400">위 목록에서 「선택」으로 추가하세요.</p>
+                            ) : (
+                                <ul>
+                                    {selectedRecipients.map((u) => (
+                                        <li key={u.id} className="flex items-center justify-between gap-2 border-b border-color/50 px-3 py-2 last:border-b-0">
+                                            <div className="min-w-0">
+                                                <span className="font-medium">{u.nickname}</span>
+                                                <span className="ml-1 text-xs text-gray-400">({u.username ?? '—'})</span>
+                                            </div>
+                                            <button type="button" onClick={() => removeRecipient(u.id)} className="shrink-0 px-2 text-xs text-red-400 hover:text-red-300">
+                                                제거
+                                            </button>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
+    );
+
+    const contentRewardsInner = (
+        <>
+            <h2 className={`${adminCardTitle} shrink-0`}>우편 내용 · 보상</h2>
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
+                <div>
+                    <label className="mb-1 block font-medium text-secondary">제목</label>
+                    <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required className={adminInput} />
+                </div>
+                <div>
+                    <label className="mb-1 block font-medium text-secondary">메시지</label>
+                    <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} required className={`${adminInput} min-h-[120px] resize-y`} />
+                </div>
+                <div>
+                    <label className="mb-1 block font-medium text-secondary">수령 제한일 (0일 = 무제한)</label>
+                    <input type="number" min="0" value={expiresInDays} onChange={(e) => setExpiresInDays(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                    <div>
+                        <label className="mb-1 block font-medium text-secondary">⚡ 행동력</label>
+                        <input type="number" min="0" value={actionPoints} onChange={(e) => setActionPoints(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                    </div>
+                    <div>
+                        <label className="mb-1 flex items-center gap-1 font-medium text-secondary">
+                            <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 object-contain" />
+                            골드
+                        </label>
+                        <input type="number" min="0" value={gold} onChange={(e) => setGold(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                    </div>
+                    <div>
+                        <label className="mb-1 flex items-center gap-1 font-medium text-secondary">
+                            <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
+                            다이아
+                        </label>
+                        <input type="number" min="0" value={diamonds} onChange={(e) => setDiamonds(parseInt(e.target.value, 10) || 0)} className={adminInput} />
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+
+    const attachedItemsInner = (
+        <>
+            <h2 className={`${adminCardTitle} shrink-0`}>첨부 아이템</h2>
+            <p className="mb-3 shrink-0 text-xs text-gray-500">모달에서 장비·소모품·재료를 고른 뒤 목록에 쌓입니다.</p>
+            <Button type="button" onClick={() => setIsItemModalOpen(true)} colorScheme="blue" className="mb-3 w-full shrink-0 py-2.5">
+                아이템 첨부 열기
+            </Button>
+            <div className="mb-2 shrink-0 text-xs font-medium text-secondary">첨부 목록 ({attachedItems.length}개)</div>
+            <div className="min-h-0 flex-1 space-y-1 overflow-y-auto rounded-lg border border-color bg-tertiary/50 p-2 xl:h-auto">
+                {attachedItems.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between gap-2 rounded bg-primary/50 p-2 text-xs">
+                        <span className="flex min-w-0 items-center gap-1.5 truncate">
+                            <span className="min-w-0 truncate">
+                                {item.name} × {item.quantity}
+                                {item.type === 'equipment' && item.grade ? (
+                                    <span className={`font-medium ${gradeStyles[item.grade].color}`}> ({gradeStyles[item.grade].name})</span>
+                                ) : null}
+                                {item.type === 'equipment' && item.stars != null && item.stars > 0 ? (
+                                    <span className="font-medium text-amber-400/90"> +{item.stars}</span>
+                                ) : null}{' '}
+                                <span className="text-gray-500">({item.type})</span>
+                            </span>
+                        </span>
+                        <button
+                            type="button"
+                            onClick={() => setAttachedItems((prev) => prev.filter((_, i) => i !== index))}
+                            className="shrink-0 px-2 font-bold text-red-500 hover:text-red-400"
+                        >
+                            X
+                        </button>
+                    </div>
+                ))}
+                {attachedItems.length === 0 && <p className="py-10 text-center text-xs text-tertiary">첨부된 아이템이 없습니다.</p>}
+            </div>
+        </>
+    );
+
+    const mobileStepTabs: { step: 1 | 2 | 3; label: string; short: string }[] = [
+        { step: 1, label: '받는 사람', short: '수신' },
+        { step: 2, label: '내용·보상', short: '내용' },
+        { step: 3, label: '첨부', short: '첨부' },
+    ];
 
     return (
-        <div className="max-w-[1800px] mx-auto px-3 bg-primary text-primary pb-10">
+        <div className={`${adminPageWide} ${adminSectionGap}`}>
             {isItemModalOpen && <ItemSelectionModal onClose={() => setIsItemModalOpen(false)} onAddItem={(item) => setAttachedItems(prev => [...prev, item])} />}
-            <header className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl sm:text-3xl font-bold">우편 발송 시스템</h1>
-                <button type="button" onClick={onBack} className="p-0 flex items-center justify-center w-10 h-10 rounded-full transition-all duration-100 active:shadow-inner active:scale-95 active:translate-y-0.5">
-                    <img src="/images/button/back.png" alt="Back" className="w-10 h-10 sm:w-12 sm:h-12" />
-                </button>
-            </header>
+            <AdminPageHeader
+                title="우편 발송"
+                subtitle="전체 또는 지정 유저에게 골드·다이아·아이템 우편을 발송합니다."
+                onBack={onBack}
+            />
 
-            <form onSubmit={handleSendMail} className="text-sm">
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 xl:gap-6 items-stretch">
-                {/* 받는 사람 전용 패널 — 높이·스크롤 영역 고정 */}
-                <div className={`${panelShell} p-5`}>
-                    <h2 className="text-lg font-semibold text-primary border-b border-color pb-2 mb-4 shrink-0">받는 사람</h2>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2 shrink-0">
-                        <label className="flex items-center cursor-pointer">
-                            <input type="radio" name="targetType" value="all" checked={targetType === 'all'} onChange={() => setTargetType('all')} className="mr-2" />
-                            전체 사용자
-                        </label>
-                        <label className="flex items-center cursor-pointer">
-                            <input type="radio" name="targetType" value="specific" checked={targetType === 'specific'} onChange={() => setTargetType('specific')} className="mr-2" />
-                            특정 사용자
-                        </label>
-                    </div>
-
-                    {targetType === 'all' && (
-                        <p className="mt-6 text-sm text-gray-400 leading-relaxed">
-                            로그인한 모든 유저에게 동일한 우편이 발송됩니다. 내용·보상은 가운데 패널, 아이템은 오른쪽 패널에서 설정하세요.
-                        </p>
-                    )}
-
-                    {targetType === 'specific' && (
-                        <div className="mt-4 flex flex-col gap-4 flex-1 min-h-0">
-                            <div className="shrink-0 space-y-2">
-                                <label className="block font-medium text-secondary">닉네임 또는 아이디 검색</label>
-                                <input
-                                    type="text"
-                                    value={targetSearchQuery}
-                                    onChange={handleSearchChange}
-                                    className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5"
-                                    placeholder="검색 후 「선택」으로 추가"
-                                />
-                                <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-400">
-                                    <span>{isSearchingUsers ? '검색 중...' : `검색 결과 ${searchResults.length}명`}</span>
-                                    {searchResults.length > 0 && (
-                                        <button type="button" onClick={addAllSearchResultsToRecipients} className="text-blue-400 hover:underline">
-                                            현재 결과 전원 추가
-                                        </button>
-                                    )}
-                                </div>
-                                {searchError && <p className="text-xs text-red-400">{searchError}</p>}
-                            </div>
-
-                            <div className="shrink-0">
-                                <div className="text-xs font-medium text-secondary mb-1">검색 결과</div>
-                                <div className="h-44 overflow-y-auto bg-secondary/40 border border-color rounded-lg">
-                                    {searchResults.length === 0 ? (
-                                        <p className="px-3 py-4 text-xs text-gray-400">
-                                            {targetSearchQuery.trim().length < 1 ? '검색어를 입력하세요.' : '결과 없음'}
-                                        </p>
-                                    ) : (
-                                        <ul>
-                                            {searchResults.map((user) => {
-                                                const already = selectedRecipientIds.has(user.id);
-                                                return (
-                                                    <li key={user.id} className="px-3 py-2 border-b border-color/50 last:border-b-0 flex items-center justify-between gap-2">
-                                                        <div className="min-w-0">
-                                                            <span className="font-medium">{user.nickname}</span>
-                                                            <span className="text-xs text-gray-400 ml-1">({user.username ?? '—'})</span>
-                                                        </div>
-                                                        <button
-                                                            type="button"
-                                                            disabled={already}
-                                                            onClick={() => addRecipient(user)}
-                                                            className={`shrink-0 text-xs px-2 py-1 rounded ${already ? 'bg-tertiary text-gray-500 cursor-default' : 'bg-accent text-primary hover:opacity-90'}`}
-                                                        >
-                                                            {already ? '추가됨' : '선택'}
-                                                        </button>
-                                                    </li>
-                                                );
-                                            })}
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div className="flex-1 flex flex-col min-h-0">
-                                <div className="flex items-center justify-between gap-2 mb-1 shrink-0">
-                                    <span className="text-xs font-medium text-secondary">선택된 수신자 ({selectedRecipients.length}명)</span>
-                                    {selectedRecipients.length > 0 && (
-                                        <button type="button" className="text-xs text-red-400 hover:underline" onClick={() => setSelectedRecipients([])}>
-                                            전체 비우기
-                                        </button>
-                                    )}
-                                </div>
-                                <p className="text-[11px] text-gray-500 mb-2 shrink-0">검색어를 바꿔도 이 목록은 유지됩니다.</p>
-                                <div className="flex-1 min-h-0 h-52 xl:h-56 overflow-y-auto bg-tertiary/30 border border-color rounded-lg">
-                                    {selectedRecipients.length === 0 ? (
-                                        <p className="px-3 py-8 text-xs text-gray-400 text-center">위 목록에서 「선택」으로 추가하세요.</p>
-                                    ) : (
-                                        <ul>
-                                            {selectedRecipients.map((u) => (
-                                                <li key={u.id} className="px-3 py-2 border-b border-color/50 last:border-b-0 flex items-center justify-between gap-2">
-                                                    <div className="min-w-0">
-                                                        <span className="font-medium">{u.nickname}</span>
-                                                        <span className="text-xs text-gray-400 ml-1">({u.username ?? '—'})</span>
-                                                    </div>
-                                                    <button type="button" onClick={() => removeRecipient(u.id)} className="shrink-0 text-xs text-red-400 hover:text-red-300 px-2">
-                                                        제거
-                                                    </button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    )}
+            <form id={mailFormId} onSubmit={handleSendMail} className="text-sm">
+                {/* 데스크톱: 기존 3열 */}
+                <div className="hidden grid-cols-1 items-stretch gap-6 xl:grid xl:grid-cols-3 xl:gap-6">
+                    <div className={`${panelShell} p-5`}>{recipientsInner}</div>
+                    <div className={`${panelShell} p-5`}>{contentRewardsInner}</div>
+                    <div className={`${panelShell} p-5`}>{attachedItemsInner}</div>
                 </div>
 
-                {/* 우편 내용 · 보상 (텍스트·통화만) */}
-                <div className={`${panelShell} p-5`}>
-                    <h2 className="text-lg font-semibold text-primary border-b border-color pb-2 mb-4 shrink-0">우편 내용 · 보상</h2>
-                    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-1">
-                        <div>
-                            <label className="block mb-1 font-medium text-secondary">제목</label>
-                            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
+                {/* 모바일·태블릿: 단계별 */}
+                <div className="pb-[5.75rem] xl:hidden">
+                    <div
+                        className="sticky top-0 z-20 -mx-1 mb-4 border-b border-color/40 bg-primary/95 px-1 pb-3 pt-0 backdrop-blur-md"
+                        role="tablist"
+                        aria-label="우편 작성 단계"
+                    >
+                        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]">
+                            {mobileStepTabs.map(({ step, label, short }) => {
+                                const active = mobileStep === step;
+                                return (
+                                    <button
+                                        key={step}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={active}
+                                        onClick={() => setMobileStep(step)}
+                                        className={`shrink-0 rounded-xl border px-3 py-2.5 text-left transition-all ${
+                                            active
+                                                ? 'border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-inner'
+                                                : 'border-color/50 bg-secondary/40 text-gray-400 hover:border-color hover:bg-secondary/60 hover:text-primary'
+                                        }`}
+                                    >
+                                        <span className="block text-[11px] font-semibold text-gray-500 sm:text-xs">단계 {step}</span>
+                                        <span className="block text-xs font-semibold sm:text-sm">
+                                            <span className="sm:hidden">{short}</span>
+                                            <span className="hidden sm:inline">{label}</span>
+                                        </span>
+                                    </button>
+                                );
+                            })}
                         </div>
-                        <div>
-                            <label className="block mb-1 font-medium text-secondary">메시지</label>
-                            <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={6} required className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5 resize-y min-h-[120px]" />
-                        </div>
-                        <div>
-                            <label className="block mb-1 font-medium text-secondary">수령 제한일 (0일 = 무제한)</label>
-                            <input type="number" min="0" value={expiresInDays} onChange={(e) => setExpiresInDays(parseInt(e.target.value, 10) || 0)} className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
-                        </div>
+                    </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                                <label className="block mb-1 font-medium text-secondary">⚡ 행동력</label>
-                                <input type="number" min="0" value={actionPoints} onChange={(e) => setActionPoints(parseInt(e.target.value, 10) || 0)} className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
-                            </div>
-                            <div>
-                                <label className="flex items-center gap-1 mb-1 font-medium text-secondary">
-                                    <img src="/images/icon/Gold.png" alt="골드" className="w-4 h-4 object-contain" />
-                                    골드
-                                </label>
-                                <input type="number" min="0" value={gold} onChange={(e) => setGold(parseInt(e.target.value, 10) || 0)} className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
-                            </div>
-                            <div>
-                                <label className="flex items-center gap-1 mb-1 font-medium text-secondary">
-                                    <img src="/images/icon/Zem.png" alt="다이아" className="w-4 h-4 object-contain" />
-                                    다이아
-                                </label>
-                                <input type="number" min="0" value={diamonds} onChange={(e) => setDiamonds(parseInt(e.target.value, 10) || 0)} className="bg-secondary border border-color text-primary rounded-lg block w-full p-2.5" />
-                            </div>
-                        </div>
+                    <div className="min-h-[min(60vh,28rem)]" role="tabpanel">
+                        {mobileStep === 1 && <div className={mobileStepShell}>{recipientsInner}</div>}
+                        {mobileStep === 2 && <div className={mobileStepShell}>{contentRewardsInner}</div>}
+                        {mobileStep === 3 && <div className={mobileStepShell}>{attachedItemsInner}</div>}
                     </div>
                 </div>
 
-                {/* 첨부 아이템 전용 패널 */}
-                <div className={`${panelShell} p-5`}>
-                    <h2 className="text-lg font-semibold text-primary border-b border-color pb-2 mb-4 shrink-0">첨부 아이템</h2>
-                    <p className="text-xs text-gray-500 mb-3 shrink-0">모달에서 장비·소모품·재료를 고른 뒤 목록에 쌓입니다.</p>
-                    <Button type="button" onClick={() => setIsItemModalOpen(true)} colorScheme="blue" className="w-full py-2.5 shrink-0 mb-3">
-                        아이템 첨부 열기
-                    </Button>
-                    <div className="text-xs font-medium text-secondary mb-2 shrink-0">첨부 목록 ({attachedItems.length}개)</div>
-                    <div className="h-56 overflow-y-auto bg-tertiary/50 border border-color rounded-lg p-2 space-y-1 xl:h-auto xl:flex-1 xl:min-h-0">
-                        {attachedItems.map((item, index) => (
-                            <div key={index} className="flex justify-between items-center bg-primary/50 p-2 rounded text-xs gap-2">
-                                <span className="flex min-w-0 items-center gap-1.5 truncate">
-                                    <span className="min-w-0 truncate">
-                                        {item.name} × {item.quantity}
-                                        {item.type === 'equipment' && item.grade ? (
-                                            <span className={`font-medium ${gradeStyles[item.grade].color}`}>
-                                                {' '}({gradeStyles[item.grade].name})
-                                            </span>
-                                        ) : null}
-                                        {item.type === 'equipment' && item.stars != null && item.stars > 0 ? (
-                                            <span className="text-amber-400/90 font-medium"> +{item.stars}</span>
-                                        ) : null}{' '}
-                                        <span className="text-gray-500">({item.type})</span>
-                                    </span>
-                                </span>
-                                <button type="button" onClick={() => setAttachedItems((prev) => prev.filter((_, i) => i !== index))} className="text-red-500 hover:text-red-400 font-bold px-2 shrink-0">
-                                    X
-                                </button>
-                            </div>
-                        ))}
-                        {attachedItems.length === 0 && <p className="text-tertiary text-center text-xs py-10">첨부된 아이템이 없습니다.</p>}
-                    </div>
-                </div>
-                </div>
-
-                <div className="mt-8 pt-2 border-t border-color/60 max-w-2xl mx-auto xl:max-w-none">
+                <div className="mx-auto mt-8 hidden max-w-2xl border-t border-color/60 pt-2 xl:mx-0 xl:block xl:max-w-none">
                     <Button type="submit" className="w-full py-3.5 text-base" colorScheme="green">
                         발송하기
                     </Button>
                 </div>
             </form>
+
+            {/* 모바일 하단 고정: 발송 + 단계 이동 */}
+            <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 xl:hidden">
+                <div className="pointer-events-auto border-t border-color/60 bg-primary/95 px-3 py-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-10px_28px_-10px_rgba(0,0,0,0.45)] backdrop-blur-md">
+                    <div className="mx-auto flex max-w-5xl flex-col gap-2">
+                        <div className="flex items-center justify-center gap-2">
+                            {mobileStep > 1 && (
+                                <Button type="button" colorScheme="gray" className="!px-4 !py-2.5 !text-sm" onClick={() => setMobileStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))}>
+                                    이전
+                                </Button>
+                            )}
+                            {mobileStep < 3 && (
+                                <Button type="button" colorScheme="blue" className="!px-4 !py-2.5 !text-sm" onClick={() => setMobileStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s))}>
+                                    다음
+                                </Button>
+                            )}
+                        </div>
+                        <Button type="submit" form={mailFormId} className="w-full py-3.5 text-base" colorScheme="green">
+                            발송하기
+                        </Button>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 };

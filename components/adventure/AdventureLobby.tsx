@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { ADVENTURE_LOBBY_CARD_ASPECT, ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import AdventureProfilePanel from './AdventureProfilePanel.js';
+import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 
 const STAGE_CARD_RINGS: readonly string[] = [
     'ring-emerald-400/40',
@@ -16,6 +17,7 @@ const STAGE_CARD_RINGS: readonly string[] = [
 const AdventureLobby: React.FC = () => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+    const [monsterCodexOpen, setMonsterCodexOpen] = useState(false);
     const onBack = () => replaceAppHash('#/profile');
 
     return (
@@ -49,8 +51,32 @@ const AdventureLobby: React.FC = () => {
                         왼쪽 모험 일지 · 오른쪽 챕터에서 맵 입장
                     </p>
                 </div>
-                {!isNativeMobile && <div className="w-10 sm:w-12" aria-hidden />}
+                {!isNativeMobile && (
+                    <button
+                        type="button"
+                        onClick={() => setMonsterCodexOpen(true)}
+                        className="flex h-10 w-10 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-violet-500/35 bg-violet-950/40 p-0.5 text-[9px] font-bold leading-tight text-violet-100 shadow-inner transition-colors hover:border-amber-400/40 hover:bg-violet-900/50 active:scale-95 sm:h-12 sm:w-12 sm:text-[10px]"
+                        aria-label="몬스터 도감 열기"
+                        title="몬스터 도감"
+                    >
+                        <img src="/images/button/itembook.png" alt="" className="h-5 w-5 object-contain sm:h-6 sm:w-6" draggable={false} />
+                        <span className="hidden sm:inline">도감</span>
+                    </button>
+                )}
             </header>
+
+            {isNativeMobile && (
+                <div className="mb-1.5 flex shrink-0 justify-center px-1">
+                    <button
+                        type="button"
+                        onClick={() => setMonsterCodexOpen(true)}
+                        className="inline-flex w-full max-w-md items-center justify-center gap-2 rounded-xl border border-violet-500/40 bg-gradient-to-r from-violet-950/70 via-zinc-900/80 to-fuchsia-950/50 px-3 py-2 text-sm font-bold text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-transform active:scale-[0.99]"
+                    >
+                        <img src="/images/button/itembook.png" alt="" className="h-6 w-6 object-contain" draggable={false} />
+                        몬스터 도감
+                    </button>
+                </div>
+            )}
 
             <div
                 className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-y-contain ${isNativeMobile ? 'px-0.5 pb-1' : 'max-w-6xl xl:max-w-7xl mx-auto w-full px-1 sm:px-0'}`}
@@ -145,6 +171,10 @@ const AdventureLobby: React.FC = () => {
                     </section>
                 </div>
             </div>
+
+            {monsterCodexOpen && (
+                <AdventureMonsterCodexModal onClose={() => setMonsterCodexOpen(false)} isTopmost />
+            )}
         </div>
     );
 };
