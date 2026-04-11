@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Guild as GuildType, ServerAction, GuildMember, GuildMemberRole } from '../../types/index.js';
+import { Guild as GuildType } from '../../types/index.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
@@ -12,7 +12,8 @@ interface GuildManagementPanelProps {
 }
 
 const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild, compact = false }) => {
-    const { handlers, currentUserWithStatus } = useAppContext();
+    const { handlers } = useAppContext();
+
     const [announcement, setAnnouncement] = useState(guild.announcement || '');
     const [isEditingAnnouncement, setIsEditingAnnouncement] = useState(false);
 
@@ -56,7 +57,7 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({ guild, comp
             }`}
         >
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
-            <div className="relative z-10 flex h-full flex-col">
+            <div className="relative z-10 flex h-full min-h-0 flex-col">
                 {isEditingProfile && (
                     <DraggableWindow
                         title="길드 정보 수정"

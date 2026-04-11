@@ -1,7 +1,7 @@
 import {
     User, LiveGameSession, Negotiation, KomiBid,
     AdminLog, Announcement, OverrideAnnouncement, InventoryItem, Equipment,
-    QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost
+    QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost,
 } from './entities.js';
 import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move } from './enums.js';
 import type { WinReason } from './enums.js';

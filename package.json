@@ -36,6 +36,7 @@
     "script:lock-training-quests": "npx tsx --tsconfig server/tsconfig.json server/scripts/lockTrainingQuests.ts",
     "cleanup-orphaned-games": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanupOrphanedActiveGames.ts",
     "clean-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/cleanAdminGuild.ts",
+    "script:strip-swiss-league-from-guilds-kv": "npx tsx --tsconfig server/tsconfig.json server/scripts/stripSwissLeagueFromGuildsKv.ts",
     "check-admin-guild": "npx tsx --tsconfig server/tsconfig.json server/scripts/checkAdminGuild.ts",
     "test-db-performance": "npx tsx --tsconfig server/tsconfig.json server/scripts/testDbPerformance.ts",
     "analyze-db-queries": "npx tsx --tsconfig server/tsconfig.json server/scripts/analyzeDbQueries.ts",

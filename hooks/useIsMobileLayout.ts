@@ -3,14 +3,20 @@ import { useEffect, useState } from 'react';
 /** 터치 태블릿 ~8인치 이상으로 볼 때 뷰포트 짧은 변 최소값(CSS 논리 px, 기기별 근사) */
 export const TABLET_8IN_MIN_SHORT_SIDE_CSS_PX = 744;
 
-/** 태블릿으로 볼 때 긴 변 상한 — 일반 데스크톱·노트북 전체 폭은 제외 */
-export const TABLET_MAX_LONG_SIDE_CSS_PX = 1600;
+/** 태블릿으로 볼 때 긴 변 상한 — 큰 태블릿·신형 iPad 세로 논리 높이(2000px대) 포함, 일반 울트라와이드 데스크톱은 터치 없으면 제외 */
+export const TABLET_MAX_LONG_SIDE_CSS_PX = 2800;
+
+/**
+ * 짧은 변이 744 미만인 가로(landscape) 태블릿만 따로 볼 때 긴 변 상한(폴드·울트라와이드 터치 창 등 과도한 매칭 방지).
+ */
+export const TABLET_NARROW_SHORT_SIDE_LANDSCAPE_MAX_LONG_CSS_PX = 3200;
 
 /**
  * 짧은 변이 TABLET_8IN_MIN_SHORT_SIDE_CSS_PX 미만(예: 1280×720)이어도 가로(landscape)이고
  * 긴 변이 이 값 이상이면 태블릿으로 보고 PC(16:9) 셸을 쓴다. 폰 가로(긴 변 ~900 미만)는 제외.
+ * 1023px 등 1px 단위 반올림으로 1024 미만이 되는 기기를 포함하려고 1000으로 둔다.
  */
-export const TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX = 1024;
+export const TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX = 1000;
 /** 가로 태블릿 보정: 짧은 변이 이 값 이상일 때만 태블릿으로 본다(폰 가로 제외). */
 export const TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX = 600;
 
@@ -50,7 +56,7 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
             landscape &&
             shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
             longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX &&
-            longSide <= TABLET_MAX_LONG_SIDE_CSS_PX
+            longSide <= TABLET_NARROW_SHORT_SIDE_LANDSCAPE_MAX_LONG_CSS_PX
         ) {
             return { isPhoneHandheldTouch: false, isLargeTouchTablet: true };
         }
@@ -129,13 +135,20 @@ export function useIsMobileLayout(breakpoint: number = 1024): boolean {
 /** 좁은 화면의 휴대기기 여부. 레이아웃이 아니라 safe-area/회전 정책 판단용. */
 export function useIsHandheldDevice(breakpoint: number = 1024): boolean {
     const [isHandheld, setIsHandheld] = useState(() => {
-        const { width } = getViewportSize();
+        const { width, height } = getViewportSize();
+        const touch = computeTouchLayoutProfile();
+        if (touch.isLargeTouchTablet && width > height) return false;
         return isHandheldWidth(width, breakpoint);
     });
 
     useEffect(() => {
         const update = () => {
-            const { width } = getViewportSize();
+            const { width, height } = getViewportSize();
+            const touch = computeTouchLayoutProfile();
+            if (touch.isLargeTouchTablet && width > height) {
+                setIsHandheld(false);
+                return;
+            }
             setIsHandheld(isHandheldWidth(width, breakpoint));
         };
         update();

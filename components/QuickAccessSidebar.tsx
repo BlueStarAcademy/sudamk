@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
@@ -146,7 +146,6 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 
     const gameplayButtons = buttons.filter((b) => b.gameplay);
     const utilityButtons = buttons.filter((b) => !b.gameplay);
-    const [mobileHeaderDrawer, setMobileHeaderDrawer] = useState<null | 'menu1' | 'menu2'>(null);
 
     const notificationDotClass =
         'absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5';
@@ -167,45 +166,25 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         return null;
     };
 
-    const renderMobileMenuToggleButton = ({
-        label,
-        tone,
-        onClick,
-    }: {
-        label: '메뉴1' | '메뉴2';
-        tone: 'amber' | 'cyan';
-        onClick: () => void;
-    }) => {
-        const isAmber = tone === 'amber';
-        return (
-            <button
-                type="button"
-                onClick={onClick}
-                className={`group inline-flex h-10 w-7 shrink-0 items-center justify-center rounded-md border px-0.5 backdrop-blur-md shadow-[0_6px_18px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.2)] transition-all duration-300 ease-out active:scale-[0.97] ${
-                    isAmber
-                        ? 'border-amber-300/35 bg-gradient-to-br from-amber-400/20 via-stone-900/75 to-stone-950 text-amber-100'
-                        : 'border-cyan-300/35 bg-gradient-to-br from-cyan-400/18 via-slate-900/80 to-slate-950 text-cyan-100'
-                }`}
-            >
-                <div
-                    className={`flex flex-col gap-[3px] rounded-sm bg-black/45 px-[3px] py-1.5 ring-1 ring-inset ${
-                        isAmber ? 'ring-amber-300/30' : 'ring-cyan-300/25'
-                    }`}
-                    aria-hidden
-                >
-                    <span className="h-[1.5px] w-3 rounded-full bg-white/90" />
-                    <span className="h-[1.5px] w-3 rounded-full bg-white/90" />
-                    <span className="h-[1.5px] w-3 rounded-full bg-white/90" />
-                </div>
-            </button>
-        );
-    };
-
-    const renderStripButton = (btn: QuickBtn) => {
+    const renderStripButton = (btn: QuickBtn, variant: 'wrap' | 'topBar' = 'wrap') => {
         const g = btn.gameplay;
         const shell = g
             ? 'border-amber-500/45 bg-gradient-to-b from-amber-950/55 via-amber-900/25 to-slate-950/90 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)]'
             : 'border-violet-500/35 bg-gradient-to-b from-violet-950/40 via-slate-900/40 to-slate-950/90 shadow-[inset_0_1px_0_rgba(167,139,250,0.1)]';
+        const topBar = variant === 'topBar';
+        const iconShell = topBar
+            ? 'flex h-7 w-7 shrink-0 items-center justify-center'
+            : 'flex h-[clamp(1.08rem,5.4vw,1.45rem)] w-[clamp(1.08rem,5.4vw,1.45rem)] shrink-0 items-center justify-center';
+        const iconInner = btn.iconUrl
+            ? topBar
+                ? 'h-full w-full object-contain drop-shadow-sm [image-rendering:-webkit-optimize-contrast]'
+                : 'h-full w-full object-contain drop-shadow-sm'
+            : topBar
+              ? 'text-[1.05rem] leading-none'
+              : 'text-[clamp(0.85rem,4.2vw,1.15rem)]';
+        const labelClass = topBar
+            ? 'w-full truncate text-center text-[9px] font-semibold leading-none text-gray-100'
+            : 'w-full truncate text-center text-[clamp(6px,2.5vw,9px)] font-semibold leading-none text-gray-100';
         return (
             <button
                 key={btn.label}
@@ -216,19 +195,12 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 }}
                 disabled={btn.disabled}
                 title={btn.label}
-                className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 py-1 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${shell}`}
+                className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${topBar ? 'py-0.5' : 'py-1'} ${shell}`}
             >
-                <div className="flex h-[clamp(1.08rem,5.4vw,1.45rem)] w-[clamp(1.08rem,5.4vw,1.45rem)] shrink-0 items-center justify-center">
-                    {renderIcon(
-                        btn,
-                        btn.iconUrl
-                            ? 'h-full w-full object-contain drop-shadow-sm'
-                            : 'text-[clamp(0.85rem,4.2vw,1.15rem)]',
-                    )}
+                <div className={iconShell}>
+                    {renderIcon(btn, iconInner)}
                 </div>
-                <span className="w-full truncate text-center text-[clamp(6px,2.5vw,9px)] font-semibold leading-none text-gray-100">
-                    {btn.label}
-                </span>
+                <span className={labelClass}>{btn.label}</span>
                 {btn.notification &&
                     (btn.count && btn.count > 0 ? (
                         <span className={notificationCountClass}>{btn.count > 9 ? '9+' : btn.count}</span>
@@ -244,102 +216,21 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         return (
             <div
                 className={[
-                    'relative flex w-full min-w-0 items-stretch border-b border-amber-900/25 bg-gradient-to-r from-slate-950 via-slate-900/95 to-slate-950 px-1 py-1 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]',
+                    'flex w-full min-w-0 items-stretch border-b border-amber-900/25 bg-gradient-to-r from-slate-950 via-slate-900/95 to-slate-950 px-0.5 py-1 shadow-[0_6px_16px_-8px_rgba(0,0,0,0.5)]',
                     className,
                 ]
                     .filter(Boolean)
                     .join(' ')}
                 data-quick-access-sidebar-root
             >
-                <div className="relative flex h-10 w-full items-center justify-between">
-                    {renderMobileMenuToggleButton({
-                        label: '메뉴1',
-                        tone: 'amber',
-                        onClick: () => setMobileHeaderDrawer((prev) => (prev === 'menu1' ? null : 'menu1')),
-                    })}
-                    {renderMobileMenuToggleButton({
-                        label: '메뉴2',
-                        tone: 'cyan',
-                        onClick: () => setMobileHeaderDrawer((prev) => (prev === 'menu2' ? null : 'menu2')),
-                    })}
-
-                    <div className="pointer-events-none absolute inset-x-[2.4rem] top-0 h-10 overflow-hidden">
-                        <div
-                            className={`absolute inset-0 transition-all duration-300 ease-out ${
-                                mobileHeaderDrawer === 'menu1'
-                                    ? 'pointer-events-auto translate-x-0 opacity-100'
-                                    : 'pointer-events-none -translate-x-8 opacity-0'
-                            }`}
-                        >
-                                <div className="flex h-full w-full items-stretch gap-1 pr-1">
-                                {gameplayButtons.map((btn) => {
-                                    const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-                                        e.preventDefault();
-                                        btn.handler();
-                                    };
-                                    return (
-                                        <button
-                                            key={btn.label}
-                                            type="button"
-                                            onClick={onClick}
-                                            title={btn.label}
-                                            aria-label={btn.label}
-                                            className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md border border-amber-500/50 bg-gradient-to-b from-amber-950/55 to-slate-900/90 px-0.5 py-0.5 shadow-sm"
-                                        >
-                                            {renderIcon(
-                                                btn,
-                                                btn.iconUrl ? 'h-[clamp(0.88rem,4.2vw,1.14rem)] w-[clamp(0.88rem,4.2vw,1.14rem)] object-contain [image-rendering:auto]' : 'text-[clamp(0.72rem,3.1vw,0.96rem)] leading-none',
-                                            )}
-                                            <span className="max-w-full truncate text-center text-[clamp(0.34rem,1.8vw,0.45rem)] font-semibold leading-none text-gray-100">
-                                                {btn.label}
-                                            </span>
-                                            {btn.notification &&
-                                                (btn.count && btn.count > 0 ? (
-                                                    <span className={notificationCountClass}>{btn.count > 9 ? '9+' : btn.count}</span>
-                                                ) : (
-                                                    <span className={notificationDotClass} />
-                                                ))}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-
-                        <div
-                            className={`absolute inset-0 transition-all duration-300 ease-out ${
-                                mobileHeaderDrawer === 'menu2'
-                                    ? 'pointer-events-auto translate-x-0 opacity-100'
-                                    : 'pointer-events-none translate-x-8 opacity-0'
-                            }`}
-                        >
-                                <div className="flex h-full w-full items-stretch justify-start gap-1 pl-1 pr-1">
-                                {utilityButtons.map((btn) => {
-                                    const onClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-                                        e.preventDefault();
-                                        btn.handler();
-                                    };
-                                    return (
-                                        <button
-                                            key={btn.label}
-                                            type="button"
-                                            onClick={onClick}
-                                            title={btn.label}
-                                            aria-label={btn.label}
-                                            className="relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md border border-violet-500/45 bg-gradient-to-b from-violet-950/45 to-slate-900/90 px-0.5 py-0.5 shadow-sm"
-                                        >
-                                            {renderIcon(
-                                                btn,
-                                                btn.iconUrl ? 'h-[clamp(0.88rem,4.2vw,1.14rem)] w-[clamp(0.88rem,4.2vw,1.14rem)] object-contain [image-rendering:auto]' : 'text-[clamp(0.72rem,3.1vw,0.96rem)] leading-none',
-                                            )}
-                                            <span className="max-w-full truncate text-center text-[clamp(0.34rem,1.8vw,0.45rem)] font-semibold leading-none text-gray-100">
-                                                {btn.label}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
+                {/* 논리 폭 480px 스케일 안에서 vw 단위는 뷰포트와 어긋나 깨짐 → 고정 높이·고정 아이콘으로 통일 */}
+                <div className="flex h-[3.25rem] min-h-[3.25rem] w-full flex-nowrap items-stretch gap-0.5 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {gameplayButtons.map((btn) => renderStripButton(btn, 'topBar'))}
+                    <div
+                        className="mx-0.5 w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-amber-400/35 to-transparent"
+                        aria-hidden
+                    />
+                    {utilityButtons.map((btn) => renderStripButton(btn, 'topBar'))}
                 </div>
             </div>
         );

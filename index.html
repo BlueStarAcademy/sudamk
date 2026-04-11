@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/images/Icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- 터치 폰만: React·번들보다 먼저 세로 잠금 시도(첫 페인트 전). 숫자는 hooks/useIsMobileLayout.ts TABLET_* 와 동일 -->
+    <!-- 터치 폰만: React·번들보다 먼저 세로 잠금 시도(첫 페인트 전). 744·2800 은 hooks/useIsMobileLayout.ts TABLET_* 와 동일 -->
     <script>
       (function () {
         try {
@@ -20,7 +20,7 @@
               (window.matchMedia && window.matchMedia('(hover: none)').matches);
           } catch (e) {}
           if (!hasTouch || !tabletLike) return;
-          if (shortSide >= 744 && longSide <= 1600) return;
+          if (shortSide >= 744 && longSide <= 2800) return;
           if (shortSide >= 744) return;
           var o = screen.orientation;
           if (!o || !o.lock) return;
