@@ -1717,13 +1717,13 @@ async function processDungeonRankingRewards(
                 
                 // 기본 보상 계산
                 if (dungeonType === 'neighborhood') {
-                    const baseGold = (await import('../constants/tournaments.js')).DUNGEON_STAGE_BASE_REWARDS_GOLD[stage] || 0;
+                    const baseGold = (await import('../shared/constants/tournaments.js')).DUNGEON_STAGE_BASE_REWARDS_GOLD[stage] || 0;
                     const additionalGold = Math.floor(baseGold * (multiplier - 1.0)); // 배율에서 1.0을 빼서 추가분만 계산
                     if (additionalGold > 0) {
                         additionalRewards.gold = (additionalRewards.gold || 0) + additionalGold;
                     }
                 } else if (dungeonType === 'national') {
-                    const baseMaterial = (await import('../constants/tournaments.js')).DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage];
+                    const baseMaterial = (await import('../shared/constants/tournaments.js')).DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage];
                     if (baseMaterial) {
                         const additionalQuantity = Math.floor(baseMaterial.quantity * (multiplier - 1.0));
                         if (additionalQuantity > 0) {
@@ -1735,7 +1735,7 @@ async function processDungeonRankingRewards(
                         }
                     }
                 } else if (dungeonType === 'world') {
-                    const baseEquipment = (await import('../constants/tournaments.js')).DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage];
+                    const baseEquipment = (await import('../shared/constants/tournaments.js')).DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage];
                     if (baseEquipment) {
                         for (const box of baseEquipment.boxes) {
                             const additionalQuantity = Math.floor(box.quantity * (multiplier - 1.0));

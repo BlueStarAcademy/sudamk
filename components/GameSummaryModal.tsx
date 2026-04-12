@@ -5,7 +5,8 @@ import { audioService } from '../services/audioService.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
+import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, aiUserId } from '../constants';
+import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
@@ -37,6 +38,8 @@ interface GameSummaryModalProps {
     session: LiveGameSession;
     currentUser: User;
     onConfirm: () => void;
+    /** 모험: 맵으로 돌아가며 경기장 퇴장 */
+    onLeaveToAdventureMap?: () => void;
     onAction?: (action: ServerAction) => void | Promise<unknown>;
     /** 저장된 기보 목록·삭제(기보 관리) */
     onOpenGameRecordList?: () => void;
@@ -816,7 +819,132 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
     );
 };
 
-/** 경기 내용 상단: 흑·백 대국자 프로필, 닉네임, 모드별 레벨 */
+const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
+    CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.png';
+const ADVENTURE_DEFAULT_MAT_BOX_IMG =
+    CONSUMABLE_ITEMS.find((c) => c.name === '재료 상자 I')?.image ?? '/images/Box/ResourceBox1.png';
+
+function adventureConsumableImage(name: string | undefined): string | null {
+    if (!name) return null;
+    const ci = CONSUMABLE_ITEMS.find((c) => c.name === name);
+    return ci?.image ?? null;
+}
+
+/** 모험 결과: 미획득 슬롯(아이콘 + 미획득) */
+function AdventureMissedRewardSlot({ compact, iconSrc }: { compact: boolean; iconSrc: string }) {
+    const box = compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
+    const imgCls = compact
+        ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5 opacity-50 grayscale'
+        : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12 opacity-50 grayscale';
+    return (
+        <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
+            <div
+                className={`flex items-center justify-center rounded-lg border-2 border-white/15 bg-slate-950/50 ring-1 ring-inset ring-white/10 ${box}`}
+            >
+                <img src={iconSrc} alt="" className={imgCls} draggable={false} />
+            </div>
+            <span
+                className={
+                    compact
+                        ? 'text-center text-[0.65rem] font-bold tabular-nums text-slate-500'
+                        : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
+                }
+            >
+                미획득
+            </span>
+        </div>
+    );
+}
+
+/** 모험 획득 보상: 경험치·골드·장비·재료 4칸 고정(이미지+숫자, 미획득 시 동일 칸에 미획득) */
+function AdventureBattleFixedRewardRow({
+    slots,
+    xpChange,
+    isPlayful,
+    compact,
+}: {
+    slots: NonNullable<GameSummary['adventureRewardSlots']>;
+    xpChange: number;
+    isPlayful: boolean;
+    compact: boolean;
+}) {
+    const xpOk = xpChange > 0;
+    const rowClass = compact ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`;
+
+    const xpMissedBox = (
+        <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
+            <div
+                className={`flex ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${
+                    isPlayful
+                        ? 'border-sky-400/35 bg-gradient-to-br from-sky-600/35 via-violet-900/55 to-indigo-950/70 ring-sky-400/25'
+                        : 'border-emerald-400/35 bg-gradient-to-br from-emerald-700/35 via-emerald-950/80 to-black/55 ring-emerald-400/25'
+                }`}
+                aria-hidden
+            >
+                <span className={compact ? 'text-[0.42rem] font-bold text-emerald-100/80' : 'text-[0.5rem] font-bold text-emerald-100/80'}>
+                    {isPlayful ? '놀이' : '전략'}
+                </span>
+                <span className={compact ? 'mt-px text-[0.48rem] font-black text-emerald-50' : 'mt-0.5 text-[0.58rem] font-black text-emerald-50'}>
+                    EXP
+                </span>
+            </div>
+            <span
+                className={
+                    compact
+                        ? 'text-center text-[0.65rem] font-bold tabular-nums text-slate-500'
+                        : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
+                }
+            >
+                미획득
+            </span>
+        </div>
+    );
+
+    return (
+        <div className={rowClass}>
+            {xpOk ? (
+                <ResultModalXpRewardBadge
+                    variant={isPlayful ? 'playful' : 'strategy'}
+                    amount={xpChange}
+                    density={compact ? 'compact' : 'comfortable'}
+                />
+            ) : (
+                xpMissedBox
+            )}
+            {slots.gold.obtained ? (
+                <ResultModalGoldCurrencySlot
+                    amount={slots.gold.amount}
+                    compact={compact}
+                    understandingBonus={slots.gold.understandingBonus}
+                />
+            ) : (
+                <AdventureMissedRewardSlot compact={compact} iconSrc="/images/icon/Gold.png" />
+            )}
+            {slots.equipment.obtained && slots.equipment.displayName ? (
+                <ResultModalItemRewardSlot
+                    imageSrc={adventureConsumableImage(slots.equipment.displayName)}
+                    name={slots.equipment.displayName}
+                    quantity={1}
+                    compact={compact}
+                />
+            ) : (
+                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} />
+            )}
+            {slots.material.obtained && slots.material.displayName ? (
+                <ResultModalItemRewardSlot
+                    imageSrc={adventureConsumableImage(slots.material.displayName)}
+                    name={slots.material.displayName}
+                    quantity={1}
+                    compact={compact}
+                />
+            ) : (
+                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} />
+            )}
+        </div>
+    );
+}
+
+/** 경기 내용 상단: 흑·백 대국자 프로필, 닉네임, 모드별 레벨 — 모험은 AI 측에 출현 몬스터 도감 표시 */
 const MatchPlayersRoster: React.FC<{
     blackPlayer: User;
     whitePlayer: User;
@@ -824,9 +952,25 @@ const MatchPlayersRoster: React.FC<{
     isMobile: boolean;
     mobileTextScale: number;
     mobileImageScale: number;
-    /** 모바일 탭 레이아웃 등: 닉네임 말줄임 대신 한 줄·가로 스크롤, 컴팩트 프로필 */
     mobileCompactRoster?: boolean;
-}> = ({ blackPlayer, whitePlayer, isPlayful, isMobile, mobileTextScale, mobileImageScale, mobileCompactRoster = false }) => {
+    session?: LiveGameSession;
+}> = ({
+    blackPlayer,
+    whitePlayer,
+    isPlayful,
+    isMobile,
+    mobileTextScale,
+    mobileImageScale,
+    mobileCompactRoster = false,
+    session,
+}) => {
+    const adventureMonster = useMemo(() => {
+        if (!session || session.gameCategory !== 'adventure' || !session.adventureMonsterCodexId) return null;
+        const e = getAdventureCodexMonsterById(session.adventureMonsterCodexId);
+        if (!e) return null;
+        return { imageWebp: e.imageWebp, name: e.name, level: Math.max(1, session.adventureMonsterLevel ?? 1) };
+    }, [session]);
+
     const blackAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === blackPlayer.avatarId)?.url;
     const blackBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === blackPlayer.borderId)?.url;
     const whiteAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === whitePlayer.avatarId)?.url;
@@ -837,8 +981,11 @@ const MatchPlayersRoster: React.FC<{
     const avatarPx = isMobile ? Math.round(44 * mobileImageScale) : 52;
     const avatarPxAlk = isMobile ? Math.round(34 * mobileImageScale) : 52;
 
+    const blackIsMonster = !!(adventureMonster && blackPlayer.id === aiUserId);
+    const whiteIsMonster = !!(adventureMonster && whitePlayer.id === aiUserId);
+
     if (mobileCompactRoster) {
-        const nickRow = (nickname: string, stone: '흑' | '백') => (
+        const nickRowHuman = (nickname: string, stone: '흑' | '백', lv: number) => (
             <div className="min-w-0 max-w-full">
                 <div
                     className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
@@ -849,31 +996,66 @@ const MatchPlayersRoster: React.FC<{
                     </span>
                 </div>
                 <span className="mt-0.5 inline-block text-[8px] font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${8 * mobileTextScale}px` }}>
-                    {stone} · {modeTag} Lv.{stone === '흑' ? blackLv : whiteLv}
+                    {stone} · {modeTag} Lv.{lv}
                 </span>
             </div>
         );
+        const nickRowMonster = (stone: '흑' | '백') =>
+            adventureMonster ? (
+                <div className="min-w-0 max-w-full">
+                    <div
+                        className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                        title={adventureMonster.name}
+                    >
+                        <span className="inline-block min-w-0 pr-1 text-[10px] font-bold leading-none text-white" style={{ fontSize: `${10 * mobileTextScale}px` }}>
+                            {adventureMonster.name}
+                        </span>
+                    </div>
+                    <span className="mt-0.5 inline-block text-[8px] font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${8 * mobileTextScale}px` }}>
+                        {stone} · Lv.{adventureMonster.level}
+                    </span>
+                </div>
+            ) : null;
+
         return (
             <div className="mb-1.5 grid w-full grid-cols-2 gap-1.5">
                 <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-stone-600/40 bg-black/35 px-1.5 py-1.5 ring-1 ring-stone-500/10">
-                    <Avatar
-                        userId={blackPlayer.id}
-                        userName={blackPlayer.nickname}
-                        size={avatarPxAlk}
-                        avatarUrl={blackAvatarUrl}
-                        borderUrl={blackBorderUrl}
-                    />
-                    {nickRow(blackPlayer.nickname, '흑')}
+                    {blackIsMonster && adventureMonster ? (
+                        <div
+                            className="shrink-0 overflow-hidden rounded-md border border-stone-500/40 bg-black/50"
+                            style={{ width: avatarPxAlk, height: avatarPxAlk }}
+                        >
+                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                        </div>
+                    ) : (
+                        <Avatar
+                            userId={blackPlayer.id}
+                            userName={blackPlayer.nickname}
+                            size={avatarPxAlk}
+                            avatarUrl={blackAvatarUrl}
+                            borderUrl={blackBorderUrl}
+                        />
+                    )}
+                    {blackIsMonster && adventureMonster ? nickRowMonster('흑') : nickRowHuman(blackPlayer.nickname, '흑', blackLv)}
                 </div>
                 <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-500/35 bg-slate-950/55 px-1.5 py-1.5 ring-1 ring-slate-400/12">
-                    <Avatar
-                        userId={whitePlayer.id}
-                        userName={whitePlayer.nickname}
-                        size={avatarPxAlk}
-                        avatarUrl={whiteAvatarUrl}
-                        borderUrl={whiteBorderUrl}
-                    />
-                    {nickRow(whitePlayer.nickname, '백')}
+                    {whiteIsMonster && adventureMonster ? (
+                        <div
+                            className="shrink-0 overflow-hidden rounded-md border border-slate-400/35 bg-black/50"
+                            style={{ width: avatarPxAlk, height: avatarPxAlk }}
+                        >
+                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                        </div>
+                    ) : (
+                        <Avatar
+                            userId={whitePlayer.id}
+                            userName={whitePlayer.nickname}
+                            size={avatarPxAlk}
+                            avatarUrl={whiteAvatarUrl}
+                            borderUrl={whiteBorderUrl}
+                        />
+                    )}
+                    {whiteIsMonster && adventureMonster ? nickRowMonster('백') : nickRowHuman(whitePlayer.nickname, '백', whiteLv)}
                 </div>
             </div>
         );
@@ -884,13 +1066,22 @@ const MatchPlayersRoster: React.FC<{
             <div className="relative overflow-hidden rounded-xl border border-stone-600/35 bg-gradient-to-br from-zinc-950 via-[#141016] to-black p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_44px_-22px_rgba(0,0,0,0.85)] ring-1 ring-stone-500/15">
                 <div className="pointer-events-none absolute -right-8 -top-10 h-20 w-20 rounded-full bg-stone-400/[0.06] blur-2xl" aria-hidden />
                 <div className="relative flex items-center gap-2.5">
-                    <Avatar
-                        userId={blackPlayer.id}
-                        userName={blackPlayer.nickname}
-                        size={avatarPx}
-                        avatarUrl={blackAvatarUrl}
-                        borderUrl={blackBorderUrl}
-                    />
+                    {blackIsMonster && adventureMonster ? (
+                        <div
+                            className="shrink-0 overflow-hidden rounded-lg border border-stone-500/45 bg-black/50"
+                            style={{ width: avatarPx, height: avatarPx }}
+                        >
+                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                        </div>
+                    ) : (
+                        <Avatar
+                            userId={blackPlayer.id}
+                            userName={blackPlayer.nickname}
+                            size={avatarPx}
+                            avatarUrl={blackAvatarUrl}
+                            borderUrl={blackBorderUrl}
+                        />
+                    )}
                     <div className="min-w-0 flex-1">
                         <span className="inline-flex rounded-md border border-stone-500/45 bg-black/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] text-stone-200/90">
                             흑
@@ -901,15 +1092,15 @@ const MatchPlayersRoster: React.FC<{
                                 fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined,
                                 wordBreak: isMobile ? undefined : 'break-word',
                             }}
-                            title={blackPlayer.nickname}
+                            title={blackIsMonster && adventureMonster ? adventureMonster.name : blackPlayer.nickname}
                         >
-                            {blackPlayer.nickname}
+                            {blackIsMonster && adventureMonster ? adventureMonster.name : blackPlayer.nickname}
                         </p>
                         <p
                             className={`font-medium text-stone-400 ${!isMobile ? 'text-sm lg:text-base' : 'text-[0.7rem] sm:text-xs'}`}
                             style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
                         >
-                            {modeTag} Lv.{blackLv}
+                            {blackIsMonster && adventureMonster ? `Lv.${adventureMonster.level}` : `${modeTag} Lv.${blackLv}`}
                         </p>
                     </div>
                 </div>
@@ -917,13 +1108,22 @@ const MatchPlayersRoster: React.FC<{
             <div className="relative overflow-hidden rounded-xl border border-slate-400/25 bg-gradient-to-br from-slate-900/98 via-[#17161f] to-[#0b0a10] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_44px_-22px_rgba(148,163,184,0.12)] ring-1 ring-slate-400/18">
                 <div className="pointer-events-none absolute -left-6 -bottom-8 h-20 w-20 rounded-full bg-slate-300/[0.07] blur-2xl" aria-hidden />
                 <div className="relative flex items-center gap-2.5">
-                    <Avatar
-                        userId={whitePlayer.id}
-                        userName={whitePlayer.nickname}
-                        size={avatarPx}
-                        avatarUrl={whiteAvatarUrl}
-                        borderUrl={whiteBorderUrl}
-                    />
+                    {whiteIsMonster && adventureMonster ? (
+                        <div
+                            className="shrink-0 overflow-hidden rounded-lg border border-slate-400/35 bg-black/50"
+                            style={{ width: avatarPx, height: avatarPx }}
+                        >
+                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                        </div>
+                    ) : (
+                        <Avatar
+                            userId={whitePlayer.id}
+                            userName={whitePlayer.nickname}
+                            size={avatarPx}
+                            avatarUrl={whiteAvatarUrl}
+                            borderUrl={whiteBorderUrl}
+                        />
+                    )}
                     <div className="min-w-0 flex-1">
                         <span className="inline-flex rounded-md border border-slate-400/40 bg-white/[0.06] px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-100/95">
                             백
@@ -934,15 +1134,15 @@ const MatchPlayersRoster: React.FC<{
                                 fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined,
                                 wordBreak: isMobile ? undefined : 'break-word',
                             }}
-                            title={whitePlayer.nickname}
+                            title={whiteIsMonster && adventureMonster ? adventureMonster.name : whitePlayer.nickname}
                         >
-                            {whitePlayer.nickname}
+                            {whiteIsMonster && adventureMonster ? adventureMonster.name : whitePlayer.nickname}
                         </p>
                         <p
                             className={`font-medium text-slate-300/90 ${!isMobile ? 'text-sm lg:text-base' : 'text-[0.7rem] sm:text-xs'}`}
                             style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
                         >
-                            {modeTag} Lv.{whiteLv}
+                            {whiteIsMonster && adventureMonster ? `Lv.${adventureMonster.level}` : `${modeTag} Lv.${whiteLv}`}
                         </p>
                     </div>
                 </div>
@@ -951,8 +1151,15 @@ const MatchPlayersRoster: React.FC<{
     );
 };
 
-
-const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
+const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
+    session,
+    currentUser,
+    onConfirm,
+    onLeaveToAdventureMap,
+    onAction,
+    onOpenGameRecordList,
+    isSpectator = false,
+}) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
     const soundPlayed = useRef(false);
     const isCompactViewport = useIsHandheldDevice(1025);
@@ -965,14 +1172,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
+    const isAdventureGame = session.gameCategory === 'adventure';
     const hasPvpRewardSlots = useMemo(() => {
         if (!mySummary) return false;
+        if (isAdventureGame) {
+            return !!mySummary.adventureRewardSlots;
+        }
         return (
             (mySummary.gold ?? 0) > 0 ||
             (mySummary.xp?.change ?? 0) > 0 ||
             (mySummary.items?.length ?? 0) > 0
         );
-    }, [mySummary]);
+    }, [mySummary, isAdventureGame]);
     const isGuildWar = isGuildWarLiveSession(session as any);
     const guildWarStars = mySummary?.guildWarStars ?? 0;
     const guildWarHouseScore = useMemo(() => {
@@ -1314,8 +1525,21 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                     </p>
                 ) : (
                     <>
+                        {isAdventureGame && mySummary.adventureRewardSlots ? (
+                            <AdventureBattleFixedRewardRow
+                                slots={mySummary.adventureRewardSlots}
+                                xpChange={mySummary.xp?.change ?? 0}
+                                isPlayful={isPlayful}
+                                compact={isMobile}
+                            />
+                        ) : (
+                            <>
                         {(mySummary.gold ?? 0) > 0 && (
-                            <ResultModalGoldCurrencySlot amount={mySummary.gold ?? 0} compact={isMobile} />
+                            <ResultModalGoldCurrencySlot
+                                amount={mySummary.gold ?? 0}
+                                compact={isMobile}
+                                understandingBonus={mySummary.adventureGoldUnderstandingBonus}
+                            />
                         )}
                         {(mySummary.xp?.change ?? 0) > 0 && (
                             <div className="flex shrink-0 flex-col items-center justify-center">
@@ -1375,11 +1599,15 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                 </div>
                             </div>
                         )}
+                            </>
+                        )}
                     </>
                 )}
             </div>
         </div>
     );
+
+    const adventureResultChrome = isAdventureGame && !isSpectator && onLeaveToAdventureMap;
 
     return (
         <DraggableWindow
@@ -1392,8 +1620,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
             mobileViewportFit
             mobileViewportMaxHeightVh={isMobile ? 94 : 86}
             windowId="game-summary"
-            hideFooter
             variant="store"
+            modalBackdrop={!adventureResultChrome}
+            closeOnOutsideClick={!adventureResultChrome}
             bodyPaddingClassName={
                 isMobile
                     ? '!p-2 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-[390px]:!p-2.5'
@@ -1465,6 +1694,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     matchPanel={
                                     <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
                                         <MatchPlayersRoster
+                                            session={session}
                                             blackPlayer={blackPlayer}
                                             whitePlayer={whitePlayer}
                                             isPlayful={isPlayful}
@@ -1561,7 +1791,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                             <p className="px-0.5 text-center text-[0.65rem] leading-tight text-slate-400 sm:text-xs min-[1024px]:text-sm">
                                                 길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
                                             </p>
-                                        ) : mySummary ? (
+                                        ) : isAdventureGame && mySummary ? null : mySummary ? (
                                             <div className="min-w-0 overflow-x-hidden overflow-y-visible">
                                                 <div className="grid grid-cols-2 gap-0.5">
                                                     <div className={`${statCardClass} text-center`}>
@@ -1632,7 +1862,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                                     </div>
                                                 </div>
                                             </div>
-                                        ) : (
+                                        ) : !isAdventureGame ? (
                                             <div className="min-w-0 overflow-x-hidden overflow-y-visible">
                                                 <div className="grid grid-cols-2 gap-0.5 opacity-80">
                                                     <div className={`${statCardClass} text-center`}>
@@ -1661,7 +1891,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                                     </div>
                                                 </div>
                                             </div>
-                                        )}
+                                        ) : null}
                                     </div>
                                     }
                                 />
@@ -1679,6 +1909,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                 경기 내용
                             </h2>
                             <MatchPlayersRoster
+                                session={session}
                                 blackPlayer={blackPlayer}
                                 whitePlayer={whitePlayer}
                                 isPlayful={isPlayful}
@@ -1748,8 +1979,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                     <p className="px-0.5 text-center text-[0.65rem] leading-tight text-slate-400 sm:text-xs min-[1024px]:text-sm">
                                         길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
                                     </p>
-                                ) : mySummary ? (
-                                    <div className="min-h-[10.5rem] min-w-0 flex-1 overflow-x-hidden overflow-y-visible">
+                                ) : isAdventureGame && mySummary ? null : mySummary ? (
+                                    <div className={`${isAdventureGame ? 'min-h-0' : 'min-h-[10.5rem]'} min-w-0 flex-1 overflow-x-hidden overflow-y-visible`}>
                                         <div className="grid grid-cols-2 gap-1 sm:gap-1.5">
                                             <div className={`${statCardClass} text-center`}>
                                                 <p className={statLabelClass}>랭킹 점수</p>
@@ -1817,7 +2048,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                             </div>
                                         </div>
                                     </div>
-                                ) : (
+                                ) : !isAdventureGame ? (
                                     <div className="overflow-visible">
                                         <div className="grid grid-cols-2 gap-1 opacity-80 sm:gap-1.5">
                                             <div className={`${statCardClass} text-center`}>
@@ -1846,7 +2077,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                                             </div>
                                         </div>
                                     </div>
-                                )}
+                                ) : null}
                             </div>
                             {pvpRewardsSection}
                         </div>
@@ -1897,14 +2128,35 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({ session, currentUse
                             기보 관리
                         </button>
                     )}
-                    <button
-                        type="button"
-                        className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
-                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
-                        onClick={onConfirm}
-                    >
-                        확인
-                    </button>
+                    {adventureResultChrome ? (
+                        <>
+                            <button
+                                type="button"
+                                className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
+                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                                onClick={onConfirm}
+                            >
+                                확인
+                            </button>
+                            <button
+                                type="button"
+                                className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
+                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                                onClick={onLeaveToAdventureMap}
+                            >
+                                맵으로 이동
+                            </button>
+                        </>
+                    ) : (
+                        <button
+                            type="button"
+                            className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
+                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+                            onClick={onConfirm}
+                        >
+                            확인
+                        </button>
+                    )}
                 </div>
             </>
         </DraggableWindow>

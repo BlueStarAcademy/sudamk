@@ -3,6 +3,7 @@ import { GameProps, Player, GameMode } from '../types.js';
 
 // Import the new arena components
 import GoGameArena from './arenas/GoGameArena.js';
+import AdventureArena from './arenas/AdventureArena.js';
 import AlkkagiArena from './arenas/AlkkagiArena.js';
 import CurlingArena from './arenas/CurlingArena.js';
 import DiceGoArena from './arenas/DiceGoArena.js';
@@ -46,6 +47,30 @@ const GameArena: React.FC<GameArenaProps> = (props) => {
     // 도전의 탑 게임도 싱글플레이어 아레나와 동일하게 처리 (바둑 게임이므로)
     if (isSinglePlayer || gameCategory === 'tower') {
         return <SinglePlayerArena {...sharedProps} isPaused={isSinglePlayerPaused} showBoardGlow={showBoardGlow} resumeCountdown={resumeCountdown} isBoardLocked={isBoardLocked} />;
+    }
+
+    if (gameCategory === 'adventure') {
+        switch (mode) {
+            case GameMode.Alkkagi:
+                return <AlkkagiArena {...sharedProps} />;
+            case GameMode.Curling:
+                return <CurlingArena {...sharedProps} />;
+            case GameMode.Dice:
+                return <DiceGoArena {...sharedProps} />;
+            case GameMode.Thief:
+                return <ThiefGoArena {...sharedProps} />;
+            case GameMode.Standard:
+            case GameMode.Capture:
+            case GameMode.Speed:
+            case GameMode.Base:
+            case GameMode.Hidden:
+            case GameMode.Missile:
+            case GameMode.Mix:
+            case GameMode.Omok:
+            case GameMode.Ttamok:
+            default:
+                return <AdventureArena {...sharedProps} />;
+        }
     }
 
     // This component is now a simple dispatcher.

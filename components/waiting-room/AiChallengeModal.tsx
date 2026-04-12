@@ -1036,8 +1036,6 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             headerContent={mobileHeaderBack}
             mobileViewportFit={isMobile}
             mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH : undefined}
-            hideFooter={isMobile}
-            skipSavedPosition={isMobile}
             bodyPaddingClassName={isMobile ? '!p-2' : undefined}
         >
             {isMobile ? (

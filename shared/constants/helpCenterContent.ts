@@ -1,5 +1,6 @@
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from './gameModes.js';
 import { GUILD_BOSS_MAX_ATTEMPTS } from './guildConstants.js';
+import { ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP } from '../../constants/adventureConstants.js';
 
 export type HelpImageRef = { src: string; alt: string; caption?: string };
 
@@ -371,6 +372,38 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     ],
                 },
             },
+            {
+                id: 'growth-adventure-understanding',
+                label: '모험 · 지역 이해도',
+                article: {
+                    id: 'growth-adventure-understanding',
+                    title: '모험 지역 이해도 패시브',
+                    tagline: '모험 일지의 지역 이해도가 골드·능력치 보정에 어떻게 반영되는지 설명합니다.',
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '챕터 맵에서 쌓이는 지역 이해도(경험치)가 오를수록, 모험 골드·장비·고급 장비·재료·고급 재료 보너스가 같은 속도로 함께 서서히 오릅니다. 한 챕터만 깊게 올려도 다섯 줄이 골고루 조금씩 붙고, 이후 챕터를 열면 합산이 이어집니다. 여러 지역을 「친숙함」 이상으로 올리면 코어 능력치 유효값에도 소폭 보너스가 붙습니다.',
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '모험 골드·장비·재료(고급 포함) 보너스는 지역별 이해도 XP에서 같은 곡선으로 합산되며, 줄마다 표시 상한이 있습니다.',
+                                `코어 능력치 유효 보너스는 「친숙함」 이상 도달한 지역 수를 기준으로 오르며, 상한은 ${ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP}%입니다.`,
+                                '실제 적용 수치는 모험 일지 화면에 숫자로 표시됩니다.',
+                            ],
+                        },
+                        {
+                            type: 'heading',
+                            text: '몬스터 도감 완성도',
+                            level: 3,
+                        },
+                        {
+                            type: 'paragraph',
+                            text: '도감에서 종마다 이해도 레벨(승리 누적)이 오릅니다. 모든 종을 최대 레벨(Lv.10, 300승 구간)까지 채우면 해당 챕터·전체 완성도가 100%가 됩니다. 일지에는 퍼센트와 레벨 합만 간단히 보여 줍니다.',
+                        },
+                    ],
+                },
+            },
         ],
     },
     {
@@ -560,6 +593,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             items: [
                                 '시즌 점수와 현재 순위가 장기 성장 지표로 표시됩니다.',
                                 '동네·전국·월드 등 단계별 진행도를 통해 목표 설정에 활용하세요.',
+                                '3·6·9·10단계는 관문 보상이 강화됩니다. 동네는 골드, 전국은 강화석 티어·신비의 강화석 저확률, 월드는 장비 등급 확률이 단계마다 달라집니다.',
                             ],
                         },
                     ],

@@ -446,6 +446,8 @@ interface GoBoardProps {
   captureScoreFloatMinPoints?: number;
   /** 따낸 점수 플로트(+N)를 captures 증가분으로 계산할 때 사용. 없으면 justCaptured 슬라이스만 사용(교체형 페이로드에서 오차 가능) */
   captures?: { [key in Player]?: number };
+  /** 패·둘 수 없는 자리 등 — TurnDisplay 전광판 */
+  onBoardRuleFlash?: (message: string) => void;
 }
 
 const GoBoard: React.FC<GoBoardProps> = (props) => {
@@ -458,6 +460,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections, isSinglePlayer = false, isRotated = false, pendingMove = null,
         captureScoreFloatMinPoints = 2,
         captures,
+        onBoardRuleFlash,
     } = props;
     const [captureScoreFloats, setCaptureScoreFloats] = useState<{ id: string; point: Point; label: string }[]>([]);
     /** 서버는 justCaptured를 누적하므로, 이번 업데이트에서 새로 추가된 항목만 처리 */
@@ -923,12 +926,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const stoneAtPos = displayBoardState[boardPos.y]?.[boardPos.x];
             
             if (stoneAtPos === myPlayerEnum) {
-                console.error(`[GoBoard] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${boardPos.x}, ${boardPos.y}), myPlayerEnum=${myPlayerEnum}`);
+                onBoardRuleFlash?.('둘 수 없는 자리입니다.');
                 return;
             }
             
             if (stoneAtPos !== Player.None && !isOpponentHiddenStoneAtPos(boardPos)) {
-                console.error(`[GoBoard] CRITICAL BUG PREVENTION: Attempted to place stone on occupied position at (${boardPos.x}, ${boardPos.y}), stoneAtPos=${stoneAtPos}`);
+                onBoardRuleFlash?.('둘 수 없는 자리입니다.');
                 return;
             }
 

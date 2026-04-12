@@ -54,8 +54,6 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
             variant="store"
             initialWidth={440}
             initialHeight={520}
-            skipSavedPosition
-            hideFooter
             mobileViewportFit
             mobileViewportMaxHeightVh={92}
             bodyPaddingClassName="p-0 sm:p-0"

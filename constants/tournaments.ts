@@ -126,48 +126,12 @@ export const DUNGEON_RANK_REWARD_MULTIPLIER: Record<number, number> = {
 // 기본 보상 배율 (11위 이하)
 export const DUNGEON_DEFAULT_REWARD_MULTIPLIER = 1.0;
 
-// 단계별 기본 보상 (동네바둑리그 - 골드)
-/** shared와 동일: 승리 골드 범위 평균 × 3·6·9·10 마일스톤 (scheduledTasks 등 레거시 경로) */
-export const DUNGEON_STAGE_BASE_REWARDS_GOLD: Record<number, number> = {
-    1: 115,
-    2: 325,
-    3: 614,
-    4: 744,
-    5: 953,
-    6: 1487,
-    7: 1372,
-    8: 1582,
-    9: 2596,
-    10: 3440,
-};
-
-// 단계별 기본 보상 (전국바둑대회 - 강화석)
-export const DUNGEON_STAGE_BASE_REWARDS_MATERIAL: Record<number, { materialName: string; quantity: number }> = {
-    1: { materialName: '하급 강화석', quantity: 10 },
-    2: { materialName: '하급 강화석', quantity: 15 },
-    3: { materialName: '중급 강화석', quantity: 10 },
-    4: { materialName: '중급 강화석', quantity: 15 },
-    5: { materialName: '중급 강화석', quantity: 20 },
-    6: { materialName: '상급 강화석', quantity: 15 },
-    7: { materialName: '상급 강화석', quantity: 20 },
-    8: { materialName: '최상급 강화석', quantity: 15 },
-    9: { materialName: '최상급 강화석', quantity: 25 },
-    10: { materialName: '최상급 강화석', quantity: 30 },
-};
-
-// 단계별 기본 보상 (월드챔피언십 - 장비상자 및 변경권)
-export const DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT: Record<number, { boxes: { boxName: string; quantity: number }[]; changeTickets: number }> = {
-    1: { boxes: [{ boxName: '장비 상자 I', quantity: 1 }], changeTickets: 0 },
-    2: { boxes: [{ boxName: '장비 상자 I', quantity: 1 }], changeTickets: 0 },
-    3: { boxes: [{ boxName: '장비 상자 II', quantity: 1 }], changeTickets: 0 },
-    4: { boxes: [{ boxName: '장비 상자 II', quantity: 1 }], changeTickets: 1 },
-    5: { boxes: [{ boxName: '장비 상자 III', quantity: 2 }], changeTickets: 1 },
-    6: { boxes: [{ boxName: '장비 상자 III', quantity: 2 }], changeTickets: 1 },
-    7: { boxes: [{ boxName: '장비 상자 IV', quantity: 2 }], changeTickets: 2 },
-    8: { boxes: [{ boxName: '장비 상자 IV', quantity: 2 }], changeTickets: 2 },
-    9: { boxes: [{ boxName: '장비 상자 IV', quantity: 3 }], changeTickets: 2 },
-    10: { boxes: [{ boxName: '장비 상자 IV', quantity: 3 }], changeTickets: 3 },
-};
+// 단계별 기본 보상: shared 단일 소스 (scheduledTasks·클라이언트 동기화)
+export {
+    DUNGEON_STAGE_BASE_REWARDS_GOLD,
+    DUNGEON_STAGE_BASE_REWARDS_MATERIAL,
+    DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
+} from '../shared/constants/tournaments.js';
 
 // 일일 랭킹 점수: 단계별 기본 점수
 export const DUNGEON_STAGE_BASE_SCORE: Record<number, number> = {

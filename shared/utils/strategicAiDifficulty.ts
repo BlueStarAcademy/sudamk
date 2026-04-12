@@ -42,6 +42,24 @@ export function strategicAiDisplayLevelFromProfileStep(profileStep: number): num
   return STRATEGIC_AI_DISPLAY_LEVEL_BY_PROFILE_STEP[s] ?? s;
 }
 
+/**
+ * 모험 몬스터 레벨(1~50) → 전략 AI Kata 프로필 단계(1~10).
+ * `KATA_SERVER_LEVEL_BY_PROFILE_STEP`·`resolveAiLobbyProfileStepFromSettings`와 동일 체계.
+ */
+export function adventureMonsterLevelToKataProfileStep(monsterLevel: number): number {
+  const lv = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
+  if (lv <= 3) return 1;
+  if (lv <= 7) return 2;
+  if (lv <= 10) return 3;
+  if (lv <= 15) return 4;
+  if (lv <= 20) return 5;
+  if (lv <= 25) return 6;
+  if (lv <= 30) return 7;
+  if (lv <= 35) return 8;
+  if (lv <= 45) return 9;
+  return 10;
+}
+
 /** 대기실 AI 대국 설정에서 1~10 프로필 단계 (summary·보상용, 서버 makeAiMove 분기와 동일 규칙) */
 export function resolveAiLobbyProfileStepFromSettings(settings: {
   kataServerLevel?: number;
@@ -82,6 +100,6 @@ export function isWaitingRoomAiGame(game: {
 }): boolean {
   if (!game.isAiGame || game.isSinglePlayer) return false;
   const c = game.gameCategory;
-  if (c === 'tower' || c === 'singleplayer' || c === 'guildwar') return false;
+  if (c === 'tower' || c === 'singleplayer' || c === 'guildwar' || c === 'adventure') return false;
   return true;
 }

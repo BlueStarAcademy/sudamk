@@ -5,7 +5,7 @@ import { handleSharedAction, updateSharedGameState, shouldEnforceTimeControl } f
 import { DICE_GO_INITIAL_WHITE_STONES_BY_ROUND, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_MIN_WHITE_GROUPS, DICE_GO_TURN_CHOICE_TIME, DICE_GO_TURN_ROLL_TIME, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import * as effectService from '../effectService.js';
 import { endGame } from '../summaryService.js';
-import { aiUserId } from '../aiPlayer.js';
+import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 
 /** AI 대국: 인간 착수 직후 상대(봇) 주사위 단계로 바로 넘어가면 마지막 돌·따내기 연출이 밀림 → 1초 대기 (도둑과 경찰에서도 동일 상수 사용) */
 export const DICE_HUMAN_PLACE_SETTLE_MS = 1000;
@@ -461,8 +461,8 @@ export const initializeDiceGo = (game: types.LiveGameSession, neg: types.Negotia
         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
         if (currentPlayerId === aiUserId) {
-            game.aiTurnStartTime = now;
-            console.log(`[initializeDiceGo] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+            scheduleAiTurnStartForFreshUi(game, now);
+            console.log(`[initializeDiceGo] AI turn at game start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
         } else {
             game.aiTurnStartTime = undefined;
             console.log(`[initializeDiceGo] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);

@@ -126,21 +126,42 @@ export const DUNGEON_RANK_REWARD_MULTIPLIER: Record<number, number> = {
 // 기본 보상 배율 (11위 이하)
 export const DUNGEON_DEFAULT_REWARD_MULTIPLIER = 1.0;
 
-/** 3·6·9·10단계 순위·경기 보상 추가 배수 (10단계 최고). 봇 기대 능력치 구간과 별개로 경제 보상만 상향 */
+/** 3·6·9·10단계 순위·경기 보상 추가 배수 (10단계 최고). 전국·월드 순위 보상 등에 사용 */
 export function getDungeonStageRewardMilestoneMultiplier(stage: number): number {
     const s = Math.min(10, Math.max(1, Math.floor(stage)));
     switch (s) {
         case 3:
-            return 1.15;
+            return 1.38;
         case 6:
-            return 1.28;
+            return 1.62;
         case 9:
-            return 1.45;
+            return 1.95;
         case 10:
-            return 1.72;
+            return 2.35;
         default:
             return 1;
     }
+}
+
+/**
+ * 동네바둑리그 전용: 단계가 올라갈수록 골드 배수가 항상 증가 (경기당·순위 공통).
+ * 기존 마일스톤만 쓰면 6단계(배수↑) 직후 7단계(배수 1)에서 보상이 역전되는 문제가 있어 별도 곡선을 둠.
+ */
+export function getNeighborhoodDungeonGoldStageMultiplier(stage: number): number {
+    const s = Math.min(10, Math.max(1, Math.floor(stage)));
+    const table: Record<number, number> = {
+        1: 1.0,
+        2: 1.06,
+        3: 1.3, // 관문: 2→3 체감 상승
+        4: 1.42,
+        5: 1.52,
+        6: 1.66,
+        7: 1.8,
+        8: 1.94,
+        9: 2.12,
+        10: 2.38,
+    };
+    return table[s] ?? 1;
 }
 
 /** 단계 봇 6능력치 구간의 기대값(중간값). UI 추천 단계용 */
@@ -172,16 +193,24 @@ function lerp(stage: number, a1: number, b1: number, a10: number, b10: number): 
     return { min: Math.round(a1 + (a10 - a1) * t), max: Math.round(b1 + (b10 - b1) * t) };
 }
 
-// 동네바둑리그: 1단계 승 80~150/패 40~75, 10단계 승 1000~3000/패 500~1500
-/** 단계별 경기당 골드 기본 보상 범위 (표시·실지급 동일, 3·6·9·10 마일스톤 반영) */
+/** 경기당 골드 min/max를 100골드 단위로 정렬 (표시·지급 범위) */
+function roundDungeonGoldBounds(min: number, max: number): { min: number; max: number } {
+    const step = 100;
+    const rMin = Math.max(step, Math.floor(min / step) * step);
+    const rMax = Math.max(rMin + step, Math.ceil(max / step) * step);
+    return { min: rMin, max: rMax };
+}
+
+// 동네바둑리그: 1↔10 보간 × 단조 증가 단계 배수 → 100골드 단위
+/** 단계별 경기당 골드 기본 보상 범위 (표시·실지급 동일, 단계마다 보수 단조 증가) */
 export function getDungeonBasicRewardRangeGold(stage: number): { win: { min: number; max: number }; loss: { min: number; max: number } } {
-    const winRange = lerp(stage, 80, 150, 1000, 3000);
-    const lossRange = lerp(stage, 40, 75, 500, 1500);
-    const m = getDungeonStageRewardMilestoneMultiplier(stage);
+    const winRange = lerp(stage, 220, 380, 4500, 10500);
+    const lossRange = lerp(stage, 110, 190, 2250, 5200);
+    const m = getNeighborhoodDungeonGoldStageMultiplier(stage);
     const scale = (rng: { min: number; max: number }) => {
         const min = Math.max(1, Math.round(rng.min * m));
         const max = Math.max(min, Math.round(rng.max * m));
-        return { min, max };
+        return roundDungeonGoldBounds(min, max);
     };
     return { win: scale(winRange), loss: scale(lossRange) };
 }
@@ -192,59 +221,207 @@ export function getDungeonMatchGoldReward(stage: number, isWin: boolean): number
     return r.min + Math.floor(Math.random() * (r.max - r.min + 1));
 }
 
-// 전국바둑대회: 1단계 하급 6~14개, 10단계 35% 고급 10~15 / 55% 최고급 3~6 / 10% 신비의 1개 (승리 기준, 패배 시 수량 절반)
+// 전국바둑대회: 가중치 합 100으로 한 종류만 지급 (9·10단계 신비의 강화석 약 1%/10%)
 export type DungeonMaterialRoll = { chance: number; materialName: string; min: number; max: number };
-export const DUNGEON_STAGE_MATERIAL_ROLLS: Record<number, { win: DungeonMaterialRoll[]; loss?: DungeonMaterialRoll[] }> = {
-    1: { win: [{ chance: 100, materialName: '하급 강화석', min: 6, max: 14 }], loss: [{ chance: 100, materialName: '하급 강화석', min: 3, max: 7 }] },
-    2: { win: [{ chance: 100, materialName: '하급 강화석', min: 8, max: 18 }], loss: [{ chance: 100, materialName: '하급 강화석', min: 4, max: 9 }] },
-    3: { win: [{ chance: 100, materialName: '중급 강화석', min: 5, max: 12 }], loss: [{ chance: 100, materialName: '중급 강화석', min: 2, max: 6 }] },
-    4: { win: [{ chance: 100, materialName: '중급 강화석', min: 8, max: 16 }], loss: [{ chance: 100, materialName: '중급 강화석', min: 4, max: 8 }] },
-    5: { win: [{ chance: 100, materialName: '중급 강화석', min: 10, max: 20 }], loss: [{ chance: 100, materialName: '중급 강화석', min: 5, max: 10 }] },
-    6: { win: [{ chance: 100, materialName: '상급 강화석', min: 6, max: 14 }], loss: [{ chance: 100, materialName: '상급 강화석', min: 3, max: 7 }] },
-    7: { win: [{ chance: 100, materialName: '상급 강화석', min: 8, max: 18 }], loss: [{ chance: 100, materialName: '상급 강화석', min: 4, max: 9 }] },
-    8: { win: [{ chance: 100, materialName: '최상급 강화석', min: 4, max: 10 }], loss: [{ chance: 100, materialName: '최상급 강화석', min: 2, max: 5 }] },
-    9: { win: [{ chance: 100, materialName: '최상급 강화석', min: 6, max: 14 }], loss: [{ chance: 100, materialName: '최상급 강화석', min: 3, max: 7 }] },
-    10: {
+export type DungeonMaterialWeightedEntry = { materialName: string; min: number; max: number; weight: number };
+
+export const DUNGEON_STAGE_MATERIAL_WEIGHTED: Record<number, { win: DungeonMaterialWeightedEntry[]; loss: DungeonMaterialWeightedEntry[] }> = {
+    1: {
+        win: [{ materialName: '하급 강화석', min: 12, max: 24, weight: 100 }],
+        loss: [{ materialName: '하급 강화석', min: 6, max: 12, weight: 100 }],
+    },
+    2: {
+        win: [{ materialName: '하급 강화석', min: 14, max: 26, weight: 100 }],
+        loss: [{ materialName: '하급 강화석', min: 7, max: 14, weight: 100 }],
+    },
+    3: {
         win: [
-            { chance: 33, materialName: '상급 강화석', min: 12, max: 18 },
-            { chance: 52, materialName: '최상급 강화석', min: 4, max: 8 },
-            { chance: 15, materialName: '신비의 강화석', min: 1, max: 2 },
+            { materialName: '중급 강화석', min: 10, max: 18, weight: 72 },
+            { materialName: '하급 강화석', min: 12, max: 20, weight: 28 },
         ],
         loss: [
-            { chance: 35, materialName: '상급 강화석', min: 6, max: 10 },
-            { chance: 55, materialName: '최상급 강화석', min: 2, max: 4 },
-            { chance: 10, materialName: '신비의 강화석', min: 0, max: 1 },
+            { materialName: '중급 강화석', min: 5, max: 10, weight: 72 },
+            { materialName: '하급 강화석', min: 6, max: 12, weight: 28 },
+        ],
+    },
+    4: {
+        win: [{ materialName: '중급 강화석', min: 12, max: 22, weight: 100 }],
+        loss: [{ materialName: '중급 강화석', min: 6, max: 12, weight: 100 }],
+    },
+    5: {
+        win: [{ materialName: '중급 강화석', min: 14, max: 26, weight: 100 }],
+        loss: [{ materialName: '중급 강화석', min: 7, max: 14, weight: 100 }],
+    },
+    6: {
+        win: [
+            { materialName: '상급 강화석', min: 8, max: 16, weight: 78 },
+            { materialName: '중급 강화석', min: 10, max: 18, weight: 22 },
+        ],
+        loss: [
+            { materialName: '상급 강화석', min: 4, max: 9, weight: 78 },
+            { materialName: '중급 강화석', min: 6, max: 12, weight: 22 },
+        ],
+    },
+    7: {
+        win: [{ materialName: '상급 강화석', min: 10, max: 22, weight: 100 }],
+        loss: [{ materialName: '상급 강화석', min: 5, max: 12, weight: 100 }],
+    },
+    8: {
+        win: [{ materialName: '최상급 강화석', min: 7, max: 16, weight: 100 }],
+        loss: [{ materialName: '최상급 강화석', min: 4, max: 9, weight: 100 }],
+    },
+    9: {
+        win: [
+            { materialName: '신비의 강화석', min: 1, max: 1, weight: 1 },
+            { materialName: '최상급 강화석', min: 6, max: 12, weight: 54 },
+            { materialName: '상급 강화석', min: 10, max: 20, weight: 45 },
+        ],
+        loss: [
+            { materialName: '신비의 강화석', min: 1, max: 1, weight: 1 },
+            { materialName: '최상급 강화석', min: 4, max: 8, weight: 44 },
+            { materialName: '상급 강화석', min: 7, max: 16, weight: 35 },
+            { materialName: '중급 강화석', min: 8, max: 16, weight: 20 },
+        ],
+    },
+    10: {
+        win: [
+            { materialName: '신비의 강화석', min: 1, max: 2, weight: 10 },
+            { materialName: '최상급 강화석', min: 7, max: 14, weight: 45 },
+            { materialName: '상급 강화석', min: 12, max: 22, weight: 45 },
+        ],
+        loss: [
+            { materialName: '신비의 강화석', min: 1, max: 1, weight: 5 },
+            { materialName: '최상급 강화석', min: 5, max: 11, weight: 40 },
+            { materialName: '상급 강화석', min: 8, max: 18, weight: 35 },
+            { materialName: '중급 강화석', min: 10, max: 18, weight: 20 },
         ],
     },
 };
 
-export function getDungeonMatchMaterialReward(stage: number, isWin: boolean): Record<string, number> {
-    const config = DUNGEON_STAGE_MATERIAL_ROLLS[stage] || DUNGEON_STAGE_MATERIAL_ROLLS[1];
-    const rolls = isWin ? config.win : (config.loss ?? config.win);
-    const out: Record<string, number> = {};
-    for (const roll of rolls) {
-        if (Math.random() * 100 < roll.chance) {
-            const qty = roll.min + Math.floor(Math.random() * (roll.max - roll.min + 1));
-            if (qty > 0) out[roll.materialName] = (out[roll.materialName] || 0) + qty;
+function weightedMaterialPick(entries: DungeonMaterialWeightedEntry[]): Record<string, number> {
+    const sum = entries.reduce((a, e) => a + e.weight, 0);
+    if (sum <= 0) return {};
+    let r = Math.random() * sum;
+    for (const e of entries) {
+        r -= e.weight;
+        if (r < 0) {
+            const qty = e.min + Math.floor(Math.random() * (e.max - e.min + 1));
+            return qty > 0 ? { [e.materialName]: qty } : {};
         }
     }
+    const last = entries[entries.length - 1];
+    const qty = last.min + Math.floor(Math.random() * (last.max - last.min + 1));
+    return qty > 0 ? { [last.materialName]: qty } : {};
+}
+
+export function getDungeonMatchMaterialReward(stage: number, isWin: boolean): Record<string, number> {
+    const s = Math.min(10, Math.max(1, Math.floor(stage)));
+    const config = DUNGEON_STAGE_MATERIAL_WEIGHTED[s] ?? DUNGEON_STAGE_MATERIAL_WEIGHTED[1];
+    const entries = isWin ? config.win : config.loss;
+    return weightedMaterialPick(entries);
+}
+
+/** UI·토너먼트 패널용 (가중치를 chance%로 표기) */
+export const DUNGEON_STAGE_MATERIAL_ROLLS: Record<number, { win: DungeonMaterialRoll[]; loss?: DungeonMaterialRoll[] }> = Object.fromEntries(
+    ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const).map((st) => {
+        const w = DUNGEON_STAGE_MATERIAL_WEIGHTED[st];
+        return [
+            st,
+            {
+                win: w.win.map((e) => ({ chance: e.weight, materialName: e.materialName, min: e.min, max: e.max })),
+                loss: w.loss.map((e) => ({ chance: e.weight, materialName: e.materialName, min: e.min, max: e.max })),
+            },
+        ];
+    })
+) as Record<number, { win: DungeonMaterialRoll[]; loss?: DungeonMaterialRoll[] }>;
+
+// 월드챔피언십: 구간별 3등급 풀 보간, 승리 확률 합 100% — 패배는 하위 등급 가중
+export type EquipmentGradeKey = 'normal' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
+
+function allocateHundredFromWeights(w: readonly [number, number, number]): [number, number, number] {
+    const sum = w[0] + w[1] + w[2];
+    if (sum <= 0) return [34, 33, 33];
+    const exact = [w[0] / sum * 100, w[1] / sum * 100, w[2] / sum * 100];
+    const floor = exact.map((x) => Math.floor(x));
+    let rem = 100 - floor[0] - floor[1] - floor[2];
+    const order = [0, 1, 2].sort((i, j) => (exact[j] - floor[j]) - (exact[i] - floor[i]));
+    const out = [...floor] as [number, number, number];
+    for (let k = 0; k < rem; k++) out[order[k % 3]]++;
     return out;
 }
 
-// 월드챔피언십: 1단계 승 일반(75%)/희귀(25%) 1개, 패 일반(100%) 1개; 10단계 승 에픽·전설·신화 중심
-export type EquipmentGradeKey = 'normal' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'mythic';
-export const DUNGEON_STAGE_EQUIPMENT_DROP: Record<number, { win: { grade: EquipmentGradeKey; chance: number }[]; loss: { grade: EquipmentGradeKey; chance: number }[] }> = {
-    1: { win: [{ grade: 'normal', chance: 75 }, { grade: 'uncommon', chance: 25 }], loss: [{ grade: 'normal', chance: 100 }] },
-    2: { win: [{ grade: 'normal', chance: 60 }, { grade: 'uncommon', chance: 40 }], loss: [{ grade: 'normal', chance: 100 }] },
-    3: { win: [{ grade: 'normal', chance: 45 }, { grade: 'uncommon', chance: 55 }], loss: [{ grade: 'normal', chance: 85 }, { grade: 'uncommon', chance: 15 }] },
-    4: { win: [{ grade: 'uncommon', chance: 70 }, { grade: 'rare', chance: 30 }], loss: [{ grade: 'normal', chance: 70 }, { grade: 'uncommon', chance: 30 }] },
-    5: { win: [{ grade: 'uncommon', chance: 50 }, { grade: 'rare', chance: 50 }], loss: [{ grade: 'uncommon', chance: 80 }, { grade: 'rare', chance: 20 }] },
-    6: { win: [{ grade: 'rare', chance: 65 }, { grade: 'epic', chance: 35 }], loss: [{ grade: 'uncommon', chance: 50 }, { grade: 'rare', chance: 50 }] },
-    7: { win: [{ grade: 'rare', chance: 45 }, { grade: 'epic', chance: 55 }], loss: [{ grade: 'rare', chance: 70 }, { grade: 'epic', chance: 30 }] },
-    8: { win: [{ grade: 'epic', chance: 60 }, { grade: 'legendary', chance: 40 }], loss: [{ grade: 'rare', chance: 40 }, { grade: 'epic', chance: 60 }] },
-    9: { win: [{ grade: 'epic', chance: 40 }, { grade: 'legendary', chance: 50 }, { grade: 'mythic', chance: 10 }], loss: [{ grade: 'epic', chance: 70 }, { grade: 'legendary', chance: 30 }] },
-    10: { win: [{ grade: 'epic', chance: 22 }, { grade: 'legendary', chance: 48 }, { grade: 'mythic', chance: 30 }], loss: [{ grade: 'epic', chance: 50 }, { grade: 'legendary', chance: 42 }, { grade: 'mythic', chance: 8 }] },
-};
+function lerpEquipmentTriple(
+    stage: number,
+    segLo: number,
+    segHi: number,
+    start: readonly [number, number, number],
+    end: readonly [number, number, number],
+): [number, number, number] {
+    const t = segHi <= segLo ? 0 : (stage - segLo) / (segHi - segLo);
+    return allocateHundredFromWeights([
+        start[0] + (end[0] - start[0]) * t,
+        start[1] + (end[1] - start[1]) * t,
+        start[2] + (end[2] - start[2]) * t,
+    ]);
+}
+
+/** 승리 시 장비 등급 분포 (낮은 등급 → 높은 등급 순) */
+export function getDungeonEquipmentWinChances(stage: number): { grade: EquipmentGradeKey; chance: number }[] {
+    const s = Math.min(10, Math.max(1, Math.floor(stage)));
+    if (s <= 3) {
+        const [a, b, c] = lerpEquipmentTriple(s, 1, 3, [70, 20, 10], [20, 35, 45]);
+        return [
+            { grade: 'normal', chance: a },
+            { grade: 'uncommon', chance: b },
+            { grade: 'rare', chance: c },
+        ];
+    }
+    if (s <= 6) {
+        const [a, b, c] = lerpEquipmentTriple(s, 4, 6, [70, 20, 10], [20, 35, 45]);
+        return [
+            { grade: 'uncommon', chance: a },
+            { grade: 'rare', chance: b },
+            { grade: 'epic', chance: c },
+        ];
+    }
+    if (s <= 8) {
+        const [a, b, c] = lerpEquipmentTriple(s, 7, 8, [70, 20, 10], [20, 35, 45]);
+        return [
+            { grade: 'rare', chance: a },
+            { grade: 'epic', chance: b },
+            { grade: 'legendary', chance: c },
+        ];
+    }
+    if (s === 9) {
+        return [
+            { grade: 'epic', chance: 80 },
+            { grade: 'legendary', chance: 19 },
+            { grade: 'mythic', chance: 1 },
+        ];
+    }
+    return [
+        { grade: 'epic', chance: 60 },
+        { grade: 'legendary', chance: 30 },
+        { grade: 'mythic', chance: 10 },
+    ];
+}
+
+/** 승리 분포에서 하위 등급으로 확률 이동 (합 100%) */
+export function getDungeonEquipmentLossChancesFromWin(win: { grade: EquipmentGradeKey; chance: number }[]): { grade: EquipmentGradeKey; chance: number }[] {
+    const biases: [number, number, number] = [1.55, 1.05, 0.4];
+    const w = win.map((e, i) => e.chance * biases[i]);
+    const [a, b, c] = allocateHundredFromWeights([w[0], w[1], w[2]]);
+    return win.map((e, i) => ({ grade: e.grade, chance: [a, b, c][i] }));
+}
+
+export const DUNGEON_STAGE_EQUIPMENT_DROP: Record<number, { win: { grade: EquipmentGradeKey; chance: number }[]; loss: { grade: EquipmentGradeKey; chance: number }[] }> = (() => {
+    const out: Record<number, { win: { grade: EquipmentGradeKey; chance: number }[]; loss: { grade: EquipmentGradeKey; chance: number }[] }> = {};
+    for (let s = 1; s <= 10; s++) {
+        const win = getDungeonEquipmentWinChances(s);
+        out[s] = { win, loss: getDungeonEquipmentLossChancesFromWin(win) };
+    }
+    return out;
+})();
 
 export function getDungeonMatchEquipmentGrade(stage: number, isWin: boolean): EquipmentGradeKey {
     const config = DUNGEON_STAGE_EQUIPMENT_DROP[stage] || DUNGEON_STAGE_EQUIPMENT_DROP[1];
@@ -257,28 +434,28 @@ export function getDungeonMatchEquipmentGrade(stage: number, isWin: boolean): Eq
     return list[list.length - 1].grade;
 }
 
-// 레거시 호환: 단일 고정값이 필요한 곳 (승리 범위 평균 × 마일스톤)
+// 레거시 호환: 단일 고정값 (동네 승리 골드 중간값 × 동네 단조 배수, 50골드 단위)
 export const DUNGEON_STAGE_BASE_REWARDS_GOLD: Record<number, number> = Object.fromEntries(
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((s) => {
-        const w = lerp(s, 80, 150, 1000, 3000);
-        const mid = (w.min + w.max) / 2;
-        const m = getDungeonStageRewardMilestoneMultiplier(s);
-        return [s, Math.round(mid * m)];
+        const w = lerp(s, 220, 380, 4500, 10500);
+        const mid = ((w.min + w.max) / 2) * getNeighborhoodDungeonGoldStageMultiplier(s);
+        const rounded = Math.round(mid / 50) * 50;
+        return [s, Math.max(50, rounded)];
     })
 ) as Record<number, number>;
 
-// 전국바둑대회 단계별 기본 재료 (1~2 하급, 3~4 중급, 5~6 상급, 7~9 최상급, 10단계는 순위보상에서 1위 신비의 5개)
+// 전국바둑대회 단계별 기본 재료 (scheduledTasks 등 — 경기당 가중 롤과 대략 정합)
 export const DUNGEON_STAGE_BASE_REWARDS_MATERIAL: Record<number, { materialName: string; quantity: number }> = {
-    1: { materialName: '하급 강화석', quantity: 10 },
-    2: { materialName: '하급 강화석', quantity: 13 },
-    3: { materialName: '중급 강화석', quantity: 8 },
-    4: { materialName: '중급 강화석', quantity: 12 },
-    5: { materialName: '상급 강화석', quantity: 10 },
-    6: { materialName: '상급 강화석', quantity: 13 },
-    7: { materialName: '최상급 강화석', quantity: 8 },
-    8: { materialName: '최상급 강화석', quantity: 10 },
-    9: { materialName: '최상급 강화석', quantity: 12 },
-    10: { materialName: '최상급 강화석', quantity: 12 },
+    1: { materialName: '하급 강화석', quantity: 18 },
+    2: { materialName: '하급 강화석', quantity: 20 },
+    3: { materialName: '중급 강화석', quantity: 14 },
+    4: { materialName: '중급 강화석', quantity: 17 },
+    5: { materialName: '중급 강화석', quantity: 20 },
+    6: { materialName: '상급 강화석', quantity: 12 },
+    7: { materialName: '상급 강화석', quantity: 16 },
+    8: { materialName: '최상급 강화석', quantity: 11 },
+    9: { materialName: '최상급 강화석', quantity: 10 },
+    10: { materialName: '최상급 강화석', quantity: 11 },
 };
 
 export const DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT: Record<number, { boxes: { boxName: string; quantity: number }[]; changeTickets: number }> = {
@@ -365,11 +542,11 @@ function roundGoldToFifty(raw: number): number {
 }
 
 function rankGoldNeighborhood(stage: number, rank: number): number {
-    const s1: Record<number, number> = { 1: 200, 2: 120, 3: 80, 4: 50, 5: 30, 6: 20 };
-    const s10: Record<number, number> = { 1: 5000, 2: 3000, 3: 2000, 4: 1250, 5: 750, 6: 500 };
+    const s1: Record<number, number> = { 1: 450, 2: 280, 3: 190, 4: 120, 5: 70, 6: 50 };
+    const s10: Record<number, number> = { 1: 12000, 2: 7200, 3: 4800, 4: 3000, 5: 1800, 6: 1200 };
     const t = (stage - 1) / 9;
     const a = s1[rank] ?? 10, b = s10[rank] ?? 300;
-    const raw = Math.round((a + (b - a) * t) * getDungeonStageRewardMilestoneMultiplier(stage));
+    const raw = Math.round((a + (b - a) * t) * getNeighborhoodDungeonGoldStageMultiplier(stage));
     return roundGoldToFifty(raw);
 }
 
@@ -403,14 +580,28 @@ export function getDungeonRankRewardNational(stage: number, rank: number): Dunge
     return { materials: rankMaterialNational(stage, rank) };
 }
 
-// 월드: 다이아 직접. 1단계 1위 3~5 … 10단계 보간 상한; 3·6·9·10 마일스톤 추가 배수
+// 월드: 다이아 직접. 1→10단계 선형 보간만 사용(단계가 올라갈수록 구간이 항상 증가).
+// 마일스톤 배수는 적용하지 않음 — 적용 시 6→7단계 등에서 기대 보상이 일시적으로 줄어드는 현상이 있었음.
+// 10단계 상한: 1위 max 20, 2위 max 15, 3위 max 10, 4위 max 7 (5~8위는 그에 맞춰 완만히 상향).
 const WORLD_DIAMOND_S1: Record<number, { min: number; max: number }> = {
-    1: { min: 3, max: 5 }, 2: { min: 2, max: 3 }, 3: { min: 1, max: 2 }, 4: { min: 1, max: 1 }, 5: { min: 1, max: 1 },
-    6: { min: 1, max: 1 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+    1: { min: 2, max: 3 },
+    2: { min: 1, max: 2 },
+    3: { min: 1, max: 1 },
+    4: { min: 1, max: 1 },
+    5: { min: 1, max: 1 },
+    6: { min: 1, max: 1 },
+    7: { min: 1, max: 1 },
+    8: { min: 1, max: 1 },
 };
 const WORLD_DIAMOND_S10: Record<number, { min: number; max: number }> = {
-    1: { min: 15, max: 25 }, 2: { min: 10, max: 15 }, 3: { min: 5, max: 10 }, 4: { min: 3, max: 5 }, 5: { min: 2, max: 3 },
-    6: { min: 1, max: 2 }, 7: { min: 1, max: 1 }, 8: { min: 1, max: 1 },
+    1: { min: 18, max: 20 },
+    2: { min: 12, max: 15 },
+    3: { min: 8, max: 10 },
+    4: { min: 5, max: 7 },
+    5: { min: 3, max: 4 },
+    6: { min: 2, max: 3 },
+    7: { min: 1, max: 2 },
+    8: { min: 1, max: 1 },
 };
 
 function worldDiamondInterpolatedRange(stage: number, rank: number): { min: number; max: number } | null {
@@ -418,18 +609,17 @@ function worldDiamondInterpolatedRange(stage: number, rank: number): { min: numb
     const r = WORLD_DIAMOND_S1[rank] || { min: 0, max: 0 };
     const r10 = WORLD_DIAMOND_S10[rank] || { min: 0, max: 0 };
     const t = (stage - 1) / 9;
-    const min = Math.round(r.min + (r10.min - r.min) * t);
-    const max = Math.round(r.max + (r10.max - r.max) * t);
+    let min = Math.round(r.min + (r10.min - r.min) * t);
+    let max = Math.round(r.max + (r10.max - r.max) * t);
+    if (max < 1) return null;
+    min = Math.max(1, min);
+    max = Math.max(min, max);
     return { min, max };
 }
 
+/** 월드 다이아 min~max (표시·실지급 RNG 공통). 마일스톤 미적용. */
 function worldDiamondRangeWithMilestone(stage: number, rank: number): { min: number; max: number } | null {
-    const base = worldDiamondInterpolatedRange(stage, rank);
-    if (!base) return null;
-    const m = getDungeonStageRewardMilestoneMultiplier(stage);
-    const minR = Math.max(1, Math.round(base.min * m));
-    const maxR = Math.max(minR, Math.round(base.max * m));
-    return { min: minR, max: maxR };
+    return worldDiamondInterpolatedRange(stage, rank);
 }
 
 function rankDiamondsWorld(stage: number, rank: number): number {
@@ -449,7 +639,7 @@ function rankMaterialNationalDisplay(stage: number, rank: number): Record<string
     return rankMaterialNational(stage, rank);
 }
 
-// 월드 다이아 표시용 (마일스톤 반영 구간 중간값)
+// 월드 다이아 표시용 (구간 중간값)
 function rankDiamondsWorldMidpoint(stage: number, rank: number): number {
     const rng = worldDiamondRangeWithMilestone(stage, rank);
     if (!rng) return 0;

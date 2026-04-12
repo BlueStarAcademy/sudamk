@@ -410,9 +410,13 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             'flex flex-wrap justify-center gap-1.5 rounded-xl border border-slate-600/35 bg-slate-950/60 p-1.5';
         return (
             <div className={[wrap, className].filter(Boolean).join(' ')} data-quick-access-sidebar-root>
-                <div className="flex w-full flex-wrap justify-center gap-1">{gameplayButtons.map(renderStripButton)}</div>
+                <div className="flex w-full flex-wrap justify-center gap-1">
+                    {gameplayButtons.map((btn) => renderStripButton(btn))}
+                </div>
                 {connector}
-                <div className="flex w-full flex-wrap justify-center gap-1">{utilityButtons.map(renderStripButton)}</div>
+                <div className="flex w-full flex-wrap justify-center gap-1">
+                    {utilityButtons.map((btn) => renderStripButton(btn))}
+                </div>
             </div>
         );
     }

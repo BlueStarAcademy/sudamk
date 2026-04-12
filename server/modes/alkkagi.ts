@@ -1,7 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi, shouldEnforceTimeControl, startColorConfirmation } from './shared.js';
-import { aiUserId } from '../aiPlayer.js';
+import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
 import * as effectService from '../effectService.js';
@@ -248,8 +248,8 @@ export const initializeAlkkagi = (game: types.LiveGameSession, neg: types.Negoti
         if (game.currentPlayer !== types.Player.None) {
             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             if (currentPlayerId === aiUserId) {
-                game.aiTurnStartTime = now;
-                console.log(`[initializeAlkkagi] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                scheduleAiTurnStartForFreshUi(game, now);
+                console.log(`[initializeAlkkagi] AI turn at game start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
             } else {
                 game.aiTurnStartTime = undefined;
                 console.log(`[initializeAlkkagi] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
@@ -291,8 +291,8 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                 if (game.isAiGame && game.currentPlayer !== types.Player.None) {
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
-                        game.aiTurnStartTime = now;
-                        console.log(`[updateAlkkagiState] AI turn at start confirmation, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        scheduleAiTurnStartForFreshUi(game, now);
+                        console.log(`[updateAlkkagiState] AI turn at start confirmation, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
                     } else {
                         game.aiTurnStartTime = undefined;
                         console.log(`[updateAlkkagiState] User turn at start confirmation, game ${game.id}, clearing aiTurnStartTime`);
@@ -401,9 +401,9 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
-                        game.aiTurnStartTime = now;
+                        scheduleAiTurnStartForFreshUi(game, now);
                         (game as any).alkkagiTriggerAiAttack = true; // 배치→공격 전환 직후 메인 루프에서 AI 공격 1회 확실히 호출
-                        console.log(`[updateAlkkagiState] AI turn after placement phase, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        console.log(`[updateAlkkagiState] AI turn after placement phase, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
                     } else {
                         game.aiTurnStartTime = undefined;
                         console.log(`[updateAlkkagiState] User turn after placement phase, game ${game.id}, clearing aiTurnStartTime`);
@@ -524,7 +524,7 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                             game.alkkagiPlacementDeadline = now + ALKKAGI_PLACEMENT_TIME_LIMIT * 1000;
                         }
                         if (game.isAiGame && loserId === aiUserId) {
-                            game.aiTurnStartTime = now;
+                            scheduleAiTurnStartForFreshUi(game, now);
                         } else if (game.isAiGame) {
                             game.aiTurnStartTime = undefined;
                         }

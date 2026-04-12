@@ -71,8 +71,6 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
             closeOnOutsideClick={false}
             isTopmost={isTopmost}
             zIndex={70}
-            skipSavedPosition
-            hideFooter
             variant="store"
             mobileViewportFit
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"

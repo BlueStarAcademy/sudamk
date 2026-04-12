@@ -44,6 +44,7 @@ export type GameStatus =
   | 'base_placement'
   | 'komi_bidding'
   | 'komi_bid_reveal'
+  | 'base_color_roulette'
   | 'base_game_start_confirmation'
   | 'capture_bidding'
   | 'capture_reveal'

@@ -15,6 +15,17 @@ import {
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
 
+/** 모험 맵 AI전: 베이스 제외 랜덤 흑백, 따내기는 도전자(플레이어1) 항상 흑. 그 외는 기존 설정 또는 기본 흑. */
+const resolveStrategicAiHumanColor = (game: types.LiveGameSession, neg: types.Negotiation): types.Player => {
+    const isAdventure = game.gameCategory === types.GameCategory.Adventure;
+    if (isAdventure && game.mode === types.GameMode.Capture) {
+        return types.Player.Black;
+    }
+    if (isAdventure && game.mode !== types.GameMode.Base) {
+        return Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+    }
+    return neg.settings.player1Color || types.Player.Black;
+};
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
     const p1 = game.player1;
@@ -30,7 +41,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                 initializeMissile(game);
             }
             if (game.isAiGame) {
-                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 if (humanPlayerColor === types.Player.Black) {
                     game.blackPlayerId = p1.id;
                     game.whitePlayerId = p2.id;
@@ -45,7 +56,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             break;
         case types.GameMode.Capture:
             if (game.isAiGame) {
-                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 const p1 = game.player1;
                 const p2 = game.player2;
                 if (humanPlayerColor === types.Player.Black) {
@@ -80,7 +91,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
         case types.GameMode.Hidden:
             initializeHidden(game);
             if (game.isAiGame) {
-                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 if (humanPlayerColor === types.Player.Black) {
                     game.blackPlayerId = p1.id;
                     game.whitePlayerId = p2.id;
@@ -96,7 +107,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
         case types.GameMode.Missile:
             initializeMissile(game);
             if (game.isAiGame) {
-                const humanPlayerColor = neg.settings.player1Color || types.Player.Black;
+                const humanPlayerColor = resolveStrategicAiHumanColor(game, neg);
                 if (humanPlayerColor === types.Player.Black) {
                     game.blackPlayerId = p1.id;
                     game.whitePlayerId = p2.id;

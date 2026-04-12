@@ -1,6 +1,10 @@
 import React from 'react';
 import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
 
+/** 데스크톱·넓은 화면: 골드·아이템 슬롯과 동일한 아이콘 박스 크기 */
+const COMFORTABLE_BOX_CLASS =
+    'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
+
 export type ResultModalXpVariant = 'strategy' | 'playful';
 
 const VARIANT = {
@@ -32,7 +36,7 @@ const VARIANT = {
 
 const DENSITY_BOX = {
     compact: RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
-    comfortable: 'h-10 w-10 sm:h-11 sm:w-11',
+    comfortable: COMFORTABLE_BOX_CLASS,
 } as const;
 
 /**

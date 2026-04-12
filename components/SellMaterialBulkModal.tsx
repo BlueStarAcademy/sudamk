@@ -63,8 +63,6 @@ const SellMaterialBulkModal: React.FC<SellMaterialBulkModalProps> = ({ item, cur
             variant="store"
             initialWidth={460}
             initialHeight={580}
-            skipSavedPosition
-            hideFooter
             mobileViewportFit
             mobileViewportMaxHeightVh={92}
             bodyPaddingClassName="p-0 sm:p-0"

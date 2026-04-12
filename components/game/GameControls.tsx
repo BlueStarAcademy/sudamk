@@ -136,6 +136,8 @@ interface GameControlsProps {
     onOpenGameRecordList?: () => void;
     /** 경기 종료 후 푸터 「대국」 영역에 나가기/관전종료 표시 */
     onLeaveOrResign?: () => void;
+    /** 모험 등 결과 모달 표시 여부(푸터 버튼 라벨·토글용) */
+    showResultModal?: boolean;
 }
 
 const formatCooldown = (ms: number) => {
@@ -1161,7 +1163,31 @@ const CurlingItemPanel: React.FC<{
 
 
 const GameControls: React.FC<GameControlsProps> = (props) => {
-    const { session, isMyTurn, isSpectator, onAction, setShowResultModal, setConfirmModalType, onOpenRematchSettings, currentUser, onlineUsers, pendingMove, onConfirmMove, onCancelMove, isMobile, settings, isSinglePlayer, isSinglePlayerPaused = false, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, onPauseToggle, onOpenGameRecordList, onLeaveOrResign } = props;
+    const {
+        session,
+        isMyTurn,
+        isSpectator,
+        onAction,
+        setShowResultModal,
+        setConfirmModalType,
+        onOpenRematchSettings,
+        currentUser,
+        onlineUsers,
+        pendingMove,
+        onConfirmMove,
+        onCancelMove,
+        isMobile,
+        settings,
+        isSinglePlayer,
+        isSinglePlayerPaused = false,
+        isPaused = false,
+        resumeCountdown = 0,
+        pauseButtonCooldown = 0,
+        onPauseToggle,
+        onOpenGameRecordList,
+        onLeaveOrResign,
+        showResultModal = false,
+    } = props;
     const { negotiations } = useAppContext();
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
@@ -1175,7 +1201,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             : PLAYFUL_GAME_MODES.some(m => m.mode === mode)
               ? PLAYFUL_ACTION_POINT_COST
               : STRATEGIC_ACTION_POINT_COST;
-    const isAiLobbyGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar';
+    const isAiLobbyGame =
+        session.isAiGame &&
+        !session.isSinglePlayer &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'singleplayer' &&
+        session.gameCategory !== 'guildwar' &&
+        session.gameCategory !== 'adventure';
     const isPvpRematchEligible =
         isGameEnded &&
         !session.isSinglePlayer &&
@@ -1199,7 +1231,12 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         !isSpectator &&
         canSaveStrategicPvpGameRecord(session);
     // 일반 AI 대국(대기실 'AI와 대결하기')에서만 사용되는 수동 일시정지/재개 플래그
-    const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    const isPausableAiGame =
+        session.isAiGame &&
+        !session.isSinglePlayer &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'singleplayer' &&
+        session.gameCategory !== 'adventure';
     // 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     const isClientPaused = isPausableAiGame ? isPaused : false;
     const handlePass = () => { 
@@ -1777,9 +1814,64 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         );
     }
 
+    const isAdventureGame = session.gameCategory === 'adventure';
+
     const primaryControlsInner = (
         <>
             {isGameEnded ? (
+                isAdventureGame ? (
+                    <>
+                        <Button
+                            bare
+                            onClick={() => setShowResultModal(!showResultModal)}
+                            colorScheme="none"
+                            className={endedIngameRowBtn()}
+                        >
+                            {showResultModal ? '확인' : '결과 보기'}
+                        </Button>
+                        {onLeaveOrResign && (
+                            <Button bare onClick={onLeaveOrResign} colorScheme="none" className={endedIngameRowBtn()}>
+                                맵으로 이동
+                            </Button>
+                        )}
+                        {showStrategicGameRecordActions && (onAction || onOpenGameRecordList) && (
+                            <>
+                                {onAction && (
+                                    <Button
+                                        bare
+                                        onClick={async () => {
+                                            if (savingGameRecord || recordAlreadySaved) return;
+                                            if (savedRecordCount >= 10) {
+                                                alert(GAME_RECORD_SLOT_FULL_MESSAGE);
+                                                return;
+                                            }
+                                            setSavingGameRecord(true);
+                                            try {
+                                                const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId } });
+                                                if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) return;
+                                                setSavedOptimistic(true);
+                                            } catch (e) {
+                                                console.error(e);
+                                            } finally {
+                                                setSavingGameRecord(false);
+                                            }
+                                        }}
+                                        disabled={savingGameRecord || recordAlreadySaved}
+                                        colorScheme="none"
+                                        className={`${endedIngameRowBtn()} ${recordAlreadySaved ? 'opacity-50' : ''}`}
+                                    >
+                                        {savingGameRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
+                                    </Button>
+                                )}
+                                {onOpenGameRecordList && (
+                                    <Button bare onClick={() => onOpenGameRecordList()} colorScheme="none" className={endedIngameRowBtn()}>
+                                        기보 관리
+                                    </Button>
+                                )}
+                            </>
+                        )}
+                    </>
+                ) : (
                 <>
                     <Button bare onClick={() => setShowResultModal(true)} colorScheme="none" className={endedIngameRowBtn()}>
                         결과 보기
@@ -1831,6 +1923,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         </>
                     )}
                 </>
+                )
             ) : (
                 <>
                     {isStrategic && mode !== GameMode.Capture && !isAiLobbyGame && (

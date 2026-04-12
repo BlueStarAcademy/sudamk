@@ -1,12 +1,30 @@
 import * as db from '../db.js';
 // FIX: Import the full namespace to access enums like CoreStat.
 import * as types from '../../types/index.js';
-import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../../constants';
+import {
+    AVATAR_POOL,
+    BORDER_POOL,
+    SPECIAL_GAME_MODES,
+    NICKNAME_MAX_LENGTH,
+    NICKNAME_MIN_LENGTH,
+    DEFAULT_GAME_SETTINGS,
+} from '../../constants';
+import { getAdventureMonsterAttackActionPointCost } from '../../constants/adventureMonstersCodex.js';
 import { containsProfanity } from '../../profanity.js';
 import {
     nicknameContainsReservedStaffTerms,
     RESERVED_STAFF_NICKNAME_USER_MESSAGE,
 } from '../../shared/utils/staffNicknameDisplay.js';
+import {
+    adventureMonsterLevelToKataProfileStep,
+    KATA_SERVER_LEVEL_BY_PROFILE_STEP,
+} from '../../shared/utils/strategicAiDifficulty.js';
+import type { AdventureMonsterBattleModeKey } from '../../shared/utils/adventureBattleBoard.js';
+import {
+    applyAdventureStrategicGameSettings,
+    getAdventureAllowedBattleModes,
+    resolveAdventureBoardSize,
+} from '../../shared/utils/adventureBattleBoard.js';
 import { UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
@@ -14,6 +32,19 @@ import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
 import { isStrategicPvpForGameRecord, isGameStatusSaveableForRecord, isShortGameStrategicNoContest } from '../../utils/strategicPvpGameRecord.js';
 import { randomUUID } from 'crypto';
 import * as effectService from '../effectService.js';
+import {
+    adventureBattleModeToGameMode,
+    getAdventureStageById,
+    getAdventureStageLevelRange,
+    type AdventureMonsterBattleMode,
+} from '../../constants/adventureConstants.js';
+import { initializeGame } from '../gameModes.js';
+import { getAiUser } from '../aiPlayer.js';
+import {
+    assertValidAdventureMonsterRef,
+    applyAdventureMonsterDefeatToProfile,
+    parseAdventureMonsterLevel,
+} from '../utils/adventureMonsterDefeat.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -65,6 +96,157 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             broadcastUserUpdate(user, ['borderId']);
             
             return { clientResponse: { updatedUser } };
+        }
+        case 'RECORD_ADVENTURE_MONSTER_DEFEAT': {
+            const { codexId, stageId, battleMode } = payload as {
+                codexId?: string;
+                stageId?: string;
+                battleMode?: string;
+            };
+            const refErr = assertValidAdventureMonsterRef({ codexId, stageId, battleMode });
+            if (refErr) {
+                return { error: refErr };
+            }
+            applyAdventureMonsterDefeatToProfile(user, { codexId: codexId!, stageId: stageId!, battleMode: battleMode! });
+
+            const updatedUser = getSelectiveUserUpdate(user, 'RECORD_ADVENTURE_MONSTER_DEFEAT');
+
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after RECORD_ADVENTURE_MONSTER_DEFEAT:`, err);
+            });
+
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['adventureProfile', 'actionPoints', 'lastActionPointUpdate']);
+
+            return { clientResponse: { updatedUser } };
+        }
+        case 'START_ADVENTURE_MONSTER_BATTLE': {
+            let adventureApDeducted = false;
+            let adventureApCostPaid = 0;
+            try {
+                const { codexId, stageId, battleMode, monsterLevel: rawLevel, mapMonsterId: rawMapId } = payload as {
+                    codexId?: string;
+                    stageId?: string;
+                    battleMode?: string;
+                    monsterLevel?: number;
+                    mapMonsterId?: string;
+                };
+                const refErr = assertValidAdventureMonsterRef({ codexId, stageId, battleMode });
+                if (refErr) {
+                    return { error: refErr };
+                }
+                const monsterLevel = parseAdventureMonsterLevel(rawLevel);
+                if (monsterLevel == null) {
+                    return { error: '잘못된 몬스터 레벨입니다.' };
+                }
+                const mapMonsterId =
+                    typeof rawMapId === 'string' && rawMapId.length > 0 ? rawMapId : `${user.id}:${randomUUID()}`;
+                const advStage = getAdventureStageById(stageId!);
+                const { min: chapterLevelMin, max: chapterLevelMax } = getAdventureStageLevelRange(
+                    advStage?.stageIndex ?? 1,
+                );
+                const boardSize = resolveAdventureBoardSize(stageId!, codexId!, mapMonsterId, {
+                    monsterLevel,
+                    chapterLevelMin,
+                    chapterLevelMax,
+                });
+                const allowedModes = getAdventureAllowedBattleModes(boardSize);
+                if (!allowedModes.includes(battleMode as AdventureMonsterBattleModeKey)) {
+                    return { error: '이 판 크기에서는 선택한 룰로 대결할 수 없습니다.' };
+                }
+
+                const mode = adventureBattleModeToGameMode(battleMode as AdventureMonsterBattleMode);
+                const cost = getAdventureMonsterAttackActionPointCost(advStage?.stageIndex ?? 1, codexId!);
+                if (user.actionPoints.current < cost && !user.isAdmin) {
+                    return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
+                }
+                if (!user.isAdmin) {
+                    user.actionPoints.current -= cost;
+                    user.lastActionPointUpdate = Date.now();
+                    adventureApDeducted = true;
+                    adventureApCostPaid = cost;
+                }
+
+                const settings = { ...DEFAULT_GAME_SETTINGS };
+                const lv = monsterLevel;
+                const kataStep = adventureMonsterLevelToKataProfileStep(lv);
+                settings.kataServerLevel = KATA_SERVER_LEVEL_BY_PROFILE_STEP[kataStep];
+                settings.goAiBotLevel = kataStep;
+                applyAdventureStrategicGameSettings(settings, boardSize, mode);
+
+                const negotiation: types.Negotiation = {
+                    id: `neg-adv-${randomUUID()}`,
+                    challenger: user,
+                    opponent: getAiUser(mode),
+                    mode,
+                    settings,
+                    proposerId: user.id,
+                    status: 'pending',
+                    deadline: 0,
+                    isRanked: false,
+                    adventureBattle: {
+                        stageId: stageId!,
+                        codexId: codexId!,
+                        level: lv,
+                        battleMode: battleMode!,
+                        boardSize,
+                    },
+                };
+
+                const game = await initializeGame(negotiation);
+                await db.saveGame(game);
+
+                volatileState.userStatuses[game.player1.id] = {
+                    status: UserStatus.InGame,
+                    mode: game.mode,
+                    gameId: game.id,
+                };
+                volatileState.userStatuses[game.player2.id] = {
+                    status: UserStatus.InGame,
+                    mode: game.mode,
+                    gameId: game.id,
+                };
+
+                db.updateUser(user).catch((err) => {
+                    console.error(`[UserAction] Failed to save user ${user.id} after START_ADVENTURE_MONSTER_BATTLE:`, err);
+                });
+
+                const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                broadcastUserUpdate(user, ['actionPoints']);
+                broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                broadcast({
+                    type: 'NEGOTIATION_UPDATE',
+                    payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses },
+                });
+
+                return {
+                    clientResponse: {
+                        gameId: game.id,
+                        game,
+                    },
+                };
+            } catch (err: any) {
+                const { codexId, stageId, battleMode, monsterLevel: rawLevel, mapMonsterId: errMapId } = (payload || {}) as {
+                    codexId?: string;
+                    stageId?: string;
+                    battleMode?: string;
+                    monsterLevel?: number;
+                    mapMonsterId?: string;
+                };
+                if (adventureApDeducted && !user.isAdmin && adventureApCostPaid > 0) {
+                    user.actionPoints.current += adventureApCostPaid;
+                    user.lastActionPointUpdate = Date.now();
+                }
+                console.error('[START_ADVENTURE_MONSTER_BATTLE] Error:', err?.message || err, err?.stack, {
+                    codexId,
+                    stageId,
+                    battleMode,
+                    rawLevel,
+                    mapMonsterId: errMapId,
+                });
+                return { error: err?.message || '모험 대전 생성 중 오류가 발생했습니다.' };
+            }
         }
         case 'CHANGE_NICKNAME': {
             const { newNickname } = payload;

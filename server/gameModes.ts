@@ -4,7 +4,7 @@ import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRA
 import * as types from '../types/index.js';
 import { analyzeGame, getScoringKataGoLimits } from './kataGoService.js';
 import type { LiveGameSession, AppState, Negotiation, ActionButton, GameMode } from '../types/index.js';
-import { GameCategory } from '../types/index.js';
+import { GameCategory } from '../types/enums.js';
 import { aiUserId, makeAiMove, getAiUser, getAiUserForGuildWar } from './aiPlayer.js';
 import { syncAiSession } from './aiSessionManager.js';
 // FIX: The imported functions were not found. They are now exported from `standard.ts` with the correct names.
@@ -14,6 +14,7 @@ import { randomUUID } from 'crypto';
 import * as db from './db.js';
 import * as effectService from './effectService.js';
 import { endGame } from './summaryService.js';
+import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -38,10 +39,18 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     // 사석 점수 동기화: deadStones 배열과 scoreDetails가 항상 일치하도록 (보드 마커와 모달 점수 불일치 방지)
     const boardState = session.boardState;
     if (finalAnalysis.deadStones && Array.isArray(finalAnalysis.deadStones) && boardState && Array.isArray(boardState) && boardState.length > 0) {
-        const whiteDeadCount = finalAnalysis.deadStones.filter((p: { x: number; y: number }) => boardState[p.y]?.[p.x] === types.Player.White).length;
-        const blackDeadCount = finalAnalysis.deadStones.filter((p: { x: number; y: number }) => boardState[p.y]?.[p.x] === types.Player.Black).length;
-        finalAnalysis.scoreDetails.black.deadStones = Math.round(whiteDeadCount);
-        finalAnalysis.scoreDetails.white.deadStones = Math.round(blackDeadCount);
+        let whiteDeadScore = 0;
+        let blackDeadScore = 0;
+        for (const p of finalAnalysis.deadStones as { x: number; y: number }[]) {
+            const c = boardState[p.y]?.[p.x];
+            if (c === types.Player.White) {
+                whiteDeadScore += getStoneCapturePointValueForScoring(session, p, types.Player.White);
+            } else if (c === types.Player.Black) {
+                blackDeadScore += getStoneCapturePointValueForScoring(session, p, types.Player.Black);
+            }
+        }
+        finalAnalysis.scoreDetails.black.deadStones = Math.round(whiteDeadScore);
+        finalAnalysis.scoreDetails.white.deadStones = Math.round(blackDeadScore);
     }
 
     // Base stone bonus
@@ -844,6 +853,17 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
         gameStatus: 'pending', blackPlayerId: null, whitePlayerId: null, currentPlayer: types.Player.None,
         gameStartTime: undefined, // 게임이 실제로 시작될 때 설정됨
     };
+
+    if (neg.adventureBattle) {
+        game.gameCategory = GameCategory.Adventure;
+        game.adventureStageId = neg.adventureBattle.stageId;
+        game.adventureMonsterCodexId = neg.adventureBattle.codexId;
+        game.adventureMonsterLevel = neg.adventureBattle.level;
+        game.adventureMonsterBattleMode = neg.adventureBattle.battleMode;
+        if (typeof neg.adventureBattle.boardSize === 'number') {
+            game.adventureBoardSize = neg.adventureBattle.boardSize;
+        }
+    }
 
     // AI 게임은 대국실 입장 후 "경기 시작" 확인을 받아야 시작되므로,
     // 생성 시에는 항상 pending 상태로 유지하고, 실제 초기화는 CONFIRM_AI_GAME_START에서 수행합니다.

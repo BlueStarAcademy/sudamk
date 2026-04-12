@@ -21,6 +21,13 @@ function clearStrategicAiKataSpFallback(game: types.LiveGameSession) {
     delete (game as any).strategicAiKataSpFallbackActive;
 }
 
+/** 전략 AI 대국: 히든 개수는 player1/player2 좌석 기준(hidden_stones_p1/p2). AI가 항상 p2라는 가정은 길드전·색 배정에 깨질 수 있음 */
+function getStrategicAiHiddenStonesKey(game: types.LiveGameSession, aiPlayerEnum: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' {
+    const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    if (!aiPlayerId || !game.player1?.id) return 'hidden_stones_p2';
+    return aiPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+}
+
 /**
  * AI 봇 단계별 특성 정의
  */
@@ -878,7 +885,8 @@ export async function makeGoAiBotMove(
     if (game.aiHiddenItemAnimationEndTime != null && now >= game.aiHiddenItemAnimationEndTime) {
         game.aiHiddenItemAnimationEndTime = undefined;
         game.animation = null;
-        const aiHiddenLeft = (game as any).hidden_stones_p2 ?? 0;
+        const aiHiddenKey = getStrategicAiHiddenStonesKey(game, aiPlayerEnum);
+        const aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
         if (aiHiddenLeft > 0 && isHiddenMode) {
             const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
             const aiGameForMove: types.LiveGameSession = { ...game, boardState: aiBoardState };
@@ -900,7 +908,7 @@ export async function makeGoAiBotMove(
                     game.passCount = 0;
                     if (!game.hiddenMoves) game.hiddenMoves = {};
                     game.hiddenMoves[game.moveHistory.length - 1] = true;
-                    (game as any).hidden_stones_p2 = aiHiddenLeft - 1;
+                    (game as any)[aiHiddenKey] = aiHiddenLeft - 1;
                     game.aiHiddenItemUsed = true;
                     if (game.isSinglePlayer || (game as any).gameCategory === 'tower') {
                         (game as any).aiInitialHiddenStone = { x: hiddenMove.x, y: hiddenMove.y };
@@ -952,17 +960,18 @@ export async function makeGoAiBotMove(
         }
     }
 
-    // 전략바둑 AI 히든 모드: hidden_stones_p2 / aiHiddenItemTurn 미설정 시 초기화
+    // 전략바둑 AI 히든 모드: AI 좌석의 hidden_stones_px / aiHiddenItemTurn 미설정 시 초기화
+    const aiHiddenKey = getStrategicAiHiddenStonesKey(game, aiPlayerEnum);
     if (isHiddenMode && isStrategicAiGame) {
         const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
-        if (cap > 0 && (game as any).hidden_stones_p2 === undefined) {
-            (game as any).hidden_stones_p2 = cap;
+        if (cap > 0 && (game as any)[aiHiddenKey] === undefined) {
+            (game as any)[aiHiddenKey] = cap;
         }
-        planStrategicAiHiddenTurns(game, (game as any).hidden_stones_p2 ?? cap);
+        planStrategicAiHiddenTurns(game, (game as any)[aiHiddenKey] ?? cap);
     }
 
     // AI 히든 아이템 사용 연출 시작 (실제 수는 다음 호출에서 히든으로 둠)
-    const aiHiddenLeft = (game as any).hidden_stones_p2 ?? 0;
+    const aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
     const plannedAiHiddenTurns = isStrategicAiGame ? planStrategicAiHiddenTurns(game, aiHiddenLeft) : [];
     const usedAiHiddenItems = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
     const currentAiTurnIndex = getCurrentAiTurnIndex(game, aiPlayerEnum);

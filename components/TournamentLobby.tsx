@@ -826,6 +826,12 @@ const TournamentLobby: React.FC = () => {
     const [isChampionshipPresetModalOpen, setIsChampionshipPresetModalOpen] = useState(false);
     const [isAcquiredScoreModalOpen, setIsAcquiredScoreModalOpen] = useState(false);
 
+    const championshipPresetModalWidth = useMemo(() => {
+        if (typeof window === 'undefined') return 760;
+        if (!isNativeMobile) return 760;
+        return Math.min(560, Math.max(328, window.innerWidth - 14));
+    }, [isNativeMobile]);
+
     if (!currentUserWithStatus) {
         return (
             <div
@@ -1102,65 +1108,65 @@ const TournamentLobby: React.FC = () => {
                         onClose={() => setIsChampionshipPresetModalOpen(false)}
                         windowId="championship-preset-tournament-mobile"
                         isTopmost={true}
-                        initialWidth={760}
-                        initialHeight={680}
+                        initialWidth={championshipPresetModalWidth}
+                        initialHeight={isNativeMobile ? 720 : 680}
                         variant="store"
                         mobileViewportFit
-                        mobileViewportMaxHeightVh={96}
-                        hideFooter
+                        mobileViewportMaxHeightCss="92dvh"
+                        mobileViewportMaxHeightVh={92}
+                        mobileLockViewportHeight={isNativeMobile}
                         bodyNoScroll
-                        bodyPaddingClassName="p-1.5 min-h-0"
+                        bodyPaddingClassName="!p-1 min-h-0"
                     >
-                        <div className="flex h-full min-h-0 flex-col gap-1.5 overflow-hidden">
-                            <div className="flex min-h-0 min-w-0 flex-[1.15] flex-col overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800 to-zinc-950 p-1.5">
-                                <div className="mb-0.5 shrink-0 text-center text-[10px] font-bold tracking-wide text-amber-200">바둑능력</div>
-                                <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10">
+                        <div className="flex h-full min-h-0 flex-col gap-1 overflow-hidden">
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800 to-zinc-950 p-1 sm:flex-[1.12] sm:p-1.5">
+                                <div className="mb-0.5 shrink-0 text-center text-[9px] font-bold tracking-wide text-amber-200 sm:text-[10px]">바둑능력</div>
+                                <div className="relative flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_18px_50px_-22px_rgba(0,0,0,0.72)] ring-1 ring-amber-100/10 sm:p-1.5">
                                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                                     <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/8" aria-hidden />
-                                    <div className="relative mb-1 flex min-w-0 shrink-0 flex-col overflow-hidden rounded-lg border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-1.5 py-1 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)]">
+                                    <div className="relative mb-0.5 flex min-w-0 shrink-0 flex-nowrap items-center gap-x-1 overflow-hidden rounded-lg border border-amber-600/45 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-1 py-0.5 shadow-[0_10px_32px_-14px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.07)] sm:gap-x-1.5 sm:px-1.5 sm:py-1">
                                         <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
-                                        <div className="relative flex min-w-0 flex-col gap-1">
-                                            <div className="min-w-0">
-                                                <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0">
-                                                    <span className="bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-xs font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)]">
-                                                        바둑능력
-                                                    </span>
-                                                    <span
-                                                        className="bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono text-lg font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)]"
-                                                        title="6개 핵심 능력치 합계"
-                                                    >
-                                                        {badukAbilityTotal}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="flex shrink-0 items-center justify-between gap-1 border-t border-zinc-700/90 pt-1">
-                                                <span className="min-w-0 truncate text-[10px] font-medium text-amber-100/85" title={`보너스: ${availablePoints}P`}>
-                                                    보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
-                                                    <span className="text-amber-100/55">P</span>
-                                                </span>
-                                                <Button
-                                                    onClick={handlers.openStatAllocationModal}
-                                                    colorScheme="none"
-                                                    className="!shrink-0 !whitespace-nowrap !rounded-md !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-1.5 !py-0.5 !text-[9px] !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110"
-                                                >
-                                                    분배
-                                                </Button>
-                                            </div>
+                                        <div className="relative flex min-w-0 flex-nowrap items-center gap-x-0.5 sm:gap-x-1">
+                                            <span className="shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-[clamp(8px,2.5vw,11px)] font-bold tracking-tight text-transparent drop-shadow-[0_0_24px_rgba(251,191,36,0.25)]">
+                                                바둑능력
+                                            </span>
+                                            <span
+                                                className="shrink-0 bg-gradient-to-br from-yellow-50 via-amber-200 to-amber-700 bg-clip-text font-mono text-[clamp(14px,4.5vw,18px)] font-black tabular-nums leading-none tracking-tight text-transparent drop-shadow-[0_1px_0_rgba(0,0,0,0.35)]"
+                                                title="6개 핵심 능력치 합계"
+                                            >
+                                                {badukAbilityTotal}
+                                            </span>
                                         </div>
+                                        <span className="h-3.5 w-px shrink-0 bg-zinc-600/90 sm:h-4" aria-hidden />
+                                        <span
+                                            className="min-w-0 flex-1 truncate text-center text-[clamp(8px,2.4vw,10px)] font-medium text-amber-100/85"
+                                            title={`보너스: ${availablePoints}P`}
+                                        >
+                                            보너스 <span className="font-bold tabular-nums text-emerald-300">{availablePoints}</span>
+                                            <span className="text-amber-100/55">P</span>
+                                        </span>
+                                        <Button
+                                            onClick={handlers.openStatAllocationModal}
+                                            colorScheme="none"
+                                            className="!shrink-0 !whitespace-nowrap !rounded-md !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-1 !py-0.5 !text-[clamp(8px,2.3vw,9px)] !font-semibold !leading-none !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 sm:!px-1.5"
+                                        >
+                                            분배
+                                        </Button>
                                     </div>
                                     <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
                                         <CoreStatsHexagonChart
                                             values={finalByStat}
                                             baseByStat={baseByStat}
-                                            className="h-full min-h-0"
+                                            className="h-full min-h-0 min-w-0"
                                             desktopLike
                                             mobileReadable
                                             compactModal
+                                            championshipPresetFit={isNativeMobile}
                                         />
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800 to-zinc-950 p-1.5">
+                            <div className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden rounded-xl border border-amber-500/35 bg-gradient-to-b from-zinc-800 to-zinc-950 p-1 sm:p-1.5">
                                 <div className="mb-0.5 shrink-0 text-center text-[10px] font-bold tracking-wide text-amber-200">장착 장비 / 프리셋</div>
                                 <div className="relative flex flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10">
                                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
@@ -1210,17 +1216,24 @@ const TournamentLobby: React.FC = () => {
                         onClose={() => setIsAcquiredScoreModalOpen(false)}
                         windowId="championship-daily-points-mobile"
                         isTopmost={true}
-                        initialWidth={420}
-                        initialHeight={620}
+                        initialWidth={440}
+                        initialHeight={680}
                         variant="store"
                         mobileViewportFit
-                        mobileViewportMaxHeightVh={96}
-                        hideFooter
+                        mobileViewportMaxHeightCss="92dvh"
+                        mobileViewportMaxHeightVh={92}
+                        mobileLockViewportHeight
                         bodyNoScroll
-                        bodyPaddingClassName="p-1.5 min-h-0"
+                        bodyPaddingClassName="!p-0 min-h-0"
                     >
-                        <div className="flex h-full max-h-[min(88dvh,620px)] min-h-0 flex-col overflow-hidden">
-                            <PointsInfoPanel variant="nativeEmbedded" lobbyGlass hideHeading arenaTabs />
+                        <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+                            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden overscroll-y-contain px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0">
+                                <div className="flex min-h-full flex-1 flex-col items-center justify-center">
+                                    <div className="w-full max-w-[min(22rem,100%)]">
+                                        <PointsInfoPanel variant="nativeEmbedded" lobbyGlass hideHeading arenaTabs />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </DraggableWindow>
                 )}

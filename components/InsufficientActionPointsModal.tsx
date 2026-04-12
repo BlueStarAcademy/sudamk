@@ -41,14 +41,14 @@ const InsufficientActionPointsModal: React.FC<InsufficientActionPointsModalProps
                     </p>
                     <p className="text-center text-gray-400 text-sm whitespace-pre-line">
                         아래에서 충전할 수 있습니다.
-                        {'\n'}- 상점 → 소모품 탭 → 행동력 일일 구매
+                        {'\n'}- 상점 → 소모품 탭 → 행동력 회복제(종류별 하루 1개)
                         {'\n'}- 다이아를 이용한 즉시 충전
                     </p>
                 </div>
 
                 <div className="grid grid-cols-1 gap-2">
                     <Button onClick={goShopConsumables} colorScheme="accent" className="w-full">
-                        상점(소모품)에서 행동력 일일 구매
+                        상점(소모품)에서 행동력 회복제 구매
                     </Button>
                     <Button onClick={goDiamondRecharge} colorScheme="blue" className="w-full">
                         다이아로 즉시 충전

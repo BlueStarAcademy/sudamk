@@ -5,7 +5,7 @@ import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, shouldEnf
 import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_MAIN_PLACE_TIME, THIEF_NIGHTS_PER_SEGMENT } from '../../constants/index.js';
 import { DICE_HUMAN_PLACE_SETTLE_MS } from './diceGo.js';
 import { endGame } from '../summaryService.js';
-import { aiUserId } from '../aiPlayer.js';
+import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 
 const THIEF_POOL_HIGH36 = [3, 4, 5, 6] as const;
 const THIEF_POOL_NO_ONE = [2, 3, 4, 5] as const;
@@ -140,8 +140,8 @@ export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiat
         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
         if (currentPlayerId === aiUserId) {
-            game.aiTurnStartTime = now;
-            console.log(`[initializeThief] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+            scheduleAiTurnStartForFreshUi(game, now);
+            console.log(`[initializeThief] AI turn at game start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
         } else {
             game.aiTurnStartTime = undefined;
             console.log(`[initializeThief] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
@@ -276,8 +276,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (currentPlayerId === aiUserId) {
-                    game.aiTurnStartTime = now;
-                    console.log(`[updateThiefState] AI turn at role confirmed, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    scheduleAiTurnStartForFreshUi(game, now);
+                    console.log(`[updateThiefState] AI turn at role confirmed, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
                 } else {
                     game.aiTurnStartTime = undefined;
                     console.log(`[updateThiefState] User turn at role confirmed, game ${game.id}, clearing aiTurnStartTime`);
@@ -535,8 +535,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                  if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                      const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                      if (currentPlayerId === aiUserId) {
-                         game.aiTurnStartTime = now;
-                         console.log(`[updateThiefState] AI turn at round start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                         scheduleAiTurnStartForFreshUi(game, now);
+                         console.log(`[updateThiefState] AI turn at round start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
                      } else {
                          game.aiTurnStartTime = undefined;
                          console.log(`[updateThiefState] User turn at round start, game ${game.id}, clearing aiTurnStartTime`);

@@ -197,6 +197,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     gameId={session.id}
                     pendingMove={pendingMove}
                     captureScoreFloatMinPoints={captureScoreFloatMinPoints}
+                    onBoardRuleFlash={props.onBoardRuleFlash}
                 />
                 </div>
                 </div>

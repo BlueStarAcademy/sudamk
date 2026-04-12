@@ -1072,14 +1072,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [isMoveInFlight, session.moveHistory?.length, prevMoveCount, gameStatus, prevGameStatus, myBaseStoneCountForUnlock, prevMyBaseStoneCountForUnlock]);
 
-    const showKoRuleFlash = useCallback(() => {
+    const flashBoardRuleMessage = useCallback((message: string, durationMs = 3500) => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
-        setBoardRuleFlashMessage(KO_RULE_FLASH_MESSAGE);
+        setBoardRuleFlashMessage(message);
         boardRuleFlashClearRef.current = setTimeout(() => {
             setBoardRuleFlashMessage(null);
             boardRuleFlashClearRef.current = null;
-        }, 5000);
+        }, durationMs);
     }, []);
+
+    const showKoRuleFlash = useCallback(() => {
+        flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
+    }, [flashBoardRuleMessage]);
 
     useEffect(() => () => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
@@ -1730,6 +1734,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 sessionStorage.setItem('postGameRedirect', '#/guildwar');
             } else if (session.gameCategory === 'tower') {
                 sessionStorage.setItem('postGameRedirect', '#/tower');
+            } else if (session.gameCategory === 'adventure') {
+                const stageId = session.adventureStageId;
+                sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
                 sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
@@ -1750,7 +1757,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } else {
             setConfirmModalType('resign');
         }
-    }, [isSpectator, handlers.handleAction, session.isAiGame, session.isSinglePlayer, session.gameCategory, session.mode, gameId, gameStatus, isNoContestLeaveAvailable]);
+    }, [
+        isSpectator,
+        handlers.handleAction,
+        session.isAiGame,
+        session.isSinglePlayer,
+        session.gameCategory,
+        session.adventureStageId,
+        session.mode,
+        gameId,
+        gameStatus,
+        isNoContestLeaveAvailable,
+    ]);
 
     useEffect(() => {
         const gameHash = `#/game/${gameId}`;
@@ -2292,18 +2310,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     const globalChat = useMemo(() => waitingRoomChats['global'] || [], [waitingRoomChats]);
     
+    const handleAdventureLeaveToMap = useCallback(() => {
+        if (!gameId || session.gameCategory !== 'adventure') return;
+        setShowResultModal(false);
+        const stageId = session.adventureStageId;
+        sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
+        handlers.handleAction({ type: 'LEAVE_AI_GAME', payload: { gameId } });
+    }, [gameId, session.gameCategory, session.adventureStageId, handlers.handleAction]);
+
     const handleCloseResults = useCallback(() => {
         setShowResultModal(false);
         if (!session.analysisResult?.['system']) {
             setShowFinalTerritory(false);
         }
-        // 도전의 탑·싱글플레이·(전략/놀이 대기실에서 시작한) AI 대국:
+        // 도전의 탑·싱글플레이·모험·(전략/놀이 대기실에서 시작한) AI 대국:
         // "확인"은 모달만 닫고 경기장에 머물고, "나가기"에서만 퇴장 후 대기실로 이동
-        const isTowerOrSingle = session.gameCategory === 'tower' || session.isSinglePlayer;
+        const isTowerSingleOrAdventure =
+            session.gameCategory === 'tower' || session.isSinglePlayer || session.gameCategory === 'adventure';
         const isLobbyAiGame =
             session.isAiGame &&
             (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode));
-        if (isTowerOrSingle || isLobbyAiGame) return;
+        if (isTowerSingleOrAdventure || isLobbyAiGame) return;
         // 그 외(PVP 등): 경기 종료 후 결과 모달 "확인" 시 퇴장 + 해당 대기실로 이동
         if ((gameStatus === 'ended' || gameStatus === 'no_contest') && gameId) {
             // 전략이면 전략 대기실, 그 외는 놀이바둑 대기실로 이동
@@ -2312,7 +2339,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             handlers.handleAction({ type: actionType, payload: { gameId } });
         }
-    }, [session.analysisResult, session.gameCategory, session.isSinglePlayer, session.mode, gameStatus, gameId, session.isAiGame, handlers.handleAction]);
+    }, [
+        session.analysisResult,
+        session.gameCategory,
+        session.isSinglePlayer,
+        session.mode,
+        gameStatus,
+        gameId,
+        session.isAiGame,
+        handlers.handleAction,
+    ]);
 
     // 싱글플레이 게임 설명창 표시 여부
     const showGameDescription = isSinglePlayer && gameStatus === 'pending';
@@ -2402,7 +2438,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     const gameProps: GameProps = {
         session: sessionWithAiHiddenPresentation, onAction: handlers.handleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,
-        gameChat: gameChat, isSpectator, onlineUsers, activeNegotiation, negotiations: Object.values(negotiations), onViewUser: handlers.openViewingUser
+        gameChat: gameChat, isSpectator, onlineUsers, activeNegotiation, negotiations: Object.values(negotiations), onViewUser: handlers.openViewingUser,
+        onBoardRuleFlash: flashBoardRuleMessage,
     };
 
     // AI 게임 일시 정지 관련 변수 (gameControlsProps보다 먼저 정의)
@@ -2584,6 +2621,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     showResultModal={showResultModal}
                     onCloseResults={handleCloseResults}
                     onOpenGameRecordList={handlers.openGameRecordList}
+                    onAdventureLeaveToMap={handleAdventureLeaveToMap}
                 />
             </div>
             </InGameModalLayoutProvider>
@@ -2740,6 +2778,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     showResultModal={showResultModal}
                     onCloseResults={handleCloseResults}
                     onOpenGameRecordList={handlers.openGameRecordList}
+                    onAdventureLeaveToMap={handleAdventureLeaveToMap}
                 />
             </div>
             </InGameModalLayoutProvider>
@@ -3025,6 +3064,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 showResultModal={showResultModal}
                 onCloseResults={handleCloseResults}
                 onOpenGameRecordList={handlers.openGameRecordList}
+                onAdventureLeaveToMap={handleAdventureLeaveToMap}
             />
         </div>
         </InGameModalLayoutProvider>

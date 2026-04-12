@@ -36,7 +36,8 @@ export function useSmoothedMobileBoardPan(args: {
         if (!enabledRef.current) return;
         const t = targetRef.current;
         const prev = displayRef.current;
-        const alpha = 0.11;
+        /** 낮을수록 가장자리 패닝이 천천히 따라옴 (너무 크면 판이 빨리 쏠림) */
+        const alpha = 0.055;
         let next = prev + (t - prev) * alpha;
         if (Math.abs(t - next) < 0.1) next = t;
         displayRef.current = next;
@@ -62,7 +63,7 @@ export function useSmoothedMobileBoardPan(args: {
         (clientX: number, innerWidth: number) => {
             if (!enabledRef.current) return;
             const bw = getBoardWidthPx();
-            const maxPan = Math.max(10, bw * 0.1);
+            const maxPan = Math.max(12, bw * 0.14);
             targetRef.current = mobileBoardEdgePanX(clientX, innerWidth, maxPan);
             scheduleStep();
         },

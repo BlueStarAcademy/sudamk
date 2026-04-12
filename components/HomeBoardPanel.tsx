@@ -602,7 +602,6 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({ posts, isAdmin = false,
                     modal
                     mobileViewportFit
                     mobileViewportMaxHeightCss="92dvh"
-                    hideFooter
                     bodyPaddingClassName="!p-3 sm:!p-4"
                 >
                     <div className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto overflow-x-hidden overscroll-y-contain text-slate-100">

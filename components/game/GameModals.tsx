@@ -15,11 +15,11 @@ import ThiefRoundSummary from '../ThiefRoundSummary.js';
 import CurlingRoundSummary from '../CurlingRoundSummary.js';
 import Button from '../Button.js';
 import DiceRoundSummary from '../DiceRoundSummary.js';
-import BasePlacementModal from '../BasePlacementModal.js';
 import KomiBiddingPanel from '../KomiBiddingPanel.js';
 import NegotiationModal from '../NegotiationModal.js';
 import DiceGoTurnSelectionModal from '../DiceGoTurnSelectionModal.js';
 import BaseStartConfirmationModal from '../BaseStartConfirmationModal.js';
+import BaseColorRouletteModal from '../BaseColorRouletteModal.js';
 import DiceGoStartConfirmationModal from '../DiceGoStartConfirmationModal.js';
 import CurlingStartConfirmationModal from '../CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from '../AlkkagiStartConfirmationModal.js';
@@ -34,10 +34,26 @@ interface GameModalsProps extends GameProps {
     showResultModal: boolean;
     onCloseResults: () => void;
     onOpenGameRecordList?: () => void;
+    /** 모험 대국 결과에서 「맵으로 이동」 */
+    onAdventureLeaveToMap?: () => void;
 }
 
 const GameModals: React.FC<GameModalsProps> = (props) => {
-    const { session, currentUser, onAction, confirmModalType, onHideConfirmModal, showResultModal, onCloseResults, isSpectator, activeNegotiation, onlineUsers, onViewUser, onOpenGameRecordList } = props;
+    const {
+        session,
+        currentUser,
+        onAction,
+        confirmModalType,
+        onHideConfirmModal,
+        showResultModal,
+        onCloseResults,
+        isSpectator,
+        activeNegotiation,
+        onlineUsers,
+        onViewUser,
+        onOpenGameRecordList,
+        onAdventureLeaveToMap,
+    } = props;
     const { gameStatus, mode, id: gameId } = session;
 
     const renderModals = () => {
@@ -94,8 +110,8 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'base_placement') return <BasePlacementModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['komi_bidding', 'komi_bid_reveal'].includes(gameStatus)) return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'base_color_roulette') return <BaseColorRouletteModal session={session} />;
         if (gameStatus === 'base_game_start_confirmation') return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (rpsStates.includes(gameStatus)) return <RPSMinigame session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'alkkagi_start_confirmation') return <AlkkagiStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
@@ -116,6 +132,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
                     session={session}
                     currentUser={currentUser}
                     onConfirm={onCloseResults}
+                    onLeaveToAdventureMap={
+                        session.gameCategory === 'adventure' && !isSpectator ? onAdventureLeaveToMap : undefined
+                    }
                     onAction={onAction}
                     onOpenGameRecordList={onOpenGameRecordList}
                     isSpectator={isSpectator}

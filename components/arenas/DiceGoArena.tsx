@@ -36,6 +36,7 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
         handleBoardClick,
         pendingMove,
         diceGoPlaceUi,
+        onBoardRuleFlash,
     } = props;
     const { id: gameId, boardState, settings, lastMove, winningLine, gameStatus, currentPlayer, blackPlayerId, whitePlayerId, player1, player2, animation, lastTurnStones, stonesToPlace } = session;
     
@@ -113,6 +114,7 @@ const DiceGoArena: React.FC<DiceGoArenaProps> = (props) => {
                         justCaptured={session.justCaptured}
                         captures={session.captures}
                         captureScoreFloatMinPoints={captureScoreFloatMinPoints}
+                        onBoardRuleFlash={onBoardRuleFlash}
                     />
                     {/* Dice controls (desktop): outside board box but not affecting board size */}
                     <div

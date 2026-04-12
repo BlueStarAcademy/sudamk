@@ -3013,7 +3013,7 @@ export const useApp = () => {
                         return { ...currentGames, [rollGameId]: next };
                     });
                 }
-                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
+                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_ADVENTURE_MONSTER_BATTLE' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
                     
                     // 응답에 게임 데이터가 있으면 즉시 상태에 추가 (WebSocket 업데이트를 기다리지 않음)
@@ -3173,7 +3173,7 @@ export const useApp = () => {
                         console.log('[handleAction] Setting immediate route to new game:', targetHash, 'hasGame:', !!game);
                         // AI 게임: state 반영 전 리다이렉트 방지를 위해 유예 시간 설정
                         // START_AI_GAME(대기실→규칙설명), CONFIRM_AI_GAME_START(경기시작→경기장) 모두 적용
-                        if (action.type === 'START_AI_GAME' || action.type === 'CONFIRM_AI_GAME_START') {
+                        if (action.type === 'START_AI_GAME' || action.type === 'START_ADVENTURE_MONSTER_BATTLE' || action.type === 'CONFIRM_AI_GAME_START') {
                             pendingAiGameEntryRef.current = {
                                 gameId: effectiveGameId,
                                 until: Date.now() + 3000,
@@ -5025,7 +5025,14 @@ export const useApp = () => {
                                         if (incomingMoveCount < existingMoveCount && existingBoardValid && existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
                                             const lastMove = existingGame.moveHistory[existingGame.moveHistory.length - 1];
                                             const nextPlayer = lastMove && (lastMove as any).player === Player.Black ? Player.White : Player.Black;
-                                            mergedGame = { ...game, boardState: existingGame.boardState, moveHistory: existingGame.moveHistory, currentPlayer: nextPlayer };
+                                            mergedGame = {
+                                                ...game,
+                                                boardState: existingGame.boardState,
+                                                moveHistory: existingGame.moveHistory,
+                                                currentPlayer: nextPlayer,
+                                                // 수순을 클라이언트 것으로 맞출 때 hiddenMoves도 함께 맞춰야 스캔 버튼·히든 문양 인덱스가 어긋나지 않음
+                                                hiddenMoves: existingGame.hiddenMoves ?? game.hiddenMoves,
+                                            };
                                             if ((existingGame as any).koInfo !== undefined) mergedGame.koInfo = (existingGame as any).koInfo;
                                             if ((existingGame as any).lastMove !== undefined) mergedGame.lastMove = (existingGame as any).lastMove;
                                         }
@@ -5048,6 +5055,7 @@ export const useApp = () => {
                                             mergedGame = { ...game, boardState: existingGame.boardState };
                                             if (existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
                                                 mergedGame.moveHistory = existingGame.moveHistory;
+                                                mergedGame.hiddenMoves = existingGame.hiddenMoves ?? mergedGame.hiddenMoves;
                                             }
                                         }
                                         // 온라인 히든: 스캔 애니 종료(scanning_animating → playing) 시 서버가 보드/수순을 생략하면 클라 유지
@@ -5134,7 +5142,13 @@ export const useApp = () => {
                                             const nextAfterLast = lastExisting && (lastExisting as any).player === Player.Black ? Player.White : Player.Black;
                                             const serverTurnStale = nextAfterLast === aiPlayerEnum && game.currentPlayer !== aiPlayerEnum;
                                             if (sameLastMove && (serverTurnStale || !hasServerBoard)) {
-                                                mergedGame = { ...game, boardState: existingGame.boardState, moveHistory: existingGame.moveHistory, currentPlayer: serverTurnStale ? existingGame.currentPlayer : game.currentPlayer };
+                                                mergedGame = {
+                                                    ...game,
+                                                    boardState: existingGame.boardState,
+                                                    moveHistory: existingGame.moveHistory,
+                                                    currentPlayer: serverTurnStale ? existingGame.currentPlayer : game.currentPlayer,
+                                                    hiddenMoves: existingGame.hiddenMoves ?? game.hiddenMoves,
+                                                };
                                                 if ((existingGame as any).koInfo !== undefined) mergedGame.koInfo = (existingGame as any).koInfo;
                                                 if ((existingGame as any).lastMove !== undefined) mergedGame.lastMove = (existingGame as any).lastMove;
                                             } else if (serverTurnStale) {
@@ -5177,7 +5191,22 @@ export const useApp = () => {
                                         const lastMove = (game.moveHistory as any[])?.[game.moveHistory.length - 1];
                                         const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
                                         const isNewAiMoveLive = isStrategicAiGame && hasNewMoves && lastMove?.player === aiPlayerEnum;
-                                        if (isNewAiMoveLive) {
+                                        // 히든 바둑: AI 수를 1초 지연 적용하면 hiddenMoves·수순이 밀려 스캔 비활성·히든 문양 플리커가 난다 → 즉시 반영
+                                        const isHiddenStrategicLive =
+                                            game.mode === GameMode.Hidden ||
+                                            (game.mode === GameMode.Mix &&
+                                                Array.isArray((game.settings as any)?.mixedModes) &&
+                                                (game.settings as any).mixedModes.includes(GameMode.Hidden));
+                                        const lastIncomingIdx =
+                                            game.moveHistory?.length != null && game.moveHistory.length > 0
+                                                ? game.moveHistory.length - 1
+                                                : -1;
+                                        const lastIncomingMoveHidden =
+                                            lastIncomingIdx >= 0 &&
+                                            !!(game.hiddenMoves as Record<number, boolean> | undefined)?.[lastIncomingIdx];
+                                        const deferStrategicAiMoveForEffect =
+                                            isNewAiMoveLive && !isHiddenStrategicLive && !lastIncomingMoveHidden;
+                                        if (deferStrategicAiMoveForEffect) {
                                             if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
                                             }

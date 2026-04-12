@@ -457,13 +457,13 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 return { error: '유효하지 않은 요청입니다.' };
             }
 
-            // 변경권·행동력 회복제 아이템 정의 (행동력은 구매 회차별 가격)
+            // 변경권·행동력 회복제 아이템 정의 (행동력 회복제는 품목별 일일 1개, 고정 골드가)
             const consumableItems: Record<string, { name: string; price?: number; dailyLimit: number; prices?: number[] }> = {
                 'option_type_change_ticket': { name: '옵션 종류 변경권', price: 2000, dailyLimit: 3 },
                 'option_value_change_ticket': { name: '옵션 수치 변경권', price: 500, dailyLimit: 10 },
                 'mythic_option_change_ticket': { name: '신화 옵션 변경권', price: 500, dailyLimit: 10 },
-                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 3, prices: [100, 300, 500] },
-                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 2, prices: [300, 1000] },
+                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [100] },
+                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [300] },
                 'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [1000] },
             };
 
@@ -559,7 +559,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds']);
+            broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'dailyShopPurchases']);
 
             return { 
                 clientResponse: { 

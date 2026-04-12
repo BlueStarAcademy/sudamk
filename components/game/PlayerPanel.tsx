@@ -11,6 +11,7 @@ import {
 } from '../../shared/utils/strategicAiDifficulty.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
+import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -21,10 +22,26 @@ const formatTime = (seconds: number) => {
     return `${String(hrs).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 };
 
-const CapturedStones: React.FC<{ count: number; target?: number; panelType: 'black' | 'white' | 'neutral', mode: GameMode, isMobile?: boolean }> = ({ count, target, panelType, mode, isMobile = false }) => {
+type CurlingScoreBoxMeta = {
+    round: number;
+    totalRounds: number;
+    stonesLeft: number;
+    totalStones: number;
+};
+
+const CapturedStones: React.FC<{
+    count: number;
+    target?: number;
+    panelType: 'black' | 'white' | 'neutral';
+    mode: GameMode;
+    isMobile?: boolean;
+    /** 컬링: 라운드·남은 스톤을 점수 박스 안에 함께 표시 */
+    curlingMeta?: CurlingScoreBoxMeta;
+}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta }) => {
     const displayCount = typeof target === 'number' && target > 0 ? `${count}/${target}` : `${count}`;
     const isDiceGo = mode === GameMode.Dice;
-    
+    const isCurling = mode === GameMode.Curling && curlingMeta != null;
+
     let label = '따낸 돌';
     if (isDiceGo) {
         label = '포획 점수';
@@ -32,14 +49,15 @@ const CapturedStones: React.FC<{ count: number; target?: number; panelType: 'bla
         label = '점수';
     }
 
-    const widthClass = isMobile ? 'w-[4.25rem]' : 'w-[clamp(4.5rem,16vmin,6rem)]';
-    const paddingClass = isMobile ? 'p-1' : 'p-1';
+    const widthClass =
+        isMobile && isCurling ? 'w-[5.35rem] min-w-[5.35rem]' : isMobile ? 'w-[4.25rem]' : isCurling ? 'w-[clamp(5rem,17vmin,6.5rem)]' : 'w-[clamp(4.5rem,16vmin,6rem)]';
+    const paddingClass = isCurling ? (isMobile ? 'px-1 py-1.5' : 'px-1.5 py-1.5') : isMobile ? 'p-1' : 'p-1';
     const labelSize = isMobile ? 'text-[0.65rem]' : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
-    const countSize = isMobile ? 'text-sm' : 'text-[clamp(1rem,5vmin,2rem)]';
+    const countSize = isMobile && isCurling ? 'text-base' : isMobile ? 'text-sm' : 'text-[clamp(1rem,5vmin,2rem)]';
     const diceSize = isMobile ? 'h-2.5 w-2.5' : 'w-[clamp(0.8rem,3vmin,1rem)] h-[clamp(0.8rem,3vmin,1rem)]';
-    const marginClass = isMobile ? 'my-0.5' : 'my-1';
+    const marginClass = isCurling ? 'my-0' : isMobile ? 'my-0.5' : 'my-1';
 
-    const baseClasses = `flex flex-col items-center justify-center ${widthClass} rounded-lg shadow-lg border-2 ${paddingClass} text-center h-full`;
+    const baseClasses = `flex shrink-0 flex-col items-center justify-center ${widthClass} rounded-lg shadow-lg border-2 ${paddingClass} text-center ${isCurling ? 'min-h-0 self-stretch' : 'h-full'}`;
     let colorClasses = '';
     let labelColor = 'text-gray-300';
     let countColor = 'text-white';
@@ -52,18 +70,31 @@ const CapturedStones: React.FC<{ count: number; target?: number; panelType: 'bla
         colorClasses = 'bg-gradient-to-br from-gray-800 to-black border-gray-600';
     }
 
+    const metaMuted =
+        panelType === 'white' ? 'text-gray-600 border-gray-400/40' : 'text-gray-400 border-white/10';
+
     return (
         <div className={`${baseClasses} ${colorClasses}`}>
-            <span className={`${labelColor} ${labelSize} font-semibold whitespace-nowrap`}>{label}</span>
+            <span className={`${labelColor} ${labelSize} font-semibold leading-none`}>{label}</span>
             {isDiceGo ? (
                 <div className={`font-mono font-bold ${countSize} tracking-tighter ${marginClass} ${countColor} flex items-center justify-center gap-0.5`}>
                     <div className={`${diceSize} rounded-full bg-white border border-black inline-block flex-shrink-0`}></div>
                     <span>{displayCount}</span>
                 </div>
             ) : (
-                <span className={`font-mono font-bold ${countSize} tracking-tighter ${marginClass} ${countColor}`}>
-                    {displayCount}
-                </span>
+                <span className={`font-mono font-bold ${countSize} tabular-nums leading-none ${marginClass} ${countColor}`}>{displayCount}</span>
+            )}
+            {isCurling && curlingMeta && (
+                <div className={`mt-1.5 w-full border-t pt-1.5 ${metaMuted}`}>
+                    <div className={`flex flex-col gap-0.5 ${labelSize} font-semibold tabular-nums leading-tight`}>
+                        <span>
+                            라운드 {curlingMeta.round}/{curlingMeta.totalRounds}
+                        </span>
+                        <span>
+                            스톤 {curlingMeta.stonesLeft}/{curlingMeta.totalStones}
+                        </span>
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -158,6 +189,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         showElapsedOnly = false,
         isCurrentUser = false,
         fluidTextLayout = false,
+        opponentMonsterDisplay,
     } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
@@ -182,7 +214,9 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
 
     // 전략바둑 AI 대국: 상단 패널에서 봇 이름 옆에 AI 난이도(단계 1~10 → 표시 레벨 1,3,5,…,50)
     const isStrategicAiGame = session.isAiGame && isStrategic && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
-    if (isStrategicAiGame && isAiPlayer) {
+    if (opponentMonsterDisplay) {
+        levelText = `Lv.${opponentMonsterDisplay.level}`;
+    } else if (isStrategicAiGame && isAiPlayer) {
         const profileStep = resolveAiLobbyProfileStepFromSettings(session.settings as GameSettings);
         const displayAiLevel = strategicAiDisplayLevelFromProfileStep(profileStep);
         levelText = `${levelText} · AI Lv.${displayAiLevel}`;
@@ -275,7 +309,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const padding = isMobile ? 'p-1.5' : 'p-1';
     const gap = isMobile ? 'gap-1.5' : 'gap-2';
 
-    const nameTitle = `${user.nickname}${isAiPlayer ? ' 🤖' : ''}${role ? ` (${role})` : ''}`;
+    const displayNickname = opponentMonsterDisplay?.displayName ?? user.nickname;
+    const nameTitle = `${displayNickname}${isAiPlayer && !opponentMonsterDisplay ? ' 🤖' : ''}${role ? ` (${role})` : ''}`;
 
     return (
         <div className={`relative flex min-w-0 items-stretch ${gap} flex-1 ${orderClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}>
@@ -286,7 +321,21 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                 <div
                     className={`flex min-w-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
                 >
-                    <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                    {opponentMonsterDisplay ? (
+                        <div
+                            className="shrink-0 overflow-hidden rounded-md border border-white/20 bg-black/50"
+                            style={{ width: avatarSize, height: avatarSize }}
+                        >
+                            <img
+                                src={opponentMonsterDisplay.portraitUrl}
+                                alt=""
+                                draggable={false}
+                                className="h-full w-full object-contain object-center"
+                            />
+                        </div>
+                    ) : (
+                        <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                    )}
                     <div className="min-w-0 flex-1">
                         <div
                             className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-wrap content-start gap-x-1 gap-y-0 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
@@ -299,19 +348,25 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 }`}
                                 title={nameTitle}
                             >
-                                <span
-                                    className={mergeStaffNicknameDisplayClass(
-                                        {
-                                            nickname: user.nickname,
-                                            isAdmin: user.isAdmin,
-                                            staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
-                                        },
-                                        'inline',
-                                    )}
-                                >
-                                    {user.nickname}
-                                </span>
-                                {isAiPlayer ? ' 🤖' : ''}
+                                {opponentMonsterDisplay ? (
+                                    <span>{opponentMonsterDisplay.displayName}</span>
+                                ) : (
+                                    <>
+                                        <span
+                                            className={mergeStaffNicknameDisplayClass(
+                                                {
+                                                    nickname: user.nickname,
+                                                    isAdmin: user.isAdmin,
+                                                    staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
+                                                },
+                                                'inline',
+                                            )}
+                                        >
+                                            {user.nickname}
+                                        </span>
+                                        {isAiPlayer ? ' 🤖' : ''}
+                                    </>
+                                )}
                                 {role ? ` (${role})` : ''}
                             </h2>
                             {isLeft && isGameEnded && isWinner && <span className={`shrink-0 ${winLoseTextSize} font-black text-blue-400`}>승</span>}
@@ -325,12 +380,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         >
                             {levelText}
                         </p>
-                         {isCurling && (
-                            <div className={`mt-0.5 flex items-center gap-2 text-xs ${justifyClass} ${levelTextClasses}`}>
-                                <span>{session.curlingRound || 1}/{session.settings.curlingRounds || 3}R</span>
-                                <span className="font-semibold">남은 스톤: {stonesLeft}</span>
-                            </div>
-                        )}
                     </div>
                 </div>
                 <div className={isMobile ? 'mt-0.5' : 'mt-1'}>
@@ -375,7 +424,23 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     )}
                 </div>
             </div>
-            <CapturedStones count={score} target={captureTarget} panelType={panelType} mode={mode} isMobile={isMobile} />
+            <CapturedStones
+                count={score}
+                target={captureTarget}
+                panelType={panelType}
+                mode={mode}
+                isMobile={isMobile}
+                curlingMeta={
+                    isCurling
+                        ? {
+                              round: session.curlingRound || 1,
+                              totalRounds: session.settings.curlingRounds || 3,
+                              stonesLeft,
+                              totalStones,
+                          }
+                        : undefined
+                }
+            />
         </div>
     );
 };
@@ -512,6 +577,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const isLeftAi = session.isAiGame && leftPlayerUser.id === aiUserId;
     const isRightAi = session.isAiGame && rightPlayerUser.id === aiUserId;
+    const adventureMonsterPanel =
+        session.gameCategory === 'adventure' && session.adventureMonsterCodexId
+            ? (() => {
+                  const m = getAdventureCodexMonsterById(session.adventureMonsterCodexId);
+                  if (!m) return undefined;
+                  return {
+                      portraitUrl: m.imageWebp,
+                      displayName: m.name,
+                      level: Math.max(1, session.adventureMonsterLevel ?? 1),
+                  };
+              })()
+            : undefined;
     const isGuildWarAi = session.gameCategory === 'guildwar' && session.isAiGame;
     const leftShowElapsedOnly = isGuildWarAi ? isLeftAi : !enforceTime;
     const rightShowElapsedOnly = isGuildWarAi ? isRightAi : !enforceTime;
@@ -669,6 +746,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     fluidTextLayout={compactPlayerBar}
                     showElapsedOnly={leftShowElapsedOnly}
                     isCurrentUser={leftPlayerUser.id === currentUser?.id}
+                    opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
                 />
             </div>
             {((isSinglePlayer || session.gameCategory === 'tower') && turnInfo) && (
@@ -750,6 +828,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 fluidTextLayout={compactPlayerBar}
                 showElapsedOnly={rightShowElapsedOnly}
                 isCurrentUser={rightPlayerUser.id === currentUser?.id}
+                opponentMonsterDisplay={isRightAi ? adventureMonsterPanel : undefined}
             />
             </div>
         </div>

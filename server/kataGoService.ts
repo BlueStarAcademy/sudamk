@@ -3,6 +3,7 @@ import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { LiveGameSession, AnalysisResult, Player, Point, RecommendedMove } from '../types/index.js';
+import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
 import * as types from '../types/index.js';
 import { fileURLToPath } from 'url';
 import https from 'https';
@@ -170,8 +171,12 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
         }
     }
     
-    const blackDeadCount = deadStones.filter(s => session.boardState[s.y][s.x] === Player.Black).length;
-    const whiteDeadCount = deadStones.filter(s => session.boardState[s.y][s.x] === Player.White).length;
+    const blackDeadScore = deadStones
+        .filter((s) => session.boardState[s.y][s.x] === Player.Black)
+        .reduce((acc, s) => acc + getStoneCapturePointValueForScoring(session, s, Player.Black), 0);
+    const whiteDeadScore = deadStones
+        .filter((s) => session.boardState[s.y][s.x] === Player.White)
+        .reduce((acc, s) => acc + getStoneCapturePointValueForScoring(session, s, Player.White), 0);
 
     const blackLiveCaptures = session.captures[Player.Black] || 0;
     const whiteLiveCaptures = session.captures[Player.White] || 0;
@@ -184,17 +189,17 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
             territory: Math.round(blackTerritory), 
             captures: blackLiveCaptures, // "captures" now means live captures
             liveCaptures: blackLiveCaptures, 
-            deadStones: whiteDeadCount, 
+            deadStones: whiteDeadScore, 
             baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, 
-            total: Math.round(blackTerritory) + blackLiveCaptures + whiteDeadCount 
+            total: Math.round(blackTerritory) + blackLiveCaptures + whiteDeadScore 
         },
         white: { 
             territory: Math.round(whiteTerritory), 
             captures: whiteLiveCaptures, // "captures" now means live captures
             liveCaptures: whiteLiveCaptures, 
-            deadStones: blackDeadCount, 
+            deadStones: blackDeadScore, 
             komi, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, 
-            total: Math.round(whiteTerritory) + whiteLiveCaptures + blackDeadCount + komi
+            total: Math.round(whiteTerritory) + whiteLiveCaptures + blackDeadScore + komi
         },
     };
     

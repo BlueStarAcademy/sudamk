@@ -46,6 +46,7 @@ export function getSelectiveUserUpdate(
         'CONFIRM_STAT_ALLOCATION': ['spentStatPoints'],
         'SAVE_PRESET': ['equipmentPresets'],
         'APPLY_PRESET': ['equipment', 'inventory', 'actionPoints', 'lastActionPointUpdate'],
+        'RECORD_ADVENTURE_MONSTER_DEFEAT': ['adventureProfile'],
         'SAVE_GAME_RECORD': ['savedGameRecords'],
         'DELETE_GAME_RECORD': ['savedGameRecords'],
         

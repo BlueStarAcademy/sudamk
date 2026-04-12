@@ -9,6 +9,27 @@ import { PLAYFUL_GAME_MODES } from '../../constants/gameModes';
 import { useSmoothedMobileBoardPan } from '../../hooks/useSmoothedMobileBoardPan.js';
 import { findAlkkagiStoneById } from '../../shared/utils/alkkagiStoneId.js';
 
+/** 화면 좌표가 돌 중심(붉은 발사 취소 원) 안인지 — 첫 터치 위치가 아니라 돌 기준으로 판정 */
+function isScreenPointInAlkkagiStoneCancelZone(
+    screenX: number,
+    screenY: number,
+    stone: AlkkagiStone,
+    svg: SVGSVGElement,
+    tolerance = 1.08
+): boolean {
+    const rect = svg.getBoundingClientRect();
+    if (rect.width <= 0) return false;
+    const scale = rect.width / 840;
+    const screenRadius = stone.radius * scale;
+    const pt = svg.createSVGPoint();
+    pt.x = stone.x;
+    pt.y = stone.y;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return false;
+    const scr = pt.matrixTransform(ctm);
+    return Math.hypot(screenX - scr.x, screenY - scr.y) <= screenRadius * tolerance;
+}
+
 interface AlkkagiArenaProps extends GameProps {
     /** GameArena에서 전달. 발사 조준 시 좌우 드래그 여유를 위해 판 폭을 줄일 때 사용 */
     isMobile?: boolean;
@@ -38,6 +59,8 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
     const isDraggingRef = useRef(false);
     const selectedStoneRef = useRef<AlkkagiStone | null>(null);
     const dragStartPointRef = useRef<Point | null>(null);
+    /** touchmove 마지막 위치 — 일부 기기에서 touchend 좌표가 어긋날 때 취소 판정 보조 */
+    const lastDragEndScreenRef = useRef<Point | null>(null);
     const powerRef = useRef(0);
     
     const [selectedStoneId, setSelectedStoneId] = useState<number | null>(null);
@@ -71,6 +94,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         setDragEndPoint(null);
         setPower(0);
         powerRef.current = 0;
+        lastDragEndScreenRef.current = null;
         resetBoardPanRef.current();
     }, [stopPowerGauge]);
 
@@ -257,6 +281,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         setSelectedStoneId(stone.id);
         setDragStartPoint(point);
         setDragEndPoint(point);
+        lastDragEndScreenRef.current = point;
         startPowerGauge();
     }, [startPowerGauge]);
     
@@ -266,6 +291,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
             if ('preventDefault' in e) e.preventDefault();
             const point = 'touches' in e ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
             setDragEndPoint(point);
+            lastDragEndScreenRef.current = point;
             const p = latestProps.current;
             if (!p.isMobile) {
                 resetBoardPanRef.current();
@@ -296,15 +322,20 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
 
             const finalSelectedStone = selectedStoneRef.current;
             const finalDragStart = dragStartPointRef.current;
-            const finalDragEnd = 'touches' in e ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : { x: e.clientX, y: e.clientY };
+            const finalDragEnd =
+                'touches' in e && e.changedTouches.length > 0
+                    ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY }
+                    : { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
 
-            // 돌(보이는 원) 크기와 같은 범위 안에서 손을 떼면 발사 취소 (getBoundingClientRect로 CSS 픽셀 일치)
             const svgForCancel = boardRef.current?.getSvg();
-            if (finalDragStart && finalSelectedStone && svgForCancel) {
-                const rect = svgForCancel.getBoundingClientRect();
-                const scale = rect.width / 840;
-                const screenRadius = finalSelectedStone.radius * scale;
-                if (Math.hypot(finalDragEnd.x - finalDragStart.x, finalDragEnd.y - finalDragStart.y) < screenRadius) {
+            if (finalSelectedStone && svgForCancel) {
+                const releasePoints: Point[] = [finalDragEnd];
+                if (lastDragEndScreenRef.current) releasePoints.push(lastDragEndScreenRef.current);
+                const inCancel = releasePoints.some((p) =>
+                    isScreenPointInAlkkagiStoneCancelZone(p.x, p.y, finalSelectedStone, svgForCancel)
+                );
+                if (inCancel) {
+                    lastDragEndScreenRef.current = null;
                     cancelFlick();
                     return;
                 }
@@ -361,6 +392,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
             setDragEndPoint(null);
             setPower(0);
             powerRef.current = 0;
+            lastDragEndScreenRef.current = null;
             setTimeout(() => setFlickPower(null), 1500);
         };
 
@@ -414,16 +446,13 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         return findAlkkagiStoneById(alkkagiStones ?? [], selectedStoneId) ?? null;
     }, [selectedStoneId, alkkagiStones]);
 
-    /** 드래그 끝이 시작점(돌) 근처면 발사 취소 영역 — 보드 크기 기준 CSS 픽셀로 돌 반경 계산 */
+    /** 손가락이 돌 중심(붉은 취소 원) 안에 있으면 발사 취소 상태 */
     const isInCancelZone = useMemo(() => {
-        if (!dragStartPoint || !dragEndPoint || !selectedStoneForRender) return false;
+        if (!dragEndPoint || !selectedStoneForRender) return false;
         const svg = boardRef.current?.getSvg();
         if (!svg) return false;
-        const rect = svg.getBoundingClientRect();
-        const scale = rect.width / 840; // viewBox 840 = 보드 한 변
-        const screenRadius = selectedStoneForRender.radius * scale; // clientX/clientY와 같은 CSS 픽셀
-        return Math.hypot(dragEndPoint.x - dragStartPoint.x, dragEndPoint.y - dragStartPoint.y) < screenRadius;
-    }, [dragStartPoint, dragEndPoint, selectedStoneForRender]);
+        return isScreenPointInAlkkagiStoneCancelZone(dragEndPoint.x, dragEndPoint.y, selectedStoneForRender, svg);
+    }, [dragEndPoint, selectedStoneForRender]);
 
     const backgroundClass = useMemo(() => {
         if (PLAYFUL_GAME_MODES.some(m => m.mode === session.mode)) {

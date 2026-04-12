@@ -2,6 +2,15 @@
 
 import { User, CoreStat, SpecialStat, MythicStat } from '../types/index.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants';
+import {
+    accumulateAdventureCodexBossPercentBonuses,
+    applyAdventureCodexComprehensionToCalculatedEffects,
+} from '../utils/adventureCodexComprehension.js';
+import {
+    getAdventureUnderstandingDropBonusesPercent,
+    getAdventureUnderstandingRegionalCoreBuff,
+    sumAdventureUnderstandingGoldBonusPercent,
+} from '../utils/adventureUnderstanding.js';
 
 export interface MannerEffects {
     maxActionPoints: number;
@@ -68,6 +77,16 @@ export interface CalculatedEffects extends MannerEffects {
     coreStatBonuses: Record<CoreStat, { flat: number; percent: number }>;
     specialStatBonuses: Record<SpecialStat, { flat: number; percent: number }>;
     mythicStatBonuses: Record<MythicStat, { flat: number; percent: number }>;
+    /** 모험 카테고리 승리 골드에만 가산(%) — 장비 매너 `winGoldBonusPercent`와 별도 */
+    adventureCodexGoldBonusPercent?: number;
+    /** 지역 이해도 — 모험 승리 보상 장비 상자 드롭 +% */
+    adventureUnderstandingEquipmentDropBonusPercent?: number;
+    /** 지역 이해도 — II·III·IV 장비 상자 가중 +% */
+    adventureUnderstandingHighGradeEquipmentBonusPercent?: number;
+    /** 지역 이해도 — 재료 상자 드롭 +% */
+    adventureUnderstandingMaterialDropBonusPercent?: number;
+    /** 지역 이해도 — II·III·IV 재료 상자 가중 +% */
+    adventureUnderstandingHighGradeMaterialBonusPercent?: number;
 }
 
 export const calculateUserEffects = (user: User | null | undefined): CalculatedEffects => {
@@ -84,6 +103,11 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
             itemDropRateBonus: 0,
             disassemblyJackpotBonusPercent: 0,
             allStatsFlatBonus: 0,
+            adventureCodexGoldBonusPercent: 0,
+            adventureUnderstandingEquipmentDropBonusPercent: 0,
+            adventureUnderstandingHighGradeEquipmentBonusPercent: 0,
+            adventureUnderstandingMaterialDropBonusPercent: 0,
+            adventureUnderstandingHighGradeMaterialBonusPercent: 0,
             coreStatBonuses: {} as Record<CoreStat, { flat: number; percent: number }>,
             specialStatBonuses: {} as Record<SpecialStat, { flat: number; percent: number }>,
             mythicStatBonuses: {} as Record<MythicStat, { flat: number; percent: number }>,
@@ -165,7 +189,38 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
     if (regenBonusPercent > 0) {
         calculatedEffects.actionPointRegenInterval = Math.floor(calculatedEffects.actionPointRegenInterval / (1 + regenBonusPercent / 100));
     }
-    
+
+    calculatedEffects.adventureCodexGoldBonusPercent = 0;
+    const codexTotals = applyAdventureCodexComprehensionToCalculatedEffects(user, calculatedEffects);
+
+    const codexBossPct = accumulateAdventureCodexBossPercentBonuses(user.adventureProfile);
+    for (const key of Object.values(CoreStat)) {
+        calculatedEffects.coreStatBonuses[key].percent += codexBossPct.corePercent[key] ?? 0;
+    }
+    const regionalCore = getAdventureUnderstandingRegionalCoreBuff(user.adventureProfile);
+    for (const key of Object.values(CoreStat)) {
+        calculatedEffects.coreStatBonuses[key].flat += regionalCore.flatEachStat;
+        calculatedEffects.coreStatBonuses[key].percent += regionalCore.percentEachStat;
+    }
+    calculatedEffects.adventureCodexGoldBonusPercent =
+        (calculatedEffects.adventureCodexGoldBonusPercent ?? 0) +
+        codexBossPct.adventureGoldPercent +
+        sumAdventureUnderstandingGoldBonusPercent(user.adventureProfile);
+
+    const advDrop = getAdventureUnderstandingDropBonusesPercent(user.adventureProfile);
+    calculatedEffects.adventureUnderstandingEquipmentDropBonusPercent =
+        advDrop.equipmentDropPercent + codexBossPct.itemDropPercent + codexTotals.adventureEquipmentDropBonusPercent;
+    calculatedEffects.adventureUnderstandingHighGradeEquipmentBonusPercent =
+        advDrop.highGradeEquipmentPercent +
+        codexBossPct.highGradeEquipmentPercent +
+        codexTotals.adventureHighGradeEquipmentBonusPercent;
+    calculatedEffects.adventureUnderstandingMaterialDropBonusPercent =
+        advDrop.materialDropPercent + codexBossPct.materialDropPercent + codexTotals.adventureMaterialDropBonusPercent;
+    calculatedEffects.adventureUnderstandingHighGradeMaterialBonusPercent =
+        advDrop.highGradeMaterialPercent +
+        codexBossPct.highGradeMaterialPercent +
+        codexTotals.adventureHighGradeMaterialBonusPercent;
+
     return calculatedEffects;
 };
 

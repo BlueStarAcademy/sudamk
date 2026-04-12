@@ -9,6 +9,7 @@ export * from './constants/rules.ts';
 export * from './constants/tournaments.ts';
 export {
     getDungeonStageRewardMilestoneMultiplier,
+    getNeighborhoodDungeonGoldStageMultiplier,
     getDungeonBotExpectedAverageCoreStat,
     getHighestDungeonStageWhereUserAvgExceedsBot,
 } from './shared/constants/tournaments.ts';

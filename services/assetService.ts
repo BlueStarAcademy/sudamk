@@ -59,7 +59,7 @@ addUrls(Object.values(gradeBackgrounds));
 addUrls(starImages);
 addUrls(uiImages);
 addUrls([getMainBackgroundUrl()]);
-addUrls(ADVENTURE_STAGES.map((s) => s.monsterSheetWebp));
+addUrls(ADVENTURE_STAGES.flatMap((s) => s.monsters.map((m) => m.imageWebp)));
 addUrls(ADVENTURE_STAGES.map((s) => s.mapWebp));
 
 export const ALL_IMAGE_URLS = Array.from(allUrls);

@@ -230,6 +230,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isRotated={isBoardRotated}
                 pendingMove={pendingMove}
                 captureScoreFloatMinPoints={captureScoreFloatMinPoints}
+                onBoardRuleFlash={props.onBoardRuleFlash}
                 />
                 </div>
             </div>

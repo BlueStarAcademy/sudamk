@@ -24,6 +24,8 @@ export interface CoreStatsHexagonChartProps {
     profileMobileCompact?: boolean;
     /** 챔피언십 등 한 화면 모달: 그래프·글자 추가 축소 */
     compactModal?: boolean;
+    /** 프리셋 모달: 스크롤 없이 맞추기 위해 그래프·목록을 한 단계 더 줄임 */
+    championshipPresetFit?: boolean;
     /** 네이티브 홈 하단 반칸: 그래프·목록을 한 단계 키움 */
     halfPanelExpanded?: boolean;
 }
@@ -87,11 +89,13 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
     profileMobileCompact = false,
     compactModal = false,
     halfPanelExpanded = false,
+    championshipPresetFit = false,
 }) => {
     const uid = useId().replace(/:/g, '');
     const gradId = `coreStatRadarFill-${uid}`;
     const rowLayout = desktopLike;
     const compact = compactModal && (desktopLike || mobileReadable);
+    const presetFit = Boolean(championshipPresetFit && compact);
 
     const { dataPoints, labelPositions } = useMemo(() => {
         const badukAbilityTotal = CORE_STAT_RADAR_ORDER.reduce((sum, stat) => {
@@ -127,7 +131,9 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
         (profileMobileCompact
             ? 'w-full max-w-[min(100%,11.5rem)] px-[clamp(0.3rem,1.1vw,0.45rem)] py-[clamp(0.35rem,0.9dvh,0.55rem)]'
             : compact
-              ? 'w-[min(42%,150px)] max-w-[150px] px-1 py-1.5'
+              ? presetFit
+                  ? 'w-[min(36%,118px)] max-w-[118px] px-0.5 py-0.5'
+                  : 'w-[min(42%,150px)] max-w-[150px] px-1 py-1.5'
               : desktopLike
                 ? mobileReadable
                     ? halfPanelExpanded
@@ -139,7 +145,9 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
     const svgSizeClass = profileMobileCompact
         ? 'h-[clamp(5rem,17vw,6.3rem)] max-w-[clamp(6.2rem,24vw,9.2rem)]'
         : compact
-          ? 'h-[6.5rem] max-w-[150px]'
+          ? presetFit
+              ? 'h-[clamp(3.5rem,18dvh,5.5rem)] max-w-[118px] w-full'
+              : 'h-[6.5rem] max-w-[150px]'
           : desktopLike
             ? mobileReadable
                 ? halfPanelExpanded
@@ -157,7 +165,9 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                         : rowLayout
                           ? mobileReadable
                               ? compact
-                                  ? 'flex-row items-stretch gap-1'
+                                  ? presetFit
+                                      ? 'flex-row items-stretch gap-0.5'
+                                      : 'flex-row items-stretch gap-1'
                                   : halfPanelExpanded
                                     ? 'flex-row items-stretch gap-0.5'
                                     : 'flex-row items-stretch gap-1.5'
@@ -264,7 +274,9 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                         : desktopLike
                           ? mobileReadable
                               ? compact
-                                  ? 'gap-0.5 py-0'
+                                  ? presetFit
+                                      ? 'gap-0 py-0'
+                                      : 'gap-0.5 py-0'
                                   : halfPanelExpanded
                                     ? 'gap-0.5 py-0'
                                     : 'gap-1 py-0'
@@ -285,7 +297,9 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                     ? 'justify-center pb-[clamp(0.12rem,0.4dvh,0.24rem)]'
                                     : desktopLike
                                       ? compact
-                                          ? 'justify-end pb-0.5'
+                                          ? presetFit
+                                              ? 'justify-end pb-0'
+                                              : 'justify-end pb-0.5'
                                           : halfPanelExpanded
                                             ? 'justify-center pb-0.5'
                                             : 'justify-center pb-1.5'
@@ -293,17 +307,33 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                             }`}
                         >
                             {compact && desktopLike ? (
-                                <div className="flex w-full min-w-0 max-w-full items-baseline justify-end gap-x-1 pl-0.5 pr-1.5">
+                                <div
+                                    className={`flex w-full min-w-0 max-w-full items-baseline justify-end pl-0.5 pr-1 ${presetFit ? 'gap-x-0.5' : 'gap-x-1 pr-1.5'}`}
+                                >
                                     <span
-                                        className="min-w-0 flex-1 truncate text-right text-[10px] font-semibold leading-tight tracking-tight text-amber-50/95 antialiased sm:text-[11px]"
+                                        className={`min-w-0 flex-1 truncate text-right font-semibold leading-tight tracking-tight text-amber-50/95 antialiased ${
+                                            presetFit
+                                                ? 'text-[clamp(7px,2.1vw,9px)]'
+                                                : 'text-[10px] sm:text-[11px]'
+                                        }`}
                                         title={stat}
                                     >
                                         {stat}
                                     </span>
-                                    <span className="shrink-0 min-w-[3rem] text-right font-mono text-[11px] font-bold tabular-nums tracking-tight text-amber-100 sm:text-xs">
+                                    <span
+                                        className={`shrink-0 text-right font-mono font-bold tabular-nums tracking-tight text-amber-100 ${
+                                            presetFit
+                                                ? 'min-w-[2.35rem] text-[clamp(8px,2.3vw,10px)]'
+                                                : 'min-w-[3rem] text-[11px] sm:text-xs'
+                                        }`}
+                                    >
                                         {finalV}
                                     </span>
-                                    <span className="shrink-0 whitespace-nowrap text-[9px] font-semibold tabular-nums text-emerald-400/95 sm:text-[10px]">
+                                    <span
+                                        className={`shrink-0 whitespace-nowrap font-semibold tabular-nums text-emerald-400/95 ${
+                                            presetFit ? 'text-[clamp(7px,2vw,8.5px)]' : 'text-[9px] sm:text-[10px]'
+                                        }`}
+                                    >
                                         {hasBonus ? `(+${bonus})` : ''}
                                     </span>
                                 </div>

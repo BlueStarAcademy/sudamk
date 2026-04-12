@@ -36,6 +36,7 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
         handleBoardClick,
         pendingMove,
         diceGoPlaceUi,
+        onBoardRuleFlash,
     } = props;
     const { id: gameId, boardState, settings, lastMove, winningLine, gameStatus, currentPlayer, blackPlayerId, whitePlayerId, thiefPlayerId, player1, player2, lastTurnStones, justCaptured, animation } = session;
 
@@ -130,6 +131,7 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
                         justCaptured={justCaptured}
                         captures={session.captures}
                         captureScoreFloatMinPoints={captureScoreFloatMinPoints}
+                        onBoardRuleFlash={onBoardRuleFlash}
                     />
                     <div
                         className="pointer-events-auto absolute left-full ml-1 top-1/2 z-20 hidden -translate-y-1/2 items-center gap-1 md:flex"

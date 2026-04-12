@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
+import { PortalHoverBubble } from './PortalHoverBubble.js';
 import { TournamentType, UserWithStatus, TournamentState } from '../types.js';
 import { CoreStat, ItemGrade } from '../types/enums.js';
 import { calculateUserEffects } from '../services/effectService.js';
@@ -25,6 +26,8 @@ import {
     getChampionshipRewardItemGrade,
     getChampionshipRewardItemImageUrl,
 } from '../utils/championshipRewardDisplay.js';
+import { EQUIPMENT_GRADE_LABEL_KO } from '../constants.js';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 
 type RewardPiece = {
     key: string;
@@ -62,15 +65,6 @@ function fallbackIconByName(name: string): string {
     return '';
 }
 
-const WORLD_EQUIP_GRADE_LABEL: Record<string, string> = {
-    normal: '일반',
-    uncommon: '희귀',
-    rare: '레어',
-    epic: '에픽',
-    legendary: '전설',
-    mythic: '신화',
-};
-
 const WORLD_EQUIP_GRADE_ORDER: EquipmentGradeKey[] = ['normal', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'];
 
 function formatWorldEquipmentDropCaptionLines(stage: number): string[] {
@@ -83,14 +77,14 @@ function formatWorldEquipmentDropCaptionLines(stage: number): string[] {
         if (WORLD_EQUIP_GRADE_ORDER.indexOf(g) < WORLD_EQUIP_GRADE_ORDER.indexOf(lo)) lo = g;
         if (WORLD_EQUIP_GRADE_ORDER.indexOf(g) > WORLD_EQUIP_GRADE_ORDER.indexOf(hi)) hi = g;
     }
-    const loL = WORLD_EQUIP_GRADE_LABEL[lo] ?? lo;
-    const hiL = WORLD_EQUIP_GRADE_LABEL[hi] ?? hi;
+    const loL = EQUIPMENT_GRADE_LABEL_KO[lo] ?? lo;
+    const hiL = EQUIPMENT_GRADE_LABEL_KO[hi] ?? hi;
     const rangeLine = lo === hi ? `등급: ${loL}` : `등급 범위: ${loL}~${hiL}`;
 
     const fmt = (entries: { grade: EquipmentGradeKey; chance: number }[]) =>
-        entries.map(e => `${WORLD_EQUIP_GRADE_LABEL[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
+        entries.map(e => `${EQUIPMENT_GRADE_LABEL_KO[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
 
-    return [rangeLine, '1개/경기 (랜덤)', `승리: ${fmt(config.win)}`, `패배: ${fmt(config.loss)}`];
+    return [rangeLine, '1개/경기 (랜덤)', `승리: ${fmt(config.win)}`, `패배: ${fmt(config.loss)} (하위 등급 쪽 확률↑)`];
 }
 
 function formatRankGroupLabel(ranks: number[]): string {
@@ -291,11 +285,34 @@ const rewardThumbRing = (piece: RewardPiece) => {
     return 'ring-white/[0.12]';
 };
 
-const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean }> = ({ piece, fluid = true }) => {
+const TIP_TOUCH_HOLD_MS = 420;
+
+const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean; compact?: boolean }> = ({ piece, fluid = true, compact = false }) => {
     const [pressTip, setPressTip] = useState(false);
+    const anchorRef = useRef<HTMLDivElement>(null);
+    const tipHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const clearTipHideTimer = () => {
+        if (tipHideTimerRef.current != null) {
+            clearTimeout(tipHideTimerRef.current);
+            tipHideTimerRef.current = null;
+        }
+    };
+
+    useEffect(
+        () => () => {
+            clearTipHideTimer();
+        },
+        []
+    );
+
+    const isTouchLikePointer = (e: React.PointerEvent) =>
+        e.pointerType === 'touch' || e.pointerType === 'pen';
     const box = fluid
         ? 'aspect-square w-full min-h-0 min-w-0'
-        : 'h-9 w-9 min-h-[2.25rem] min-w-[2.25rem] shrink-0 sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10';
+        : compact
+          ? 'h-7 w-7 min-h-[1.75rem] min-w-[1.75rem] shrink-0 sm:h-9 sm:w-9 sm:min-h-[2.25rem] sm:min-w-[2.25rem] md:h-10 md:w-10 md:min-h-10 md:min-w-10'
+          : 'h-9 w-9 min-h-[2.25rem] min-w-[2.25rem] shrink-0 sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10';
     const qtyClass = fluid
         ? 'px-0.5 py-px text-[clamp(7px,2.2vw,11px)]'
         : 'px-0.5 py-px text-[8px] sm:text-[9px]';
@@ -325,23 +342,69 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean }> = ({ piece,
 
     return (
         <div
-            className={`relative ${fluid ? 'mx-auto w-full min-w-0 max-w-[2.4rem] sm:max-w-[2.85rem] md:max-w-[3rem] lg:max-w-[3.25rem]' : 'shrink-0'} ${tipOnly ? 'touch-manipulation' : ''}`}
-            onPointerDown={tipOnly ? () => setPressTip(true) : undefined}
-            onPointerUp={tipOnly ? () => setPressTip(false) : undefined}
-            onPointerCancel={tipOnly ? () => setPressTip(false) : undefined}
-            onPointerLeave={tipOnly ? () => setPressTip(false) : undefined}
+            ref={anchorRef}
+            className={`relative ${
+                fluid
+                    ? 'mx-auto w-full min-w-0 max-sm:max-w-[3.35rem] max-w-[2.5rem] sm:max-w-[2.75rem] md:max-w-[2.9rem] lg:max-w-[3.1rem]'
+                    : 'shrink-0'
+            } ${tipOnly ? 'touch-manipulation' : ''}`}
+            onMouseEnter={
+                tipOnly
+                    ? () => {
+                          clearTipHideTimer();
+                          setPressTip(true);
+                      }
+                    : undefined
+            }
+            onMouseLeave={
+                tipOnly
+                    ? () => {
+                          clearTipHideTimer();
+                          setPressTip(false);
+                      }
+                    : undefined
+            }
+            onPointerDown={
+                tipOnly
+                    ? e => {
+                          if (!isTouchLikePointer(e)) return;
+                          clearTipHideTimer();
+                          setPressTip(true);
+                      }
+                    : undefined
+            }
+            onPointerUp={
+                tipOnly
+                    ? e => {
+                          if (!isTouchLikePointer(e)) return;
+                          clearTipHideTimer();
+                          tipHideTimerRef.current = setTimeout(() => setPressTip(false), TIP_TOUCH_HOLD_MS);
+                      }
+                    : undefined
+            }
+            onPointerCancel={
+                tipOnly
+                    ? e => {
+                          if (!isTouchLikePointer(e)) return;
+                          clearTipHideTimer();
+                          setPressTip(false);
+                      }
+                    : undefined
+            }
         >
-            {tipOnly && pressTip && tooltipLines && (
-                <div
-                    className="pointer-events-none absolute bottom-full left-1/2 z-50 mb-1.5 w-max max-w-[min(17rem,calc(100vw-3rem))] -translate-x-1/2 rounded-lg border border-amber-400/35 bg-slate-950/98 px-2.5 py-2 text-left text-[10px] leading-snug text-zinc-100 shadow-[0_12px_40px_rgba(0,0,0,0.65)] sm:text-[11px]"
-                    role="tooltip"
-                >
-                    {tooltipLines.map((line, i) => (
-                        <div key={i} className={i > 0 ? 'mt-1 border-t border-white/10 pt-1' : ''}>
-                            {line}
-                        </div>
-                    ))}
-                </div>
+            {tipOnly && tooltipLines && (
+                <PortalHoverBubble show={pressTip} anchorRef={anchorRef} placement="top" className="pointer-events-none w-max min-w-0">
+                    <div
+                        className="box-border max-w-[min(17rem,calc(100vw-1.5rem))] rounded-lg border border-amber-400/50 px-2.5 py-2 text-left text-[10px] leading-snug text-zinc-100 sm:text-[11px] [overflow-wrap:anywhere] break-words shadow-[0_12px_40px_rgba(0,0,0,0.85)] ring-1 ring-black/60"
+                        style={{ backgroundColor: '#09090b' }}
+                    >
+                        {tooltipLines.map((line, i) => (
+                            <div key={i} className={i > 0 ? 'mt-1 border-t border-white/10 pt-1' : ''}>
+                                {line}
+                            </div>
+                        ))}
+                    </div>
+                </PortalHoverBubble>
             )}
             <div
                 className={`group/thumb relative overflow-hidden rounded-lg ${fluid ? 'w-full' : 'shrink-0'} ${box} bg-gradient-to-b from-zinc-800/90 to-black/80 ring-1 ${ring} ${tipOnly ? 'cursor-help' : ''}`}
@@ -419,7 +482,7 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean }> = ({ piece,
     );
 };
 
-const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
+const RewardStripRow: React.FC<{ piece: RewardPiece; rankThumbCompact?: boolean }> = ({ piece, rankThumbCompact = false }) => {
     const hasCaption =
         piece.captionBesideThumb &&
         piece.captionBesideThumb.length > 0 &&
@@ -434,9 +497,9 @@ const RewardStripRow: React.FC<{ piece: RewardPiece }> = ({ piece }) => {
           : `gap-1 ${alignClass} ${rowJustify}`;
     return (
         <div className={`flex min-w-0 w-full shrink-0 ${layoutClass}`}>
-            <RewardThumb piece={piece} fluid={!hasCaption} />
+            <RewardThumb piece={piece} fluid={!hasCaption} compact={rankThumbCompact && !hasCaption} />
             {hasCaption ? (
-                <div className="min-w-0 flex flex-1 flex-col justify-center gap-0.5 text-[8px] leading-tight text-zinc-300 max-sm:leading-snug sm:text-[9px] md:text-[10px]">
+                <div className="min-w-0 flex flex-1 flex-col justify-center gap-0.5 text-[8px] leading-snug text-zinc-300 max-sm:break-words sm:text-[9px] md:text-[10px]">
                     {piece.captionBesideThumb!.map((line, i) => (
                         <div key={i}>{line}</div>
                     ))}
@@ -552,6 +615,12 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     isTopmost,
 }) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
+    const isHandheld = useIsHandheldDevice(1025);
+    const entryModalWidth = useMemo(() => {
+        if (typeof window === 'undefined') return 760;
+        if (!isHandheld) return 760;
+        return Math.min(610, Math.max(340, window.innerWidth - 12));
+    }, [isHandheld]);
     const dungeonProgress = useMemo(
         () =>
             normalizeDungeonProgress(
@@ -662,14 +731,13 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
             title={definition.name}
             windowId={`championship-venue-entry-${type}`}
             onClose={onClose}
-            initialWidth={760}
+            initialWidth={entryModalWidth}
             initialHeight={720}
             modal
             isTopmost={isTopmost}
             mobileViewportFit
             mobileViewportMaxHeightCss="92dvh"
             mobileViewportMaxHeightVh={94}
-            hideFooter
             bodyPaddingClassName="!p-0"
         >
             <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#07080c] text-zinc-100">
@@ -813,7 +881,13 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                     <div className="flex min-h-[min(7rem,24dvh)] min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-zinc-600/35 bg-zinc-950/55 ring-1 ring-inset ring-white/[0.06] sm:rounded-xl">
                         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-1 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-1.5 md:p-2">
                             <div className="flex w-full min-w-0 flex-nowrap items-stretch gap-0">
-                                <div className="flex min-w-0 flex-1 basis-0 flex-col items-stretch gap-0 pr-px">
+                                <div
+                                    className={`flex min-w-0 flex-col items-stretch gap-0 pr-px ${
+                                        type === 'world' && isHandheld
+                                            ? 'max-sm:min-w-[5.85rem] max-sm:flex-[1.42] flex-1 basis-0'
+                                            : 'flex-1 basis-0'
+                                    }`}
+                                >
                                     <div className="flex min-h-6 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center sm:min-h-8">
                                         <span className="whitespace-nowrap text-[8px] font-bold leading-none text-emerald-400 sm:text-xs sm:leading-tight md:text-sm">
                                             기본 보상
@@ -846,10 +920,13 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                 ) : (
                                     rankRewardGroups.map(({ ranks, headRank, rankLabel, pieces }) => {
                                         const noReward = pieces.length === 0;
+                                        const rankCompact = type === 'world' && isHandheld;
                                         return (
                                             <div
                                                 key={ranks.join('-')}
-                                                className="flex min-w-0 flex-1 basis-0 flex-col items-stretch gap-0 border-l border-white/[0.08] pl-px sm:pl-0.5"
+                                                className={`flex min-w-0 flex-col items-stretch gap-0 border-l border-white/[0.08] pl-px sm:pl-0.5 ${
+                                                    rankCompact ? 'max-sm:flex-[0.86] flex-1 basis-0' : 'flex-1 basis-0'
+                                                }`}
                                             >
                                                 <div className="flex min-h-6 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center sm:min-h-8">
                                                     <span
@@ -873,7 +950,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                                     {noReward ? (
                                                         <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">없음</span>
                                                     ) : (
-                                                        pieces.map(p => <RewardStripRow key={p.key} piece={p} />)
+                                                        pieces.map(p => <RewardStripRow key={p.key} piece={p} rankThumbCompact={rankCompact} />)
                                                     )}
                                                 </div>
                                             </div>

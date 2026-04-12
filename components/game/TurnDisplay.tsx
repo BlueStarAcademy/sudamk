@@ -10,8 +10,11 @@ import {
 } from '../../constants';
 import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
+import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
+
+const BASE_PLACEMENT_TIME_LIMIT_SEC = 30;
 
 interface TurnDisplayProps {
     session: LiveGameSession;
@@ -88,22 +91,24 @@ const getGameStatusText = (session: LiveGameSession): string => {
             const opponentOfCurrent = currentPlayer === Player.Black ? Player.White : Player.Black;
             const passingPlayer = getPlayerByEnum(opponentOfCurrent);
             if (passingPlayer) {
-                return `${passingPlayer.nickname}님이 통과했습니다.`;
+                return `${getSessionPlayerDisplayName(session, passingPlayer)}님이 통과했습니다.`;
             }
         }
     }
 
     switch (gameStatus) {
         case 'playing':
-            return player ? `${player.nickname}님의 차례입니다.` : '대국 진행 중';
+            return player ? `${getSessionPlayerDisplayName(session, player)}님의 차례입니다.` : '대국 진행 중';
         case 'nigiri_choosing':
         case 'nigiri_guessing':
         case 'nigiri_reveal':
             return '돌 가리기 진행 중...';
         case 'base_placement':
-            return `베이스돌 배치 중... (${settings.baseStones}개)`;
+            return `베이스돌을 바둑판에 배치하세요. (각 ${settings.baseStones ?? 4}개)`;
         case 'komi_bidding':
             return '덤 설정 중...';
+        case 'base_color_roulette':
+            return '흑·백 룰렛으로 선공을 정하는 중입니다…';
         case 'ended':
             return '대국 종료';
         case 'no_contest':
@@ -140,24 +145,24 @@ const getGameStatusText = (session: LiveGameSession): string => {
         case 'alkkagi_playing': {
             const currentRound = alkkagiRound || 1;
             const totalRounds = settings.alkkagiRounds || 1;
-            return `${player?.nickname}님 차례입니다. (${currentRound} / ${totalRounds} 라운드)`;
+            return `${getSessionPlayerDisplayName(session, player)}님 차례입니다. (${currentRound} / ${totalRounds} 라운드)`;
         }
         case 'alkkagi_round_end':
             return `라운드 종료 — 아래 전광판에서 확인·진행하세요.`;
         case 'dice_rolling':
-             return player ? `${player.nickname}님이 주사위를 굴릴 차례입니다.` : '주사위 굴릴 차례';
+             return player ? `${getSessionPlayerDisplayName(session, player)}님이 주사위를 굴릴 차례입니다.` : '주사위 굴릴 차례';
         case 'thief_rolling':
-             return player ? `${player.nickname}님이 주사위를 굴릴 차례입니다.` : '주사위 굴릴 차례';
+             return player ? `${getSessionPlayerDisplayName(session, player)}님이 주사위를 굴릴 차례입니다.` : '주사위 굴릴 차례';
         case 'curling_tiebreaker_preference_selection':
         case 'curling_tiebreaker_rps':
         case 'curling_tiebreaker_rps_reveal':
             return '승부치기 순서 결정 중...';
         case 'curling_tiebreaker_playing':
-            return `승부치기 진행 중... (${player?.nickname}님 차례)`;
+            return `승부치기 진행 중... (${getSessionPlayerDisplayName(session, player)}님 차례)`;
         default:
             if (mode === GameMode.Dice) return `주사위 바둑 (${session.round} / ${session.settings.diceGoRounds} 라운드)`;
             if (mode === GameMode.Thief) return `도둑과 경찰 (${session.round} 라운드)`;
-            return player ? `${player.nickname}님의 차례입니다.` : '게임 준비 중...';
+            return player ? `${getSessionPlayerDisplayName(session, player)}님의 차례입니다.` : '게임 준비 중...';
     }
 };
 
@@ -229,6 +234,26 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         return () => clearInterval(id);
     }, [session.mode, session.gameStatus, session.revealEndTime]);
 
+    const isBasePlacementScoreboard =
+        session.gameStatus === 'base_placement' &&
+        (session.mode === GameMode.Base ||
+            (session.mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base))));
+
+    const [basePlacementSecondsLeft, setBasePlacementSecondsLeft] = useState(0);
+
+    useEffect(() => {
+        if (!isBasePlacementScoreboard || !session.basePlacementDeadline) {
+            setBasePlacementSecondsLeft(0);
+            return;
+        }
+        const tick = () => {
+            setBasePlacementSecondsLeft(Math.max(0, Math.ceil((session.basePlacementDeadline! - Date.now()) / 1000)));
+        };
+        tick();
+        const id = setInterval(tick, 250);
+        return () => clearInterval(id);
+    }, [isBasePlacementScoreboard, session.basePlacementDeadline]);
+
     useEffect(() => {
         if (!isPlayfulTurn) {
             setPercentage(100);
@@ -276,12 +301,21 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             const isFoulMode = PLAYFUL_GAME_MODES.some(m => m.mode === session.mode);
             if (isFoulMode) {
                  const foulPlayer = session.player1.id === session.lastTimeoutPlayerId ? session.player1 : session.player2;
-                 setFoulMessage(`${foulPlayer.nickname}님의 타임오버 파울!`);
+                 setFoulMessage(`${getSessionPlayerDisplayName(session, foulPlayer)}님의 타임오버 파울!`);
                  const timer = setTimeout(() => setFoulMessage(null), 5000);
                  return () => clearTimeout(timer);
             }
         }
-    }, [session.lastTimeoutPlayerId, prevTimeoutPlayerId, session.mode, session.player1, session.player2]);
+    }, [
+        session.lastTimeoutPlayerId,
+        prevTimeoutPlayerId,
+        session.mode,
+        session.player1,
+        session.player2,
+        session.gameCategory,
+        session.isAiGame,
+        session.adventureMonsterCodexId,
+    ]);
     
     useEffect(() => {
         // Reset foul message when moving to a new turn/phase to prevent it from persisting.
@@ -538,14 +572,15 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                                 : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
                         }}
                     >
-                        {summary.round}라운드 — {winnerUser.nickname}님 승리
+                        {summary.round}라운드 — {getSessionPlayerDisplayName(session, winnerUser)}님 승리
                     </p>
                     <p
                         className={`w-full text-center font-semibold leading-snug text-amber-200/90 [overflow-wrap:anywhere] ${
                             isMobile ? 'text-[clamp(0.55rem,1.55vmin,0.72rem)]' : 'text-xs min-[1025px]:text-sm'
                         }`}
                     >
-                        {player1.nickname} 남은 돌 {p1StonesLeft}개 · {player2.nickname} 남은 돌 {p2StonesLeft}개
+                        {getSessionPlayerDisplayName(session, player1)} 남은 돌 {p1StonesLeft}개 ·{' '}
+                        {getSessionPlayerDisplayName(session, player2)} 남은 돌 {p2StonesLeft}개
                     </p>
                     {viewerUserId && onAction && (
                         <button
@@ -689,6 +724,105 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                         style={{ width: `${percentage}%`, transition: 'width 0.5s linear' }}
                     />
                 </div>
+            </>
+        );
+    }
+
+    if (isBasePlacementScoreboard) {
+        const baseStoneCount = session.settings.baseStones ?? 4;
+        const { player1, player2 } = session;
+        const myPlacements =
+            viewerUserId === player1.id
+                ? session.baseStones_p1?.length ?? 0
+                : viewerUserId === player2.id
+                  ? session.baseStones_p2?.length ?? 0
+                  : null;
+        const isDonePlacing = myPlacements !== null && myPlacements >= baseStoneCount;
+        const hasDeadline = Boolean(session.basePlacementDeadline);
+        const secLeft = hasDeadline ? basePlacementSecondsLeft : null;
+        const barPct =
+            hasDeadline && secLeft !== null
+                ? Math.min(100, Math.max(0, (secLeft / BASE_PLACEMENT_TIME_LIMIT_SEC) * 100))
+                : null;
+        const guidance =
+            viewerUserId == null
+                ? '플레이어들이 베이스돌을 배치하고 있습니다.'
+                : '상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요.';
+        const subLine =
+            viewerUserId != null && myPlacements !== null
+                ? `배치 ${myPlacements}/${baseStoneCount}${
+                      hasDeadline && secLeft !== null ? ` · 남은 시간 ${secLeft}초` : ''
+                  }`
+                : hasDeadline && secLeft !== null
+                  ? `남은 시간 ${secLeft}초`
+                  : null;
+
+        return wrapContent(
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-3 min-h-[3rem]'}`,
+            <>
+                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-1">
+                    <div
+                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
+                    >
+                        <p
+                            className={`font-bold ${textClass} text-center leading-snug tracking-wide ${
+                                isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
+                            }`}
+                            style={{
+                                textShadow: isSinglePlayer
+                                    ? '0 0 8px rgba(251, 191, 36, 0.35)'
+                                    : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
+                            }}
+                        >
+                            {guidance}
+                        </p>
+                    </div>
+                    {subLine && (
+                        <p
+                            className={`text-center font-semibold text-amber-200/90 ${
+                                isMobile ? 'text-[clamp(0.55rem,1.5vmin,0.65rem)]' : 'text-[clamp(0.62rem,1.7vmin,0.75rem)]'
+                            }`}
+                        >
+                            {subLine}
+                        </p>
+                    )}
+                </div>
+                {barPct !== null && (
+                    <div
+                        className={`relative mt-0.5 w-full flex-shrink-0 overflow-hidden rounded-full border-2 ${
+                            isSinglePlayer ? 'border-black/20 bg-stone-900/70' : 'border-tertiary bg-tertiary'
+                        } ${isMobile ? 'h-1 border' : 'h-[clamp(0.5rem,1.5vh,0.75rem)] border-2'}`}
+                    >
+                        <div
+                            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-400 to-amber-300"
+                            style={{ width: `${barPct}%`, transition: 'width 0.35s linear' }}
+                        />
+                    </div>
+                )}
+                {viewerUserId && onAction && !isDonePlacing && (
+                    <button
+                        type="button"
+                        onClick={() =>
+                            onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId: session.id } })
+                        }
+                        className={`mt-1 w-full max-w-sm self-center rounded-lg border px-2 py-1.5 text-center text-[11px] font-bold transition-colors sm:text-xs ${
+                            isSinglePlayer
+                                ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
+                                : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
+                        }`}
+                    >
+                        남은 돌 무작위 배치
+                    </button>
+                )}
+                {viewerUserId && isDonePlacing && (
+                    <p
+                        className={`mt-1 text-center text-[11px] font-semibold sm:text-xs ${
+                            isSinglePlayer ? 'text-emerald-300/95' : 'text-emerald-200/95'
+                        }`}
+                    >
+                        배치 완료 · 상대 대기 중…
+                    </p>
+                )}
             </>
         );
     }

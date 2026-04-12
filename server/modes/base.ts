@@ -7,6 +7,9 @@ import { transitionToPlaying } from './shared.js';
 import { aiUserId } from '../aiPlayer.js';
 import { processMove } from '../goLogic.js';
 
+/** 2차 덤 동점 → 무작위 흑백 시 룰렛 연출 후 시작 확인으로 넘기는 시간(ms) */
+const BASE_COLOR_ROULETTE_PHASE_MS = 5200;
+
 export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'base_placement';
     game.basePlacementDeadline = now + 30000;
@@ -295,6 +298,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                 const p2Bid = game.komiBids![p2.id]!;
                 const baseKomi = game.settings.komi;
                 let blackPlayerId: string | undefined, whitePlayerId: string | undefined, finalKomi: number | undefined;
+                let useBaseColorRoulettePhase = false;
 
                 if (p1Bid.color !== p2Bid.color) {
                     blackPlayerId = p1Bid.color === types.Player.Black ? p1.id : p2.id;
@@ -327,7 +331,8 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                         } else {
                             const winnerId = Math.random() < 0.5 ? p1.id : p2.id;
                             const loserId = winnerId === p1.id ? p2.id : p1.id;
-                            
+                            useBaseColorRoulettePhase = true;
+
                             if (p1Bid.color === types.Player.Black) {
                                 blackPlayerId = winnerId;
                                 whitePlayerId = loserId;
@@ -352,12 +357,18 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                     (game.baseStones_p1 || []).forEach(p => { newBoardState[p.y][p.x] = p1Color; game.baseStones!.push({ ...p, player: p1Color }); });
                     (game.baseStones_p2 || []).forEach(p => { newBoardState[p.y][p.x] = p2Color; game.baseStones!.push({ ...p, player: p2Color }); });
                     game.boardState = newBoardState;
-                    game.gameStatus = 'base_game_start_confirmation';
-                    game.revealEndTime = now + 30000;
-                    game.preGameConfirmations = { [p1.id]: false, [p2.id]: false };
-                    if (game.isAiGame) {
-                        const aiId = p1.id === aiUserId ? p1.id : p2.id;
-                        game.preGameConfirmations[aiId] = true;
+                    if (useBaseColorRoulettePhase) {
+                        game.gameStatus = 'base_color_roulette';
+                        game.revealEndTime = now + BASE_COLOR_ROULETTE_PHASE_MS;
+                        game.preGameConfirmations = {};
+                    } else {
+                        game.gameStatus = 'base_game_start_confirmation';
+                        game.revealEndTime = now + 30000;
+                        game.preGameConfirmations = { [p1.id]: false, [p2.id]: false };
+                        if (game.isAiGame) {
+                            const aiId = p1.id === aiUserId ? p1.id : p2.id;
+                            game.preGameConfirmations[aiId] = true;
+                        }
                     }
                     // Clean up bidding state
                     game.komiBids = undefined;
@@ -371,6 +382,18 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                 }
             }
             break;
+        case 'base_color_roulette': {
+            if (game.revealEndTime && now > game.revealEndTime) {
+                game.gameStatus = 'base_game_start_confirmation';
+                game.revealEndTime = now + 30000;
+                game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
+                if (game.isAiGame) {
+                    const aiId = p1Id === aiUserId ? p1Id : p2Id;
+                    game.preGameConfirmations[aiId] = true;
+                }
+            }
+            break;
+        }
         case 'base_game_start_confirmation': {
             const bothConfirmed = game.preGameConfirmations?.[p1Id] && game.preGameConfirmations?.[p2Id];
             const deadlinePassed = game.revealEndTime && now > game.revealEndTime;

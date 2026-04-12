@@ -127,56 +127,41 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 
                                 {/* 골드 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <img src="/images/icon/Gold.png" alt="Gold" className="w-8 h-8" />
-                                            <span className="text-primary font-semibold">골드</span>
-                                        </div>
-                                        <span className="text-yellow-400 font-bold text-lg">+{rewards.gold.toLocaleString()}</span>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <img src="/images/icon/Gold.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="골드" />
+                                        <span className="text-yellow-400 font-bold text-lg tabular-nums">+{rewards.gold.toLocaleString()}</span>
                                     </div>
                                 </div>
 
                                 {/* 다이아 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <img src="/images/icon/Diamond.png" alt="Diamond" className="w-8 h-8" />
-                                            <span className="text-primary font-semibold">다이아</span>
-                                        </div>
-                                        <span className="text-cyan-400 font-bold text-lg">+{rewards.diamonds.toLocaleString()}</span>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <img src="/images/icon/Diamond.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="다이아" />
+                                        <span className="text-cyan-400 font-bold text-lg tabular-nums">+{rewards.diamonds.toLocaleString()}</span>
                                     </div>
                                 </div>
 
                                 {/* 길드 코인 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <img src="/images/guild/tokken.png" alt="Guild Coin" className="w-8 h-8" />
-                                            <span className="text-primary font-semibold">길드 코인</span>
-                                        </div>
-                                        <span className="text-amber-300 font-bold text-lg">+{rewards.guildCoins.toLocaleString()}</span>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <img src="/images/guild/tokken.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="길드 코인" />
+                                        <span className="text-amber-300 font-bold text-lg tabular-nums">+{rewards.guildCoins.toLocaleString()}</span>
                                     </div>
                                 </div>
 
                                 {/* 길드 경험치 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <img src="/images/guild/button/guildlab.png" alt="Guild XP" className="w-8 h-8" />
-                                            <span className="text-primary font-semibold">길드 경험치</span>
-                                        </div>
-                                        <span className="text-blue-300 font-bold text-lg">+{rewards.guildXp.toLocaleString()}</span>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <img src="/images/guild/button/guildlab.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="길드 경험치" />
+                                        <span className="text-blue-300 font-bold text-lg tabular-nums">+{rewards.guildXp.toLocaleString()}</span>
                                     </div>
                                 </div>
 
                                 {/* 연구 포인트 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-3">
-                                            <img src="/images/guild/button/guildlab.png" alt="Research Points" className="w-8 h-8" />
-                                            <span className="text-primary font-semibold">연구 포인트</span>
-                                        </div>
-                                        <span className="text-purple-300 font-bold text-lg">+{rewards.researchPoints.toLocaleString()}</span>
+                                    <div className="flex items-center justify-between gap-3">
+                                        <img src="/images/guild/button/guildlab.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="연구 포인트" />
+                                        <span className="text-purple-300 font-bold text-lg tabular-nums">+{rewards.researchPoints.toLocaleString()}</span>
                                     </div>
                                 </div>
                             </div>

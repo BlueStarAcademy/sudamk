@@ -1,8 +1,8 @@
 import type { ServerAction, User, VolatileState } from '../../shared/types/index.js';
-import { Player, GameMode } from '../../shared/types/enums.js';
+import { Player } from '../../shared/types/enums.js';
 import * as db from '../db.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
-import { aiUserId } from '../aiPlayer.js';
+import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 
 export async function handleAiAction(
   volatileState: VolatileState,
@@ -78,8 +78,8 @@ export async function handleAiAction(
     if (postInit.isAiGame && postInit.currentPlayer !== Player.None) {
       const currentPlayerId = postInit.currentPlayer === Player.Black ? postInit.blackPlayerId : postInit.whitePlayerId;
       if (currentPlayerId === aiUserId) {
-        postInit.aiTurnStartTime = now;
-        console.log(`[handleAiAction] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+        scheduleAiTurnStartForFreshUi(postInit, now);
+        console.log(`[handleAiAction] AI turn at game start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
       } else {
         // 사용자 턴으로 시작하므로 aiTurnStartTime을 undefined로 설정
         postInit.aiTurnStartTime = undefined;
@@ -98,53 +98,7 @@ export async function handleAiAction(
     const { broadcastToGameParticipants } = await import('../socket.js');
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 
-    // 전략바둑(바둑판 착수) AI가 선공(흑)일 때: 메인 루프·setImmediate 경쟁으로 첫 수가 늦거나 건너뛰어지는 경우 방지
-    const strategicGoModes: GameMode[] = [
-      GameMode.Standard,
-      GameMode.Capture,
-      GameMode.Speed,
-      GameMode.Base,
-      GameMode.Hidden,
-      GameMode.Missile,
-      GameMode.Mix,
-    ];
-    const isStrategicGoAiFirst =
-      isStrategic &&
-      postInit.gameStatus === 'playing' &&
-      strategicGoModes.includes(game.mode) &&
-      postInit.currentPlayer !== Player.None &&
-      (postInit.currentPlayer === Player.Black ? postInit.blackPlayerId : postInit.whitePlayerId) === aiUserId;
-    if (isStrategicGoAiFirst) {
-      const { makeAiMove } = await import('../aiPlayer.js');
-      const gid = game.id;
-      try {
-        await makeAiMove(game as any);
-        updateGameCache(game as any);
-        await db.saveGame(game as any);
-        broadcastToGameParticipants(gid, { type: 'GAME_UPDATE', payload: { [gid]: game } }, game as any);
-      } catch (e: any) {
-        console.error('[CONFIRM_AI_GAME_START] Strategic AI first move failed:', e?.message);
-      }
-    }
-
-    // 알까기 턴제 배치에서 흑(첫 턴)이 AI인 경우, 메인 루프 round-robin을 기다리지 않고 즉시 첫 배치 실행
-    const isAlkkagiPlacementAiFirst =
-      game.mode === GameMode.Alkkagi &&
-      postInit.gameStatus === 'alkkagi_placement' &&
-      postInit.currentPlayer === Player.Black &&
-      postInit.blackPlayerId === aiUserId;
-    if (isAlkkagiPlacementAiFirst) {
-      const { makeAiMove } = await import('../aiPlayer.js');
-      const gameId = game.id;
-      try {
-        await makeAiMove(game as any);
-        updateGameCache(game as any);
-        await db.saveGame(game as any);
-        broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game as any);
-      } catch (e: any) {
-        console.error('[CONFIRM_AI_GAME_START] Alkkagi first AI placement failed:', e?.message);
-      }
-    }
+    // AI 선공 첫 수는 scheduleAiTurnStartForFreshUi로 지연 후 메인 루프에서 처리 (클라이언트가 플레이 UI·애니메이션을 받을 시간 확보)
 
     let gameCopy: any;
     try {

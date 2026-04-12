@@ -220,6 +220,20 @@ export type ServerAction =
     | { type: 'RESET_STATS_CATEGORY', payload: { category: 'strategic' | 'playful' } }
     | { type: 'APPLY_PRESET', payload: { presetName: string, equipment?: Partial<Record<EquipmentSlot, string>> } }
     | { type: 'SAVE_PRESET', payload: { preset: EquipmentPreset, index: number } }
+    | {
+          type: 'RECORD_ADVENTURE_MONSTER_DEFEAT';
+          payload: { codexId: string; stageId: string; battleMode: 'classic' | 'capture' | 'base' | 'hidden' | 'missile' };
+      }
+    | {
+          type: 'START_ADVENTURE_MONSTER_BATTLE';
+          payload: {
+              codexId: string;
+              stageId: string;
+              battleMode: 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
+              monsterLevel: number;
+              mapMonsterId: string;
+          };
+      }
     // Inventory & Item Actions
     | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }

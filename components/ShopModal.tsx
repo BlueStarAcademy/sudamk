@@ -27,7 +27,7 @@ interface PurchasableItem {
     type: InventoryItemType;
     /** 행동력 회복제 등 이미지 위 배지 텍스트 (예: +10) */
     badge?: string;
-    /** 행동력 회복제 등 구매 회차별 가격 배열 (있으면 Max = 남은 일일 한도, 총가격 = 합산) */
+    /** 행동력 회복제 등 가격 배열(회차별 합산용; 현재는 품목당 1단계) */
     prices?: number[];
     /** 오늘 이미 구매한 수 (prices 인덱스용) */
     purchasesToday?: number;
@@ -329,10 +329,10 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     { itemId: 'condition_potion_medium', name: "컨디션회복제(중)", description: "컨디션 10~20회복", price: { gold: 150 }, image: "/images/use/con2.png", dailyLimit: 3, type: 'consumable' as const },
                     { itemId: 'condition_potion_large', name: "컨디션회복제(대)", description: "컨디션 20~30회복", price: { gold: 200 }, image: "/images/use/con3.png", dailyLimit: 3, type: 'consumable' as const },
                 ];
-                // 행동력 회복제: 구매 회차별 가격, 다른 소모품과 동일한 카드 스타일(ShopItemCard)
+                // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '가방으로 지급', dailyLimit: 3, prices: [100, 300, 500], badge: '+10' },
-                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '가방으로 지급', dailyLimit: 2, prices: [300, 1000], badge: '+20' },
+                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '가방으로 지급', dailyLimit: 1, prices: [100], badge: '+10' },
+                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '가방으로 지급', dailyLimit: 1, prices: [300], badge: '+20' },
                     { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '가방으로 지급', dailyLimit: 1, prices: [1000], badge: '+30' },
                 ];
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
@@ -386,8 +386,6 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 mobileViewportFit={mobileShop}
                 mobileViewportMaxHeightVh={90}
                 bodyNoScroll={mobileShop}
-                hideFooter={mobileShop}
-                skipSavedPosition={mobileShop}
                 bodyPaddingClassName={mobileShop ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pt-2.5 !pb-[max(0.8rem,env(safe-area-inset-bottom,0px))]' : undefined}
             >
                 <div className="h-full min-h-0 flex flex-col relative">

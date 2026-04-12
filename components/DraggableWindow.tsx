@@ -43,6 +43,9 @@ interface DraggableWindowProps {
 
     modal?: boolean;
 
+    /** false면 전체 화면 딤·블러 배경을 렌더하지 않음(인게임 결과 등에서 보드가 보이게) */
+    modalBackdrop?: boolean;
+
     closeOnOutsideClick?: boolean;
 
     isTopmost?: boolean;
@@ -280,6 +283,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     initialHeight,
     shrinkHeightToContent = false,
     modal = true,
+    modalBackdrop = true,
     closeOnOutsideClick = true,
     isTopmost = true,
     headerContent,
@@ -424,19 +428,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }, [modal, onClose, handleClickOutside]);
 
 
-
-    useEffect(() => {
-        if (effectiveIsCompactViewport) {
-            setPosition({ x: 0, y: 0 });
-            try {
-                const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
-                delete savedPositions[windowId];
-                localStorage.setItem('draggableWindowPositions', JSON.stringify(savedPositions));
-            } catch (e) {
-                console.error("Failed to clear mobile position", e);
-            }
-        }
-    }, [effectiveIsCompactViewport, windowId]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -732,7 +723,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 } catch (clearErr) {
                     console.error('Failed to clear saved position for window', windowId, clearErr);
                 }
-            } else if (shouldRemember && !effectiveIsCompactViewport) {
+            } else if (shouldRemember) {
 
                 const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
 
@@ -762,7 +753,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         setIsInitialized(true);
 
-    }, [windowId, effectiveIsCompactViewport, effectiveDefaultPosition.x, effectiveDefaultPosition.y, skipSavedPosition, ingameBoardFrame]);
+    }, [windowId, effectiveDefaultPosition.x, effectiveDefaultPosition.y, skipSavedPosition, ingameBoardFrame]);
 
 
 
@@ -872,7 +863,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             setIsDragging(false);
 
-            if (rememberPosition && !effectiveIsCompactViewport && !skipSavedPosition && !ingameBoardFrame) {
+            if (rememberPosition && !skipSavedPosition && !ingameBoardFrame) {
 
                 try {
 
@@ -892,7 +883,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         }
 
-    }, [isDragging, windowId, rememberPosition, effectiveIsCompactViewport, skipSavedPosition, ingameBoardFrame]);
+    }, [isDragging, windowId, rememberPosition, skipSavedPosition, ingameBoardFrame]);
 
 
 
@@ -1060,7 +1051,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const modalContent = (
         <>
-            {modal && (
+            {modal && modalBackdrop && (
                 <div
                     className={`sudamr-draggable-modal-backdrop ${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0`}
                     style={{ zIndex: effectiveZIndex - 1, pointerEvents: 'auto' }}

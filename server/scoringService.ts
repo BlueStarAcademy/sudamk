@@ -1,6 +1,7 @@
 import * as types from '../types/index.js';
 import type { LiveGameSession, Point, BoardState, AnalysisResult } from '../types/index.js';
 import { Player } from '../types/index.js';
+import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
 
 /**
  * 자체 계가 프로그램
@@ -196,7 +197,17 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
     // 2. 사석 찾기
     const blackDeadStones = findDeadStones(boardState, boardSize, Player.Black);
     const whiteDeadStones = findDeadStones(boardState, boardSize, Player.White);
-    console.log(`[ScoringService] Dead stones: Black=${blackDeadStones.length}, White=${whiteDeadStones.length}`);
+    const whiteDeadScore = whiteDeadStones.reduce(
+        (acc, p) => acc + getStoneCapturePointValueForScoring(session, p, Player.White),
+        0
+    );
+    const blackDeadScore = blackDeadStones.reduce(
+        (acc, p) => acc + getStoneCapturePointValueForScoring(session, p, Player.Black),
+        0
+    );
+    console.log(
+        `[ScoringService] Dead stones: Black=${blackDeadStones.length} (score ${blackDeadScore}), White=${whiteDeadStones.length} (score ${whiteDeadScore})`
+    );
 
     // 3. 캡처된 돌 (이미 게임에서 추적됨)
     const blackCaptures = captures[Player.Black] || 0;
@@ -205,8 +216,8 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
 
     // 4. 최종 점수 계산 (한국식 계가)
     // 영역 + 사석 + 캡처된 돌
-    const blackScore = territory.black + whiteDeadStones.length + blackCaptures;
-    const whiteScore = territory.white + blackDeadStones.length + whiteCaptures + komi;
+    const blackScore = territory.black + whiteDeadScore + blackCaptures;
+    const whiteScore = territory.white + blackDeadScore + whiteCaptures + komi;
 
     console.log(`[ScoringService] Final scores: Black=${blackScore}, White=${whiteScore} (komi=${komi})`);
 
@@ -243,7 +254,7 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
                 territory: territory.black,
                 captures: blackCaptures,
                 liveCaptures: blackCaptures,
-                deadStones: whiteDeadStones.length,
+                deadStones: whiteDeadScore,
                 baseStoneBonus: 0,
                 hiddenStoneBonus: 0,
                 timeBonus: 0,
@@ -254,7 +265,7 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
                 territory: territory.white,
                 captures: whiteCaptures,
                 liveCaptures: whiteCaptures,
-                deadStones: blackDeadStones.length,
+                deadStones: blackDeadScore,
                 komi,
                 baseStoneBonus: 0,
                 hiddenStoneBonus: 0,

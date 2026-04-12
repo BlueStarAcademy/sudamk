@@ -221,6 +221,21 @@ export type ServerAction =
     | { type: 'RESET_STATS_CATEGORY', payload: { category: 'strategic' | 'playful' } }
     | { type: 'APPLY_PRESET', payload: { presetName: string, equipment?: Partial<Record<EquipmentSlot, string>> } }
     | { type: 'SAVE_PRESET', payload: { preset: EquipmentPreset, index: number } }
+    | {
+          type: 'RECORD_ADVENTURE_MONSTER_DEFEAT';
+          payload: { codexId: string; stageId: string; battleMode: 'classic' | 'capture' | 'base' | 'hidden' | 'missile' };
+      }
+    | {
+          type: 'START_ADVENTURE_MONSTER_BATTLE';
+          payload: {
+              codexId: string;
+              stageId: string;
+              battleMode: 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
+              monsterLevel: number;
+              /** 맵 몬스터 인스턴스 id — 판 크기 결정 시드와 동일해야 함 */
+              mapMonsterId: string;
+          };
+      }
     // Inventory & Item Actions
     | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
@@ -378,6 +393,8 @@ export interface GameProps {
     waitingRoomChat: ChatMessage[];
     gameChat: ChatMessage[];
     negotiations: Negotiation[];
+    /** 전광판(TurnDisplay)에 잠시 안내 — 패·둘 수 없는 자리 등 */
+    onBoardRuleFlash?: (message: string) => void;
 }
 
 export interface AdminProps {

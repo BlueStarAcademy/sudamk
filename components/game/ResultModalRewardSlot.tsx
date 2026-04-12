@@ -21,13 +21,22 @@ function imageBoxClass(compact: boolean): string {
         : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
 }
 
-/** 통화 골드: 아이콘만 박스, 하단에 수량 + 「골드」 */
+/** 통화 골드: 아이콘 박스 + 수량(아이콘이 종류를 나타내므로 「골드」 라벨 없음) */
 export const ResultModalGoldCurrencySlot: React.FC<{
     amount: number;
     compact: boolean;
     dimmed?: boolean;
-}> = ({ amount, compact, dimmed }) => (
-    <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}>
+    /** 지역 이해도 버프 등으로 추가된 골드 — 총액 `amount` 옆에 (+N) */
+    understandingBonus?: number;
+}> = ({ amount, compact, dimmed, understandingBonus }) => (
+    <div
+        className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}
+        title={
+            understandingBonus != null && understandingBonus > 0
+                ? `골드 ${amount.toLocaleString()} (지역 이해도 +${understandingBonus.toLocaleString()})`
+                : `골드 ${amount.toLocaleString()}`
+        }
+    >
         <div className={`${BOX_GOLD} ${imageBoxClass(compact)}`}>
             <img
                 src="/images/icon/Gold.png"
@@ -42,19 +51,27 @@ export const ResultModalGoldCurrencySlot: React.FC<{
         <span
             className={
                 compact
-                    ? 'text-center text-[0.72rem] font-bold tabular-nums text-amber-100 whitespace-nowrap'
-                    : 'text-center text-sm font-bold tabular-nums text-amber-100 min-[1024px]:text-base'
+                    ? 'flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 text-center text-[0.72rem] font-bold tabular-nums text-amber-100'
+                    : 'flex max-w-[7rem] flex-wrap items-baseline justify-center gap-x-1 text-center text-sm font-bold tabular-nums text-amber-100 min-[1024px]:max-w-[8rem] min-[1024px]:text-base'
             }
         >
-            {amount.toLocaleString()}
-        </span>
-        <span className="text-center text-[0.62rem] font-semibold leading-none text-amber-200/78 whitespace-nowrap sm:text-[0.65rem]">
-            골드
+            <span className="whitespace-nowrap">{amount.toLocaleString()}</span>
+            {understandingBonus != null && understandingBonus > 0 && (
+                <span
+                    className={
+                        compact
+                            ? 'whitespace-nowrap text-[0.62rem] font-semibold text-emerald-300/95'
+                            : 'whitespace-nowrap text-xs font-semibold text-emerald-300/95 min-[1024px]:text-sm'
+                    }
+                >
+                    (+{understandingBonus.toLocaleString()})
+                </span>
+            )}
         </span>
     </div>
 );
 
-/** 소모품/아이템: 이미지만 박스, 하단에 이름(골드 꾸러미 등) */
+/** 소모품/아이템: 이미지가 있으면 아이콘으로 식별 → 하단에는 개수만(×n). 이미지 없을 때만 이름 표시 */
 export const ResultModalItemRewardSlot: React.FC<{
     imageSrc?: string | null;
     name: string;
@@ -67,6 +84,8 @@ export const ResultModalItemRewardSlot: React.FC<{
     const imgClass = compact
         ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-10 sm:w-10'
         : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12';
+    const showQuantityBelow = imageSrc && quantity != null && quantity > 1;
+    const showNameBelow = !imageSrc;
     return (
         <div
             className={`flex flex-col items-center gap-0.5 ${
@@ -74,6 +93,7 @@ export const ResultModalItemRewardSlot: React.FC<{
                     ? 'w-[2.5rem] shrink-0 min-[360px]:w-[2.75rem] min-[400px]:w-12 sm:w-auto sm:max-w-[6.75rem]'
                     : 'max-w-[5.75rem] sm:max-w-[6.75rem] min-[1024px]:max-w-[7.25rem]'
             } ${dimmed ? 'opacity-80' : ''}`}
+            title={displayName + (quantity != null && quantity > 1 ? ` ×${quantity}` : '')}
         >
             <div className={`${BOX_ITEM} ${imageBoxClass(compact)}`}>
                 {imageSrc ? (
@@ -84,14 +104,25 @@ export const ResultModalItemRewardSlot: React.FC<{
                     </span>
                 )}
             </div>
-            <p
-                className={`line-clamp-2 w-full text-center font-semibold leading-tight text-violet-200 ${
-                    compact ? 'text-[0.62rem] sm:text-[0.65rem]' : 'text-xs min-[1024px]:text-[0.8125rem]'
-                }`}
-            >
-                {displayName}
-                {quantity != null && quantity > 1 ? ` ×${quantity}` : ''}
-            </p>
+            {showNameBelow && (
+                <p
+                    className={`line-clamp-2 w-full text-center font-semibold leading-tight text-violet-200 ${
+                        compact ? 'text-[0.62rem] sm:text-[0.65rem]' : 'text-xs min-[1024px]:text-[0.8125rem]'
+                    }`}
+                >
+                    {displayName}
+                    {quantity != null && quantity > 1 ? ` ×${quantity}` : ''}
+                </p>
+            )}
+            {showQuantityBelow && (
+                <p
+                    className={`w-full text-center font-semibold tabular-nums leading-tight text-violet-200 ${
+                        compact ? 'text-[0.62rem] sm:text-[0.65rem]' : 'text-xs min-[1024px]:text-[0.8125rem]'
+                    }`}
+                >
+                    ×{quantity}
+                </p>
+            )}
         </div>
     );
 };
@@ -101,3 +132,6 @@ export const RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS = 'min-h-[6.25rem] w-full sm:m
 
 /** 모바일 보상 줄 컨테이너: 한 줄 우선, 필요 시 가로 스크롤 */
 export const RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS = `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;
+
+/** 도전의 탑 등 결과 모달: 획득 보상 줄 높이를 낮춤(동일 한 줄·가로 스크롤) */
+export const RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS = `flex min-h-[2.85rem] w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-0.5 overflow-x-auto overscroll-x-contain py-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;

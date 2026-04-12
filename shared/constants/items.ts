@@ -168,6 +168,17 @@ export const gradeStyles: Record<ItemGrade, { name: string; color: string; backg
     transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.png' },
 };
 
+/** 장비 `grade` 문자열 → UI 한글 (챔피언십·토너먼트 등 표시 통일용) */
+export const EQUIPMENT_GRADE_LABEL_KO: Record<string, string> = {
+    normal: '일반',
+    uncommon: '고급',
+    rare: '희귀',
+    epic: '에픽',
+    legendary: '전설',
+    mythic: '신화',
+    transcendent: '초월',
+};
+
 export const ENHANCEMENT_SUCCESS_RATES = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10]; // For +1 to +10
 
 export const ENHANCEMENT_FAIL_BONUS_RATES: Record<ItemGrade, number> = {

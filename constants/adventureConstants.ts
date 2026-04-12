@@ -1,80 +1,103 @@
-/** 몬스터 시트 1536×1024 기준 균등 격자(셀 크기·배치 동일) */
-export type AdventureMonsterSpriteLayout = {
-    cols: number;
-    rows: number;
-    /** 시트에 그려진 몬스터 마리 수 (≤ cols×rows, 행 우선 인덱스 0부터) */
-    frameCount: number;
-};
+import {
+    ADVENTURE_MONSTERS_AQUARIUM,
+    ADVENTURE_MONSTERS_AMUSEMENT_PARK,
+    ADVENTURE_MONSTERS_LAKE_PARK,
+    ADVENTURE_MONSTERS_NEIGHBORHOOD_HILL,
+    ADVENTURE_MONSTERS_ZOO,
+} from './adventureMonstersCodex.js';
+import { GameMode } from '../types/index.js';
 
-/** 실제 스프라이트: 3열×4행 = 12칸(각 512×256px) */
-export const ADVENTURE_MONSTER_SHEET_GRID = { cols: 3, rows: 4 } as const;
+export type AdventureMonsterBattleMode = 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
+
+/** 맵 몬스터 룰 → 전략바둑 `GameMode` */
+export function adventureBattleModeToGameMode(mode: AdventureMonsterBattleMode): GameMode {
+    switch (mode) {
+        case 'classic':
+            return GameMode.Standard;
+        case 'capture':
+            return GameMode.Capture;
+        case 'base':
+            return GameMode.Base;
+        case 'hidden':
+            return GameMode.Hidden;
+        case 'missile':
+            return GameMode.Missile;
+        default:
+            return GameMode.Standard;
+    }
+}
+
+/** 몬스터 레벨에 따른 장비 상자 최고 등급(로마 숫자 상한) — 재료 상한과 별도 곡선 */
+export function adventureMaxEquipmentBoxTier(level: number): 1 | 2 | 3 | 4 {
+    const lv = Math.max(1, Math.min(50, Math.floor(level)));
+    if (lv <= 8) return 1;
+    if (lv <= 20) return 2;
+    if (lv <= 35) return 3;
+    return 4;
+}
+
+/** 몬스터 레벨에 따른 재료 상자 최고 등급(로마 숫자 상한) */
+export function adventureMaxMaterialBoxTier(level: number): 1 | 2 | 3 | 4 {
+    const lv = Math.max(1, Math.min(50, Math.floor(level)));
+    if (lv <= 6) return 1;
+    if (lv <= 15) return 2;
+    if (lv <= 28) return 3;
+    return 4;
+}
+
+/** 승리 골드에 곱하는 레벨 계수(대략 0.4~1.15) */
+export function adventureMonsterGoldLevelMultiplier(level: number): number {
+    const lv = Math.max(1, Math.min(50, Math.floor(level)));
+    return 0.4 + (lv / 50) * 0.75;
+}
 
 /** 모험 스테이지 입장 카드 (맵 webp — 로비·맵 화면·인게임 배경 공용) */
 export const ADVENTURE_STAGES = [
     {
         id: 'neighborhood_hill',
         title: '동네뒷산',
+        /** 로비 챕터 카드 부제 — 짧은 분위기 텍스트 */
+        lobbyStoryLine:
+            '비포장 오솔길 끝, 어릴 적 숨바꼭질하던 그늘. 바람이 스치면 나뭇잎이 속삭이고, 오늘도 누군가의 발자국만 덩그러니 남는다.',
         stageIndex: 1,
         mapWebp: '/images/forest.webp',
-        monsterSheetWebp: '/images/forestmon.webp',
-        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 12 } satisfies AdventureMonsterSpriteLayout,
-        monsterName: '잎순이',
-        monsterCodexLines: [
-            '숲 그늘에 붙어 사는 잎사귀 같은 몸짓이 특징인 아이예요.',
-            '바람이 스치면 나뭇잎 소리를 흉내 내며 숲길에서 손님을 골라 장난칩니다.',
-        ],
+        monsters: ADVENTURE_MONSTERS_NEIGHBORHOOD_HILL,
     },
     {
         id: 'lake_park',
         title: '호수공원',
+        lobbyStoryLine:
+            '잔물결에 밤이 녹아 내리는 시간. 벤치 너머 물가에는 설명할 수 없는 그림자가 번지고, 오리들은 평소보다 한 박자 늦게 물을 가른다.',
         stageIndex: 2,
         mapWebp: '/images/lakesidepark.webp',
-        monsterSheetWebp: '/images/lakesideparkmon.webp',
-        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 12 } satisfies AdventureMonsterSpriteLayout,
-        monsterName: '잔꼬미',
-        monsterCodexLines: [
-            '잔잔한 물결과 거울 같은 반짝임을 몸에 담고 다니는 귀여운 친구예요.',
-            '발자국이 사라지는 것이 아쉬워 물가를 맴돌며 파장을 따라 춤춥니다.',
-        ],
+        monsters: ADVENTURE_MONSTERS_LAKE_PARK,
     },
     {
         id: 'aquarium',
         title: '아쿠아리움',
+        lobbyStoryLine:
+            '푸른 등불 아래 유리 너머, 이름표에 없는 눈빛들이 줄을 잇는다. 물속은 조용한데, 귓가엔 아주 작은 파도 소리만 계속 맴돈다.',
         stageIndex: 3,
         mapWebp: '/images/aquarium.webp',
-        monsterSheetWebp: '/images/aquariummon.webp',
-        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 12 } satisfies AdventureMonsterSpriteLayout,
-        monsterName: '물방이',
-        monsterCodexLines: [
-            '유리 너머 불빛과 물방울 사이에서 통통 튀는 게 매력인 아이예요.',
-            '지나가는 아이들의 시선을 따라 수조 안에서 몸을 반짝 흐리게 만듭니다.',
-        ],
+        monsters: ADVENTURE_MONSTERS_AQUARIUM,
     },
     {
         id: 'zoo',
         title: '동물원',
+        lobbyStoryLine:
+            '관람객 발소리가 끊긴 틈, 우리 철장 너머로 다른 리듬의 걸음이 섞인다. 지도에 없는 구역에서, 밤만큼 긴 숨이 들려온다.',
         stageIndex: 4,
         mapWebp: '/images/zoo.webp',
-        monsterSheetWebp: '/images/zoomon.webp',
-        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 11 } satisfies AdventureMonsterSpriteLayout,
-        monsterName: '얼룩이',
-        monsterCodexLines: [
-            '줄무늬·얼룩덜룩한 무늬를 자랑하는 호기심 덩어리예요.',
-            '안내판을 읽는 척하다가 금지 구역 쪽으로 코를 벌름거립니다.',
-        ],
+        monsters: ADVENTURE_MONSTERS_ZOO,
     },
     {
         id: 'amusement_park',
         title: '놀이동산',
+        lobbyStoryLine:
+            '멜로디는 오래전에 꺼졌는데, 멀리서만 관람차가 천천히 도는 것 같다. 네온이 한 번 깜빡일 때마다, 잊었던 입구 표지판이 다시 떠오른다.',
         stageIndex: 5,
         mapWebp: '/images/amusementpark.webp',
-        monsterSheetWebp: '/images/amusementmon.webp',
-        monsterSpriteLayout: { cols: 3, rows: 4, frameCount: 9 } satisfies AdventureMonsterSpriteLayout,
-        monsterName: '팡순이',
-        monsterCodexLines: [
-            '네온과 음악에 맞춰 몸을 팡팡 튕기며 기쁨을 먹고 자라요.',
-            '긴 줄만 보면 직감으로 도망갈 타이밍을 재는 민첩함이 있습니다.',
-        ],
+        monsters: ADVENTURE_MONSTERS_AMUSEMENT_PARK,
     },
 ] as const;
 
@@ -115,8 +138,75 @@ export const ADVENTURE_MAP_THEMES: Record<AdventureStageId, { gridColor: string;
     },
 };
 
-/** 몬스터 대전 규칙(표시명 — 실제 GameMode 연동은 추후) */
-export type AdventureMonsterBattleMode = 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
+/** 몬스터 도감 모달 — 챕터 분위기에 맞는 배경·카드 톤 (Tailwind 클래스 전체 문자열) */
+export const ADVENTURE_CODEX_CHAPTER_UI: Record<
+    AdventureStageId,
+    {
+        /** 탭 패널·본문 큰 배경 */
+        panelClass: string;
+        /** 개별 몬스터 카드 표면 */
+        cardClass: string;
+        /** 이미지 박스 상단 이름 바 */
+        nameBarClass: string;
+        /** 선택된 챕터 탭 */
+        tabSelectedClass: string;
+        /** 비선택 탭 hover 시 챕터 힌트 */
+        tabIdleHoverClass: string;
+        /** 도감 문장 앞 동그라미 */
+        bulletClass: string;
+    }
+> = {
+    neighborhood_hill: {
+        panelClass:
+            'border-emerald-500/20 bg-gradient-to-br from-emerald-950/88 via-green-950/82 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+        cardClass: 'border-emerald-500/20 bg-emerald-950/20',
+        nameBarClass: 'from-emerald-800/95 to-emerald-950/98 border-b border-emerald-950/40',
+        tabSelectedClass:
+            'border-emerald-400/55 bg-emerald-500/20 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
+        tabIdleHoverClass: 'hover:border-emerald-500/35 hover:text-emerald-100/90',
+        bulletClass: 'bg-emerald-400/80',
+    },
+    lake_park: {
+        panelClass:
+            'border-sky-500/20 bg-gradient-to-br from-sky-950/88 via-blue-950/85 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+        cardClass: 'border-sky-500/20 bg-sky-950/22',
+        nameBarClass: 'from-sky-800/95 to-sky-950/98 border-b border-sky-950/45',
+        tabSelectedClass:
+            'border-sky-400/55 bg-sky-500/20 text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
+        tabIdleHoverClass: 'hover:border-sky-500/35 hover:text-sky-100/90',
+        bulletClass: 'bg-sky-400/80',
+    },
+    aquarium: {
+        panelClass:
+            'border-cyan-500/20 bg-gradient-to-br from-slate-950/92 via-blue-950/88 to-cyan-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+        cardClass: 'border-cyan-500/20 bg-cyan-950/18',
+        nameBarClass: 'from-cyan-900/95 to-slate-950/98 border-b border-cyan-950/40',
+        tabSelectedClass:
+            'border-cyan-400/55 bg-cyan-500/18 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
+        tabIdleHoverClass: 'hover:border-cyan-500/35 hover:text-cyan-100/90',
+        bulletClass: 'bg-cyan-400/80',
+    },
+    zoo: {
+        panelClass:
+            'border-amber-500/25 bg-gradient-to-br from-amber-950/88 via-yellow-950/75 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+        cardClass: 'border-amber-500/20 bg-amber-950/18',
+        nameBarClass: 'from-amber-800/95 to-amber-950/98 border-b border-amber-950/45',
+        tabSelectedClass:
+            'border-amber-400/55 bg-amber-500/22 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
+        tabIdleHoverClass: 'hover:border-amber-500/35 hover:text-amber-100/90',
+        bulletClass: 'bg-amber-400/80',
+    },
+    amusement_park: {
+        panelClass:
+            'border-fuchsia-500/22 bg-gradient-to-br from-purple-950/90 via-fuchsia-950/85 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
+        cardClass: 'border-fuchsia-500/20 bg-fuchsia-950/16',
+        nameBarClass: 'from-fuchsia-800/95 to-purple-950/98 border-b border-purple-950/45',
+        tabSelectedClass:
+            'border-fuchsia-400/55 bg-fuchsia-500/18 text-fuchsia-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
+        tabIdleHoverClass: 'hover:border-fuchsia-500/35 hover:text-fuchsia-100/90',
+        bulletClass: 'bg-fuchsia-400/80',
+    },
+};
 
 export const ADVENTURE_MONSTER_MODE_LABELS: Record<AdventureMonsterBattleMode, string> = {
     classic: '클래식',
@@ -141,24 +231,30 @@ export function getAdventureStageLevelRange(stageIndex: number): { min: number; 
     return { min, max: min + 9 };
 }
 
-/** 맵 동시 존재 상한 */
-export const ADVENTURE_MAP_MAX_MONSTERS = 8;
+/** 맵 위 몬스터 앵커 간 최소 거리(% 좌표, 유클리드) — 서로 겹치지 않게 */
+export const ADVENTURE_MAP_MONSTER_MIN_DISTANCE_PCT = 12;
 
-/** 자동 스폰 시도 간격(맵이 가득 차 있으면 스킵) */
-export const ADVENTURE_MONSTER_SPAWN_INTERVAL_MS = 45_000;
+/** 몬스터 스폰 X 구간(맵 가로 %) */
+export const ADVENTURE_MAP_MONSTER_SPAWN_X_PCT = { min: 14, max: 86 } as const;
 
-/** 레벨 1 → 10분, 레벨 50 → 1시간 (선형) */
-export const ADVENTURE_MONSTER_LIFETIME_MIN_MS = 10 * 60 * 1000;
-export const ADVENTURE_MONSTER_LIFETIME_MAX_MS = 60 * 60 * 1000;
+/** 좌측 맵 오버레이 패널과 겹치지 않도록 스폰 X%(왼쪽) 하한 — `ADVENTURE_MAP_MONSTER_SPAWN_X_PCT.min`과 비교해 큰 값 사용 */
+export const ADVENTURE_MAP_MONSTER_SPAWN_X_MIN_EXCLUDING_LEFT_PANEL = 30;
 
-/** 공격 성공으로 제거된 슬롯 재등장 대기 */
-export const ADVENTURE_MONSTER_RESPAWN_AFTER_DEFEAT_MS = 20 * 60 * 1000;
+/** 몬스터 스폰 Y 구간(맵 세로 % — 하단 길·지면 쪽에 최대한 몰아서 배치) */
+export const ADVENTURE_MAP_MONSTER_SPAWN_Y_PCT = { min: 66, max: 93 } as const;
 
-export function getAdventureMonsterLifetimeMs(level: number): number {
-    const lv = Math.max(1, Math.min(50, Math.floor(level)));
-    const t = (lv - 1) / 49;
-    return Math.round(ADVENTURE_MONSTER_LIFETIME_MIN_MS + t * (ADVENTURE_MONSTER_LIFETIME_MAX_MS - ADVENTURE_MONSTER_LIFETIME_MIN_MS));
-}
+/** 겹침 회피 시 랜덤 위치 시도 횟수 */
+export const ADVENTURE_MAP_MONSTER_SPAWN_MAX_TRIES = 72;
+
+/** 맵에 머무는 시간(만료까지) — 모든 몬스터 동일 — `shared/utils/adventureMapSchedule` 절대 스케줄과 동기 */
+export const ADVENTURE_MONSTER_MAP_STAY_MS = 20 * 60 * 1000;
+
+/** 일반 몬스터: 스케줄상 비출현(재출현 간격) 구간 길이 10~15분 — 종·스테이지별 해시로 고정 */
+export const ADVENTURE_MONSTER_RESPAWN_NORMAL_MIN_MS = 10 * 60 * 1000;
+export const ADVENTURE_MONSTER_RESPAWN_NORMAL_MAX_MS = 15 * 60 * 1000;
+
+/** 챕터 보스: 비출현 구간 30분 고정 */
+export const ADVENTURE_MONSTER_RESPAWN_BOSS_MS = 30 * 60 * 1000;
 
 // --- 지역 이해도 (아이온2 종족 이해도처럼 지역(스테이지)별 누적 XP → 티어 → 패시브 보너스) ---
 
@@ -181,14 +277,58 @@ export function getAdventureUnderstandingTierFromXp(xp: number): AdventureUnders
     return tier;
 }
 
-/** 스테이지별 이해도 티어가 주는 모험 골드 보너스(%) — 표시·향후 서버 정산에 동일 적용 권장 */
-export const ADVENTURE_UNDERSTANDING_GOLD_BONUS_BY_TIER = [0, 1, 2, 3, 5] as const;
-
 /** 이해도 2티어 이상인 지역 수에 비례해 표시하는 “코어 능력치 유효” 보너스 상한(%) */
 export const ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP = 3;
 
-/** 모든 스테이지 골드 보너스 합산 상한(%) */
+/**
+ * 지역 이해도 XP 구간 끝점(티어 경계와 동일). 구간 안에서는 아래 `SHARED_BONUS_PERCENT_KNOTS`로 선형 보간되어
+ * 챕터 1만 플레이해도 골드·장비·고급장비·재료·고급재료가 함께 서서히 오릅니다.
+ */
+export const ADVENTURE_UNDERSTANDING_SHARED_BONUS_XP_KNOTS = [0, 80, 240, 520, 1000] as const;
+
+/**
+ * `SHARED_BONUS_XP_KNOTS`와 같은 길이: 해당 XP에 도달한 지역 1곳이 합산 풀에 더하는 공통 %(지역당).
+ * 실제 적용은 `getAdventureUnderstandingSharedBonusPercentForStageXp`로 보간.
+ * 합산된 공통 값을 골드·장비·고급장비·재료·고급재료에 동일하게 더하되 항목별 상한만 별도.
+ */
+export const ADVENTURE_UNDERSTANDING_SHARED_BONUS_PERCENT_KNOTS = [0, 0.15, 0.45, 0.95, 3] as const;
+
+/** 모든 스테이지에서 합산한 공통 보너스에 대한 모험 골드 +% 상한 */
 export const ADVENTURE_UNDERSTANDING_GOLD_BONUS_CAP = 15;
+
+/** 공통 합산에 대한 장비 상자 드롭 +% 상한 */
+export const ADVENTURE_UNDERSTANDING_EQUIPMENT_DROP_BONUS_CAP = 8;
+
+/** 공통 합산에 대한 II·III·IV급 장비 상자 가중 +% 상한 */
+export const ADVENTURE_UNDERSTANDING_HIGH_GRADE_EQUIP_CAP = 4;
+
+/** 공통 합산에 대한 재료 상자 드롭 +% 상한 */
+export const ADVENTURE_UNDERSTANDING_MATERIAL_DROP_BONUS_CAP = 8;
+
+/** 공통 합산에 대한 II·III·IV급 재료 상자 가중 +% 상한 */
+export const ADVENTURE_UNDERSTANDING_HIGH_GRADE_MATERIAL_CAP = 4;
+
+/** 스테이지 한 곳의 이해도 XP → 공통 모험 보상 보너스 %(보간). 5지역×전설 구간 ≈ 골드 상한 15%에 맞춤 */
+export function getAdventureUnderstandingSharedBonusPercentForStageXp(xp: number): number {
+    const x = Math.max(0, Math.floor(xp));
+    const xKnots = ADVENTURE_UNDERSTANDING_SHARED_BONUS_XP_KNOTS;
+    const yKnots = ADVENTURE_UNDERSTANDING_SHARED_BONUS_PERCENT_KNOTS;
+    const last = xKnots.length - 1;
+    if (last < 0) return 0;
+    if (x >= xKnots[last]) {
+        return yKnots[last] ?? 0;
+    }
+    for (let i = 0; i < last; i++) {
+        const x0 = xKnots[i]!;
+        const x1 = xKnots[i + 1]!;
+        if (x >= x0 && x < x1) {
+            const y0 = yKnots[i]!;
+            const y1 = yKnots[i + 1]!;
+            return y0 + ((y1 - y0) * (x - x0)) / (x1 - x0);
+        }
+    }
+    return 0;
+}
 
 /** 입장 카드 권장 가로세로 비 (와이드 배너) */
 export const ADVENTURE_LOBBY_CARD_ASPECT = 'aspect-[16/7]';

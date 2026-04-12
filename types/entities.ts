@@ -272,8 +272,12 @@ export type AdventureProfile = {
   monstersDefeatedByMode?: Partial<Record<string, number>>;
   monstersDefeatedTotal?: number;
   understandingXpByStage?: Partial<Record<string, number>>;
+  /** 도감 몬스터별 누적 승리 수(이해도) — `codexId` 키 */
+  codexDefeatCounts?: Partial<Record<string, number>>;
   uniqueMonsterIdsCaught?: string[];
   lastPlayedStageId?: string | null;
+  /** 모험 맵: `stageId::codexId` → 이 시각 이후에만 스케줄 출현 표시 */
+  adventureMapSuppressUntilByKey?: Partial<Record<string, number>>;
 };
 
 export type SinglePlayerMissionLevelInfo = {
@@ -740,9 +744,17 @@ export type GameSummary = {
   };
   overallRecord?: { wins: number; losses: number; aiWins?: number; aiLosses?: number; };
   gold?: number;
+  /** 모험 지역 이해도 버프로만 추가된 골드(표시용; `gold` 합계에 이미 포함) */
+  adventureGoldUnderstandingBonus?: number;
   items?: InventoryItem[];
   /** 길드 전쟁 AI 대국 종료 시 획득 별(0~3) */
   guildWarStars?: number;
+  /** 모험 몬스터 승리 시 슬롯 결과(연출용; 실제 지급은 gold·items와 동일) */
+  adventureRewardSlots?: {
+    gold: { obtained: boolean; amount: number; understandingBonus?: number };
+    equipment: { obtained: boolean; displayName?: string };
+    material: { obtained: boolean; displayName?: string };
+  };
 };
 
 
@@ -936,6 +948,12 @@ export type LiveGameSession = {
   gameCategory?: GameCategory;  // 게임 카테고리: normal, singleplayer, tower, adventure
   /** 모험 스테이지 id (`neighborhood_hill` 등) — 배경 webp 매핑용 */
   adventureStageId?: string;
+  /** 모험 몬스터 배틀 메타(승리 시 프로필·보상) */
+  adventureMonsterCodexId?: string;
+  adventureMonsterLevel?: number;
+  adventureMonsterBattleMode?: string;
+  /** 모험 대국 판 크기(7~19) — 19줄 보스전 보상 가중에 사용 */
+  adventureBoardSize?: number;
   stageId?: string;
   towerFloor?: number;  // 도전의 탑 층수
   blackPatternStones?: Point[];
@@ -960,6 +978,14 @@ export type Negotiation = {
   rematchOfGameId?: string;
   previousSettings?: GameSettings;
   isRanked?: boolean; // false면 친선전, true면 랭킹전 (기본값: false)
+  /** `initializeGame`에서 LiveGameSession 모험 필드로 복사 */
+  adventureBattle?: {
+    stageId: string;
+    codexId: string;
+    level: number;
+    battleMode: string;
+    boardSize: number;
+  };
 };
 
 export type SanctionLogData = {

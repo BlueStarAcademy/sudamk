@@ -237,8 +237,6 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px))))"
             pcViewportMaxHeightCss="min(92dvh, calc(100dvh - 1.5rem))"
             bodyNoScroll={isCompactUi}
-            hideFooter={isCompactUi}
-            skipSavedPosition={isCompactUi}
             bodyPaddingClassName={
                 isCompactUi
                     ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 sm:px-3 sm:pb-[max(0.65rem,env(safe-area-inset-bottom,0px))] sm:pt-2.5'

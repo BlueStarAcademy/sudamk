@@ -46,8 +46,6 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
             mobileViewportFit={isMobile}
             mobileLockViewportHeight={isMobile}
             mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH : NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}
-            hideFooter={isMobile}
-            skipSavedPosition={isMobile}
             bodyPaddingClassName={
                 isMobile
                     ? '!p-2 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]'

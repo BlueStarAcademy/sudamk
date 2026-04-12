@@ -25,6 +25,7 @@ import {
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
     RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 
@@ -97,7 +98,14 @@ const getXpRequirementForLevel = (level: number): number => {
 };
 
 // 계가 결과 표시 컴포넌트 (SinglePlayerSummaryModal에서 가져옴)
-const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ analysis, session, isMobile = false, mobileTextScale = 1 }) => {
+const ScoreDetailsComponent: React.FC<{
+    analysis: AnalysisResult;
+    session: LiveGameSession;
+    isMobile?: boolean;
+    mobileTextScale?: number;
+    /** 모바일에서 흑·백을 가로 2열로(도전의 탑 등) */
+    compactSideBySideMobile?: boolean;
+}> = ({ analysis, session, isMobile = false, mobileTextScale = 1, compactSideBySideMobile = false }) => {
     const { scoreDetails } = analysis;
     const { mode, settings } = session;
 
@@ -107,29 +115,37 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
+    const narrow2col = Boolean(isMobile && compactSideBySideMobile);
+    const rowFs = narrow2col ? `${8 * mobileTextScale}px` : isMobile ? `${10 * mobileTextScale}px` : undefined;
+    const headFs = narrow2col ? `${9 * mobileTextScale}px` : isMobile ? `${11 * mobileTextScale}px` : undefined;
+    const totalFs = narrow2col ? `${9 * mobileTextScale}px` : isMobile ? `${11 * mobileTextScale}px` : undefined;
+    const outerPad = narrow2col ? 'p-1 space-y-1' : isMobile ? 'p-1.5 space-y-1.5' : 'p-2 space-y-1.5';
+    const innerPad = narrow2col ? 'p-0.5' : isMobile ? 'p-1' : 'p-1.5';
+    const gridGap = narrow2col ? 'gap-1' : 'gap-1.5 sm:gap-2';
+
     return (
-        <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
-                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}>흑</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{scoreDetails.black.territory.toFixed(0)}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.black.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.black.deadStones ?? 0}</span></div>
-                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.black.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.black.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{scoreDetails.black.timeBonus.toFixed(1)}</span></div>}
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.black.total.toFixed(1)}</span></div>
+        <div className={`${outerPad} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`}>
+            <div className={`grid ${narrow2col ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} ${gridGap}`}>
+                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>흑</h3>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.black.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.black.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.black.deadStones ?? 0}</span></div>
+                    {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.black.baseStoneBonus}</span></div>}
+                    {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.black.hiddenStoneBonus}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{scoreDetails.black.timeBonus.toFixed(1)}</span></div>}
+                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
-                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}>백</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{scoreDetails.white.territory.toFixed(0)}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>따낸 돌:</span> <span>{scoreDetails.white.liveCaptures ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.white.deadStones ?? 0}</span></div>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>덤:</span> <span>{scoreDetails.white.komi}</span></div>
-                    {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.white.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.white.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{scoreDetails.white.timeBonus.toFixed(1)}</span></div>}
-                    <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.white.total.toFixed(1)}</span></div>
+                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>백</h3>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.white.territory.toFixed(0)}</span></div>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.white.liveCaptures ?? 0}</span></div>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.white.deadStones ?? 0}</span></div>
+                    <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">덤</span> <span className="tabular-nums">{scoreDetails.white.komi}</span></div>
+                    {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.white.baseStoneBonus}</span></div>}
+                    {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.white.hiddenStoneBonus}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{scoreDetails.white.timeBonus.toFixed(1)}</span></div>}
+                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>
         </div>
@@ -348,6 +364,38 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const previousXpPercent = Math.min(100, (previousXp / (xpRequirement || 1)) * 100);
     const xpPercent = Math.min(100, (clampedXp / (xpRequirement || 1)) * 100);
 
+    /** 싱글/일반 결과 모달과 동일: 전략 경험치 바 + 현재/필요 XP + 변동 (summary 유무와 관계없이 표시) */
+    const renderTowerStrategyXpPanel = (compact: boolean) => (
+        <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${compact ? 'p-1' : 'p-1.5'}`}>
+            <div
+                className={`text-center font-bold uppercase tracking-[0.12em] text-amber-200/75 ${compact ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}
+            >
+                경험치
+            </div>
+            <StrategyXpResultBar
+                previousXpPercent={previousXpPercent}
+                finalXpPercent={xpPercent}
+                xpGain={xpChange}
+                className={compact ? 'h-2' : 'h-2.5'}
+            />
+            <div
+                className={`flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] ${compact ? '' : 'text-sm'}`}
+                style={{ fontSize: compact ? `${9 * mobileTextScale}px` : undefined }}
+            >
+                <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
+                    {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
+                </span>
+                {xpChange > 0 ? (
+                    <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">+{xpChange.toLocaleString()} XP</span>
+                ) : xpChange < 0 ? (
+                    <span className="shrink-0 whitespace-nowrap font-semibold text-rose-400">{xpChange.toLocaleString()} XP</span>
+                ) : (
+                    <span className="shrink-0 whitespace-nowrap font-semibold text-zinc-500">변동 없음</span>
+                )}
+            </div>
+        </div>
+    );
+
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
     const modalTitle = (!analysisResult && isScoring)
         ? "계가 중..." 
@@ -364,17 +412,17 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     }, [session.id]);
 
     const towerRewardsSection = (
-        <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-2`}>
+        <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 ${isMobile ? 'gap-1 p-1.5' : 'gap-1.5 p-2'}`}>
             <h2
-                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}
+                className={`${SP_SUMMARY_SECTION_LABEL} border-b border-amber-500/25 text-center ${isMobile ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-2 sm:pb-1'}`}
+                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '15px' }}
             >
                 획득 보상
             </h2>
             <div
                 className={
                     isMobile
-                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS
+                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS
                         : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
                 }
             >
@@ -500,7 +548,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             active={mobileResultTab}
                             onChange={setMobileResultTab}
                             matchLabel="경기 결과"
-                            recordLabel="기록"
+                            recordLabel="내 정보"
                         />
                         <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
                             <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] [scrollbar-width:thin]">
@@ -544,6 +592,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                     session={session}
                                                     isMobile={isMobile}
                                                     mobileTextScale={mobileTextScale}
+                                                    compactSideBySideMobile
                                                 />
                                             ) : !isScoring && !isEnded ? (
                                                 <p className="text-center text-gray-400">계가 결과가 없습니다.</p>
@@ -557,7 +606,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
                                             style={{ fontSize: `${11 * mobileTextScale}px` }}
                                         >
-                                            기록
+                                            내 정보
                                         </h2>
                                         <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5`}>
                                             <Avatar
@@ -576,28 +625,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                 </p>
                                             </div>
                                         </div>
-                                        {(displaySummary?.xp || summary?.xp) && (
-                                            <div className={`space-y-0.5 p-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0`}>
-                                                <StrategyXpResultBar
-                                                    previousXpPercent={previousXpPercent}
-                                                    finalXpPercent={xpPercent}
-                                                    xpGain={xpChange}
-                                                />
-                                                <div
-                                                    className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                                    style={{ fontSize: `${9 * mobileTextScale}px` }}
-                                                >
-                                                    <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
-                                                        {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
-                                                    </span>
-                                                    {xpChange > 0 && (
-                                                        <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">
-                                                            +{xpChange.toLocaleString()} XP
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        )}
+                                        {renderTowerStrategyXpPanel(true)}
                                     </div>
                                     }
                                 />
@@ -656,7 +684,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
                                     style={{ fontSize: '15px' }}
                                 >
-                                    기록
+                                    내 정보
                                 </h2>
                                 <div className={`${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5 p-1.5`}>
                                     <Avatar
@@ -675,28 +703,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         </p>
                                     </div>
                                 </div>
-                                {(displaySummary?.xp || summary?.xp) && (
-                                    <div className={`${SP_SUMMARY_INSET_CLASS} flex-shrink-0 space-y-0.5 p-1.5`}>
-                                        <StrategyXpResultBar
-                                            previousXpPercent={previousXpPercent}
-                                            finalXpPercent={xpPercent}
-                                            xpGain={xpChange}
-                                        />
-                                        <div
-                                            className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                            style={{ fontSize: '13px' }}
-                                        >
-                                            <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
-                                                {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
-                                            </span>
-                                            {xpChange > 0 && (
-                                                <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">
-                                                    +{xpChange.toLocaleString()} XP
-                                                </span>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
+                                {renderTowerStrategyXpPanel(false)}
                             </div>
                             {towerRewardsSection}
                         </div>

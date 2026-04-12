@@ -4,7 +4,7 @@ import { UserWithStatus, TournamentState, PlayerForTournament, ServerAction, Use
 import Button from './Button.js';
 import { useButtonClickThrottle } from '../hooks/useButtonClickThrottle.js';
 import { useTournamentSimulation } from '../hooks/useTournamentSimulation.js';
-import { TOURNAMENT_DEFINITIONS, TOURNAMENT_SCORE_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, AVATAR_POOL, BORDER_POOL, CORE_STATS_DATA, LEAGUE_DATA, DUNGEON_STAGE_BASE_SCORE, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, gradeBackgrounds } from '../constants';
+import { TOURNAMENT_DEFINITIONS, TOURNAMENT_SCORE_REWARDS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, AVATAR_POOL, BORDER_POOL, CORE_STATS_DATA, LEAGUE_DATA, DUNGEON_STAGE_BASE_SCORE, DUNGEON_STAGE_BASE_REWARDS_MATERIAL, DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT, DUNGEON_RANK_SCORE_BONUS, DUNGEON_DEFAULT_SCORE_BONUS, gradeBackgrounds, EQUIPMENT_GRADE_LABEL_KO } from '../constants';
 import { getDungeonRankRewardForDisplay, getDungeonRankRewardRangeForDisplay, getDungeonRankKeysForDisplay, getDungeonBasicRewardRangeGold, getDungeonStageScore, DUNGEON_STAGE_MATERIAL_ROLLS, DUNGEON_STAGE_EQUIPMENT_DROP } from '../shared/constants/tournaments';
 import Avatar from './Avatar.js';
 import RadarChart from './RadarChart.js';
@@ -1138,7 +1138,7 @@ const PlayerProfilePanel: React.FC<{
     );
 };
 
-/** 모바일 챔피언십: 대국자 정보 탭 — 양 선수 비교, 경기 시작·카운트다운은 하단 고정 */
+/** 모바일 챔피언십: 대국자 정보 탭 — 선수별 카드 옆에 해당 선수 상태·능력(하단 액션은 부모 고정 바) */
 const MobileChampionshipPlayersCompare: React.FC<{
     p1: PlayerForTournament | null;
     p2: PlayerForTournament | null;
@@ -1156,7 +1156,6 @@ const MobileChampionshipPlayersCompare: React.FC<{
     isUserMatchP1: boolean;
     isUserMatchP2: boolean;
     highlightPhase: 'early' | 'mid' | 'end' | 'none';
-    matchActionSlot: ReactNode;
 }> = ({
     p1,
     p2,
@@ -1174,7 +1173,6 @@ const MobileChampionshipPlayersCompare: React.FC<{
     isUserMatchP1,
     isUserMatchP2,
     highlightPhase,
-    matchActionSlot,
 }) => {
     const [infoTab, setInfoTab] = useState<'status' | 'abilities'>('status');
 
@@ -1231,6 +1229,14 @@ const MobileChampionshipPlayersCompare: React.FC<{
 
     const statHighlighted = (stat: CoreStat) => highlightPhase !== 'none' && KEY_STATS_BY_PHASE[highlightPhase].includes(stat);
 
+    /** 컨디션 수치 색상: 50 미만 빨강, 80 이상 초록, 그 사이 주황 계열 */
+    const conditionValueClass = (cond: number) => {
+        if (cond === 1000) return 'text-zinc-500';
+        if (cond < 50) return 'text-red-400';
+        if (cond >= 80) return 'text-green-400';
+        return 'text-amber-200';
+    };
+
     const avatarPx = 40;
 
     const ph1 = phasePowers(p1Stats as Record<CoreStat, number>);
@@ -1240,18 +1246,39 @@ const MobileChampionshipPlayersCompare: React.FC<{
     const sumDelta = sum2 - sum1;
     const sumDeltaCls = sumDelta > 0 ? 'text-green-400' : sumDelta < 0 ? 'text-red-400' : 'text-stone-500';
 
+    const initSum1 = useMemo(() => {
+        const raw = initialP1?.stats ?? p1?.originalStats;
+        if (tournamentStatus === 'round_in_progress' && raw && typeof raw === 'object') {
+            return totalAbility(raw as Record<string, number>);
+        }
+        return totalAbility(p1Stats);
+    }, [tournamentStatus, initialP1?.stats, p1?.originalStats, p1Stats]);
+
+    const initSum2 = useMemo(() => {
+        const raw = initialP2?.stats ?? p2?.originalStats;
+        if (tournamentStatus === 'round_in_progress' && raw && typeof raw === 'object') {
+            return totalAbility(raw as Record<string, number>);
+        }
+        return totalAbility(p2Stats);
+    }, [tournamentStatus, initialP2?.stats, p2?.originalStats, p2Stats]);
+
+    const sumCh1 = tournamentStatus === 'round_in_progress' ? sum1 - initSum1 : 0;
+    const sumCh2 = tournamentStatus === 'round_in_progress' ? sum2 - initSum2 : 0;
+
     const renderPlayerSideCard = (
         tone: 'cyan' | 'amber',
         title: string,
         player: PlayerForTournament | null,
-        isUserMatch: boolean,
+        _isUserMatch: boolean,
     ) => {
         const borderTone = tone === 'cyan' ? 'border-cyan-500/35' : 'border-amber-500/35';
         const titleCls = tone === 'cyan' ? 'text-cyan-200' : 'text-amber-200';
         if (!player?.id || !player.nickname) {
             return (
                 <div className={`flex min-h-0 flex-1 basis-0 flex-col rounded-md border ${borderTone} bg-black/25 p-0.5`}>
-                    <div className={`mb-0.5 text-center text-[10px] font-semibold ${titleCls}`}>{title}</div>
+                    {title ? (
+                        <div className={`mb-0.5 text-center text-[10px] font-semibold ${titleCls}`}>{title}</div>
+                    ) : null}
                     <div className="flex min-h-[4.5rem] flex-1 items-center justify-center px-0.5 text-center text-[10px] text-stone-500">
                         선수 대기 중
                     </div>
@@ -1262,11 +1289,9 @@ const MobileChampionshipPlayersCompare: React.FC<{
         const clickable = !player.id.startsWith('bot-') && !isCurrent;
         const avatarUrl = AVATAR_POOL.find((a) => a.id === player.avatarId)?.url;
         const borderUrl = BORDER_POOL.find((b) => b.id === player.borderId)?.url;
-        const cond = resolveCondition(player, isCurrent);
-        const showPlus = showCondition && isCurrent && isUserMatch && canUseConditionPotion;
         return (
             <div className={`flex min-h-0 flex-1 basis-0 flex-col rounded-md border ${borderTone} bg-black/25 p-0.5`}>
-                <div className={`mb-0.5 text-center text-[10px] font-semibold ${titleCls}`}>{title}</div>
+                {title ? <div className={`mb-0.5 text-center text-[10px] font-semibold ${titleCls}`}>{title}</div> : null}
                 <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-0.5">
                     <div
                         className={`mx-auto w-[88%] shrink-0 ${clickable ? 'cursor-pointer' : ''}`}
@@ -1278,37 +1303,49 @@ const MobileChampionshipPlayersCompare: React.FC<{
                         </div>
                     </div>
                     <div className="w-full px-0.5 text-center leading-tight">
-                        <div className={`text-[10px] font-semibold whitespace-normal break-words ${titleCls}`}>{player.nickname}</div>
-                        {isCurrent ? <div className="text-[9px] font-semibold text-amber-300/90">나</div> : null}
-                    </div>
-                    {showCondition ? (
-                        <div className="mt-0.5 flex w-full flex-wrap items-center justify-center gap-0.5 px-0.5 pb-0.5">
-                            <span className="text-[9px] font-semibold text-stone-500">컨디션</span>
-                            <span className="font-mono text-[11px] font-bold text-yellow-300">{cond === 1000 ? '—' : cond}</span>
-                            {showPlus ? (
-                                <button
-                                    type="button"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (cond >= 100) return;
-                                        onUseConditionPotion();
-                                    }}
-                                    disabled={cond >= 100}
-                                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-                                        cond >= 100 ? 'cursor-not-allowed bg-gray-600 opacity-50' : 'bg-green-600 hover:bg-green-700'
-                                    }`}
-                                    title={
-                                        cond >= 100
-                                            ? '컨디션이 이미 최대입니다'
-                                            : '컨디션 회복제 사용 (1회차 경기 시작 전에만 가능)'
-                                    }
-                                >
-                                    +
-                                </button>
-                            ) : null}
+                        <div className={`text-[11px] font-semibold whitespace-normal break-words sm:text-xs ${titleCls}`}>
+                            {player.nickname}
                         </div>
-                    ) : null}
+                        {isCurrent ? <div className="text-[10px] font-semibold text-amber-300/90">나</div> : null}
+                    </div>
                 </div>
+            </div>
+        );
+    };
+
+    const abilityHeaderAvatarPx = 36;
+    const renderAbilityPlayerHeader = (player: PlayerForTournament | null, tone: 'cyan' | 'amber') => {
+        const titleCls = tone === 'cyan' ? 'text-cyan-200' : 'text-amber-200';
+        if (!player?.id || !player.nickname) {
+            return (
+                <div className="flex min-h-[3.75rem] flex-col items-center justify-center rounded-md bg-black/25 py-1">
+                    <span className="text-[0.95em] text-stone-500">—</span>
+                </div>
+            );
+        }
+        const isCurrent = player.id === currentUserId;
+        const clickable = !player.id.startsWith('bot-') && !isCurrent;
+        const avatarUrl = AVATAR_POOL.find((a) => a.id === player.avatarId)?.url;
+        const borderUrl = BORDER_POOL.find((b) => b.id === player.borderId)?.url;
+        return (
+            <div className="flex flex-col items-center gap-0.5 rounded-md bg-black/20 py-1">
+                <div
+                    className={clickable ? 'cursor-pointer' : ''}
+                    onClick={clickable ? () => onViewUser(player.id) : undefined}
+                    title={clickable ? `${player.nickname} 프로필 보기` : ''}
+                >
+                    <Avatar
+                        userId={player.id}
+                        userName={player.nickname}
+                        avatarUrl={avatarUrl}
+                        borderUrl={borderUrl}
+                        size={abilityHeaderAvatarPx}
+                    />
+                </div>
+                <div className={`w-full px-0.5 text-center text-[0.95em] font-semibold leading-tight ${titleCls}`}>
+                    <span className="line-clamp-2 break-words">{player.nickname}</span>
+                </div>
+                {isCurrent ? <span className="text-[0.82em] font-semibold text-amber-300/90">나</span> : null}
             </div>
         );
     };
@@ -1342,119 +1379,214 @@ const MobileChampionshipPlayersCompare: React.FC<{
                 </div>
 
                 <div className="min-h-0 flex-1 p-1">
-                    <div className="flex h-full min-h-0 gap-1.5">
-                        <div className="flex min-h-0 w-[24%] min-w-0 flex-col gap-1">
-                            {renderPlayerSideCard('cyan', '선수 1', p1, isUserMatchP1)}
-                            {renderPlayerSideCard('amber', '선수 2', p2, isUserMatchP2)}
-                        </div>
-
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-md bg-gray-900/50 p-1">
-                            <div className="mb-1 grid grid-cols-2 gap-1 rounded-md bg-black/20 px-1.5 py-1 text-[10px] font-semibold">
-                                <span className="min-w-0 truncate text-cyan-200">{p1?.nickname ?? '선수1'}</span>
-                                <span className="min-w-0 truncate text-right text-amber-200">{p2?.nickname ?? '선수2'}</span>
-                            </div>
-
-                            <div
-                                className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-0.5"
-                                style={{ WebkitOverflowScrolling: 'touch' }}
-                            >
-                                {infoTab === 'status' ? (
-                                    <>
+                    <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                        {infoTab === 'status' ? (
+                            <div className="flex min-h-0 flex-1 flex-col gap-1">
+                                <div className="flex min-h-0 min-h-[5.5rem] flex-1 gap-1 overflow-hidden">
+                                    <div className="flex w-[30%] max-w-[6.5rem] shrink-0 flex-col justify-start">
+                                        {renderPlayerSideCard('cyan', '', p1, isUserMatchP1)}
+                                    </div>
+                                    <div
+                                        className="flex min-h-0 flex-1 flex-col justify-center space-y-1.5 overflow-y-auto rounded-md bg-gray-900/50 p-1.5 text-center"
+                                        style={{ WebkitOverflowScrolling: 'touch' }}
+                                    >
                                         {showCondition ? (
-                                            <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                                <div className="text-stone-400">컨디션</div>
-                                                <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
-                                                    <span className="text-cyan-200">
-                                                        {p1 ? (resolveCondition(p1, p1.id === currentUserId) === 1000
-                                                            ? '—'
-                                                            : resolveCondition(p1, p1.id === currentUserId)) : '—'}
+                                            <div className="rounded-md bg-black/25 px-2 py-2">
+                                                <div className="text-xs font-semibold text-stone-400">컨디션</div>
+                                                <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
+                                                    <span
+                                                        className={`font-mono text-lg font-bold tabular-nums ${conditionValueClass(
+                                                            p1 ? resolveCondition(p1, p1.id === currentUserId) : 1000,
+                                                        )}`}
+                                                    >
+                                                        {p1
+                                                            ? resolveCondition(p1, p1.id === currentUserId) === 1000
+                                                                ? '—'
+                                                                : resolveCondition(p1, p1.id === currentUserId)
+                                                            : '—'}
                                                     </span>
-                                                    <span className="text-right text-amber-200">
-                                                        {p2 ? (resolveCondition(p2, p2.id === currentUserId) === 1000
-                                                            ? '—'
-                                                            : resolveCondition(p2, p2.id === currentUserId)) : '—'}
-                                                    </span>
+                                                    {canUseConditionPotion && p1?.id === currentUserId && isUserMatchP1 ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const c = p1 ? resolveCondition(p1, true) : 1000;
+                                                                if (c >= 100) return;
+                                                                onUseConditionPotion();
+                                                            }}
+                                                            disabled={!p1 || resolveCondition(p1, true) >= 100}
+                                                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
+                                                                !p1 || resolveCondition(p1, true) >= 100
+                                                                    ? 'cursor-not-allowed bg-gray-600 opacity-50'
+                                                                    : 'bg-green-600 hover:bg-green-700'
+                                                            }`}
+                                                            title={
+                                                                p1 && resolveCondition(p1, true) >= 100
+                                                                    ? '컨디션이 이미 최대입니다'
+                                                                    : '컨디션 회복제 사용 (경기 시작 전)'
+                                                            }
+                                                        >
+                                                            +
+                                                        </button>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         ) : null}
-                                        <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                            <div className="text-stone-400">바둑능력</div>
-                                            <div className="mt-0.5 grid grid-cols-2 gap-1 tabular-nums">
-                                                <span className="font-mono font-bold text-cyan-200">{sum1}</span>
-                                                <span className="text-right font-mono font-bold text-amber-200">{sum2}</span>
+                                        <div className="rounded-md bg-black/25 px-2 py-2">
+                                            <div className="text-xs font-semibold text-stone-400">바둑능력</div>
+                                            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-1 font-mono text-base font-bold tabular-nums text-cyan-200 sm:text-lg">
+                                                <span>{sum1}</span>
+                                                {sumCh1 !== 0 ? (
+                                                    <span className={sumCh1 > 0 ? 'text-green-400' : 'text-red-400'}>
+                                                        ({sumCh1 > 0 ? '+' : ''}
+                                                        {sumCh1})
+                                                    </span>
+                                                ) : null}
                                             </div>
                                         </div>
-                                        <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
-                                            <div className="text-stone-400">승률 · 전적</div>
-                                            <div className="mt-0.5 grid grid-cols-2 gap-1">
-                                                <span className="text-[9px] leading-tight text-cyan-100/95 break-words">{winLine(fullU1)}</span>
-                                                <span className="text-right text-[9px] leading-tight text-amber-100/95 break-words">
-                                                    {winLine(fullU2)}
-                                                </span>
+                                        <div className="rounded-md bg-black/25 px-2 py-2">
+                                            <div className="text-xs font-semibold text-stone-400">승률 · 전적</div>
+                                            <div className="mt-1 text-sm font-medium leading-snug text-cyan-100/95">
+                                                {winLine(fullU1)}
                                             </div>
                                         </div>
-                                    </>
-                                ) : (
-                                    <>
+                                    </div>
+                                </div>
+                                <div className="flex min-h-0 min-h-[5.5rem] flex-1 gap-1 overflow-hidden">
+                                    <div className="flex w-[30%] max-w-[6.5rem] shrink-0 flex-col justify-start">
+                                        {renderPlayerSideCard('amber', '', p2, isUserMatchP2)}
+                                    </div>
+                                    <div
+                                        className="flex min-h-0 flex-1 flex-col justify-center space-y-1.5 overflow-y-auto rounded-md bg-gray-900/50 p-1.5 text-center"
+                                        style={{ WebkitOverflowScrolling: 'touch' }}
+                                    >
+                                        {showCondition ? (
+                                            <div className="rounded-md bg-black/25 px-2 py-2">
+                                                <div className="text-xs font-semibold text-stone-400">컨디션</div>
+                                                <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
+                                                    <span
+                                                        className={`font-mono text-lg font-bold tabular-nums ${conditionValueClass(
+                                                            p2 ? resolveCondition(p2, p2.id === currentUserId) : 1000,
+                                                        )}`}
+                                                    >
+                                                        {p2
+                                                            ? resolveCondition(p2, p2.id === currentUserId) === 1000
+                                                                ? '—'
+                                                                : resolveCondition(p2, p2.id === currentUserId)
+                                                            : '—'}
+                                                    </span>
+                                                    {canUseConditionPotion && p2?.id === currentUserId && isUserMatchP2 ? (
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const c = p2 ? resolveCondition(p2, true) : 1000;
+                                                                if (c >= 100) return;
+                                                                onUseConditionPotion();
+                                                            }}
+                                                            disabled={!p2 || resolveCondition(p2, true) >= 100}
+                                                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${
+                                                                !p2 || resolveCondition(p2, true) >= 100
+                                                                    ? 'cursor-not-allowed bg-gray-600 opacity-50'
+                                                                    : 'bg-green-600 hover:bg-green-700'
+                                                            }`}
+                                                            title={
+                                                                p2 && resolveCondition(p2, true) >= 100
+                                                                    ? '컨디션이 이미 최대입니다'
+                                                                    : '컨디션 회복제 사용 (경기 시작 전)'
+                                                            }
+                                                        >
+                                                            +
+                                                        </button>
+                                                    ) : null}
+                                                </div>
+                                            </div>
+                                        ) : null}
+                                        <div className="rounded-md bg-black/25 px-2 py-2">
+                                            <div className="text-xs font-semibold text-stone-400">바둑능력</div>
+                                            <div className="mt-1 flex flex-wrap items-center justify-center gap-x-1 font-mono text-base font-bold tabular-nums text-amber-200 sm:text-lg">
+                                                <span>{sum2}</span>
+                                                {sumCh2 !== 0 ? (
+                                                    <span className={sumCh2 > 0 ? 'text-green-400' : 'text-red-400'}>
+                                                        ({sumCh2 > 0 ? '+' : ''}
+                                                        {sumCh2})
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                        <div className="rounded-md bg-black/25 px-2 py-2">
+                                            <div className="text-xs font-semibold text-stone-400">승률 · 전적</div>
+                                            <div className="mt-1 text-sm font-medium leading-snug text-amber-100/95">
+                                                {winLine(fullU2)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+                                <div
+                                    className="min-h-0 flex-1 overflow-y-auto rounded-md bg-gray-900/50 p-0.5 sm:p-1"
+                                    style={{
+                                        WebkitOverflowScrolling: 'touch',
+                                        fontSize: 'clamp(8.5px, min(2.75vw, 3.15vmin), 11.5px)',
+                                    }}
+                                >
+                                    <div className="grid grid-cols-[minmax(2.5rem,22%)_minmax(0,1fr)_minmax(0,1fr)] gap-x-0.5 gap-y-0.5">
+                                        <div className="min-h-[3.5em] min-w-0" aria-hidden />
+                                        <div className="min-w-0">{renderAbilityPlayerHeader(p1, 'cyan')}</div>
+                                        <div className="min-w-0 border-l border-gray-600/30 pl-0.5">
+                                            {renderAbilityPlayerHeader(p2, 'amber')}
+                                        </div>
+
                                         {Object.values(CoreStat).map((stat) => {
                                             const init1 =
                                                 tournamentStatus === 'round_in_progress'
-                                                    ? (initialP1?.stats?.[stat] ??
-                                                      p1?.originalStats?.[stat] ??
-                                                      p1Stats[stat] ??
-                                                      0)
+                                                    ? (initialP1?.stats?.[stat] ?? p1?.originalStats?.[stat] ?? p1Stats[stat] ?? 0)
                                                     : (p1Stats[stat] ?? 0);
                                             const init2 =
                                                 tournamentStatus === 'round_in_progress'
-                                                    ? (initialP2?.stats?.[stat] ??
-                                                      p2?.originalStats?.[stat] ??
-                                                      p2Stats[stat] ??
-                                                      0)
+                                                    ? (initialP2?.stats?.[stat] ?? p2?.originalStats?.[stat] ?? p2Stats[stat] ?? 0)
                                                     : (p2Stats[stat] ?? 0);
                                             const cur1 = p1Stats[stat] ?? 0;
                                             const cur2 = p2Stats[stat] ?? 0;
                                             const ch1 = tournamentStatus === 'round_in_progress' ? cur1 - init1 : 0;
                                             const ch2 = tournamentStatus === 'round_in_progress' ? cur2 - init2 : 0;
-                                            const d = cur2 - cur1;
-                                            const deltaCls = d > 0 ? 'text-green-400' : d < 0 ? 'text-red-400' : 'text-stone-400';
                                             const hi = statHighlighted(stat);
                                             const labelCls = hi ? 'font-bold text-yellow-300' : 'text-stone-300';
                                             return (
-                                                <div key={stat} className="rounded-md bg-black/25 px-1 py-[2px]">
-                                                    <div className="flex items-center justify-center gap-1.5 font-mono tabular-nums leading-none text-stone-100 text-[11px]">
-                                                        <span className="w-[4.6rem] shrink-0 text-right font-semibold whitespace-nowrap">
-                                                            <span className={labelCls}>{stat}</span>
-                                                        </span>
-                                                        <span className="min-w-0 shrink whitespace-nowrap text-center">
-                                                            <span className="text-stone-400">{cur1}</span>
-                                                            {ch1 !== 0 ? (
-                                                                <span className={ch1 > 0 ? 'text-green-400' : 'text-red-400'}>
-                                                                    ({ch1 > 0 ? '+' : ''}
-                                                                    {ch1})
-                                                                </span>
-                                                            ) : null}
-                                                            <span className="mx-[1px] text-stone-600">→</span>
-                                                            <span>{cur2}</span>
-                                                            {ch2 !== 0 ? (
-                                                                <span className={ch2 > 0 ? 'text-green-400' : 'text-red-400'}>
-                                                                    ({ch2 > 0 ? '+' : ''}
-                                                                    {ch2})
-                                                                </span>
-                                                            ) : null}
-                                                        </span>
+                                                <React.Fragment key={stat}>
+                                                    <div
+                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md bg-black/25 px-0.5 py-[0.2em] text-center text-[0.92em] font-semibold leading-snug ring-1 ring-inset ring-white/[0.06] ${labelCls}`}
+                                                    >
+                                                        {stat}
                                                     </div>
-                                                    <div className={`mt-0.5 text-right text-[10px] font-bold ${deltaCls}`}>
-                                                        {d > 0 ? `+${d}` : `${d}`}
+                                                    <div className="flex min-h-[1.55em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center font-mono text-[1.06em] tabular-nums leading-none text-cyan-100 ring-1 ring-inset ring-white/[0.06]">
+                                                        <span>{cur1}</span>
+                                                        {ch1 !== 0 ? (
+                                                            <span className={ch1 > 0 ? 'text-green-400' : 'text-red-400'}>
+                                                                ({ch1 > 0 ? '+' : ''}
+                                                                {ch1})
+                                                            </span>
+                                                        ) : null}
                                                     </div>
-                                                </div>
+                                                    <div className="flex min-h-[1.55em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center font-mono text-[1.06em] tabular-nums leading-none text-amber-100 ring-1 ring-inset ring-white/[0.06]">
+                                                        <span>{cur2}</span>
+                                                        {ch2 !== 0 ? (
+                                                            <span className={ch2 > 0 ? 'text-green-400' : 'text-red-400'}>
+                                                                ({ch2 > 0 ? '+' : ''}
+                                                                {ch2})
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </React.Fragment>
                                             );
                                         })}
+
                                         {(['early', 'mid', 'end'] as const).map((phase, idx) => {
                                             const label = phase === 'early' ? '초반능력' : phase === 'mid' ? '중반능력' : '종반능력';
                                             const v1 = ph1[phase];
                                             const v2 = ph2[phase];
-                                            const d = v2 - v1;
-                                            const deltaCls = d > 0 ? 'text-green-400' : d < 0 ? 'text-red-400' : 'text-stone-400';
                                             const borderAccent =
                                                 idx === 0
                                                     ? 'border-blue-700/40'
@@ -1462,46 +1594,64 @@ const MobileChampionshipPlayersCompare: React.FC<{
                                                       ? 'border-purple-700/40'
                                                       : 'border-orange-700/40';
                                             return (
-                                                <div key={phase} className={`rounded-md border ${borderAccent} bg-black/20 px-1 py-[2px]`}>
-                                                    <div className="text-[9px] font-semibold text-stone-400">{label}</div>
-                                                    <div className="flex items-center justify-center gap-1.5 font-mono text-[10px] tabular-nums leading-none text-stone-100">
-                                                        <span className="w-[4.6rem] shrink-0 text-right text-cyan-200">{v1}</span>
-                                                        <span className="text-stone-600">→</span>
-                                                        <span className="w-[4.6rem] shrink-0 text-amber-200">{v2}</span>
+                                                <React.Fragment key={phase}>
+                                                    <div className="flex min-h-[1.55em] items-center justify-center rounded-md bg-black/25 px-0.5 py-[0.2em] text-center text-[0.92em] font-semibold text-stone-400 ring-1 ring-inset ring-white/[0.06]">
+                                                        {label}
                                                     </div>
-                                                    <div className={`text-right text-[10px] font-bold ${deltaCls}`}>
-                                                        {d > 0 ? `+${d}` : `${d}`}
+                                                    <div
+                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md border ${borderAccent} bg-black/20 px-0.5 py-[0.2em] text-center font-mono text-[0.98em] tabular-nums text-cyan-200`}
+                                                    >
+                                                        {v1}
                                                     </div>
-                                                </div>
+                                                    <div
+                                                        className={`flex min-h-[1.55em] items-center justify-center rounded-md border ${borderAccent} bg-black/20 px-0.5 py-[0.2em] text-center font-mono text-[0.98em] tabular-nums text-amber-200`}
+                                                    >
+                                                        {v2}
+                                                    </div>
+                                                </React.Fragment>
                                             );
                                         })}
-                                        <div className="flex items-center justify-center gap-1.5 border-t border-amber-500/20 pt-1 font-bold text-stone-100 text-[12px]">
-                                            <span className="w-[4.6rem] shrink-0 text-right text-amber-200/90 whitespace-nowrap">종합 능력</span>
-                                            <span className="w-[5.8rem] shrink-0 text-center font-mono tabular-nums whitespace-nowrap">
-                                                <span className="text-stone-400">{sum1}</span>
-                                                <span className="mx-1 text-stone-600">→</span>
-                                                <span>{sum2}</span>
-                                                {sumDelta !== 0 ? (
-                                                    <span className={`ml-1 ${sumDeltaCls}`}>
-                                                        ({sumDelta > 0 ? '+' : ''}
-                                                        {sumDelta})
-                                                    </span>
-                                                ) : null}
-                                            </span>
+
+                                        <div className="flex min-h-[1.65em] items-center justify-center rounded-md bg-black/25 px-0.5 py-[0.2em] text-center text-[0.92em] font-semibold text-stone-400 ring-1 ring-inset ring-white/[0.06]">
+                                            종합 능력
                                         </div>
-                                    </>
-                                )}
+                                        <div className="flex min-h-[1.65em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center text-[1.06em] font-bold tabular-nums text-cyan-100 ring-1 ring-inset ring-white/[0.06]">
+                                            <span>{sum1}</span>
+                                            {sumCh1 !== 0 ? (
+                                                <span className={sumCh1 > 0 ? 'text-green-400' : 'text-red-400'}>
+                                                    ({sumCh1 > 0 ? '+' : ''}
+                                                    {sumCh1})
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                        <div className="flex min-h-[1.65em] flex-wrap items-center justify-center gap-x-0.5 rounded-md bg-black/25 px-0.5 py-[0.2em] text-center text-[1.06em] font-bold tabular-nums text-amber-100 ring-1 ring-inset ring-white/[0.06]">
+                                            <span>{sum2}</span>
+                                            {sumCh2 !== 0 ? (
+                                                <span className={sumCh2 > 0 ? 'text-green-400' : 'text-red-400'}>
+                                                    ({sumCh2 > 0 ? '+' : ''}
+                                                    {sumCh2})
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </div>
+                                {sumDelta !== 0 ? (
+                                    <div
+                                        className="shrink-0 rounded-md bg-black/30 px-1 py-0.5 text-center font-bold"
+                                        style={{ fontSize: 'clamp(9px, min(2.6vw, 3vmin), 11px)' }}
+                                    >
+                                        <span className="text-stone-500">차이 </span>
+                                        <span className={sumDeltaCls}>
+                                            {sumDelta > 0 ? '+' : ''}
+                                            {sumDelta}
+                                        </span>
+                                    </div>
+                                ) : null}
                             </div>
-                        </div>
+                        )}
                     </div>
                 </div>
             </div>
-
-            {matchActionSlot ? (
-                <div className="flex w-full shrink-0 flex-col border-t border-cyan-500/30 bg-panel-secondary/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm">
-                    <div className="flex w-full flex-wrap items-center justify-center gap-2">{matchActionSlot}</div>
-                </div>
-            ) : null}
         </section>
     );
 };
@@ -1847,6 +1997,12 @@ const ScoreGraph: React.FC<{
                     72% { opacity: 1; transform: scale(1); }
                     100% { opacity: 0; transform: scale(0.9); }
                 }
+                @keyframes scorePopUpSlide {
+                    0% { opacity: 0; transform: translateX(-4px); }
+                    18% { opacity: 1; transform: translateX(0); }
+                    78% { opacity: 1; transform: translateX(0); }
+                    100% { opacity: 0; transform: translateX(2px); }
+                }
             `;
             document.head.appendChild(style);
         }
@@ -1913,54 +2069,60 @@ const ScoreGraph: React.FC<{
                             className="relative z-20 overflow-hidden rounded-lg border border-yellow-500/45 bg-gray-900/95 px-2 py-1 shadow-md shadow-yellow-500/15"
                         >
                             <div className="flex items-stretch justify-center gap-1.5">
-                                <div className="relative min-h-[2.75rem] min-w-0 flex-1 text-center" data-player="p1">
-                                    {p1Animations.map((animation) => (
-                                        <div
-                                            key={`p1-${animation.key}`}
-                                            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
-                                            style={{ animation: 'scorePopUpOverlay 1s ease-out forwards' }}
-                                        >
+                                <div
+                                    className="flex min-h-[2.75rem] min-w-0 flex-1 items-center justify-center gap-0.5"
+                                    data-player="p1"
+                                >
+                                    <div className="shrink-0 text-center">
+                                        <div className="text-[9px] text-gray-400">흑</div>
+                                        <div className="text-sm font-bold leading-tight text-white">
+                                            <span className="tabular-nums">{Math.round(p1DisplayScore)}</span>
+                                        </div>
+                                        <div className="text-[9px] leading-none text-gray-500">({p1Percent.toFixed(1)}%)</div>
+                                    </div>
+                                    <div className="flex min-h-[2.25rem] min-w-[2.5rem] flex-col items-start justify-center gap-0.5">
+                                        {p1Animations.map((animation) => (
                                             <span
-                                                className={`rounded px-1 font-black tabular-nums ${
+                                                key={`p1-${animation.key}`}
+                                                className={`pointer-events-none block font-black tabular-nums leading-none ${
                                                     animation.isCritical
-                                                        ? 'text-[12px] text-yellow-300 drop-shadow-[0_0_6px_rgba(250,204,21,0.9)]'
-                                                        : 'text-[11px] text-green-300'
+                                                        ? 'text-[11px] text-yellow-300 drop-shadow-[0_0_5px_rgba(250,204,21,0.85)]'
+                                                        : 'text-[10px] text-green-300'
                                                 }`}
+                                                style={{ animation: 'scorePopUpSlide 1s ease-out forwards' }}
                                             >
                                                 {animation.isCritical ? `+${Math.round(animation.value)}!` : `+${Math.round(animation.value)}`}
                                             </span>
-                                        </div>
-                                    ))}
-                                    <div className="text-[9px] text-gray-400">흑</div>
-                                    <div className="text-sm font-bold leading-tight text-white">
-                                        <span className="tabular-nums">{Math.round(p1DisplayScore)}</span>
+                                        ))}
                                     </div>
-                                    <div className="text-[9px] leading-none text-gray-500">({p1Percent.toFixed(1)}%)</div>
                                 </div>
                                 <div className="w-px shrink-0 self-stretch bg-gray-600" />
-                                <div className="relative min-h-[2.75rem] min-w-0 flex-1 text-center" data-player="p2">
-                                    {p2Animations.map((animation) => (
-                                        <div
-                                            key={`p2-${animation.key}`}
-                                            className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center"
-                                            style={{ animation: 'scorePopUpOverlay 1s ease-out forwards' }}
-                                        >
+                                <div
+                                    className="flex min-h-[2.75rem] min-w-0 flex-1 items-center justify-center gap-0.5"
+                                    data-player="p2"
+                                >
+                                    <div className="shrink-0 text-center">
+                                        <div className="text-[9px] text-gray-400">백</div>
+                                        <div className="text-sm font-bold leading-tight text-white">
+                                            <span className="tabular-nums">{Math.round(p2DisplayScore)}</span>
+                                        </div>
+                                        <div className="text-[9px] leading-none text-gray-500">({p2Percent.toFixed(1)}%)</div>
+                                    </div>
+                                    <div className="flex min-h-[2.25rem] min-w-[2.5rem] flex-col items-start justify-center gap-0.5">
+                                        {p2Animations.map((animation) => (
                                             <span
-                                                className={`rounded px-1 font-black tabular-nums ${
+                                                key={`p2-${animation.key}`}
+                                                className={`pointer-events-none block font-black tabular-nums leading-none ${
                                                     animation.isCritical
-                                                        ? 'text-[12px] text-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.85)]'
-                                                        : 'text-[11px] text-orange-300'
+                                                        ? 'text-[11px] text-red-500 drop-shadow-[0_0_5px_rgba(239,68,68,0.8)]'
+                                                        : 'text-[10px] text-orange-300'
                                                 }`}
+                                                style={{ animation: 'scorePopUpSlide 1s ease-out forwards' }}
                                             >
                                                 {animation.isCritical ? `+${Math.round(animation.value)}!` : `+${Math.round(animation.value)}`}
                                             </span>
-                                        </div>
-                                    ))}
-                                    <div className="text-[9px] text-gray-400">백</div>
-                                    <div className="text-sm font-bold leading-tight text-white">
-                                        <span className="tabular-nums">{Math.round(p2DisplayScore)}</span>
+                                        ))}
                                     </div>
-                                    <div className="text-[9px] leading-none text-gray-500">({p2Percent.toFixed(1)}%)</div>
                                 </div>
                             </div>
                         </div>
@@ -2231,6 +2393,8 @@ const FinalRewardPanel: React.FC<{
     onOpenRewardHistory?: () => void;
     /** PC 우측 사이드바: 내부 스크롤. 모바일 보상정보 탭: 본문 전체를 탭에서 스크롤(PC와 동일 내용 노출) */
     layoutVariant?: 'sidebar' | 'mobileTab';
+    /** 모바일 경기장: 보상·진행 버튼을 화면 하단 고정 바로만 표시 */
+    suppressBottomActions?: boolean;
 }> = ({
     tournamentState,
     currentUser,
@@ -2240,6 +2404,7 @@ const FinalRewardPanel: React.FC<{
     onDungeonRewardRequested,
     onOpenRewardHistory,
     layoutVariant = 'sidebar',
+    suppressBottomActions = false,
 }) => {
     const isMobileTabLayout = layoutVariant === 'mobileTab';
     const { type, rounds } = tournamentState;
@@ -2408,7 +2573,7 @@ const FinalRewardPanel: React.FC<{
         >
             <h4 className="flex-shrink-0 whitespace-nowrap py-0.5 text-center text-sm font-bold text-gray-300 mb-1.5">획득 보상</h4>
             <div
-                className={`space-y-1.5 rounded-md border border-gray-700/45 bg-slate-950/88 p-1.5 backdrop-blur-sm md:p-2 ${
+                className={`flex w-full flex-col items-center gap-1.5 rounded-md border border-gray-700/45 bg-slate-950/88 p-1.5 backdrop-blur-sm md:p-2 ${
                     isMobileTabLayout ? '' : 'min-h-0 flex-1 overflow-y-auto'
                 }`}
                 style={
@@ -2426,13 +2591,12 @@ const FinalRewardPanel: React.FC<{
             {/* 기본 보상 (경기당) 범위 - 던전 모드 입장 시 1경기 끝날 때마다 받는 보상의 범위를 미리 표시 */}
             {effectiveStageAttempt && (() => {
                 const stage = effectiveStageAttempt;
-                const EQUIP_GRADE_LABEL: Record<string, string> = { normal: '일반', uncommon: '희귀', rare: '레어', epic: '에픽', legendary: '전설', mythic: '신화' };
                 if (type === 'neighborhood') {
                     const range = getDungeonBasicRewardRangeGold(stage);
                     return (
-                        <div className="mb-1.5 flex gap-2 rounded-lg border border-amber-700/50 bg-amber-900/25 px-1.5 py-1.5">
+                        <div className="mb-1.5 flex w-full flex-col items-center justify-center gap-2 text-center rounded-lg border border-amber-700/50 bg-amber-900/25 px-1.5 py-1.5">
                             <MysteryNeighborhoodGoldThumb />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0">
                                 <div className="text-[10px] font-semibold text-amber-200/95">기본 보상 (경기당)</div>
                                 <div className="mt-0.5 text-[10px] leading-snug text-amber-100/85">
                                     <div>승리: {range.win.min.toLocaleString()}~{range.win.max.toLocaleString()} 골드</div>
@@ -2444,13 +2608,13 @@ const FinalRewardPanel: React.FC<{
                 }
                 if (type === 'national') {
                     const config = DUNGEON_STAGE_MATERIAL_ROLLS[stage] || DUNGEON_STAGE_MATERIAL_ROLLS[1];
-                    const winParts = config.win.map(r => `${r.materialName} ${r.min}~${r.max}개`).join(' / ');
+                    const winParts = config.win.map(r => `${r.materialName} ${r.min}~${r.max}개 (${r.chance}%)`).join(' · ');
                     const lossRolls = config.loss ?? config.win;
-                    const lossParts = lossRolls.map(r => `${r.materialName} ${r.min}~${r.max}개`).join(' / ');
+                    const lossParts = lossRolls.map(r => `${r.materialName} ${r.min}~${r.max}개 (${r.chance}%)`).join(' · ');
                     return (
-                        <div className="mb-1.5 flex gap-2 rounded-lg border border-blue-700/50 bg-blue-900/25 px-1.5 py-1.5">
+                        <div className="mb-1.5 flex w-full flex-col items-center justify-center gap-2 text-center rounded-lg border border-blue-700/50 bg-blue-900/25 px-1.5 py-1.5">
                             <MysteryBaseRewardBoxThumb accent="blue" />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0">
                                 <div className="text-[10px] font-semibold text-blue-200/95">기본 보상 (경기당)</div>
                                 <div className="mt-0.5 text-[10px] leading-snug text-blue-100/85">
                                     <div>승리: {winParts}</div>
@@ -2462,12 +2626,12 @@ const FinalRewardPanel: React.FC<{
                 }
                 if (type === 'world') {
                     const config = DUNGEON_STAGE_EQUIPMENT_DROP[stage] || DUNGEON_STAGE_EQUIPMENT_DROP[1];
-                    const winParts = config.win.map(e => `${EQUIP_GRADE_LABEL[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
-                    const lossParts = config.loss.map(e => `${EQUIP_GRADE_LABEL[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
+                    const winParts = config.win.map(e => `${EQUIPMENT_GRADE_LABEL_KO[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
+                    const lossParts = config.loss.map(e => `${EQUIPMENT_GRADE_LABEL_KO[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
                     return (
-                        <div className="mb-1.5 flex gap-2 rounded-lg border border-purple-700/50 bg-purple-900/25 px-1.5 py-1.5">
+                        <div className="mb-1.5 flex w-full flex-col items-center justify-center gap-2 text-center rounded-lg border border-purple-700/50 bg-purple-900/25 px-1.5 py-1.5">
                             <MysteryBaseRewardBoxThumb accent="purple" />
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0">
                                 <div className="text-[10px] font-semibold text-purple-200/95">기본 보상 (경기당, 장비 1개)</div>
                                 <div className="mt-0.5 text-[10px] leading-snug text-purple-100/85">
                                     <div>승리: {winParts}</div>
@@ -2481,14 +2645,14 @@ const FinalRewardPanel: React.FC<{
             })()}
             {/* 수령 완료 메시지 - 경기 종료 후에만 표시 */}
             {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
-                <div className="mb-1 px-1.5 py-1 bg-green-900/30 rounded-lg border border-green-700/50">
+                <div className="mb-1 w-full px-1.5 py-1 bg-green-900/30 rounded-lg border border-green-700/50">
                     <p className="text-xs text-green-400 text-center font-semibold">✓ 보상을 수령했습니다.</p>
                 </div>
             )}
             
             {/* 누적 골드 (동네바둑리그) - 경기마다 따로 더미 표시하여 여러 번 받은 것처럼 표시 */}
             {accumulatedGold > 0 && (
-                <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                <div className={`mb-1 flex w-full flex-wrap justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
                     {(tournamentState.matchGoldRewards && tournamentState.matchGoldRewards.length > 0
                         ? tournamentState.matchGoldRewards
                         : [accumulatedGold]
@@ -2505,11 +2669,11 @@ const FinalRewardPanel: React.FC<{
             
             {/* 누적 재료 (전국바둑대회): 8강/4강/결승(또는 3·4위전) 각각 더미로 표시 */}
             {(tournamentState.type === 'national' && tournamentState.matchMaterialRewards && tournamentState.matchMaterialRewards.length > 0 ? (
-                <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                <div className={`mb-1 flex w-full flex-wrap justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
                     {tournamentState.matchMaterialRewards.map((roundMaterials: Record<string, number>, idx: number) => {
                         const roundLabel = ['8강', '4강', '결승 / 3·4위전'][idx] ?? `경기 ${idx + 1}`;
                         return (
-                            <div key={idx} className="flex flex-wrap gap-1 items-center">
+                            <div key={idx} className="flex flex-wrap items-center justify-center gap-1">
                                 {Object.entries(roundMaterials).map(([materialName, quantity]) => {
                                     const materialTemplate = MATERIAL_ITEMS[materialName];
                                     const imageUrl = materialTemplate?.image || '';
@@ -2527,7 +2691,7 @@ const FinalRewardPanel: React.FC<{
                     })}
                 </div>
             ) : Object.keys(accumulatedMaterials).length > 0 && (
-                <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                <div className={`mb-1 flex w-full flex-wrap justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
                     {Object.entries(accumulatedMaterials).map(([materialName, quantity]) => {
                         const materialTemplate = MATERIAL_ITEMS[materialName];
                         const imageUrl = materialTemplate?.image || '';
@@ -2545,7 +2709,7 @@ const FinalRewardPanel: React.FC<{
             
             {/* 누적 장비상자 (월드챔피언십, 레거시) - 아이콘 형태 */}
             {Object.keys(accumulatedEquipmentBoxes).length > 0 && (
-                <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                <div className={`mb-1 flex w-full flex-wrap justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
                     {Object.entries(accumulatedEquipmentBoxes).map(([boxName, quantity]) => {
                         const boxTemplate = CONSUMABLE_ITEMS.find(i => i.name === boxName);
                         const imageUrl = boxTemplate?.image || '';
@@ -2571,7 +2735,7 @@ const FinalRewardPanel: React.FC<{
                     mythic: 'border-2 border-amber-500/80',
                 };
                 return (
-                    <div className={`mb-1 grid grid-cols-2 gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                    <div className={`mb-1 flex w-full flex-wrap justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
                         {accumulatedEquipmentItems.map((item, idx) => {
                             const grade = (item.grade ?? 'normal') as string;
                             const borderClass = EQUIP_GRADE_BORDER[grade] || EQUIP_GRADE_BORDER.normal;
@@ -2599,9 +2763,6 @@ const FinalRewardPanel: React.FC<{
                     mythic: '/images/equipments/mythicbgi.png',
                     transcendent: '/images/equipments/transcendentbgi.png',
                 };
-                const EQUIP_GRADE_LABEL: Record<string, string> = {
-                    normal: '일반', uncommon: '고급', rare: '희귀', epic: '에픽', legendary: '전설', mythic: '신화', transcendent: '초월',
-                };
                 const EQUIP_GRADE_BORDER: Record<string, string> = {
                     normal: 'border-2 border-gray-500/80',
                     uncommon: 'border-2 border-green-500/80',
@@ -2612,10 +2773,10 @@ const FinalRewardPanel: React.FC<{
                     transcendent: 'border-2 border-teal-400/85',
                 };
                 return (
-                    <div className={`mb-1 flex flex-wrap gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
+                    <div className={`mb-1 flex w-full flex-wrap justify-center gap-1 ${isClaimed ? 'opacity-75' : ''}`}>
                         {(tournamentState.accumulatedEquipmentDrops as string[]).map((gradeKey: string, idx: number) => {
                             const img = EQUIP_GRADE_IMAGE[gradeKey] || '/images/equipments/normalbgi.png';
-                            const label = EQUIP_GRADE_LABEL[gradeKey] ?? gradeKey;
+                            const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;
                             const borderClass = EQUIP_GRADE_BORDER[gradeKey] || EQUIP_GRADE_BORDER.normal;
                             return (
                                 <div key={idx} className={`w-11 h-11 rounded-lg overflow-hidden flex items-center justify-center ${borderClass}`} title={`경기 ${idx + 1} · ${label} 장비`}>
@@ -2735,12 +2896,12 @@ const FinalRewardPanel: React.FC<{
                     <>
                         {/* 순위별 보상: 경기 전·후 모두 전 구간 표시 (월드 9~16위는 ‘없음’ 명시), 종료 후 내 순위 행 강조 */}
                         {rankKeys.length > 0 && (
-                            <div className="mt-2 pt-2 border-t border-gray-700">
+                            <div className="mt-2 w-full border-t border-gray-700 pt-2">
                                 <div className="mb-1.5 text-center text-xs font-semibold text-gray-300">
                                     {allMatchesFinished ? '순위별 보상' : '순위별 보상 (경기 종료 후 확정)'}
                                 </div>
                                 <div
-                                    className={`grid grid-cols-2 gap-x-2 gap-y-1 ${
+                                    className={`grid w-full grid-cols-2 gap-x-2 gap-y-1 ${
                                         isMobileTabLayout ? '' : 'max-h-40 overflow-y-auto'
                                     }`}
                                 >
@@ -2759,14 +2920,14 @@ const FinalRewardPanel: React.FC<{
                                         return (
                                             <div
                                                 key={rankKey}
-                                                className={`flex min-w-0 items-center gap-2 rounded-md py-0.5 pl-0.5 pr-1 ${
+                                                className={`flex min-w-0 flex-col items-center gap-1 rounded-md py-0.5 pl-0.5 pr-1 text-center ${
                                                     rowHighlight
                                                         ? 'bg-amber-900/40 ring-1 ring-amber-500/45'
                                                         : ''
                                                 }`}
                                             >
-                                                <span className="w-9 flex-shrink-0 text-[11px] font-medium text-gray-300">{rankLabel}</span>
-                                                <div className="flex min-w-0 flex-wrap gap-1">
+                                                <span className="w-full flex-shrink-0 text-[11px] font-medium text-gray-300">{rankLabel}</span>
+                                                <div className="flex min-w-0 flex-wrap justify-center gap-1">
                                                     {isWorldNoRankReward && !hasItems ? (
                                                         <span className="text-[10px] leading-tight text-gray-500">순위 보상 없음</span>
                                                     ) : (
@@ -2785,14 +2946,14 @@ const FinalRewardPanel: React.FC<{
             
             {/* 보상이 하나도 없는 경우 (전국은 matchMaterialRewards 있으면 보상 있음) */}
             {scoreReward === 0 && accumulatedGold === 0 && Object.keys(accumulatedMaterials).length === 0 && Object.keys(accumulatedEquipmentBoxes).length === 0 && accumulatedEquipmentDropsCount === 0 && accumulatedEquipmentItems.length === 0 && !(type === 'national' && tournamentState.matchMaterialRewards && tournamentState.matchMaterialRewards.length > 0) && (
-                <div className={`flex items-center justify-center ${isMobileTabLayout ? 'py-10' : 'h-full'}`}>
+                <div className={`flex w-full items-center justify-center ${isMobileTabLayout ? 'py-10' : 'h-full'}`}>
                     <p className="text-xs text-gray-400 text-center">획득한 보상이 없습니다.</p>
                 </div>
             )}
             </div>
             
             {/* 하단 보상 영역: 수령 전에는 보상받기, 수령 후에는 보상완료. 이미 수령(isClaimed)이면 클릭 불가(서버 재호출 방지) */}
-            {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
+            {!suppressBottomActions && (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
                 <div className="flex-shrink-0 pt-1.5 border-t border-gray-700 mt-1.5">
                     <div className="space-y-1.5">
                         {isDungeonMode && onCompleteDungeon && !isClaimed ? (
@@ -2819,7 +2980,7 @@ const FinalRewardPanel: React.FC<{
                     </div>
                 </div>
             )}
-            {!treatAsClaimed && (
+            {!suppressBottomActions && !treatAsClaimed && (
                 <div className="flex-shrink-0 pt-1.5 border-t border-gray-700 mt-1.5">
                     {/* 경기 종료 후 보상받기 버튼 (챔피언십 = 던전 단계 보상) */}
                     {(isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt && (
@@ -3948,10 +4109,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         currentRank?: number;
     } | null>(null);
     const [dungeonStageRewardRequested, setDungeonStageRewardRequested] = useState(false);
+    const [mobileRewardClaimBusy, setMobileRewardClaimBusy] = useState(false);
     const prevStatusRef = useRef(tournament?.status || 'bracket_ready');
     const initialMatchPlayersSetRef = useRef(false);
     const [nextRoundTrigger, setNextRoundTrigger] = useState(0);
-    const [sgfViewerSize, setSgfViewerSize] = useState<25 | 50>(25); // 모바일에서 SGF 뷰어 영역 (25=50% 높이, 50=100% 높이) — 기본 50%
     const p1ProfileRef = useRef<HTMLDivElement>(null);
     const p2ProfileRef = useRef<HTMLDivElement>(null);
     const [autoNextCountdown, setAutoNextCountdown] = useState<number | null>(null); // 자동 다음 경기 카운트다운
@@ -3967,6 +4128,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     /** 카운트다운 0 시 먼저 다음 회차 탭으로 전환한 뒤 시합 시작 (순서: 대진표 탭 이동 → 대국자 표시 → 시합 시작) */
     const [pendingRoundSwitchTo, setPendingRoundSwitchTo] = useState<number | null>(null);
     const pendingMatchStartRef = useRef<{ type: TournamentType } | null>(null);
+
+    useEffect(() => {
+        if (!tournament?.type || !currentUser) return;
+        const rewardClaimedKey = `${tournament.type}RewardClaimed` as keyof User;
+        if (currentUser[rewardClaimedKey]) setMobileRewardClaimBusy(false);
+    }, [tournament, currentUser]);
     
     // 안전성 검사: tournament가 없으면 로딩 메시지 표시
     if (!tournament) {
@@ -5285,6 +5452,100 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : null;
 
+    /** 모바일: 모든 탭 공통 하단 — 경기 시작·진행·카운트다운·보상 수령 */
+    const championshipMobileStickyBar = isMobile
+        ? (() => {
+              const ts = displayTournament;
+              const allMatchesFinished = ts.rounds.every((r) => r.matches.every((m) => m.isFinished));
+              const isTournamentFullyComplete =
+                  ts.status === 'complete' || (allMatchesFinished && ts.status !== 'round_in_progress');
+              const isUserEliminated = ts.status === 'eliminated';
+              const isInProgress = ts.status === 'round_in_progress' || ts.status === 'bracket_ready';
+              const isRoundComplete = ts.status === 'round_complete';
+              const effectiveStageAttempt = resolveDungeonStageAttempt(ts, currentUser, ts.type);
+              const isDungeonModeFooter = effectiveStageAttempt >= 1;
+              const rewardClaimedKey = `${ts.type}RewardClaimed` as keyof User;
+              const isRewardClaimed = !!currentUser[rewardClaimedKey];
+              const treatAsClaimed = isRewardClaimed || dungeonStageRewardRequested;
+              const canClaimReward =
+                  (isTournamentFullyComplete || isUserEliminated) && !isRewardClaimed && !dungeonStageRewardRequested;
+              const claimedRewardSummary = ts.claimedRewardSummary || null;
+
+              const handleMobileRewardClaim = () => {
+                  if (mobileRewardClaimBusy || !canClaimReward || !effectiveStageAttempt) return;
+                  setMobileRewardClaimBusy(true);
+                  audioService.claimReward();
+                  handleCompleteDungeon();
+                  setTimeout(() => setMobileRewardClaimBusy(false), 3000);
+              };
+
+              const matchRow = footerButtons || countdownDisplay;
+
+              return (
+                  <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-panel-secondary/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm">
+                      {matchRow ? (
+                          <div className="flex w-full flex-wrap items-center justify-center gap-2">{matchRow}</div>
+                      ) : null}
+                      {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
+                          <div className="space-y-1.5">
+                              {isDungeonModeFooter && !isRewardClaimed ? (
+                                  <button
+                                      type="button"
+                                      onClick={() => handleCompleteDungeon()}
+                                      disabled={mobileRewardClaimBusy}
+                                      className="w-full rounded-lg bg-green-600 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                      {mobileRewardClaimBusy ? '처리 중...' : '보상 완료'}
+                                  </button>
+                              ) : (
+                                  <div className="w-full rounded-lg border border-gray-600 bg-gray-700/50 py-1.5 px-3 text-center text-xs font-semibold text-gray-400">
+                                      보상완료
+                                  </div>
+                              )}
+                              {claimedRewardSummary ? (
+                                  <button
+                                      type="button"
+                                      onClick={handleOpenRewardHistory}
+                                      className="w-full rounded-lg bg-purple-700/70 px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-purple-700"
+                                  >
+                                      보상내역
+                                  </button>
+                              ) : null}
+                          </div>
+                      )}
+                      {!treatAsClaimed && (
+                          <div className="space-y-1.5">
+                              {(isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt ? (
+                                  <button
+                                      type="button"
+                                      onClick={handleMobileRewardClaim}
+                                      disabled={!canClaimReward || mobileRewardClaimBusy}
+                                      className={`w-full rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                          canClaimReward && !mobileRewardClaimBusy
+                                              ? 'cursor-pointer bg-green-600 text-white hover:bg-green-700'
+                                              : 'cursor-not-allowed bg-gray-600 text-gray-400'
+                                      }`}
+                                  >
+                                      {mobileRewardClaimBusy
+                                          ? '수령 중...'
+                                          : canClaimReward
+                                            ? '보상받기'
+                                            : '경기 종료 후 수령 가능'}
+                                  </button>
+                              ) : null}
+                              {(isInProgress || isRoundComplete) &&
+                              !((isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt) ? (
+                                  <div className="w-full rounded-lg border border-blue-700/50 bg-blue-900/30 py-1.5 px-3 text-center text-xs font-semibold text-blue-300">
+                                      모든 경기 완료 후 보상수령
+                                  </div>
+                              ) : null}
+                          </div>
+                      )}
+                  </div>
+              );
+          })()
+        : null;
+
     const sgfFileIndexForViewer = isSimulating
         ? currentSimMatch?.sgfFileIndex
         : (() => {
@@ -5408,7 +5669,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             <CommentaryPanel
                 commentary={displayTournament.currentMatchCommentary}
                 isSimulating={displayTournament.status === 'round_in_progress'}
-                footerSlot={isMobile ? countdownDisplay : footerButtons || countdownDisplay}
+                footerSlot={isMobile ? undefined : footerButtons || countdownDisplay}
                 compact={isMobile}
             />
         </div>
@@ -5430,31 +5691,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 onDungeonRewardRequested={() => setDungeonStageRewardRequested(true)}
                 onOpenRewardHistory={handleOpenRewardHistory}
                 layoutVariant={isMobile ? 'mobileTab' : 'sidebar'}
+                suppressBottomActions={isMobile}
             />
         </div>
     );
-
-    const sgfZoomToggle = isMobile ? (
-        <div className="absolute left-1/2 top-2 z-10 flex -translate-x-1/2 gap-1 opacity-50 transition-opacity hover:opacity-100">
-            {(
-                [
-                    { value: 25, label: '50%' },
-                    { value: 50, label: '100%' },
-                ] as const
-            ).map(({ value, label }) => (
-                <button
-                    key={value}
-                    type="button"
-                    onClick={() => setSgfViewerSize(value)}
-                    className={`rounded px-2 py-1 text-xs transition-colors ${
-                        sgfViewerSize === value ? 'bg-blue-600 text-white' : 'bg-gray-700/80 text-gray-300 hover:bg-gray-600/80'
-                    }`}
-                >
-                    {label}
-                </button>
-            ))}
-        </div>
-    ) : null;
 
     const mainContent = (
         <div
@@ -5512,7 +5752,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                             false
                                         }
                                         highlightPhase={currentPhase}
-                                        matchActionSlot={footerButtons || countdownDisplay}
                                     />
                                 </PlayerProfilePanelErrorBoundary>
                             ) : (
@@ -5613,14 +5852,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
                 {isMobile && mobileChampionshipTab === 'board' && (
                     <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-                        <div
-                            className="relative flex min-h-0 w-full flex-1 flex-col items-center justify-center overflow-auto rounded-lg border border-gray-600/75 bg-slate-950/92 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-md md:p-2"
-                            style={{
-                                minHeight: sgfViewerSize === 25 ? 'min(42dvh, 360px)' : 'min(68dvh, 600px)',
-                            }}
-                        >
+                        <div className="relative flex min-h-[min(56dvh,520px)] w-full flex-1 flex-col items-center justify-center overflow-auto rounded-lg border border-gray-600/75 bg-slate-950/92 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-md md:p-2">
                             <div className="relative flex min-h-0 w-full flex-1 items-center justify-center">
-                                {sgfZoomToggle}
                                 <SgfViewer
                                     timeElapsed={sgfTimeElapsedForViewer}
                                     fileIndex={sgfFileIndexForViewer}
@@ -5714,6 +5947,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                         {mainContent}
                     </div>
+                    {championshipMobileStickyBar}
                 </div>
             ) : (
                 <div className="relative z-10 min-h-0 flex-1 overflow-hidden p-1 pb-2 sm:p-2">

@@ -153,8 +153,6 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
             variant="store"
             mobileViewportFit
             mobileViewportMaxHeightCss="min(94dvh, calc(100dvh - 12px))"
-            hideFooter
-            skipSavedPosition
             initialWidth={520}
             initialHeight={640}
             bodyScrollable={false}

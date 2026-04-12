@@ -160,7 +160,6 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit
-            hideFooter
             bodyPaddingClassName="p-2 sm:p-4"
         >
             <>

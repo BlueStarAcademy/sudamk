@@ -150,9 +150,11 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
   const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
   const sessionBadgeLabel = isGuildWarAi
     ? '길드 전쟁'
-    : session.isAiGame
-      ? 'AI 대전'
-      : '온라인 대국';
+    : String(session.gameCategory ?? '') === 'adventure'
+      ? '모험'
+      : session.isAiGame
+        ? 'AI 대전'
+        : '온라인 대국';
   const shellRef = useRef<HTMLDivElement>(null);
   const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
   /** PC만 균일 scale — 모바일은 width 100% + 내부 스크롤로 잘림·미시청 방지 */

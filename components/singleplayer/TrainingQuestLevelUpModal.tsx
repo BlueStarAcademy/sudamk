@@ -315,8 +315,6 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
             mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px))))"
             pcViewportMaxHeightCss="min(92dvh, calc(100dvh - 1.5rem))"
             bodyNoScroll={isCompactUi}
-            hideFooter={isCompactUi}
-            skipSavedPosition={isCompactUi}
             bodyPaddingClassName={
                 isCompactUi
                     ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0'

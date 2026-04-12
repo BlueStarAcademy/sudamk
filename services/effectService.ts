@@ -4,6 +4,15 @@
 // FIX: Import missing types from the centralized types file.
 import { User, CoreStat, SpecialStat, MythicStat } from '../types/index.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants';
+import {
+    accumulateAdventureCodexBossPercentBonuses,
+    applyAdventureCodexComprehensionToCalculatedEffects,
+} from '../utils/adventureCodexComprehension.js';
+import {
+    getAdventureUnderstandingDropBonusesPercent,
+    getAdventureUnderstandingRegionalCoreBuff,
+    sumAdventureUnderstandingGoldBonusPercent,
+} from '../utils/adventureUnderstanding.js';
 
 export interface MannerEffects {
     maxActionPoints: number;
@@ -70,6 +79,11 @@ export interface CalculatedEffects extends MannerEffects {
     coreStatBonuses: Record<CoreStat, { flat: number; percent: number }>;
     specialStatBonuses: Record<SpecialStat, { flat: number; percent: number }>;
     mythicStatBonuses: Record<MythicStat, { flat: number; percent: number }>;
+    adventureCodexGoldBonusPercent?: number;
+    adventureUnderstandingEquipmentDropBonusPercent?: number;
+    adventureUnderstandingHighGradeEquipmentBonusPercent?: number;
+    adventureUnderstandingMaterialDropBonusPercent?: number;
+    adventureUnderstandingHighGradeMaterialBonusPercent?: number;
 }
 
 export const calculateUserEffects = (user: User): CalculatedEffects => {
@@ -137,7 +151,38 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
     if (regenBonusPercent > 0) {
         calculatedEffects.actionPointRegenInterval = Math.floor(calculatedEffects.actionPointRegenInterval / (1 + regenBonusPercent / 100));
     }
-    
+
+    calculatedEffects.adventureCodexGoldBonusPercent = 0;
+    const codexTotals = applyAdventureCodexComprehensionToCalculatedEffects(user, calculatedEffects);
+
+    const codexBossPct = accumulateAdventureCodexBossPercentBonuses(user.adventureProfile);
+    for (const key of Object.values(CoreStat)) {
+        calculatedEffects.coreStatBonuses[key].percent += codexBossPct.corePercent[key] ?? 0;
+    }
+    const regionalCore = getAdventureUnderstandingRegionalCoreBuff(user.adventureProfile);
+    for (const key of Object.values(CoreStat)) {
+        calculatedEffects.coreStatBonuses[key].flat += regionalCore.flatEachStat;
+        calculatedEffects.coreStatBonuses[key].percent += regionalCore.percentEachStat;
+    }
+    calculatedEffects.adventureCodexGoldBonusPercent =
+        (calculatedEffects.adventureCodexGoldBonusPercent ?? 0) +
+        codexBossPct.adventureGoldPercent +
+        sumAdventureUnderstandingGoldBonusPercent(user.adventureProfile);
+
+    const advDrop = getAdventureUnderstandingDropBonusesPercent(user.adventureProfile);
+    calculatedEffects.adventureUnderstandingEquipmentDropBonusPercent =
+        advDrop.equipmentDropPercent + codexBossPct.itemDropPercent + codexTotals.adventureEquipmentDropBonusPercent;
+    calculatedEffects.adventureUnderstandingHighGradeEquipmentBonusPercent =
+        advDrop.highGradeEquipmentPercent +
+        codexBossPct.highGradeEquipmentPercent +
+        codexTotals.adventureHighGradeEquipmentBonusPercent;
+    calculatedEffects.adventureUnderstandingMaterialDropBonusPercent =
+        advDrop.materialDropPercent + codexBossPct.materialDropPercent + codexTotals.adventureMaterialDropBonusPercent;
+    calculatedEffects.adventureUnderstandingHighGradeMaterialBonusPercent =
+        advDrop.highGradeMaterialPercent +
+        codexBossPct.highGradeMaterialPercent +
+        codexTotals.adventureHighGradeMaterialBonusPercent;
+
     return calculatedEffects;
 };
 

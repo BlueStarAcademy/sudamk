@@ -2,7 +2,7 @@ import { User, GameMode, LiveGameSession, Player, Point, AlkkagiStone, BoardStat
 import { defaultStats, createDefaultInventory, createDefaultQuests, createDefaultBaseStats, createDefaultSpentStatPoints } from './initialData.js';
 import { getOmokLogic } from './omokLogic.js';
 import { getGoLogic, processMove } from './goLogic.js';
-import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, SINGLE_PLAYER_STAGES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
+import { AI_GAME_FIRST_MOVE_DELAY_MS, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, SINGLE_PLAYER_STAGES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
 import { isPlacementValid as isAlkkagiPlacementValid } from './modes/alkkagi.js';
 import { nextAlkkagiStoneId } from '../shared/utils/alkkagiStoneId.js';
 import * as types from '../types/index.js';
@@ -22,6 +22,11 @@ import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDiffi
 
 
 export const aiUserId = 'ai-player-01';
+
+/** AI가 막 표시된 플레이 UI에서 먼저 둘 때: 클라이언트가 갱신·애니메이션을 볼 수 있도록 턴 시작 시각을 지연 */
+export function scheduleAiTurnStartForFreshUi(game: LiveGameSession, now: number) {
+    game.aiTurnStartTime = now + AI_GAME_FIRST_MOVE_DELAY_MS;
+}
 
 const aiInventory = createDefaultInventory();
 const aiEquipment = aiInventory

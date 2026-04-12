@@ -84,8 +84,12 @@ const PointsInfoPanel: React.FC<{
 
     const pad = embedded && arenaTabs ? 'p-1.5' : embedded ? 'p-2' : '';
 
+    const modalArenaTabs = embedded && arenaTabs;
+
     return (
-        <div className={`flex h-full min-h-0 flex-col ${surfaceClass} ${embedded ? pad : 'rounded-lg p-2 sm:p-3'}`}>
+        <div
+            className={`flex min-h-0 flex-col ${modalArenaTabs ? 'h-auto w-full items-center' : 'h-full'} ${surfaceClass} ${embedded ? pad : 'rounded-lg p-2 sm:p-3'}`}
+        >
             {!hideHeading && (
                 <h3 className={`flex-shrink-0 text-center font-bold text-gray-100 ${embedded ? 'mb-2 border-b border-amber-400/25 pb-2 text-sm text-amber-100' : 'mb-3 text-base'}`}>
                     일일 획득 가능 점수
@@ -116,7 +120,7 @@ const PointsInfoPanel: React.FC<{
             </div>
 
             {arenaTabs && embedded && (
-                <div className="mb-1.5 flex shrink-0 gap-1">
+                <div className="mb-1.5 flex w-full max-w-full shrink-0 justify-center gap-1">
                     {TOURNAMENT_ARENA_META.map((a, i) => (
                         <button
                             key={a.arena}
@@ -135,35 +139,44 @@ const PointsInfoPanel: React.FC<{
             )}
 
             <div
-                className={`min-h-0 flex-1 ${arenaTabs && embedded ? 'min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]' : `space-y-2 overflow-y-auto pr-0.5 sm:space-y-3 ${embedded ? '[scrollbar-width:thin]' : ''}`}`}
+                className={`min-h-0 flex-1 ${arenaTabs && embedded ? 'flex w-full flex-col overflow-visible' : `space-y-2 overflow-y-auto pr-0.5 sm:space-y-3 ${embedded ? '[scrollbar-width:thin]' : ''}`}`}
             >
                 {(arenaTabs && embedded ? [TOURNAMENT_ARENA_META[arenaTab]] : TOURNAMENT_ARENA_META).map((arenaData) => {
                     const displayRanks = groupRanksByScore(arenaData.type, selectedStage, arenaData.maxRank);
                     const compact = arenaTabs && embedded;
 
                     return (
-                        <div key={arenaData.arena} className={`${arenaCardClass} ${embedded && !arenaTabs ? '' : !embedded ? 'p-2' : ''}`}>
+                        <div
+                            key={arenaData.arena}
+                            className={`${arenaCardClass} ${compact ? 'mx-auto w-full max-w-full' : ''} ${embedded && !arenaTabs ? '' : !embedded ? 'p-2' : ''}`}
+                        >
                             <h4
                                 className={`font-bold ${embedded ? (compact ? 'mb-1.5 border-b border-amber-400/30 pb-1 text-center text-xs font-extrabold tracking-tight text-amber-100 sm:text-sm' : 'mb-2 border-b border-amber-400/30 pb-1.5 text-center text-xs font-extrabold tracking-tight text-amber-100 sm:text-sm') : 'mb-1.5 border-b border-accent/50 pb-0.5 text-sm text-accent'}`}
                             >
                                 {arenaData.title} ({selectedStage}단계)
                             </h4>
                             <div
-                                className={`grid grid-cols-[minmax(0,1fr)_auto] ${embedded ? (compact ? 'gap-x-0.5 gap-y-0' : 'gap-x-2 gap-y-0') : 'gap-x-2 gap-y-0.5'}`}
+                                className={`grid grid-cols-[minmax(0,1fr)_auto] ${embedded ? (compact ? 'gap-x-0.5 gap-y-0' : 'gap-x-2 gap-y-0') : 'gap-x-2 gap-y-0.5'} ${compact ? 'mx-auto max-w-[16.5rem]' : ''}`}
                             >
                                 <div
                                     className={`col-span-2 grid grid-cols-[minmax(0,1fr)_auto] border-b border-white/10 pb-1 ${embedded ? (compact ? 'gap-x-0.5' : 'gap-x-2') : 'gap-x-2'} ${embedded ? (compact ? 'text-[10px] font-bold uppercase tracking-wide text-zinc-500 sm:text-[11px]' : 'text-[10px] font-bold uppercase tracking-wide text-zinc-500') : 'text-[10px] font-semibold text-gray-400'}`}
                                 >
-                                    <span className="pl-0.5">순위</span>
-                                    <span className="pr-0.5 text-right tabular-nums">점수</span>
+                                    <span className={`pl-0.5 ${compact ? 'text-center' : ''}`}>순위</span>
+                                    <span className={`pr-0.5 tabular-nums ${compact ? 'text-center' : 'text-right'}`}>점수</span>
                                 </div>
                                 {displayRanks.map(({ key, label, points, rankStart }) => {
                                     const rankColor = rankStart === 1 ? 'text-yellow-400' : rankStart === 2 ? 'text-slate-300' : rankStart === 3 ? 'text-amber-500' : 'text-zinc-300';
                                     const rowText = compact ? `text-[12px] sm:text-[13px] ${rankColor}` : embedded ? `text-[12px] sm:text-[13px] ${rankColor}` : `text-xs ${rankColor}`;
                                     return (
                                         <React.Fragment key={key}>
-                                            <span className={`min-w-0 truncate py-0.5 pl-0.5 font-semibold leading-snug ${rowText}`}>{label}</span>
-                                            <span className={`py-0.5 pr-0.5 text-right font-mono font-bold tabular-nums leading-snug ${rowText}`}>
+                                            <span
+                                                className={`min-w-0 py-0.5 pl-0.5 font-semibold leading-snug ${compact ? 'text-center' : 'truncate'} ${rowText}`}
+                                            >
+                                                {label}
+                                            </span>
+                                            <span
+                                                className={`py-0.5 pr-0.5 font-mono font-bold tabular-nums leading-snug ${compact ? 'text-center' : 'text-right'} ${rowText}`}
+                                            >
                                                 {points.toLocaleString()}
                                                 <span className="ml-0.5 font-sans font-bold">점</span>
                                             </span>

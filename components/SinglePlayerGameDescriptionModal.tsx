@@ -302,8 +302,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-3 sm:p-4'
                     : 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-1.5 pt-4 sm:px-5 sm:pb-2 sm:pt-4'
             }
-            hideFooter={isCompactUi}
-            skipSavedPosition={isCompactUi}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
             <div

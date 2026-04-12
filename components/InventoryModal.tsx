@@ -1330,7 +1330,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             bodyScrollable={false}
             mobileViewportFit={narrowInventoryLayout}
             mobileViewportMaxHeightVh={92}
-            hideFooter={narrowInventoryLayout}
             bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
             pcViewportMaxHeightCss="min(98vh, 1240px)"
         >
@@ -1763,7 +1762,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     variant="store"
                     mobileViewportFit
                     mobileViewportMaxHeightVh={92}
-                    hideFooter
                     bodyPaddingClassName="p-2 sm:p-3"
                 >
                     <div className="flex max-h-[min(78dvh,720px)] min-h-0 flex-col gap-2 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
@@ -1861,7 +1859,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     variant="store"
                     mobileViewportFit
                     mobileViewportMaxHeightVh={96}
-                    hideFooter
                     bodyPaddingClassName="p-2 sm:p-3"
                 >
                     <div className="flex min-h-[48dvh] flex-col gap-2">
@@ -1933,7 +1930,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         initialHeight={680}
                         variant="store"
                         mobileViewportFit={narrowInventoryLayout}
-                        hideFooter
                         bodyPaddingClassName="p-2 sm:p-3"
                     >
                         <div
@@ -2369,7 +2365,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     variant="store"
                     initialWidth={400}
                     initialHeight={520}
-                    hideFooter
                     bodyNoScroll
                     bodyPaddingClassName="p-0"
                 >
@@ -2489,8 +2484,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     variant="store"
                     initialWidth={400}
                     initialHeight={320}
-                    skipSavedPosition
-                    hideFooter
                     mobileViewportFit
                     mobileViewportMaxHeightCss="min(88dvh, calc(100dvh - 16px))"
                     bodyPaddingClassName="!p-2 sm:!p-3"

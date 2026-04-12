@@ -71,7 +71,8 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
                         };
 
                         game.gameStatus = 'capture_tiebreaker';
-                        game.revealEndTime = now + 3000;
+                        // 룰렛 연출·확인 버튼 여유 (클라이언트 PreGameColorRoulette ~2.6s + 여유)
+                        game.revealEndTime = now + 10000;
                     }
                 }
             }

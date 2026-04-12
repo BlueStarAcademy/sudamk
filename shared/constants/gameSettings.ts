@@ -29,6 +29,8 @@ export const getStrategicBoardSizesByMode = (mode: GameMode): readonly number[] 
 };
 export const getScoringTurnLimitOptionsByBoardSize = (boardSize: number): readonly number[] => {
   switch (boardSize) {
+    case 7:
+      return [0, 30, 40, 50];
     case 9:
       return [0, 40, 50, 60, 70, 80];
     case 11:
@@ -160,6 +162,9 @@ export const BATTLE_PLACEMENT_ZONES: { [key in Player.Black | Player.White]: { x
     ],
 };
 export const PLAYFUL_MODE_FOUL_LIMIT = 5;
+
+/** AI가 선공으로 플레이 화면에 진입할 때 클라이언트가 상태·애니메이션을 받을 시간 (ms) */
+export const AI_GAME_FIRST_MOVE_DELAY_MS = 2000;
 
 // --- Curling Settings ---
 export const CURLING_STONE_COUNTS = [3, 5, 7];

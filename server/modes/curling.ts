@@ -1,7 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePlayfulTurnTimeoutByoyomi, shouldEnforceTimeControl, startColorConfirmation } from './shared.js';
-import { aiUserId } from '../aiPlayer.js';
+import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { CURLING_TURN_TIME_LIMIT, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
 import * as effectService from '../effectService.js';
@@ -272,8 +272,8 @@ export const initializeCurling = (game: types.LiveGameSession, neg: types.Negoti
         // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
         if (currentPlayerId === aiUserId) {
-            game.aiTurnStartTime = now;
-            console.log(`[initializeCurling] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+            scheduleAiTurnStartForFreshUi(game, now);
+            console.log(`[initializeCurling] AI turn at game start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
         } else {
             game.aiTurnStartTime = undefined;
             console.log(`[initializeCurling] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
@@ -316,8 +316,8 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) &&
                     (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
-                    game.aiTurnStartTime = now;
-                    console.log(`[updateCurlingState] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    scheduleAiTurnStartForFreshUi(game, now);
+                    console.log(`[updateCurlingState] AI turn at game start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
                 }
             }
             break;
@@ -500,8 +500,8 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                     // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) &&
                         (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
-                        game.aiTurnStartTime = now;
-                        console.log(`[updateCurlingState] AI turn after round start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        scheduleAiTurnStartForFreshUi(game, now);
+                        console.log(`[updateCurlingState] AI turn after round start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
                     }
                 }
             } else {

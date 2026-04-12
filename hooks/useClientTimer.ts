@@ -60,6 +60,7 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         const preStartStatuses = [
             'pending',
             'base_game_start_confirmation',
+            'base_color_roulette',
             'komi_bid_reveal',
             'nigiri_reveal',
             'color_start_confirmation'

@@ -519,8 +519,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 mobileViewportFit={useStackedBlacksmithLayout}
                 mobileViewportMaxHeightVh={useStackedBlacksmithLayout ? 92 : undefined}
                 mobileViewportMaxHeightCss={useStackedBlacksmithLayout ? 'min(94dvh, calc(100dvh - 12px))' : undefined}
-                hideFooter={useStackedBlacksmithLayout}
-                skipSavedPosition={useStackedBlacksmithLayout}
                 bodyPaddingClassName={
                     useStackedBlacksmithLayout
                         ? '!px-2 !pt-2 sm:!px-2.5 sm:!pt-2.5 !pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]'
@@ -813,8 +811,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                         mobileViewportFit
                         mobileViewportMaxHeightVh={96}
                         mobileViewportMaxHeightCss="min(97dvh, calc(100dvh - 8px))"
-                        hideFooter
-                        skipSavedPosition
                         initialWidth={520}
                         initialHeight={860}
                         bodyScrollable

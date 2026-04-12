@@ -266,7 +266,7 @@ const AppContent: React.FC = () => {
         Boolean(championshipVenueType) &&
         (hasChampionshipVenueSession || hasPendingChampionshipDungeon);
 
-    /** 네이티브 셸 상단 퀵스트립은 프로필 홈/경기장, 전략/놀이 대기실, 길드, 챔피언십 로비에서 노출 (인게임 경기장 제외) */
+    /** 네이티브 셸 상단 퀵스트립은 프로필 홈/경기장, 전략/놀이 대기실, 길드, 챔피언십 로비, 모험에서 노출 (인게임 경기장 제외) */
     const showNativeTopQuickStrip =
         Boolean(currentUser) &&
         isNativeMobile &&
@@ -276,6 +276,7 @@ const AppContent: React.FC = () => {
             ['home', 'arena'].includes(((currentRoute.params?.tab as string | undefined) ?? 'home')) ) ||
             currentRoute.view === 'waiting' ||
             currentRoute.view === 'guild' ||
+            currentRoute.view === 'adventure' ||
             (currentRoute.view === 'tournament' && !hideNativeTopQuickStripForChampionshipArena));
 
     // 전체 화면을 하나의 그림처럼 동일 비율로 스케일 (고정 캔버스 1920x1080 → 컨테이너에 맞춤)

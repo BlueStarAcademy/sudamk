@@ -3,7 +3,7 @@ import { LiveGameSession, RPSChoice, GameStatus, HandleActionResult, VolatileSta
 import * as db from '../db.js';
 import { randomUUID } from 'crypto';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, PLAYFUL_MODE_FOUL_LIMIT, SPECIAL_GAME_MODES } from '../../constants';
-import { aiUserId } from '../aiPlayer.js';
+import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { updateQuestProgress } from '../questService.js';
 import * as types from '../../types/index.js';
 import { broadcast } from '../socket.js';
@@ -98,8 +98,8 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
         if (currentPlayerId === aiUserId) {
-            game.aiTurnStartTime = now;
-            console.log(`[transitionToPlaying] AI turn at transition, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+            scheduleAiTurnStartForFreshUi(game, now);
+            console.log(`[transitionToPlaying] AI turn at transition, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
         } else {
             game.aiTurnStartTime = undefined;
             console.log(`[transitionToPlaying] User turn at transition, game ${game.id}, clearing aiTurnStartTime`);

@@ -1,35 +1,37 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
+import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 import type { AdventureProfile } from '../../types/entities.js';
+import { CORE_STATS_DATA } from '../../constants.js';
 import {
-    ADVENTURE_MONSTER_MODES,
-    ADVENTURE_MONSTER_MODE_LABELS,
     ADVENTURE_STAGES,
-    ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP,
     ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS,
     getAdventureUnderstandingTierFromXp,
 } from '../../constants/adventureConstants.js';
 import {
-    getAdventureUnderstandingStatEffectBonusPercent,
+    ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER,
+    formatAdventureUnderstandingBonusPercent,
     normalizeAdventureProfile,
-    sumAdventureUnderstandingGoldBonusPercent,
     formatAdventureUnderstandingTierLabel,
+    getCombinedAdventureRegionalBuffTotals,
 } from '../../utils/adventureUnderstanding.js';
+
+const CODEX_CHART_BAR_GRADIENTS: readonly string[] = [
+    'from-emerald-500/95 to-teal-600/75',
+    'from-sky-500/95 to-blue-600/75',
+    'from-blue-500/95 to-indigo-600/75',
+    'from-amber-500/95 to-orange-600/75',
+    'from-fuchsia-500/95 to-purple-700/75',
+];
 
 const AdventureProfilePanel: React.FC<{
     profile: AdventureProfile | null | undefined;
     compact?: boolean;
-}> = ({ profile, compact = false }) => {
+    onOpenMonsterCodex?: () => void;
+}> = ({ profile, compact = false, onOpenMonsterCodex }) => {
+    const donutGradId = useId().replace(/:/g, '');
     const p = useMemo(() => normalizeAdventureProfile(profile), [profile]);
-    const goldBonus = sumAdventureUnderstandingGoldBonusPercent(p);
-    const statFx = getAdventureUnderstandingStatEffectBonusPercent(p);
-
-    const modeRows = useMemo(() => {
-        return ADVENTURE_MONSTER_MODES.map((mode) => ({
-            mode,
-            label: ADVENTURE_MONSTER_MODE_LABELS[mode],
-            n: p.monstersDefeatedByMode?.[mode] ?? 0,
-        }));
-    }, [p.monstersDefeatedByMode]);
+    const combinedRegionalBuff = useMemo(() => getCombinedAdventureRegionalBuffTotals(p), [p]);
+    const codexBreakdown = useMemo(() => getAdventureCodexCompletionBreakdown(profile), [profile]);
 
     const stageRows = useMemo(() => {
         return ADVENTURE_STAGES.map((s) => {
@@ -54,77 +56,252 @@ const AdventureProfilePanel: React.FC<{
         });
     }, [p.understandingXpByStage]);
 
-    const uniqueN = p.uniqueMonsterIdsCaught?.length ?? 0;
+    const donutR = compact ? 28 : 32;
+    const donutC = 2 * Math.PI * donutR;
+    const donutDash = (Math.min(100, Math.max(0, codexBreakdown.overallPercent)) / 100) * donutC;
 
+    const labelCls = compact
+        ? 'text-[11px] font-bold uppercase tracking-wider text-zinc-500 sm:text-xs'
+        : 'text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm';
     return (
         <section
-            className={`rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                compact ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4'
+            className={`flex h-full w-full min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                compact ? 'p-3 sm:p-3.5' : 'p-3.5 sm:p-4 lg:p-5'
             }`}
-            aria-label="모험 전용 전적 및 이해도"
+            aria-label="모험 일지"
         >
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5">
-                <h2 className={`font-black tracking-tight text-transparent bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-amber-200 bg-clip-text ${compact ? 'text-sm' : 'text-base sm:text-lg'}`}>
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5 sm:pb-3">
+                <h2
+                    className={`min-w-0 font-black tracking-tight text-transparent bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-amber-200 bg-clip-text ${
+                        compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl'
+                    }`}
+                >
                     모험 일지
                 </h2>
-                <div className="flex flex-wrap gap-1.5 text-[10px] sm:text-xs">
-                    <span className="rounded-md border border-emerald-500/35 bg-emerald-950/40 px-2 py-0.5 font-semibold text-emerald-100/95">
-                        처치 합계 {p.monstersDefeatedTotal ?? 0}
-                    </span>
-                    {uniqueN > 0 && (
-                        <span className="rounded-md border border-sky-500/35 bg-sky-950/35 px-2 py-0.5 font-semibold text-sky-100/95">
-                            도감 {uniqueN}종
-                        </span>
-                    )}
-                </div>
+                {onOpenMonsterCodex && (
+                    <button
+                        type="button"
+                        onClick={onOpenMonsterCodex}
+                        className={`shrink-0 rounded-lg border border-violet-400/40 bg-violet-950/50 font-bold text-violet-100 underline-offset-2 transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 hover:underline active:scale-[0.99] ${
+                            compact ? 'px-2 py-1 text-xs sm:text-sm' : 'px-2.5 py-1.5 text-sm sm:text-base'
+                        }`}
+                    >
+                        몬스터 도감
+                    </button>
+                )}
             </div>
 
-            <div className={`mt-2.5 grid gap-2 ${compact ? 'sm:grid-cols-1' : 'sm:grid-cols-2'}`}>
-                <div className="rounded-xl border border-white/8 bg-black/25 px-2.5 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">룰별 처치</p>
-                    <ul className="mt-1.5 space-y-1 text-[11px] sm:text-xs">
-                        {modeRows.map(({ mode, label, n }) => (
-                            <li key={mode} className="flex justify-between gap-2 tabular-nums text-zinc-200">
-                                <span className="text-zinc-400">{label}</span>
-                                <span className="font-semibold text-amber-100/90">{n}</span>
-                            </li>
-                        ))}
-                    </ul>
-                </div>
-                <div className="rounded-xl border border-amber-500/20 bg-amber-950/15 px-2.5 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-amber-200/80">이해도 패시브</p>
-                    <p className="mt-1 text-[11px] leading-snug text-amber-100/85 sm:text-xs">
-                        지역 이해도가 오를수록 모험에서 획득하는 골드가 증가하고, 여러 지역을 깊이 이해하면 코어 능력치
-                        유효값에 소폭 보너스가 붙습니다. (아이온2 종족 이해도와 유사한 구간 보너스)
-                    </p>
-                    <ul className="mt-2 space-y-1 text-[11px] font-semibold text-amber-50 sm:text-xs">
-                        <li>모험 골드 +{goldBonus}% (합산 상한 적용)</li>
-                        <li>
-                            코어 능력치 유효 +{statFx}% (친숙함 이상 지역 수 기준, 상한 {ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP}%)
-                        </li>
-                    </ul>
-                </div>
-            </div>
-
-            <div className="mt-3 space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">지역 이해도</p>
-                {stageRows.map((row) => (
-                    <div key={row.id} className="rounded-lg border border-white/8 bg-black/20 px-2 py-1.5">
-                        <div className="flex items-center justify-between gap-2 text-[11px] sm:text-xs">
-                            <span className="min-w-0 truncate font-bold text-zinc-100">{row.title}</span>
-                            <span className="shrink-0 rounded border border-fuchsia-500/30 bg-fuchsia-950/30 px-1.5 py-0.5 text-[10px] font-bold text-fuchsia-100">
-                                {row.tierLabel}
+            <div className={`mt-3 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-0.5 ${compact ? '' : 'sm:gap-3.5'}`}>
+                <div
+                    className={`w-full min-w-0 rounded-xl border border-white/8 bg-black/25 ${
+                        compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+                    }`}
+                >
+                        <p className={labelCls}>지역 이해도 버프</p>
+                        <p
+                            className={`mt-1.5 font-bold tabular-nums text-amber-100/95 ${
+                                compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                            }`}
+                        >
+                            모험 골드 +{formatAdventureUnderstandingBonusPercent(combinedRegionalBuff.goldBonusPercent)}%
+                        </p>
+                        <div
+                            className={`mt-2 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2 font-semibold tabular-nums text-zinc-100 sm:flex-nowrap sm:gap-x-3 ${
+                                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                            }`}
+                        >
+                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
+                                <span className="shrink-0 truncate text-zinc-400">장비 획득</span>
+                                <span className="shrink-0 text-cyan-200/95">
+                                    +{formatAdventureUnderstandingBonusPercent(combinedRegionalBuff.equipmentDropPercent)}%
+                                </span>
+                            </span>
+                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
+                                <span className="shrink-0 truncate text-zinc-400">고급 장비</span>
+                                <span className="shrink-0 text-sky-200/95">
+                                    +
+                                    {formatAdventureUnderstandingBonusPercent(
+                                        combinedRegionalBuff.highGradeEquipmentPercent,
+                                    )}
+                                    %
+                                </span>
+                            </span>
+                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
+                                <span className="shrink-0 truncate text-zinc-400">재료 획득</span>
+                                <span className="shrink-0 text-emerald-200/95">
+                                    +{formatAdventureUnderstandingBonusPercent(combinedRegionalBuff.materialDropPercent)}%
+                                </span>
+                            </span>
+                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
+                                <span className="shrink-0 truncate text-zinc-400">고급 재료</span>
+                                <span className="shrink-0 text-teal-200/95">
+                                    +
+                                    {formatAdventureUnderstandingBonusPercent(
+                                        combinedRegionalBuff.highGradeMaterialPercent,
+                                    )}
+                                    %
+                                </span>
                             </span>
                         </div>
-                        <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-800">
-                            <div
-                                className="h-full rounded-full bg-gradient-to-r from-cyan-500/80 via-fuchsia-500/80 to-amber-400/90 transition-all duration-500"
-                                style={{ width: `${row.prog}%` }}
-                            />
+                        <ul
+                            className={`mt-3 grid grid-cols-1 gap-x-5 gap-y-1 border-t border-white/8 pt-3 sm:grid-cols-2 ${
+                                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                            }`}
+                        >
+                            {ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER.map((stat) => (
+                                <li key={stat} className="flex min-w-0 items-baseline justify-between gap-2">
+                                    <span className="min-w-0 truncate text-zinc-300">
+                                        {CORE_STATS_DATA[stat]?.name ?? stat}
+                                    </span>
+                                    <span className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums">
+                                        <span className="text-amber-200/95">
+                                            +{combinedRegionalBuff.coreByStat[stat]?.flat ?? 0}
+                                        </span>
+                                        <span className="mx-1 text-zinc-600" aria-hidden>
+                                            ·
+                                        </span>
+                                        <span className="text-fuchsia-200/95">
+                                            +{formatAdventureUnderstandingBonusPercent(
+                                                combinedRegionalBuff.coreByStat[stat]?.percent ?? 0,
+                                            )}
+                                            %
+                                        </span>
+                                    </span>
+                                </li>
+                            ))}
+                        </ul>
+                </div>
+
+                <div
+                    className={`w-full min-w-0 rounded-xl border border-violet-500/22 bg-violet-950/18 ${
+                        compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+                    }`}
+                >
+                    <p className={`${labelCls} text-violet-200/90`}>몬스터 도감 완성도</p>
+                    <div className="mt-2 flex flex-wrap items-stretch gap-3 sm:gap-4">
+                        <div
+                            className={`relative shrink-0 ${compact ? 'h-[5.25rem] w-[5.25rem]' : 'h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem]'}`}
+                        >
+                            <svg
+                                viewBox={`0 0 ${(donutR + 14) * 2} ${(donutR + 14) * 2}`}
+                                className="h-full w-full -rotate-90 text-zinc-800"
+                                aria-hidden
+                            >
+                                <circle
+                                    cx={donutR + 14}
+                                    cy={donutR + 14}
+                                    r={donutR}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={compact ? 7 : 8}
+                                    className="text-zinc-800/95"
+                                />
+                                <circle
+                                    cx={donutR + 14}
+                                    cy={donutR + 14}
+                                    r={donutR}
+                                    fill="none"
+                                    stroke={`url(#${donutGradId})`}
+                                    strokeWidth={compact ? 7 : 8}
+                                    strokeLinecap="round"
+                                    strokeDasharray={`${donutDash} ${donutC}`}
+                                />
+                                <defs>
+                                    <linearGradient id={donutGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stopColor="rgb(167, 139, 250)" />
+                                        <stop offset="55%" stopColor="rgb(244, 114, 182)" />
+                                        <stop offset="100%" stopColor="rgb(251, 191, 36)" />
+                                    </linearGradient>
+                                </defs>
+                            </svg>
+                            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                                <span
+                                    className={`font-black tabular-nums text-white drop-shadow ${
+                                        compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
+                                    }`}
+                                >
+                                    {codexBreakdown.overallPercent >= 10
+                                        ? Math.round(codexBreakdown.overallPercent)
+                                        : Math.round(codexBreakdown.overallPercent * 10) / 10}
+                                    %
+                                </span>
+                                <span
+                                    className={`font-semibold tabular-nums text-zinc-400 ${
+                                        compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
+                                    }`}
+                                >
+                                    {codexBreakdown.totalSum}/{codexBreakdown.totalMax} Lv
+                                </span>
+                            </div>
                         </div>
-                        <p className="mt-0.5 text-[10px] tabular-nums text-zinc-500">XP {row.xp}</p>
+                        <div className="min-h-[4rem] min-w-0 flex-1 sm:min-h-[5rem]">
+                            <p className={`mb-1 font-semibold text-zinc-500 ${compact ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'}`}>
+                                챕터별
+                            </p>
+                            <div className="flex h-[calc(100%-1.25rem)] min-h-[3.25rem] items-end justify-between gap-1 sm:min-h-16 sm:gap-1.5">
+                                {codexBreakdown.stages.map((st, i) => {
+                                    const grad = CODEX_CHART_BAR_GRADIENTS[i] ?? CODEX_CHART_BAR_GRADIENTS[0];
+                                    return (
+                                        <div key={st.stageId} className="flex min-h-0 min-w-0 flex-1 flex-col items-center gap-0.5">
+                                            <div className="relative flex h-full w-full min-h-0 items-end justify-center rounded-md border border-white/8 bg-black/35 px-px pt-0.5">
+                                                <div
+                                                    className={`w-[72%] max-w-[2rem] rounded-t-sm bg-gradient-to-t ${grad} transition-all duration-500 sm:max-w-[2.25rem]`}
+                                                    style={{ height: `${Math.min(100, Math.max(0, st.percent))}%` }}
+                                                    title={`${st.title} ${Math.round(st.percent)}%`}
+                                                />
+                                            </div>
+                                            <span
+                                                className={`w-full truncate text-center font-bold tabular-nums text-zinc-500 ${
+                                                    compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
+                                                }`}
+                                            >
+                                                {String(i + 1).padStart(2, '0')}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </div>
-                ))}
+                </div>
+
+                <div className="min-w-0">
+                    <p className={labelCls}>지역 이해도</p>
+                    <div className={`mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5 ${compact ? '' : 'lg:gap-3'}`}>
+                        {stageRows.map((row) => (
+                            <div
+                                key={row.id}
+                                className={`min-w-0 rounded-lg border border-white/8 bg-black/20 ${
+                                    compact ? 'px-2.5 py-2' : 'px-3 py-2.5 sm:px-3.5'
+                                }`}
+                            >
+                                <div
+                                    className={`flex items-center justify-between gap-2 ${
+                                        compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                                    }`}
+                                >
+                                    <span className="min-w-0 truncate font-bold text-zinc-100">{row.title}</span>
+                                    <span className="shrink-0 rounded-md border border-fuchsia-500/30 bg-fuchsia-950/30 px-1.5 py-0.5 text-[11px] font-bold text-fuchsia-100 sm:text-xs lg:text-sm">
+                                        {row.tierLabel}
+                                    </span>
+                                </div>
+                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800 sm:h-2">
+                                    <div
+                                        className="h-full rounded-full bg-gradient-to-r from-cyan-500/80 via-fuchsia-500/80 to-amber-400/90 transition-all duration-500"
+                                        style={{ width: `${row.prog}%` }}
+                                    />
+                                </div>
+                                <p
+                                    className={`mt-1 tabular-nums text-zinc-500 ${
+                                        compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                                    }`}
+                                >
+                                    XP {row.xp}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </section>
     );

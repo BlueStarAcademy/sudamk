@@ -9,12 +9,12 @@ function edgePanCurve(u: number): number {
 /**
  * 모바일에서 돌을 잡고 드래그할 때, 손가락이 화면 좌/우 맨 끝에 닿은 경우에만
  * 바둑판 래퍼에 적용할 수평 패닝(px).
- * @param maxPanPx — 보통 «현재 바둑판 CSS 너비 × 0.1» 로 상한을 둠
+ * @param maxPanPx — 호출 측에서 보통 «현재 바둑판 CSS 너비 × 0.14» 근처로 상한을 둠
  */
 export function mobileBoardEdgePanX(clientX: number, innerWidth: number, maxPanPx: number): number {
     if (innerWidth <= 0 || maxPanPx <= 0) return 0;
-    /** 화면 경계에서 이 픽셀 안으로 들어왔을 때만 패닝 */
-    const edgePx = Math.min(10, Math.max(4, Math.round(innerWidth * 0.008)));
+    /** 화면 경계에서 이 픽셀 안으로 들어왔을 때만 패닝 (실제 기기에서 더 잘 걸리도록 넓힘) */
+    const edgePx = Math.min(28, Math.max(12, Math.round(innerWidth * 0.028)));
     let pan = 0;
     if (clientX < edgePx) {
         pan += maxPanPx * edgePanCurve(1 - clientX / edgePx);
