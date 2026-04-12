@@ -545,6 +545,23 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             }
             if (!game.preGameConfirmations) game.preGameConfirmations = {};
             game.preGameConfirmations[user.id] = true;
+
+            const p1Id = game.player1.id;
+            const p2Id = game.player2.id;
+            const bothConfirmedNow = !!game.preGameConfirmations[p1Id] && !!game.preGameConfirmations[p2Id];
+            const deadlinePassed = !!(game.revealEndTime && now > game.revealEndTime);
+
+            // 메인 루프 tick을 기다리지 않고 즉시 playing 전환 (간헐적 멈춤·모달 잔류 완화)
+            if (game.gameStatus === 'nigiri_reveal' && (bothConfirmedNow || deadlinePassed)) {
+                if (game.nigiri) game.nigiri.processed = true;
+                game.preGameConfirmations = {};
+                game.revealEndTime = undefined;
+                transitionToPlaying(game, now);
+            } else if (game.gameStatus === 'color_start_confirmation' && (bothConfirmedNow || deadlinePassed)) {
+                game.preGameConfirmations = {};
+                game.revealEndTime = undefined;
+                transitionToPlaying(game, now);
+            }
             return {};
         }
 

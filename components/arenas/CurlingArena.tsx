@@ -6,8 +6,11 @@ import { AttackToTurnGauge } from '../AttackToTurnGauge.js';
 import { CURLING_TURN_TIME_LIMIT } from '../../constants';
 import { audioService } from '../../services/audioService.js';
 import { PLAYFUL_GAME_MODES } from '../../constants/gameModes';
+import { useSmoothedMobileBoardPan } from '../../hooks/useSmoothedMobileBoardPan.js';
 
-interface CurlingArenaProps extends GameProps {}
+interface CurlingArenaProps extends GameProps {
+    isMobile?: boolean;
+}
 
 /** 컬링 돌 반지름 (보드 좌표, 발사 취소 범위와 동일하게 쓰임) */
 const CURLING_STONE_RADIUS = (840 / 19) * 0.47;
@@ -21,10 +24,12 @@ function usePrevious<T>(value: T): T | undefined {
 }
 
 const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, ref) => {
-    const { session, onAction, currentUser, isSpectator } = props;
+    const { session, onAction, currentUser, isSpectator, isMobile = false } = props;
     const { id: gameId, settings, gameStatus, curlingStones, currentPlayer, activeCurlingItems } = session;
 
     const boardRef = useRef<CurlingBoardHandle>(null);
+    const resetBoardPanRef = useRef<() => void>(() => {});
+    const onDragMovePanRef = useRef<(clientX: number, innerWidth: number) => void>(() => {});
     const animationFrameRef = useRef<number | null>(null);
     const powerGaugeAnimFrameRef = useRef<number | null>(null);
     const gaugeStartTimeRef = useRef<number | null>(null);
@@ -44,7 +49,6 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
     const [power, setPower] = useState(0);
     const [flickPower, setFlickPower] = useState<number | null>(null);
     const [isRenderingPreviewStone, setIsRenderingPreviewStone] = useState(false);
-    const isMobile = false;
     // 각 플레이어의 마지막 발사 파워 저장 (애니메이션 중에도 표시하기 위해)
     const lastFlickPowerRef = useRef<{ [playerId: string]: number }>({});
 
@@ -61,6 +65,14 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         if (isSpectator) return false;
         return currentPlayer === myPlayerEnum;
     }, [currentPlayer, myPlayerEnum, isSpectator]);
+
+    const curlingMobilePanEnabled = isMobile && gameStatus === 'curling_playing' && !isSpectator && isMyTurn;
+    const { panX: dragBoardPanX, onDragMoveClientX, resetPan } = useSmoothedMobileBoardPan({
+        boardRef,
+        enabled: curlingMobilePanEnabled,
+    });
+    resetBoardPanRef.current = resetPan;
+    onDragMovePanRef.current = onDragMoveClientX;
 
     // 바둑판은 회전하지 않고, 각 플레이어의 돌 위치만 조정
     const shouldRotate = false;
@@ -125,6 +137,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         setFlickPower(null);
         setIsRenderingPreviewStone(false);
         powerRef.current = 0;
+        resetBoardPanRef.current();
     }, [stopPowerGauge]);
 
     const startPowerGauge = useCallback(() => {
@@ -290,10 +303,31 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             if ('touches' in e) e.preventDefault();
             const point = 'touches' in e ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
             setDragEndPoint(point);
+            const p = latestProps.current;
+            if (!p.isMobile) {
+                resetBoardPanRef.current();
+                return;
+            }
+            if (p.session.gameStatus !== 'curling_playing' || p.isSpectator) {
+                resetBoardPanRef.current();
+                return;
+            }
+            const myPl =
+                p.session.blackPlayerId === p.currentUser.id
+                    ? Player.Black
+                    : p.session.whitePlayerId === p.currentUser.id
+                      ? Player.White
+                      : Player.None;
+            if (p.session.currentPlayer !== myPl) {
+                resetBoardPanRef.current();
+                return;
+            }
+            onDragMovePanRef.current(point.x, typeof window !== 'undefined' ? window.innerWidth : 0);
         };
 
         const handleInteractionEnd = (e: MouseEvent | TouchEvent) => {
             if (!isDraggingRef.current) return;
+            resetBoardPanRef.current();
 
             const { session: currentSession, onAction: currentOnAction, currentUser: user } = latestProps.current;
             const currentMyPlayerEnum = currentSession.blackPlayerId === user.id ? Player.Black : (currentSession.whitePlayerId === user.id ? Player.White : Player.None);
@@ -379,10 +413,15 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             }
         };
         
+        const handleTouchCancel = () => {
+            if (isDraggingRef.current) cancelFlick();
+        };
+
         window.addEventListener('mousemove', handleInteractionMove);
         window.addEventListener('touchmove', handleInteractionMove, { passive: false });
         window.addEventListener('mouseup', handleInteractionEnd);
         window.addEventListener('touchend', handleInteractionEnd);
+        window.addEventListener('touchcancel', handleTouchCancel);
         window.addEventListener('contextmenu', handleContextMenu);
         
         return () => {
@@ -390,6 +429,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             window.removeEventListener('touchmove', handleInteractionMove);
             window.removeEventListener('mouseup', handleInteractionEnd);
             window.removeEventListener('touchend', handleInteractionEnd);
+            window.removeEventListener('touchcancel', handleTouchCancel);
             window.removeEventListener('contextmenu', handleContextMenu);
             stopPowerGauge();
             if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
@@ -515,25 +555,41 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                     </>
                 )}
             </div>
-            <div className="w-full h-full">
-                <CurlingBoard
-                    ref={boardRef}
-                    stones={simStones ?? curlingStones ?? []}
-                    gameStatus={gameStatus}
-                    myPlayer={myPlayerEnum}
-                    currentPlayer={currentPlayer}
-                    onLaunchAreaInteractionStart={handleLaunchAreaInteractionStart}
-                    isSpectator={isSpectator}
-                    dragStartPoint={dragStartPoint}
-                    dragEndPoint={dragEndPoint}
-                    selectedStone={isRenderingPreviewStone ? selectedStoneRef.current : null}
-                    isInCancelZone={isInCancelZone}
-                    activeCurlingItems={session.activeCurlingItems}
-                    currentUser={currentUser}
-                    session={session}
-                    isRotated={false}
-                    myPlayerEnum={myPlayerEnum}
-                />
+            <div
+                className={`w-full h-full min-h-0 min-w-0 ${
+                    curlingMobilePanEnabled ? 'overflow-x-hidden overflow-y-hidden' : ''
+                }`}
+            >
+                <div
+                    className="h-full w-full min-h-0 min-w-0"
+                    style={
+                        curlingMobilePanEnabled
+                            ? {
+                                  transform: `translate3d(${dragBoardPanX}px,0,0)`,
+                                  willChange: 'transform',
+                              }
+                            : undefined
+                    }
+                >
+                    <CurlingBoard
+                        ref={boardRef}
+                        stones={simStones ?? curlingStones ?? []}
+                        gameStatus={gameStatus}
+                        myPlayer={myPlayerEnum}
+                        currentPlayer={currentPlayer}
+                        onLaunchAreaInteractionStart={handleLaunchAreaInteractionStart}
+                        isSpectator={isSpectator}
+                        dragStartPoint={dragStartPoint}
+                        dragEndPoint={dragEndPoint}
+                        selectedStone={isRenderingPreviewStone ? selectedStoneRef.current : null}
+                        isInCancelZone={isInCancelZone}
+                        activeCurlingItems={session.activeCurlingItems}
+                        currentUser={currentUser}
+                        session={session}
+                        isRotated={false}
+                        myPlayerEnum={myPlayerEnum}
+                    />
+                </div>
             </div>
         </div>
     );

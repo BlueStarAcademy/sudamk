@@ -25,24 +25,29 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
         return () => clearInterval(timerId);
     }, [revealEndTime]);
 
+    // 탭 백그라운드·타이머 지연 등으로 룰렛 onComplete가 누락되면 시작 버튼이 영구 비활성되는 것을 방지
+    useEffect(() => {
+        const t = window.setTimeout(() => setRouletteDone(true), 3200);
+        return () => window.clearTimeout(t);
+    }, []);
+
     if (!blackPlayerId || !whitePlayerId) return null;
 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
 
     return (
-        <DraggableWindow title="흑/백 결정 룰렛" initialWidth={680} windowId="nigiri">
+        <DraggableWindow title="흑·백 배정 확인" initialWidth={680} windowId="nigiri">
             <div className="text-white space-y-6">
                 <PreGameColorRoulette
                     blackPlayer={blackPlayer}
                     whitePlayer={whitePlayer}
                     onComplete={() => setRouletteDone(true)}
-                    title="룰렛으로 흑/백을 자동 결정합니다"
-                    subtitle="돌가리기 대신 자동 룰렛으로 선공과 후공이 배정됩니다."
+                    suppressHeader
                 />
 
-                <p className="text-center text-gray-300">
-                    배정 결과를 확인한 뒤 시작 버튼을 누르거나, 30초 후 자동으로 대국이 시작됩니다.
+                <p className="text-center text-sm text-gray-300">
+                    아래 카드에 표시된 대로 흑·백이 정해졌습니다. 양쪽이 시작을 누르거나, 시간이 지나면 자동으로 대국이 시작됩니다.
                 </p>
 
                 <Button

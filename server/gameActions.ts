@@ -854,37 +854,29 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 (game.gameStatus === 'alkkagi_placement' || game.gameStatus === 'alkkagi_simultaneous_placement') &&
                 game.currentPlayer !== types.Player.None &&
                 currentPlayerId === aiUserId;
+            // setImmediate로 두면 메인 루프의 makeAiMove와 startAiProcessing 잠금이 겹쳐 봇이 스킵되는 경우가 있어, 같은 요청 안에서 즉시 처리
             if (isAlkkagiPlacementAiTurn) {
                 const { makeAiMove, aiUserId } = await import('./aiPlayer.js');
                 const { updatePlayfulGameState } = await import('./modes/playful.js');
                 const gameId = game.id;
-                setImmediate(() => {
-                    makeAiMove(game)
-                        .then(async () => {
-                            try {
-                                updateGameCache(game);
-                                await db.saveGame(game);
-                                const { broadcastToGameParticipants } = await import('./socket.js');
-                                broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
-                                // 교차 배치: AI가 5번째 돌을 둔 뒤 공격 단계로 전환되면 즉시 AI 공격 1회 실행
-                                await updatePlayfulGameState(game, Date.now());
-                                if (game.gameStatus === 'alkkagi_playing' && game.currentPlayer !== types.Player.None) {
-                                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                                    if (currentPlayerId === aiUserId) {
-                                        await makeAiMove(game);
-                                        updateGameCache(game);
-                                        await db.saveGame(game);
-                                        broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
-                                    }
-                                }
-                            } catch (e: any) {
-                                console.error('[GameActions] Alkkagi AI placement save/broadcast failed:', e?.message);
-                            }
-                        })
-                        .catch((err: any) => {
-                            console.error('[GameActions] Alkkagi AI placement makeAiMove failed:', err?.message);
-                        });
-                });
+                try {
+                    await makeAiMove(game);
+                    updateGameCache(game);
+                    await db.saveGame(game);
+                    broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+                    await updatePlayfulGameState(game, Date.now());
+                    if (game.gameStatus === 'alkkagi_playing' && game.currentPlayer !== types.Player.None) {
+                        const cp = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        if (cp === aiUserId) {
+                            await makeAiMove(game);
+                            updateGameCache(game);
+                            await db.saveGame(game);
+                            broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+                        }
+                    }
+                } catch (e: any) {
+                    console.error('[GameActions] Alkkagi AI placement (inline) failed:', e?.message);
+                }
             }
 
             // 알까기 동시 배치: 유저가 돌을 둔 요청에서 AI도 5개까지 채우고, 둘 다 5개면 전환 후 AI 공격 (메인 루프 타임아웃 없이 처리)
@@ -927,8 +919,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
 
-            // 알까기 공격 단계: 유저가 플릭한 직후, 애니메이션(5초) 종료 시점에 AI 공격을 스케줄 (메인 루프 round-robin 대기 없이 즉시 다음 턴 처리)
-            const ALKKAGI_FLICK_DURATION_MS = 5000;
+            // 알까기 공격: 서버 애니 duration(2500ms)과 맞춰 시뮬 완료 후 AI 턴 스케줄
+            const ALKKAGI_FLICK_DURATION_MS = 2500;
             const isAlkkagiHumanFlick =
                 type === 'ALKKAGI_FLICK_STONE' &&
                 game.mode === GameMode.Alkkagi &&

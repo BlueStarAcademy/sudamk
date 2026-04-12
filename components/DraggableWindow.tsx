@@ -73,6 +73,12 @@ interface DraggableWindowProps {
      */
     mobileViewportMaxHeightCss?: string;
 
+    /**
+     * 모바일·좁은 뷰포트에서 기본은 콘텐츠 높이에 맞춤(auto)이나,
+     * true면 initialHeight를 기준으로 한 고정 높이(뷰포트 상한까지)를 유지 — 채팅 등 본문이 flex로 꽉 차야 할 때.
+     */
+    mobileLockViewportHeight?: boolean;
+
     /** 본문 영역 세로 스크롤(기본 true). 가방·상점 등 내부에 전용 스크롤이 있으면 false */
     bodyScrollable?: boolean;
 
@@ -283,6 +289,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     mobileViewportFit,
     mobileViewportMaxHeightVh,
     mobileViewportMaxHeightCss,
+    mobileLockViewportHeight = false,
     bodyScrollable = true,
     bodyNoScroll = false,
     hideFooter = false,
@@ -624,8 +631,20 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         return Math.max(300, Math.min(iw, capW));
     }, [useMobileViewportFitLayout, designInitialWidth, windowWidth, isNativeMobile]);
 
+    /**
+     * 뷰포트 맞춤(네이티브·좁은 화면): 고정 height를 주면 initialHeight(예: 600~780)만큼 항상 잡혀 짧은 모달도
+     * 불필요하게 길어짐. 높이는 CSS 기본(auto)으로 두고 maxHeight·App.tsx 상한만으로 캡한다.
+     * 설계 픽셀 캔버스(대국 중) 경로는 기존처럼 픽셀 높이를 유지한다.
+     */
     const mobileViewportFitHeightPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
+        const useContentDrivenHeight =
+            !mobileLockViewportHeight &&
+            !modalLayerUsesDesignPixels &&
+            (isNativeMobile || effectiveIsCompactViewport);
+        if (useContentDrivenHeight) {
+            return undefined;
+        }
         if (shrinkHeightToContent && initialHeight === undefined) {
             return undefined;
         }
@@ -636,9 +655,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         return Math.max(240, Math.min(ih, capH));
     }, [
         useMobileViewportFitLayout,
+        mobileLockViewportHeight,
+        modalLayerUsesDesignPixels,
+        isNativeMobile,
+        effectiveIsCompactViewport,
         resolvedInitialHeight,
         windowHeight,
-        isNativeMobile,
         effectiveMobileMaxHeightVh,
         shrinkHeightToContent,
         initialHeight,

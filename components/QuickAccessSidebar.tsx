@@ -271,16 +271,12 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     .join(' ')}
                 data-quick-access-sidebar-root
             >
-                <div
-                    className={`relative flex w-full items-center justify-between transition-[min-height] duration-300 ease-out ${
-                        stripCollapsed ? 'min-h-10' : 'min-h-14'
-                    }`}
-                >
+                <div className="relative flex min-h-14 w-full items-center justify-between">
                     {renderMobileMenuToggleButton({
                         label: '메뉴1',
                         tone: 'amber',
                         active: mobileHeaderDrawer === 'menu1',
-                        compact: stripCollapsed,
+                        compact: false,
                         expanded: !stripCollapsed && mobileHeaderDrawer === 'menu1',
                         onClick: () =>
                             setMobileHeaderDrawer((d) => {
@@ -292,6 +288,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                         label: '메뉴2',
                         tone: 'cyan',
                         active: mobileHeaderDrawer === 'menu2',
+                        compact: false,
                         expanded: !stripCollapsed && mobileHeaderDrawer === 'menu2',
                         onClick: () =>
                             setMobileHeaderDrawer((d) => {

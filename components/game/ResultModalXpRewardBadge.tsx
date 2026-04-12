@@ -1,4 +1,5 @@
 import React from 'react';
+import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
 
 export type ResultModalXpVariant = 'strategy' | 'playful';
 
@@ -8,17 +9,29 @@ const VARIANT = {
         labelMode: 'text-[0.5rem] font-bold leading-none text-emerald-100/95 sm:text-[0.52rem]',
         labelExp: 'mt-[3px] text-[0.58rem] font-black leading-none tracking-[0.08em] text-emerald-50 sm:text-[0.6rem]',
         amount: 'text-[0.65rem] font-semibold tabular-nums leading-tight text-emerald-100 sm:text-[0.7rem]',
+        labelModeCompact:
+            'text-[0.42rem] min-[360px]:text-[0.46rem] min-[400px]:text-[0.5rem] font-bold leading-none text-emerald-100/95 sm:text-[0.52rem]',
+        labelExpCompact:
+            'mt-px text-[0.48rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.56rem] font-black leading-none tracking-[0.06em] text-emerald-50 sm:text-[0.6rem]',
+        amountCompact:
+            'text-[0.58rem] min-[360px]:text-[0.62rem] font-semibold tabular-nums leading-tight text-emerald-100 sm:text-[0.7rem]',
     },
     playful: {
         box: 'border-sky-400/45 bg-gradient-to-br from-sky-600/55 via-violet-900/85 to-indigo-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] ring-sky-400/35',
         labelMode: 'text-[0.5rem] font-bold leading-none text-sky-100/95 sm:text-[0.52rem]',
         labelExp: 'mt-[3px] text-[0.58rem] font-black leading-none tracking-[0.08em] text-violet-100 sm:text-[0.6rem]',
         amount: 'text-[0.65rem] font-semibold tabular-nums leading-tight text-sky-100 sm:text-[0.7rem]',
+        labelModeCompact:
+            'text-[0.42rem] min-[360px]:text-[0.46rem] min-[400px]:text-[0.5rem] font-bold leading-none text-sky-100/95 sm:text-[0.52rem]',
+        labelExpCompact:
+            'mt-px text-[0.48rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.56rem] font-black leading-none tracking-[0.06em] text-violet-100 sm:text-[0.6rem]',
+        amountCompact:
+            'text-[0.58rem] min-[360px]:text-[0.62rem] font-semibold tabular-nums leading-tight text-sky-100 sm:text-[0.7rem]',
     },
 } as const;
 
 const DENSITY_BOX = {
-    compact: 'h-9 w-9 sm:h-10 sm:w-10',
+    compact: RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
     comfortable: 'h-10 w-10 sm:h-11 sm:w-11',
 } as const;
 
@@ -39,19 +52,23 @@ export const ResultModalXpRewardBadge: React.FC<{
     const modeLabel = variant === 'strategy' ? '전략' : '놀이';
     const defaultTitle = `${modeLabel} 경험치 +${amount.toLocaleString()}`;
 
+    const isCompact = density === 'compact';
+
     return (
         <div
-            className={`flex flex-col items-center gap-0.5 ${className}`.trim()}
+            className={`flex flex-col items-center gap-0.5 ${isCompact ? 'shrink-0' : ''} ${className}`.trim()}
             title={title ?? defaultTitle}
         >
             <div
                 className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${v.box}`}
                 aria-hidden
             >
-                <span className={v.labelMode}>{modeLabel}</span>
-                <span className={v.labelExp}>EXP</span>
+                <span className={isCompact ? v.labelModeCompact : v.labelMode}>{modeLabel}</span>
+                <span className={isCompact ? v.labelExpCompact : v.labelExp}>EXP</span>
             </div>
-            <span className={`text-center ${v.amount}`}>+{amount.toLocaleString()}</span>
+            <span className={`text-center whitespace-nowrap ${isCompact ? v.amountCompact : v.amount}`}>
+                +{amount.toLocaleString()}
+            </span>
         </div>
     );
 };

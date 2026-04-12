@@ -4,6 +4,7 @@ import { getOmokLogic } from './omokLogic.js';
 import { getGoLogic, processMove } from './goLogic.js';
 import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, SINGLE_PLAYER_STAGES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
 import { isPlacementValid as isAlkkagiPlacementValid } from './modes/alkkagi.js';
+import { nextAlkkagiStoneId } from '../shared/utils/alkkagiStoneId.js';
 import * as types from '../types/index.js';
 // 카타고 제거: 우리가 만든 AI봇을 사용
 import * as summaryService from './summaryService.js';
@@ -972,6 +973,11 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
         : game.currentPlayer;
     
     if (game.gameStatus === 'alkkagi_placement' || game.gameStatus === 'alkkagi_simultaneous_placement') {
+        // 교대 배치: 메인 루프·액션 핸들러가 동시에 호출될 수 있어, 실제 AI 턴일 때만 진행
+        if (game.gameStatus === 'alkkagi_placement') {
+            const turnPid = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            if (turnPid !== aiUserId) return;
+        }
         // 돌 배치: 자신의 영역에만 배치 (상하 반전 시 상대는 위→아래, 나는 아래→위 공격)
         const targetPlacements = game.settings.alkkagiStoneCount || 5;
         const placedThisRound = game.alkkagiStonesPlacedThisRound?.[aiPlayerId] || 0;
@@ -1041,7 +1047,7 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
         }
 
         const newStone: types.AlkkagiStone = {
-            id: Date.now() + Math.random(),
+            id: nextAlkkagiStoneId(game),
             player: aiPlayerEnum,
             x: bestPoint.x,
             y: bestPoint.y,

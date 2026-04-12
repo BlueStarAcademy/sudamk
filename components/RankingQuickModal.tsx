@@ -7,6 +7,7 @@ import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
+import { MobileEqualHeightTabPanels } from './game/MobileGameResultTabBar.js';
 
 type MobileRankingPanelTab = 'game' | 'baduk' | 'championship';
 type GuideMainTab = 'game' | 'baduk' | 'championship';
@@ -126,11 +127,27 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.04]">
                             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                {mobilePanelTab === 'game' && <GameRankingBoard mobileSplitLarge hideInlineGuide />}
-                                {mobilePanelTab === 'baduk' && <BadukRankingBoard mobileSplitLarge hideInlineGuide />}
-                                {mobilePanelTab === 'championship' && (
-                                    <ChampionshipRankingPanel compact lobbyNativeMobile />
-                                )}
+                                <MobileEqualHeightTabPanels
+                                    activeTabKey={mobilePanelTab}
+                                    className="min-h-0 flex-1"
+                                    fillParentHeight
+                                    items={[
+                                        {
+                                            tabKey: 'game',
+                                            panel: <GameRankingBoard mobileSplitLarge hideInlineGuide />,
+                                        },
+                                        {
+                                            tabKey: 'baduk',
+                                            panel: <BadukRankingBoard mobileSplitLarge hideInlineGuide />,
+                                        },
+                                        {
+                                            tabKey: 'championship',
+                                            panel: (
+                                                <ChampionshipRankingPanel compact lobbyNativeMobile />
+                                            ),
+                                        },
+                                    ]}
+                                />
                             </div>
                         </div>
                         {isTipModalOpen && (

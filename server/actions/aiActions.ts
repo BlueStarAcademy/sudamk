@@ -34,6 +34,9 @@ export async function handleAiAction(
   const isParticipant = user.id === game.player1?.id || user.id === game.player2?.id;
   if (!isParticipant) return { error: 'Only participants can start the game.' };
 
+  const { clearAiSession } = await import('../aiSessionManager.js');
+  clearAiSession(gameId);
+
   const now = Date.now();
 
   // Minimal "negotiation-like" object for initializer functions that need settings/mode.
@@ -63,28 +66,30 @@ export async function handleAiAction(
       return { error: 'Unsupported game mode.' };
     }
 
+    const postInit = game as any;
+
     // Ensure currentPlayer is set when transitioning to playing
-    if (game.gameStatus === 'playing' && game.currentPlayer === Player.None) {
-      game.currentPlayer = Player.Black;
+    if (postInit.gameStatus === 'playing' && postInit.currentPlayer === Player.None) {
+      postInit.currentPlayer = Player.Black;
       console.log(`[handleAiAction] Set currentPlayer to Black for game ${game.id}`);
     }
 
     // 게임 시작 시 첫 턴이 AI인 경우 aiTurnStartTime 설정
-    if (game.isAiGame && game.currentPlayer !== Player.None) {
-      const currentPlayerId = game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    if (postInit.isAiGame && postInit.currentPlayer !== Player.None) {
+      const currentPlayerId = postInit.currentPlayer === Player.Black ? postInit.blackPlayerId : postInit.whitePlayerId;
       if (currentPlayerId === aiUserId) {
-        game.aiTurnStartTime = now;
+        postInit.aiTurnStartTime = now;
         console.log(`[handleAiAction] AI turn at game start, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
       } else {
         // 사용자 턴으로 시작하므로 aiTurnStartTime을 undefined로 설정
-        game.aiTurnStartTime = undefined;
+        postInit.aiTurnStartTime = undefined;
         console.log(`[handleAiAction] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
       }
     }
 
     // 게임 시작 시간 설정
-    if (!game.gameStartTime) {
-      game.gameStartTime = now;
+    if (!postInit.gameStartTime) {
+      postInit.gameStartTime = now;
     }
 
     await db.saveGame(game);
@@ -93,30 +98,52 @@ export async function handleAiAction(
     const { broadcastToGameParticipants } = await import('../socket.js');
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 
+    // 전략바둑(바둑판 착수) AI가 선공(흑)일 때: 메인 루프·setImmediate 경쟁으로 첫 수가 늦거나 건너뛰어지는 경우 방지
+    const strategicGoModes: GameMode[] = [
+      GameMode.Standard,
+      GameMode.Capture,
+      GameMode.Speed,
+      GameMode.Base,
+      GameMode.Hidden,
+      GameMode.Missile,
+      GameMode.Mix,
+    ];
+    const isStrategicGoAiFirst =
+      isStrategic &&
+      postInit.gameStatus === 'playing' &&
+      strategicGoModes.includes(game.mode) &&
+      postInit.currentPlayer !== Player.None &&
+      (postInit.currentPlayer === Player.Black ? postInit.blackPlayerId : postInit.whitePlayerId) === aiUserId;
+    if (isStrategicGoAiFirst) {
+      const { makeAiMove } = await import('../aiPlayer.js');
+      const gid = game.id;
+      try {
+        await makeAiMove(game as any);
+        updateGameCache(game as any);
+        await db.saveGame(game as any);
+        broadcastToGameParticipants(gid, { type: 'GAME_UPDATE', payload: { [gid]: game } }, game as any);
+      } catch (e: any) {
+        console.error('[CONFIRM_AI_GAME_START] Strategic AI first move failed:', e?.message);
+      }
+    }
+
     // 알까기 턴제 배치에서 흑(첫 턴)이 AI인 경우, 메인 루프 round-robin을 기다리지 않고 즉시 첫 배치 실행
     const isAlkkagiPlacementAiFirst =
       game.mode === GameMode.Alkkagi &&
-      game.gameStatus === 'alkkagi_placement' &&
-      game.currentPlayer === Player.Black &&
-      game.blackPlayerId === aiUserId;
+      postInit.gameStatus === 'alkkagi_placement' &&
+      postInit.currentPlayer === Player.Black &&
+      postInit.blackPlayerId === aiUserId;
     if (isAlkkagiPlacementAiFirst) {
       const { makeAiMove } = await import('../aiPlayer.js');
       const gameId = game.id;
-      setImmediate(() => {
-        makeAiMove(game as any)
-          .then(async () => {
-            try {
-              updateGameCache(game as any);
-              await db.saveGame(game as any);
-              broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game as any);
-            } catch (e: any) {
-              console.error('[CONFIRM_AI_GAME_START] Deferred Alkkagi first AI placement save/broadcast failed:', e?.message);
-            }
-          })
-          .catch((err: any) => {
-            console.error('[CONFIRM_AI_GAME_START] Deferred Alkkagi first AI placement failed:', err?.message);
-          });
-      });
+      try {
+        await makeAiMove(game as any);
+        updateGameCache(game as any);
+        await db.saveGame(game as any);
+        broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game as any);
+      } catch (e: any) {
+        console.error('[CONFIRM_AI_GAME_START] Alkkagi first AI placement failed:', e?.message);
+      }
     }
 
     let gameCopy: any;

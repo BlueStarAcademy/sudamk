@@ -28,6 +28,48 @@ interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
     onClose: () => void;
     onAction: (action: ServerAction) => void;
+    /** 인게임 AI 재대결: 직전 대국 모드·설정을 그대로 반영하고 preferredGameSettings에도 저장 */
+    seedFromSession?: { mode: GameMode; settings: GameSettings };
+}
+
+/** 종료된 대국 session.settings → AI 도전 모달 초기값 (NegotiationModal과 유사 검증) */
+function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSettings): GameSettings {
+    let newSettings: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...sessionSettings };
+    if (mode === GameMode.Base) {
+        newSettings.komi = 0.5;
+    }
+    if (mode === GameMode.Mix && newSettings.mixedModes?.includes(GameMode.Base) && newSettings.mixedModes?.includes(GameMode.Capture)) {
+        newSettings.mixedModes = newSettings.mixedModes.filter(m => m !== GameMode.Base);
+    }
+    if (!newSettings.player1Color) {
+        newSettings.player1Color = Player.Black;
+    }
+    const validBoardSizes = getStrategicBoardSizesByMode(mode);
+    if (!validBoardSizes.includes(newSettings.boardSize)) {
+        newSettings.boardSize = validBoardSizes[0] as GameSettings['boardSize'];
+    }
+    if (mode === GameMode.Alkkagi) {
+        const validSpeeds = ALKKAGI_GAUGE_SPEEDS.map(s => s.value);
+        if (newSettings.alkkagiGaugeSpeed != null && !validSpeeds.includes(newSettings.alkkagiGaugeSpeed)) {
+            delete (newSettings as any).alkkagiGaugeSpeed;
+        }
+        if (newSettings.alkkagiStoneCount != null && !(ALKKAGI_STONE_COUNTS as readonly number[]).includes(newSettings.alkkagiStoneCount)) {
+            delete (newSettings as any).alkkagiStoneCount;
+        }
+    }
+    if (mode === GameMode.Curling) {
+        const validSpeeds = CURLING_GAUGE_SPEEDS.map(s => s.value);
+        if (newSettings.curlingGaugeSpeed != null && !validSpeeds.includes(newSettings.curlingGaugeSpeed)) {
+            delete (newSettings as any).curlingGaugeSpeed;
+        }
+        if (newSettings.curlingStoneCount != null && !(CURLING_STONE_COUNTS as readonly number[]).includes(newSettings.curlingStoneCount)) {
+            delete (newSettings as any).curlingStoneCount;
+        }
+    }
+    if (newSettings.baseStones != null && !(BASE_STONE_COUNTS as readonly number[]).includes(newSettings.baseStones)) {
+        delete (newSettings as any).baseStones;
+    }
+    return newSettings;
 }
 
 const GameCard: React.FC<{
@@ -79,12 +121,23 @@ const GameCard: React.FC<{
     );
 };
 
-const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose, onAction }) => {
+const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose, onAction, seedFromSession }) => {
     const availableGameModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
-    const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(availableGameModes[0]?.mode || null);
+    const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(() => {
+        if (seedFromSession?.mode && availableGameModes.some(m => m.mode === seedFromSession.mode)) {
+            return seedFromSession.mode;
+        }
+        return availableGameModes[0]?.mode || null;
+    });
     const [settings, setSettings] = useState<GameSettings>(DEFAULT_GAME_SETTINGS);
     const prevSelectedGameModeRef = useRef<GameMode | null>(null);
-    const [mobileStep, setMobileStep] = useState<'pickMode' | 'settings'>('pickMode');
+    const [mobileStep, setMobileStep] = useState<'pickMode' | 'settings'>(() => (seedFromSession ? 'settings' : 'pickMode'));
+    const seedHydratedRef = useRef(false);
+    /** 부모(Game)가 매 프레임 새 객체를 넘겨도 시드 적용·localStorage 로직이 중복 실행되지 않게 첫 렌더 값만 사용 */
+    const frozenSeedRef = useRef<typeof seedFromSession>(undefined);
+    if (frozenSeedRef.current === undefined) {
+        frozenSeedRef.current = seedFromSession;
+    }
 
     const actionPointCost = useMemo(() => {
         if (!selectedGameMode) return STRATEGIC_ACTION_POINT_COST;
@@ -105,32 +158,44 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         return availableGameModes.find(mode => mode.mode === selectedGameMode);
     }, [availableGameModes, selectedGameMode]);
 
-    // 게임 모드 변경 시 설정 초기화
+    // 게임 모드 변경 시 설정 초기화 (재대결 시드는 직전 대국 설정을 우선·localStorage에 동기화)
     useEffect(() => {
-        if (selectedGameMode) {
-            const savedSettings = localStorage.getItem(`preferredGameSettings_${selectedGameMode}`);
-            if (savedSettings) {
-                try {
-                    const parsed = JSON.parse(savedSettings);
-                    // 알까기: 예전 단일 아이템 개수(alkkagiItemCount)를 슬로우/조준선 각각으로 이전
-                    if (selectedGameMode === GameMode.Alkkagi && parsed.alkkagiItemCount != null && parsed.alkkagiSlowItemCount == null && parsed.alkkagiAimingLineItemCount == null) {
-                        parsed.alkkagiSlowItemCount = parsed.alkkagiItemCount;
-                        parsed.alkkagiAimingLineItemCount = parsed.alkkagiItemCount;
-                    }
-                    if (parsed.mixedModes && parsed.mixedModes.includes(GameMode.Base) && parsed.mixedModes.includes(GameMode.Capture)) {
-                        parsed.mixedModes = parsed.mixedModes.filter((m: GameMode) => m !== GameMode.Base);
-                    }
-                    if (selectedGameMode === GameMode.Capture) {
-                        parsed.scoringTurnLimit = 0;
-                        delete (parsed as any).autoScoringTurns;
-                    }
-                    setSettings({ ...DEFAULT_GAME_SETTINGS, ...parsed });
-                } catch {
-                    setSettings({ ...DEFAULT_GAME_SETTINGS });
+        if (!selectedGameMode) return;
+
+        const seed = frozenSeedRef.current;
+        if (seed && selectedGameMode === seed.mode && !seedHydratedRef.current) {
+            seedHydratedRef.current = true;
+            const merged = mergeSeedIntoChallengeSettings(seed.mode, seed.settings);
+            setSettings(merged);
+            try {
+                localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(merged));
+            } catch (e) {
+                console.error('Failed to persist AI rematch seed settings', e);
+            }
+            return;
+        }
+
+        const savedSettings = localStorage.getItem(`preferredGameSettings_${selectedGameMode}`);
+        if (savedSettings) {
+            try {
+                const parsed = JSON.parse(savedSettings);
+                if (selectedGameMode === GameMode.Alkkagi && parsed.alkkagiItemCount != null && parsed.alkkagiSlowItemCount == null && parsed.alkkagiAimingLineItemCount == null) {
+                    parsed.alkkagiSlowItemCount = parsed.alkkagiItemCount;
+                    parsed.alkkagiAimingLineItemCount = parsed.alkkagiItemCount;
                 }
-            } else {
+                if (parsed.mixedModes && parsed.mixedModes.includes(GameMode.Base) && parsed.mixedModes.includes(GameMode.Capture)) {
+                    parsed.mixedModes = parsed.mixedModes.filter((m: GameMode) => m !== GameMode.Base);
+                }
+                if (selectedGameMode === GameMode.Capture) {
+                    parsed.scoringTurnLimit = 0;
+                    delete (parsed as any).autoScoringTurns;
+                }
+                setSettings({ ...DEFAULT_GAME_SETTINGS, ...parsed });
+            } catch {
                 setSettings({ ...DEFAULT_GAME_SETTINGS });
             }
+        } else {
+            setSettings({ ...DEFAULT_GAME_SETTINGS });
         }
     }, [selectedGameMode]);
 

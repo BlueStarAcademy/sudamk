@@ -355,28 +355,19 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             <>
                                 <span className={`font-mono font-bold ${isInByoyomi || (isFoulMode && timeLeft < 10) ? 'text-red-400' : timeTextClasses} ${timeTextSize}`}>{formatTime(timeLeft)}</span>
                                 {showByoyomiStatus && (
-                                    isFoulMode ? (
-                                        <div className="flex items-center gap-0.5">
-                                            {Array.from({ length: effectiveByoyomiPeriodsLeft }).map((_, i) => (
-                                                <img
-                                                    key={i}
-                                                    src="/images/icon/timer.png"
-                                                    alt="남은 기회"
-                                                    title={`남은 기회 ${effectiveByoyomiPeriodsLeft}회`}
-                                                    className={`object-contain ${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
-                                                />
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-1 text-yellow-300">
-                                            <img
-                                                src="/images/icon/timer.png"
-                                                alt="초읽기"
-                                                className={`object-contain ${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
-                                            />
-                                            <span className={`font-semibold ${isMobile ? 'text-sm' : 'text-xs'}`}>{effectiveByoyomiPeriodsLeft}</span>
-                                        </div>
-                                    )
+                                    <div
+                                        className={`flex items-center gap-1 ${isFoulMode ? 'text-red-300' : 'text-yellow-300'}`}
+                                        title={isFoulMode ? `남은 기회 ${effectiveByoyomiPeriodsLeft}회` : undefined}
+                                    >
+                                        <img
+                                            src="/images/icon/timer.png"
+                                            alt={isFoulMode ? '남은 기회' : '초읽기'}
+                                            className={`object-contain ${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
+                                        />
+                                        <span className={`font-semibold tabular-nums ${isMobile ? 'text-sm' : 'text-xs'}`}>
+                                            {effectiveByoyomiPeriodsLeft}
+                                        </span>
+                                    </div>
                                 )}
                             </>
                         )}

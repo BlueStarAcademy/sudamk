@@ -5,17 +5,22 @@ import { aiUserId } from '../aiPlayer.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
 import * as effectService from '../effectService.js';
+import { findAlkkagiStoneById, nextAlkkagiStoneId } from '../../shared/utils/alkkagiStoneId.js';
 
 // --- Simulation & Scoring Logic ---
-const runServerSimulation = (game: types.LiveGameSession) => {
-    if (!game.animation || game.animation.type !== 'alkkagi_flick' || !game.alkkagiStones) return;
+/** @returns 시뮬레이션을 실제로 적용했으면 true (돌을 찾지 못하면 false — 턴을 넘기면 안 됨) */
+const runServerSimulation = (game: types.LiveGameSession): boolean => {
+    if (!game.animation || game.animation.type !== 'alkkagi_flick' || !game.alkkagiStones) return false;
 
     const { stoneId, vx, vy } = game.animation;
-    const stoneToAnimate = game.alkkagiStones.find(s => s.id === stoneId);
-    if (!stoneToAnimate) return;
+    const stoneToAnimate = findAlkkagiStoneById(game.alkkagiStones, Number(stoneId));
+    if (!stoneToAnimate) return false;
 
-    stoneToAnimate.vx = vx;
-    stoneToAnimate.vy = vy;
+    const nvx = Number(vx);
+    const nvy = Number(vy);
+    if (!Number.isFinite(nvx) || !Number.isFinite(nvy)) return false;
+    stoneToAnimate.vx = nvx;
+    stoneToAnimate.vy = nvy;
 
     const boardSizePx = 840;
     const friction = 0.98;
@@ -70,6 +75,7 @@ const runServerSimulation = (game: types.LiveGameSession) => {
         
         if (!stonesAreMoving) break;
     }
+    return true;
 };
 
 const checkAndEndRound = (game: types.LiveGameSession, now: number): boolean => {
@@ -424,33 +430,52 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
             break;
         case 'alkkagi_animating': {
             const animation = game.animation;
+            const flick =
+                animation && animation.type === 'alkkagi_flick'
+                    ? (animation as Extract<types.AnimationData, { type: 'alkkagi_flick' }>)
+                    : null;
+            const startTime = flick ? Number(flick.startTime) : NaN;
+            const duration = flick ? Number(flick.duration) : NaN;
             const isValidFlickAnimation =
-                animation &&
-                animation.type === 'alkkagi_flick' &&
-                typeof animation.startTime === 'number' &&
-                typeof animation.duration === 'number';
+                flick != null && Number.isFinite(startTime) && Number.isFinite(duration) && duration > 0;
 
-            // 복구 로직: 애니메이션 정보가 유실/오염된 경우에도 턴이 영구 정지되지 않도록 강제 정리
-            // (PVP에서 간헐적으로 alkkagi_animating 상태가 남는 문제 방지)
+            if (flick && isValidFlickAnimation) {
+                flick.startTime = startTime;
+                flick.duration = duration;
+            }
+
+            // 애니메이션 필드가 문자열 등으로 들어와 typeof 검사만 하면 무효 처리 → 시뮬 없이 턴만 넘어가는 치명 버그였음.
+            // 데이터가 정말 깨진 경우에만 복구하되, 공격자 턴은 유지(상대에게 무임으로 넘기지 않음).
             if (!isValidFlickAnimation) {
-                const previousPlayer = game.currentPlayer;
+                const keeper = game.currentPlayer;
                 game.animation = null;
                 game.gameStatus = 'alkkagi_playing';
-                if (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White) {
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                }
                 if (shouldEnforceTimeControl(game)) {
                     game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
                     game.turnStartTime = now;
                 }
-                console.warn(`[updateAlkkagiState] Recovered from invalid alkkagi animation state, switched turn ${previousPlayer} -> ${game.currentPlayer}, game ${game.id}`);
+                console.warn(
+                    `[updateAlkkagiState] Recovered invalid alkkagi_flick animation (keeping attacker turn ${keeper}), game ${game.id}`,
+                );
                 break;
             }
 
             // 컬링/바둑처럼: duration이 끝나면 시뮬레이션 실행 후 즉시 턴 전환
-            if (now >= animation.startTime + animation.duration) {
-                runServerSimulation(game);
+            if (now >= startTime + duration) {
+                const applied = runServerSimulation(game);
                 game.animation = null;
+                if (!applied) {
+                    // 돌 id 불일치 등으로 시뮬이 스킵되면 턴을 넘기지 않고 같은 플레이어에게 재시도 가능하게 함 (PVP 치명 버그 방지)
+                    game.gameStatus = 'alkkagi_playing';
+                    if (shouldEnforceTimeControl(game)) {
+                        game.alkkagiTurnDeadline = now + ALKKAGI_TURN_TIME_LIMIT * 1000;
+                        game.turnStartTime = now;
+                    }
+                    console.warn(
+                        `[updateAlkkagiState] alkkagi_flick simulation skipped (stone not found or invalid), keeping currentPlayer ${game.currentPlayer}, game ${game.id}`,
+                    );
+                    break;
+                }
                 const roundEnded = checkAndEndRound(game, now);
                 if (!roundEnded) {
                     game.gameStatus = 'alkkagi_playing';
@@ -604,7 +629,8 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
             
             if (isPlacementValid(game, payload.point, myPlayerEnum)) {
                 const newStone: types.AlkkagiStone = {
-                    id: Date.now() + Math.random(), player: myPlayerEnum,
+                    id: nextAlkkagiStoneId(game),
+                    player: myPlayerEnum,
                     x: payload.point.x, y: payload.point.y, vx: 0, vy: 0,
                     radius: (840 / 19) * 0.47, onBoard: true
                 };
@@ -644,8 +670,25 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
         case 'ALKKAGI_FLICK_STONE': {
             if (game.gameStatus !== 'alkkagi_playing' || !isMyTurn) return { error: "지금은 공격할 수 없습니다."};
             const { stoneId, vx, vy } = payload;
-            
-            game.animation = { type: 'alkkagi_flick', stoneId, vx, vy, startTime: now, duration: 2500 };
+            const nVx = Number(vx);
+            const nVy = Number(vy);
+            if (!Number.isFinite(nVx) || !Number.isFinite(nVy)) {
+                return { error: '발사 방향이 올바르지 않습니다.' };
+            }
+            const stones = game.alkkagiStones;
+            if (!stones?.length) return { error: '돌 정보가 없습니다.' };
+            const targetStone = findAlkkagiStoneById(stones, Number(stoneId));
+            if (!targetStone || !targetStone.onBoard) return { error: '해당 돌을 찾을 수 없습니다.' };
+            if (targetStone.player !== myPlayerEnum) return { error: '상대 돌은 공격할 수 없습니다.' };
+
+            game.animation = {
+                type: 'alkkagi_flick',
+                stoneId: targetStone.id,
+                vx: nVx,
+                vy: nVy,
+                startTime: now,
+                duration: 2500,
+            };
             game.gameStatus = 'alkkagi_animating';
             if (game.activeAlkkagiItems) {
                 delete game.activeAlkkagiItems[user.id];

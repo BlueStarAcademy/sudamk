@@ -4,7 +4,7 @@ import ChatWindow from './waiting-room/ChatWindow.js';
 import type { ChatMessage, ServerAction } from '../types.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
+import { NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH, NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
 
 interface ChatQuickModalProps {
     messages: ChatMessage[];
@@ -44,7 +44,8 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit={isMobile}
-            mobileViewportMaxHeightVh={NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}
+            mobileLockViewportHeight={isMobile}
+            mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH : NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}
             hideFooter={isMobile}
             skipSavedPosition={isMobile}
             bodyPaddingClassName={

@@ -34,6 +34,9 @@ const guildPanelBtn = {
     disabled: `${guildPanelBtnBase} border-stone-500/30 bg-stone-800/60 text-stone-400 cursor-not-allowed opacity-70`,
 };
 
+/** 모바일 길드 기부 DraggableWindow와 동일 — 포털 기부 횟수 모달이 바깥 클릭으로 창이 닫히지 않도록 DraggableWindow가 인식 */
+const GUILD_HOME_MOBILE_DONATION_WINDOW_ID = 'guild-home-mobile-donation';
+
 // 길드 아이콘 경로 수정 함수
 const getGuildIconPath = (icon: string | undefined): string => {
     if (!icon) return '/images/guild/profile/icon1.png';
@@ -464,7 +467,12 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
 
             {/* 기부 횟수 선택 모달 */}
             {donationModal && createPortal(
-                <div className="sudamr-modal-overlay z-[99999] pointer-events-auto" style={{ isolation: 'isolate' }} onClick={() => setDonationModal(null)}>
+                <div
+                    className="sudamr-modal-overlay z-[99999] pointer-events-auto"
+                    style={{ isolation: 'isolate' }}
+                    data-draggable-satellite={GUILD_HOME_MOBILE_DONATION_WINDOW_ID}
+                    onClick={() => setDonationModal(null)}
+                >
                     <div 
                         className={`sudamr-panel-edge-host relative z-10 mx-4 max-w-sm w-full overflow-hidden rounded-2xl border-2 shadow-2xl pointer-events-auto ${donationModal.type === 'gold' ? 'border-amber-400/50 shadow-amber-500/20' : 'border-sky-400/50 shadow-sky-500/20'}`}
                         onClick={e => e.stopPropagation()}
@@ -2262,7 +2270,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 <DraggableWindow
                     title="길드 기부"
                     onClose={() => setIsMobileDonationOpen(false)}
-                    windowId="guild-home-mobile-donation"
+                    windowId={GUILD_HOME_MOBILE_DONATION_WINDOW_ID}
                     initialWidth={400}
                     initialHeight={600}
                     isTopmost

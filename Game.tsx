@@ -2509,6 +2509,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     onOpenSidebar={() => setIsMobileSidebarOpen(true)}
                                     onAction={handlers.handleAction}
                                     boardRuleFlashMessage={boardRuleFlashMessage}
+                                    viewerUserId={isSpectator ? undefined : currentUser.id}
                                 />
                                 <SinglePlayerControls {...gameControlsProps} />
                             </div>
@@ -2664,6 +2665,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     onOpenSidebar={() => setIsMobileSidebarOpen(true)}
                                     onAction={handlers.handleAction}
                                     boardRuleFlashMessage={boardRuleFlashMessage}
+                                    viewerUserId={isSpectator ? undefined : currentUser.id}
                                 />
                                 <TowerControls {...gameControlsProps} />
                             </div>
@@ -2791,6 +2793,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             {isAiRematchModalOpen && (
                 <AiChallengeModal
                     lobbyType={SPECIAL_GAME_MODES.some(m => m.mode === mode) ? 'strategic' : 'playful'}
+                    seedFromSession={{ mode: session.mode, settings: session.settings }}
                     onClose={() => setIsAiRematchModalOpen(false)}
                     onAction={(action) => {
                         // 기존 대국 상태를 깨끗하게 제거하고 새 대국 시작
@@ -2891,6 +2894,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 sidebarNotification={hasNewMessage}
                                 onAction={handlers.handleAction}
                                 boardRuleFlashMessage={boardRuleFlashMessage}
+                                viewerUserId={isSpectator ? undefined : currentUser.id}
                             />
                             {isGuildWarTowerStyleUi && mode === GameMode.Missile ? (
                                 <GuildWarMissileTowerControls

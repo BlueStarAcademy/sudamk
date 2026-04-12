@@ -4,6 +4,25 @@
 
 import { arenaPostGameButtonClass } from './arenaPostGameButtonStyles.js';
 
+/** 인게임 하단 조작 바 외곽 — PC/모바일 공통 불투명 딥 네이비 슬레이트 */
+const INGAME_BOTTOM_BAR_SHELL =
+    'rounded-xl border border-slate-500/45 ' +
+    'bg-gradient-to-b from-[#1e2736] via-[#151c28] to-[#0a0e15] ' +
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.065),0_16px_48px_-14px_rgba(0,0,0,0.92)] ' +
+    'ring-1 ring-inset ring-slate-400/11';
+
+/** 푸터 내부 일반 구역 (매너·대국 기능) */
+const INGAME_INNER_NEUTRAL =
+    'rounded-xl border border-slate-500/38 ' +
+    'bg-gradient-to-b from-[#252f3f] to-[#121820] ' +
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-slate-500/09';
+
+/** 푸터 내부 특수 아이템 구역 — 은은한 앰버 하이라이트 */
+const INGAME_INNER_ITEM =
+    'rounded-xl border border-amber-700/35 ' +
+    'bg-gradient-to-b from-[#2a2318] via-[#1c1710] to-[#0f0c08] ' +
+    'shadow-[inset_0_1px_0_rgba(252,211,77,0.075)] ring-1 ring-inset ring-amber-600/20';
+
 /** 우측 대국실 사이드바 외곽 */
 export const arenaGameRoomSidebarShell =
     'flex min-h-0 flex-col h-full gap-2 rounded-xl p-2.5 sm:p-3 ' +
@@ -93,29 +112,26 @@ export const arenaGameRoomAdminStripClass =
 
 export const arenaGameRoomAdminTitleClass = 'text-xs font-bold text-violet-300/95 tracking-wide mb-1.5';
 
+/** 싱글/탑 등 GameControls 외과 동일 톤의 하단 바 (레이아웃은 각 컴포넌트에서 추가) */
+export const arenaGameRoomIngameBottomBarShellClass = INGAME_BOTTOM_BAR_SHELL;
+
+/** 내부 패널 표면만(패딩은 각 화면에서) — 싱글/탑 하단 등 */
+export const arenaGameRoomIngameInnerNeutralSurfaceClass = INGAME_INNER_NEUTRAL;
+export const arenaGameRoomIngameInnerItemSurfaceClass = INGAME_INNER_ITEM;
+
 /** 인게임 푸터(대국 기능 바) 외곽 */
 export const arenaGameRoomControlsFooterClass =
-    'responsive-controls flex-shrink-0 w-full rounded-xl border border-slate-600/38 ' +
-    'bg-gradient-to-b from-slate-900/92 via-[#0a0d12] to-[#050608] p-2 sm:p-2.5 ' +
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_40px_-18px_rgba(0,0,0,0.72)] ring-1 ring-inset ring-white/[0.03] ' +
+    `responsive-controls flex-shrink-0 w-full ${INGAME_BOTTOM_BAR_SHELL} p-2 sm:p-2.5 ` +
     'flex flex-col items-stretch justify-center gap-2 min-[1025px]:gap-1 min-[1025px]:p-1.5';
 
 export const arenaGameRoomControlsFooterCompactClass =
-    'responsive-controls flex-shrink-0 w-full rounded-xl border border-slate-600/38 ' +
-    'bg-gradient-to-b from-slate-900/92 via-[#0a0d12] to-[#050608] p-1.5 sm:p-2 ' +
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_12px_40px_-18px_rgba(0,0,0,0.72)] ring-1 ring-inset ring-white/[0.03] ' +
+    `responsive-controls flex-shrink-0 w-full ${INGAME_BOTTOM_BAR_SHELL} p-1.5 sm:p-2 ` +
     'flex flex-col items-stretch justify-center gap-1.5 min-[1025px]:gap-1 min-[1025px]:p-1';
 
-/** 푸터 내부 서브 패널 (매너 액션 / 대국·특수 기능) — 모바일은 가독성 위해 배경을 진하게 */
-export const arenaGameRoomControlsInnerPanelClass =
-    'rounded-xl border border-slate-600/45 bg-slate-950/90 p-2 ' +
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/[0.07] ' +
-    'min-[1025px]:border-slate-600/32 min-[1025px]:bg-black/28 min-[1025px]:ring-white/[0.04]';
+/** 푸터 내부 서브 패널 (매너 액션 / 대국·특수 기능) */
+export const arenaGameRoomControlsInnerPanelClass = `${INGAME_INNER_NEUTRAL} p-2`;
 
-export const arenaGameRoomControlsInnerPanelAccentClass =
-    'rounded-xl border border-amber-600/40 bg-gradient-to-b from-slate-900/94 via-amber-950/35 to-slate-950/94 p-2 ' +
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/22 ' +
-    'min-[1025px]:border-amber-800/32 min-[1025px]:from-black/22 min-[1025px]:via-amber-950/12 min-[1025px]:to-black/24 min-[1025px]:ring-amber-600/10';
+export const arenaGameRoomControlsInnerPanelAccentClass = `${INGAME_INNER_ITEM} p-2`;
 
 export const arenaGameRoomControlsSectionTitleClass =
     'text-center text-[11px] font-bold tracking-wide text-slate-400/95';
@@ -123,17 +139,15 @@ export const arenaGameRoomControlsSectionTitleClass =
 export const arenaGameRoomControlsDividerClass =
     'w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-slate-500/10 via-slate-500/45 to-slate-500/10';
 
-/** 싱글플레이 푸터 이중 패널 — 모바일에서 텍스트 대비 */
+/** 싱글플레이 푸터 이중 패널 */
 export const arenaGameRoomSinglePlayerSplitPanelClass =
-    'flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-xl border border-slate-600/42 bg-slate-950/88 px-1.5 py-1 ' +
-    'ring-1 ring-inset ring-white/[0.07] min-[1025px]:border-slate-600/34 min-[1025px]:bg-black/22 min-[1025px]:ring-white/[0.04]';
+    `flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center px-1.5 py-1 ${INGAME_INNER_NEUTRAL}`;
 
 export const arenaGameRoomSinglePlayerSplitPanelAccentClass =
-    'flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center rounded-xl border border-amber-700/38 bg-gradient-to-b from-slate-900/90 to-amber-950/30 px-1.5 py-1 ' +
-    'ring-1 ring-inset ring-amber-500/18 min-[1025px]:border-amber-900/28 min-[1025px]:bg-amber-950/12 min-[1025px]:ring-amber-700/12';
+    `flex min-h-[2.75rem] min-w-0 flex-1 flex-col justify-center px-1.5 py-1 ${INGAME_INNER_ITEM}`;
 
-export const arenaGameRoomSinglePlayerOuterBarClass =
-    'rounded-xl border border-slate-600/34 bg-black/30 w-full ring-1 ring-inset ring-white/[0.04]';
+/** 싱글플레이 푸터 안쪽 래퍼(외곽 푸터 `arenaGameRoomControlsFooterClass` 안에 사용) */
+export const arenaGameRoomSinglePlayerOuterBarClass = INGAME_BOTTOM_BAR_SHELL;
 
 /** 관리자 푸터 줄 */
 export const arenaGameRoomControlsAdminBarClass =

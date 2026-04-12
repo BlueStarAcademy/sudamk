@@ -6,8 +6,13 @@ import { AttackToTurnGauge } from '../AttackToTurnGauge.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT } from '../../constants';
 import { audioService } from '../../services/audioService.js';
 import { PLAYFUL_GAME_MODES } from '../../constants/gameModes';
+import { useSmoothedMobileBoardPan } from '../../hooks/useSmoothedMobileBoardPan.js';
+import { findAlkkagiStoneById } from '../../shared/utils/alkkagiStoneId.js';
 
-interface AlkkagiArenaProps extends GameProps {}
+interface AlkkagiArenaProps extends GameProps {
+    /** GameArena에서 전달. 발사 조준 시 좌우 드래그 여유를 위해 판 폭을 줄일 때 사용 */
+    isMobile?: boolean;
+}
 
 function usePrevious<T>(value: T): T | undefined {
   const ref = useRef<T | undefined>(undefined);
@@ -18,10 +23,12 @@ function usePrevious<T>(value: T): T | undefined {
 }
 
 const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
-    const { session, onAction, currentUser, isSpectator } = props;
+    const { session, onAction, currentUser, isSpectator, isMobile = false } = props;
     const { id: gameId, settings, gameStatus, alkkagiStones, currentPlayer, player1, alkkagiStones_p1, alkkagiStones_p2, activeAlkkagiItems } = session;
     
     const boardRef = useRef<AlkkagiBoardHandle>(null);
+    const resetBoardPanRef = useRef<() => void>(() => {});
+    const onDragMovePanRef = useRef<(clientX: number, innerWidth: number) => void>(() => {});
     const animationFrameRef = useRef<number | null>(null);
     const powerGaugeAnimFrameRef = useRef<number | null>(null);
     const gaugeStartTimeRef = useRef<number | null>(null);
@@ -38,8 +45,6 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
     const [dragEndPoint, setDragEndPoint] = useState<Point | null>(null);
     const [power, setPower] = useState(0);
     const [flickPower, setFlickPower] = useState<number | null>(null);
-    const isMobile = false;
-
     const latestProps = useRef(props);
     useEffect(() => {
         latestProps.current = props;
@@ -66,6 +71,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         setDragEndPoint(null);
         setPower(0);
         powerRef.current = 0;
+        resetBoardPanRef.current();
     }, [stopPowerGauge]);
 
     useEffect(() => {
@@ -89,7 +95,15 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         if (gameStatus === 'alkkagi_simultaneous_placement') return true;
         return currentPlayer === myPlayerEnum;
     }, [gameStatus, currentPlayer, myPlayerEnum, isSpectator]);
-    
+
+    const alkkagiMobilePanEnabled = isMobile && gameStatus === 'alkkagi_playing' && !isSpectator && isMyTurn;
+    const { panX: dragBoardPanX, onDragMoveClientX, resetPan } = useSmoothedMobileBoardPan({
+        boardRef,
+        enabled: alkkagiMobilePanEnabled,
+    });
+    resetBoardPanRef.current = resetPan;
+    onDragMovePanRef.current = onDragMoveClientX;
+
     const shouldRotate = isSpectator ? false : (myPlayerEnum === Player.White);
 
     const stonesForBoard = useMemo(() => {
@@ -157,7 +171,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
 
         let simStones: AlkkagiStone[] = JSON.parse(JSON.stringify(stones || []));
-        let stoneToAnimate = simStones.find(s => s.id === flickedStoneId);
+        let stoneToAnimate = findAlkkagiStoneById(simStones, flickedStoneId);
         if (stoneToAnimate) {
             stoneToAnimate.vx = vx;
             stoneToAnimate.vy = vy;
@@ -252,11 +266,32 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
             if ('preventDefault' in e) e.preventDefault();
             const point = 'touches' in e ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : { x: e.clientX, y: e.clientY };
             setDragEndPoint(point);
+            const p = latestProps.current;
+            if (!p.isMobile) {
+                resetBoardPanRef.current();
+                return;
+            }
+            if (p.session.gameStatus !== 'alkkagi_playing' || p.isSpectator) {
+                resetBoardPanRef.current();
+                return;
+            }
+            const myPl =
+                p.session.blackPlayerId === p.currentUser.id
+                    ? Player.Black
+                    : p.session.whitePlayerId === p.currentUser.id
+                      ? Player.White
+                      : Player.None;
+            if (p.session.currentPlayer !== myPl) {
+                resetBoardPanRef.current();
+                return;
+            }
+            onDragMovePanRef.current(point.x, typeof window !== 'undefined' ? window.innerWidth : 0);
         };
 
         const handleInteractionEnd = (e: MouseEvent | TouchEvent) => {
             if (!isDraggingRef.current) return;
-            
+            resetBoardPanRef.current();
+
             const { session: currentSession, onAction: currentOnAction } = latestProps.current;
 
             const finalSelectedStone = selectedStoneRef.current;
@@ -338,8 +373,13 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         
         window.addEventListener('mousemove', handleInteractionMove, { passive: false });
         window.addEventListener('touchmove', handleInteractionMove, { passive: false });
+        const handleTouchCancel = () => {
+            if (isDraggingRef.current) cancelFlick();
+        };
+
         window.addEventListener('mouseup', handleInteractionEnd);
         window.addEventListener('touchend', handleInteractionEnd);
+        window.addEventListener('touchcancel', handleTouchCancel);
         window.addEventListener('contextmenu', handleContextMenu);
         
         return () => {
@@ -347,13 +387,14 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
             window.removeEventListener('touchmove', handleInteractionMove);
             window.removeEventListener('mouseup', handleInteractionEnd);
             window.removeEventListener('touchend', handleInteractionEnd);
+            window.removeEventListener('touchcancel', handleTouchCancel);
             window.removeEventListener('contextmenu', handleContextMenu);
             stopPowerGauge();
             if (animationFrameRef.current) {
                 cancelAnimationFrame(animationFrameRef.current);
             }
         };
-        }, [stopPowerGauge, cancelFlick, shouldRotate]);
+        }, [stopPowerGauge, cancelFlick]);
 
     useEffect(() => {
         const { session: currentSession } = latestProps.current;
@@ -361,7 +402,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         if (animation?.type === 'alkkagi_flick' && animation.startTime > lastAnimationTimestampRef.current) {
             lastAnimationTimestampRef.current = animation.startTime;
             const { stoneId, vx, vy } = animation;
-            runClientAnimation(currentSession.alkkagiStones || [], stoneId, vx, vy);
+            runClientAnimation(currentSession.alkkagiStones || [], Number(stoneId), Number(vx), Number(vy));
         }
     }, [session.animation, runClientAnimation]);
     
@@ -369,8 +410,8 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
     const maxStones = session.settings.alkkagiStoneCount || 5;
 
     const selectedStoneForRender = useMemo(() => {
-        if (!selectedStoneId) return null;
-        return alkkagiStones?.find(s => s.id === selectedStoneId) || null;
+        if (selectedStoneId == null) return null;
+        return findAlkkagiStoneById(alkkagiStones ?? [], selectedStoneId) ?? null;
     }, [selectedStoneId, alkkagiStones]);
 
     /** 드래그 끝이 시작점(돌) 근처면 발사 취소 영역 — 보드 크기 기준 CSS 픽셀로 돌 반경 계산 */
@@ -392,6 +433,33 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
     }, [session.mode]);
 
     const showTurnPassGauge = gameStatus === 'alkkagi_animating' && session.animation?.type === 'alkkagi_flick' && session.animation.startTime != null && session.animation.duration != null;
+
+    /** 모바일 비관전: playing·animating 동일 DOM 트리 유지 — 분기 시 rotate 트랜지션이 매번 재생되어 판이 도는 것처럼 보이던 문제 방지 */
+    const mobileAlkkagiStableChrome =
+        isMobile && !isSpectator && (gameStatus === 'alkkagi_playing' || gameStatus === 'alkkagi_animating');
+
+    const boardNode = (
+        <AlkkagiBoard
+            ref={boardRef}
+            stones={stonesForBoard}
+            gameStatus={gameStatus}
+            myPlayer={myPlayerEnum}
+            isMyTurn={isMyTurn}
+            settings={settings}
+            onPlacementClick={handlePlacementClick}
+            onStoneInteractionStart={handleStoneInteractionStart}
+            isSpectator={isSpectator}
+            dragStartPoint={dragStartPoint}
+            dragEndPoint={dragEndPoint}
+            selectedStone={selectedStoneForRender}
+            isInCancelZone={isInCancelZone}
+            myStonesCount={myStonesCount}
+            maxStones={maxStones}
+            session={session}
+            currentUser={currentUser}
+            isRotated={shouldRotate}
+        />
+    );
 
     return (
         <div className={`relative w-full h-full flex items-center justify-center px-4 sm:px-6 lg:px-0 ${backgroundClass}`}>
@@ -419,28 +487,26 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
                 )}
             </div>
 
-            <div className={`w-full h-full transition-transform duration-500 ${shouldRotate ? 'rotate-180' : ''}`}>
-                <AlkkagiBoard
-                    ref={boardRef}
-                    stones={stonesForBoard}
-                    gameStatus={gameStatus}
-                    myPlayer={myPlayerEnum}
-                    isMyTurn={isMyTurn}
-                    settings={settings}
-                    onPlacementClick={handlePlacementClick}
-                    onStoneInteractionStart={handleStoneInteractionStart}
-                    isSpectator={isSpectator}
-                    dragStartPoint={dragStartPoint}
-                    dragEndPoint={dragEndPoint}
-                    selectedStone={selectedStoneForRender}
-                    isInCancelZone={isInCancelZone}
-                    myStonesCount={myStonesCount}
-                    maxStones={maxStones}
-                    session={session}
-                    currentUser={currentUser}
-                    isRotated={shouldRotate}
-                />
-            </div>
+            {mobileAlkkagiStableChrome ? (
+                <div className="flex h-full w-full min-h-0 min-w-0 items-center justify-center overflow-x-hidden overflow-y-hidden">
+                    <div
+                        className="h-full max-h-full w-full max-w-full aspect-square min-h-0 min-w-0"
+                        style={{
+                            transform: alkkagiMobilePanEnabled ? `translate3d(${dragBoardPanX}px,0,0)` : undefined,
+                            willChange: alkkagiMobilePanEnabled ? 'transform' : undefined,
+                        }}
+                    >
+                        {/* rotate는 트랜지션 없이 고정 — 백 시각 보정만 (재마운트 시 0→180 애니메이션 방지) */}
+                        <div className={`h-full w-full ${shouldRotate ? 'rotate-180' : ''}`}>
+                            {boardNode}
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                <div className={`h-full w-full min-h-0 min-w-0 ${shouldRotate ? 'rotate-180' : ''}`}>
+                    {boardNode}
+                </div>
+            )}
         </div>
     );
 };

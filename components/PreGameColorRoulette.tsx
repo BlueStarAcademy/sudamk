@@ -10,6 +10,8 @@ interface PreGameColorRouletteProps {
     title?: string;
     subtitle?: string;
     onComplete?: () => void;
+    /** true면 상단 제목/부제를 숨김 (부모 DraggableWindow 제목과 중복 방지) */
+    suppressHeader?: boolean;
 }
 
 const ROULETTE_TICK_MS = 110;
@@ -21,6 +23,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     title = '룰렛으로 흑/백을 결정하는 중...',
     subtitle = '자동으로 선공과 후공이 배정됩니다.',
     onComplete,
+    suppressHeader = false,
 }) => {
     const [activeColor, setActiveColor] = useState<Player>(Player.Black);
     const [isFinished, setIsFinished] = useState(false);
@@ -89,10 +92,12 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
 
     return (
         <div className="space-y-4">
-            <div className="text-center">
-                <p className="text-lg font-bold text-white">{title}</p>
-                <p className="text-sm text-gray-300 mt-1">{subtitle}</p>
-            </div>
+            {!suppressHeader && (
+                <div className="text-center">
+                    <p className="text-lg font-bold text-white">{title}</p>
+                    <p className="text-sm text-gray-300 mt-1">{subtitle}</p>
+                </div>
+            )}
 
             <div className="rounded-2xl border border-amber-400/30 bg-gray-950/70 px-4 py-5">
                 <div className="flex flex-col items-center gap-3">
@@ -121,8 +126,16 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
             </div>
 
             <div className="flex gap-4">
-                {renderPlayerCard(blackPlayer, Player.Black, isFinished || activeColor === Player.Black)}
-                {renderPlayerCard(whitePlayer, Player.White, isFinished || activeColor === Player.White)}
+                {renderPlayerCard(
+                    blackPlayer,
+                    Player.Black,
+                    isFinished ? true : activeColor === Player.Black,
+                )}
+                {renderPlayerCard(
+                    whitePlayer,
+                    Player.White,
+                    isFinished ? true : activeColor === Player.White,
+                )}
             </div>
         </div>
     );

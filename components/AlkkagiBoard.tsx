@@ -65,12 +65,12 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         getSvg: () => svgRef.current,
     }));
 
-    const getSvgCoordinates = (e: React.MouseEvent<SVGSVGElement>): Point | null => {
+    const getSvgCoordinatesFromClient = (clientX: number, clientY: number): Point | null => {
         const svg = svgRef.current;
         if (!svg) return null;
         const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
+        pt.x = clientX;
+        pt.y = clientY;
         const ctm = svg.getScreenCTM();
         if (ctm) {
             const transformedPt = pt.matrixTransform(ctm.inverse());
@@ -78,6 +78,9 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
         }
         return null;
     };
+
+    const getSvgCoordinates = (e: React.MouseEvent<SVGSVGElement>): Point | null =>
+        getSvgCoordinatesFromClient(e.clientX, e.clientY);
     
     const isPlacementValid = useCallback((point: Point | null): boolean => {
         if (!point || (gameStatus !== 'alkkagi_placement' && gameStatus !== 'alkkagi_simultaneous_placement') || myPlayer === Player.None) return false;
@@ -127,13 +130,13 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
     
     const isHoverValid = useMemo(() => isPlacementValid(hoverPos), [hoverPos, isPlacementValid]);
 
-    const handleClick = (e: React.MouseEvent<SVGSVGElement>) => {
+    /** 모바일 WebView에서 SVG click이 누락되는 경우가 있어 Pointer 이벤트로 통일 */
+    const handlePlacementPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
         if ((gameStatus !== 'alkkagi_placement' && gameStatus !== 'alkkagi_simultaneous_placement') || !isMyTurn) return;
-        const svgPoint = getSvgCoordinates(e);
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const svgPoint = getSvgCoordinatesFromClient(e.clientX, e.clientY);
         if (svgPoint && isPlacementValid(svgPoint)) {
-            // 배치 영역을 서버 좌표로 그리므로, 회전 시에도 SVG 좌표가 서버 좌표와 일치 (상단=백=화면 하단)
-            const serverPoint = svgPoint;
-            onPlacementClick(serverPoint);
+            onPlacementClick(svgPoint);
         }
     };
 
@@ -250,7 +253,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
                 ref={svgRef}
                 viewBox={`0 0 ${boardSizePx} ${boardSizePx}`}
                 className="w-full h-full touch-none"
-                onClick={handleClick}
+                onPointerUp={handlePlacementPointerUp}
                 onMouseMove={(e) => {
                     const svgPoint = getSvgCoordinates(e);
                     setHoverPos(svgPoint);

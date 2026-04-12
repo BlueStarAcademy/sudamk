@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
 import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade } from '../types.js';
-import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages, getDungeonStageScore } from '../constants';
+import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages, getDungeonStageScore, getHighestDungeonStageWhereUserAvgExceedsBot } from '../constants';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -436,7 +436,9 @@ const TournamentCard: React.FC<{
     mergedInfoPanelCompact?: boolean;
     /** 모바일 로비: 입장 카드가 남는 세로 공간을 균등 분배할 때 고정 max-height 제거 */
     mergedInfoPanelStretch?: boolean;
-}> = ({ type, onClick, onContinue, inProgress, currentUser, compact, compactInline, mergedInfoPanel = false, mergedInfoPanelCompact = false, mergedInfoPanelStretch = false }) => {
+    /** 6코어 최종 능력치 산술평균(장비 반영). 모바일 입장카드 추천 단계 표시용 */
+    userDungeonCoreStatAverage?: number;
+}> = ({ type, onClick, onContinue, inProgress, currentUser, compact, compactInline, mergedInfoPanel = false, mergedInfoPanelCompact = false, mergedInfoPanelStretch = false, userDungeonCoreStatAverage }) => {
     const definition = TOURNAMENT_DEFINITIONS[type];
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
 
@@ -476,6 +478,11 @@ const TournamentCard: React.FC<{
 
     const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
 
+    const recommendedDungeonStage = useMemo(() => {
+        if (userDungeonCoreStatAverage == null || !Number.isFinite(userDungeonCoreStatAverage)) return null;
+        return getHighestDungeonStageWhereUserAvgExceedsBot(userDungeonCoreStatAverage);
+    }, [userDungeonCoreStatAverage]);
+
     /** 모바일 입장 카드: 오늘 아직 참여 전이면 (0/1) — 남은 일일 입장이 있을 때 */
     const hasRemainingDailyEntry =
         !isCompletedToday && !isPausedInProgress && playedCountToday === 0;
@@ -487,7 +494,6 @@ const TournamentCard: React.FC<{
           : 'border-cyan-300/60 bg-cyan-500/90 text-cyan-950';
 
     const [entryModalOpen, setEntryModalOpen] = useState(false);
-    const [rankingPointsModalOpen, setRankingPointsModalOpen] = useState(false);
 
     const compactInlineAccent =
         type === 'neighborhood'
@@ -555,42 +561,26 @@ const TournamentCard: React.FC<{
                                     {participationBadge}
                                 </div>
                             </button>
-                            <div className="flex min-h-0 min-w-0 max-w-[44%] flex-1 flex-col items-stretch justify-between border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
+                            <div className="flex min-h-0 min-w-0 max-w-[44%] flex-1 flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
                                 <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)] sm:text-[13px]">
                                     {definition.name}
                                 </div>
-                                <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
-                                    <span className="min-w-0 text-center font-semibold text-slate-300/95">최고 단계</span>
-                                    <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
-                                        {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
-                                    </span>
+                                <div className="flex min-h-0 flex-1 flex-col justify-center gap-2 py-0.5">
+                                    <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
+                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">최고 단계</span>
+                                        <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
+                                            {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
+                                        </span>
+                                    </div>
+                                    <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
+                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">추천 단계</span>
+                                        <span className="min-w-0 w-full text-center font-semibold text-emerald-200/95 whitespace-normal break-keep">
+                                            {recommendedDungeonStage != null ? `${recommendedDungeonStage}단계` : '-'}
+                                        </span>
+                                    </div>
                                 </div>
-                                <button
-                                    type="button"
-                                    onClick={() => setRankingPointsModalOpen(true)}
-                                    className="mt-1 w-full shrink-0 rounded-lg border border-amber-400/45 bg-gradient-to-r from-amber-950/55 to-zinc-900/80 py-2 text-[11px] font-semibold text-amber-50 shadow-[0_2px_10px_rgba(0,0,0,0.35)] transition-colors active:scale-[0.99] sm:py-2.5 sm:text-xs"
-                                >
-                                    챔피언십 랭킹점수
-                                </button>
                             </div>
                         </div>
-                        {rankingPointsModalOpen && (
-                            <DraggableWindow
-                                title={`${definition.name} — 랭킹점수`}
-                                onClose={() => setRankingPointsModalOpen(false)}
-                                windowId={`venue-ranking-${type}-mobile`}
-                                isTopmost={true}
-                                initialWidth={420}
-                                initialHeight={520}
-                                variant="store"
-                                mobileViewportFit
-                                mobileViewportMaxHeightVh={88}
-                                hideFooter
-                                bodyPaddingClassName="p-2"
-                            >
-                                <DungeonChampionshipRankingPointsPanel type={type} currentUser={currentUser} compact />
-                            </DraggableWindow>
-                        )}
                     </>
                 ) : (
                 <div className="flex h-full min-h-0 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
@@ -609,17 +599,25 @@ const TournamentCard: React.FC<{
                             {participationBadge}
                         </div>
                     </button>
-                    <div className="flex min-h-0 min-w-[248px] flex-[1.08] flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] space-y-2.5">
+                    <div className="flex min-h-0 min-w-[248px] flex-[1.08] flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
                         <div className="mb-1 inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2.5 py-1.5 text-[17px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]">
                             {definition.name}
                         </div>
-                        <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
-                            <span className="min-w-0 text-center font-semibold text-slate-300/95">최고 단계</span>
-                            <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
-                                {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
-                            </span>
+                        <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5 py-1">
+                            <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
+                                <span className="min-w-0 text-center font-semibold text-slate-300/95">최고 단계</span>
+                                <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
+                                    {dungeonProgress.currentStage > 0 ? `${dungeonProgress.currentStage}단계` : '-'}
+                                </span>
+                            </div>
+                            <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
+                                <span className="min-w-0 text-center font-semibold text-slate-300/95">추천 단계</span>
+                                <span className="min-w-0 w-full text-center font-semibold text-emerald-200/95 whitespace-normal break-keep">
+                                    {recommendedDungeonStage != null ? `${recommendedDungeonStage}단계` : '-'}
+                                </span>
+                            </div>
                         </div>
-                        <div className="w-full min-w-0 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2">
+                        <div className="mt-auto w-full min-w-0 shrink-0 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2">
                             <DungeonChampionshipRankingPointsPanel type={type} currentUser={currentUser} />
                         </div>
                     </div>
@@ -810,7 +808,9 @@ const EquipmentSlotDisplay: React.FC<{
 
 const TournamentLobby: React.FC = () => {
     const { currentUserWithStatus, allUsers, handlers, presets } = useAppContext();
-    const { isNativeMobile } = useNativeMobileShell();
+    const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
+    /** 네이티브 앱이 아니어도 좁은 화면(모바일 브라우저 등)에서는 입장카드 우측을 컴팩트 패널로 */
+    const useCompactMergedChampionshipCards = isNarrowViewport && !pcLikeMobileLayout;
 
     const venueLobbyPanelStyle = useMemo(
         () =>
@@ -923,6 +923,7 @@ const TournamentLobby: React.FC = () => {
         () => Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0),
         [finalByStat],
     );
+    const userDungeonCoreStatAverage = useMemo(() => badukAbilityTotal / 6, [badukAbilityTotal]);
     const totalPoints =
         (Math.max(0, currentUserWithStatus.strategyLevel - 1) * 2) +
         (Math.max(0, currentUserWithStatus.playfulLevel - 1) * 2) +
@@ -1064,6 +1065,7 @@ const TournamentLobby: React.FC = () => {
                                 mergedInfoPanel
                                 mergedInfoPanelCompact
                                 mergedInfoPanelStretch
+                                userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                             />
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col basis-0">
@@ -1076,6 +1078,7 @@ const TournamentLobby: React.FC = () => {
                                 mergedInfoPanel
                                 mergedInfoPanelCompact
                                 mergedInfoPanelStretch
+                                userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                             />
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col basis-0">
@@ -1088,6 +1091,7 @@ const TournamentLobby: React.FC = () => {
                                 mergedInfoPanel
                                 mergedInfoPanelCompact
                                 mergedInfoPanelStretch
+                                userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                             />
                         </div>
                     </div>
@@ -1363,9 +1367,39 @@ const TournamentLobby: React.FC = () => {
                     <main className="min-h-0 flex-1 flex flex-col items-center overflow-hidden rounded-lg border border-zinc-600/80 bg-panel p-1 shadow-inner">
                         <div className="mx-auto flex h-full min-h-0 w-full max-w-[min(100%,1120px)] flex-col justify-center">
                             <div className="grid h-full min-h-0 grid-cols-1 grid-rows-3 content-center gap-3 sm:gap-4 lg:gap-5">
-                                <TournamentCard type="neighborhood" onClick={(stage) => handleEnterArena('neighborhood', stage)} onContinue={() => handleContinueTournament('neighborhood')} inProgress={neighborhoodState || null} currentUser={currentUserWithStatus} mergedInfoPanel />
-                                <TournamentCard type="national" onClick={(stage) => handleEnterArena('national', stage)} onContinue={() => handleContinueTournament('national')} inProgress={nationalState || null} currentUser={currentUserWithStatus} mergedInfoPanel />
-                                <TournamentCard type="world" onClick={(stage) => handleEnterArena('world', stage)} onContinue={() => handleContinueTournament('world')} inProgress={worldState || null} currentUser={currentUserWithStatus} mergedInfoPanel />
+                                <TournamentCard
+                                    type="neighborhood"
+                                    onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                                    onContinue={() => handleContinueTournament('neighborhood')}
+                                    inProgress={neighborhoodState || null}
+                                    currentUser={currentUserWithStatus}
+                                    mergedInfoPanel
+                                    mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                    mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                />
+                                <TournamentCard
+                                    type="national"
+                                    onClick={(stage) => handleEnterArena('national', stage)}
+                                    onContinue={() => handleContinueTournament('national')}
+                                    inProgress={nationalState || null}
+                                    currentUser={currentUserWithStatus}
+                                    mergedInfoPanel
+                                    mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                    mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                />
+                                <TournamentCard
+                                    type="world"
+                                    onClick={(stage) => handleEnterArena('world', stage)}
+                                    onContinue={() => handleContinueTournament('world')}
+                                    inProgress={worldState || null}
+                                    currentUser={currentUserWithStatus}
+                                    mergedInfoPanel
+                                    mergedInfoPanelCompact={useCompactMergedChampionshipCards}
+                                    mergedInfoPanelStretch={useCompactMergedChampionshipCards}
+                                    userDungeonCoreStatAverage={userDungeonCoreStatAverage}
+                                />
                             </div>
                         </div>
                     </main>

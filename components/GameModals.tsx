@@ -15,11 +15,9 @@ import Button from './Button.js';
 import DiceRoundSummary from './DiceRoundSummary.js';
 import BasePlacementModal from './BasePlacementModal.js';
 import KomiBiddingPanel from './KomiBiddingPanel.js';
-import AlkkagiPlacementModal from './AlkkagiPlacementModal.js';
 import NegotiationModal from './NegotiationModal.js';
 import DiceGoTurnSelectionModal from './DiceGoTurnSelectionModal.js';
 import BaseStartConfirmationModal from './BaseStartConfirmationModal.js';
-import AlkkagiRoundSummary from './AlkkagiRoundSummary.js';
 import DiceGoStartConfirmationModal from './DiceGoStartConfirmationModal.js';
 import CurlingStartConfirmationModal from './CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from './AlkkagiStartConfirmationModal.js';
@@ -62,7 +60,6 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             'dice_rps', 'thief_rps', 'alkkagi_rps', 'curling_rps', 'omok_rps', 'ttamok_rps',
             'turn_preference_selection',
             'thief_role_selection',
-            'alkkagi_simultaneous_placement',
             'dice_turn_rolling',
             
         ];
@@ -89,10 +86,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'thief_role_confirmed') return <ThiefRoleConfirmedModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'thief_round_end') return <ThiefRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_round_end') return <CurlingRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'alkkagi_round_end') return <AlkkagiRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'dice_round_end') return <DiceRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'alkkagi_simultaneous_placement') return <AlkkagiPlacementModal session={session} currentUser={currentUser} />;
-        
         // 게임이 종료되었을 때만 결과 모달 표시
         // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
         // 도전의 탑과 싱글플레이어는 이미 위에서 처리했으므로 제외

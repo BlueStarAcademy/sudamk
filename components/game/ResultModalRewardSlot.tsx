@@ -11,9 +11,13 @@ const BOX_GOLD =
 const BOX_ITEM =
     'flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-violet-500/45 bg-gradient-to-br from-violet-950/55 via-purple-900/35 to-zinc-950/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-violet-400/15';
 
+/** 모바일 보상 한 줄: 골드·EXP·아이템 아이콘 박스 동일 크기(좁은 폭에서도 한 줄 배치) */
+export const RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS =
+    'h-10 w-10 min-[360px]:h-11 min-[360px]:w-11 min-[400px]:h-12 min-[400px]:w-12 sm:h-14 sm:w-14';
+
 function imageBoxClass(compact: boolean): string {
     return compact
-        ? 'h-14 w-14'
+        ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS
         : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
 }
 
@@ -23,24 +27,30 @@ export const ResultModalGoldCurrencySlot: React.FC<{
     compact: boolean;
     dimmed?: boolean;
 }> = ({ amount, compact, dimmed }) => (
-    <div className={`flex flex-col items-center gap-0.5 ${dimmed ? 'opacity-80' : ''}`}>
+    <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}>
         <div className={`${BOX_GOLD} ${imageBoxClass(compact)}`}>
             <img
                 src="/images/icon/Gold.png"
                 alt=""
-                className={compact ? 'h-9 w-9 object-contain p-0.5' : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12'}
+                className={
+                    compact
+                        ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-9 sm:w-9'
+                        : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12'
+                }
             />
         </div>
         <span
             className={
                 compact
-                    ? 'text-center text-[0.72rem] font-bold tabular-nums text-amber-100'
+                    ? 'text-center text-[0.72rem] font-bold tabular-nums text-amber-100 whitespace-nowrap'
                     : 'text-center text-sm font-bold tabular-nums text-amber-100 min-[1024px]:text-base'
             }
         >
             {amount.toLocaleString()}
         </span>
-        <span className="text-center text-[0.62rem] font-semibold leading-none text-amber-200/78 sm:text-[0.65rem]">골드</span>
+        <span className="text-center text-[0.62rem] font-semibold leading-none text-amber-200/78 whitespace-nowrap sm:text-[0.65rem]">
+            골드
+        </span>
     </div>
 );
 
@@ -54,12 +64,16 @@ export const ResultModalItemRewardSlot: React.FC<{
     onImageError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
 }> = ({ imageSrc, name, quantity, compact, dimmed, onImageError }) => {
     const displayName = formatRewardItemDisplayName(name);
-    const imgClass = compact ? 'h-10 w-10 object-contain p-0.5' : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12';
+    const imgClass = compact
+        ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-10 sm:w-10'
+        : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12';
     return (
         <div
-            className={`flex max-w-[5.75rem] flex-col items-center gap-0.5 sm:max-w-[6.75rem] min-[1024px]:max-w-[7.25rem] ${
-                dimmed ? 'opacity-80' : ''
-            }`}
+            className={`flex flex-col items-center gap-0.5 ${
+                compact
+                    ? 'w-[2.5rem] shrink-0 min-[360px]:w-[2.75rem] min-[400px]:w-12 sm:w-auto sm:max-w-[6.75rem]'
+                    : 'max-w-[5.75rem] sm:max-w-[6.75rem] min-[1024px]:max-w-[7.25rem]'
+            } ${dimmed ? 'opacity-80' : ''}`}
         >
             <div className={`${BOX_ITEM} ${imageBoxClass(compact)}`}>
                 {imageSrc ? (
@@ -83,4 +97,7 @@ export const ResultModalItemRewardSlot: React.FC<{
 };
 
 /** 보상 한 줄 영역: 데이터 도착 전·후 동일 높이로 모달 흔들림 방지 */
-export const RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS = 'min-h-[7.5rem] w-full sm:min-h-[10rem]';
+export const RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS = 'min-h-[6.25rem] w-full sm:min-h-[10rem]';
+
+/** 모바일 보상 줄 컨테이너: 한 줄 우선, 필요 시 가로 스크롤 */
+export const RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS = `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;

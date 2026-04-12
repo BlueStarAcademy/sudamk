@@ -17,11 +17,9 @@ import Button from '../Button.js';
 import DiceRoundSummary from '../DiceRoundSummary.js';
 import BasePlacementModal from '../BasePlacementModal.js';
 import KomiBiddingPanel from '../KomiBiddingPanel.js';
-import AlkkagiPlacementModal from '../AlkkagiPlacementModal.js';
 import NegotiationModal from '../NegotiationModal.js';
 import DiceGoTurnSelectionModal from '../DiceGoTurnSelectionModal.js';
 import BaseStartConfirmationModal from '../BaseStartConfirmationModal.js';
-import AlkkagiRoundSummary from '../AlkkagiRoundSummary.js';
 import DiceGoStartConfirmationModal from '../DiceGoStartConfirmationModal.js';
 import CurlingStartConfirmationModal from '../CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from '../AlkkagiStartConfirmationModal.js';
@@ -51,9 +49,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             return <AiGameDescriptionModal session={session} onAction={onAction} />;
         }
 
-        // 전략바둑 PVP(히든바둑 등) 돌가리기: 게임이 이미 시작된 경우 협상 모달보다 돌가리기 창을 우선 표시
-        // (수락 직후 activeNegotiation이 아직 남아 있으면 NegotiationModal이 가려버리는 버그 방지)
-        if (!isSpectator && ['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus) && session.nigiri) {
+        // 전략바둑 PVP 흑·백 확인(nigiri_*): 협상 모달보다 우선 (수락 직후 activeNegotiation이 남아 가리는 경우 방지)
+        if (!isSpectator && ['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus)) {
+            if (!session.blackPlayerId || !session.whitePlayerId) return null;
             return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
         }
 
@@ -80,7 +78,6 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             'color_start_confirmation',
             'turn_preference_selection',
             'thief_role_selection',
-            'alkkagi_simultaneous_placement',
             'dice_turn_rolling',
             
         ];
@@ -95,7 +92,6 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'dice_start_confirmation') return <DiceGoStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'color_start_confirmation') return <ColorStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
-        if (['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus)) return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'base_placement') return <BasePlacementModal session={session} currentUser={currentUser} onAction={onAction} />;
@@ -108,10 +104,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'thief_role_confirmed') return <ThiefRoleConfirmedModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'thief_round_end') return <ThiefRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_round_end') return <CurlingRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'alkkagi_round_end') return <AlkkagiRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'dice_round_end') return <DiceRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'alkkagi_simultaneous_placement') return <AlkkagiPlacementModal session={session} currentUser={currentUser} />;
-        
         // 게임이 종료되었을 때만 결과 모달 표시
         // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
         // 도전의 탑과 싱글플레이어는 이미 위에서 처리했으므로 제외

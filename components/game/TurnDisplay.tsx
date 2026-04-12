@@ -1,6 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { LiveGameSession, Player, GameStatus, GameMode, User, ServerAction } from '../../types.js';
-import { PLAYFUL_GAME_MODES, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS } from '../../constants';
+import { LiveGameSession, Player, GameStatus, GameMode, User, ServerAction, AlkkagiStone } from '../../types.js';
+import {
+    PLAYFUL_GAME_MODES,
+    DICE_GO_MAIN_PLACE_TIME,
+    DICE_GO_MAIN_ROLL_TIME,
+    DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS,
+    ALKKAGI_PLACEMENT_TIME_LIMIT,
+    ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT,
+} from '../../constants';
 import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 
@@ -15,6 +22,8 @@ interface TurnDisplayProps {
     onAction?: (action: ServerAction) => void;
     /** 패(코) 등 규칙 안내 — 전광판 스타일로 잠시 표시 */
     boardRuleFlashMessage?: string | null;
+    /** 알까기 배치 단계에서 (n/목표) 표시용 */
+    viewerUserId?: string;
 }
 
 function usePrevious<T>(value: T): T | undefined {
@@ -134,7 +143,7 @@ const getGameStatusText = (session: LiveGameSession): string => {
             return `${player?.nickname}님 차례입니다. (${currentRound} / ${totalRounds} 라운드)`;
         }
         case 'alkkagi_round_end':
-            return `라운드 종료! 결과를 확인하세요.`;
+            return `라운드 종료 — 아래 전광판에서 확인·진행하세요.`;
         case 'dice_rolling':
              return player ? `${player.nickname}님이 주사위를 굴릴 차례입니다.` : '주사위 굴릴 차례';
         case 'thief_rolling':
@@ -160,8 +169,17 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     sidebarNotification = false,
     onAction,
     boardRuleFlashMessage = null,
+    viewerUserId,
 }) => {
     const [timeLeft, setTimeLeft] = useState(30);
+    const [alkkagiPlacementSecondsLeft, setAlkkagiPlacementSecondsLeft] = useState(() =>
+        session.mode === GameMode.Alkkagi &&
+        (session.gameStatus === 'alkkagi_placement' || session.gameStatus === 'alkkagi_simultaneous_placement') &&
+        session.alkkagiPlacementDeadline
+            ? Math.max(0, Math.ceil((session.alkkagiPlacementDeadline - Date.now()) / 1000))
+            : 0
+    );
+    const [alkkagiRoundEndSecLeft, setAlkkagiRoundEndSecLeft] = useState(0);
     const [percentage, setPercentage] = useState(100);
     const [foulMessage, setFoulMessage] = useState<string | null>(null);
     const prevTimeoutPlayerId = usePrevious(session.lastTimeoutPlayerId);
@@ -179,6 +197,37 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             ['dice_rolling', 'dice_placing', 'thief_rolling', 'thief_placing'].includes(session.gameStatus)
         );
     }, [session.mode, session.turnDeadline, session.turnStartTime, session.gameStatus, session.isAiGame]);
+
+    useEffect(() => {
+        const inAlkkagiPlacement =
+            session.mode === GameMode.Alkkagi &&
+            (session.gameStatus === 'alkkagi_placement' || session.gameStatus === 'alkkagi_simultaneous_placement') &&
+            session.alkkagiPlacementDeadline;
+        if (!inAlkkagiPlacement) {
+            setAlkkagiPlacementSecondsLeft(0);
+            return;
+        }
+        const tick = () => {
+            const sec = Math.max(0, Math.ceil((session.alkkagiPlacementDeadline! - Date.now()) / 1000));
+            setAlkkagiPlacementSecondsLeft(sec);
+        };
+        tick();
+        const id = setInterval(tick, 250);
+        return () => clearInterval(id);
+    }, [session.mode, session.gameStatus, session.alkkagiPlacementDeadline]);
+
+    useEffect(() => {
+        if (session.mode !== GameMode.Alkkagi || session.gameStatus !== 'alkkagi_round_end' || !session.revealEndTime) {
+            setAlkkagiRoundEndSecLeft(0);
+            return;
+        }
+        const tick = () => {
+            setAlkkagiRoundEndSecLeft(Math.max(0, Math.ceil((session.revealEndTime! - Date.now()) / 1000)));
+        };
+        tick();
+        const id = setInterval(tick, 250);
+        return () => clearInterval(id);
+    }, [session.mode, session.gameStatus, session.revealEndTime]);
 
     useEffect(() => {
         if (!isPlayfulTurn) {
@@ -376,6 +425,172 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         );
     }
     
+    if (
+        session.mode === GameMode.Alkkagi &&
+        (session.gameStatus === 'alkkagi_placement' || session.gameStatus === 'alkkagi_simultaneous_placement')
+    ) {
+        const target = session.settings.alkkagiStoneCount || 5;
+        const round = session.alkkagiRound || 1;
+        const totalRounds = session.settings.alkkagiRounds || 1;
+        const isSimultaneous = session.gameStatus === 'alkkagi_simultaneous_placement';
+        const guidance = isSimultaneous
+            ? round > 1
+                ? `부족한 돌을 배치하세요. (${round} / ${totalRounds} 라운드)`
+                : `상대에게 보이지 않게 돌을 배치하세요. (${round} / ${totalRounds} 라운드)`
+            : round > 1
+              ? `돌을 다시 배치하세요. (${round} / ${totalRounds} 라운드)`
+              : `돌을 배치하세요. (${round} / ${totalRounds} 라운드)`;
+        const placed =
+            viewerUserId && session.alkkagiStonesPlacedThisRound
+                ? session.alkkagiStonesPlacedThisRound[viewerUserId] ?? 0
+                : null;
+        const limitSec = isSimultaneous ? ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT : ALKKAGI_PLACEMENT_TIME_LIMIT;
+        const hasDeadline = Boolean(session.alkkagiPlacementDeadline);
+        const secLeft = hasDeadline ? alkkagiPlacementSecondsLeft : null;
+        const barPct =
+            hasDeadline && secLeft !== null ? Math.min(100, Math.max(0, (secLeft / limitSec) * 100)) : null;
+        const subLine =
+            placed !== null
+                ? `배치 ${placed}/${target}${hasDeadline && secLeft !== null ? ` · 남은 시간 ${secLeft}초` : ''}`
+                : hasDeadline && secLeft !== null
+                  ? `남은 시간 ${secLeft}초`
+                  : null;
+
+        return wrapContent(
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-3 min-h-[3rem]'}`,
+            <>
+                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-1">
+                    <div
+                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
+                    >
+                        <p
+                            className={`font-bold ${textClass} text-center leading-snug tracking-wide ${
+                                isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
+                            }`}
+                            style={{
+                                textShadow: isSinglePlayer
+                                    ? '0 0 8px rgba(251, 191, 36, 0.35)'
+                                    : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
+                            }}
+                        >
+                            {guidance}
+                        </p>
+                    </div>
+                    {subLine && (
+                        <p
+                            className={`text-center font-semibold text-amber-200/90 ${
+                                isMobile ? 'text-[clamp(0.55rem,1.5vmin,0.65rem)]' : 'text-[clamp(0.62rem,1.7vmin,0.75rem)]'
+                            }`}
+                        >
+                            {subLine}
+                        </p>
+                    )}
+                </div>
+                {barPct !== null && (
+                    <div
+                        className={`relative mt-0.5 w-full flex-shrink-0 overflow-hidden rounded-full border-2 ${
+                            isSinglePlayer ? 'border-black/20 bg-stone-900/70' : 'border-tertiary bg-tertiary'
+                        } ${isMobile ? 'h-1 border' : 'h-[clamp(0.5rem,1.5vh,0.75rem)] border-2'}`}
+                    >
+                        <div
+                            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-400 to-amber-300"
+                            style={{ width: `${barPct}%`, transition: 'width 0.35s linear' }}
+                        />
+                    </div>
+                )}
+            </>
+        );
+    }
+
+    if (session.mode === GameMode.Alkkagi && session.gameStatus === 'alkkagi_round_end' && session.alkkagiRoundSummary) {
+        const summary = session.alkkagiRoundSummary;
+        const { player1, player2, blackPlayerId, whitePlayerId, id: gameId, alkkagiStones, roundEndConfirmations, settings } = session;
+        const winnerUser = player1.id === summary.winnerId ? player1 : player2;
+        const p1Enum = player1.id === blackPlayerId ? Player.Black : Player.White;
+        const p2Enum = player2.id === blackPlayerId ? Player.Black : Player.White;
+        const p1StonesLeft =
+            alkkagiStones?.filter((s: AlkkagiStone) => s.player === p1Enum && s.onBoard).length ?? 0;
+        const p2StonesLeft =
+            alkkagiStones?.filter((s: AlkkagiStone) => s.player === p2Enum && s.onBoard).length ?? 0;
+        const hasConfirmed = viewerUserId ? !!roundEndConfirmations?.[viewerUserId] : false;
+        const nextRound = summary.round + 1;
+        const totalRounds = settings?.alkkagiRounds || 1;
+        const barPct =
+            session.revealEndTime != null
+                ? Math.min(100, Math.max(0, (alkkagiRoundEndSecLeft / 30) * 100))
+                : null;
+        const autoHint =
+            nextRound > totalRounds
+                ? `최종 결과 자동 표시까지 ${alkkagiRoundEndSecLeft}초`
+                : `다음 라운드 자동 시작까지 ${alkkagiRoundEndSecLeft}초`;
+
+        return wrapContent(
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1.5 px-2 py-1.5' : 'gap-2 px-3 py-2'}`,
+            <>
+                <div className="flex w-full min-w-0 flex-col items-center gap-1">
+                    <p
+                        className={`text-center font-bold leading-snug ${textClass} ${
+                            isMobile ? 'text-[clamp(0.6rem,1.7vmin,0.78rem)]' : 'text-sm min-[1025px]:text-base'
+                        }`}
+                        style={{
+                            textShadow: isSinglePlayer
+                                ? '0 0 8px rgba(251, 191, 36, 0.35)'
+                                : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
+                        }}
+                    >
+                        {summary.round}라운드 — {winnerUser.nickname}님 승리
+                    </p>
+                    <p
+                        className={`w-full text-center font-semibold leading-snug text-amber-200/90 [overflow-wrap:anywhere] ${
+                            isMobile ? 'text-[clamp(0.55rem,1.55vmin,0.72rem)]' : 'text-xs min-[1025px]:text-sm'
+                        }`}
+                    >
+                        {player1.nickname} 남은 돌 {p1StonesLeft}개 · {player2.nickname} 남은 돌 {p2StonesLeft}개
+                    </p>
+                    {viewerUserId && onAction && (
+                        <button
+                            type="button"
+                            onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
+                            disabled={hasConfirmed}
+                            className={`mt-0.5 w-full max-w-sm rounded-lg border font-bold transition-opacity disabled:cursor-not-allowed disabled:opacity-55 ${
+                                isSinglePlayer
+                                    ? 'border-amber-500/45 bg-amber-700/35 px-2 py-1.5 text-amber-50 hover:bg-amber-600/35'
+                                    : 'border-cyan-400/40 bg-cyan-900/40 px-2 py-1.5 text-cyan-50 hover:bg-cyan-800/45'
+                            } ${isMobile ? 'text-[11px]' : 'text-sm'}`}
+                        >
+                            {hasConfirmed
+                                ? '상대방 확인 대기 중…'
+                                : nextRound > totalRounds
+                                  ? '최종 결과 확인'
+                                  : '다음 라운드 시작'}
+                        </button>
+                    )}
+                    {session.revealEndTime != null && (
+                        <p
+                            className={`text-center font-medium text-slate-400 ${
+                                isMobile ? 'text-[10px]' : 'text-[11px]'
+                            }`}
+                        >
+                            {autoHint}
+                        </p>
+                    )}
+                </div>
+                {barPct !== null && (
+                    <div
+                        className={`relative mt-0.5 w-full flex-shrink-0 overflow-hidden rounded-full border-2 ${
+                            isSinglePlayer ? 'border-black/20 bg-stone-900/70' : 'border-tertiary bg-tertiary'
+                        } ${isMobile ? 'h-1 border' : 'h-[clamp(0.45rem,1.4vh,0.65rem)] border-2'}`}
+                    >
+                        <div
+                            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-amber-400 via-yellow-300 to-lime-400"
+                            style={{ width: `${barPct}%`, transition: 'width 0.35s linear' }}
+                        />
+                    </div>
+                )}
+            </>
+        );
+    }
+
     if (session.mode === GameMode.Dice && session.gameStatus === 'dice_placing' && session.dice) {
         const diceGuidance = '상대보다 더 많은 돌을 따내기 위해 돌을 놓아보세요.';
         return wrapContent(

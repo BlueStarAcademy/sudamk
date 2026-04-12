@@ -25,22 +25,28 @@ const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = 
         return () => clearInterval(timerId);
     }, [revealEndTime]);
 
+    useEffect(() => {
+        const t = window.setTimeout(() => setRouletteDone(true), 3200);
+        return () => window.clearTimeout(t);
+    }, []);
+
     if (!blackPlayerId || !whitePlayerId) return null;
 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
 
     return (
-        <DraggableWindow title="흑/백 결정 완료" initialWidth={680} windowId="color-start-confirmation">
+        <DraggableWindow title="흑·백 배정 확인" initialWidth={680} windowId="color-start-confirmation">
             <div className="text-white space-y-6">
                 <PreGameColorRoulette
                     blackPlayer={blackPlayer}
                     whitePlayer={whitePlayer}
                     onComplete={() => setRouletteDone(true)}
+                    suppressHeader
                 />
 
-                <p className="text-center text-gray-300">
-                    흑/백 배정을 확인한 뒤 시작 버튼을 누르거나, 30초 후 자동으로 대국이 시작됩니다.
+                <p className="text-center text-sm text-gray-300">
+                    아래 카드에 표시된 대로 흑·백이 정해졌습니다. 양쪽이 시작을 누르거나, 시간이 지나면 자동으로 대국이 시작됩니다.
                 </p>
 
                 <Button

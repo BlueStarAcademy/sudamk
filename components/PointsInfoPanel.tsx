@@ -1,6 +1,21 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { getDungeonStageScore } from '../constants';
 import { TournamentType } from '../types';
+import { useAppContext } from '../hooks/useAppContext.js';
+import { normalizeDungeonProgress } from '../utils/championshipDungeonProgress.js';
+
+const emptyDungeonProgress = {
+    currentStage: 0,
+    unlockedStages: [1] as number[],
+    stageResults: {} as Record<number, unknown>,
+    dailyStageAttempts: {} as Record<number, unknown>,
+};
+
+const TOURNAMENT_ARENA_META: { type: TournamentType; arena: string; title: string; maxRank: number }[] = [
+    { type: 'neighborhood', arena: '동네', title: '동네바둑리그', maxRank: 6 },
+    { type: 'national', arena: '전국', title: '전국바둑대회', maxRank: 8 },
+    { type: 'world', arena: '세계', title: '월드챔피언십', maxRank: 15 },
+];
 
 /** 같은 점수인 연속 순위를 묶어서 [{ label: '1위' | '4~7위', points }] 형태로 반환 */
 function groupRanksByScore(type: TournamentType, stage: number, maxRank: number): { key: string; label: string; points: number; rankStart: number }[] {
@@ -35,15 +50,26 @@ const PointsInfoPanel: React.FC<{
     /** 모달 한 화면 맞춤: 경기장 탭으로 하나만 표시해 세로 스크롤 제거 */
     arenaTabs?: boolean;
 }> = ({ variant = 'default', lobbyGlass = false, hideHeading = false, arenaTabs = false }) => {
+    const { currentUserWithStatus } = useAppContext();
     const [selectedStage, setSelectedStage] = useState<number>(1);
     const [arenaTab, setArenaTab] = useState<number>(0);
-    const tournamentTypes: { type: TournamentType; arena: string; title: string; maxRank: number }[] = [
-        { type: 'neighborhood', arena: '동네', title: '동네바둑리그', maxRank: 6 },
-        { type: 'national', arena: '전국', title: '전국바둑대회', maxRank: 8 },
-        { type: 'world', arena: '세계', title: '월드챔피언십', maxRank: 15 },
-    ];
 
     const embedded = variant === 'nativeEmbedded';
+
+    const myStageForActiveArena = useMemo(() => {
+        if (!currentUserWithStatus || !embedded || !arenaTabs) return null;
+        const t = TOURNAMENT_ARENA_META[arenaTab]?.type;
+        if (!t) return null;
+        const p = normalizeDungeonProgress(currentUserWithStatus.dungeonProgress?.[t] || emptyDungeonProgress);
+        return Math.min(10, Math.max(1, p.currentStage || 1));
+    }, [currentUserWithStatus, arenaTab, embedded, arenaTabs]);
+
+    useEffect(() => {
+        if (embedded && arenaTabs && myStageForActiveArena != null) {
+            setSelectedStage(myStageForActiveArena);
+        }
+    }, [embedded, arenaTabs, arenaTab, myStageForActiveArena]);
+
     const surfaceClass = lobbyGlass
         ? embedded
             ? 'rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-900/95 via-zinc-950/90 to-black/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-amber-100/10 backdrop-blur-xl backdrop-saturate-150 [transform:translateZ(0)]'
@@ -78,16 +104,20 @@ const PointsInfoPanel: React.FC<{
                                 : 'w-full rounded-lg border border-amber-500/35 bg-zinc-950/80 p-2 text-xs text-zinc-100 focus:border-amber-400 focus:ring-amber-400/30'
                             : 'w-full rounded-md border border-gray-600 bg-gray-700 p-1.5 text-xs text-gray-200 focus:border-purple-500 focus:ring-purple-500'
                     }
+                    aria-label="점수표 단계 선택"
                 >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => (
-                        <option key={stage} value={stage}>{stage}단계</option>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((stage) => (
+                        <option key={stage} value={stage}>
+                            {stage}단계
+                            {embedded && arenaTabs && myStageForActiveArena != null && stage === myStageForActiveArena ? ' (내 단계)' : ''}
+                        </option>
                     ))}
                 </select>
             </div>
 
             {arenaTabs && embedded && (
                 <div className="mb-1.5 flex shrink-0 gap-1">
-                    {tournamentTypes.map((a, i) => (
+                    {TOURNAMENT_ARENA_META.map((a, i) => (
                         <button
                             key={a.arena}
                             type="button"
@@ -107,7 +137,7 @@ const PointsInfoPanel: React.FC<{
             <div
                 className={`min-h-0 flex-1 ${arenaTabs && embedded ? 'min-h-0 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]' : `space-y-2 overflow-y-auto pr-0.5 sm:space-y-3 ${embedded ? '[scrollbar-width:thin]' : ''}`}`}
             >
-                {(arenaTabs && embedded ? [tournamentTypes[arenaTab]] : tournamentTypes).map(arenaData => {
+                {(arenaTabs && embedded ? [TOURNAMENT_ARENA_META[arenaTab]] : TOURNAMENT_ARENA_META).map((arenaData) => {
                     const displayRanks = groupRanksByScore(arenaData.type, selectedStage, arenaData.maxRank);
                     const compact = arenaTabs && embedded;
 

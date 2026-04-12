@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult, GameMode } from '../types.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
@@ -20,7 +20,9 @@ import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS,
 } from './game/ResultModalRewardSlot.js';
+import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
@@ -132,6 +134,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 
 const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
     const [isProcessing, setIsProcessing] = useState(false);
+    const [mobileResultTab, setMobileResultTab] = useState<MobileGameResultTab>('match');
     const { modalLayerUsesDesignPixels } = useAppContext();
     const isScoring = session.gameStatus === 'scoring';
     const isEnded = session.gameStatus === 'ended';
@@ -423,6 +426,86 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
     const mobileTextScale = 1;
 
+    useEffect(() => {
+        setMobileResultTab('match');
+    }, [session.id]);
+
+    const spRewardsSection = (
+        <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-2`}>
+            <h2
+                className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
+                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
+            >
+                획득 보상
+            </h2>
+            <div
+                className={
+                    isMobile
+                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS
+                        : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
+                }
+            >
+                {!displaySummary ? (
+                    <p
+                        className="px-2 text-center text-zinc-500"
+                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                    >
+                        {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
+                    </p>
+                ) : !hasRewardSlots ? (
+                    <p
+                        className="px-2 text-center text-zinc-500"
+                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                    >
+                        보상이 없습니다.
+                    </p>
+                ) : (
+                    <>
+                        {(displaySummary.gold ?? 0) > 0 && (
+                            <ResultModalGoldCurrencySlot
+                                amount={displaySummary.gold ?? 0}
+                                compact={isMobile}
+                                dimmed={!summary}
+                            />
+                        )}
+                        {displaySummary.xp && displaySummary.xp.change > 0 && (
+                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
+                                <ResultModalXpRewardBadge
+                                    variant="strategy"
+                                    amount={displaySummary.xp.change}
+                                    density={isMobile ? 'compact' : 'comfortable'}
+                                />
+                            </div>
+                        )}
+                        {displaySummary.items &&
+                            displaySummary.items.length > 0 &&
+                            displaySummary.items.slice(0, 2).map((item, idx) => (
+                                <ResultModalItemRewardSlot
+                                    key={item.id || idx}
+                                    imageSrc={item.image || null}
+                                    name={item.name}
+                                    quantity={item.quantity}
+                                    compact={isMobile}
+                                    dimmed={!summary}
+                                    onImageError={(e) => {
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                />
+                            ))}
+                    </>
+                )}
+            </div>
+            {displaySummary && displaySummary.items && displaySummary.items.length > 2 && (
+                <p
+                    className="text-center text-zinc-500"
+                    style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}
+                >
+                    외 {displaySummary.items.length - 2}개 아이템
+                </p>
+            )}
+        </div>
+    );
+
     return (
         <DraggableWindow 
             title={modalTitle}
@@ -467,184 +550,229 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </h1>
                 )}
                 
-                <div
-                    className={`flex min-h-0 flex-row gap-1.5 sm:gap-3 ${
-                        isMobile ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible' : 'items-stretch overflow-visible'
-                    }`}
-                >
-                    {/* Left Panel: 경기 결과 */}
-                    <div
-                        className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 min-h-0 shrink-0 overflow-visible p-2.5'} sp-summary-left-panel`}
-                    >
-                        <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
-                            경기 결과
-                        </h2>
-                        <div
-                            className={
-                                isMobile
-                                    ? 'flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-visible'
-                                    : 'flex flex-col gap-1.5 overflow-visible'
-                            }
-                        >
-                            {/* 경기 정보 */}
-                            {(analysisResult || (isEnded && session.winner !== null)) && (
-                                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${isMobile ? 'p-1.5' : 'p-2'}`}>
-                                    <div className="flex justify-between items-center" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '15px' }}>
-                                        <span className="text-amber-200/65">총 걸린 시간:</span>
-                                        <span className="font-semibold text-zinc-100">{gameDuration}</span>
-                                    </div>
-                                    {(winReasonText || failureReason) && (
-                                        <div className="flex flex-col gap-0.5" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '15px' }}>
-                                            <span className="text-amber-200/65">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
-                                            <span className={`font-semibold ${isWinner ? 'text-emerald-300' : 'text-red-400'}`}>
-                                                {winReasonText || failureReason}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {survivalModeInfo && (
-                                        <div className="flex justify-between items-center pt-0.5 border-t border-amber-500/15 mt-0.5" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '15px' }}>
-                                            <span className="text-amber-200/65">백 목표/획득 점수:</span>
-                                            <span className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}>
-                                                {survivalModeInfo.captured}/{survivalModeInfo.target}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                            {/* 계가 결과 — 전략바둑과 동일한 22초 진행 연출 (최소 높이로 진행 막대·카운트 항상 표시) */}
-                            {isScoring && !analysisResult && (
-                                <div
-                                    className={`flex flex-col items-center justify-center ${isMobile ? 'min-h-[100px] flex-shrink-0' : 'min-h-[200px] flex-1'}`}
-                                >
-                                    <ScoringOverlay variant="inline" />
-                                </div>
-                            )}
-                            {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
-                                <ScoreDetailsComponent 
-                                    analysis={analysisResult} 
-                                    session={session} 
-                                    isMobile={isMobile}
-                                    mobileTextScale={mobileTextScale}
-                                />
-                            ) : !isScoring && !isEnded ? (
-                                <p className="text-center text-zinc-500">계가 결과가 없습니다.</p>
-                            ) : null}
-                        </div>
-                    </div>
-                    
-                    {/* Right Panel: 획득 보상 */}
-                    <div
-                        className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} ${
-                            isMobile ? 'min-h-0 w-1/2 flex-1 overflow-x-hidden overflow-y-visible p-1.5' : 'w-1/2 min-h-0 flex-1 overflow-visible p-2.5'
-                        }`}
-                    >
-                        <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
-                            획득 보상
-                        </h2>
-                        <div className="flex flex-col gap-1.5">
-                            {/* 유저 프로필 */}
-                            <div className={`flex flex-shrink-0 items-center gap-1.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1.5' : 'p-2'}`}>
-                                <Avatar
-                                    userId={currentUser.id}
-                                    userName={currentUser.nickname}
-                                    avatarUrl={avatarUrl}
-                                    borderUrl={borderUrl}
-                                    size={isMobile ? 24 : 32}
-                                />
-                                <div>
-                                    <p className="font-bold text-zinc-100" style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}>{currentUser.nickname}</p>
-                                    <p className="text-amber-200/60" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
-                                        전략 Lv.{currentUser.strategyLevel}
-                                    </p>
-                                </div>
-                            </div>
-                            
-                            {/* 경험치 표시 */}
-                            {displaySummary?.xp && (
-                                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${isMobile ? 'p-1.5' : 'p-2'}`}>
-                                    <StrategyXpResultBar
-                                        previousXpPercent={previousXpPercent}
-                                        finalXpPercent={xpPercent}
-                                        xpGain={xpChange}
-                                    />
-                                    <div className="flex items-center justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}>
-                                        <span className="font-mono text-zinc-300/95">
-                                            {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
-                                        </span>
-                                        {xpChange > 0 && (
-                                            <span className="font-semibold text-green-400">
-                                                +{xpChange.toLocaleString()} XP
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                            
-                            {/* 보상 줄: 고정 최소 높이로 요약 도착 시 레이아웃 흔들림 방지 */}
-                            <div
-                                className={`flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`}
-                            >
-                                {!displaySummary ? (
-                                    <p
-                                        className="px-2 text-center text-zinc-500"
-                                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
+                {isMobile ? (
+                    <>
+                        <MobileGameResultTabBar
+                            active={mobileResultTab}
+                            onChange={setMobileResultTab}
+                            matchLabel="경기 결과"
+                            recordLabel="기록"
+                        />
+                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] [scrollbar-width:thin]">
+                                <MobileResultTabPanelStack
+                                    active={mobileResultTab}
+                                    matchPanel={
+                                    <div
+                                        className={`flex min-h-0 flex-col ${SP_SUMMARY_PANEL_CLASS} overflow-x-hidden overflow-y-visible p-1.5 sp-summary-left-panel`}
                                     >
-                                        {isScoring ? '계가 중...' : '보상 정보가 없습니다.'}
-                                    </p>
-                                ) : !hasRewardSlots ? (
-                                    <p
-                                        className="px-2 text-center text-zinc-500"
-                                        style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : '14px' }}
-                                    >
-                                        보상이 없습니다.
-                                    </p>
-                                ) : (
-                                    <>
-                                        {(displaySummary.gold ?? 0) > 0 && (
-                                            <ResultModalGoldCurrencySlot
-                                                amount={displaySummary.gold ?? 0}
-                                                compact={isMobile}
-                                                dimmed={!summary}
-                                            />
-                                        )}
-                                        {displaySummary.xp && displaySummary.xp.change > 0 && (
-                                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
-                                                <ResultModalXpRewardBadge
-                                                    variant="strategy"
-                                                    amount={displaySummary.xp.change}
-                                                    density={isMobile ? 'compact' : 'comfortable'}
+                                        <h2
+                                            className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
+                                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                        >
+                                            경기 결과
+                                        </h2>
+                                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-visible">
+                                            {(analysisResult || (isEnded && session.winner !== null)) && (
+                                                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
+                                                    <div className="flex items-center justify-between" style={{ fontSize: `${10 * mobileTextScale}px` }}>
+                                                        <span className="text-amber-200/65">총 걸린 시간:</span>
+                                                        <span className="font-semibold text-zinc-100">{gameDuration}</span>
+                                                    </div>
+                                                    {(winReasonText || failureReason) && (
+                                                        <div className="flex flex-col gap-0.5" style={{ fontSize: `${10 * mobileTextScale}px` }}>
+                                                            <span className="text-amber-200/65">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
+                                                            <span className={`font-semibold ${isWinner ? 'text-emerald-300' : 'text-red-400'}`}>
+                                                                {winReasonText || failureReason}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                    {survivalModeInfo && (
+                                                        <div
+                                                            className="mt-0.5 flex items-center justify-between border-t border-amber-500/15 pt-0.5"
+                                                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                                        >
+                                                            <span className="text-amber-200/65">백 목표/획득 점수:</span>
+                                                            <span
+                                                                className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}
+                                                            >
+                                                                {survivalModeInfo.captured}/{survivalModeInfo.target}
+                                                            </span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                            {isScoring && !analysisResult && (
+                                                <div className="flex min-h-[100px] flex-shrink-0 flex-col items-center justify-center">
+                                                    <ScoringOverlay variant="inline" />
+                                                </div>
+                                            )}
+                                            {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
+                                                <ScoreDetailsComponent
+                                                    analysis={analysisResult}
+                                                    session={session}
+                                                    isMobile={isMobile}
+                                                    mobileTextScale={mobileTextScale}
                                                 />
+                                            ) : !isScoring && !isEnded ? (
+                                                <p className="text-center text-zinc-500">계가 결과가 없습니다.</p>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                    }
+                                    recordPanel={
+                                    <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} p-2`}>
+                                        <h2
+                                            className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
+                                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                        >
+                                            기록
+                                        </h2>
+                                        <div className={`flex flex-shrink-0 items-center gap-1.5 ${SP_SUMMARY_INSET_CLASS} p-1.5`}>
+                                            <Avatar
+                                                userId={currentUser.id}
+                                                userName={currentUser.nickname}
+                                                avatarUrl={avatarUrl}
+                                                borderUrl={borderUrl}
+                                                size={24}
+                                            />
+                                            <div>
+                                                <p className="font-bold text-zinc-100" style={{ fontSize: `${11 * mobileTextScale}px` }}>
+                                                    {currentUser.nickname}
+                                                </p>
+                                                <p className="text-amber-200/60" style={{ fontSize: `${9 * mobileTextScale}px` }}>
+                                                    전략 Lv.{currentUser.strategyLevel}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {displaySummary?.xp && (
+                                            <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
+                                                <StrategyXpResultBar
+                                                    previousXpPercent={previousXpPercent}
+                                                    finalXpPercent={xpPercent}
+                                                    xpGain={xpChange}
+                                                />
+                                                <div
+                                                    className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                                                    style={{ fontSize: `${9 * mobileTextScale}px` }}
+                                                >
+                                                    <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
+                                                        {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
+                                                    </span>
+                                                    {xpChange > 0 && (
+                                                        <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">
+                                                            +{xpChange.toLocaleString()} XP
+                                                        </span>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
-                                        {displaySummary.items &&
-                                            displaySummary.items.length > 0 &&
-                                            displaySummary.items.slice(0, 2).map((item, idx) => (
-                                                <ResultModalItemRewardSlot
-                                                    key={item.id || idx}
-                                                    imageSrc={item.image || null}
-                                                    name={item.name}
-                                                    quantity={item.quantity}
-                                                    compact={isMobile}
-                                                    dimmed={!summary}
-                                                    onImageError={(e) => {
-                                                        (e.target as HTMLImageElement).style.display = 'none';
-                                                    }}
-                                                />
-                                            ))}
-                                    </>
+                                    </div>
+                                    }
+                                />
+                            </div>
+                            {spRewardsSection}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex min-h-0 flex-row items-stretch gap-1.5 overflow-visible sm:gap-3">
+                        <div
+                            className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} w-1/2 min-h-0 shrink-0 overflow-visible p-2.5 sp-summary-left-panel`}
+                        >
+                            <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}>
+                                경기 결과
+                            </h2>
+                            <div className="flex flex-col gap-1.5 overflow-visible">
+                                {(analysisResult || (isEnded && session.winner !== null)) && (
+                                    <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
+                                        <div className="flex items-center justify-between" style={{ fontSize: '15px' }}>
+                                            <span className="text-amber-200/65">총 걸린 시간:</span>
+                                            <span className="font-semibold text-zinc-100">{gameDuration}</span>
+                                        </div>
+                                        {(winReasonText || failureReason) && (
+                                            <div className="flex flex-col gap-0.5" style={{ fontSize: '15px' }}>
+                                                <span className="text-amber-200/65">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
+                                                <span className={`font-semibold ${isWinner ? 'text-emerald-300' : 'text-red-400'}`}>
+                                                    {winReasonText || failureReason}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {survivalModeInfo && (
+                                            <div className="mt-0.5 flex items-center justify-between border-t border-amber-500/15 pt-0.5" style={{ fontSize: '15px' }}>
+                                                <span className="text-amber-200/65">백 목표/획득 점수:</span>
+                                                <span
+                                                    className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}
+                                                >
+                                                    {survivalModeInfo.captured}/{survivalModeInfo.target}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                {isScoring && !analysisResult && (
+                                    <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center">
+                                        <ScoringOverlay variant="inline" />
+                                    </div>
+                                )}
+                                {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
+                                    <ScoreDetailsComponent
+                                        analysis={analysisResult}
+                                        session={session}
+                                        isMobile={false}
+                                        mobileTextScale={mobileTextScale}
+                                    />
+                                ) : !isScoring && !isEnded ? (
+                                    <p className="text-center text-zinc-500">계가 결과가 없습니다.</p>
+                                ) : null}
+                            </div>
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-visible">
+                            <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2.5`}>
+                                <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}>기록</h2>
+                                <div className={`flex flex-shrink-0 items-center gap-1.5 ${SP_SUMMARY_INSET_CLASS} p-2`}>
+                                    <Avatar
+                                        userId={currentUser.id}
+                                        userName={currentUser.nickname}
+                                        avatarUrl={avatarUrl}
+                                        borderUrl={borderUrl}
+                                        size={32}
+                                    />
+                                    <div>
+                                        <p className="font-bold text-zinc-100" style={{ fontSize: '15px' }}>
+                                            {currentUser.nickname}
+                                        </p>
+                                        <p className="text-amber-200/60" style={{ fontSize: '13px' }}>
+                                            전략 Lv.{currentUser.strategyLevel}
+                                        </p>
+                                    </div>
+                                </div>
+                                {displaySummary?.xp && (
+                                    <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
+                                        <StrategyXpResultBar
+                                            previousXpPercent={previousXpPercent}
+                                            finalXpPercent={xpPercent}
+                                            xpGain={xpChange}
+                                        />
+                                        <div
+                                            className="flex min-w-0 flex-nowrap items-center justify-between gap-1 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                                            style={{ fontSize: '13px' }}
+                                        >
+                                            <span className="min-w-0 shrink font-mono whitespace-nowrap text-zinc-300/95">
+                                                {clampedXp.toLocaleString()} / {xpRequirement.toLocaleString()} XP
+                                            </span>
+                                            {xpChange > 0 && (
+                                                <span className="shrink-0 whitespace-nowrap font-semibold text-green-400">
+                                                    +{xpChange.toLocaleString()} XP
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
-                            {displaySummary && displaySummary.items && displaySummary.items.length > 2 && (
-                                <p
-                                    className="text-center text-zinc-500"
-                                    style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}
-                                >
-                                    외 {displaySummary.items.length - 2}개 아이템
-                                </p>
-                            )}
+                            {spRewardsSection}
                         </div>
                     </div>
-                </div>
+                )}
             </div>
 
                 <div

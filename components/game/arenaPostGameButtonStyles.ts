@@ -74,6 +74,11 @@ export function formatArenaRetryLabel(actionPointCost: number): string {
     return actionPointCost > 0 ? `재도전 (⚡${actionPointCost})` : '재도전';
 }
 
+/** 대기실 AI 대국 종료 푸터 재대결 라벨 */
+export function formatAiRematchFooterLabel(actionPointCost: number): string {
+    return actionPointCost > 0 ? `재대결 (⚡${actionPointCost})` : '재대결';
+}
+
 /** 경기 종료 버튼 묶음: 열 폭 균등 (좁으면 자동으로 줄바꿈) — 결과 모달·넓은 푸터용 */
 export const arenaPostGameButtonGridClass =
     'grid w-full gap-2 sm:gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(100%,9.25rem),1fr))]';

@@ -33,12 +33,12 @@ const HEADER_RESOURCE_VALUE_CLASS = {
 /** 네이티브 모바일 특수재화 팝오버: 전면 광고·모달 루트(z-180)·인터스티셜(z-99999) 위에 표시 */
 const SPECIAL_RESOURCES_POPOVER_Z = 200_000;
 
-/** 모바일 상단 헤더: 우편함·설정·로그아웃 터치 영역 (기존 대비 약 15~25% 확대) */
+/** 모바일 상단 헤더: 우편함·설정·로그아웃 터치 영역 */
 const MOBILE_HEADER_ACTION_BTN =
-    'h-[clamp(1.72rem,6vw,2.35rem)] w-[clamp(1.72rem,6vw,2.35rem)]';
-const MOBILE_HEADER_MAIL_ICON = 'h-[clamp(0.92rem,3.4vw,1.18rem)] w-[clamp(0.92rem,3.4vw,1.18rem)]';
-const MOBILE_HEADER_SETTINGS_ICON = 'text-[clamp(0.88rem,3.3vw,1.18rem)]';
-const MOBILE_HEADER_POWER_ICON = 'h-[clamp(1.08rem,3.9vw,1.5rem)] w-[clamp(1.08rem,3.9vw,1.5rem)]';
+    'h-[clamp(1.9rem,6.5vw,2.52rem)] w-[clamp(1.9rem,6.5vw,2.52rem)]';
+const MOBILE_HEADER_MAIL_ICON = 'h-[clamp(1rem,3.65vw,1.28rem)] w-[clamp(1rem,3.65vw,1.28rem)]';
+const MOBILE_HEADER_SETTINGS_ICON = 'text-[clamp(0.95rem,3.55vw,1.28rem)]';
+const MOBILE_HEADER_POWER_ICON = 'h-[clamp(1.18rem,4.15vw,1.62rem)] w-[clamp(1.18rem,4.15vw,1.62rem)]';
 
 const ResourceDisplay = memo<{
     icon: ResourceIconKey;
@@ -417,7 +417,11 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                     />
                     
                     {/* 공통 버튼들 (모바일에서도 항상 노출) */}
-                    <div className="flex flex-shrink-0 items-center gap-0.5 sm:gap-2">
+                    <div
+                        className={`flex flex-shrink-0 items-center sm:gap-2 ${
+                            isMobile ? 'gap-1.5' : 'gap-0.5'
+                        }`}
+                    >
                     {isAdmin && (
                         <Button
                             onClick={() => { window.location.hash = '#/admin'; }}

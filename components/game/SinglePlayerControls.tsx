@@ -15,6 +15,11 @@ import {
     formatArenaRetryLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
+import {
+    arenaGameRoomIngameBottomBarShellClass,
+    arenaGameRoomIngameInnerItemSurfaceClass,
+    arenaGameRoomIngameInnerNeutralSurfaceClass,
+} from './arenaGameRoomStyles.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     setShowResultModal?: (show: boolean) => void;
@@ -304,7 +309,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             `${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} ${arenaPostGameButtonInRowModifier}${extra ? ` ${extra}` : ''}`;
 
         return (
-            <footer className="responsive-controls flex w-full min-h-0 flex-shrink-0 flex-col items-stretch justify-center gap-2 rounded-xl border border-stone-700/50 bg-stone-800/70 p-2 backdrop-blur-sm">
+            <footer
+                className={`responsive-controls flex w-full min-h-0 flex-shrink-0 flex-col items-stretch justify-center gap-2 p-2 ${arenaGameRoomIngameBottomBarShellClass}`}
+            >
                 <div className={arenaPostGamePanelShellClass}>
                     <div className={arenaPostGameIngameEndedRowClass}>
                     <Button bare onClick={handleShowResults} colorScheme="none" className={endedRowBtn()}>
@@ -411,7 +418,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
 
     return (
         <div
-            className={`bg-stone-800/70 backdrop-blur-sm rounded-xl w-full border border-stone-700/50 ${
+            className={`${arenaGameRoomIngameBottomBarShellClass} w-full ${
                 isMobile
                     ? 'flex h-[164px] w-full min-w-0 flex-row items-stretch gap-3 p-2'
                     : 'flex min-h-[112px] max-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
@@ -419,7 +426,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         >
             {isMobile ? (
                 <>
-                    <div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-stone-600/40 bg-black/20 px-1 py-2">
+                    <div
+                        className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}
+                    >
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
                                 {coreZoneSp}
@@ -429,7 +438,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                     {(isHiddenMode || isMissileMode) && (
                         <>
                             <div className="w-0.5 shrink-0 self-stretch rounded-full bg-gradient-to-b from-stone-600/20 via-stone-500/50 to-stone-600/20" aria-hidden />
-                            <div className="flex min-w-0 flex-1 flex-col justify-center rounded-lg border border-amber-900/35 bg-amber-950/15 px-1 py-2">
+                            <div
+                                className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerItemSurfaceClass}`}
+                            >
                                 <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                                     <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
                                         {itemZoneSp}
@@ -441,20 +452,26 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                 </>
             ) : (isHiddenMode || isMissileMode) ? (
                 <>
-                    <div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-stone-600/40 bg-black/10 px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1">
+                    <div
+                        className={`flex min-w-0 flex-1 items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}
+                    >
                         <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
                             {coreZoneSp}
                         </ArenaControlStrip>
                     </div>
                     <div className="w-px shrink-0 self-stretch bg-stone-600/50" />
-                    <div className="flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-900/35 bg-amber-950/10 px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1">
+                    <div
+                        className={`flex min-w-0 flex-1 items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1 ${arenaGameRoomIngameInnerItemSurfaceClass}`}
+                    >
                         <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-6 min-[1025px]:gap-7">
                             {itemZoneSp}
                         </ArenaControlStrip>
                     </div>
                 </>
             ) : (
-                <div className="flex w-full min-w-0 items-center justify-center px-1.5 py-1 min-[1025px]:px-2 min-[1025px]:py-1">
+                <div
+                    className={`flex w-full min-w-0 items-center justify-center px-1.5 py-2 min-[1025px]:px-3 min-[1025px]:py-1.5 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}
+                >
                     <ArenaControlStrip layout="cluster" className="max-w-full" gapClass="gap-7 min-[1025px]:gap-8">
                         {coreZoneSp}
                     </ArenaControlStrip>

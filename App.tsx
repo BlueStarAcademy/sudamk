@@ -18,6 +18,7 @@ import MainBackgroundLayer from './components/MainBackgroundLayer.js';
 import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
+    NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
 } from './constants/ads.js';
 
@@ -361,6 +362,9 @@ const AppContent: React.FC = () => {
                             max-width: min(${NATIVE_MOBILE_MODAL_MAX_WIDTH_VW}vw, calc(100vw - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px))) !important;
                             max-height: min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px)) !important;
                             box-sizing: border-box;
+                        }
+                        #sudamr-modal-root [data-draggable-window="chat-quick-modal"]:not([data-uniform-pc-scale="1"]) {
+                            max-height: min(${NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH}dvh, calc(100dvh - 32px)) !important;
                         }
                     `}</style>
                     {/* 착수 확정 등 인게임 크롬: 모달(z-60)보다 아래 — 헤더(z-50)보다 위에 모달이 오도록 루트를 더 높임 */}

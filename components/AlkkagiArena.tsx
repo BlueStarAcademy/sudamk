@@ -3,6 +3,7 @@ import { AlkkagiStone, GameProps, Player, Point, GameStatus } from '../types.js'
 import AlkkagiBoard, { AlkkagiBoardHandle } from './AlkkagiBoard.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT } from '../constants';
 import { audioService } from '../services/audioService.js';
+import { findAlkkagiStoneById } from '../shared/utils/alkkagiStoneId.js';
 
 interface AlkkagiArenaProps extends GameProps {}
 
@@ -151,7 +152,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
 
         let simStones: AlkkagiStone[] = JSON.parse(JSON.stringify(stones || []));
-        let stoneToAnimate = simStones.find(s => s.id === flickedStoneId);
+        let stoneToAnimate = findAlkkagiStoneById(simStones, flickedStoneId);
         if (stoneToAnimate) {
             stoneToAnimate.vx = vx;
             stoneToAnimate.vy = vy;
@@ -344,7 +345,7 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
         if (animation?.type === 'alkkagi_flick' && animation.startTime > lastAnimationTimestampRef.current) {
             lastAnimationTimestampRef.current = animation.startTime;
             const { stoneId, vx, vy } = animation;
-            runClientAnimation(currentSession.alkkagiStones || [], stoneId, vx, vy);
+            runClientAnimation(currentSession.alkkagiStones || [], Number(stoneId), Number(vx), Number(vy));
         }
     }, [session.animation, runClientAnimation]);
     
@@ -352,8 +353,8 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
     const maxStones = session.settings.alkkagiStoneCount || 5;
 
     const selectedStoneForRender = useMemo(() => {
-        if (!selectedStoneId) return null;
-        return alkkagiStones?.find(s => s.id === selectedStoneId) || null;
+        if (selectedStoneId == null) return null;
+        return findAlkkagiStoneById(alkkagiStones ?? [], selectedStoneId) ?? null;
     }, [selectedStoneId, alkkagiStones]);
 
     return (

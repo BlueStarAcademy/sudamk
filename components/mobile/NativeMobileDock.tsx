@@ -9,7 +9,7 @@ type DockItemDef = { tab: DockTab; label: string; labelLines?: readonly [string,
 
 const DOCK_ITEMS: DockItemDef[] = [
     { tab: 'home', label: '홈' },
-    { tab: 'singleplayer', label: '싱글플레이', labelLines: ['싱글', '플레이'] },
+    { tab: 'singleplayer', label: '바둑학원' },
     { tab: 'tower', label: '도전의탑' },
     { tab: 'arena', label: '경기장' },
     { tab: 'tournament', label: '챔피언십' },
@@ -93,11 +93,11 @@ const NativeMobileDock: React.FC = () => {
 
     return (
         <nav
-            className="relative z-20 flex w-full shrink-0 justify-center border-t border-color/40 bg-primary/98 px-1 py-1.5 backdrop-blur-sm"
+            className="relative z-20 flex w-full shrink-0 justify-center border-t border-color/40 bg-primary/98 px-1 py-0 backdrop-blur-sm"
             aria-label="주요 메뉴"
         >
-            <div className="w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-stone-900/85 via-stone-900/75 to-black/70 p-1 shadow-[0_-4px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)]">
-                <div className="grid w-full grid-cols-6 gap-px sm:gap-1">
+            <div className="w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-stone-900/85 via-stone-900/75 to-black/70 px-1 py-0 shadow-[0_-4px_16px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <div className="grid w-full grid-cols-6 items-stretch gap-px sm:gap-1">
                     {DOCK_ITEMS.map(({ tab, label, labelLines }) => {
                         const on = activeTab === tab;
                         const blocked = isTabBlocked(tab);
@@ -110,7 +110,7 @@ const NativeMobileDock: React.FC = () => {
                                 onClick={() => go(tab)}
                                 title={blocked ? '입장이 닫혀 있습니다' : label}
                                 className={[
-                                    'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-px py-0.5 text-center transition-all duration-200 active:scale-[0.98] sm:h-12 sm:px-0.5',
+                                    'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-px py-0 text-center transition-all duration-200 active:scale-[0.98] sm:h-12 sm:px-0.5',
                                     blocked ? 'opacity-45 cursor-not-allowed' : '',
                                     on
                                         ? 'border-amber-300/70 bg-gradient-to-b from-amber-700/40 via-amber-900/65 to-stone-950/95 text-amber-50 shadow-[0_3px_10px_rgba(251,191,36,0.2),inset_0_1px_0_rgba(255,255,255,0.18)]'

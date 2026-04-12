@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useGameRecordSaveLock } from '../../hooks/useGameRecordSaveLock.js';
 import { GameMode, LiveGameSession, ServerAction, GameProps, Player, User, Point, GameStatus, AppSettings } from '../../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../../constants';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../../utils/strategicPvpGameRecord.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
@@ -16,6 +16,7 @@ import {
     arenaPostGameIngameEndedRowClass,
     arenaPostGamePanelShellClass,
     formatArenaRetryLabel,
+    formatAiRematchFooterLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
 import {
@@ -1168,6 +1169,12 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+    const aiLobbyRematchActionPointCost =
+        SPECIAL_GAME_MODES.some(m => m.mode === mode)
+            ? STRATEGIC_ACTION_POINT_COST
+            : PLAYFUL_GAME_MODES.some(m => m.mode === mode)
+              ? PLAYFUL_ACTION_POINT_COST
+              : STRATEGIC_ACTION_POINT_COST;
     const isAiLobbyGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer' && session.gameCategory !== 'guildwar';
     const isPvpRematchEligible =
         isGameEnded &&
@@ -1777,14 +1784,14 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <Button bare onClick={() => setShowResultModal(true)} colorScheme="none" className={endedIngameRowBtn()}>
                         결과 보기
                     </Button>
+                    {isAiLobbyGame && onOpenRematchSettings && (
+                        <Button bare onClick={onOpenRematchSettings} colorScheme="none" className={endedIngameRowBtn()}>
+                            {formatAiRematchFooterLabel(aiLobbyRematchActionPointCost)}
+                        </Button>
+                    )}
                     {onLeaveOrResign && (
                         <Button bare onClick={onLeaveOrResign} colorScheme="none" className={endedIngameRowBtn()}>
                             {isSpectator ? '관전종료' : '대기실로'}
-                        </Button>
-                    )}
-                    {isAiLobbyGame && onOpenRematchSettings && (
-                        <Button bare onClick={onOpenRematchSettings} colorScheme="none" className={endedIngameRowBtn()}>
-                            재대결
                         </Button>
                     )}
                     {showStrategicGameRecordActions && (onAction || onOpenGameRecordList) && (

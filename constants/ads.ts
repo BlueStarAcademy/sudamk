@@ -22,6 +22,9 @@ export const NATIVE_MOBILE_MODAL_MAX_WIDTH_VW = 95;
 /** 모달이 화면을 과도하게 가리지 않도록 세로 상한 */
 export const NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH = 80;
 
+/** 퀵 채팅 등 메시지 영역이 길게 필요한 모달 — App.tsx `#sudamr-modal-root` 상한과 맞출 것 */
+export const NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH = 92;
+
 /**
  * 광고 루트에 부여하는 data 속성.
  * `DraggableWindow` 등 document 레벨 `mousedown` 바깥클릭 닫기 시 이 안의 포인터 이벤트는 무시해,
