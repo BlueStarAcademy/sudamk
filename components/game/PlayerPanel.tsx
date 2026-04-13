@@ -12,6 +12,8 @@ import {
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
+import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
+import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -246,8 +248,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const isInByoyomi = !isFoulMode && mainTimeLeft <= 0 && totalByoyomi > 0;
 
     const useAdventureMatchCountdown =
-        session.gameCategory === 'adventure' &&
-        session.gameStatus === 'playing' &&
+        adventureEncounterCountdownUiActive(session.gameCategory, session.gameStatus) &&
         adventureMatchCountdownSec != null &&
         adventureMatchTotalSec != null &&
         adventureMatchTotalSec > 0;
@@ -628,8 +629,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const advDeadlineMs = session.adventureEncounterDeadlineMs;
     const adventureCountdownLive =
-        session.gameCategory === 'adventure' &&
-        session.gameStatus === 'playing' &&
+        adventureEncounterCountdownUiActive(session.gameCategory, session.gameStatus) &&
         typeof advDeadlineMs === 'number';
     const [adventureRemSec, setAdventureRemSec] = useState(0);
     useEffect(() => {
@@ -642,14 +642,20 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const id = setInterval(tick, 250);
         return () => clearInterval(id);
     }, [adventureCountdownLive, advDeadlineMs, session.id]);
-    const adventureTotalSec = Math.max(1, Math.round((session.settings?.timeLimit ?? 5) * 60));
+    const advBoardSize = session.settings?.boardSize ?? (session as { adventureBoardSize?: number }).adventureBoardSize ?? 9;
+    const adventureTotalSec = Math.max(1, getAdventureEncounterCountdownMinutes(advBoardSize) * 60);
     const adventureCdProps =
         adventureCountdownLive
             ? { adventureMatchCountdownSec: adventureRemSec, adventureMatchTotalSec: adventureTotalSec }
             : { adventureMatchCountdownSec: null, adventureMatchTotalSec: null };
+    const emptyAdventureCdProps = { adventureMatchCountdownSec: null as number | null, adventureMatchTotalSec: null as number | null };
+    const leftAdventureCdProps =
+        session.gameCategory === 'adventure' && isLeftAi ? emptyAdventureCdProps : adventureCdProps;
+    const rightAdventureCdProps =
+        session.gameCategory === 'adventure' && isRightAi ? emptyAdventureCdProps : adventureCdProps;
     const isGuildWarAi = session.gameCategory === 'guildwar' && session.isAiGame;
-    const leftShowElapsedOnly = isGuildWarAi ? isLeftAi : !enforceTime;
-    const rightShowElapsedOnly = isGuildWarAi ? isRightAi : !enforceTime;
+    const leftShowElapsedOnly = isGuildWarAi ? isLeftAi : session.gameCategory === 'adventure' ? isLeftAi : !enforceTime;
+    const rightShowElapsedOnly = isGuildWarAi ? isRightAi : session.gameCategory === 'adventure' ? isRightAi : !enforceTime;
     
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
 
@@ -660,7 +666,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             !isStrategicMode ||
             isSinglePlayer ||
             session.gameCategory === 'tower' ||
-            session.gameCategory === 'adventure' ||
             session.stageId
         )
             return null;
@@ -814,7 +819,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     showElapsedOnly={leftShowElapsedOnly}
                     isCurrentUser={leftPlayerUser.id === currentUser?.id}
                     opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
-                    {...adventureCdProps}
+                    {...leftAdventureCdProps}
                 />
             </div>
             {((isSinglePlayer || session.gameCategory === 'tower') && turnInfo) && (
@@ -897,7 +902,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 showElapsedOnly={rightShowElapsedOnly}
                 isCurrentUser={rightPlayerUser.id === currentUser?.id}
                 opponentMonsterDisplay={isRightAi ? adventureMonsterPanel : undefined}
-                {...adventureCdProps}
+                {...rightAdventureCdProps}
             />
             </div>
         </div>

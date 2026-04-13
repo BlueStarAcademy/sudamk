@@ -11,12 +11,14 @@ import { initializeCapture, updateCaptureState, handleCaptureAction } from './ca
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
 import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
+import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
 import { broadcastPlayingSnapshotBeforeScoring } from '../utils/broadcastPlayingBeforeScoring.js';
+import { aiUserId } from '../aiPlayer.js';
 
 /** 로비 AI 대국(모험·봇 대전): 계가 직전에 마지막 판면이 한 번 보이도록 */
 const isLobbyAiStrategicGame = (game: types.LiveGameSession) =>
@@ -98,12 +100,21 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     const advDeadline = (game as any).adventureEncounterDeadlineMs as number | undefined;
     if (
-        game.gameCategory === 'adventure' &&
-        game.gameStatus === 'playing' &&
+        game.gameCategory === types.GameCategory.Adventure &&
+        game.gameStatus !== 'ended' &&
+        game.gameStatus !== 'no_contest' &&
+        game.winner == null &&
         typeof advDeadline === 'number' &&
-        now >= advDeadline
+        now >= advDeadline &&
+        adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus)
     ) {
-        await summaryService.endGame(game, types.Player.White, 'adventure_monster_fled');
+        const aiWinner =
+            game.blackPlayerId === aiUserId
+                ? types.Player.Black
+                : game.whitePlayerId === aiUserId
+                  ? types.Player.White
+                  : types.Player.White;
+        await summaryService.endGame(game, aiWinner, 'adventure_monster_fled');
         return;
     }
 

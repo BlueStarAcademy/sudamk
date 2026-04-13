@@ -3,7 +3,6 @@ import { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 
 type Props = {
     hasConfirmed: boolean;
-    countdown: number;
     onConfirm: () => void;
     /** 모바일: DraggableWindow가 본문 스크롤과 분리해 하단 고정 */
     variant?: 'sticky' | 'inline';
@@ -17,11 +16,10 @@ const footerBarClass =
  */
 export const ColorAssignmentStickyFooter: React.FC<Props> = ({
     hasConfirmed,
-    countdown,
     onConfirm,
     variant = 'sticky',
 }) => {
-    const label = hasConfirmed ? '상대방 확인 대기 중…' : `경기 시작 · ${countdown}`;
+    const label = hasConfirmed ? '상대방 확인 대기 중…' : '경기 시작';
 
     return (
         <div

@@ -22,7 +22,8 @@ export const enterNigiriRevealWithAssignedColors = (game: types.LiveGameSession,
         result: null,
     };
     game.gameStatus = 'nigiri_reveal';
-    game.revealEndTime = now + 30000;
+    // 자동 카운트다운 없이 유저가 원할 때 시작 버튼으로 진행
+    game.revealEndTime = undefined;
     game.preGameConfirmations = {
         [game.player1.id]: false,
         [game.player2.id]: false,
@@ -34,8 +35,7 @@ export const enterNigiriRevealWithAssignedColors = (game: types.LiveGameSession,
 export const updateNigiriState = (game: types.LiveGameSession, now: number) => {
     if (game.gameStatus === 'nigiri_reveal') {
         const bothConfirmed = game.preGameConfirmations?.[game.player1.id] && game.preGameConfirmations?.[game.player2.id];
-        const deadlinePassed = game.revealEndTime && now > game.revealEndTime;
-        if (bothConfirmed || deadlinePassed) {
+        if (bothConfirmed) {
             if (game.nigiri) game.nigiri.processed = true;
             game.preGameConfirmations = {};
             game.revealEndTime = undefined;

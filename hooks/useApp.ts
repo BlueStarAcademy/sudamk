@@ -973,6 +973,42 @@ export const useApp = () => {
                 });
             }
         }
+
+        if ((action as any).type === 'RESET_MY_BASE_STONE_PLACEMENTS') {
+            const payload = (action as any).payload as { gameId?: string } | undefined;
+            const gameId = payload?.gameId;
+            const uid = currentUserRef.current?.id;
+            if (gameId && uid != null) {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                    const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    return {
+                        ...currentGames,
+                        [gameId]: { ...game, [myKey]: [] } as any,
+                    };
+                });
+            }
+        }
+
+        if ((action as any).type === 'UNDO_LAST_BASE_STONE_PLACEMENT') {
+            const payload = (action as any).payload as { gameId?: string } | undefined;
+            const gameId = payload?.gameId;
+            const uid = currentUserRef.current?.id;
+            if (gameId && uid != null) {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                    const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    const myArr = ((game as any)[myKey] as Point[] | undefined) ?? [];
+                    if (myArr.length === 0) return currentGames;
+                    return {
+                        ...currentGames,
+                        [gameId]: { ...game, [myKey]: myArr.slice(0, -1) } as any,
+                    };
+                });
+            }
+        }
         
         // 싱글플레이 미사일 애니메이션 완료 클라이언트 처리 (도전의 탑은 towerGames, 그 외 싱글은 singlePlayerGames)
         if ((action as any).type === 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE') {
@@ -4094,11 +4130,12 @@ export const useApp = () => {
                                 const now = Date.now();
                                 const timeSinceLastHttpUpdate = now - lastHttpUpdateTime.current;
                                 const hasNicknameUpdate = updatedCurrentUser.nickname !== undefined && updatedCurrentUser.nickname !== currentUser.nickname;
+                                const hasAdventureProfileUpdate = updatedCurrentUser.adventureProfile !== undefined;
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
 
-                                if (!hasNicknameUpdate) {
+                                if (!hasNicknameUpdate && !hasAdventureProfileUpdate) {
                                     if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS) {
                                         console.log(`[WebSocket] USER_UPDATE ignored (${timeSinceLastHttpUpdate}ms since HTTP update with user, debounce: ${HTTP_UPDATE_DEBOUNCE_MS}ms, last action: ${lastHttpActionType.current})`);
                                         return;
@@ -4113,7 +4150,7 @@ export const useApp = () => {
                                         return;
                                     }
                                 }
-                                // 닉네임 변경은 디바운스 없이 항상 즉시 반영
+                                // 닉네임/모험 도감 프로필 변경은 디바운스 없이 항상 즉시 반영
 
                                 const mergedUser = applyUserUpdate(updatedCurrentUser, 'USER_UPDATE-websocket');
                                 console.log('[WebSocket] Applied USER_UPDATE for currentUser:', {
@@ -4360,6 +4397,11 @@ export const useApp = () => {
                                 const disconnectStateChanged =
                                     stableStringify(existingForThrottle?.disconnectionState ?? null) !==
                                     stableStringify(game.disconnectionState ?? null);
+                                // 모험/로비 AI 히든: 수순 변화 없이 ai_thinking + 종료 시각만 오는 패킷이 쓰로틀에 걸리면
+                                // 바둑판 빛·전광판 연출이 아예 안 뜨는 버그가 난다.
+                                const isAiHiddenItemPresentationUpdate =
+                                    game.animation?.type === 'ai_thinking' &&
+                                    (game as any).aiHiddenItemAnimationEndTime != null;
                                 if (
                                     !hasNewMoves &&
                                     !isPlayfulBoardUpdate &&
@@ -4375,6 +4417,7 @@ export const useApp = () => {
                                     !isMissileSelectToAnimating &&
                                     !isMissileAnimExitToPlaying &&
                                     !disconnectStateChanged &&
+                                    !isAiHiddenItemPresentationUpdate &&
                                     now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS
                                 ) {
                                     return;

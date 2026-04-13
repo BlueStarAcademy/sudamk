@@ -228,7 +228,12 @@ const applyAiCaptureOutcome = (
             }
         }
 
-        if (game.isSinglePlayer && (game as any).aiInitialHiddenStone) {
+        if (
+            (game.isSinglePlayer ||
+                (game as any).gameCategory === 'tower' ||
+                (game as any).gameCategory === 'adventure') &&
+            (game as any).aiInitialHiddenStone
+        ) {
             const aiHidden = (game as any).aiInitialHiddenStone as Point;
             const isCaptured = result.capturedStones.some(stone => stone.x === aiHidden.x && stone.y === aiHidden.y);
             if (isCaptured) {
@@ -929,7 +934,11 @@ export async function makeGoAiBotMove(
                     game.hiddenMoves[game.moveHistory.length - 1] = true;
                     (game as any)[aiHiddenKey] = aiHiddenLeft - 1;
                     game.aiHiddenItemUsed = true;
-                    if (game.isSinglePlayer || (game as any).gameCategory === 'tower') {
+                    if (
+                        game.isSinglePlayer ||
+                        (game as any).gameCategory === 'tower' ||
+                        (game as any).gameCategory === 'adventure'
+                    ) {
                         (game as any).aiInitialHiddenStone = { x: hiddenMove.x, y: hiddenMove.y };
                         (game as any).aiInitialHiddenStoneIsPrePlaced = false;
                         // 스캔 모드 진입 검사가 최신 상태를 보도록, saveGame 전에 캐시 즉시 갱신

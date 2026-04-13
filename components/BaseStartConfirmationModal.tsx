@@ -39,30 +39,30 @@ const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = ({
             bodyNoScroll
             containerExtraClassName="!max-w-[min(100vw,340px)]"
         >
-            <div className={`${startPanelShell} space-y-3 px-4 py-4`}>
-                <p className="text-center text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-300/85">
+            <div className={`${startPanelShell} space-y-3.5 px-4 py-4`}>
+                <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/85">
                     흑 · 백 · 덤 확정
                 </p>
-                <div className="space-y-2.5 rounded-lg border border-white/10 bg-black/35 px-3 py-3 text-sm">
+                <div className="space-y-2.5 rounded-lg border border-white/10 bg-black/35 px-3 py-3 text-[0.95rem]">
                     <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
-                        <span className="shrink-0 text-stone-500">흑</span>
+                        <span className="shrink-0 text-stone-400">흑</span>
                         <span className="truncate text-right font-bold text-stone-100">{blackName}</span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                        <span className="shrink-0 text-stone-500">백</span>
+                        <span className="shrink-0 text-stone-400">백</span>
                         <span className="truncate text-right font-bold text-stone-100">{whiteName}</span>
                     </div>
-                    <p className="border-t border-white/5 pt-2 text-center text-xs text-cyan-100/90">
+                    <p className="border-t border-white/5 pt-2 text-center text-sm text-cyan-100/90">
                         백 덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
                     </p>
                 </div>
-                <p className="text-center text-[11px] leading-relaxed text-stone-500">
+                <p className="text-center text-xs leading-relaxed text-stone-400">
                     위와 같이 대국이 진행됩니다. 확인 후 착수를 시작하세요.
                 </p>
                 <Button
                     onClick={() => onAction({ type: 'CONFIRM_BASE_REVEAL', payload: { gameId } })}
                     disabled={!!hasConfirmed}
-                    className="w-full !rounded-xl !border !border-cyan-400/30 !bg-gradient-to-r !from-cyan-900/80 !to-slate-800/90 !py-2.5 !font-bold !text-cyan-50 hover:!from-cyan-800 hover:!to-slate-700 disabled:!opacity-50"
+                    className="w-full !rounded-xl !border !border-cyan-400/30 !bg-gradient-to-r !from-cyan-900/80 !to-slate-800/90 !py-2.5 !text-[0.95rem] !font-bold !text-cyan-50 hover:!from-cyan-800 hover:!to-slate-700 disabled:!opacity-50"
                 >
                     {hasConfirmed ? '상대방 확인 대기 중…' : '대국 시작'}
                 </Button>

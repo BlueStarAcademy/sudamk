@@ -8,6 +8,7 @@ import { updateQuestProgress } from '../questService.js';
 import * as types from '../../types/index.js';
 import { broadcast } from '../socket.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 
 // AI 대국 일시정지/재개 쿨다운 (서버 메모리 기반)
 // - "일시정지" 후 5초가 지나야 "대국 재개" 허용
@@ -104,6 +105,13 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
             game.aiTurnStartTime = undefined;
             console.log(`[transitionToPlaying] User turn at transition, game ${game.id}, clearing aiTurnStartTime`);
         }
+    }
+
+    // 모험 AI: 실제 playing 진입 시점부터 전체 인카운터 제한시간 시작 (nigiri_reveal 이후 등, 한 번만 설정)
+    if (game.gameCategory === types.GameCategory.Adventure && (game as any).adventureEncounterDeadlineMs == null) {
+        const bs = game.settings?.boardSize ?? (game as any).adventureBoardSize ?? 9;
+        const mins = getAdventureEncounterCountdownMinutes(bs);
+        (game as any).adventureEncounterDeadlineMs = now + mins * 60 * 1000;
     }
 };
 

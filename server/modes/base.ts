@@ -269,11 +269,11 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                 const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
                 const humanId = aiId === p1Id ? p2Id : p1Id;
                 if (game.komiBids[humanId] != null && game.komiBids[aiId] == null) {
-                    const humanBid = game.komiBids[humanId]!;
-                    const preferredColor = humanBid.color === types.Player.Black ? types.Player.White : types.Player.Black;
-                    // 0.5~7.5 집 범위에서 랜덤(0.5 단위). 사람이 선택한 색과 반대로 우선 입찰.
-                    const randomHalfKomi = Math.max(0.5, Math.min(7.5, (Math.floor(Math.random() * 15) + 1) / 2));
-                    game.komiBids[aiId] = { color: preferredColor, komi: randomHalfKomi };
+                    // AI는 유저 반대편 고정이 아닌, 흑/백을 50:50으로 랜덤 선택한다.
+                    const randomColor = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
+                    // 덤 입찰값도 1~10 집 랜덤으로 선택한다.
+                    const randomKomi = Math.floor(Math.random() * 10) + 1;
+                    game.komiBids[aiId] = { color: randomColor, komi: randomKomi };
                 }
             }
             const bothHaveBid = game.komiBids?.[p1Id] != null && game.komiBids?.[p2Id] != null;
@@ -429,6 +429,18 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
             const playerStonesKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
             placeRemainingStonesRandomly(game, playerStonesKey);
+            return {};
+        case 'RESET_MY_BASE_STONE_PLACEMENTS':
+            if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
+            const resetKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+            game[resetKey] = [];
+            return {};
+        case 'UNDO_LAST_BASE_STONE_PLACEMENT':
+            if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
+            const undoKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+            const undoArr = game[undoKey];
+            if (!undoArr || undoArr.length === 0) return { error: "취소할 배치가 없습니다." };
+            undoArr.pop();
             return {};
         case 'UPDATE_KOMI_BID':
             if (game.gameStatus !== 'komi_bidding' || game.komiBids?.[user.id]) return { error: "Cannot bid now." };

@@ -19,6 +19,7 @@ import { ResultModalXpRewardBadge } from './ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
+    equipmentGradeRewardIconShellClassNames,
     RESULT_MODAL_BOX_GOLD_CLASS,
     RESULT_MODAL_BOX_ITEM_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
@@ -47,6 +48,14 @@ function adventureRewardSlotItemImage(displayName: string | undefined): string |
     const eq = EQUIPMENT_POOL.find((e) => e.name === displayName);
     if (eq?.image) return normalizeRewardImagePath(eq.image);
     return null;
+}
+
+/** 서버에 grade가 없는 구버전 요약: 장비 이름으로 풀에서 등급 추론 */
+function adventureEquipmentGradeFromDisplayName(displayName: string | undefined, explicit?: ItemGrade): ItemGrade | undefined {
+    if (explicit != null) return explicit;
+    if (!displayName) return undefined;
+    const eq = EQUIPMENT_POOL.find((e) => e.name === displayName);
+    return eq?.grade;
 }
 
 function pickDecoyEquipmentNames(n: number, exclude: string): string[] {
@@ -268,7 +277,15 @@ function GoldRollingPlaceholder({
     );
 }
 
-function EquipmentRollingPlaceholder({ compact, finalName }: { compact: boolean; finalName: string }) {
+function EquipmentRollingPlaceholder({
+    compact,
+    finalName,
+    finalGrade,
+}: {
+    compact: boolean;
+    finalName: string;
+    finalGrade?: ItemGrade;
+}) {
     const rowH = compact ? 64 : 88;
     const decoyNames = useMemo(() => pickDecoyEquipmentNames(10, finalName), [finalName]);
     const imgClass = compact
@@ -277,10 +294,32 @@ function EquipmentRollingPlaceholder({ compact, finalName }: { compact: boolean;
 
     const row = (name: string, isFinal: boolean) => {
         const src = adventureRewardSlotItemImage(name);
+        const gradeBox = isFinal && finalGrade != null ? equipmentGradeRewardIconShellClassNames(finalGrade) : null;
         return (
             <div className="flex w-full flex-col items-center justify-center gap-0.5 px-0.5">
-                <div className={`${RESULT_MODAL_BOX_ITEM_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`}>
-                    {src ? (
+                <div
+                    className={
+                        gradeBox
+                            ? `${gradeBox.outer} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`
+                            : `${RESULT_MODAL_BOX_ITEM_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`
+                    }
+                >
+                    {gradeBox ? (
+                        <>
+                            <div
+                                className={`pointer-events-none absolute inset-0 ${gradeBox.transcendentClass}`}
+                                style={gradeBox.bgStyle}
+                                aria-hidden
+                            />
+                            <div className="relative z-[1] flex h-full w-full items-center justify-center">
+                                {src ? (
+                                    <img src={src} alt="" className={imgClass} />
+                                ) : (
+                                    <span className="text-[0.55rem] font-bold text-zinc-200/90">?</span>
+                                )}
+                            </div>
+                        </>
+                    ) : src ? (
                         <img src={src} alt="" className={imgClass} />
                     ) : (
                         <span className="text-[0.55rem] font-bold text-violet-200/80">?</span>
@@ -366,7 +405,7 @@ export function AdventureBattleFixedRewardRow({
     const xpOk = xpChange > 0;
     const rowClass = compact
         ? RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
-        : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-2.5 min-h-[9rem]';
+        : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
 
     const xpMissedBox = (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
@@ -440,6 +479,10 @@ export function AdventureBattleFixedRewardRow({
                     quantity={1}
                     compact={compact}
                     alwaysShowNameBelow
+                    equipmentGrade={adventureEquipmentGradeFromDisplayName(
+                        slots.equipment.displayName,
+                        slots.equipment.grade,
+                    )}
                 />
             ) : (
                 <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} questionOverlay />
@@ -484,7 +527,7 @@ export function AdventureBattleRewardRowWithReveal({
     const xpOk = xpChange > 0;
     const rowClass = compact
         ? RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
-        : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-2.5 min-h-[9rem]';
+        : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
 
     const xpMissedBox = (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
@@ -548,7 +591,11 @@ export function AdventureBattleRewardRowWithReveal({
             )}
             <GoldRollingPlaceholder compact={compact} obtained={slots.gold.obtained} targetAmount={slots.gold.amount} />
             {slots.equipment.obtained && equipName ? (
-                <EquipmentRollingPlaceholder compact={compact} finalName={equipName} />
+                <EquipmentRollingPlaceholder
+                    compact={compact}
+                    finalName={equipName}
+                    finalGrade={adventureEquipmentGradeFromDisplayName(equipName, slots.equipment.grade)}
+                />
             ) : (
                 <div className={`flex flex-col items-center ${compact ? 'max-w-[3.25rem] shrink-0 min-[360px]:max-w-[3.5rem] min-[400px]:max-w-12 sm:max-w-[6.75rem]' : 'max-w-[6.75rem]'}`}>
                     <VerticalReel
@@ -591,23 +638,25 @@ export function AdventureBattleRewardRowWithReveal({
 
 export function AdventureResultCodexCard({
     codexDelta,
+    understandingDelta,
     compact,
     mobileTextScale = 1,
 }: {
     codexDelta: NonNullable<GameSummary['adventureCodexDelta']>;
+    understandingDelta?: GameSummary['adventureUnderstandingDelta'];
     compact: boolean;
     mobileTextScale?: number;
 }) {
     const { codexId, winsBefore, winsAfter } = codexDelta;
-    const codexProgressUnchanged = winsBefore === winsAfter;
+    const gainedWins = Math.max(0, winsAfter - winsBefore);
     const entry = getAdventureCodexMonsterById(codexId);
     const portrait = useResilientImgSrc(entry?.imageWebp);
     const levelBefore = getAdventureCodexComprehensionLevel(winsBefore);
     const levelAfter = getAdventureCodexComprehensionLevel(winsAfter);
     const { prog: progBefore } = getAdventureCodexComprehensionBarProgress(winsBefore, levelBefore);
     const { prog: progAfter, nextAt } = getAdventureCodexComprehensionBarProgress(winsAfter, levelAfter);
-    const pctBefore = Math.round(Math.min(1, Math.max(0, progBefore)) * 100);
-    const pctAfter = Math.round(Math.min(1, Math.max(0, progAfter)) * 100);
+    const pctBefore = Math.min(1, Math.max(0, progBefore)) * 100;
+    const pctAfter = Math.min(1, Math.max(0, progAfter)) * 100;
     const [barPct, setBarPct] = useState(pctBefore);
     useEffect(() => {
         let cancelled = false;
@@ -632,80 +681,71 @@ export function AdventureResultCodexCard({
     const effectLines = buildAdventureCodexEffectLinesKo(codexId, levelAfter);
     const imgPx = compact ? 52 : 72;
 
-    const nnLabel = atMax
-        ? `최대 · ${winsAfter}승`
-        : levelAfter <= 0
-          ? `첫 Lv · ${winsAfter}/1`
-          : nextAt != null
-            ? `${winsAfter} / ${nextAt}`
-            : '—';
+    const nnLabelTarget = atMax ? Math.max(nextAt ?? ADVENTURE_CODEX_MAX_LEVEL, winsAfter) : (nextAt ?? winsAfter);
+    const nnLabel = `Lv.${atMax ? ADVENTURE_CODEX_MAX_LEVEL : Math.max(0, levelAfter)} (${winsAfter}/${nnLabelTarget})`;
+    const understandingGain = understandingDelta ? Math.max(0, understandingDelta.xpAfter - understandingDelta.xpBefore) : 0;
 
     return (
-        <div
-            className={`mt-1.5 w-full rounded-lg border border-teal-500/25 bg-gradient-to-br from-teal-950/40 via-slate-950/80 to-black/70 p-2 ring-1 ring-inset ring-teal-400/15 ${
-                compact ? '' : 'p-2.5'
-            }`}
-        >
-            <p
-                className="mb-1.5 border-b border-teal-500/20 pb-1 text-center text-[0.6rem] font-bold uppercase tracking-[0.1em] text-teal-200/90"
-                style={{ fontSize: compact ? `${9 * mobileTextScale}px` : undefined }}
-            >
-                몬스터 도감
-            </p>
-            {codexProgressUnchanged ? (
-                <p
-                    className="mb-1.5 text-center text-[0.58rem] leading-tight text-zinc-500"
-                    style={{ fontSize: compact ? `${8 * mobileTextScale}px` : undefined }}
+        <div className={`mt-1.5 flex min-w-0 gap-2 ${compact ? 'items-start' : 'items-center'}`}>
+            <div className="flex shrink-0 flex-col items-center gap-1">
+                <div
+                    className={`relative overflow-hidden rounded-lg border-[3px] bg-white shadow-md ${borderCls}`}
+                    style={{ width: imgPx, height: imgPx }}
                 >
-                    이번 대국으로 도감 이해도(승리 수)는 변하지 않았습니다.
-                </p>
-            ) : null}
-            <div className={`flex min-w-0 gap-2 ${compact ? 'flex-col items-stretch' : 'flex-row items-start'}`}>
-                <div className={`mx-auto flex shrink-0 flex-col items-center gap-1 ${compact ? '' : 'mx-0'}`}>
-                    <div
-                        className={`relative overflow-hidden rounded-lg border-[3px] bg-white shadow-md ${borderCls}`}
-                        style={{ width: imgPx, height: imgPx }}
-                    >
-                        <img
-                            src={bgUrl}
-                            alt=""
-                            className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-90"
-                            draggable={false}
-                        />
-                        {entry ? (
-                            <img
-                                src={portrait.src}
-                                alt=""
-                                className="relative z-[1] h-full w-full object-contain p-1"
-                                draggable={false}
-                                onError={portrait.onError}
-                            />
-                        ) : null}
-                    </div>
+                    <img
+                        src={bgUrl}
+                        alt=""
+                        className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-90"
+                        draggable={false}
+                    />
                     {entry ? (
-                        <span
-                            className="line-clamp-2 text-center text-[0.65rem] font-bold leading-tight text-amber-100/95"
-                            style={{ fontSize: compact ? `${9 * mobileTextScale}px` : undefined }}
-                        >
-                            {entry.name}
-                        </span>
+                        <img
+                            src={portrait.src}
+                            alt=""
+                            className="relative z-[1] h-full w-full object-contain p-1"
+                            draggable={false}
+                            onError={portrait.onError}
+                        />
                     ) : null}
                 </div>
-                <div className="min-w-0 flex-1">
-                    <p
-                        className="text-[0.55rem] font-semibold uppercase tracking-wider text-teal-300/80"
-                        style={{ fontSize: compact ? `${8 * mobileTextScale}px` : undefined }}
+            </div>
+            <div className="min-w-0 flex-1">
+                <div className="mb-0.5 flex items-end justify-between gap-1 text-[0.76rem] text-zinc-400">
+                    <span
+                        className="font-bold tracking-wide text-zinc-200"
+                        style={{ fontSize: compact ? `${10.5 * mobileTextScale}px` : undefined }}
                     >
-                        이해도 Lv.{atMax ? ADVENTURE_CODEX_MAX_LEVEL : Math.max(0, levelAfter)}
-                        {atMax ? <span className="ml-1 text-amber-200/95">MAX</span> : null}
-                    </p>
+                        도감 경험치
+                    </span>
+                    <span
+                        className="font-mono font-bold tabular-nums text-zinc-100"
+                        style={{ fontSize: compact ? `${10.5 * mobileTextScale}px` : undefined }}
+                    >
+                        {nnLabel}
+                    </span>
+                </div>
+                <div className="h-2.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
+                    <div
+                        className="h-full rounded-full bg-gradient-to-r from-fuchsia-600 via-violet-500 to-amber-400 shadow-[0_0_8px_rgba(192,132,252,0.25)] transition-[width] duration-[750ms] ease-out"
+                        style={{ width: `${Math.max(0, gainedWins > 0 ? Math.max(barPct, 2) : barPct)}%` }}
+                    />
+                </div>
+                <div className="mt-1.5 min-h-[1.2rem]">
+                    {understandingDelta ? (
+                        <p
+                            className="mb-1 text-[0.78rem] font-bold text-emerald-300 [text-shadow:0_1px_2px_rgba(0,0,0,0.75)]"
+                            style={{ fontSize: compact ? `${10.5 * mobileTextScale}px` : undefined }}
+                        >
+                            지역 탐험도 +{understandingGain.toLocaleString()} XP
+                        </p>
+                    ) : null}
                     {effectLines.length > 0 ? (
-                        <ul className="mt-1 space-y-0.5">
+                        <ul className="space-y-0.5">
                             {effectLines.map((line) => (
                                 <li
                                     key={line}
-                                    className="text-[0.62rem] leading-snug text-zinc-200/95"
-                                    style={{ fontSize: compact ? `${8.5 * mobileTextScale}px` : undefined }}
+                                    className="text-[0.82rem] font-semibold leading-snug text-zinc-50 [text-shadow:0_1px_2px_rgba(0,0,0,0.8)]"
+                                    style={{ fontSize: compact ? `${10.5 * mobileTextScale}px` : undefined }}
                                 >
                                     {line}
                                 </li>
@@ -713,24 +753,12 @@ export function AdventureResultCodexCard({
                         </ul>
                     ) : (
                         <p
-                            className="mt-1 text-[0.62rem] text-zinc-500"
-                            style={{ fontSize: compact ? `${8.5 * mobileTextScale}px` : undefined }}
+                            className="text-[0.78rem] font-semibold text-zinc-200 [text-shadow:0_1px_2px_rgba(0,0,0,0.75)]"
+                            style={{ fontSize: compact ? `${10.5 * mobileTextScale}px` : undefined }}
                         >
-                            이해도 활성 후 효과가 표시됩니다.
+                            보너스 효과 없음
                         </p>
                     )}
-                    <div className="mt-2">
-                        <div className="mb-0.5 flex items-end justify-between gap-1 text-[0.55rem] text-zinc-500">
-                            <span className="font-semibold text-zinc-400">도감 경험치</span>
-                            <span className="font-mono tabular-nums text-zinc-300">{nnLabel}</span>
-                        </div>
-                        <div className="h-2.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
-                            <div
-                                className="h-full rounded-full bg-gradient-to-r from-fuchsia-600 via-violet-500 to-amber-400 shadow-[0_0_8px_rgba(192,132,252,0.25)] transition-[width] duration-[750ms] ease-out"
-                                style={{ width: `${barPct}%` }}
-                            />
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>

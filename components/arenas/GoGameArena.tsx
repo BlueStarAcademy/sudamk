@@ -98,6 +98,10 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             // 길드전은 Game.tsx에서 별도 전용 배경을 그리므로 경기장 패널은 투명 처리
             return 'bg-transparent';
         }
+        if (session.gameCategory === 'adventure') {
+            // 모험은 AdventureArena에서 맵 배경을 이미 깔아주므로 바둑판 패널 배경은 비움
+            return 'bg-transparent';
+        }
         // AI 게임인 경우 배경을 투명하게 (전략바둑, 놀이바둑 대기실에서 생성된 게임)
         const isAiGameFromLobby = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
         const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
@@ -231,7 +235,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 currentUser={props.currentUser}
                 blackPlayerNickname={blackPlayer?.nickname || '흑'}
                 whitePlayerNickname={whitePlayer?.nickname || '백'}
-                isItemModeActive={isItemModeActive}
+                    isItemModeActive={isItemModeActive || showBoardGlow}
                 animation={session.animation}
                 isMobile={isMobile}
                 isRotated={isBoardRotated}

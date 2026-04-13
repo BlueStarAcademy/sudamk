@@ -21,6 +21,7 @@ import {
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 
 /** 모험 맵 AI전: 베이스 제외 랜덤 흑백, 따내기는 도전자(플레이어1) 항상 흑. 그 외는 기존 설정 또는 기본 흑. */
 const resolveStrategicAiHumanColor = (game: types.LiveGameSession, neg: types.Negotiation): types.Player => {
@@ -165,7 +166,27 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     // This is the core update logic for all Go-based games.
-    
+
+    const advDeadline = (game as any).adventureEncounterDeadlineMs as number | undefined;
+    if (
+        game.gameCategory === types.GameCategory.Adventure &&
+        game.gameStatus !== 'ended' &&
+        game.gameStatus !== 'no_contest' &&
+        game.winner == null &&
+        typeof advDeadline === 'number' &&
+        now >= advDeadline &&
+        adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus)
+    ) {
+        const aiWinner =
+            game.blackPlayerId === aiUserId
+                ? types.Player.Black
+                : game.whitePlayerId === aiUserId
+                  ? types.Player.White
+                  : types.Player.White;
+        await summaryService.endGame(game, aiWinner, 'adventure_monster_fled');
+        return;
+    }
+
     // 플레이어가 차례를 시작할 때 초읽기 모드인지 확인하고, 초읽기 시간을 30초로 리셋
     // (초읽기 모드에서 수를 두면 다음 턴에서 30초로 꽉 채워짐)
     if (game.gameStatus === 'playing' && hasTimeControl(game.settings) && shouldEnforceTimeControl(game) && game.turnStartTime) {
@@ -607,8 +628,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // PVP: 클라이언트 boardState를 덮어쓰지 않으므로 game.boardState는 캐시(서버) 상태 유지.
             // 낙관적 업데이트로 이미 둔 수를 보내면 finalStoneCheck에서 거절되어 턴이 안 넘어가는 버그 방지.
 
-            // 싱글플레이 모드에서 AI 초기 히든돌 확인
-            const isAiInitialHiddenStone = game.isSinglePlayer && 
+            // 싱글/탑/모험: AI 히든 아이템으로 둔 미공개 돌(aiInitialHiddenStone) 위에 착수 시 공개 연출
+            const useAiInitialHiddenTracking =
+                game.isSinglePlayer ||
+                game.gameCategory === 'tower' ||
+                game.gameCategory === 'adventure';
+            const isAiInitialHiddenStone =
+                useAiInitialHiddenTracking &&
                 (game as any).aiInitialHiddenStone &&
                 (game as any).aiInitialHiddenStone.x === x &&
                 (game as any).aiInitialHiddenStone.y === y &&
@@ -817,7 +843,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     if (!isCurrentMove) {
                         const moveIndex = game.moveHistory.findIndex(m => m.x === nx && m.y === ny);
                         isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        if (!isHiddenStone && game.isSinglePlayer && (game as any).aiInitialHiddenStone) {
+                        if (!isHiddenStone && useAiInitialHiddenTracking && (game as any).aiInitialHiddenStone) {
                             const aiHidden = (game as any).aiInitialHiddenStone;
                             isHiddenStone = nx === aiHidden.x && ny === aiHidden.y &&
                                 !game.permanentlyRevealedStones?.some(p => p.x === nx && p.y === ny);
@@ -845,7 +871,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
             
             // AI 초기 히든돌이 따내진 경우 확인
-            if (game.isSinglePlayer && (game as any).aiInitialHiddenStone) {
+            if (useAiInitialHiddenTracking && (game as any).aiInitialHiddenStone) {
                 const aiHidden = (game as any).aiInitialHiddenStone;
                 const isCaptured = result.capturedStones.some(s => s.x === aiHidden.x && s.y === aiHidden.y);
                 if (isCaptured) {

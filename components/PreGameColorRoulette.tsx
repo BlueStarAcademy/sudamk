@@ -39,8 +39,6 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     }, [onComplete]);
 
     useEffect(() => {
-        if (layout === 'cardsOnly') return;
-
         completedRef.current = false;
         setIsFinished(false);
         setActiveColor(Player.Black);
@@ -114,9 +112,14 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
 
     if (layout === 'cardsOnly') {
         return (
-            <div className="flex gap-2.5 sm:gap-3">
-                {renderPlayerCard(blackPlayer, Player.Black, true)}
-                {renderPlayerCard(whitePlayer, Player.White, true)}
+            <div className="space-y-2">
+                <div className="mx-auto flex w-fit items-center justify-center rounded-md border border-amber-400/40 bg-black/45 px-2.5 py-1 text-xs font-bold tracking-wide text-amber-200/95">
+                    {isFinished ? '배정 완료' : activeColor === Player.Black ? '흑 선택 중...' : '백 선택 중...'}
+                </div>
+                <div className="flex gap-2.5 sm:gap-3">
+                    {renderPlayerCard(blackPlayer, Player.Black, isFinished ? true : activeColor === Player.Black)}
+                    {renderPlayerCard(whitePlayer, Player.White, isFinished ? true : activeColor === Player.White)}
+                </div>
             </div>
         );
     }

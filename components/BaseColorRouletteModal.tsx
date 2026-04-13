@@ -42,7 +42,7 @@ const BaseColorRouletteModal: React.FC<BaseColorRouletteModalProps> = ({ session
                     subtitle="2차 덤 설정까지 동일하여, 룰렛으로 흑·백이 배정됩니다."
                     suppressHeader
                 />
-                <p className="mt-3 text-center text-[11px] leading-relaxed text-stone-400">
+                <p className="mt-3 text-center text-xs leading-relaxed text-stone-300">
                     잠시 후 흑·백·덤 안내 화면으로 넘어갑니다.
                 </p>
             </div>

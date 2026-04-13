@@ -1744,6 +1744,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                         {isAdventureGame && mySummary?.adventureCodexDelta ? (
                                             <AdventureResultCodexCard
                                                 codexDelta={mySummary.adventureCodexDelta}
+                                                understandingDelta={mySummary.adventureUnderstandingDelta}
                                                 compact={isMobile}
                                                 mobileTextScale={mobileTextScale}
                                             />
@@ -1935,6 +1936,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 {isAdventureGame && mySummary?.adventureCodexDelta ? (
                                     <AdventureResultCodexCard
                                         codexDelta={mySummary.adventureCodexDelta}
+                                        understandingDelta={mySummary.adventureUnderstandingDelta}
                                         compact={false}
                                         mobileTextScale={mobileTextScale}
                                     />

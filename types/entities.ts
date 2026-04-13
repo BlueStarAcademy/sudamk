@@ -770,7 +770,7 @@ export type GameSummary = {
   /** 모험 몬스터 승리 시 슬롯 결과(연출용; 실제 지급은 gold·items와 동일) */
   adventureRewardSlots?: {
     gold: { obtained: boolean; amount: number; understandingBonus?: number };
-    equipment: { obtained: boolean; displayName?: string };
+    equipment: { obtained: boolean; displayName?: string; grade?: ItemGrade };
     material: { obtained: boolean; displayName?: string; quantity?: number };
   };
   /** 모험 승리 직후 도감 이해도(결과 모달 변화도 연출) */
@@ -778,6 +778,12 @@ export type GameSummary = {
     codexId: string;
     winsBefore: number;
     winsAfter: number;
+  };
+  /** 모험 승리 직후 지역 탐험도(지역 이해도) 변화 */
+  adventureUnderstandingDelta?: {
+    stageId: string;
+    xpBefore: number;
+    xpAfter: number;
   };
 };
 

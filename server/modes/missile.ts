@@ -443,10 +443,17 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
     // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 미사일 허용 (싱글플레이와 동일)
     const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;
     const lastMoveWasMine = lastMove && (lastMove as { player?: number }).player === myPlayerEnum;
+    const isStrategicAiGame =
+        !!game.isAiGame &&
+        !game.isSinglePlayer &&
+        (game as any).gameCategory !== 'tower' &&
+        (game as any).gameCategory !== 'singleplayer' &&
+        (game as any).gameCategory !== 'guildwar';
     const allowItemAfterMyMove =
         (game.isSinglePlayer ||
             (game as any).gameCategory === 'tower' ||
-            (game as any).gameCategory === 'guildwar') &&
+            (game as any).gameCategory === 'guildwar' ||
+            isStrategicAiGame) &&
         game.gameStatus === 'playing' &&
         lastMoveWasMine &&
         !isMyTurn;

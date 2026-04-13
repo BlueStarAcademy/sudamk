@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { ColorAssignmentStickyFooter } from './ColorAssignmentStickyFooter.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { aiUserId } from '../constants/index.js';
+import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
 
 interface NigiriModalProps {
     session: LiveGameSession;
@@ -13,30 +15,22 @@ interface NigiriModalProps {
 
 const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onAction }) => {
     const isHandheld = useIsHandheldDevice(1025);
-    const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime } = session;
+    const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations } = session;
     const hasConfirmed = !!preGameConfirmations?.[currentUser.id];
-    const [countdown, setCountdown] = useState(30);
-
-    useEffect(() => {
-        const deadline = revealEndTime || Date.now() + 30 * 1000;
-        const timerId = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-            setCountdown(remaining);
-        }, 1000);
-        return () => clearInterval(timerId);
-    }, [revealEndTime]);
 
     if (!blackPlayerId || !whitePlayerId) return null;
 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
+    const monsterName = session.gameCategory === 'adventure' ? getAdventureCodexMonsterById(session.adventureMonsterCodexId)?.name : undefined;
+    const blackUiPlayer = blackPlayer.id === aiUserId && monsterName ? { ...blackPlayer, nickname: monsterName } : blackPlayer;
+    const whiteUiPlayer = whitePlayer.id === aiUserId && monsterName ? { ...whitePlayer, nickname: monsterName } : whitePlayer;
 
-    const cards = <PreGameColorRoulette layout="cardsOnly" blackPlayer={blackPlayer} whitePlayer={whitePlayer} />;
+    const cards = <PreGameColorRoulette layout="cardsOnly" blackPlayer={blackUiPlayer} whitePlayer={whiteUiPlayer} />;
     const footer = (
         <ColorAssignmentStickyFooter
             variant={isHandheld ? 'sticky' : 'inline'}
             hasConfirmed={hasConfirmed}
-            countdown={countdown}
             onConfirm={() => onAction({ type: 'CONFIRM_COLOR_START', payload: { gameId } })}
         />
     );

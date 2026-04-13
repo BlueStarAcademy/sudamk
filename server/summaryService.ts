@@ -1010,7 +1010,7 @@ function calculateAdventureMonsterBattleRewards(
         type: 'equipment' | 'material',
         typeDropBonus: number,
         hgPct: number,
-    ): { obtained: boolean; displayName?: string; quantity?: number } => {
+    ): { obtained: boolean; displayName?: string; quantity?: number; grade?: ItemGrade } => {
         const baseAcquire = (0.1 + (level / 50) * 0.48) * (isBoss19Board ? 1.35 : 1);
         const acquireChance = Math.min(
             0.9,
@@ -1030,7 +1030,7 @@ function calculateAdventureMonsterBattleRewards(
             });
             const eq = rollRandomEquipmentFromGradeWeights(gradeRows);
             items.push(eq);
-            return { obtained: true, displayName: eq.name };
+            return { obtained: true, displayName: eq.name, grade: eq.grade };
         }
         const matRows = lootDef.materials.map(({ name, weight }) => {
             let w = weight;
@@ -1074,7 +1074,11 @@ function calculateAdventureMonsterBattleRewards(
                 amount: goldReward,
                 ...(understandingGoldBonus > 0 ? { understandingBonus: understandingGoldBonus } : {}),
             },
-            equipment: { obtained: equipmentSlot.obtained, displayName: equipmentSlot.displayName },
+            equipment: {
+                obtained: equipmentSlot.obtained,
+                displayName: equipmentSlot.displayName,
+                ...(equipmentSlot.obtained && equipmentSlot.grade != null ? { grade: equipmentSlot.grade } : {}),
+            },
             material: {
                 obtained: materialSlot.obtained,
                 displayName: materialSlot.displayName,
@@ -1367,20 +1371,26 @@ const processPlayerSummary = async (
 
     let adventureRewardSlots: GameSummary['adventureRewardSlots'];
     let adventureCodexDelta: GameSummary['adventureCodexDelta'];
+    let adventureUnderstandingDelta: GameSummary['adventureUnderstandingDelta'];
 
     let rewards: { gold: number; items: InventoryItem[]; adventureGoldUnderstandingBonus?: number };
     if (isNoContest) {
         rewards = { gold: 0, items: [] };
     } else if (isAdventureWin) {
         const advCodexId = game.adventureMonsterCodexId!;
+        const advStageId = game.adventureStageId!;
         const prevProf = normalizeAdventureProfile(updatedPlayer.adventureProfile);
         const winsBefore = Math.max(0, Math.floor((prevProf.codexDefeatCounts ?? {})[advCodexId] ?? 0));
         adventureCodexDelta = { codexId: advCodexId, winsBefore, winsAfter: winsBefore + 1 };
+        const xpBefore = Math.max(0, Math.floor((prevProf.understandingXpByStage ?? {})[advStageId] ?? 0));
         applyAdventureMonsterDefeatToProfile(updatedPlayer, {
             codexId: advCodexId,
-            stageId: game.adventureStageId!,
+            stageId: advStageId,
             battleMode: resolvedAdventureBattleMode!,
         });
+        const nextProf = normalizeAdventureProfile(updatedPlayer.adventureProfile);
+        const xpAfter = Math.max(0, Math.floor((nextProf.understandingXpByStage ?? {})[advStageId] ?? 0));
+        adventureUnderstandingDelta = { stageId: advStageId, xpBefore, xpAfter };
         // 도감·지역 이해도 반영 후 이펙트 재계산 — 골드% 분리(split)와 드롭 보너스가 갱신 프로필과 일치해야 함
         const effectsAfterAdventure = effectService.calculateUserEffects(updatedPlayer);
         const advR = calculateAdventureMonsterBattleRewards(
@@ -1554,6 +1564,7 @@ const processPlayerSummary = async (
         ...(guildWarStars !== undefined ? { guildWarStars } : {}),
         ...(adventureRewardSlots ? { adventureRewardSlots } : {}),
         ...(adventureCodexDelta ? { adventureCodexDelta } : {}),
+        ...(adventureUnderstandingDelta ? { adventureUnderstandingDelta } : {}),
         ...(rewards.adventureGoldUnderstandingBonus != null && rewards.adventureGoldUnderstandingBonus > 0
             ? { adventureGoldUnderstandingBonus: rewards.adventureGoldUnderstandingBonus }
             : {}),

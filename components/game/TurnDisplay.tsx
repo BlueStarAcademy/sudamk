@@ -11,6 +11,7 @@ import {
 import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
+import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
 const MONSTER_HIDDEN_ITEM_MESSAGE = '몬스터가 히든 아이템을 사용했습니다!';
@@ -201,7 +202,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     useEffect(() => {
         const deadline = session.adventureEncounterDeadlineMs;
-        if (session.gameCategory !== 'adventure' || !deadline || session.gameStatus !== 'playing') {
+        if (!deadline || !adventureEncounterCountdownUiActive(session.gameCategory, session.gameStatus)) {
             setAdventureEncSecLeft(null);
             return;
         }
@@ -838,28 +839,42 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             hasDeadline && secLeft !== null
                 ? Math.min(100, Math.max(0, (secLeft / BASE_PLACEMENT_TIME_LIMIT_SEC) * 100))
                 : null;
-        const guidance =
-            viewerUserId == null
-                ? '플레이어들이 베이스돌을 배치하고 있습니다.'
-                : '상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요.';
-        const subLine =
-            viewerUserId != null && myPlacements !== null
-                ? `배치 ${myPlacements}/${baseStoneCount}${
-                      hasDeadline && secLeft !== null ? ` · 남은 시간 ${secLeft}초` : ''
-                  }`
-                : hasDeadline && secLeft !== null
-                  ? `남은 시간 ${secLeft}초`
-                  : null;
+        const isAdventureVsAi = session.gameCategory === 'adventure' && session.isAiGame;
+
+        let primaryLine: string;
+        if (viewerUserId == null) {
+            primaryLine = '플레이어들이 베이스돌을 배치하고 있습니다.';
+        } else if (isDonePlacing) {
+            primaryLine = '배치 완료 · 상대 배치 대기 중…';
+        } else if (myPlacements !== null) {
+            const hint = isAdventureVsAi
+                ? '베이스돌을 바둑판에 놓으세요'
+                : '상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요';
+            const parts = [hint, `배치 ${myPlacements}/${baseStoneCount}`];
+            if (hasDeadline && secLeft !== null) parts.push(`남은 시간 ${secLeft}초`);
+            primaryLine = parts.join(' · ');
+        } else {
+            primaryLine = '플레이어들이 베이스돌을 배치하고 있습니다.';
+        }
+
+        const showPlacementTools = Boolean(viewerUserId && onAction && myPlacements !== null);
+        const canRandomFill = showPlacementTools && myPlacements! < baseStoneCount;
+        const canResetOrUndo = showPlacementTools && myPlacements! > 0;
+        const btnBase = `flex-1 min-w-[5.25rem] rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-bold transition-colors sm:min-w-0 sm:px-2 sm:text-xs ${
+            isSinglePlayer
+                ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
+                : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
+        }`;
 
         return wrapContent(
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-3 min-h-[3rem]'}`,
             <>
-                <div className="flex w-full flex-col items-center justify-center gap-0.5 min-w-0 sm:gap-1">
+                <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5 sm:gap-1">
                     <div
-                        className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
+                        className={`w-full min-w-0 overflow-x-auto overflow-y-hidden flex-shrink-0 [scrollbar-width:thin] ${isMobile ? 'min-h-[1.15rem]' : 'min-h-[1.35rem]'}`}
                     >
                         <p
-                            className={`font-bold ${textClass} text-center leading-snug tracking-wide ${
+                            className={`whitespace-nowrap text-center font-bold tracking-wide ${textClass} ${
                                 isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
                             }`}
                             style={{
@@ -868,18 +883,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                                     : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
                             }}
                         >
-                            {guidance}
+                            {primaryLine}
                         </p>
                     </div>
-                    {subLine && (
-                        <p
-                            className={`text-center font-semibold text-amber-200/90 ${
-                                isMobile ? 'text-[clamp(0.55rem,1.5vmin,0.65rem)]' : 'text-[clamp(0.62rem,1.7vmin,0.75rem)]'
-                            }`}
-                        >
-                            {subLine}
-                        </p>
-                    )}
                 </div>
                 {barPct !== null && (
                     <div
@@ -893,29 +899,42 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                         />
                     </div>
                 )}
-                {viewerUserId && onAction && !isDonePlacing && (
-                    <button
-                        type="button"
-                        onClick={() =>
-                            onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId: session.id } })
-                        }
-                        className={`mt-1 w-full max-w-sm self-center rounded-lg border px-2 py-1.5 text-center text-[11px] font-bold transition-colors sm:text-xs ${
-                            isSinglePlayer
-                                ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
-                                : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
-                        }`}
-                    >
-                        남은 돌 무작위 배치
-                    </button>
-                )}
-                {viewerUserId && isDonePlacing && (
-                    <p
-                        className={`mt-1 text-center text-[11px] font-semibold sm:text-xs ${
-                            isSinglePlayer ? 'text-emerald-300/95' : 'text-emerald-200/95'
-                        }`}
-                    >
-                        배치 완료 · 상대 대기 중…
-                    </p>
+                {showPlacementTools && (canRandomFill || canResetOrUndo) && (
+                    <div className="mt-1 flex w-full max-w-lg flex-wrap items-stretch justify-center gap-1 self-center">
+                        {canRandomFill && (
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    onAction!({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId: session.id } })
+                                }
+                                className={btnBase}
+                            >
+                                남은 돌 무작위 배치
+                            </button>
+                        )}
+                        {canResetOrUndo && (
+                            <>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        onAction!({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId: session.id } })
+                                    }
+                                    className={btnBase}
+                                >
+                                    재배치
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        onAction!({ type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId: session.id } })
+                                    }
+                                    className={btnBase}
+                                >
+                                    마지막 취소
+                                </button>
+                            </>
+                        )}
+                    </div>
                 )}
             </>
         );
@@ -927,14 +946,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         ? { textShadow: '0 0 12px rgba(251, 191, 36, 0.35), 0 1px 2px rgba(0,0,0,0.85)' }
         : { textShadow: '0 0 14px rgba(251, 191, 36, 0.45), 0 1px 3px rgba(0,0,0,0.95)' };
 
-    const advEncLine =
-        adventureEncSecLeft != null && session.gameCategory === 'adventure' && session.gameStatus === 'playing'
-            ? (() => {
-                  const mm = Math.floor(adventureEncSecLeft / 60);
-                  const ss = adventureEncSecLeft % 60;
-                  return `남은 시간 ${mm}:${ss.toString().padStart(2, '0')} · 종료 시 몬스터 도주(패배)`;
-              })()
-            : null;
+    const advEncLine = null;
 
     return wrapContent(
         `${baseClasses} ${themeClasses}`,

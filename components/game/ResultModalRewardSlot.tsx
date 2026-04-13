@@ -1,4 +1,41 @@
 import React from 'react';
+import { ItemGrade } from '../../types/enums.js';
+import { gradeBackgrounds, gradeStyles } from '../../constants.js';
+
+function equipmentGradeBorderClass(grade: ItemGrade): string {
+    switch (grade) {
+        case ItemGrade.Normal:
+            return 'border-zinc-500/55';
+        case ItemGrade.Uncommon:
+            return 'border-emerald-500/50';
+        case ItemGrade.Rare:
+            return 'border-sky-500/50';
+        case ItemGrade.Epic:
+            return 'border-violet-500/50';
+        case ItemGrade.Legendary:
+            return 'border-rose-500/50';
+        case ItemGrade.Mythic:
+            return 'border-amber-400/50';
+        case ItemGrade.Transcendent:
+            return 'border-cyan-400/55';
+        default:
+            return 'border-zinc-500/55';
+    }
+}
+
+/** 모험·결과 모달: 장비 등급에 맞는 슬롯 테두리·배경(인벤/획득 UI와 동일 이미지) */
+export function equipmentGradeRewardIconShellClassNames(grade: ItemGrade): {
+    outer: string;
+    bgStyle: React.CSSProperties;
+    transcendentClass: string;
+} {
+    const bg = gradeBackgrounds[grade] ?? gradeBackgrounds[ItemGrade.Normal];
+    return {
+        outer: `relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/10 ${equipmentGradeBorderClass(grade)}`,
+        bgStyle: { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' },
+        transcendentClass: grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : '',
+    };
+}
 
 /** 아이템 표기: 골드꾸러미 → 골드 꾸러미 */
 export function formatRewardItemDisplayName(raw: string): string {
@@ -86,7 +123,19 @@ export const ResultModalItemRewardSlot: React.FC<{
     alwaysShowNameBelow?: boolean;
     /** 재료 등: 이름 없이 아이콘 아래 개수만(1개일 때도 표시) */
     materialQuantityOnly?: boolean;
-}> = ({ imageSrc, name, quantity, compact, dimmed, onImageError, alwaysShowNameBelow, materialQuantityOnly }) => {
+    /** 장비: 등급별 배경·테두리(일반=회색 톤, 에픽=보라 등) */
+    equipmentGrade?: ItemGrade;
+}> = ({
+    imageSrc,
+    name,
+    quantity,
+    compact,
+    dimmed,
+    onImageError,
+    alwaysShowNameBelow,
+    materialQuantityOnly,
+    equipmentGrade,
+}) => {
     const displayName = formatRewardItemDisplayName(name);
     const imgClass = compact
         ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-10 sm:w-10'
@@ -97,15 +146,32 @@ export const ResultModalItemRewardSlot: React.FC<{
         quantity >= 1 &&
         (materialQuantityOnly ? true : quantity > 1);
     const showNameBelow = !materialQuantityOnly && (!imageSrc || alwaysShowNameBelow);
-    return (
-        <div
-            className={`flex flex-col items-center gap-0.5 ${
-                compact
-                    ? 'w-[2.5rem] shrink-0 min-[360px]:w-[2.75rem] min-[400px]:w-12 sm:w-auto sm:max-w-[6.75rem]'
-                    : 'max-w-[5.75rem] sm:max-w-[6.75rem] min-[1024px]:max-w-[7.25rem]'
-            } ${dimmed ? 'opacity-80' : ''}`}
-            title={displayName + (quantity != null && quantity > 1 ? ` ×${quantity}` : '')}
-        >
+    const labelTone = equipmentGrade != null ? gradeStyles[equipmentGrade]?.color ?? 'text-violet-200' : 'text-violet-200';
+    const iconBox = (() => {
+        if (equipmentGrade != null) {
+            const shell = equipmentGradeRewardIconShellClassNames(equipmentGrade);
+            return (
+                <div className={`${shell.outer} ${imageBoxClass(compact)}`}>
+                    <div
+                        className={`pointer-events-none absolute inset-0 ${shell.transcendentClass}`}
+                        style={shell.bgStyle}
+                        aria-hidden
+                    />
+                    <div className="relative z-[1] flex h-full w-full items-center justify-center">
+                        {imageSrc ? (
+                            <img src={imageSrc} alt="" className={imgClass} onError={onImageError} />
+                        ) : (
+                            <span
+                                className={`line-clamp-3 px-1 text-center text-[0.58rem] font-medium leading-tight ${labelTone} sm:text-[0.62rem]`}
+                            >
+                                {displayName}
+                            </span>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+        return (
             <div className={`${BOX_ITEM} ${imageBoxClass(compact)}`}>
                 {imageSrc ? (
                     <img src={imageSrc} alt="" className={imgClass} onError={onImageError} />
@@ -115,9 +181,21 @@ export const ResultModalItemRewardSlot: React.FC<{
                     </span>
                 )}
             </div>
+        );
+    })();
+    return (
+        <div
+            className={`flex flex-col items-center gap-0.5 ${
+                compact
+                    ? 'w-[2.5rem] shrink-0 min-[360px]:w-[2.75rem] min-[400px]:w-12 sm:w-auto sm:max-w-[6.75rem]'
+                    : 'max-w-[5.75rem] sm:max-w-[6.75rem] min-[1024px]:max-w-[7.25rem]'
+            } ${dimmed ? 'opacity-80' : ''}`}
+            title={displayName + (quantity != null && quantity > 1 ? ` ×${quantity}` : '')}
+        >
+            {iconBox}
             {showNameBelow && (
                 <p
-                    className={`line-clamp-2 w-full text-center font-semibold leading-tight text-violet-200 ${
+                    className={`line-clamp-2 w-full text-center font-semibold leading-tight ${labelTone} ${
                         compact ? 'text-[0.62rem] sm:text-[0.65rem]' : 'text-xs min-[1024px]:text-[0.8125rem]'
                     }`}
                 >
@@ -127,7 +205,7 @@ export const ResultModalItemRewardSlot: React.FC<{
             )}
             {showQuantityBelow && (
                 <p
-                    className={`w-full text-center font-semibold tabular-nums leading-tight text-violet-200 ${
+                    className={`w-full text-center font-semibold tabular-nums leading-tight ${labelTone} ${
                         compact ? 'text-[0.62rem] sm:text-[0.65rem]' : 'text-xs min-[1024px]:text-[0.8125rem]'
                     }`}
                 >

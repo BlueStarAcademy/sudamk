@@ -161,6 +161,8 @@ export type ServerAction =
     // Base Go
     | { type: 'PLACE_BASE_STONE', payload: { gameId: string; x: number; y: number } }
     | { type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId: string } }
+    | { type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId: string } }
+    | { type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId: string } }
     | { type: 'UPDATE_KOMI_BID', payload: { gameId: string, bid: KomiBid } }
     | { type: 'CONFIRM_BASE_REVEAL', payload: { gameId: string } }
     // Hidden Go

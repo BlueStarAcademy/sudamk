@@ -335,7 +335,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     );
                 }
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                    const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                    const { handleStrategicGameAction } = await import('./modes/standard.js');
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
                     if (result && (result as any).error && process.env.NODE_ENV === 'development') {
                         console.log(`[handleAction] Tower missile/item action ${type} failed:`, { gameId, gameStatus: game.gameStatus, error: (result as any).error });
@@ -375,7 +375,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 return { error: 'Invalid single player game.' };
             }
             // handleStrategicGameAction을 통해 처리 (싱글플레이 게임도 전략 액션 핸들러 사용)
-            const { handleStrategicGameAction } = await import('./modes/strategic.js');
+            const { handleStrategicGameAction } = await import('./modes/standard.js');
             const result = await handleStrategicGameAction(volatileState, game, action, userData);
             return result || {};
         }
@@ -467,7 +467,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         return (towerResult as any).error ? towerResult : { ...towerResult, clientResponse: { gameId: game.id, game } };
                     }
                 }
-                const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                const { handleStrategicGameAction } = await import('./modes/standard.js');
                 const result = await handleStrategicGameAction(volatileState, game, action, userData);
                 if (result && (result as any).error && process.env.NODE_ENV === 'development') {
                     console.log(`[handleAction] Tower hidden/scan action ${type} failed:`, { gameId, gameStatus: game.gameStatus, error: (result as any).error });
@@ -487,7 +487,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     console.log(`[handleAction] Processing single player PLACE_STONE with hidden item: type=${type}, gameId=${gameId}, gameStatus=${game.gameStatus}, isHidden=${(payload as any)?.isHidden}`);
                     // strategic 모드 핸들러로 라우팅 (히든 아이템 처리 포함)
                     if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                        const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                        const { handleStrategicGameAction } = await import('./modes/standard.js');
                         const { updateGameCache } = await import('./gameCache.js');
                         const result = await handleStrategicGameAction(volatileState, game, action, userData);
                         if (result && !result.error) {
@@ -517,7 +517,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (!game) game = await db.getLiveGame(gameId);
             if (game && game.gameCategory === 'tower' && (game.gameStatus === 'hidden_placing' || (payload as any)?.isHidden)) {
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                    const { handleStrategicGameAction } = await import('./modes/strategic.js');
+                    const { handleStrategicGameAction } = await import('./modes/standard.js');
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
                     if (result && !(result as any).error) {
                         if ((payload as any)?.isHidden && consumeOneTowerLobbyInventoryItem(userData, TOWER_LOBBY_HIDDEN_NAMES)) {

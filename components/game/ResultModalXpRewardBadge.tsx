@@ -10,14 +10,14 @@ export type ResultModalXpVariant = 'strategy' | 'playful';
 const VARIANT = {
     strategy: {
         box: 'border-emerald-400/35 bg-gradient-to-br from-emerald-700/45 via-emerald-950/95 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-emerald-400/30',
-        labelMode: 'text-[0.55rem] font-bold leading-none text-emerald-100/95 min-[1024px]:text-xs',
-        labelExp: 'mt-[3px] text-[0.62rem] font-black leading-none tracking-[0.08em] text-emerald-50 min-[1024px]:text-[0.7rem]',
+        labelMode: 'text-[0.74rem] font-bold leading-none text-emerald-100/95 min-[1024px]:text-[0.98rem]',
+        labelExp: 'mt-[4px] text-[0.86rem] font-black leading-none tracking-[0.08em] text-emerald-50 min-[1024px]:text-[1.06rem]',
         amount:
             'text-sm font-bold tabular-nums leading-tight text-emerald-100 min-[1024px]:text-base',
         labelModeCompact:
-            'text-[0.5rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.54rem] font-bold leading-none text-emerald-100/95',
+            'text-[0.68rem] min-[360px]:text-[0.72rem] min-[400px]:text-[0.76rem] font-bold leading-none text-emerald-100/95',
         labelExpCompact:
-            'mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black leading-none tracking-[0.06em] text-emerald-50',
+            'mt-0.5 text-[0.76rem] min-[360px]:text-[0.8rem] min-[400px]:text-[0.84rem] font-black leading-none tracking-[0.06em] text-emerald-50',
         amountCompact:
             'text-[0.72rem] font-bold tabular-nums leading-tight text-emerald-100',
     },

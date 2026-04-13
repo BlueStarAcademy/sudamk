@@ -2635,7 +2635,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             <button
                                 type="button"
                                 onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                                className="absolute top-1/2 -left-6 -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
+                                className="absolute top-1/2 -left-6 z-[120] -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
                                 title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                                 aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                             >
@@ -2792,7 +2792,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             <button
                                 type="button"
                                 onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                                className="absolute top-1/2 -left-6 -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
+                                className="absolute top-1/2 -left-6 z-[120] -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
                                 title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                                 aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                             >
@@ -2926,7 +2926,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     {...gameProps}
                                     clientTimes={clientTimes.clientTimes}
                                     isMobile={isMobile}
-                                    isSinglePlayer={isAdventureGame}
+                                    isSinglePlayer={isSinglePlayer}
                                 />
                             </div>
                         </div>
@@ -3078,7 +3078,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         <button
                             type="button"
                             onClick={() => setIsRightSidebarCollapsed(prev => !prev)}
-                            className="absolute top-1/2 -left-6 -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
+                            className="absolute top-1/2 -left-6 z-[120] -translate-y-1/2 w-7 h-9 flex items-center justify-center rounded-md bg-gray-800/90 hover:bg-gray-700/90 text-gray-300 hover:text-white transition-colors border border-gray-700/80"
                             title={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                             aria-label={isRightSidebarCollapsed ? '사이드바 펼치기' : '사이드바 접기'}
                         >

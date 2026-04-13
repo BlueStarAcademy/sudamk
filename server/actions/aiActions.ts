@@ -88,10 +88,15 @@ export async function handleAiAction(
       }
     }
 
-    if (postInit.gameCategory === 'adventure' && postInit.gameStatus === 'playing') {
+    // playing 진입 시 `transitionToPlaying`에서 설정. 경로 누락 시에만 보조 설정
+    if (
+      postInit.gameCategory === 'adventure' &&
+      postInit.gameStatus === 'playing' &&
+      postInit.adventureEncounterDeadlineMs == null
+    ) {
       const bs = postInit.settings?.boardSize ?? postInit.adventureBoardSize ?? 9;
       const mins = getAdventureEncounterCountdownMinutes(bs);
-      (postInit as any).adventureEncounterDeadlineMs = now + mins * 60 * 1000;
+      postInit.adventureEncounterDeadlineMs = now + mins * 60 * 1000;
     }
 
     // 실제 대국(playing) 전에는 설정하지 않음 — nigiri_reveal 등은 transitionToPlaying에서 설정

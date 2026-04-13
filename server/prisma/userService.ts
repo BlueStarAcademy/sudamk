@@ -3,6 +3,7 @@ import type { Prisma } from "@prisma/client";
 import type { User } from "../../types/index.js";
 import { deserializeUser, serializeUser, PrismaUserWithStatus } from "./userAdapter.js";
 import { ensurePrismaEngineReady } from "./gameService.js";
+import { normalizeAdventureProfile } from "../../utils/adventureUnderstanding.js";
 
 const toBigInt = (value: number | undefined): bigint => {
   if (typeof value === "bigint") return value;
@@ -38,6 +39,64 @@ const buildPersistentFields = (user: User) => {
 };
 
 const mapUser = (row: PrismaUserWithStatus): User => deserializeUser(row);
+
+const mergeAdventureProfileForPersistence = (
+  incoming: User["adventureProfile"] | undefined,
+  existing: User["adventureProfile"] | undefined
+): User["adventureProfile"] | undefined => {
+  if (!incoming && !existing) return undefined;
+  if (!incoming) return existing;
+  if (!existing) return incoming;
+
+  const next = normalizeAdventureProfile(incoming);
+  const prev = normalizeAdventureProfile(existing);
+
+  const mergedCodexDefeatCounts: Record<string, number> = { ...(prev.codexDefeatCounts ?? {}) };
+  for (const [codexId, wins] of Object.entries(next.codexDefeatCounts ?? {})) {
+    const prevWins = Math.max(0, Math.floor(mergedCodexDefeatCounts[codexId] ?? 0));
+    const nextWins = Math.max(0, Math.floor(wins ?? 0));
+    mergedCodexDefeatCounts[codexId] = Math.max(prevWins, nextWins);
+  }
+
+  const mergedUnderstandingXpByStage: Record<string, number> = { ...(prev.understandingXpByStage ?? {}) };
+  for (const [stageId, xp] of Object.entries(next.understandingXpByStage ?? {})) {
+    const prevXp = Math.max(0, Math.floor(mergedUnderstandingXpByStage[stageId] ?? 0));
+    const nextXp = Math.max(0, Math.floor(xp ?? 0));
+    mergedUnderstandingXpByStage[stageId] = Math.max(prevXp, nextXp);
+  }
+
+  const mergedSuppressUntilByKey: Record<string, number> = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
+  for (const [key, until] of Object.entries(next.adventureMapSuppressUntilByKey ?? {})) {
+    const prevUntil = Math.max(0, Math.floor(mergedSuppressUntilByKey[key] ?? 0));
+    const nextUntil = Math.max(0, Math.floor(until ?? 0));
+    mergedSuppressUntilByKey[key] = Math.max(prevUntil, nextUntil);
+  }
+
+  const mergedByMode: Record<string, number> = { ...(prev.monstersDefeatedByMode ?? {}) };
+  for (const [mode, n] of Object.entries(next.monstersDefeatedByMode ?? {})) {
+    const prevN = Math.max(0, Math.floor(mergedByMode[mode] ?? 0));
+    const nextN = Math.max(0, Math.floor(n ?? 0));
+    mergedByMode[mode] = Math.max(prevN, nextN);
+  }
+
+  const mergedUniqueMonsterIdsCaught = Array.from(
+    new Set([...(prev.uniqueMonsterIdsCaught ?? []), ...(next.uniqueMonsterIdsCaught ?? [])])
+  );
+
+  return {
+    ...prev,
+    ...next,
+    codexDefeatCounts: mergedCodexDefeatCounts,
+    understandingXpByStage: mergedUnderstandingXpByStage,
+    adventureMapSuppressUntilByKey: mergedSuppressUntilByKey,
+    monstersDefeatedByMode: mergedByMode,
+    monstersDefeatedTotal: Math.max(
+      Math.max(0, Math.floor(prev.monstersDefeatedTotal ?? 0)),
+      Math.max(0, Math.floor(next.monstersDefeatedTotal ?? 0))
+    ),
+    uniqueMonsterIdsCaught: mergedUniqueMonsterIdsCaught,
+  };
+};
 
 // equipment와 inventory를 별도로 로드하는 헬퍼 함수
 const loadUserWithEquipmentAndInventory = async (query: () => Promise<any>) => {
@@ -316,11 +375,31 @@ export async function createUser(user: User): Promise<User> {
 }
 
 export async function updateUser(user: User): Promise<User> {
-  const data = buildPersistentFields(user);
+  let userForPersistence = user;
+  try {
+    const currentRow = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: { guildMember: true }
+    });
+    if (currentRow) {
+      const currentUser = mapUser(currentRow as PrismaUserWithStatus);
+      const mergedAdventureProfile = mergeAdventureProfileForPersistence(
+        user.adventureProfile,
+        currentUser.adventureProfile
+      );
+      if (mergedAdventureProfile !== user.adventureProfile) {
+        userForPersistence = { ...user, adventureProfile: mergedAdventureProfile };
+      }
+    }
+  } catch {
+    // 프로필 병합 실패 시에도 기본 저장 경로는 유지
+  }
+
+  const data = buildPersistentFields(userForPersistence);
   
   // equipment와 inventory 동기화를 비동기로 처리하여 응답 속도 개선
   // 인벤토리/장비 변경은 중요하지만 즉시 동기화할 필요는 없음
-  syncEquipmentAndInventory(user).catch((error) => {
+  syncEquipmentAndInventory(userForPersistence).catch((error) => {
     console.error(`[updateUser] Failed to sync equipment/inventory for user ${user.id}:`, error);
   });
   

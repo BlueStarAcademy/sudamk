@@ -140,8 +140,13 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const p2ScansUsed = (game.settings.scanCount ?? 0) - (game.scans_p2 ?? game.settings.scanCount ?? 0);
     const hasUsedScan = isHiddenMode && (p1ScansUsed > 0 || p2ScansUsed > 0);
 
-    // 싱글플레이어 게임에서는 NO_CONTEST 체크를 건너뜀 (자동 계가 등으로 인해 moveHistory가 초기화될 수 있음)
-    const isSinglePlayer = game.isSinglePlayer && !game.gameCategory; // 도전의 탑은 제외
+    // PvE 계열(싱글·타워·모험)은 NO_CONTEST 체크를 건너뜀
+    // (자동 계가/AI 진행으로 초반 수순이 짧아도 정상 종료되어야 함)
+    const isPveNoContestExempt =
+        !!game.isSinglePlayer ||
+        game.gameCategory === 'tower' ||
+        game.gameCategory === 'singleplayer' ||
+        game.gameCategory === 'adventure';
 
     /** 패(-1,-1)는 제외한 착수 수 — 「10수 미만」 규정과 동일하게 셈 */
     const strategicStoneMoveCount = (game.moveHistory || []).filter(
@@ -149,7 +154,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     ).length;
 
     if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode) && 
-        !isSinglePlayer && // 싱글플레이어 게임 제외
+        !isPveNoContestExempt &&
         strategicStoneMoveCount < NO_CONTEST_MOVE_THRESHOLD && 
         !hasUsedMissile && 
         !hasUsedScan) {
@@ -207,8 +212,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             }
         }
         
-        // AI 초기 히든돌도 확인 (싱글플레이·탑)
-        if ((game.isSinglePlayer || game.gameCategory === 'tower') && (game as any).aiInitialHiddenStone) {
+        // AI 초기 히든돌도 확인 (싱글플레이·탑·모험)
+        if (
+            (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === GameCategory.Adventure) &&
+            (game as any).aiInitialHiddenStone
+        ) {
             const aiHidden = (game as any).aiInitialHiddenStone;
             const isAlreadyRevealed = game.permanentlyRevealedStones.some(
                 p => p.x === aiHidden.x && p.y === aiHidden.y
@@ -244,8 +252,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             const stonesToRevealWithPlayer = stonesToReveal.map(point => {
                 // moveHistory에서 원래 플레이어 확인
                 const moveIndex = game.moveHistory.findIndex(m => m.x === point.x && m.y === point.y);
-                const isAiInitial = (game.isSinglePlayer || game.gameCategory === 'tower') && (game as any).aiInitialHiddenStone &&
-                    (game as any).aiInitialHiddenStone.x === point.x && (game as any).aiInitialHiddenStone.y === point.y;
+                const isAiInitial =
+                    (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === GameCategory.Adventure) &&
+                    (game as any).aiInitialHiddenStone &&
+                    (game as any).aiInitialHiddenStone.x === point.x &&
+                    (game as any).aiInitialHiddenStone.y === point.y;
                 const player = moveIndex !== -1 ? game.moveHistory[moveIndex].player : (isAiInitial ? types.Player.White : types.Player.Black);
                 return { point, player };
             });
