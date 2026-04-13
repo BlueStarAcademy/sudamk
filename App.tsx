@@ -128,6 +128,16 @@ const AppContent: React.FC = () => {
         };
     }, []);
 
+    /** 모바일·좁은 뷰포트: 얇은 스크롤바 전역 적용(index.css) */
+    useEffect(() => {
+        const el = document.documentElement;
+        const cls = 'sudamr-mobile-thin-scroll';
+        const on = isNativeMobile || isNarrowViewport;
+        if (on) el.classList.add(cls);
+        else el.classList.remove(cls);
+        return () => el.classList.remove(cls);
+    }, [isNativeMobile, isNarrowViewport]);
+
     useEffect(() => {
         if (currentUser) {
             // 우선순위가 높은 이미지들만 먼저 로드 (UI에 즉시 필요한 것들)

@@ -82,8 +82,8 @@ export function PreGameSummaryCellBody({
   density = 'default',
 }: {
   text: string;
-  /** compact: 시작 전 요약 그리드 등 여백 최소화 / comfortable: 모바일 단일열용 조금 더 큼 */
-  density?: 'default' | 'compact' | 'comfortable';
+  /** compact: 시작 전 요약 그리드 등 여백 최소화 / comfortable: 모바일 단일열용 조금 더 큼 / micro: 모험 등 초짧은 카피용 */
+  density?: 'default' | 'compact' | 'comfortable' | 'micro';
 }) {
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   const isMultiline = lines.length > 1;
@@ -102,7 +102,7 @@ export function PreGameSummaryCellBody({
       el.style.whiteSpace = 'nowrap';
       el.style.fontSize = '';
       let px = parseFloat(window.getComputedStyle(el).fontSize) || 15;
-      const minPx = density === 'compact' ? 8.5 : 9;
+      const minPx = density === 'micro' ? 7.5 : density === 'compact' ? 8.5 : 9;
       const maxW = parent.clientWidth;
       el.style.fontSize = `${px}px`;
       while (px > minPx && el.scrollWidth > maxW) {
@@ -119,17 +119,21 @@ export function PreGameSummaryCellBody({
   }, [singleLine, isMultiline, density]);
 
   const lineClass =
-    density === 'compact'
-      ? 'text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm md:text-[0.9rem]'
-      : density === 'comfortable'
-        ? 'text-[0.875rem] font-semibold leading-snug text-white/95 sm:text-[0.95rem]'
-        : 'text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]';
+    density === 'micro'
+      ? 'text-[0.68rem] font-semibold leading-tight text-white/95 sm:text-[0.72rem] md:text-[0.76rem]'
+      : density === 'compact'
+        ? 'text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm md:text-[0.9rem]'
+        : density === 'comfortable'
+          ? 'text-[0.875rem] font-semibold leading-snug text-white/95 sm:text-[0.95rem]'
+          : 'text-[0.95rem] font-semibold leading-snug text-white/95 max-[480px]:text-[1.02rem] sm:text-sm md:text-base lg:text-[1.05rem]';
 
   if (isMultiline) {
     return (
       <div
         className={
-          density === 'compact' || density === 'comfortable' ? 'mt-0.5 space-y-0.5' : 'mt-1 space-y-1'
+          density === 'compact' || density === 'comfortable' || density === 'micro'
+            ? 'mt-0.5 space-y-0.5'
+            : 'mt-1 space-y-1'
         }
       >
         {lines.map((line, i) => (
@@ -147,7 +151,7 @@ export function PreGameSummaryCellBody({
   return (
     <p
       ref={density === 'comfortable' ? undefined : ref}
-      className={`${density === 'compact' || density === 'comfortable' ? 'mt-0.5' : 'mt-1'} ${lineClass} min-w-0 w-full max-w-full ${wrapComfortable}`}
+      className={`${density === 'compact' || density === 'comfortable' || density === 'micro' ? 'mt-0.5' : 'mt-1'} ${lineClass} min-w-0 w-full max-w-full ${wrapComfortable}`}
     >
       {singleLine}
     </p>
@@ -198,11 +202,14 @@ export function PreGameSummaryGrid({
   session,
   summary,
   singleColumn = false,
+  /** 모험 등: 짧은 카피 + 한 단 작은 글자 */
+  briefLayout = false,
 }: {
   session: LiveGameSession;
   summary: PreGameSummaryFour;
   /** 모바일 풀폭: 한 줄에 한 카드씩 세로 스택 */
   singleColumn?: boolean;
+  briefLayout?: boolean;
 }) {
   const panelShell =
     'group relative min-w-0 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_12px_36px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/20';
@@ -242,19 +249,27 @@ export function PreGameSummaryGrid({
   const primaryGridClass = singleColumn
     ? `grid grid-cols-1 min-[480px]:grid-cols-2 ${gridGap}`
     : `grid grid-cols-2 ${gridGap}`;
-  const titleRow = singleColumn
-    ? 'text-[0.76rem] font-bold uppercase tracking-[0.09em] text-amber-200/88 sm:text-[0.78rem] sm:tracking-[0.1em]'
-    : 'text-[0.68rem] font-bold uppercase tracking-[0.08em] text-amber-200/88 sm:text-[0.72rem] sm:tracking-[0.1em]';
-  const cellDensity = singleColumn ? 'comfortable' : 'compact';
+  const titleRow = briefLayout
+    ? singleColumn
+      ? 'text-[0.62rem] font-bold uppercase tracking-[0.08em] text-amber-200/88 sm:text-[0.65rem]'
+      : 'text-[0.58rem] font-bold uppercase tracking-[0.07em] text-amber-200/88 sm:text-[0.62rem]'
+    : singleColumn
+      ? 'text-[0.76rem] font-bold uppercase tracking-[0.09em] text-amber-200/88 sm:text-[0.78rem] sm:tracking-[0.1em]'
+      : 'text-[0.68rem] font-bold uppercase tracking-[0.08em] text-amber-200/88 sm:text-[0.72rem] sm:tracking-[0.1em]';
+  const cellDensity: 'comfortable' | 'compact' | 'micro' = briefLayout ? 'micro' : singleColumn ? 'comfortable' : 'compact';
   const imgBoxGoal = singleColumn
     ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-11 sm:w-11'
     : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-10 sm:w-10';
   const imgBoxPlain = singleColumn
     ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/28 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-11 sm:w-11 sm:p-1'
     : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/28 bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-10 sm:w-10 sm:p-1';
-  const winLoseBadge = singleColumn
-    ? 'select-none text-center text-[0.72rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs'
-    : 'select-none text-center text-[0.65rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs';
+  const winLoseBadge = briefLayout
+    ? singleColumn
+      ? 'select-none text-center text-[0.62rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-[0.68rem]'
+      : 'select-none text-center text-[0.58rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-[0.65rem]'
+    : singleColumn
+      ? 'select-none text-center text-[0.72rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs'
+      : 'select-none text-center text-[0.65rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs';
 
   return (
     <div className={singleColumn ? 'space-y-2.5 sm:space-y-2.5' : 'space-y-2 sm:space-y-2.5'}>
@@ -352,9 +367,13 @@ export function PreGameSummaryGrid({
         />
         <div
           className={
-            singleColumn
-              ? 'text-[0.7rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.72rem]'
-              : 'text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.7rem]'
+            briefLayout
+              ? singleColumn
+                ? 'text-[0.62rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.65rem]'
+                : 'text-[0.58rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.62rem]'
+              : singleColumn
+                ? 'text-[0.7rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.72rem]'
+                : 'text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.7rem]'
           }
         >
           특수 규칙
@@ -362,9 +381,13 @@ export function PreGameSummaryGrid({
         {summary.specialHighlights.length === 0 ? (
           <p
             className={
-              singleColumn
-                ? 'mt-1.5 text-[0.8125rem] font-semibold text-slate-400 sm:text-sm'
-                : 'mt-1.5 text-xs font-semibold text-slate-400 sm:text-sm'
+              briefLayout
+                ? singleColumn
+                  ? 'mt-1 text-[0.68rem] font-semibold text-slate-400 sm:text-[0.72rem]'
+                  : 'mt-1 text-[0.65rem] font-semibold text-slate-400 sm:text-[0.7rem]'
+                : singleColumn
+                  ? 'mt-1.5 text-[0.8125rem] font-semibold text-slate-400 sm:text-sm'
+                  : 'mt-1.5 text-xs font-semibold text-slate-400 sm:text-sm'
             }
           >
             {SUMMARY_NONE}
@@ -374,22 +397,32 @@ export function PreGameSummaryGrid({
             {summary.specialHighlights.map((row, idx) => (
               <div
                 key={`${row.text}-${idx}`}
-                className="flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-amber-500/22 bg-black/32 px-2 py-1.5 ring-1 ring-inset ring-white/[0.04] sm:gap-2 sm:px-2.5 sm:py-2"
+                className={`flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-amber-500/22 bg-black/32 ring-1 ring-inset ring-white/[0.04] sm:gap-2 ${
+                  briefLayout ? 'px-1.5 py-1 sm:px-2 sm:py-1.5' : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                }`}
               >
                 <div
                   className={
-                    singleColumn
-                      ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-11 sm:w-11'
-                      : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-10 sm:w-10'
+                    briefLayout
+                      ? singleColumn
+                        ? 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-9 sm:w-9'
+                        : 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-8 sm:w-8'
+                      : singleColumn
+                        ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-11 sm:w-11'
+                        : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-10 sm:w-10'
                   }
                 >
                   <img src={row.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
                 </div>
                 <p
                   className={
-                    singleColumn
-                      ? 'min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm'
-                      : 'min-w-0 flex-1 text-xs font-semibold leading-snug text-white/95 sm:text-sm'
+                    briefLayout
+                      ? singleColumn
+                        ? 'min-w-0 flex-1 text-[0.68rem] font-semibold leading-tight text-white/95 sm:text-[0.72rem]'
+                        : 'min-w-0 flex-1 text-[0.65rem] font-semibold leading-tight text-white/95 sm:text-[0.7rem]'
+                      : singleColumn
+                        ? 'min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm'
+                        : 'min-w-0 flex-1 text-xs font-semibold leading-snug text-white/95 sm:text-sm'
                   }
                 >
                   {row.text}

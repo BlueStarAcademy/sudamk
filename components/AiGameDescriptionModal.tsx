@@ -310,7 +310,12 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
 
   const mainBody = (
     <div className={`${PRE_GAME_MODAL_LAYER_CLASS} px-3 pb-2 pt-3 sm:px-5 sm:pt-5 md:px-6`}>
-      <PreGameSummaryGrid session={session} summary={summaryFour} singleColumn={isMobileSheet} />
+      <PreGameSummaryGrid
+        session={session}
+        summary={summaryFour}
+        singleColumn={isMobileSheet}
+        briefLayout={String(session.gameCategory ?? '') === 'adventure'}
+      />
       {showMatchSettingsTable ? settingsTableBlock : null}
     </div>
   );

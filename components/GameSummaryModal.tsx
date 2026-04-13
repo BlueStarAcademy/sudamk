@@ -28,9 +28,9 @@ import {
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
     RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS,
-    RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
+import { AdventureBattleRewardRowWithReveal, AdventureResultCodexCard } from './game/adventureResultModalSections.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
@@ -284,6 +284,8 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
+    /** 모바일에서도 흑·백 점수를 나란히 비교(클래식 바둑 등 단순 계가) */
+    const scoreGridTwoColsOnMobile = isMobile && mode === GameMode.Standard;
 
     const rowClass = `flex min-w-0 justify-between gap-2 ${isMobile ? 'text-[10px]' : 'text-xs min-[1024px]:text-[0.8125rem]'}`;
     const labelClass = 'shrink-0 whitespace-nowrap text-slate-400';
@@ -291,7 +293,9 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 
     return (
         <div className={`space-y-1.5 sm:space-y-2 ${isMobile ? 'text-[10px]' : ''}`}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
+            <div
+                className={`grid min-w-0 gap-1.5 sm:gap-2 ${scoreGridTwoColsOnMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}
+            >
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'px-2 py-1.5'} rounded-md`}>
                     <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-[0.7rem] min-[1024px]:text-xs'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>흑</h3>
                     <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>영토</span> <span className={valClass}>{scoreDetails.black.territory.toFixed(0)}</span></div>
@@ -820,176 +824,9 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
     );
 };
 
-const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
-    CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.png';
-const ADVENTURE_DEFAULT_MAT_BOX_IMG =
-    CONSUMABLE_ITEMS.find((c) => c.name === '재료 상자 I')?.image ?? '/images/Box/ResourceBox1.png';
-
 function normalizeRewardImagePath(src: string | undefined | null): string | null {
     if (!src) return null;
     return src.startsWith('/') ? src : `/${src}`;
-}
-
-/** 모험 슬롯 표시명 → 아이콘 경로 (장비·재료·소모품 상자 등) */
-function adventureRewardSlotItemImage(displayName: string | undefined): string | null {
-    if (!displayName) return null;
-    const ci = CONSUMABLE_ITEMS.find((c) => c.name === displayName);
-    if (ci?.image) return normalizeRewardImagePath(ci.image);
-    const mat = MATERIAL_ITEMS[displayName];
-    if (mat?.image) return normalizeRewardImagePath(mat.image);
-    const eq = EQUIPMENT_POOL.find((e) => e.name === displayName);
-    if (eq?.image) return normalizeRewardImagePath(eq.image);
-    return null;
-}
-
-/** 모험 결과: 미획득 슬롯(아이콘 + 미획득) — 장비·재료 상자에 물음표 오버레이 */
-function AdventureMissedRewardSlot({
-    compact,
-    iconSrc,
-    questionOverlay,
-}: {
-    compact: boolean;
-    iconSrc: string;
-    questionOverlay?: boolean;
-}) {
-    const box = compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
-    const imgCls = compact
-        ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5 opacity-50 grayscale'
-        : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12 opacity-50 grayscale';
-    return (
-        <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
-            <div
-                className={`relative flex items-center justify-center rounded-lg border-2 border-white/15 bg-slate-950/50 ring-1 ring-inset ring-white/10 ${box}`}
-            >
-                <img src={iconSrc} alt="" className={imgCls} draggable={false} />
-                {questionOverlay ? (
-                    <span
-                        className={`pointer-events-none absolute inset-0 flex items-center justify-center font-black text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.95),0_0_12px_rgba(0,0,0,0.65)] ${
-                            compact ? 'text-lg min-[400px]:text-xl' : 'text-2xl min-[1024px]:text-3xl'
-                        }`}
-                        aria-hidden
-                    >
-                        ?
-                    </span>
-                ) : null}
-            </div>
-            <span
-                className={
-                    compact
-                        ? 'text-center text-[0.72rem] font-bold tabular-nums text-slate-500'
-                        : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
-                }
-            >
-                미획득
-            </span>
-        </div>
-    );
-}
-
-/** 모험 획득 보상: 경험치·골드·장비·재료 4칸 고정(이미지+숫자, 미획득 시 동일 칸에 미획득) */
-function AdventureBattleFixedRewardRow({
-    slots,
-    xpChange,
-    isPlayful,
-    compact,
-}: {
-    slots: NonNullable<GameSummary['adventureRewardSlots']>;
-    xpChange: number;
-    isPlayful: boolean;
-    compact: boolean;
-}) {
-    const xpOk = xpChange > 0;
-    const rowClass = compact
-        ? RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
-        : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`;
-
-    const xpMissedBox = (
-        <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
-            <div
-                className={`flex ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${
-                    isPlayful
-                        ? 'border-sky-400/35 bg-gradient-to-br from-sky-600/35 via-violet-900/55 to-indigo-950/70 ring-sky-400/25'
-                        : 'border-emerald-400/35 bg-gradient-to-br from-emerald-700/35 via-emerald-950/80 to-black/55 ring-emerald-400/25'
-                }`}
-                aria-hidden
-            >
-                <span
-                    className={
-                        compact
-                            ? `text-[0.5rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.54rem] font-bold ${
-                                  isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'
-                              }`
-                            : `text-[0.5rem] font-bold ${isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'}`
-                    }
-                >
-                    {isPlayful ? '놀이' : '전략'}
-                </span>
-                <span
-                    className={
-                        compact
-                            ? `mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black ${
-                                  isPlayful ? 'text-violet-100' : 'text-emerald-50'
-                              }`
-                            : `mt-0.5 text-[0.58rem] font-black ${isPlayful ? 'text-violet-100' : 'text-emerald-50'}`
-                    }
-                >
-                    EXP
-                </span>
-            </div>
-            <span
-                className={
-                    compact
-                        ? 'text-center text-[0.72rem] font-bold tabular-nums text-slate-500'
-                        : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
-                }
-            >
-                미획득
-            </span>
-        </div>
-    );
-
-    return (
-        <div className={rowClass}>
-            {xpOk ? (
-                <ResultModalXpRewardBadge
-                    variant={isPlayful ? 'playful' : 'strategy'}
-                    amount={xpChange}
-                    density={compact ? 'compact' : 'comfortable'}
-                />
-            ) : (
-                xpMissedBox
-            )}
-            {slots.gold.obtained ? (
-                <ResultModalGoldCurrencySlot
-                    amount={slots.gold.amount}
-                    compact={compact}
-                    understandingBonus={slots.gold.understandingBonus}
-                />
-            ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc="/images/icon/Gold.png" />
-            )}
-            {slots.equipment.obtained && slots.equipment.displayName ? (
-                <ResultModalItemRewardSlot
-                    imageSrc={adventureRewardSlotItemImage(slots.equipment.displayName)}
-                    name={slots.equipment.displayName}
-                    quantity={1}
-                    compact={compact}
-                />
-            ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} questionOverlay />
-            )}
-            {slots.material.obtained && slots.material.displayName ? (
-                <ResultModalItemRewardSlot
-                    imageSrc={adventureRewardSlotItemImage(slots.material.displayName)}
-                    name={slots.material.displayName}
-                    quantity={slots.material.quantity ?? 1}
-                    compact={compact}
-                />
-            ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} questionOverlay />
-            )}
-        </div>
-    );
 }
 
 /** 경기 내용 상단: 흑·백 대국자 프로필, 닉네임, 모드별 레벨 — 모험은 AI 측에 출현 몬스터 도감 표시 */
@@ -1380,6 +1217,22 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         const formattedElapsed = gameDurationRef.current!;
         const isAiOrPve = !!session.isAiGame || !!session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer';
         const timeLabel = isAiOrPve ? '소요 시간' : '경기 시간';
+        if (isAdventureGame && winReason === 'adventure_monster_fled') {
+            const msg =
+                isWinner === false
+                    ? '몬스터가 도망쳤습니다.'
+                    : isWinner === true
+                      ? '제한 시간이 지나 대국이 종료되었습니다.'
+                      : '제한 시간이 지나 몬스터가 도망갔습니다.';
+            return (
+                <p
+                    className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} ${isWinner === false ? 'text-red-400' : 'text-slate-200'}`}
+                    style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}
+                >
+                    {msg}
+                </p>
+            );
+        }
         if (isPlayful && winReason === 'resign') {
             const message = isWinner ? "상대방의 기권으로 승리했습니다." : "기권 패배했습니다.";
             return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'}`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>{message}</p>;
@@ -1614,7 +1467,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 ) : (
                     <>
                         {isAdventureGame && mySummary.adventureRewardSlots ? (
-                            <AdventureBattleFixedRewardRow
+                            <AdventureBattleRewardRowWithReveal
                                 slots={mySummary.adventureRewardSlots}
                                 xpChange={mySummary.xp?.change ?? 0}
                                 isPlayful={isPlayful}
@@ -1888,6 +1741,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 </div>
                                             </div>
                                         )}
+                                        {isAdventureGame && mySummary?.adventureCodexDelta ? (
+                                            <AdventureResultCodexCard
+                                                codexDelta={mySummary.adventureCodexDelta}
+                                                compact={isMobile}
+                                                mobileTextScale={mobileTextScale}
+                                            />
+                                        ) : null}
                                         {isGuildWar ? (
                                             <p className="px-0.5 text-center text-[0.65rem] leading-tight text-slate-400 sm:text-xs min-[1024px]:text-sm">
                                                 길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
@@ -2072,6 +1932,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                         </div>
                                     </div>
                                 </div>
+                                {isAdventureGame && mySummary?.adventureCodexDelta ? (
+                                    <AdventureResultCodexCard
+                                        codexDelta={mySummary.adventureCodexDelta}
+                                        compact={false}
+                                        mobileTextScale={mobileTextScale}
+                                    />
+                                ) : null}
                                 {isGuildWar ? (
                                     <p className="px-0.5 text-center text-[0.65rem] leading-tight text-slate-400 sm:text-xs min-[1024px]:text-sm">
                                         길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.

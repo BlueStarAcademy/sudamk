@@ -35,7 +35,7 @@ import {
     applyAdventureMonsterDefeatToProfile,
     applyAdventureMonsterMapSuppressAfterPlayerLoss,
 } from './utils/adventureMonsterDefeat.js';
-import { sumAdventureUnderstandingGoldBonusPercent } from '../utils/adventureUnderstanding.js';
+import { normalizeAdventureProfile, sumAdventureUnderstandingGoldBonusPercent } from '../utils/adventureUnderstanding.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -46,6 +46,33 @@ function splitAdventureGoldBonusPercents(
     const combined = effects.adventureCodexGoldBonusPercent ?? 0;
     const codexOnlyPercent = Math.max(0, combined - understandingPercent);
     return { codexOnlyPercent, understandingPercent };
+}
+
+/**
+ * 구형 클라이언트·복구 세션 등에서 `adventureMonsterBattleMode`가 비어 있어도
+ * 실제 `game.mode`로 모험 처치 기록용 룰 키를 복원한다.
+ */
+function resolveAdventureMonsterBattleModeForSummary(
+    game: Pick<LiveGameSession, 'mode' | 'adventureMonsterBattleMode'>,
+): string | null {
+    const raw = game.adventureMonsterBattleMode;
+    if (typeof raw === 'string' && raw.length > 0) {
+        return raw;
+    }
+    switch (game.mode) {
+        case GameMode.Standard:
+            return 'classic';
+        case GameMode.Capture:
+            return 'capture';
+        case GameMode.Base:
+            return 'base';
+        case GameMode.Hidden:
+            return 'hidden';
+        case GameMode.Missile:
+            return 'missile';
+        default:
+            return null;
+    }
 }
 
 /** 챔피언십 던전 대국(상대 id가 dungeon-bot-) — 퀘스트 「챔피언십 경기 진행하기」용 */
@@ -779,6 +806,26 @@ const PLAYFUL_GOLD_REWARDS: Record<number, number> = {
 
 // --- END NEW REWARD CONSTANTS ---
 
+/** 모험 몬스터 승리 기본 전략 EXP (판 크기별) */
+const ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE: Record<number, number> = {
+    7: 10,
+    9: 13,
+    11: 15,
+    13: 20,
+    19: 30,
+};
+
+/** 모험 몬스터 레벨 보너스 EXP: 5레벨마다 +1 (Lv1~5=0, Lv50=+9) */
+function getAdventureMonsterLevelXpBonus(levelRaw: unknown): number {
+    const level = Math.max(1, Math.min(50, Math.floor(typeof levelRaw === 'number' ? levelRaw : 1)));
+    return Math.max(0, Math.floor((level - 1) / 5));
+}
+
+function getAdventureBaseStrategyXp(boardSizeRaw: unknown): number {
+    const boardSize = typeof boardSizeRaw === 'number' ? boardSizeRaw : 9;
+    return ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE[boardSize] ?? ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE[9];
+}
+
 
 const calculateGameRewards = (
     game: LiveGameSession, 
@@ -1075,18 +1122,29 @@ const processPlayerSummary = async (
     const initialLevel = isStrategic ? updatedPlayer.strategyLevel : updatedPlayer.playfulLevel;
     const opponentLevel = isStrategic ? opponent.strategyLevel : opponent.playfulLevel;
     const initialXp = isStrategic ? updatedPlayer.strategyXp : updatedPlayer.playfulXp;
+    const isAdventureGame = game.gameCategory === 'adventure';
+    const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
     let xpGain = isNoContest ? 0 : (isWinner ? 100 : (isDraw ? 0 : 25)); // Loss XP increased to 25
+    if (!isNoContest && isAdventureGame) {
+        if (isWinner) {
+            xpGain = getAdventureBaseStrategyXp(adventureBoardSize) + getAdventureMonsterLevelXpBonus(game.adventureMonsterLevel);
+        } else {
+            xpGain = 0;
+        }
+    }
 
     // Apply AI game penalty before other multipliers
-    if (isAiGame) {
+    if (isAiGame && !isAdventureGame) {
         xpGain = Math.round(xpGain * 0.2);
     }
 
     // Level difference multiplier
-    const levelDiff = opponentLevel - initialLevel;
-    let levelMultiplier = 1 + (levelDiff * 0.1); // 10% per level difference
-    levelMultiplier = Math.max(0.5, Math.min(1.5, levelMultiplier)); // Cap between 50% and 150%
-    xpGain = Math.round(xpGain * levelMultiplier);
+    if (!isAdventureGame) {
+        const levelDiff = opponentLevel - initialLevel;
+        let levelMultiplier = 1 + (levelDiff * 0.1); // 10% per level difference
+        levelMultiplier = Math.max(0.5, Math.min(1.5, levelMultiplier)); // Cap between 50% and 150%
+        xpGain = Math.round(xpGain * levelMultiplier);
+    }
 
     const effects = effectService.calculateUserEffects(updatedPlayer);
 
@@ -1100,7 +1158,9 @@ const processPlayerSummary = async (
 
     // --- Reward Multiplier ---
     let rewardMultiplier = 1.0;
-    if (isStrategic && !isNoContest) {
+    if (isAdventureGame) {
+        rewardMultiplier = 1.0;
+    } else if (isStrategic && !isNoContest) {
         // Base move count for 100% reward, scaled by board size. 19x19 is 100 moves.
         const baseMoveCount = Math.round(100 * Math.pow(game.settings.boardSize / 19, 2));
         const actualMoveCount = game.moveHistory.length;
@@ -1281,6 +1341,7 @@ const processPlayerSummary = async (
     const itemDropBonus = effects.specialStatBonuses[SpecialStat.ItemDropRate].percent;
     const materialDropBonus = effects.specialStatBonuses[SpecialStat.MaterialDropRate].percent;
 
+    const resolvedAdventureBattleMode = resolveAdventureMonsterBattleModeForSummary(game);
     const isAdventureWin =
         !isNoContest &&
         !isDraw &&
@@ -1289,7 +1350,7 @@ const processPlayerSummary = async (
         game.gameCategory === 'adventure' &&
         typeof game.adventureMonsterCodexId === 'string' &&
         typeof game.adventureStageId === 'string' &&
-        typeof game.adventureMonsterBattleMode === 'string';
+        resolvedAdventureBattleMode != null;
 
     const isAdventureLoss =
         !isNoContest &&
@@ -1308,15 +1369,20 @@ const processPlayerSummary = async (
     }
 
     let adventureRewardSlots: GameSummary['adventureRewardSlots'];
+    let adventureCodexDelta: GameSummary['adventureCodexDelta'];
 
     let rewards: { gold: number; items: InventoryItem[]; adventureGoldUnderstandingBonus?: number };
     if (isNoContest) {
         rewards = { gold: 0, items: [] };
     } else if (isAdventureWin) {
+        const advCodexId = game.adventureMonsterCodexId!;
+        const prevProf = normalizeAdventureProfile(updatedPlayer.adventureProfile);
+        const winsBefore = Math.max(0, Math.floor((prevProf.codexDefeatCounts ?? {})[advCodexId] ?? 0));
+        adventureCodexDelta = { codexId: advCodexId, winsBefore, winsAfter: winsBefore + 1 };
         applyAdventureMonsterDefeatToProfile(updatedPlayer, {
-            codexId: game.adventureMonsterCodexId!,
+            codexId: advCodexId,
             stageId: game.adventureStageId!,
-            battleMode: game.adventureMonsterBattleMode!,
+            battleMode: resolvedAdventureBattleMode!,
         });
         // 도감·지역 이해도 반영 후 이펙트 재계산 — 골드% 분리(split)와 드롭 보너스가 갱신 프로필과 일치해야 함
         const effectsAfterAdventure = effectService.calculateUserEffects(updatedPlayer);
@@ -1336,6 +1402,12 @@ const processPlayerSummary = async (
         adventureRewardSlots = advR.adventureRewardSlots;
     } else {
         rewards = calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
+        if (isAdventureLoss && typeof game.adventureMonsterCodexId === 'string') {
+            const advCodexId = game.adventureMonsterCodexId;
+            const prevProf = normalizeAdventureProfile(updatedPlayer.adventureProfile);
+            const wins = Math.max(0, Math.floor((prevProf.codexDefeatCounts ?? {})[advCodexId] ?? 0));
+            adventureCodexDelta = { codexId: advCodexId, winsBefore: wins, winsAfter: wins };
+        }
     }
 
     if (isGuildWarMatch) {
@@ -1484,6 +1556,7 @@ const processPlayerSummary = async (
         level: levelSummary,
         ...(guildWarStars !== undefined ? { guildWarStars } : {}),
         ...(adventureRewardSlots ? { adventureRewardSlots } : {}),
+        ...(adventureCodexDelta ? { adventureCodexDelta } : {}),
         ...(rewards.adventureGoldUnderstandingBonus != null && rewards.adventureGoldUnderstandingBonus > 0
             ? { adventureGoldUnderstandingBonus: rewards.adventureGoldUnderstandingBonus }
             : {}),

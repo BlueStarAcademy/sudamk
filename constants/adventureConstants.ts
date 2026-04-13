@@ -56,48 +56,43 @@ export const ADVENTURE_STAGES = [
     {
         id: 'neighborhood_hill',
         title: '동네뒷산',
-        /** 로비 챕터 카드 부제 — 짧은 분위기 텍스트 */
-        lobbyStoryLine:
-            '비포장 오솔길 끝, 어릴 적 숨바꼭질하던 그늘. 바람이 스치면 나뭇잎이 속삭이고, 오늘도 누군가의 발자국만 덩그러니 남는다.',
         stageIndex: 1,
         mapWebp: '/images/forest.webp',
         monsters: ADVENTURE_MONSTERS_NEIGHBORHOOD_HILL,
+        /** 로비 카드 짧은 한 줄 스토리 */
+        lobbyStoryLine: '숲이 속삭여요—반짝 바둑돌 길, 끝이 궁금해요!',
     },
     {
         id: 'lake_park',
         title: '호수공원',
-        lobbyStoryLine:
-            '잔물결에 밤이 녹아 내리는 시간. 벤치 너머 물가에는 설명할 수 없는 그림자가 번지고, 오리들은 평소보다 한 박자 늦게 물을 가른다.',
         stageIndex: 2,
         mapWebp: '/images/lakesidepark.webp',
         monsters: ADVENTURE_MONSTERS_LAKE_PARK,
+        lobbyStoryLine: '호수 별빛이 수수께끼를 속삭여요.',
     },
     {
         id: 'aquarium',
         title: '아쿠아리움',
-        lobbyStoryLine:
-            '푸른 등불 아래 유리 너머, 이름표에 없는 눈빛들이 줄을 잇는다. 물속은 조용한데, 귓가엔 아주 작은 파도 소리만 계속 맴돈다.',
         stageIndex: 3,
         mapWebp: '/images/aquarium.webp',
         monsters: ADVENTURE_MONSTERS_AQUARIUM,
+        lobbyStoryLine: '인어의 한마디—「보물은 반짝 돌이 아니란다.」',
     },
     {
         id: 'zoo',
         title: '동물원',
-        lobbyStoryLine:
-            '관람객 발소리가 끊긴 틈, 우리 철장 너머로 다른 리듬의 걸음이 섞인다. 지도에 없는 구역에서, 밤만큼 긴 숨이 들려온다.',
         stageIndex: 4,
         mapWebp: '/images/zoo.webp',
         monsters: ADVENTURE_MONSTERS_ZOO,
+        lobbyStoryLine: '밤엔 동물 친구도 바둑! 누가 먼저 둘까?',
     },
     {
         id: 'amusement_park',
         title: '놀이동산',
-        lobbyStoryLine:
-            '멜로디는 오래전에 꺼졌는데, 멀리서만 관람차가 천천히 도는 것 같다. 네온이 한 번 깜빡일 때마다, 잊었던 입구 표지판이 다시 떠오른다.',
         stageIndex: 5,
         mapWebp: '/images/amusementpark.webp',
         monsters: ADVENTURE_MONSTERS_AMUSEMENT_PARK,
+        lobbyStoryLine: '멜로디 끝—하늘이 바둑판을 내려줘요!',
     },
 ] as const;
 

@@ -775,6 +775,12 @@ export type GameSummary = {
     equipment: { obtained: boolean; displayName?: string };
     material: { obtained: boolean; displayName?: string; quantity?: number };
   };
+  /** 모험 승리 직후 도감 이해도(결과 모달 변화도 연출) */
+  adventureCodexDelta?: {
+    codexId: string;
+    winsBefore: number;
+    winsAfter: number;
+  };
 };
 
 
@@ -970,6 +976,8 @@ export type LiveGameSession = {
   adventureMonsterLevel?: number;
   adventureMonsterBattleMode?: string;
   adventureBoardSize?: number;
+  /** 모험: 경기 시작(CONFIRM) 후 전체 제한 시각(epoch ms) — 초과 시 몬스터 도주 패배 */
+  adventureEncounterDeadlineMs?: number;
   stageId?: string;
   towerFloor?: number;  // 도전의 탑 층수
   blackPatternStones?: Point[];

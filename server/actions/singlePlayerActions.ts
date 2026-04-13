@@ -9,6 +9,7 @@ import {
     isInvalidStrategicInitialStonePlacement,
 } from '../strategicInitialBoard.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
+import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -115,6 +116,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     }
                 }
             }
+
+            applyPassiveActionPointRegenToUser(user, now);
             
             if (user.actionPoints.current < effectiveActionPointCost) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${effectiveActionPointCost})` };

@@ -12,8 +12,6 @@ import {
     isAdventureChapterUnlockedByStageIndex,
     type AdventureChapterUnlockContext,
 } from '../../utils/adventureChapterUnlock.js';
-import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
-import type { AdventureStageId } from '../../constants/adventureConstants.js';
 
 const STAGE_CARD_RINGS: readonly string[] = [
     'ring-emerald-400/40',
@@ -73,7 +71,9 @@ const AdventureLobby: React.FC = () => {
         </div>
     );
 
-    const chapterColumn = (showSectionHeading: boolean) => (
+    const chapterColumn = (showSectionHeading: boolean, opts?: { nativeMobileRowCards?: boolean }) => {
+        const nativeMobileRowCards = !!opts?.nativeMobileRowCards;
+        return (
         <section
             className="flex min-h-0 min-w-0 flex-1 flex-col lg:h-full lg:min-h-0"
             aria-label="챕터 입장"
@@ -86,7 +86,13 @@ const AdventureLobby: React.FC = () => {
                 </h2>
             ) : null}
             <div className="min-h-0 flex-1 overflow-hidden">
-                <ol className="flex h-full min-h-0 flex-col gap-2 sm:gap-2.5 lg:gap-3">
+                <ol
+                    className={
+                        nativeMobileRowCards
+                            ? 'flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-0.5'
+                            : 'flex h-full min-h-0 flex-col gap-2 sm:gap-2.5 lg:gap-3'
+                    }
+                >
                     {ADVENTURE_STAGES.map((stage, i) => {
                         const ringClass = STAGE_CARD_RINGS[i] ?? STAGE_CARD_RINGS[0];
                         const unlocked = isAdventureChapterUnlockedByStageIndex(stage.stageIndex, chapterUnlockCtx);
@@ -94,7 +100,10 @@ const AdventureLobby: React.FC = () => {
                         const conditionLines = getAdventureChapterUnlockConditionLines(stage.stageIndex, chapterUnlockCtx);
                         const hint = blockers.length > 0 ? blockers.join('\n') : undefined;
                         return (
-                            <li key={stage.id} className="flex min-h-0 min-w-0 flex-1 flex-col">
+                            <li
+                                key={stage.id}
+                                className={`flex min-h-0 min-w-0 flex-col ${nativeMobileRowCards ? 'shrink-0' : 'flex-1'}`}
+                            >
                                 <button
                                     type="button"
                                     disabled={!unlocked}
@@ -106,14 +115,24 @@ const AdventureLobby: React.FC = () => {
                                     aria-label={
                                         unlocked ? `${stage.title} 맵으로 입장` : `${stage.title} 잠김: ${blockers.join(', ')}`
                                     }
-                                    className={`group flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:flex-row sm:rounded-2xl ${ringClass} ${
+                                    className={`group flex w-full overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
+                                        nativeMobileRowCards
+                                            ? 'min-h-[4.75rem] flex-row'
+                                            : 'h-full min-h-0 flex-col sm:flex-row'
+                                    } ${
                                         unlocked
                                             ? 'cursor-pointer border-white/14 hover:border-amber-400/30 hover:shadow-[0_22px_52px_-22px_rgba(251,191,36,0.2)]'
                                             : 'cursor-not-allowed border-zinc-700/50 opacity-95'
                                     }`}
                                 >
                                     {/* 챕터 키비주얼 — 맵과 동일 이미지, 텍스트와 분리해 노출 */}
-                                    <div className="relative aspect-[16/9] w-full shrink-0 overflow-hidden sm:aspect-auto sm:h-full sm:w-[min(42%,13.5rem)] sm:min-w-[9.5rem] md:min-w-[11rem] lg:min-w-[12rem]">
+                                    <div
+                                        className={
+                                            nativeMobileRowCards
+                                                ? 'relative h-full min-h-[4.75rem] w-[6.25rem] shrink-0 self-stretch overflow-hidden'
+                                                : 'relative aspect-[16/9] w-full shrink-0 overflow-hidden sm:aspect-auto sm:h-full sm:w-[min(42%,13.5rem)] sm:min-w-[9.5rem] md:min-w-[11rem] lg:min-w-[12rem]'
+                                        }
+                                    >
                                         <img
                                             src={stage.mapWebp}
                                             alt=""
@@ -125,7 +144,11 @@ const AdventureLobby: React.FC = () => {
                                             draggable={false}
                                         />
                                         <div
-                                            className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-black/20"
+                                            className={
+                                                nativeMobileRowCards
+                                                    ? 'pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-black/25'
+                                                    : 'pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-black/20'
+                                            }
                                             aria-hidden
                                         />
                                         {!unlocked && (
@@ -133,30 +156,49 @@ const AdventureLobby: React.FC = () => {
                                                 className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/25"
                                                 aria-hidden
                                             >
-                                                <div className="flex flex-col items-center gap-1 rounded-full border border-amber-400/35 bg-zinc-950/55 p-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-2 ring-amber-500/15 backdrop-blur-[2px] sm:p-3">
-                                                    <ChapterLockGlyph className="h-7 w-7 text-amber-100 sm:h-8 sm:w-8" />
+                                                <div className="flex flex-col items-center gap-1 rounded-full border border-amber-400/35 bg-zinc-950/55 p-2 shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-2 ring-amber-500/15 backdrop-blur-[2px] sm:p-3">
+                                                    <ChapterLockGlyph className="h-6 w-6 text-amber-100 sm:h-8 sm:w-8" />
                                                 </div>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-1.5 border-t border-white/10 bg-gradient-to-br from-zinc-950/98 via-zinc-950/95 to-black/95 px-3 py-2.5 sm:border-l sm:border-t-0 sm:gap-2 sm:px-4 sm:py-3 lg:px-5 lg:py-3.5">
+                                    <div
+                                        className={
+                                            nativeMobileRowCards
+                                                ? 'flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-1 border-l border-white/10 bg-gradient-to-br from-zinc-950/98 via-zinc-950/95 to-black/95 px-2.5 py-2'
+                                                : 'flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-1.5 border-t border-white/10 bg-gradient-to-br from-zinc-950/98 via-zinc-950/95 to-black/95 px-3 py-2.5 sm:border-l sm:border-t-0 sm:gap-2 sm:px-4 sm:py-3 lg:px-5 lg:py-3.5'
+                                        }
+                                    >
                                         <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
-                                            <span className="shrink-0 rounded-md border border-white/22 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-amber-100/95 sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm">
+                                            <span
+                                                className={`shrink-0 rounded-md border border-white/22 bg-black/40 font-mono font-bold tabular-nums text-amber-100/95 ${
+                                                    nativeMobileRowCards
+                                                        ? 'px-1.5 py-0.5 text-[9px]'
+                                                        : 'px-2 py-0.5 text-[10px] sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm'
+                                                }`}
+                                            >
                                                 CHAPTER {String(stage.stageIndex).padStart(2, '0')}
                                             </span>
-                                            <h3 className="min-w-0 flex-1 text-base font-black leading-tight tracking-tight text-white sm:text-lg lg:text-xl xl:text-2xl">
+                                            <h3
+                                                className={`min-w-0 flex-1 font-black leading-tight tracking-tight text-white ${
+                                                    nativeMobileRowCards
+                                                        ? 'text-sm leading-snug'
+                                                        : 'text-base sm:text-lg lg:text-xl xl:text-2xl'
+                                                }`}
+                                            >
                                                 {stage.title}
                                             </h3>
                                         </div>
-                                        <p className="line-clamp-2 text-[11px] font-normal leading-relaxed text-zinc-300/95 sm:line-clamp-3 sm:text-sm lg:text-[0.95rem]">
+                                        <p
+                                            className={
+                                                nativeMobileRowCards
+                                                    ? 'min-w-0 truncate text-[10px] font-medium leading-snug text-zinc-300/95'
+                                                    : 'line-clamp-1 min-w-0 text-[11px] font-medium leading-relaxed text-zinc-300/95 sm:line-clamp-2 sm:text-sm lg:text-[0.95rem]'
+                                            }
+                                        >
                                             {stage.lobbyStoryLine}
                                         </p>
-                                        <AdventureChapterRewardHints
-                                            stageId={stage.id as AdventureStageId}
-                                            compact
-                                            className="rounded-lg border border-white/10 bg-black/35 px-2 py-1.5 sm:px-2.5 sm:py-2"
-                                        />
                                         {!unlocked && conditionLines.length > 0 && (
                                             <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-semibold leading-snug sm:text-[11px] lg:text-xs">
                                                 {conditionLines.map((line, idx) => (
@@ -187,7 +229,8 @@ const AdventureLobby: React.FC = () => {
                 </ol>
             </div>
         </section>
-    );
+        );
+    };
 
     const mobileTabBtnBase =
         'min-h-0 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm font-bold transition-all sm:py-2.5 sm:text-base';
@@ -257,13 +300,14 @@ const AdventureLobby: React.FC = () => {
                             </div>
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" role="tabpanel">
                                 {mobileLobbyTab === 'chapter' ? (
-                                    chapterColumn(false)
+                                    chapterColumn(false, { nativeMobileRowCards: isNativeMobile })
                                 ) : (
                                     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
                                         <AdventureProfilePanel
                                             profile={currentUserWithStatus?.adventureProfile}
                                             userGold={currentUserWithStatus?.gold ?? 0}
                                             compact
+                                            mobileJournalSplit={isNativeMobile}
                                             onOpenMonsterCodex={() => setMonsterCodexOpen(true)}
                                         />
                                     </div>

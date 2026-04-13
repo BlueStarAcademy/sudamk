@@ -197,6 +197,21 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const prevTimeoutPlayerId = usePrevious(session.lastTimeoutPlayerId);
     const prevFoulInfoMessage = usePrevious(session.foulInfo?.message);
     const prevGameStatus = usePrevious(session.gameStatus);
+    const [adventureEncSecLeft, setAdventureEncSecLeft] = useState<number | null>(null);
+
+    useEffect(() => {
+        const deadline = session.adventureEncounterDeadlineMs;
+        if (session.gameCategory !== 'adventure' || !deadline || session.gameStatus !== 'playing') {
+            setAdventureEncSecLeft(null);
+            return;
+        }
+        const tick = () => {
+            setAdventureEncSecLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+        };
+        tick();
+        const id = setInterval(tick, 500);
+        return () => clearInterval(id);
+    }, [session.gameCategory, session.gameStatus, session.adventureEncounterDeadlineMs, session.id]);
 
     const opponentAiHiddenTickerEnd = useMemo(() => {
         const aiHiddenAnimEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
@@ -912,9 +927,30 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         ? { textShadow: '0 0 12px rgba(251, 191, 36, 0.35), 0 1px 2px rgba(0,0,0,0.85)' }
         : { textShadow: '0 0 14px rgba(251, 191, 36, 0.45), 0 1px 3px rgba(0,0,0,0.95)' };
 
+    const advEncLine =
+        adventureEncSecLeft != null && session.gameCategory === 'adventure' && session.gameStatus === 'playing'
+            ? (() => {
+                  const mm = Math.floor(adventureEncSecLeft / 60);
+                  const ss = adventureEncSecLeft % 60;
+                  return `남은 시간 ${mm}:${ss.toString().padStart(2, '0')} · 종료 시 몬스터 도주(패배)`;
+              })()
+            : null;
+
     return wrapContent(
         `${baseClasses} ${themeClasses}`,
         <>
+            {advEncLine && (
+                <p
+                    className={`text-center font-extrabold tracking-wide text-rose-200/95 ${
+                        isMobile
+                            ? 'px-0.5 text-[0.625rem] leading-tight sm:text-xs'
+                            : 'px-2 text-[clamp(0.78rem,2.3vmin,0.95rem)] min-[1025px]:text-[clamp(0.85rem,2vmin,1.02rem)]'
+                    }`}
+                    style={{ textShadow: '0 0 10px rgba(251,113,133,0.45), 0 1px 2px rgba(0,0,0,0.9)' }}
+                >
+                    {advEncLine}
+                </p>
+            )}
             <p
                 className={`text-center font-bold tracking-wider ${textClass} ${
                     isMobile

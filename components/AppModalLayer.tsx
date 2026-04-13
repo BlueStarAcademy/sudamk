@@ -99,9 +99,10 @@ const AppModalLayer: React.FC = () => {
         if (modals.isMbtiInfoModalOpen) ids.push('mbtiInfo');
         if (modals.mutualDisconnectMessage) ids.push('mutualDisconnect');
         if (modals.showOtherDeviceLoginModal) ids.push('otherDeviceLogin');
+        if (hasItemObtainedResult || hasScoreOnlyItemObtained) ids.push('itemObtained');
+        // 행동력 안내는 전역 오버레이·DraggableWindow 스택 모두에서 최상단에 두기
         if (modals.isInsufficientActionPointsModalOpen) ids.push('insufficientActionPoints');
         if (modals.isOpponentInsufficientActionPointsModalOpen) ids.push('opponentInsufficientActionPoints');
-        if (hasItemObtainedResult || hasScoreOnlyItemObtained) ids.push('itemObtained');
         return ids;
     }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 

@@ -159,6 +159,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
 
                 const mode = adventureBattleModeToGameMode(battleMode as AdventureMonsterBattleMode);
                 const cost = getAdventureMonsterAttackActionPointCost(advStage?.stageIndex ?? 1, codexId!);
+                effectService.applyPassiveActionPointRegenToUser(user);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
                 }

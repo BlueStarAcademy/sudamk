@@ -231,6 +231,48 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
  * 만땅( current >= max )이면 lastActionPointUpdate = 0,
  * 그렇지 않고 last가 0이면(이전에 만땅이었음) 지금부터 회복이 돌도록 now로 설정.
  */
+/**
+ * volatile 유저 객체에 대해 lastActionPointUpdate 경과분만큼 행동력 자연 회복을 반영한다.
+ * 클라이언트 useApp의 1초 interval과 동일한 규칙. 행동력 차감·부족 검사 직전에 호출한다.
+ */
+export function applyPassiveActionPointRegenToUser(user: User, nowMs: number = Date.now()): void {
+    if (!user?.actionPoints || user.isAdmin) return;
+
+    const effects = calculateUserEffects(user);
+    const calculatedMaxAP = effects.maxActionPoints;
+    const regenInterval =
+        effects.actionPointRegenInterval > 0 ? effects.actionPointRegenInterval : ACTION_POINT_REGEN_INTERVAL_MS;
+
+    user.actionPoints.max = calculatedMaxAP;
+
+    if (user.actionPoints.current >= calculatedMaxAP) {
+        user.actionPoints.current = calculatedMaxAP;
+        if (user.lastActionPointUpdate !== 0) user.lastActionPointUpdate = 0;
+        return;
+    }
+
+    if (user.lastActionPointUpdate === 0) {
+        user.lastActionPointUpdate = nowMs;
+        return;
+    }
+
+    const lastUpdate = user.lastActionPointUpdate;
+    if (typeof lastUpdate !== 'number' || isNaN(lastUpdate)) {
+        user.lastActionPointUpdate = nowMs;
+        return;
+    }
+
+    const elapsedMs = nowMs - lastUpdate;
+    if (elapsedMs <= 0) return;
+
+    const pointsToAdd = Math.floor(elapsedMs / regenInterval);
+    if (pointsToAdd <= 0) return;
+
+    user.actionPoints.current = Math.min(calculatedMaxAP, user.actionPoints.current + pointsToAdd);
+    user.lastActionPointUpdate =
+        user.actionPoints.current >= calculatedMaxAP ? 0 : lastUpdate + pointsToAdd * regenInterval;
+}
+
 export function syncActionPointsStateAfterEquipmentChange(user: User): void {
     if (!user.actionPoints) return;
     const effects = calculateUserEffects(user);
@@ -287,9 +329,9 @@ export const regenerateActionPoints = async (user: User): Promise<User> => {
     if (pointsToAdd > 0) {
         userModified = true;
         updatedUser.actionPoints.current = Math.min(calculatedMaxAP, updatedUser.actionPoints.current + pointsToAdd);
-        updatedUser.lastActionPointUpdate = lastUpdate + pointsToAdd * effects.actionPointRegenInterval;
-        
-        if(updatedUser.actionPoints.current >= calculatedMaxAP) {
+        updatedUser.lastActionPointUpdate = lastUpdate + pointsToAdd * regenInterval;
+
+        if (updatedUser.actionPoints.current >= calculatedMaxAP) {
             updatedUser.lastActionPointUpdate = 0;
         }
     }

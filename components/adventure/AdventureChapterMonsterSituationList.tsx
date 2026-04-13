@@ -78,6 +78,14 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                         >
                             <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-amber-50 sm:text-sm">
                                 <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
+                                    {mapMonster ? (
+                                        <span
+                                            className="shrink-0 font-mono text-[11px] font-black tabular-nums text-emerald-200 sm:text-xs"
+                                            aria-label={`레벨 ${mapMonster.level}`}
+                                        >
+                                            Lv.{mapMonster.level}
+                                        </span>
+                                    ) : null}
                                     <span className="min-w-0 truncate">{row.name}</span>
                                     {boss ? (
                                         <span className="shrink-0 rounded border border-amber-400/45 bg-amber-500/15 px-1 py-px text-[8px] font-black uppercase tracking-wider text-amber-100 sm:text-[9px]">

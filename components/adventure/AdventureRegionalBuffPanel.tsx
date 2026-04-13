@@ -8,7 +8,7 @@ import {
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 
-/** `AdventureProfilePanel`의 지역 이해도 XP·티어 행 — 탭 선택 시 같은 지역의 특화 효과와 함께 표시 */
+/** `AdventureProfilePanel`의 지역 탐험도(XP·티어) 행 — 탭 선택 시 같은 지역의 특화 효과와 함께 표시 */
 export type AdventureStageUnderstandingRow = {
     id: string;
     title: string;
@@ -104,14 +104,14 @@ const AdventureRegionalBuffPanel: React.FC<{
                 compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
             }`}
         >
-            <p className={labelCls}>지역 이해도</p>
+            <p className={labelCls}>지역 탐험도</p>
 
             <div
                 className={`mt-2 flex flex-wrap gap-1 border-b border-white/10 pb-2 ${
                     compact ? '' : 'sm:gap-1.5'
                 }`}
                 role="tablist"
-                aria-label="지역 탭"
+                aria-label="지역 탐험도 탭"
             >
                 {ADVENTURE_STAGES.map((s, i) => (
                     <button

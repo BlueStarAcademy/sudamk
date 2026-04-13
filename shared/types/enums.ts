@@ -125,7 +125,7 @@ export enum UserStatus {
   Offline = 'offline',
 }
 
-export type WinReason = 'resign' | 'timeout' | 'disconnect' | 'score' | 'capture_limit' | 'omok_win' | 'thief_captured' | 'police_win' | 'alkkagi_win' | 'curling_win' | 'total_score' | 'dice_win' | 'foul_limit';
+export type WinReason = 'resign' | 'timeout' | 'disconnect' | 'score' | 'capture_limit' | 'omok_win' | 'thief_captured' | 'police_win' | 'alkkagi_win' | 'curling_win' | 'total_score' | 'dice_win' | 'foul_limit' | 'adventure_monster_fled';
 export type RPSChoice = 'rock' | 'paper' | 'scissors';
 export enum DiceGoVariant {
     Basic = 'basic',

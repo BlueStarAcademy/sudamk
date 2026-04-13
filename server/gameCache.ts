@@ -13,7 +13,10 @@ function isActivePveCachedGame(gameId: string, game: LiveGameSession | null | un
     if (!game) return false;
     const isPveId = gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-');
     const isPveCategory =
-        game.isSinglePlayer === true || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
+        game.isSinglePlayer === true ||
+        game.gameCategory === 'tower' ||
+        game.gameCategory === 'singleplayer' ||
+        game.gameCategory === 'adventure';
     const isActive = game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest';
     return (isPveId || isPveCategory) && isActive;
 }
@@ -64,8 +67,13 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
         cache.set(gameId, { game, lastUpdated: now });
         return game;
     }
-    // PVE(싱글/탑)는 종료 전까지 DB에 없으므로 만료돼도 캐시 항목 유지·반환 (계가 요청 시 400 방지)
-    if (cached && (gameId.startsWith('sp-game-') || gameId.startsWith('tower-'))) {
+    // PVE(싱글/탑)·모험: pending 모달·DB 지연 시에도 만료 후 캐시 유지 (CONFIRM_AI_GAME_START 등)
+    if (
+        cached &&
+        (gameId.startsWith('sp-game-') ||
+            gameId.startsWith('tower-') ||
+            cached.game?.gameCategory === 'adventure')
+    ) {
         cache.set(gameId, { game: cached.game, lastUpdated: now });
         return cached.game;
     }
@@ -137,8 +145,9 @@ export async function getCachedUser(userId: string): Promise<User | null> {
         return cached.user;
     }
 
-    // 캐시 미스 또는 만료된 경우 DB에서 로드 (equipment/inventory 제외하여 빠르게)
-    const user = await db.getUser(userId, { includeEquipment: false, includeInventory: false });
+    // 캐시 미스: 인벤토리·장비 포함 — calculateUserEffects(행동력 최대/회복 간격)가 클라이언트와 일치해야 함.
+    // 제외 시 장비 특수옵션(행동력 최대 등)이 빠져 current가 max보다 크다고 잘못 클램프되거나 부족 판정이 난다.
+    const user = await db.getUser(userId, { includeEquipment: true, includeInventory: true });
     if (user) {
         cache.set(userId, { user, lastUpdated: now });
     } else if (cached) {

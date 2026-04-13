@@ -96,6 +96,17 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 };
 
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
+    const advDeadline = (game as any).adventureEncounterDeadlineMs as number | undefined;
+    if (
+        game.gameCategory === 'adventure' &&
+        game.gameStatus === 'playing' &&
+        typeof advDeadline === 'number' &&
+        now >= advDeadline
+    ) {
+        await summaryService.endGame(game, types.Player.White, 'adventure_monster_fled');
+        return;
+    }
+
     // This is the core update logic for all Go-based games.
     if (game.gameStatus === 'playing' && shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline) {
         const timedOutPlayer = game.currentPlayer;

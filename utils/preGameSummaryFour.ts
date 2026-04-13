@@ -1,5 +1,6 @@
 import { LiveGameSession, GameMode, GameSettings, SinglePlayerStageInfo } from '../types.js';
 import { Player } from '../types/enums.js';
+import { getAdventureEncounterCountdownMinutes } from '../shared/utils/adventureBattleBoard.js';
 
 export type PreGameSpecialHighlight = {
   img: string;
@@ -95,11 +96,21 @@ function timeLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
   ) {
     return NONE;
   }
-  if (!settings.timeLimit || settings.timeLimit <= 0) return '시간 제한 없음';
+  const byoyomiCount = settings.byoyomiCount ?? 0;
+  const byoyomiTime = settings.byoyomiTime ?? 30;
+  if (!settings.timeLimit || settings.timeLimit <= 0) {
+    if (byoyomiCount > 0 && byoyomiTime > 0) {
+      return `초읽기만 · ${byoyomiTime}초×${byoyomiCount}회`;
+    }
+    return '시간 제한 없음';
+  }
   if (mode === GameMode.Speed || hasMix(mix, GameMode.Speed)) {
     return `피셔 · 본전 ${settings.timeLimit}분 + ${settings.timeIncrement ?? 0}초/수`;
   }
-  return `제한 ${settings.timeLimit}분 · 초읽기 ${settings.byoyomiTime ?? 30}초×${settings.byoyomiCount ?? 3}회`;
+  if (byoyomiCount > 0 && byoyomiTime > 0) {
+    return `제한 ${settings.timeLimit}분 · 초읽기 ${byoyomiTime}초×${byoyomiCount}회`;
+  }
+  return `제한 ${settings.timeLimit}분 (초읽기 없음)`;
 }
 
 function territoryScoreParts(settings: GameSettings, mode: GameMode, mix: GameMode[]): string[] {
@@ -110,6 +121,20 @@ function territoryScoreParts(settings: GameSettings, mode: GameMode, mix: GameMo
   if (em.includes(GameMode.Speed)) parts.push('시간 보너스');
   if (em.includes(GameMode.Missile)) parts.push('미사일 연출 반영');
   return parts;
+}
+
+/** 모험 경기 안내 모달: 한 줄·짧은 토큰 (줄바꿈 최소화) */
+function adventureScoreFactorsShort(mode: GameMode, mix: GameMode[]): string {
+  if (mode === GameMode.Capture) {
+    return '따내기 · 문양 2점';
+  }
+  const parts: string[] = ['기본 계가'];
+  const em = effectiveModesForRules(mode, mix);
+  if (em.includes(GameMode.Base)) parts.push('베이스돌 5점');
+  if (em.includes(GameMode.Hidden)) parts.push('히든');
+  if (em.includes(GameMode.Speed)) parts.push('시간');
+  if (em.includes(GameMode.Missile)) parts.push('미사일');
+  return parts.join(' · ');
 }
 
 /**
@@ -312,6 +337,42 @@ function singlePlayerStageHighlights(session: LiveGameSession, stage: SinglePlay
   return h;
 }
 
+function buildAdventurePreGameSummary(session: LiveGameSession): PreGameSummaryFour {
+  const { mode, settings } = session;
+  const mix = mixedList(settings);
+  const bs = settings.boardSize ?? session.adventureBoardSize ?? 9;
+  const mins = getAdventureEncounterCountdownMinutes(bs);
+  const timeRules = `${mins}분 제한`;
+
+  if (mode === GameMode.Capture) {
+    return {
+      winGoal: '따내기 승리',
+      loseGoal: '따내기 패배 · 시간 초과',
+      scoreFactors: adventureScoreFactorsShort(mode, mix),
+      timeRules,
+      specialHighlights: [],
+      items: itemLine(settings, mode, mix),
+      itemSlots: buildItemSlots(settings, mode, mix),
+    };
+  }
+
+  const limit = settings.scoringTurnLimit;
+  const hasAuto = typeof limit === 'number' && limit > 0;
+  const winGoal = hasAuto ? `계가 승리 · ${limit}수 자동` : '계가 승리';
+  const loseGoal = '계가 패배 · 시간 초과';
+  const scoreFactors = adventureScoreFactorsShort(mode, mix);
+
+  return {
+    winGoal,
+    loseGoal,
+    scoreFactors,
+    timeRules,
+    specialHighlights: [],
+    items: itemLine(settings, mode, mix),
+    itemSlots: buildItemSlots(settings, mode, mix),
+  };
+}
+
 /**
  * 인게임 시작 전 모달용 요약 (승리·패배 조건 / 점수 요인 / 시간 규칙 / 아이템 + 특수 규칙 행)
  */
@@ -322,6 +383,10 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
 
   if (stage) {
     return getSinglePlayerStageSummary(session, stage);
+  }
+
+  if (session.gameCategory === 'adventure') {
+    return buildAdventurePreGameSummary(session);
   }
 
   if (mode === GameMode.Mix) {

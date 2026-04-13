@@ -2905,12 +2905,29 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             )}
             {/* 전략·놀이바둑 경기장 상단 헤더 (행동력, 재화, 설정 등) */}
             <Header compact />
-            <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
-                <main className="flex-1 flex min-w-0 min-h-0 overflow-hidden items-stretch justify-center">
+                <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
+                <main
+                    className={
+                        isAdventureGame
+                            ? 'flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden'
+                            : 'flex-1 flex min-w-0 min-h-0 overflow-hidden items-stretch justify-center'
+                    }
+                >
                     <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
-                        <div className="flex-shrink-0 w-full flex justify-center">
+                        <div
+                            className={
+                                isAdventureGame
+                                    ? 'flex w-full flex-shrink-0 justify-center'
+                                    : 'flex-shrink-0 w-full flex justify-center'
+                            }
+                        >
                             <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
-                                <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isMobile={isMobile} />
+                                <PlayerPanel
+                                    {...gameProps}
+                                    clientTimes={clientTimes.clientTimes}
+                                    isMobile={isMobile}
+                                    isSinglePlayer={isAdventureGame}
+                                />
                             </div>
                         </div>
                         <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">

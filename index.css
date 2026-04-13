@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 모바일: 기본 얇은 스크롤바 — utilities([scrollbar-width:none] 등)가 이 설정을 덮어씀 */
+@layer base {
+  html.sudamr-mobile-thin-scroll * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+
+  html.sudamr-mobile-thin-scroll *::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+
+  html.sudamr-mobile-thin-scroll *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  html.sudamr-mobile-thin-scroll *::-webkit-scrollbar-thumb {
+    background-color: rgba(148, 163, 184, 0.38);
+    border-radius: 100px;
+  }
+
+  html.sudamr-mobile-thin-scroll *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+}
+
 :root {
   --panel-edge-top-left: none;
   --panel-edge-top-right: none;

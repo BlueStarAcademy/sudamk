@@ -12,6 +12,8 @@ interface PreGameColorRouletteProps {
     onComplete?: () => void;
     /** true면 상단 제목/부제를 숨김 (부모 DraggableWindow 제목과 중복 방지) */
     suppressHeader?: boolean;
+    /** 흑·백 카드만 표시 (룰렛 박스·안내 문구 없음) */
+    layout?: 'full' | 'cardsOnly';
 }
 
 const ROULETTE_TICK_MS = 110;
@@ -24,6 +26,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     subtitle = '자동으로 선공과 후공이 배정됩니다.',
     onComplete,
     suppressHeader = false,
+    layout = 'full',
 }) => {
     const [activeColor, setActiveColor] = useState<Player>(Player.Black);
     const [isFinished, setIsFinished] = useState(false);
@@ -36,6 +39,8 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     }, [onComplete]);
 
     useEffect(() => {
+        if (layout === 'cardsOnly') return;
+
         completedRef.current = false;
         setIsFinished(false);
         setActiveColor(Player.Black);
@@ -61,16 +66,19 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
             window.clearInterval(timerId);
             window.clearTimeout(finishId);
         };
-    }, [durationMs]);
+    }, [durationMs, layout]);
 
     const renderPlayerCard = (player: User, color: Player, isActive: boolean) => {
         const avatarUrl = AVATAR_POOL.find(a => a.id === player.avatarId)?.url;
         const borderUrl = BORDER_POOL.find(b => b.id === player.borderId)?.url;
         const isBlack = color === Player.Black;
+        const compact = layout === 'cardsOnly';
 
         return (
             <div
-                className={`flex-1 rounded-xl border p-4 transition-all duration-200 ${
+                className={`flex-1 rounded-xl border transition-all duration-200 ${
+                    compact ? 'p-2.5 sm:p-3' : 'p-4'
+                } ${
                     isActive
                         ? isBlack
                             ? 'border-yellow-300 bg-yellow-500/15 shadow-[0_0_20px_rgba(250,204,21,0.25)] scale-[1.02]'
@@ -78,17 +86,40 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                         : 'border-gray-700 bg-gray-900/50 opacity-80'
                 }`}
             >
-                <div className="flex flex-col items-center text-center gap-2">
-                    <Avatar userId={player.id} userName={player.nickname} size={60} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-                    <p className="font-bold">{player.nickname}</p>
-                    <div className={`w-16 h-16 rounded-full border-4 ${isBlack ? 'bg-black border-gray-300' : 'bg-white border-gray-700'}`} />
-                    <p className="font-semibold">{isBlack ? '흑 (선공)' : '백 (후공)'}</p>
+                <div className={`flex flex-col items-center text-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
+                    <Avatar
+                        userId={player.id}
+                        userName={player.nickname}
+                        size={compact ? 48 : 60}
+                        avatarUrl={avatarUrl}
+                        borderUrl={borderUrl}
+                    />
+                    <p className={`font-bold ${compact ? 'max-w-full truncate text-xs sm:text-[0.8125rem]' : ''}`}>
+                        {player.nickname}
+                    </p>
+                    <div
+                        className={`rounded-full border-4 ${isBlack ? 'bg-black border-gray-300' : 'bg-white border-gray-700'} ${
+                            compact ? 'h-12 w-12 sm:h-14 sm:w-14' : 'h-16 w-16'
+                        }`}
+                    />
+                    <p className={`font-semibold ${compact ? 'text-[0.7rem] sm:text-xs' : ''}`}>
+                        {isBlack ? '흑 (선공)' : '백 (후공)'}
+                    </p>
                 </div>
             </div>
         );
     };
 
     const slotSizeClass = 'w-[5.5rem] h-[5.5rem] sm:w-24 sm:h-24';
+
+    if (layout === 'cardsOnly') {
+        return (
+            <div className="flex gap-2.5 sm:gap-3">
+                {renderPlayerCard(blackPlayer, Player.Black, true)}
+                {renderPlayerCard(whitePlayer, Player.White, true)}
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-4">

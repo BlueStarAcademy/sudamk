@@ -28,8 +28,10 @@ const AdventureProfilePanel: React.FC<{
     profile: AdventureProfile | null | undefined;
     userGold?: number;
     compact?: boolean;
+    /** 네이티브 모바일 모험 일지: 몬스터 / 지역 탐험도 패널 분리·코어 2열 그리드 */
+    mobileJournalSplit?: boolean;
     onOpenMonsterCodex?: () => void;
-}> = ({ profile, userGold = 0, compact = false, onOpenMonsterCodex }) => {
+}> = ({ profile, userGold = 0, compact = false, mobileJournalSplit = false, onOpenMonsterCodex }) => {
     const donutGradId = useId().replace(/:/g, '');
     const p = useMemo(() => normalizeAdventureProfile(profile), [profile]);
     const monsterCodexBuff = useMemo(() => getMonsterCodexComprehensionBuffTotals(p), [p]);
@@ -67,6 +69,175 @@ const AdventureProfilePanel: React.FC<{
     const labelCls = compact
         ? 'text-[11px] font-bold uppercase tracking-wider text-zinc-500 sm:text-xs'
         : 'text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm';
+
+    const coreStatGridClass = mobileJournalSplit
+        ? `mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 border-t border-white/8 pt-3 ${compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`
+        : `mt-3 grid grid-cols-1 gap-x-5 gap-y-1 border-t border-white/8 pt-3 sm:grid-cols-2 ${
+              compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+          }`;
+
+    const codexOpenBtnClass = mobileJournalSplit
+        ? 'absolute right-2 top-2 z-10 rounded-lg border border-violet-400/40 bg-violet-950/60 px-2 py-1 text-[11px] font-bold text-violet-100 shadow-sm underline-offset-2 transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 hover:underline active:scale-[0.99]'
+        : `absolute z-10 rounded-lg border border-violet-400/40 bg-violet-950/60 font-bold text-violet-100 shadow-sm underline-offset-2 transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 hover:underline active:scale-[0.99] ${
+              compact
+                  ? 'right-2.5 top-2.5 px-2 py-1 text-xs sm:right-3 sm:top-3 sm:text-sm'
+                  : 'right-3 top-3 px-2.5 py-1.5 text-sm sm:right-4 sm:top-4 sm:text-base'
+          }`;
+
+    const dropBonusContainerClass = mobileJournalSplit
+        ? 'mt-2 grid w-full grid-cols-2 gap-x-2 gap-y-1.5 text-[11px] font-semibold tabular-nums text-zinc-100'
+        : `mt-2 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2 font-semibold tabular-nums text-zinc-100 sm:flex-nowrap sm:gap-x-3 ${
+              compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+          }`;
+
+    const dropBonusItemClass = mobileJournalSplit
+        ? 'flex min-w-0 items-center justify-between gap-1.5'
+        : 'flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2';
+
+    const understandingBody = (
+        <>
+            <p className={labelCls}>몬스터 이해도 효과</p>
+            <p
+                className={`mt-1.5 font-bold tabular-nums text-amber-100/95 ${
+                    compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                }`}
+            >
+                모험 골드 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.goldBonusPercent)}%
+            </p>
+            <div className={dropBonusContainerClass}>
+                <span className={dropBonusItemClass}>
+                    <span className="shrink-0 truncate text-zinc-400">장비 획득</span>
+                    <span className="shrink-0 text-cyan-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.equipmentDropPercent)}%
+                    </span>
+                </span>
+                <span className={dropBonusItemClass}>
+                    <span className="shrink-0 truncate text-zinc-400">고급 장비</span>
+                    <span className="shrink-0 text-sky-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeEquipmentPercent)}%
+                    </span>
+                </span>
+                <span className={dropBonusItemClass}>
+                    <span className="shrink-0 truncate text-zinc-400">재료 획득</span>
+                    <span className="shrink-0 text-emerald-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.materialDropPercent)}%
+                    </span>
+                </span>
+                <span className={dropBonusItemClass}>
+                    <span className="shrink-0 truncate text-zinc-400">고급 재료</span>
+                    <span className="shrink-0 text-teal-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeMaterialPercent)}%
+                    </span>
+                </span>
+            </div>
+            <ul className={coreStatGridClass}>
+                {ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER.map((stat) => (
+                    <li key={stat} className="flex min-w-0 items-baseline justify-between gap-2">
+                        <span className="min-w-0 truncate text-zinc-300">{CORE_STATS_DATA[stat]?.name ?? stat}</span>
+                        <span className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums">
+                            <span className="text-amber-200/95">+{monsterCodexBuff.coreByStat[stat]?.flat ?? 0}</span>
+                            <span className="mx-1 text-zinc-600" aria-hidden>
+                                ·
+                            </span>
+                            <span className="text-fuchsia-200/95">
+                                +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.coreByStat[stat]?.percent ?? 0)}%
+                            </span>
+                        </span>
+                    </li>
+                ))}
+            </ul>
+        </>
+    );
+
+    const codexCompletionBody = (
+        <>
+            <p className={`${labelCls} text-violet-200/90`}>몬스터 도감 완성도</p>
+            <div className="mt-2 flex flex-wrap items-stretch gap-3 sm:gap-4">
+                <div className={`relative shrink-0 ${compact ? 'h-[5.25rem] w-[5.25rem]' : 'h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem]'}`}>
+                    <svg
+                        viewBox={`0 0 ${(donutR + 14) * 2} ${(donutR + 14) * 2}`}
+                        className="h-full w-full -rotate-90 text-zinc-800"
+                        aria-hidden
+                    >
+                        <circle
+                            cx={donutR + 14}
+                            cy={donutR + 14}
+                            r={donutR}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth={compact ? 7 : 8}
+                            className="text-zinc-800/95"
+                        />
+                        <circle
+                            cx={donutR + 14}
+                            cy={donutR + 14}
+                            r={donutR}
+                            fill="none"
+                            stroke={`url(#${donutGradId})`}
+                            strokeWidth={compact ? 7 : 8}
+                            strokeLinecap="round"
+                            strokeDasharray={`${donutDash} ${donutC}`}
+                        />
+                        <defs>
+                            <linearGradient id={donutGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stopColor="rgb(167, 139, 250)" />
+                                <stop offset="55%" stopColor="rgb(244, 114, 182)" />
+                                <stop offset="100%" stopColor="rgb(251, 191, 36)" />
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                    <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                        <span
+                            className={`font-black tabular-nums text-white drop-shadow ${
+                                compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
+                            }`}
+                        >
+                            {codexBreakdown.overallPercent >= 10
+                                ? Math.round(codexBreakdown.overallPercent)
+                                : Math.round(codexBreakdown.overallPercent * 10) / 10}
+                            %
+                        </span>
+                        <span
+                            className={`font-semibold tabular-nums text-zinc-400 ${
+                                compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
+                            }`}
+                        >
+                            {codexBreakdown.totalSum}/{codexBreakdown.totalMax} Lv
+                        </span>
+                    </div>
+                </div>
+                <div className="min-h-[4rem] min-w-0 flex-1 sm:min-h-[5rem]">
+                    <p className={`mb-1 font-semibold text-zinc-500 ${compact ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'}`}>
+                        챕터별
+                    </p>
+                    <div className="flex h-[calc(100%-1.25rem)] min-h-[3.25rem] items-end justify-between gap-1 sm:min-h-16 sm:gap-1.5">
+                        {codexBreakdown.stages.map((st, i) => {
+                            const grad = CODEX_CHART_BAR_GRADIENTS[i] ?? CODEX_CHART_BAR_GRADIENTS[0];
+                            return (
+                                <div key={st.stageId} className="flex min-h-0 min-w-0 flex-1 flex-col items-center gap-0.5">
+                                    <div className="relative flex h-full w-full min-h-0 items-end justify-center rounded-md border border-white/8 bg-black/35 px-px pt-0.5">
+                                        <div
+                                            className={`w-[72%] max-w-[2rem] rounded-t-sm bg-gradient-to-t ${grad} transition-all duration-500 sm:max-w-[2.25rem]`}
+                                            style={{ height: `${Math.min(100, Math.max(0, st.percent))}%` }}
+                                            title={`${st.title} ${Math.round(st.percent)}%`}
+                                        />
+                                    </div>
+                                    <span
+                                        className={`w-full truncate text-center font-bold tabular-nums text-zinc-500 ${
+                                            compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
+                                        }`}
+                                    >
+                                        {String(i + 1).padStart(2, '0')}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+
     return (
         <section
             className={`relative flex h-full w-full min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
@@ -74,207 +245,70 @@ const AdventureProfilePanel: React.FC<{
             }`}
             aria-label="모험 일지"
         >
-            {onOpenMonsterCodex && (
-                <button
-                    type="button"
-                    onClick={onOpenMonsterCodex}
-                    className={`absolute z-10 rounded-lg border border-violet-400/40 bg-violet-950/60 font-bold text-violet-100 shadow-sm underline-offset-2 transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 hover:underline active:scale-[0.99] ${
-                        compact
-                            ? 'right-2.5 top-2.5 px-2 py-1 text-xs sm:right-3 sm:top-3 sm:text-sm'
-                            : 'right-3 top-3 px-2.5 py-1.5 text-sm sm:right-4 sm:top-4 sm:text-base'
-                    }`}
-                    aria-label="몬스터 도감"
-                >
+            {mobileJournalSplit ? <h2 className="sr-only">모험 일지</h2> : null}
+
+            {!mobileJournalSplit && onOpenMonsterCodex ? (
+                <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label="몬스터 도감">
                     {compact ? '몬스터' : '몬스터 도감'}
                 </button>
-            )}
+            ) : null}
+
+            {!mobileJournalSplit ? (
+                <div
+                    className={`flex shrink-0 flex-wrap items-center border-b border-white/10 pb-2.5 sm:pb-3 ${onOpenMonsterCodex ? 'pr-[5.5rem] sm:pr-[6.5rem]' : ''}`}
+                >
+                    <h2
+                        className={`min-w-0 font-black tracking-tight text-transparent bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-amber-200 bg-clip-text ${
+                            compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl'
+                        }`}
+                    >
+                        모험 일지
+                    </h2>
+                </div>
+            ) : null}
+
             <div
-                className={`flex shrink-0 flex-wrap items-center border-b border-white/10 pb-2.5 sm:pb-3 ${onOpenMonsterCodex ? 'pr-[5.5rem] sm:pr-[6.5rem]' : ''}`}
+                className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain pr-0.5 ${
+                    mobileJournalSplit ? 'mt-0 gap-3' : `mt-3 gap-3 ${compact ? '' : 'sm:gap-3.5'}`
+                }`}
             >
-                <h2
-                    className={`min-w-0 font-black tracking-tight text-transparent bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-amber-200 bg-clip-text ${
-                        compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl'
-                    }`}
-                >
-                    모험 일지
-                </h2>
-            </div>
-
-            <div className={`mt-3 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-0.5 ${compact ? '' : 'sm:gap-3.5'}`}>
-                <div
-                    className={`w-full min-w-0 rounded-xl border border-white/8 bg-black/25 ${
-                        compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
-                    }`}
-                >
-                        <p className={labelCls}>몬스터 이해도 효과</p>
-                        <p
-                            className={`mt-1.5 font-bold tabular-nums text-amber-100/95 ${
-                                compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
-                            }`}
-                        >
-                            모험 골드 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.goldBonusPercent)}%
-                        </p>
-                        <div
-                            className={`mt-2 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2 font-semibold tabular-nums text-zinc-100 sm:flex-nowrap sm:gap-x-3 ${
-                                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
-                            }`}
-                        >
-                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
-                                <span className="shrink-0 truncate text-zinc-400">장비 획득</span>
-                                <span className="shrink-0 text-cyan-200/95">
-                                    +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.equipmentDropPercent)}%
-                                </span>
-                            </span>
-                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
-                                <span className="shrink-0 truncate text-zinc-400">고급 장비</span>
-                                <span className="shrink-0 text-sky-200/95">
-                                    +
-                                    {formatAdventureUnderstandingBonusPercent(
-                                        monsterCodexBuff.highGradeEquipmentPercent,
-                                    )}
-                                    %
-                                </span>
-                            </span>
-                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
-                                <span className="shrink-0 truncate text-zinc-400">재료 획득</span>
-                                <span className="shrink-0 text-emerald-200/95">
-                                    +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.materialDropPercent)}%
-                                </span>
-                            </span>
-                            <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
-                                <span className="shrink-0 truncate text-zinc-400">고급 재료</span>
-                                <span className="shrink-0 text-teal-200/95">
-                                    +
-                                    {formatAdventureUnderstandingBonusPercent(
-                                        monsterCodexBuff.highGradeMaterialPercent,
-                                    )}
-                                    %
-                                </span>
-                            </span>
-                        </div>
-                        <ul
-                            className={`mt-3 grid grid-cols-1 gap-x-5 gap-y-1 border-t border-white/8 pt-3 sm:grid-cols-2 ${
-                                compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
-                            }`}
-                        >
-                            {ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER.map((stat) => (
-                                <li key={stat} className="flex min-w-0 items-baseline justify-between gap-2">
-                                    <span className="min-w-0 truncate text-zinc-300">
-                                        {CORE_STATS_DATA[stat]?.name ?? stat}
-                                    </span>
-                                    <span className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums">
-                                        <span className="text-amber-200/95">
-                                            +{monsterCodexBuff.coreByStat[stat]?.flat ?? 0}
-                                        </span>
-                                        <span className="mx-1 text-zinc-600" aria-hidden>
-                                            ·
-                                        </span>
-                                        <span className="text-fuchsia-200/95">
-                                            +{formatAdventureUnderstandingBonusPercent(
-                                                monsterCodexBuff.coreByStat[stat]?.percent ?? 0,
-                                            )}
-                                            %
-                                        </span>
-                                    </span>
-                                </li>
-                            ))}
-                        </ul>
-                </div>
-
-                <div
-                    className={`w-full min-w-0 rounded-xl border border-violet-500/22 bg-violet-950/18 ${
-                        compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
-                    }`}
-                >
-                    <p className={`${labelCls} text-violet-200/90`}>몬스터 도감 완성도</p>
-                    <div className="mt-2 flex flex-wrap items-stretch gap-3 sm:gap-4">
-                        <div
-                            className={`relative shrink-0 ${compact ? 'h-[5.25rem] w-[5.25rem]' : 'h-24 w-24 sm:h-[6.5rem] sm:w-[6.5rem]'}`}
-                        >
-                            <svg
-                                viewBox={`0 0 ${(donutR + 14) * 2} ${(donutR + 14) * 2}`}
-                                className="h-full w-full -rotate-90 text-zinc-800"
-                                aria-hidden
-                            >
-                                <circle
-                                    cx={donutR + 14}
-                                    cy={donutR + 14}
-                                    r={donutR}
-                                    fill="none"
-                                    stroke="currentColor"
-                                    strokeWidth={compact ? 7 : 8}
-                                    className="text-zinc-800/95"
-                                />
-                                <circle
-                                    cx={donutR + 14}
-                                    cy={donutR + 14}
-                                    r={donutR}
-                                    fill="none"
-                                    stroke={`url(#${donutGradId})`}
-                                    strokeWidth={compact ? 7 : 8}
-                                    strokeLinecap="round"
-                                    strokeDasharray={`${donutDash} ${donutC}`}
-                                />
-                                <defs>
-                                    <linearGradient id={donutGradId} x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stopColor="rgb(167, 139, 250)" />
-                                        <stop offset="55%" stopColor="rgb(244, 114, 182)" />
-                                        <stop offset="100%" stopColor="rgb(251, 191, 36)" />
-                                    </linearGradient>
-                                </defs>
-                            </svg>
-                            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                                <span
-                                    className={`font-black tabular-nums text-white drop-shadow ${
-                                        compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl'
-                                    }`}
-                                >
-                                    {codexBreakdown.overallPercent >= 10
-                                        ? Math.round(codexBreakdown.overallPercent)
-                                        : Math.round(codexBreakdown.overallPercent * 10) / 10}
-                                    %
-                                </span>
-                                <span
-                                    className={`font-semibold tabular-nums text-zinc-400 ${
-                                        compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
-                                    }`}
-                                >
-                                    {codexBreakdown.totalSum}/{codexBreakdown.totalMax} Lv
-                                </span>
+                {mobileJournalSplit ? (
+                    <>
+                        <div className="relative w-full min-w-0 rounded-xl border border-amber-400/30 bg-gradient-to-br from-zinc-950/98 via-zinc-950/92 to-black/95 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                            {onOpenMonsterCodex ? (
+                                <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label="몬스터 도감">
+                                    몬스터 도감
+                                </button>
+                            ) : null}
+                            <h3 className={`${labelCls} mb-2.5 pr-[6.5rem] text-amber-200/95`}>몬스터</h3>
+                            <div className="w-full min-w-0 rounded-lg border border-white/10 bg-black/35 px-2.5 py-2">
+                                {understandingBody}
                             </div>
+                            <div className="mt-3 border-t border-white/10 pt-3">{codexCompletionBody}</div>
                         </div>
-                        <div className="min-h-[4rem] min-w-0 flex-1 sm:min-h-[5rem]">
-                            <p className={`mb-1 font-semibold text-zinc-500 ${compact ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'}`}>
-                                챕터별
-                            </p>
-                            <div className="flex h-[calc(100%-1.25rem)] min-h-[3.25rem] items-end justify-between gap-1 sm:min-h-16 sm:gap-1.5">
-                                {codexBreakdown.stages.map((st, i) => {
-                                    const grad = CODEX_CHART_BAR_GRADIENTS[i] ?? CODEX_CHART_BAR_GRADIENTS[0];
-                                    return (
-                                        <div key={st.stageId} className="flex min-h-0 min-w-0 flex-1 flex-col items-center gap-0.5">
-                                            <div className="relative flex h-full w-full min-h-0 items-end justify-center rounded-md border border-white/8 bg-black/35 px-px pt-0.5">
-                                                <div
-                                                    className={`w-[72%] max-w-[2rem] rounded-t-sm bg-gradient-to-t ${grad} transition-all duration-500 sm:max-w-[2.25rem]`}
-                                                    style={{ height: `${Math.min(100, Math.max(0, st.percent))}%` }}
-                                                    title={`${st.title} ${Math.round(st.percent)}%`}
-                                                />
-                                            </div>
-                                            <span
-                                                className={`w-full truncate text-center font-bold tabular-nums text-zinc-500 ${
-                                                    compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
-                                                }`}
-                                            >
-                                                {String(i + 1).padStart(2, '0')}
-                                            </span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                        <AdventureRegionalBuffPanel profile={profile} stageRows={stageRows} userGold={userGold} compact={compact} />
+                    </>
+                ) : (
+                    <>
+                        <div
+                            className={`w-full min-w-0 rounded-xl border border-white/8 bg-black/25 ${
+                                compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+                            }`}
+                        >
+                            {understandingBody}
                         </div>
-                    </div>
-                </div>
 
-                <AdventureRegionalBuffPanel profile={profile} stageRows={stageRows} userGold={userGold} compact={compact} />
+                        <div
+                            className={`w-full min-w-0 rounded-xl border border-violet-500/22 bg-violet-950/18 ${
+                                compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+                            }`}
+                        >
+                            {codexCompletionBody}
+                        </div>
+
+                        <AdventureRegionalBuffPanel profile={profile} stageRows={stageRows} userGold={userGold} compact={compact} />
+                    </>
+                )}
             </div>
         </section>
     );

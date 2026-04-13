@@ -14,13 +14,12 @@ import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSitua
 import {
     ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL,
     ADVENTURE_CODEX_MAX_LEVEL,
-    ADVENTURE_CODEX_WINS_FOR_LEVEL,
     adventureCodexPercentBossBonusLabelKo,
     adventureCodexNormalPercentLabelKo,
     getAdventureCodexComprehensionLevel,
+    getAdventureCodexComprehensionBarProgress,
     getAdventureMonsterComprehensionDesign,
     getCodexComprehensionItemGrade,
-    getNextAdventureCodexWinsThreshold,
 } from '../../utils/adventureCodexComprehension.js';
 
 /** 도감 카드 — 이해도 등급은 이미지 프레임 테두리 색으로만 표시 */
@@ -61,27 +60,6 @@ interface Props {
     initialMainTab?: 'situation' | 'codex';
     /** 상황 탭 없이 도감만 열 때 챕터 탭 초기값 (현재 맵 스테이지 id) */
     defaultCodexStageId?: string | null;
-}
-
-function codexLevelProgress(wins: number, level: number): {
-    prog: number;
-    nextAt: number | null;
-    prevThreshold: number;
-} {
-    const w = Math.max(0, Math.floor(wins));
-    const nextAt = getNextAdventureCodexWinsThreshold(level);
-    const prevThreshold = level >= 1 ? ADVENTURE_CODEX_WINS_FOR_LEVEL[level - 1] ?? 0 : 0;
-    if (level >= ADVENTURE_CODEX_MAX_LEVEL) {
-        return { prog: 1, nextAt: null, prevThreshold };
-    }
-    if (nextAt != null && nextAt > prevThreshold) {
-        return {
-            prog: Math.min(1, (w - prevThreshold) / (nextAt - prevThreshold)),
-            nextAt,
-            prevThreshold,
-        };
-    }
-    return { prog: 0, nextAt, prevThreshold };
 }
 
 const AdventureMonsterCodexModal: React.FC<Props> = ({
@@ -245,7 +223,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                 const wins = Math.max(0, Math.floor(counts[m.codexId] ?? 0));
                                 const level = getAdventureCodexComprehensionLevel(wins);
                                 const design = getAdventureMonsterComprehensionDesign(m.codexId);
-                                const { prog, nextAt, prevThreshold } = codexLevelProgress(wins, level);
+                                const { prog, nextAt, prevThreshold } = getAdventureCodexComprehensionBarProgress(wins, level);
                                 const pct = Math.round(Math.min(1, Math.max(0, prog)) * 100);
                                 const specPct =
                                     design?.normalPercentBonus && !design.isBoss

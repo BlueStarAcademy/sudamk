@@ -1,6 +1,14 @@
-import React from 'react';
-import { getAdventureChapterRewardPreview } from '../../shared/utils/adventureChapterRewardPreview.js';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
+import {
+    getAdventureChapterRewardPreview,
+    getAdventureChapterRewardVisual,
+} from '../../shared/utils/adventureChapterRewardPreview.js';
+import { gradeBackgrounds } from '../../shared/constants/items.js';
+import { ItemGrade } from '../../shared/types/enums.js';
 import type { AdventureStageId } from '../../constants/adventureConstants.js';
+
+const GOLD_SRC = '/images/icon/Gold.png';
 
 type Props = {
     stageId: AdventureStageId;
@@ -9,50 +17,212 @@ type Props = {
     className?: string;
 };
 
-const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, className }) => {
-    const p = getAdventureChapterRewardPreview(stageId);
-    const bodyCls = compact
-        ? 'mt-1 space-y-0.5 text-[9px] leading-snug text-zinc-400'
-        : 'mt-1.5 space-y-1 text-[10px] leading-snug text-zinc-300 sm:text-xs';
-    const headCls = compact
-        ? 'text-[9px] font-bold uppercase tracking-wide text-amber-200/90'
-        : 'text-[10px] font-bold uppercase tracking-wide text-amber-200/95 sm:text-xs';
+type BubbleState = { id: string; x: number; y: number; text: string; placeAbove: boolean };
+
+/** 테두리 박스 안에 아이콘만 */
+const RewardIconBox: React.FC<{
+    gradeBg: string;
+    compact?: boolean;
+    children: React.ReactNode;
+}> = ({ gradeBg, compact, children }) => {
+    const cellW = compact ? 'w-9 min-w-[2.25rem]' : 'w-11 min-w-[2.75rem] sm:w-[2.875rem] sm:min-w-[2.875rem]';
+    const boxH = compact ? 'h-9 min-h-[2.25rem]' : 'h-11 min-h-[2.75rem] sm:h-12 sm:min-h-[3rem]';
 
     return (
-        <div className={className} role="region" aria-label="이 챕터 승리 보상 안내">
-            <p className={headCls}>승리 보상(참고)</p>
-            <ul className={bodyCls}>
-                <li>
-                    <span className="text-zinc-500">골드(일반)</span>{' '}
-                    <span className="font-mono font-semibold tabular-nums text-zinc-200">
-                        {p.goldNormalRange.min.toLocaleString()}~{p.goldNormalRange.max.toLocaleString()}
-                    </span>
-                    <span className="text-zinc-600"> · 이해도·효과·대국 길이에 따라 증가</span>
-                </li>
-                {p.goldBoss19Range ? (
-                    <li>
-                        <span className="text-zinc-500">골드(19줄 보스)</span>{' '}
-                        <span className="font-mono font-semibold tabular-nums text-amber-200/90">
-                            {p.goldBoss19Range.min.toLocaleString()}~{p.goldBoss19Range.max.toLocaleString()}
-                        </span>
-                    </li>
-                ) : null}
-                <li>
-                    <span className="text-zinc-500">장비 등급</span>{' '}
-                    <span className="font-semibold text-violet-200/95">{p.equipmentGradeRange}</span>
-                </li>
-                <li>
-                    <span className="text-zinc-500">재료 등급</span>{' '}
-                    <span className="font-semibold text-emerald-200/90">{p.materialGradeRange}</span>
-                </li>
-                <li>
-                    <span className="text-zinc-500">강화석(일반 몬스터 1회)</span>{' '}
-                    <span className="text-zinc-300">{p.materialQtyLines.join(' · ')}</span>
-                </li>
-                {!compact ? (
-                    <li className="text-zinc-600">19줄 보스는 강화석 개수·골드가 더 높을 수 있습니다.</li>
-                ) : null}
-            </ul>
+        <div
+            className={`flex ${cellW} ${boxH} shrink-0 items-center justify-center overflow-hidden rounded-md border border-amber-400/40 shadow-[0_2px_10px_rgba(0,0,0,0.35)]`}
+            style={{
+                backgroundImage: `linear-gradient(165deg, rgba(0,0,0,0.38), rgba(0,0,0,0.82)), url(${gradeBg})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+            }}
+        >
+            {children}
+        </div>
+    );
+};
+
+const BUBBLE_MAX_H = 120;
+const BUBBLE_PAD = 8;
+
+const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, className }) => {
+    const p = useMemo(() => getAdventureChapterRewardPreview(stageId), [stageId]);
+    const v = useMemo(() => getAdventureChapterRewardVisual(stageId), [stageId]);
+    const [bubble, setBubble] = useState<BubbleState | null>(null);
+
+    const iconMaxInner = compact ? 'h-[1.35rem] w-[1.35rem]' : 'h-7 w-7 sm:h-8 sm:w-8';
+
+    const openBubble = useCallback((id: string, anchorEl: HTMLElement, text: string) => {
+        setBubble((prev) => {
+            if (prev?.id === id) return null;
+            const r = anchorEl.getBoundingClientRect();
+            const pad = 10;
+            const x = Math.min(window.innerWidth - pad, Math.max(pad, r.left + r.width / 2));
+            const spaceBelow = window.innerHeight - r.bottom - BUBBLE_PAD;
+            const placeAbove = spaceBelow < BUBBLE_MAX_H && r.top > BUBBLE_MAX_H;
+            const y = placeAbove ? r.top - BUBBLE_PAD : r.bottom + BUBBLE_PAD;
+            return { id, x, y, text, placeAbove };
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!bubble) return;
+        const closeAll = () => setBubble(null);
+        const onDocClick = (e: MouseEvent) => {
+            const el = e.target;
+            if (!(el instanceof Element)) return;
+            if (el.closest('[data-adventure-reward-trigger]') || el.closest('[data-adventure-reward-bubble]')) return;
+            setBubble(null);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setBubble(null);
+        };
+        const t = window.setTimeout(() => {
+            document.addEventListener('click', onDocClick);
+        }, 0);
+        window.addEventListener('scroll', closeAll, true);
+        window.addEventListener('resize', closeAll);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            window.clearTimeout(t);
+            document.removeEventListener('click', onDocClick);
+            window.removeEventListener('scroll', closeAll, true);
+            window.removeEventListener('resize', closeAll);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [bubble]);
+
+    const onTriggerClick = useCallback(
+        (id: string, text: string) => (e: React.MouseEvent<HTMLButtonElement>) => {
+            openBubble(id, e.currentTarget, text);
+        },
+        [openBubble],
+    );
+
+    const goldSlots: { id: string; gradeBg: string; bubbleText: string }[] = [
+        {
+            id: 'gold-normal',
+            gradeBg: gradeBackgrounds[ItemGrade.Legendary],
+            bubbleText: `승리 골드(참고) 약 ${v.goldNormalRange.min.toLocaleString()}~${v.goldNormalRange.max.toLocaleString()}`,
+        },
+    ];
+    if (v.goldBoss19Range) {
+        goldSlots.push({
+            id: 'gold-boss19',
+            gradeBg: gradeBackgrounds[ItemGrade.Mythic],
+            bubbleText: `19줄 보스 승리 시 골드 약 ${v.goldBoss19Range.min.toLocaleString()}~${v.goldBoss19Range.max.toLocaleString()}`,
+        });
+    }
+
+    const tier = v.equipmentMaxTier;
+
+    const bubblePortal =
+        bubble &&
+        typeof document !== 'undefined' &&
+        createPortal(
+            <div
+                data-adventure-reward-bubble
+                role="tooltip"
+                className="fixed z-[96] w-max max-w-[min(calc(100vw-1.25rem),16rem)] rounded-lg border border-amber-400/55 bg-zinc-950 px-2.5 py-2 text-center shadow-[0_12px_40px_rgba(0,0,0,0.82),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                style={{
+                    left: bubble.x,
+                    top: bubble.y,
+                    transform: `translate(-50%, ${bubble.placeAbove ? '-100%' : '0'}) translateY(${bubble.placeAbove ? '-4px' : '4px'})`,
+                }}
+            >
+                <p className="text-[10px] font-semibold leading-snug text-amber-50 sm:text-xs">{bubble.text}</p>
+            </div>,
+            document.body,
+        );
+
+    return (
+        <div className={className} role="region" aria-label="획득 가능 보상">
+            <h2
+                className={
+                    compact
+                        ? 'mb-1 text-center text-[10px] font-bold tracking-wide text-amber-100 drop-shadow-sm'
+                        : 'mb-2 text-center text-[11px] font-bold tracking-wide text-amber-50 sm:text-xs'
+                }
+            >
+                획득 가능 보상
+            </h2>
+            <div
+                className={
+                    compact
+                        ? 'overflow-x-auto overflow-y-visible px-1.5 pb-0.5 [-webkit-overflow-scrolling:touch] scroll-pl-2 scroll-pr-2 [scrollbar-gutter:stable]'
+                        : 'overflow-x-auto overflow-y-visible px-2 pb-0.5 sm:px-2.5 scroll-pl-2 scroll-pr-2 sm:scroll-pl-2.5 sm:scroll-pr-2.5 [scrollbar-gutter:stable]'
+                }
+            >
+                <div
+                    className={
+                        compact
+                            ? 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-0.5'
+                            : 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-1 sm:gap-1.5'
+                    }
+                >
+                {goldSlots.map((slot) => (
+                    <button
+                        key={slot.id}
+                        type="button"
+                        data-adventure-reward-trigger
+                        aria-label={`골드 보상 범위 보기: ${slot.bubbleText}`}
+                        aria-expanded={bubble?.id === slot.id}
+                        onClick={onTriggerClick(slot.id, slot.bubbleText)}
+                        className="shrink-0 cursor-pointer rounded-md border border-transparent p-0 transition hover:border-amber-400/35 hover:brightness-110 active:scale-[0.98]"
+                    >
+                        <RewardIconBox gradeBg={slot.gradeBg} compact={compact}>
+                            <img src={GOLD_SRC} alt="" className={`${iconMaxInner} object-contain drop-shadow`} draggable={false} />
+                        </RewardIconBox>
+                    </button>
+                ))}
+
+                <button
+                    type="button"
+                    data-adventure-reward-trigger
+                    aria-label={`장비 보상 범위 보기: 지급 장비 등급 ${p.equipmentGradeRange}`}
+                    aria-expanded={bubble?.id === 'equipment'}
+                    onClick={onTriggerClick('equipment', `지급 장비 등급: ${p.equipmentGradeRange}`)}
+                    className="shrink-0 cursor-pointer rounded-md border border-transparent p-0 transition hover:border-amber-400/35 hover:brightness-110 active:scale-[0.98]"
+                >
+                    <RewardIconBox gradeBg={tier.gradeBg} compact={compact}>
+                        <div className="relative flex items-center justify-center">
+                            <img
+                                src={tier.image}
+                                alt=""
+                                className={`${iconMaxInner} object-contain opacity-95`}
+                                draggable={false}
+                            />
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+                                <span className="rounded-full border border-white/30 bg-black/55 px-0.5 py-px text-[0.55rem] font-black leading-none text-white shadow-sm sm:text-[0.65rem]">
+                                    ?
+                                </span>
+                            </span>
+                        </div>
+                    </RewardIconBox>
+                </button>
+
+                {v.materials.map((mat, i) => {
+                    const line = p.materialQtyLines[i] ?? `${mat.qtyMin === mat.qtyMax ? mat.qtyMin : `${mat.qtyMin}~${mat.qtyMax}`}`;
+                    const id = `mat-${i}`;
+                    return (
+                        <button
+                            key={`${mat.image}-${i}`}
+                            type="button"
+                            data-adventure-reward-trigger
+                            aria-label={`강화석 보상: ${line}`}
+                            aria-expanded={bubble?.id === id}
+                            onClick={onTriggerClick(id, line)}
+                            className="shrink-0 cursor-pointer rounded-md border border-transparent p-0 transition hover:border-amber-400/35 hover:brightness-110 active:scale-[0.98]"
+                        >
+                            <RewardIconBox gradeBg={mat.gradeBg} compact={compact}>
+                                <img src={mat.image} alt="" className={`${iconMaxInner} object-contain`} draggable={false} />
+                            </RewardIconBox>
+                        </button>
+                    );
+                })}
+                </div>
+            </div>
+            {bubblePortal}
         </div>
     );
 };

@@ -7,6 +7,7 @@ import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
 import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
+import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -120,6 +121,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             // 클리어한 층은 행동력 소모가 0
             const isCleared = floor <= userTowerFloor;
             const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
+
+            applyPassiveActionPointRegenToUser(user, now);
             
             if (user.actionPoints.current < effectiveActionPointCost) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${effectiveActionPointCost})` };

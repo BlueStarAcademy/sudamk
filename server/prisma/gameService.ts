@@ -152,6 +152,53 @@ const deriveMeta = (game: LiveGameSession) => {
   return { status, category, isEnded };
 };
 
+/**
+ * 전용 컬럼을 쓸 수 없을 때: (1) 오래된 Prisma 클라이언트 — Unknown argument
+ * (2) 마이그레이션 미적용 DB — "column ... does not exist in the current database"
+ */
+function isAiHiddenDedicatedColumnUnavailableError(err: unknown): boolean {
+  const msg = String((err as { message?: string })?.message ?? err ?? "");
+  if (!msg.includes("aiHiddenItemAnimationEndTime")) return false;
+  if (msg.includes("Unknown argument")) return true;
+  if (msg.includes("does not exist in the current database")) return true;
+  return false;
+}
+
+/** 한 프로세스에서 한 번 실패하면 전용 컬럼 없이만 저장 (로그·쿼리 반복 방지) */
+let liveGameAiHiddenDedicatedColumnDisabled = false;
+
+async function upsertLiveGameRow(game: LiveGameSession, includeAiHiddenColumn: boolean): Promise<void> {
+  const { status, category, isEnded } = deriveMeta(game);
+  const baseCreate = {
+    id: game.id,
+    status,
+    category,
+    isEnded,
+    data: game,
+  };
+  const baseUpdate = {
+    status,
+    category,
+    isEnded,
+    data: game,
+    updatedAt: new Date(),
+  };
+  if (includeAiHiddenColumn) {
+    const aiHiddenEnd = prismaAiHiddenItemAnimationEndTime(game);
+    await prisma.liveGame.upsert({
+      where: { id: game.id },
+      create: { ...baseCreate, aiHiddenItemAnimationEndTime: aiHiddenEnd },
+      update: { ...baseUpdate, aiHiddenItemAnimationEndTime: aiHiddenEnd },
+    });
+  } else {
+    await prisma.liveGame.upsert({
+      where: { id: game.id },
+      create: baseCreate,
+      update: baseUpdate,
+    });
+  }
+}
+
 export async function getLiveGame(id: string): Promise<LiveGameSession | null> {
   try {
     const row = await prisma.liveGame.findUnique({
@@ -431,6 +478,27 @@ export async function getLiveGameByPlayerId(playerId: string): Promise<LiveGameS
 }
 
 export async function saveGame(game: LiveGameSession): Promise<void> {
+  const runUpsert = async () => {
+    if (liveGameAiHiddenDedicatedColumnDisabled) {
+      await upsertLiveGameRow(game, false);
+      return;
+    }
+    try {
+      await upsertLiveGameRow(game, true);
+    } catch (first: any) {
+      if (isAiHiddenDedicatedColumnUnavailableError(first)) {
+        liveGameAiHiddenDedicatedColumnDisabled = true;
+        console.warn(
+          "[gameService] saveGame: LiveGame.aiHiddenItemAnimationEndTime column/client mismatch — saving without dedicated column. " +
+            "Value remains in `data` JSON. Apply DB: `npx prisma migrate deploy`; then `npx prisma generate` if needed.",
+        );
+        await upsertLiveGameRow(game, false);
+        return;
+      }
+      throw first;
+    }
+  };
+
   try {
     const gw = game as any;
     if (
@@ -440,59 +508,19 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
     ) {
       game.gameCategory = "guildwar" as any;
     }
-    const { status, category, isEnded } = deriveMeta(game);
-    const aiHiddenEnd = prismaAiHiddenItemAnimationEndTime(game);
-    await prisma.liveGame.upsert({
-      where: { id: game.id },
-      create: {
-        id: game.id,
-        status,
-        category,
-        isEnded,
-        data: game,
-        aiHiddenItemAnimationEndTime: aiHiddenEnd
-      },
-      update: {
-        status,
-        category,
-        isEnded,
-        data: game,
-        aiHiddenItemAnimationEndTime: aiHiddenEnd,
-        updatedAt: new Date()
-      }
-    });
+    await runUpsert();
   } catch (error: any) {
     if (error.code === 'P1017' || error.message?.includes('closed the connection')) {
       console.warn('[gameService] Database connection lost, retrying saveGame...');
       try {
         await prisma.$connect();
-        const { status, category, isEnded } = deriveMeta(game);
-        const aiHiddenEnd = prismaAiHiddenItemAnimationEndTime(game);
-        await prisma.liveGame.upsert({
-          where: { id: game.id },
-          create: {
-            id: game.id,
-            status,
-            category,
-            isEnded,
-            data: game,
-            aiHiddenItemAnimationEndTime: aiHiddenEnd
-          },
-          update: {
-            status,
-            category,
-            isEnded,
-            data: game,
-            aiHiddenItemAnimationEndTime: aiHiddenEnd,
-            updatedAt: new Date()
-          }
-        });
+        await runUpsert();
       } catch (retryError) {
         console.error('[gameService] Retry saveGame failed:', retryError);
         throw retryError;
       }
     } else {
-      console.error('[gameService] Error saving game:', error);
+      console.error('[gameService] Error saving game:', error?.message || error);
       throw error;
     }
   }

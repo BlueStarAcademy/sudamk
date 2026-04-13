@@ -91,6 +91,19 @@ type BoardRuleRow = {
     missileCount?: number;
 };
 
+/** 모험 몬스터 대국: 경기 전체 카운트다운(분). 경기 시작(CONFIRM) 시점부터 적용 */
+const ADVENTURE_ENCOUNTER_COUNTDOWN_MINUTES: Record<number, number> = {
+    7: 5,
+    9: 10,
+    11: 12,
+    13: 13,
+    19: 30,
+};
+
+export function getAdventureEncounterCountdownMinutes(boardSize: number): number {
+    return ADVENTURE_ENCOUNTER_COUNTDOWN_MINUTES[boardSize] ?? 10;
+}
+
 const ADVENTURE_BOARD_RULES: Record<7 | 9 | 11 | 13 | 19, BoardRuleRow> = {
     7: {
         scoringTurnLimit: 30,
@@ -165,6 +178,9 @@ export function applyAdventureStrategicGameSettings(settings: GameSettings, boar
         return;
     }
     settings.boardSize = boardSize;
+    settings.timeLimit = getAdventureEncounterCountdownMinutes(boardSize);
+    settings.byoyomiCount = 0;
+    settings.byoyomiTime = 0;
 
     switch (mode) {
         case GameMode.Capture:

@@ -272,6 +272,27 @@ export function getNextAdventureCodexWinsThreshold(currentLevel: number): number
     return ADVENTURE_CODEX_WINS_FOR_LEVEL[currentLevel] ?? null;
 }
 
+/** 도감 카드·결과 모달 공통: 누적 승리 수·이해도 레벨로 구간 진행률(0~1) */
+export function getAdventureCodexComprehensionBarProgress(
+    wins: number,
+    level: number,
+): { prog: number; nextAt: number | null; prevThreshold: number } {
+    const w = Math.max(0, Math.floor(wins));
+    const nextAt = getNextAdventureCodexWinsThreshold(level);
+    const prevThreshold = level >= 1 ? ADVENTURE_CODEX_WINS_FOR_LEVEL[level - 1]! ?? 0 : 0;
+    if (level >= ADVENTURE_CODEX_MAX_LEVEL) {
+        return { prog: 1, nextAt: null, prevThreshold };
+    }
+    if (nextAt != null && nextAt > prevThreshold) {
+        return {
+            prog: Math.min(1, (w - prevThreshold) / (nextAt - prevThreshold)),
+            nextAt,
+            prevThreshold,
+        };
+    }
+    return { prog: 0, nextAt, prevThreshold };
+}
+
 export type AdventureCodexBossPercentTotals = {
     corePercent: Record<CoreStat, number>;
     adventureGoldPercent: number;

@@ -3,6 +3,7 @@ import { Player } from '../../shared/types/enums.js';
 import * as db from '../db.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
+import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 
 export async function handleAiAction(
   volatileState: VolatileState,
@@ -85,6 +86,12 @@ export async function handleAiAction(
         postInit.aiTurnStartTime = undefined;
         console.log(`[handleAiAction] User turn at game start, game ${game.id}, clearing aiTurnStartTime`);
       }
+    }
+
+    if (postInit.gameCategory === 'adventure' && postInit.gameStatus === 'playing') {
+      const bs = postInit.settings?.boardSize ?? postInit.adventureBoardSize ?? 9;
+      const mins = getAdventureEncounterCountdownMinutes(bs);
+      (postInit as any).adventureEncounterDeadlineMs = now + mins * 60 * 1000;
     }
 
     // 실제 대국(playing) 전에는 설정하지 않음 — nigiri_reveal 등은 transitionToPlaying에서 설정

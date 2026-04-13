@@ -6,10 +6,13 @@ export function formatRewardItemDisplayName(raw: string): string {
     return raw.includes('골드꾸러미') ? raw.replace(/골드꾸러미/g, '골드 꾸러미') : raw;
 }
 
-const BOX_GOLD =
+export const RESULT_MODAL_BOX_GOLD_CLASS =
     'flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/70 via-yellow-900/35 to-zinc-950/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/20';
-const BOX_ITEM =
+export const RESULT_MODAL_BOX_ITEM_CLASS =
     'flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-violet-500/45 bg-gradient-to-br from-violet-950/55 via-purple-900/35 to-zinc-950/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-violet-400/15';
+
+const BOX_GOLD = RESULT_MODAL_BOX_GOLD_CLASS;
+const BOX_ITEM = RESULT_MODAL_BOX_ITEM_CLASS;
 
 /** 모바일 보상 한 줄: 골드·EXP·아이템 아이콘 박스 동일 크기(좁은 폭에서도 한 줄 배치) */
 export const RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS =
@@ -79,13 +82,21 @@ export const ResultModalItemRewardSlot: React.FC<{
     compact: boolean;
     dimmed?: boolean;
     onImageError?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
-}> = ({ imageSrc, name, quantity, compact, dimmed, onImageError }) => {
+    /** 이미지가 있어도 이름을 아이콘 아래에 표시(모험 장비 결과 등) */
+    alwaysShowNameBelow?: boolean;
+    /** 재료 등: 이름 없이 아이콘 아래 개수만(1개일 때도 표시) */
+    materialQuantityOnly?: boolean;
+}> = ({ imageSrc, name, quantity, compact, dimmed, onImageError, alwaysShowNameBelow, materialQuantityOnly }) => {
     const displayName = formatRewardItemDisplayName(name);
     const imgClass = compact
         ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-10 sm:w-10'
         : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12';
-    const showQuantityBelow = imageSrc && quantity != null && quantity > 1;
-    const showNameBelow = !imageSrc;
+    const showQuantityBelow =
+        imageSrc &&
+        quantity != null &&
+        quantity >= 1 &&
+        (materialQuantityOnly ? true : quantity > 1);
+    const showNameBelow = !materialQuantityOnly && (!imageSrc || alwaysShowNameBelow);
     return (
         <div
             className={`flex flex-col items-center gap-0.5 ${
