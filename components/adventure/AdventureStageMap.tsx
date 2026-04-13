@@ -30,6 +30,10 @@ import {
     buildAdventureMapMonstersFromSchedule,
     type AdventureMapMonsterInstance,
 } from '../../shared/utils/adventureMapSchedule.js';
+import { getRegionalMapMonsterDwellMultiplierForStage } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSituationList.js';
+import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
+import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
 
 type Props = { stageId: string };
 
@@ -137,6 +141,9 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     const [, setUiTick] = useState(0);
     const [panelSecondTick, setPanelSecondTick] = useState(0);
     const [rosterModalCodexId, setRosterModalCodexId] = useState<string | null>(null);
+    const [monsterHubOpen, setMonsterHubOpen] = useState(false);
+    const [monsterHubInitialTab, setMonsterHubInitialTab] = useState<'situation' | 'codex'>('situation');
+    const [mapBox, setMapBox] = useState({ w: 0, h: 0 });
     /** 말풍선이 잘리지 않게 클램프할 맵 카드(overflow hidden) */
     const mapViewportRef = useRef<HTMLDivElement>(null);
     const monsterBubbleRef = useRef<HTMLDivElement>(null);
@@ -149,10 +156,18 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
 
     const suppressRecord = useMemo(() => JSON.parse(suppressJson) as Record<string, number>, [suppressJson]);
 
+    const mapDwellMult = useMemo(
+        () =>
+            stage
+                ? getRegionalMapMonsterDwellMultiplierForStage(currentUserWithStatus?.adventureProfile, stage.id)
+                : 1,
+        [currentUserWithStatus?.adventureProfile, stage?.id],
+    );
+
     const monsters = useMemo(() => {
         if (!stage) return [];
-        return buildAdventureMapMonstersFromSchedule(stage, Date.now(), suppressRecord);
-    }, [stage, suppressRecord, panelSecondTick]);
+        return buildAdventureMapMonstersFromSchedule(stage, Date.now(), suppressRecord, mapDwellMult);
+    }, [stage, suppressRecord, panelSecondTick, mapDwellMult]);
 
     const chapterUnlockCtx: AdventureChapterUnlockContext = useMemo(
         () => ({
@@ -181,7 +196,22 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         if (!stage) return;
         setSelectedId(null);
         setRosterModalCodexId(null);
+        setMonsterHubOpen(false);
     }, [stage?.id]);
+
+    useLayoutEffect(() => {
+        if (!isNativeMobile || !stage) {
+            setMapBox({ w: 0, h: 0 });
+            return;
+        }
+        const el = mapViewportRef.current;
+        if (!el) return;
+        const measure = () => setMapBox({ w: el.clientWidth, h: el.clientHeight });
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [isNativeMobile, stage?.id]);
 
     useEffect(() => {
         const id = window.setInterval(() => setPanelSecondTick((t) => t + 1), 1000);
@@ -297,11 +327,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         for (const row of stage.monsters) {
             const boss = isAdventureChapterBossCodexId(row.codexId);
             const key = adventureMapSuppressKey(stage.id, row.codexId);
-            const m = adventureMapMsUntilNextAppearance(t, stage.id, row.codexId, boss, suppressRecord[key]);
+            const m = adventureMapMsUntilNextAppearance(t, stage.id, row.codexId, boss, suppressRecord[key], mapDwellMult);
             minM = Math.min(minM, m);
         }
         return Number.isFinite(minM) ? minM : 0;
-    }, [stage, suppressRecord, panelSecondTick]);
+    }, [stage, suppressRecord, panelSecondTick, mapDwellMult]);
 
     const onBack = () => replaceAppHash('#/adventure');
 
@@ -326,6 +356,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         backgroundSize: '28px 28px',
     };
 
+    const mobileSpritePx =
+        isNativeMobile && mapBox.w > 0 && mapBox.h > 0
+            ? Math.max(36, Math.min(Math.round(Math.min(mapBox.w * 0.11, mapBox.h * 0.16)), 78))
+            : null;
+
     const handleStartMonsterBattle = async (target?: MapMonster) => {
         const monster = target ?? selectedMonster;
         if (!monster || !stage) return;
@@ -344,6 +379,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         }
         setSelectedId(null);
         setRosterModalCodexId(null);
+        setMonsterHubOpen(false);
     };
 
     /** 모달·목록 공통: 출현 중 / 다음 절대 출현까지 */
@@ -352,7 +388,14 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     if (rosterModalRow && stage) {
         const boss = isAdventureChapterBossCodexId(rosterModalRow.codexId);
         const supK = adventureMapSuppressKey(stage.id, rosterModalRow.codexId);
-        const until = adventureMapMsUntilNextAppearance(now, stage.id, rosterModalRow.codexId, boss, suppressRecord[supK]);
+        const until = adventureMapMsUntilNextAppearance(
+            now,
+            stage.id,
+            rosterModalRow.codexId,
+            boss,
+            suppressRecord[supK],
+            mapDwellMult,
+        );
         if (rosterModalInstance) {
             rosterModalRightSlot = '출현중';
             rosterModalRightClass = 'font-bold text-emerald-300';
@@ -368,28 +411,95 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-hidden px-0.5' : 'h-full min-h-0 overflow-hidden p-2 sm:p-3 lg:p-4'
             }`}
         >
-            <header
-                className={`relative z-50 flex flex-shrink-0 items-center ${isNativeMobile ? 'mb-1 justify-between px-1 py-1' : 'mb-2 justify-between px-1 sm:mb-2 sm:px-0'}`}
-            >
-                <button
-                    type="button"
-                    onClick={onBack}
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 active:scale-90 sm:h-11 sm:w-11"
-                    aria-label="스테이지 목록으로"
-                >
-                    <img src="/images/button/back.png" alt="" className="h-full w-full" />
-                </button>
-                <div className="min-w-0 flex-1 px-2 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80 sm:text-xs">모험 맵</p>
-                    <h1 className="truncate text-base font-black text-white drop-shadow sm:text-lg">{stage.title}</h1>
+            {isNativeMobile ? (
+                <div className="sticky top-0 z-[55] shrink-0 border-b border-amber-500/30 bg-gradient-to-b from-zinc-900/98 via-zinc-950/98 to-zinc-950/95 pb-1.5 pt-0.5 shadow-[0_10px_28px_-14px_rgba(0,0,0,0.7)] backdrop-blur-md">
+                    <div className="flex items-stretch gap-1.5 px-1">
+                        <button
+                            type="button"
+                            onClick={onBack}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center self-center rounded-lg p-0 transition-transform hover:bg-zinc-800 active:scale-90"
+                            aria-label="스테이지 목록으로"
+                        >
+                            <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                        </button>
+                        <aside
+                            className="relative min-w-0 flex-1 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                            aria-label="유저 프로필"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setMonsterHubInitialTab('situation');
+                                    setMonsterHubOpen(true);
+                                }}
+                                className="absolute right-1.5 top-1.5 z-10 shrink-0 rounded-md border border-emerald-400/50 bg-emerald-950/60 px-2 py-1 text-[10px] font-bold text-emerald-100 shadow-sm transition hover:border-amber-400/55 hover:bg-emerald-900/55 active:scale-[0.99]"
+                                aria-label="몬스터 상황 및 도감"
+                            >
+                                몬스터
+                            </button>
+                            {currentUserWithStatus ? (
+                                <div className="flex items-center gap-2 pr-[4.5rem]">
+                                    <Avatar
+                                        userId={currentUserWithStatus.id}
+                                        userName={currentUserWithStatus.nickname || 'Player'}
+                                        avatarUrl={avatarUrl}
+                                        borderUrl={borderUrl}
+                                        size={44}
+                                    />
+                                    <div className="min-w-0 flex-1">
+                                        <p className="truncate text-xs font-black text-amber-50">{currentUserWithStatus.nickname}</p>
+                                        <div className="mt-0.5 flex flex-wrap gap-x-2 text-[10px] font-semibold leading-tight text-amber-100/90">
+                                            <span>
+                                                전략{' '}
+                                                <span className="font-mono text-cyan-100">Lv.{currentUserWithStatus.strategyLevel}</span>
+                                            </span>
+                                            <span>
+                                                놀이{' '}
+                                                <span className="font-mono text-amber-200">Lv.{currentUserWithStatus.playfulLevel}</span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="py-1 text-center text-xs text-amber-200/70">로딩…</p>
+                            )}
+                        </aside>
+                    </div>
+                    <div className="mt-1 px-2 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80">모험 맵</p>
+                        <h1 className="truncate text-sm font-black text-white drop-shadow">{stage.title}</h1>
+                    </div>
+                    <div className="mt-1 max-h-[min(30vh,11rem)] overflow-y-auto overscroll-contain px-2 pb-1">
+                        <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} compact />
+                    </div>
                 </div>
-                <div className="h-9 w-9 shrink-0 sm:h-11 sm:w-11" aria-hidden />
-            </header>
+            ) : (
+                <header className="relative z-50 mb-2 flex flex-shrink-0 items-center justify-between px-1 sm:mb-2 sm:px-0">
+                    <button
+                        type="button"
+                        onClick={onBack}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg p-0 transition-transform hover:bg-zinc-800 active:scale-90 sm:h-11 sm:w-11"
+                        aria-label="스테이지 목록으로"
+                    >
+                        <img src="/images/button/back.png" alt="" className="h-full w-full" />
+                    </button>
+                    <div className="min-w-0 flex-1 px-2 text-center">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80 sm:text-xs">모험 맵</p>
+                        <h1 className="truncate text-base font-black text-white drop-shadow sm:text-lg">{stage.title}</h1>
+                    </div>
+                    <div className="h-9 w-9 shrink-0 sm:h-11 sm:w-11" aria-hidden />
+                </header>
+            )}
 
-            <div
-                ref={mapViewportRef}
-                className="relative min-h-0 flex-1 overflow-hidden rounded-xl border-2 border-amber-500/30 shadow-[0_12px_48px_-12px_rgba(0,0,0,0.85),inset_0_0_0_1px_rgba(255,255,255,0.06)] sm:rounded-2xl"
-            >
+            <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+                <div
+                    ref={mapViewportRef}
+                    className={
+                        isNativeMobile
+                            ? 'relative min-h-[10.5rem] max-h-[min(52dvh,26rem)] flex-1 overflow-hidden rounded-lg border border-amber-500/35 shadow-[0_8px_32px_-10px_rgba(0,0,0,0.82),inset_0_0_0_1px_rgba(255,255,255,0.05)]'
+                            : 'relative min-h-0 flex-1 overflow-hidden rounded-xl border-2 border-amber-500/30 shadow-[0_12px_48px_-12px_rgba(0,0,0,0.85),inset_0_0_0_1px_rgba(255,255,255,0.06)] sm:rounded-2xl'
+                    }
+                >
                 <div className="absolute inset-0 overflow-visible">
                                 <button
                                     type="button"
@@ -445,7 +555,26 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     sel ? 'ring-2 ring-amber-400/90 ring-offset-0' : '',
                                                 ].join(' ')}
                                             >
-                                                <div className="relative flex h-[clamp(4.25rem,17.25vw,6.1rem)] w-[clamp(4.25rem,17.25vw,6.1rem)] items-end justify-center sm:h-[6.75rem] sm:w-[6.75rem]">
+                                                <div
+                                                    className={[
+                                                        'relative flex items-end justify-center',
+                                                        mobileSpritePx != null
+                                                            ? ''
+                                                            : isNativeMobile
+                                                              ? 'h-[clamp(2.4rem,9vw,3.4rem)] w-[clamp(2.4rem,9vw,3.4rem)]'
+                                                              : 'h-[clamp(4.25rem,17.25vw,6.1rem)] w-[clamp(4.25rem,17.25vw,6.1rem)] sm:h-[6.75rem] sm:w-[6.75rem]',
+                                                    ].join(' ')}
+                                                    style={
+                                                        mobileSpritePx != null
+                                                            ? {
+                                                                  width: mobileSpritePx,
+                                                                  height: mobileSpritePx,
+                                                                  minWidth: mobileSpritePx,
+                                                                  minHeight: mobileSpritePx,
+                                                              }
+                                                            : undefined
+                                                    }
+                                                >
                                                     <AdventureMonsterSpriteFrame
                                                         sheetUrl={m.spriteSheetWebp}
                                                         frameIndex={m.spriteFrameIndex}
@@ -455,13 +584,23 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         className="absolute inset-0 h-full w-full bg-transparent"
                                                     />
                                                     <span
-                                                        className="pointer-events-none absolute right-0 top-0 rounded bg-violet-950/90 px-1 py-px font-mono text-xs font-bold leading-none text-fuchsia-100 shadow-sm sm:px-1.5 sm:py-0.5 sm:text-sm"
+                                                        className={`pointer-events-none absolute right-0 top-0 rounded bg-violet-950/90 py-px font-mono font-bold leading-none text-fuchsia-100 shadow-sm ${
+                                                            isNativeMobile
+                                                                ? 'px-0.5 text-[9px] sm:px-1.5 sm:py-0.5 sm:text-sm'
+                                                                : 'px-1 text-xs sm:px-1.5 sm:py-0.5 sm:text-sm'
+                                                        }`}
                                                         title={ADVENTURE_MONSTER_MODE_LABELS[m.mode]}
                                                     >
                                                         {MODE_BADGE_SHORT[m.mode]}
                                                     </span>
                                                 </div>
-                                                <p className="mt-1 flex max-w-[11rem] items-center justify-center gap-1.5 whitespace-nowrap text-center text-[11px] font-bold leading-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] sm:max-w-[13rem] sm:gap-2 sm:text-xs">
+                                                <p
+                                                    className={`mt-1 flex items-center justify-center gap-1.5 whitespace-nowrap text-center font-bold leading-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ${
+                                                        isNativeMobile
+                                                            ? 'max-w-[min(42vw,7rem)] gap-1 text-[9px]'
+                                                            : 'max-w-[11rem] gap-1.5 text-[11px] sm:max-w-[13rem] sm:gap-2 sm:text-xs'
+                                                    }`}
+                                                >
                                                     <span className="shrink-0 font-mono font-black text-amber-200">LV{m.level}</span>
                                                     <span className="min-w-0 truncate">{m.speciesName}</span>
                                                 </p>
@@ -581,103 +720,77 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 )}
                 </div>
 
-                <div className="pointer-events-none absolute left-1.5 top-1.5 z-30 flex w-[min(88vw,15.5rem)] max-h-[min(100%-0.5rem,calc(100dvh-4.75rem))] flex-col gap-2 sm:left-2 sm:top-2 sm:w-[16.5rem] sm:max-h-[min(100%-0.75rem,calc(100dvh-5.5rem))]">
-                    <aside
-                        className="pointer-events-auto shrink-0 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
-                        aria-label="유저 프로필"
-                    >
-                        <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-amber-100/95 sm:text-xs">
-                            유저
-                        </p>
-                        {currentUserWithStatus ? (
-                            <div className="flex flex-col items-center gap-2">
-                                <Avatar
-                                    userId={currentUserWithStatus.id}
-                                    userName={currentUserWithStatus.nickname || 'Player'}
-                                    avatarUrl={avatarUrl}
-                                    borderUrl={borderUrl}
-                                    size={isNativeMobile ? 52 : 60}
-                                />
-                                <p className="max-w-full truncate text-center text-sm font-black text-amber-50 sm:text-base">
-                                    {currentUserWithStatus.nickname}
-                                </p>
-                                <div className="flex w-full flex-col gap-1 border-t border-amber-400/25 pt-2 text-xs font-semibold text-amber-100/85 sm:text-sm">
-                                    <div className="flex justify-between gap-2">
-                                        <span className="text-amber-200/75">전략</span>
-                                        <span className="font-mono text-cyan-100">Lv.{currentUserWithStatus.strategyLevel}</span>
-                                    </div>
-                                    <div className="flex justify-between gap-2">
-                                        <span className="text-amber-200/75">놀이</span>
-                                        <span className="font-mono text-amber-200">Lv.{currentUserWithStatus.playfulLevel}</span>
+                {!isNativeMobile ? (
+                    <div className="pointer-events-none absolute left-1.5 top-1.5 z-30 flex w-[min(88vw,15.5rem)] max-h-[min(100%-0.5rem,calc(100dvh-4.75rem))] flex-col gap-2 sm:left-2 sm:top-2 sm:w-[16.5rem] sm:max-h-[min(100%-0.75rem,calc(100dvh-5.5rem))]">
+                        <aside
+                            className="pointer-events-auto relative shrink-0 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
+                            aria-label="유저 프로필"
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setMonsterHubOpen(true)}
+                                className="absolute right-2 top-2 z-10 max-w-[min(42%,7.5rem)] rounded-lg border border-violet-400/45 bg-violet-950/75 px-2 py-1 text-center text-[10px] font-bold leading-tight text-violet-100 shadow-sm transition hover:border-amber-400/50 hover:bg-violet-900/60 active:scale-[0.99] sm:right-2.5 sm:top-2.5 sm:max-w-none sm:px-2.5 sm:py-1.5 sm:text-xs"
+                                aria-label="몬스터 도감 열기"
+                            >
+                                몬스터 도감
+                            </button>
+                            <p className="mb-2 text-center text-[11px] font-bold uppercase tracking-wide text-amber-100/95 sm:text-xs">
+                                유저
+                            </p>
+                            {currentUserWithStatus ? (
+                                <div className="flex flex-col items-center gap-2">
+                                    <Avatar
+                                        userId={currentUserWithStatus.id}
+                                        userName={currentUserWithStatus.nickname || 'Player'}
+                                        avatarUrl={avatarUrl}
+                                        borderUrl={borderUrl}
+                                        size={60}
+                                    />
+                                    <p className="max-w-full truncate text-center text-sm font-black text-amber-50 sm:text-base">
+                                        {currentUserWithStatus.nickname}
+                                    </p>
+                                    <div className="flex w-full flex-col gap-1 border-t border-amber-400/25 pt-2 text-xs font-semibold text-amber-100/85 sm:text-sm">
+                                        <div className="flex justify-between gap-2">
+                                            <span className="text-amber-200/75">전략</span>
+                                            <span className="font-mono text-cyan-100">Lv.{currentUserWithStatus.strategyLevel}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-2">
+                                            <span className="text-amber-200/75">놀이</span>
+                                            <span className="font-mono text-amber-200">Lv.{currentUserWithStatus.playfulLevel}</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ) : (
-                            <p className="text-center text-sm text-amber-200/70">로딩…</p>
-                        )}
-                    </aside>
+                            ) : (
+                                <p className="text-center text-sm text-amber-200/70">로딩…</p>
+                            )}
+                        </aside>
 
-                    <aside
-                        className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/30 bg-zinc-950/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm"
-                        aria-label="챕터 몬스터 목록"
-                    >
-                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:p-2.5">
-                            <p className="text-center text-[11px] font-bold uppercase tracking-wide text-emerald-400/90 sm:text-xs">
-                                챕터 몬스터
-                            </p>
-                            <ul className="mt-2 space-y-1.5 sm:space-y-2">
-                                {[...stage.monsters]
-                                    .sort((a, b) => {
-                                        const ab = isAdventureChapterBossCodexId(a.codexId) ? 1 : 0;
-                                        const bb = isAdventureChapterBossCodexId(b.codexId) ? 1 : 0;
-                                        if (ab !== bb) return ab - bb;
-                                        return a.codexId.localeCompare(b.codexId);
-                                    })
-                                    .map((row) => {
-                                        const mapMonster = monsters.find((m) => m.codexId === row.codexId && m.expiresAt > now);
-                                        const boss = isAdventureChapterBossCodexId(row.codexId);
-                                        const supK = adventureMapSuppressKey(stage.id, row.codexId);
-                                        const untilAppear = adventureMapMsUntilNextAppearance(
-                                            now,
-                                            stage.id,
-                                            row.codexId,
-                                            boss,
-                                            suppressRecord[supK],
-                                        );
-                                        const rightSlot = mapMonster ? '출현중' : formatRemainMs(untilAppear);
-                                        return (
-                                            <li key={row.codexId}>
-                                                <button
-                                                    type="button"
-                                                    className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-left transition hover:border-amber-400/35 hover:bg-black/45 active:scale-[0.99] sm:gap-2.5 sm:px-2.5 sm:py-2.5"
-                                                    onClick={() => setRosterModalCodexId(row.codexId)}
-                                                >
-                                                    <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-amber-50 sm:text-sm">
-                                                        <span className="inline-flex min-w-0 max-w-full items-center gap-1.5">
-                                                            <span className="min-w-0 truncate">{row.name}</span>
-                                                            {boss ? (
-                                                                <span className="shrink-0 rounded border border-amber-400/45 bg-amber-500/15 px-1 py-px text-[8px] font-black uppercase tracking-wider text-amber-100 sm:text-[9px]">
-                                                                    보스
-                                                                </span>
-                                                            ) : null}
-                                                        </span>
-                                                    </span>
-                                                    <span
-                                                        className={[
-                                                            'shrink-0 font-mono text-[11px] font-bold tabular-nums sm:text-xs',
-                                                            mapMonster ? 'text-emerald-300' : 'text-amber-200',
-                                                        ].join(' ')}
-                                                    >
-                                                        {rightSlot}
-                                                    </span>
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                            </ul>
-                        </div>
-                    </aside>
-                </div>
+                        <aside
+                            className="pointer-events-auto shrink-0 rounded-xl border border-amber-500/30 bg-zinc-950/90 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-2.5"
+                            aria-label="챕터 보상 안내"
+                        >
+                            <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} />
+                        </aside>
+
+                        <aside
+                            className="pointer-events-auto flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/30 bg-zinc-950/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+                            aria-label="챕터 몬스터 목록"
+                        >
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:p-2.5">
+                                <p className="text-center text-[11px] font-bold uppercase tracking-wide text-emerald-400/90 sm:text-xs">
+                                    챕터 몬스터
+                                </p>
+                                <AdventureChapterMonsterSituationList
+                                    stageId={stage.id}
+                                    mapMonsters={monsters}
+                                    suppressRecord={suppressRecord}
+                                    nowMs={now}
+                                    onPickRow={(id) => setRosterModalCodexId(id)}
+                                />
+                            </div>
+                        </aside>
+                    </div>
+                ) : null}
 
                 {rosterModalRow ? (
                     <div
@@ -852,7 +965,29 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                         </div>
                     </div>
                 ) : null}
+                </div>
             </div>
+
+            {monsterHubOpen ? (
+                <AdventureMonsterCodexModal
+                    {...(isNativeMobile
+                        ? {
+                              mapSituation: {
+                                  stageId: stage.id,
+                                  mapMonsters: monsters,
+                                  suppressRecord,
+                                  onPickRow: (id: string) => {
+                                      setRosterModalCodexId(id);
+                                      setMonsterHubOpen(false);
+                                  },
+                              },
+                              initialMainTab: monsterHubInitialTab,
+                          }
+                        : { defaultCodexStageId: stage.id })}
+                    onClose={() => setMonsterHubOpen(false)}
+                    isTopmost
+                />
+            ) : null}
         </div>
     );
 };

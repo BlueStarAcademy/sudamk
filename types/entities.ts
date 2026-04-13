@@ -267,6 +267,18 @@ export type UserCredentials = {
   userId: string;
 };
 
+export type AdventureRegionalSpecialtyBuffKind =
+  | 'adv_gold_pct'
+  | 'map_monster_dwell_pct'
+  | 'capture_opponent_target_plus1'
+  | 'hidden_scan_plus1'
+  | 'missile_plus1';
+
+export type AdventureRegionalSpecialtyBuffEntry = {
+  kind: AdventureRegionalSpecialtyBuffKind;
+  valuePercent?: number;
+};
+
 /** 모험 전용 진행·전적(메인 프로필·랭킹 전적과 분리). 서버 `status` JSON 등에 동기화 가능 */
 export type AdventureProfile = {
   monstersDefeatedByMode?: Partial<Record<string, number>>;
@@ -278,6 +290,12 @@ export type AdventureProfile = {
   lastPlayedStageId?: string | null;
   /** 모험 맵: `stageId::codexId` → 이 시각 이후에만 스케줄 출현 표시 */
   adventureMapSuppressUntilByKey?: Partial<Record<string, number>>;
+  /** 지역 이해도 티어 상승 시 부여되는 영구 특화 효과(스테이지별) */
+  regionalSpecialtyBuffsByStageId?: Partial<Record<string, AdventureRegionalSpecialtyBuffEntry[]>>;
+  /** UTC 날짜(YYYY-MM-DD) — 지역 효과 리롤 일일 카운트 리셋용 */
+  regionalBuffRerollUtcDate?: string;
+  /** 당일 지역 효과 골드 리롤 사용 횟수 */
+  regionalBuffRerollCountToday?: number;
 };
 
 export type SinglePlayerMissionLevelInfo = {
@@ -744,7 +762,7 @@ export type GameSummary = {
   };
   overallRecord?: { wins: number; losses: number; aiWins?: number; aiLosses?: number; };
   gold?: number;
-  /** 모험 지역 이해도 버프로만 추가된 골드(표시용; `gold` 합계에 이미 포함) */
+  /** 모험 지역 이해도 효과로만 추가된 골드(표시용; `gold` 합계에 이미 포함) */
   adventureGoldUnderstandingBonus?: number;
   items?: InventoryItem[];
   /** 길드 전쟁 AI 대국 종료 시 획득 별(0~3) */
@@ -753,7 +771,7 @@ export type GameSummary = {
   adventureRewardSlots?: {
     gold: { obtained: boolean; amount: number; understandingBonus?: number };
     equipment: { obtained: boolean; displayName?: string };
-    material: { obtained: boolean; displayName?: string };
+    material: { obtained: boolean; displayName?: string; quantity?: number };
   };
 };
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -14,20 +14,8 @@ const startPanelShell =
     'rounded-xl border border-cyan-400/15 bg-gradient-to-b from-slate-900/95 via-slate-950/98 to-black/90 shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_20px_48px_-18px_rgba(0,0,0,0.82),0_0_48px_-20px_rgba(34,211,238,0.1)]';
 
 const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
-    const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, revealEndTime, finalKomi } =
-        session;
+    const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, finalKomi } = session;
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
-    const [countdown, setCountdown] = useState(20);
-
-    useEffect(() => {
-        const deadline = revealEndTime || Date.now() + 20000;
-        const timerId = setInterval(() => {
-            const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
-            setCountdown(remaining);
-        }, 1000);
-
-        return () => clearInterval(timerId);
-    }, [revealEndTime]);
 
     if (!blackPlayerId || !whitePlayerId) return null;
 
@@ -69,14 +57,14 @@ const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = ({
                     </p>
                 </div>
                 <p className="text-center text-[11px] leading-relaxed text-stone-500">
-                    위와 같이 대국이 진행됩니다. 확인 후 착수를 시작하거나, 제한 시간이 지나면 자동으로 시작됩니다.
+                    위와 같이 대국이 진행됩니다. 확인 후 착수를 시작하세요.
                 </p>
                 <Button
                     onClick={() => onAction({ type: 'CONFIRM_BASE_REVEAL', payload: { gameId } })}
                     disabled={!!hasConfirmed}
                     className="w-full !rounded-xl !border !border-cyan-400/30 !bg-gradient-to-r !from-cyan-900/80 !to-slate-800/90 !py-2.5 !font-bold !text-cyan-50 hover:!from-cyan-800 hover:!to-slate-700 disabled:!opacity-50"
                 >
-                    {hasConfirmed ? '상대방 확인 대기 중…' : `대국 시작 (${countdown})`}
+                    {hasConfirmed ? '상대방 확인 대기 중…' : '대국 시작'}
                 </Button>
             </div>
         </DraggableWindow>

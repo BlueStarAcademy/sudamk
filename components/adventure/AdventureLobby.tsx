@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { Fragment, useMemo, useState } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
@@ -8,9 +8,12 @@ import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
 import {
     getAdventureChapterUnlockBlockers,
+    getAdventureChapterUnlockConditionLines,
     isAdventureChapterUnlockedByStageIndex,
     type AdventureChapterUnlockContext,
 } from '../../utils/adventureChapterUnlock.js';
+import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
+import type { AdventureStageId } from '../../constants/adventureConstants.js';
 
 const STAGE_CARD_RINGS: readonly string[] = [
     'ring-emerald-400/40',
@@ -20,10 +23,29 @@ const STAGE_CARD_RINGS: readonly string[] = [
     'ring-fuchsia-400/40',
 ];
 
+const ChapterLockGlyph: React.FC<{ className?: string }> = ({ className }) => (
+    <svg
+        className={className}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        aria-hidden
+    >
+        <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+        />
+    </svg>
+);
+
 const AdventureLobby: React.FC = () => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const [monsterCodexOpen, setMonsterCodexOpen] = useState(false);
+    /** 네이티브 모바일: 챕터(기본) · 모험 일지 */
+    const [mobileLobbyTab, setMobileLobbyTab] = useState<'chapter' | 'journal'>('chapter');
     const onBack = () => replaceAppHash('#/profile');
 
     const chapterUnlockCtx: AdventureChapterUnlockContext = useMemo(
@@ -51,22 +73,25 @@ const AdventureLobby: React.FC = () => {
         </div>
     );
 
-    const chapterColumn = (
+    const chapterColumn = (showSectionHeading: boolean) => (
         <section
             className="flex min-h-0 min-w-0 flex-1 flex-col lg:h-full lg:min-h-0"
             aria-label="챕터 입장"
         >
-            <h2 className="mb-2 flex shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm">
-                <span className="h-px max-w-[2rem] flex-1 bg-gradient-to-r from-transparent to-zinc-600/60" aria-hidden />
-                챕터
-                <span className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-600/60" aria-hidden />
-            </h2>
+            {showSectionHeading ? (
+                <h2 className="mb-2 flex shrink-0 items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm">
+                    <span className="h-px max-w-[2rem] flex-1 bg-gradient-to-r from-transparent to-zinc-600/60" aria-hidden />
+                    챕터
+                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-zinc-600/60" aria-hidden />
+                </h2>
+            ) : null}
             <div className="min-h-0 flex-1 overflow-hidden">
                 <ol className="flex h-full min-h-0 flex-col gap-2 sm:gap-2.5 lg:gap-3">
                     {ADVENTURE_STAGES.map((stage, i) => {
                         const ringClass = STAGE_CARD_RINGS[i] ?? STAGE_CARD_RINGS[0];
                         const unlocked = isAdventureChapterUnlockedByStageIndex(stage.stageIndex, chapterUnlockCtx);
                         const blockers = getAdventureChapterUnlockBlockers(stage.stageIndex, chapterUnlockCtx);
+                        const conditionLines = getAdventureChapterUnlockConditionLines(stage.stageIndex, chapterUnlockCtx);
                         const hint = blockers.length > 0 ? blockers.join('\n') : undefined;
                         return (
                             <li key={stage.id} className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -93,45 +118,66 @@ const AdventureLobby: React.FC = () => {
                                             src={stage.mapWebp}
                                             alt=""
                                             className={`h-full w-full object-cover transition-transform duration-500 ${
-                                                unlocked ? 'group-hover:scale-[1.03]' : 'grayscale-[0.25] brightness-[0.88]'
+                                                unlocked
+                                                    ? 'group-hover:scale-[1.03]'
+                                                    : 'scale-[1.03] blur-[3px] brightness-[0.88] saturate-[0.92]'
                                             }`}
                                             draggable={false}
                                         />
-                                        {!unlocked && (
-                                            <div
-                                                className="pointer-events-none absolute inset-0 bg-black/30 backdrop-blur-[0.5px]"
-                                                aria-hidden
-                                            />
-                                        )}
                                         <div
                                             className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent sm:bg-gradient-to-r sm:from-transparent sm:via-transparent sm:to-black/20"
                                             aria-hidden
                                         />
+                                        {!unlocked && (
+                                            <div
+                                                className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-black/25"
+                                                aria-hidden
+                                            >
+                                                <div className="flex flex-col items-center gap-1 rounded-full border border-amber-400/35 bg-zinc-950/55 p-2.5 shadow-[0_8px_28px_rgba(0,0,0,0.55)] ring-2 ring-amber-500/15 backdrop-blur-[2px] sm:p-3">
+                                                    <ChapterLockGlyph className="h-7 w-7 text-amber-100 sm:h-8 sm:w-8" />
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-center gap-1.5 border-t border-white/10 bg-gradient-to-br from-zinc-950/98 via-zinc-950/95 to-black/95 px-3 py-2.5 sm:border-l sm:border-t-0 sm:gap-2 sm:px-4 sm:py-3 lg:px-5 lg:py-3.5">
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <span className="w-fit rounded-md border border-white/22 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-amber-100/95 sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm">
+                                        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-1">
+                                            <span className="shrink-0 rounded-md border border-white/22 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold tabular-nums text-amber-100/95 sm:px-2.5 sm:py-1 sm:text-xs lg:text-sm">
                                                 CHAPTER {String(stage.stageIndex).padStart(2, '0')}
                                             </span>
-                                            {!unlocked && (
-                                                <span className="rounded-md border border-zinc-600/60 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-zinc-200 sm:text-xs">
-                                                    🔒 잠금
-                                                </span>
-                                            )}
+                                            <h3 className="min-w-0 flex-1 text-base font-black leading-tight tracking-tight text-white sm:text-lg lg:text-xl xl:text-2xl">
+                                                {stage.title}
+                                            </h3>
                                         </div>
-                                        <h3 className="text-base font-black leading-tight tracking-tight text-white sm:text-lg lg:text-xl xl:text-2xl">
-                                            {stage.title}
-                                        </h3>
                                         <p className="line-clamp-2 text-[11px] font-normal leading-relaxed text-zinc-300/95 sm:line-clamp-3 sm:text-sm lg:text-[0.95rem]">
                                             {stage.lobbyStoryLine}
                                         </p>
-                                        {!unlocked && blockers.length > 0 && (
-                                            <ul className="mt-0.5 list-inside list-disc space-y-0.5 text-[10px] leading-snug text-amber-200/90 sm:text-xs lg:text-[0.8rem]">
-                                                {blockers.map((b) => (
-                                                    <li key={b}>{b}</li>
+                                        <AdventureChapterRewardHints
+                                            stageId={stage.id as AdventureStageId}
+                                            compact
+                                            className="rounded-lg border border-white/10 bg-black/35 px-2 py-1.5 sm:px-2.5 sm:py-2"
+                                        />
+                                        {!unlocked && conditionLines.length > 0 && (
+                                            <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[10px] font-semibold leading-snug sm:text-[11px] lg:text-xs">
+                                                {conditionLines.map((line, idx) => (
+                                                    <Fragment key={line.key}>
+                                                        {idx > 0 ? (
+                                                            <span className="shrink-0 text-zinc-600" aria-hidden>
+                                                                ·
+                                                            </span>
+                                                        ) : null}
+                                                        <span
+                                                            className={`whitespace-nowrap ${
+                                                                line.satisfied
+                                                                    ? 'text-emerald-400 drop-shadow-[0_0_8px_rgba(52,211,153,0.25)]'
+                                                                    : 'text-amber-200/85'
+                                                            }`}
+                                                        >
+                                                            {line.text}
+                                                        </span>
+                                                    </Fragment>
                                                 ))}
-                                            </ul>
+                                            </p>
                                         )}
                                     </div>
                                 </button>
@@ -142,6 +188,12 @@ const AdventureLobby: React.FC = () => {
             </div>
         </section>
     );
+
+    const mobileTabBtnBase =
+        'min-h-0 min-w-0 flex-1 rounded-lg px-2 py-2 text-sm font-bold transition-all sm:py-2.5 sm:text-base';
+    const mobileTabBtnOn =
+        'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
+    const mobileTabBtnOff = 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200';
 
     return (
         <div
@@ -179,29 +231,65 @@ const AdventureLobby: React.FC = () => {
                 </header>
 
                 <div
-                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain ${isNativeMobile ? 'px-0.5 pb-1' : ''}`}
+                    className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-contain ${isNativeMobile ? 'px-0.5 pb-1' : 'overflow-y-auto'}`}
                 >
-                    <div
-                        className={`flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5 xl:gap-6 ${!isNativeMobile ? 'pr-0' : ''}`}
-                    >
-                        <aside
-                            className={`flex w-full min-w-0 shrink-0 flex-col lg:max-w-none lg:self-stretch ${
-                                isNativeMobile
-                                    ? ''
-                                    : 'lg:w-[min(100%,clamp(22rem,34vw,38rem))] xl:w-[min(100%,40rem)]'
-                            }`}
+                    {isNativeMobile ? (
+                        <>
+                            <div className="mb-1 flex shrink-0 gap-1 px-0.5 sm:gap-1.5" role="tablist" aria-label="모험 로비">
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={mobileLobbyTab === 'chapter'}
+                                    onClick={() => setMobileLobbyTab('chapter')}
+                                    className={`${mobileTabBtnBase} ${mobileLobbyTab === 'chapter' ? mobileTabBtnOn : mobileTabBtnOff}`}
+                                >
+                                    챕터
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={mobileLobbyTab === 'journal'}
+                                    onClick={() => setMobileLobbyTab('journal')}
+                                    className={`${mobileTabBtnBase} ${mobileLobbyTab === 'journal' ? mobileTabBtnOn : mobileTabBtnOff}`}
+                                >
+                                    모험 일지
+                                </button>
+                            </div>
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" role="tabpanel">
+                                {mobileLobbyTab === 'chapter' ? (
+                                    chapterColumn(false)
+                                ) : (
+                                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
+                                        <AdventureProfilePanel
+                                            profile={currentUserWithStatus?.adventureProfile}
+                                            userGold={currentUserWithStatus?.gold ?? 0}
+                                            compact
+                                            onOpenMonsterCodex={() => setMonsterCodexOpen(true)}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        </>
+                    ) : (
+                        <div
+                            className={`flex min-h-0 min-w-0 flex-1 flex-col gap-3 lg:flex-row lg:items-stretch lg:gap-5 xl:gap-6 ${!isNativeMobile ? 'pr-0' : ''}`}
                         >
-                            <AdventureProfilePanel
-                                profile={currentUserWithStatus?.adventureProfile}
-                                compact={isNativeMobile}
-                                onOpenMonsterCodex={() => setMonsterCodexOpen(true)}
-                            />
-                        </aside>
+                            <aside
+                                className={`flex w-full min-w-0 shrink-0 flex-col lg:max-w-none lg:self-stretch lg:w-[min(100%,clamp(22rem,34vw,38rem))] xl:w-[min(100%,40rem)]`}
+                            >
+                                <AdventureProfilePanel
+                                    profile={currentUserWithStatus?.adventureProfile}
+                                    userGold={currentUserWithStatus?.gold ?? 0}
+                                    compact={false}
+                                    onOpenMonsterCodex={() => setMonsterCodexOpen(true)}
+                                />
+                            </aside>
 
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
-                            {chapterColumn}
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-h-0 lg:overflow-hidden">
+                                {chapterColumn(true)}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             </div>
 

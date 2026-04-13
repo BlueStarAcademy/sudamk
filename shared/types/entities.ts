@@ -266,6 +266,18 @@ export type UserCredentials = {
   userId: string;
 };
 
+export type AdventureRegionalSpecialtyBuffKind =
+  | 'adv_gold_pct'
+  | 'map_monster_dwell_pct'
+  | 'capture_opponent_target_plus1'
+  | 'hidden_scan_plus1'
+  | 'missile_plus1';
+
+export type AdventureRegionalSpecialtyBuffEntry = {
+  kind: AdventureRegionalSpecialtyBuffKind;
+  valuePercent?: number;
+};
+
 /** 모험 전용 진행·전적(메인 프로필·랭킹 전적과 분리). 서버 `status` JSON 등에 동기화 가능 */
 export type AdventureProfile = {
   /** 몬스터(대국 룰 타입)별 처치 수 */
@@ -283,6 +295,9 @@ export type AdventureProfile = {
    * 값은 해당 시각(ms) 이전에는 맵에 표시하지 않음.
    */
   adventureMapSuppressUntilByKey?: Partial<Record<string, number>>;
+  regionalSpecialtyBuffsByStageId?: Partial<Record<string, AdventureRegionalSpecialtyBuffEntry[]>>;
+  regionalBuffRerollUtcDate?: string;
+  regionalBuffRerollCountToday?: number;
 };
 
 export type SinglePlayerMissionLevelInfo = {
@@ -749,7 +764,7 @@ export type GameSummary = {
   };
   overallRecord?: { wins: number; losses: number; aiWins?: number; aiLosses?: number; };
   gold?: number;
-  /** 모험 지역 이해도 버프로만 추가된 골드(표시용; `gold` 합계에 이미 포함) */
+  /** 모험 지역 이해도 효과로만 추가된 골드(표시용; `gold` 합계에 이미 포함) */
   adventureGoldUnderstandingBonus?: number;
   items?: InventoryItem[];
   /** 길드 전쟁 AI 대국 종료 시 획득 별(0~3) */
@@ -758,7 +773,7 @@ export type GameSummary = {
   adventureRewardSlots?: {
     gold: { obtained: boolean; amount: number; understandingBonus?: number };
     equipment: { obtained: boolean; displayName?: string };
-    material: { obtained: boolean; displayName?: string };
+    material: { obtained: boolean; displayName?: string; quantity?: number };
   };
 };
 

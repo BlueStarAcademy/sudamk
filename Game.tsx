@@ -561,9 +561,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if ((serverRevealed === 0 || canPreferStoredVisualState) && Array.isArray(parsed.permanentlyRevealedStones) && parsed.permanentlyRevealedStones.length > 0) {
                         next = { ...next, permanentlyRevealedStones: parsed.permanentlyRevealedStones };
                     }
-                    // 히든 착수 정보: 서버에 없거나 비어있으면 sessionStorage에서 복원 (히든 돌이 일반 돌로 보이는 현상 방지)
+                    // 히든 착수 정보: moveHistory 길이가 맞을 때만 복원 (서버가 한 수 앞서 있는데 저장분 hiddenMoves를 얹으면 인덱스가 밀려 유저 착수에 히든 문양이 붙는 버그)
                     const hasServerHiddenMoves = next.hiddenMoves && Object.keys(next.hiddenMoves).length > 0;
-                    if ((!hasServerHiddenMoves || canPreferStoredVisualState) && parsed.hiddenMoves && Object.keys(parsed.hiddenMoves).length > 0) {
+                    const hiddenMovesStorageAligned = storedMoveCount === serverMoveCount;
+                    if (
+                        hiddenMovesStorageAligned &&
+                        parsed.hiddenMoves &&
+                        Object.keys(parsed.hiddenMoves).length > 0 &&
+                        (!hasServerHiddenMoves || canPreferStoredVisualState)
+                    ) {
                         next = { ...next, hiddenMoves: parsed.hiddenMoves };
                     }
                     if ((canPreferStoredVisualState || !next.revealedHiddenMoves) && parsed.revealedHiddenMoves && typeof parsed.revealedHiddenMoves === 'object') {
@@ -612,6 +618,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return session;
         }
     }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, gameId, (session as any).blackTurnLimitBonus]);
+
+    /** 온라인 AI 대국: 전광판은 WS 세션의 턴·연출 필드를 그대로 써야 저장소 복원분과 어긋나지 않음 */
+    const turnDisplaySession = useMemo(() => {
+        if (isSinglePlayer || isTower) return sessionWithRestoredPatternStones;
+        if (!session.isAiGame) return sessionWithRestoredPatternStones;
+        return {
+            ...sessionWithRestoredPatternStones,
+            currentPlayer: session.currentPlayer,
+            gameStatus: session.gameStatus,
+            animation: session.animation,
+            foulInfo: session.foulInfo,
+            itemUseDeadline: session.itemUseDeadline,
+            ...((session as any).aiHiddenItemAnimationEndTime != null
+                ? { aiHiddenItemAnimationEndTime: (session as any).aiHiddenItemAnimationEndTime }
+                : {}),
+        };
+    }, [session, sessionWithRestoredPatternStones, isSinglePlayer, isTower]);
     
     // --- UI State ---
     // 스케일 셸(PC동일): 항상 PC 레이아웃. 네이티브 모바일: 드로어/슬라이드 분기 사용.
@@ -848,10 +871,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // AI 히든 연출 중 0.5초마다 갱신 (테두리 빛 표시)
     useEffect(() => {
-        if (aiHiddenItemEffectEndTime == null) return;
+        const serverEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
+        const serverDrivenHiddenWait =
+            session.animation?.type === 'ai_thinking' && serverEnd != null;
+        if (aiHiddenItemEffectEndTime == null && !serverDrivenHiddenWait) return;
         const id = setInterval(() => setEffectTick((t) => t + 1), 500);
         return () => clearInterval(id);
-    }, [aiHiddenItemEffectEndTime]);
+    }, [aiHiddenItemEffectEndTime, session.animation?.type, (session as any).aiHiddenItemAnimationEndTime]);
 
     const isGuildWarHiddenClientEffects =
         session.gameCategory === 'guildwar' && mode === GameMode.Hidden;
@@ -1476,6 +1502,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     newBoardState: moveResult.newBoardState,
                                     capturedStones: moveResult.capturedStones,
                                     newKoInfo: moveResult.newKoInfo,
+                                    movePlayer: myPlayerEnum,
                                 }
                             } as any);
                         }
@@ -1510,7 +1537,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash]);
+    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash, myPlayerEnum]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
@@ -2424,17 +2451,47 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return base;
     }, [isSinglePlayer, isTower, hasStrategicTurnLimit, sessionWithRestoredPatternStones, restoredBoardState]);
 
-    const isAiHiddenPresentationActive = aiHiddenItemEffectEndTime != null && Date.now() < aiHiddenItemEffectEndTime;
+    const serverAiHiddenAnimationEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
+    const isServerAiHiddenPresentationActive =
+        session.animation?.type === 'ai_thinking' &&
+        serverAiHiddenAnimationEnd != null &&
+        Date.now() < serverAiHiddenAnimationEnd;
+    const isClientAiHiddenPresentationActive =
+        aiHiddenItemEffectEndTime != null && Date.now() < aiHiddenItemEffectEndTime;
+    const isAiHiddenPresentationActive =
+        isClientAiHiddenPresentationActive || isServerAiHiddenPresentationActive;
+
     const sessionWithAiHiddenPresentation = useMemo(() => {
-        if (!isAiHiddenPresentationActive) return sessionWithRestoredBoard;
+        if (!isClientAiHiddenPresentationActive || aiHiddenItemEffectEndTime == null) {
+            return sessionWithRestoredBoard;
+        }
         return {
             ...sessionWithRestoredBoard,
             foulInfo: {
-                message: 'AI봇이 히든 아이템을 사용했습니다!',
+                message:
+                    session.gameCategory === 'adventure' || session.adventureMonsterCodexId
+                        ? '몬스터가 히든 아이템을 사용했습니다!'
+                        : 'AI봇이 히든 아이템을 사용했습니다!',
                 expiry: aiHiddenItemEffectEndTime,
-            }
+            },
         };
-    }, [isAiHiddenPresentationActive, sessionWithRestoredBoard, aiHiddenItemEffectEndTime]);
+    }, [isClientAiHiddenPresentationActive, sessionWithRestoredBoard, aiHiddenItemEffectEndTime]);
+
+    const isAdventureHiddenBoard =
+        isAdventureGame &&
+        (mode === GameMode.Hidden ||
+            (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Hidden))) ||
+            ((session.settings?.hiddenStoneCount ?? 0) > 0));
+    const isLobbyStrategicAiHiddenBoard =
+        session.isAiGame &&
+        !session.isSinglePlayer &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'singleplayer' &&
+        !isAdventureGame &&
+        (mode === GameMode.Hidden ||
+            (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Hidden))) ||
+            ((session.settings?.hiddenStoneCount ?? 0) > 0));
+    const boardGlowForHiddenItem = gameStatus === 'hidden_placing' || isAiHiddenPresentationActive;
     
     const gameProps: GameProps = {
         session: sessionWithAiHiddenPresentation, onAction: handlers.handleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,
@@ -2877,8 +2934,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             isBoardRotated={isBoardRotated}
                                             onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                             showBoardGlow={
-                                                isGuildWarTowerStyleUi &&
-                                                (gameStatus === 'hidden_placing' || isAiHiddenPresentationActive)
+                                                (isGuildWarTowerStyleUi ||
+                                                    isAdventureHiddenBoard ||
+                                                    isLobbyStrategicAiHiddenBoard) &&
+                                                boardGlowForHiddenItem
                                             }
                                             diceGoPlaceUi={
                                                 settings.features.moveConfirmButtonBox
@@ -2927,7 +2986,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         </div>
                         <div className="flex-shrink-0 w-full flex flex-col gap-1">
                             <TurnDisplay
-                                session={sessionWithRestoredPatternStones}
+                                session={turnDisplaySession}
                                 isMobile={isMobile}
                                 onOpenSidebar={isMobile ? openMobileSidebar : undefined}
                                 sidebarNotification={hasNewMessage}

@@ -16,6 +16,18 @@ import { generateKataServerMove, isKataServerAvailable } from './kataServerServi
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patternStoneConsume.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
+import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
+
+/** 모험·로비 AI 대국: 계가 전 마지막 착수가 화면에 반영되도록 */
+function isLobbyAiStrategicGoGame(game: types.LiveGameSession): boolean {
+    return (
+        !!game.isAiGame &&
+        !game.isSinglePlayer &&
+        (game as any).gameCategory !== 'tower' &&
+        (game as any).gameCategory !== 'singleplayer' &&
+        (game as any).gameCategory !== 'guildwar'
+    );
+}
 
 function clearStrategicAiKataSpFallback(game: types.LiveGameSession) {
     delete (game as any).strategicAiKataSpFallbackActive;
@@ -301,8 +313,14 @@ const applyAiCaptureOutcome = (
             if (wasAiInitialHidden) {
                 clearAiInitialHiddenStone = true;
             }
-        } else if (wasPatternStone) {
-            points = 2;
+        } else {
+            const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+            if (isBaseStone) {
+                game.baseStoneCaptures[aiPlayerEnum]++;
+                points = 5;
+            } else if (wasPatternStone) {
+                points = 2;
+            }
         }
 
         game.captures[aiPlayerEnum] += points;
@@ -885,6 +903,7 @@ export async function makeGoAiBotMove(
     if (game.aiHiddenItemAnimationEndTime != null && now >= game.aiHiddenItemAnimationEndTime) {
         game.aiHiddenItemAnimationEndTime = undefined;
         game.animation = null;
+        game.foulInfo = null;
         const aiHiddenKey = getStrategicAiHiddenStonesKey(game, aiPlayerEnum);
         const aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
         if (aiHiddenLeft > 0 && isHiddenMode) {
@@ -986,7 +1005,11 @@ export async function makeGoAiBotMove(
             }
             game.aiHiddenItemUsed = true;
             const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-            game.foulInfo = { message: 'AI봇이 히든 아이템을 사용했습니다!', expiry: now + 6000 };
+            const hiddenNoticeMsg =
+                (game as any).gameCategory === 'adventure'
+                    ? '몬스터가 히든 아이템을 사용했습니다!'
+                    : 'AI봇이 히든 아이템을 사용했습니다!';
+            game.foulInfo = { message: hiddenNoticeMsg, expiry: now + 6000 };
             game.animation = {
                 type: 'ai_thinking',
                 startTime: now,
@@ -1003,7 +1026,8 @@ export async function makeGoAiBotMove(
         }
     }
 
-    // 전략바둑 로비 턴 제한: 이미 제한 수순에 도달했으면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
+    // 전략바둑 로비 턴 제한: 이미 제한 수순을 넘기면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
+    // 모험: 제한 "도달" 직후(===)에도 AI가 한 수 둔 뒤 계가해야 하므로, adventure만 `>` 로만 조기 계가 (strategic PLACE_STONE과 동일한 의도)
     const scoringTurnLimit = (game.settings as any)?.scoringTurnLimit;
     if (
         scoringTurnLimit != null &&
@@ -1014,8 +1038,17 @@ export async function makeGoAiBotMove(
     ) {
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const totalTurnsSoFar = (game.moveHistory || []).length;
-        if (totalTurnsSoFar >= scoringTurnLimit) {
-            console.log(`[makeGoAiBotMove] Game ${game.id} already at or over scoringTurnLimit (${totalTurnsSoFar} >= ${scoringTurnLimit}), triggering getGameResult without making a move`);
+        const overLimit =
+            (game as any).gameCategory === 'adventure'
+                ? totalTurnsSoFar > scoringTurnLimit
+                : totalTurnsSoFar >= scoringTurnLimit;
+        if (overLimit) {
+            console.log(
+                `[makeGoAiBotMove] Game ${game.id} already at or over scoringTurnLimit (${totalTurnsSoFar} vs ${scoringTurnLimit}, adventureStrict=${(game as any).gameCategory === 'adventure'}), triggering getGameResult without making a move`,
+            );
+            if (isLobbyAiStrategicGoGame(game)) {
+                await broadcastPlayingSnapshotBeforeScoring(game);
+            }
             game.gameStatus = 'scoring';
             game.totalTurns = totalTurnsSoFar;
             await db.saveGame(game);
@@ -1802,6 +1835,9 @@ export async function makeGoAiBotMove(
                 if (game.gameStatus === 'playing' || (game.gameStatus as string) === 'hidden_placing') {
                     const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
                     console.log(`[GoAiBot][${gameType}] Auto-scoring triggered at ${totalTurns} turns (stageId: ${game.stageId || 'N/A'}, validMovesLength: ${validMoves.length}, gameStatus: ${game.gameStatus})`);
+                    if (isLobbyAiStrategicGoGame(game)) {
+                        await broadcastPlayingSnapshotBeforeScoring(game);
+                    }
                     // 계가 진입 시점에 종료 시각 고정 → 타이머 정지, 총 걸린 시간에 계가 연출 구간 제외
                     game.endTime = Date.now();
                     // 게임 상태를 먼저 scoring으로 변경하여 다른 로직이 게임을 재시작하지 않도록 함

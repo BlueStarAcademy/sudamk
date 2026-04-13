@@ -26,14 +26,14 @@ export const ResultModalGoldCurrencySlot: React.FC<{
     amount: number;
     compact: boolean;
     dimmed?: boolean;
-    /** 지역 이해도 버프 등으로 추가된 골드 — 총액 `amount` 옆에 (+N) */
+    /** 도감·지역·특화 효과 등으로 추가된 골드 — 총액 `amount` 옆에 (+N) */
     understandingBonus?: number;
 }> = ({ amount, compact, dimmed, understandingBonus }) => (
     <div
         className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}
         title={
             understandingBonus != null && understandingBonus > 0
-                ? `골드 ${amount.toLocaleString()} (지역 이해도 +${understandingBonus.toLocaleString()})`
+                ? `골드 ${amount.toLocaleString()} (모험 이해도·효과 +${understandingBonus.toLocaleString()})`
                 : `골드 ${amount.toLocaleString()}`
         }
     >
@@ -132,6 +132,10 @@ export const RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS = 'min-h-[6.25rem] w-full sm:m
 
 /** 모바일 보상 줄 컨테이너: 한 줄 우선, 필요 시 가로 스크롤 */
 export const RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS = `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-1 overflow-x-auto overscroll-x-contain pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;
+
+/** 모바일 모험 등 4칸 고정: 가로 스크롤 없이 한 줄(열 폭 균등) */
+export const RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS =
+    'grid w-full min-w-0 grid-cols-4 gap-1 items-start justify-items-center min-h-[4.75rem] py-0.5 sm:min-h-[5rem]';
 
 /** 도전의 탑 등 결과 모달: 획득 보상 줄 높이를 낮춤(동일 한 줄·가로 스크롤) */
 export const RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS = `flex min-h-[2.85rem] w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-0.5 overflow-x-auto overscroll-x-contain py-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;

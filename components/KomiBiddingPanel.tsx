@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { LiveGameSession, User, Player, KomiBid, ServerAction } from '../types.js';
+import { GameCategory } from '../types/enums.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
@@ -30,7 +31,9 @@ const AdjustButton: React.FC<{ amount: number; onAdjust: (amount: number) => voi
 
 const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
     const { session, currentUser, onAction } = props;
-    const { id: gameId, player1, player2, komiBids, komiBiddingDeadline, gameStatus, komiBiddingRound } = session;
+    const { id: gameId, player1, player2, komiBids, komiBiddingDeadline, gameStatus, komiBiddingRound, gameCategory } =
+        session;
+    const isAdventure = gameCategory === GameCategory.Adventure;
     const [selectedColor, setSelectedColor] = useState<Player>(Player.Black);
     const [komiValue, setKomiValue] = useState<number>(0);
     const [timer, setTimer] = useState(KOMI_BID_TIME_SEC);
@@ -63,8 +66,12 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
     }, [komiBiddingRound]);
 
     useEffect(() => {
-        if (myBid || !komiBiddingDeadline) {
-            setTimer(myBid ? 0 : KOMI_BID_TIME_SEC);
+        if (myBid) {
+            setTimer(0);
+            return;
+        }
+        if (isAdventure || !komiBiddingDeadline) {
+            setTimer(KOMI_BID_TIME_SEC);
             return;
         }
         const intervalId = setInterval(() => {
@@ -75,7 +82,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
             }
         }, 1000);
         return () => clearInterval(intervalId);
-    }, [myBid, komiBiddingDeadline, handleBidSubmit]);
+    }, [myBid, komiBiddingDeadline, handleBidSubmit, isAdventure]);
 
     const adjustKomi = (amount: number) => {
         setKomiValue((prev) => Math.max(0, Math.min(100, prev + amount)));
@@ -197,13 +204,17 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                 <p className="mb-2 text-center text-[11px] leading-snug text-stone-400">
                     원하는 돌 색과 추가 덤(0~100)을 정하세요. 기본 덤 백 {baseKomi}집.
                 </p>
-                <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
-                    <div
-                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300"
-                        style={{ width: `${(timer / KOMI_BID_TIME_SEC) * 100}%`, transition: 'width 0.5s linear' }}
-                    />
-                </div>
-                <p className="mb-3 text-center font-mono text-2xl font-bold tabular-nums text-amber-100">{timer}</p>
+                {!isAdventure && (
+                    <>
+                        <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
+                            <div
+                                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300"
+                                style={{ width: `${(timer / KOMI_BID_TIME_SEC) * 100}%`, transition: 'width 0.5s linear' }}
+                            />
+                        </div>
+                        <p className="mb-3 text-center font-mono text-2xl font-bold tabular-nums text-amber-100">{timer}</p>
+                    </>
+                )}
 
                 <div className="mb-3 flex justify-center gap-2">
                     <button

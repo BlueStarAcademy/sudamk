@@ -1248,12 +1248,12 @@ export const useApp = () => {
         // 전략바둑 AI 게임: 유저 수를 클라이언트에 먼저 표시(낙관적 반영) 후 서버 전송은 아래 PLACE_STONE으로 처리
         if ((action as any).type === 'AI_GAME_CLIENT_MOVE') {
             const payload = (action as any).payload;
-            const { gameId, x, y, newBoardState, capturedStones, newKoInfo } = payload;
+            const { gameId, x, y, newBoardState, capturedStones, newKoInfo, movePlayer: payloadMovePlayer } = payload;
             setLiveGames((currentGames) => {
                 const game = currentGames[gameId];
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
 
-                const movePlayer = game.currentPlayer;
+                const movePlayer = payloadMovePlayer ?? game.currentPlayer;
                 const newCaptures = {
                     ...game.captures,
                     [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0),

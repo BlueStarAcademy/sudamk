@@ -278,6 +278,10 @@ export const rowToGame = (row: any): types.LiveGameSession | null => {
             blackPatternStones: safeParse(row.blackPatternStones, null, row.id, 'blackPatternStones'),
             whitePatternStones: safeParse(row.whitePatternStones, null, row.id, 'whitePatternStones'),
             singlePlayerPlacementRefreshesUsed: row.singlePlayerPlacementRefreshesUsed,
+            aiHiddenItemAnimationEndTime:
+                row.aiHiddenItemAnimationEndTime != null && row.aiHiddenItemAnimationEndTime !== ''
+                    ? Number(row.aiHiddenItemAnimationEndTime)
+                    : undefined,
         };
         // Boolean conversions for fields that might be stored as integers
         game.isAiGame = !!row.isAiGame;

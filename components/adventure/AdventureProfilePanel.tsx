@@ -12,8 +12,9 @@ import {
     formatAdventureUnderstandingBonusPercent,
     normalizeAdventureProfile,
     formatAdventureUnderstandingTierLabel,
-    getCombinedAdventureRegionalBuffTotals,
+    getMonsterCodexComprehensionBuffTotals,
 } from '../../utils/adventureUnderstanding.js';
+import AdventureRegionalBuffPanel from './AdventureRegionalBuffPanel.js';
 
 const CODEX_CHART_BAR_GRADIENTS: readonly string[] = [
     'from-emerald-500/95 to-teal-600/75',
@@ -25,12 +26,13 @@ const CODEX_CHART_BAR_GRADIENTS: readonly string[] = [
 
 const AdventureProfilePanel: React.FC<{
     profile: AdventureProfile | null | undefined;
+    userGold?: number;
     compact?: boolean;
     onOpenMonsterCodex?: () => void;
-}> = ({ profile, compact = false, onOpenMonsterCodex }) => {
+}> = ({ profile, userGold = 0, compact = false, onOpenMonsterCodex }) => {
     const donutGradId = useId().replace(/:/g, '');
     const p = useMemo(() => normalizeAdventureProfile(profile), [profile]);
-    const combinedRegionalBuff = useMemo(() => getCombinedAdventureRegionalBuffTotals(p), [p]);
+    const monsterCodexBuff = useMemo(() => getMonsterCodexComprehensionBuffTotals(p), [p]);
     const codexBreakdown = useMemo(() => getAdventureCodexCompletionBreakdown(profile), [profile]);
 
     const stageRows = useMemo(() => {
@@ -41,6 +43,8 @@ const AdventureProfilePanel: React.FC<{
                 tier < ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS.length - 1
                     ? ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[tier + 1]
                     : null;
+            const lastThreshold = ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS.length - 1];
+            const xpGoal = nextThreshold ?? lastThreshold;
             const prog =
                 nextThreshold != null && nextThreshold > ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[tier]
                     ? Math.min(
@@ -52,7 +56,7 @@ const AdventureProfilePanel: React.FC<{
                           ),
                       )
                     : 100;
-            return { ...s, xp, tier, prog, tierLabel: formatAdventureUnderstandingTierLabel(tier) };
+            return { ...s, xp, xpGoal, tier, prog, tierLabel: formatAdventureUnderstandingTierLabel(tier) };
         });
     }, [p.understandingXpByStage]);
 
@@ -65,12 +69,28 @@ const AdventureProfilePanel: React.FC<{
         : 'text-xs font-bold uppercase tracking-wider text-zinc-500 sm:text-sm';
     return (
         <section
-            className={`flex h-full w-full min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+            className={`relative flex h-full w-full min-w-0 flex-col rounded-2xl border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
                 compact ? 'p-3 sm:p-3.5' : 'p-3.5 sm:p-4 lg:p-5'
             }`}
             aria-label="모험 일지"
         >
-            <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2.5 sm:pb-3">
+            {onOpenMonsterCodex && (
+                <button
+                    type="button"
+                    onClick={onOpenMonsterCodex}
+                    className={`absolute z-10 rounded-lg border border-violet-400/40 bg-violet-950/60 font-bold text-violet-100 shadow-sm underline-offset-2 transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 hover:underline active:scale-[0.99] ${
+                        compact
+                            ? 'right-2.5 top-2.5 px-2 py-1 text-xs sm:right-3 sm:top-3 sm:text-sm'
+                            : 'right-3 top-3 px-2.5 py-1.5 text-sm sm:right-4 sm:top-4 sm:text-base'
+                    }`}
+                    aria-label="몬스터 도감"
+                >
+                    {compact ? '몬스터' : '몬스터 도감'}
+                </button>
+            )}
+            <div
+                className={`flex shrink-0 flex-wrap items-center border-b border-white/10 pb-2.5 sm:pb-3 ${onOpenMonsterCodex ? 'pr-[5.5rem] sm:pr-[6.5rem]' : ''}`}
+            >
                 <h2
                     className={`min-w-0 font-black tracking-tight text-transparent bg-gradient-to-r from-cyan-200 via-fuchsia-200 to-amber-200 bg-clip-text ${
                         compact ? 'text-base sm:text-lg' : 'text-lg sm:text-xl lg:text-2xl'
@@ -78,17 +98,6 @@ const AdventureProfilePanel: React.FC<{
                 >
                     모험 일지
                 </h2>
-                {onOpenMonsterCodex && (
-                    <button
-                        type="button"
-                        onClick={onOpenMonsterCodex}
-                        className={`shrink-0 rounded-lg border border-violet-400/40 bg-violet-950/50 font-bold text-violet-100 underline-offset-2 transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 hover:underline active:scale-[0.99] ${
-                            compact ? 'px-2 py-1 text-xs sm:text-sm' : 'px-2.5 py-1.5 text-sm sm:text-base'
-                        }`}
-                    >
-                        몬스터 도감
-                    </button>
-                )}
             </div>
 
             <div className={`mt-3 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain pr-0.5 ${compact ? '' : 'sm:gap-3.5'}`}>
@@ -97,13 +106,13 @@ const AdventureProfilePanel: React.FC<{
                         compact ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
                     }`}
                 >
-                        <p className={labelCls}>지역 이해도 버프</p>
+                        <p className={labelCls}>몬스터 이해도 효과</p>
                         <p
                             className={`mt-1.5 font-bold tabular-nums text-amber-100/95 ${
                                 compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                             }`}
                         >
-                            모험 골드 +{formatAdventureUnderstandingBonusPercent(combinedRegionalBuff.goldBonusPercent)}%
+                            모험 골드 +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.goldBonusPercent)}%
                         </p>
                         <div
                             className={`mt-2 flex w-full min-w-0 flex-row flex-wrap items-center justify-between gap-x-2 gap-y-2 font-semibold tabular-nums text-zinc-100 sm:flex-nowrap sm:gap-x-3 ${
@@ -113,7 +122,7 @@ const AdventureProfilePanel: React.FC<{
                             <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
                                 <span className="shrink-0 truncate text-zinc-400">장비 획득</span>
                                 <span className="shrink-0 text-cyan-200/95">
-                                    +{formatAdventureUnderstandingBonusPercent(combinedRegionalBuff.equipmentDropPercent)}%
+                                    +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.equipmentDropPercent)}%
                                 </span>
                             </span>
                             <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
@@ -121,7 +130,7 @@ const AdventureProfilePanel: React.FC<{
                                 <span className="shrink-0 text-sky-200/95">
                                     +
                                     {formatAdventureUnderstandingBonusPercent(
-                                        combinedRegionalBuff.highGradeEquipmentPercent,
+                                        monsterCodexBuff.highGradeEquipmentPercent,
                                     )}
                                     %
                                 </span>
@@ -129,7 +138,7 @@ const AdventureProfilePanel: React.FC<{
                             <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
                                 <span className="shrink-0 truncate text-zinc-400">재료 획득</span>
                                 <span className="shrink-0 text-emerald-200/95">
-                                    +{formatAdventureUnderstandingBonusPercent(combinedRegionalBuff.materialDropPercent)}%
+                                    +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.materialDropPercent)}%
                                 </span>
                             </span>
                             <span className="flex min-w-0 flex-1 basis-[45%] items-center justify-between gap-1.5 sm:basis-0 sm:justify-center sm:gap-2">
@@ -137,7 +146,7 @@ const AdventureProfilePanel: React.FC<{
                                 <span className="shrink-0 text-teal-200/95">
                                     +
                                     {formatAdventureUnderstandingBonusPercent(
-                                        combinedRegionalBuff.highGradeMaterialPercent,
+                                        monsterCodexBuff.highGradeMaterialPercent,
                                     )}
                                     %
                                 </span>
@@ -155,14 +164,14 @@ const AdventureProfilePanel: React.FC<{
                                     </span>
                                     <span className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums">
                                         <span className="text-amber-200/95">
-                                            +{combinedRegionalBuff.coreByStat[stat]?.flat ?? 0}
+                                            +{monsterCodexBuff.coreByStat[stat]?.flat ?? 0}
                                         </span>
                                         <span className="mx-1 text-zinc-600" aria-hidden>
                                             ·
                                         </span>
                                         <span className="text-fuchsia-200/95">
                                             +{formatAdventureUnderstandingBonusPercent(
-                                                combinedRegionalBuff.coreByStat[stat]?.percent ?? 0,
+                                                monsterCodexBuff.coreByStat[stat]?.percent ?? 0,
                                             )}
                                             %
                                         </span>
@@ -265,43 +274,7 @@ const AdventureProfilePanel: React.FC<{
                     </div>
                 </div>
 
-                <div className="min-w-0">
-                    <p className={labelCls}>지역 이해도</p>
-                    <div className={`mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5 ${compact ? '' : 'lg:gap-3'}`}>
-                        {stageRows.map((row) => (
-                            <div
-                                key={row.id}
-                                className={`min-w-0 rounded-lg border border-white/8 bg-black/20 ${
-                                    compact ? 'px-2.5 py-2' : 'px-3 py-2.5 sm:px-3.5'
-                                }`}
-                            >
-                                <div
-                                    className={`flex items-center justify-between gap-2 ${
-                                        compact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
-                                    }`}
-                                >
-                                    <span className="min-w-0 truncate font-bold text-zinc-100">{row.title}</span>
-                                    <span className="shrink-0 rounded-md border border-fuchsia-500/30 bg-fuchsia-950/30 px-1.5 py-0.5 text-[11px] font-bold text-fuchsia-100 sm:text-xs lg:text-sm">
-                                        {row.tierLabel}
-                                    </span>
-                                </div>
-                                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-800 sm:h-2">
-                                    <div
-                                        className="h-full rounded-full bg-gradient-to-r from-cyan-500/80 via-fuchsia-500/80 to-amber-400/90 transition-all duration-500"
-                                        style={{ width: `${row.prog}%` }}
-                                    />
-                                </div>
-                                <p
-                                    className={`mt-1 tabular-nums text-zinc-500 ${
-                                        compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
-                                    }`}
-                                >
-                                    XP {row.xp}
-                                </p>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                <AdventureRegionalBuffPanel profile={profile} stageRows={stageRows} userGold={userGold} compact={compact} />
             </div>
         </section>
     );

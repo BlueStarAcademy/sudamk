@@ -8,9 +8,15 @@ export const initializeNigiri = (game: types.LiveGameSession, now: number) => {
 
     game.blackPlayerId = blackPlayer.id;
     game.whitePlayerId = whitePlayer.id;
+    enterNigiriRevealWithAssignedColors(game, now);
+};
+
+/** `blackPlayerId` / `whitePlayerId`가 이미 정해진 경우(모험 AI 랜덤 흑백 등) 룰렛·확인 단계만 시작 */
+export const enterNigiriRevealWithAssignedColors = (game: types.LiveGameSession, now: number) => {
+    if (!game.blackPlayerId || !game.whitePlayerId) return;
     game.nigiri = {
-        holderId: blackPlayer.id,
-        guesserId: whitePlayer.id,
+        holderId: game.blackPlayerId,
+        guesserId: game.whitePlayerId,
         stones: null,
         guess: null,
         result: null,

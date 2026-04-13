@@ -661,8 +661,8 @@ export const broadcastUserUpdate = (user: any, changedFields?: string[]) => {
             if (user[field] !== undefined) {
                 // inventory는 크기가 클 수 있으므로 최적화
                 if (field === 'inventory' && Array.isArray(user[field])) {
-                    // inventory는 최대 50개 항목만 전송 (100명 동시 사용자 대응)
-                    optimizedUser[field] = user[field].slice(0, 50);
+                    // 전체 인벤토리 전송: 일부만내면 클라이언트가 나머지 슬롯을 잃어버림(가방·모험 보상 반영 오류)
+                    optimizedUser[field] = user[field];
                 } else {
                     optimizedUser[field] = user[field];
                 }

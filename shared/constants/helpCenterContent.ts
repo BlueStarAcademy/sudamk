@@ -1,6 +1,10 @@
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from './gameModes.js';
 import { GUILD_BOSS_MAX_ATTEMPTS } from './guildConstants.js';
 import { ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP } from '../../constants/adventureConstants.js';
+import {
+    ADVENTURE_REGIONAL_BUFF_CHANGE_BASE_GOLD,
+    ADVENTURE_REGIONAL_BUFF_CHANGE_EXTRA_GOLD_PER_EXTRA_UNLOCKED,
+} from '../../utils/adventureRegionalSpecialtyBuff.js';
 
 export type HelpImageRef = { src: string; alt: string; caption?: string };
 
@@ -401,6 +405,57 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             type: 'paragraph',
                             text: '도감에서 종마다 이해도 레벨(승리 누적)이 오릅니다. 모든 종을 최대 레벨(Lv.10, 300승 구간)까지 채우면 해당 챕터·전체 완성도가 100%가 됩니다. 일지에는 퍼센트와 레벨 합만 간단히 보여 줍니다.',
                         },
+                        {
+                            type: 'callout',
+                            tone: 'info',
+                            title: '지역 탭·특화 효과',
+                            text: '모험 일지 「지역 이해도」 패널의 지역별 탭, 특화 효과 목록, 리롤 규칙은 아래 「모험 · 지역 특화 효과」 항목에서 설명합니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'growth-adventure-regional-effects',
+                label: '모험 · 지역 특화 효과',
+                article: {
+                    id: 'growth-adventure-regional-effects',
+                    title: '모험 지역 특화 효과와 변경',
+                    tagline: '모험 일지 「지역 이해도」 패널의 지역별 효과·잠금·변경 비용 안내입니다.',
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '지역 탭을 누르면 해당 챕터의 이해도 XP·티어·진행 바와, 그 지역에서 획득한 특화 효과 목록을 함께 볼 수 있습니다.',
+                        },
+                        {
+                            type: 'heading',
+                            text: '특화 효과 획득',
+                            level: 3,
+                        },
+                        {
+                            type: 'paragraph',
+                            text: '지역 이해도 티어가 오를 때마다 다섯 종류(모험 골드 %, 맵 몬스터 유지시간 %, 따내기 상대 목표 +1, 히든 스캔 +1, 미사일 +1) 중 아직 갖지 않은 종류가 무작위로 하나씩 영구 추가됩니다.',
+                        },
+                        {
+                            type: 'paragraph',
+                            text: '해당 지역에서 아직 효과가 없다면, 그 지역 몬스터 전투에서 승리해 이해도 경험치를 쌓고 티어를 올리면 됩니다.',
+                        },
+                        {
+                            type: 'heading',
+                            text: '효과 변경하기',
+                            level: 3,
+                        },
+                        {
+                            type: 'paragraph',
+                            text: '「효과 변경하기」로 골드를 내고, 잠금 해제된 슬롯의 특화 효과만 무작위로 다시 뽑을 수 있습니다. 효과가 둘 이상이면 🔓(변경 대상)과 🔒(유지)를 눌러 조절하며, 최소 하나는 잠그고 최소 하나는 바꿀 수 있게 두어야 합니다.',
+                        },
+                        {
+                            type: 'paragraph',
+                            text: `비용은 기본 ${ADVENTURE_REGIONAL_BUFF_CHANGE_BASE_GOLD.toLocaleString()}골드이며, 한 번에 바꿀 슬롯이 늘어날 때마다 ${ADVENTURE_REGIONAL_BUFF_CHANGE_EXTRA_GOLD_PER_EXTRA_UNLOCKED.toLocaleString()}골드씩 추가됩니다. 버튼에 골드 아이콘과 함께 필요 금액이 표시됩니다.`,
+                        },
+                        {
+                            type: 'paragraph',
+                            text: '이미 목록에 있는 종류는 가능한 한 나오지 않도록, 아직 없는 종류를 우선해 뽑습니다.',
+                        },
                     ],
                 },
             },
@@ -733,11 +788,11 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                 article: {
                     id: 'guild-lab-mission',
                     title: '연구소 · 미션 · 길드 상점',
-                    tagline: '연구 포인트와 미션으로 길드 버프와 개인 보상을 동시에 챙깁니다.',
+                    tagline: '연구 포인트와 미션으로 길드 효과와 개인 보상을 동시에 챙깁니다.',
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '연구소에서는 연구 포인트로 프로젝트를 진행합니다. 완료 시 길드원 전체에 유리한 버프나 보스전 특화 효과가 적용될 수 있습니다.',
+                            text: '연구소에서는 연구 포인트로 프로젝트를 진행합니다. 완료 시 길드원 전체에 유리한 효과 또는 보스전 특화 효과가 적용될 수 있습니다.',
                         },
                         {
                             type: 'bullets',

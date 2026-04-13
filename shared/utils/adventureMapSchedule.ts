@@ -67,8 +67,14 @@ function posInCycle(nowMs: number, phaseMs: number, cycleMs: number): number {
     return (((nowMs + phaseMs) % c) + c) % c;
 }
 
-export function getAdventureMapCycleParams(stageId: string, codexId: string, isBoss: boolean) {
-    const dwell = ADVENTURE_MONSTER_MAP_STAY_MS;
+export function getAdventureMapCycleParams(
+    stageId: string,
+    codexId: string,
+    isBoss: boolean,
+    dwellMultiplier = 1,
+) {
+    const mult = Math.max(1, dwellMultiplier);
+    const dwell = Math.round(ADVENTURE_MONSTER_MAP_STAY_MS * mult);
     const offMs = isBoss
         ? ADVENTURE_MONSTER_RESPAWN_BOSS_MS
         : ADVENTURE_MONSTER_RESPAWN_NORMAL_MIN_MS +
@@ -80,8 +86,14 @@ export function getAdventureMapCycleParams(stageId: string, codexId: string, isB
 }
 
 /** 절대 시각 기준: 스케줄상 맵 체류 구간 안인지(억제 전) */
-export function adventureMapIsOnScheduleDwell(nowMs: number, stageId: string, codexId: string, isBoss: boolean): boolean {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss);
+export function adventureMapIsOnScheduleDwell(
+    nowMs: number,
+    stageId: string,
+    codexId: string,
+    isBoss: boolean,
+    dwellMultiplier = 1,
+): boolean {
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier);
     return posInCycle(nowMs, phase, cycle) < dwell;
 }
 
@@ -91,8 +103,9 @@ export function getAdventureMapSuppressUntilAfterDefeat(
     stageId: string,
     codexId: string,
     isBoss: boolean,
+    dwellMultiplier = 1,
 ): number {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier);
     const local = posInCycle(defeatAtMs, phase, cycle);
     if (local < dwell) {
         return defeatAtMs - local + dwell + (cycle - dwell);
@@ -107,8 +120,9 @@ export function adventureMapIsEffectivelyVisible(
     codexId: string,
     isBoss: boolean,
     suppressUntilMs: number | undefined,
+    dwellMultiplier = 1,
 ): boolean {
-    if (!adventureMapIsOnScheduleDwell(nowMs, stageId, codexId, isBoss)) return false;
+    if (!adventureMapIsOnScheduleDwell(nowMs, stageId, codexId, isBoss, dwellMultiplier)) return false;
     if (suppressUntilMs != null && nowMs < suppressUntilMs) return false;
     return true;
 }
@@ -123,8 +137,9 @@ export function adventureMapMsUntilNextAppearance(
     codexId: string,
     isBoss: boolean,
     suppressUntilMs: number | undefined,
+    dwellMultiplier = 1,
 ): number {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier);
     const suppress = suppressUntilMs != null && suppressUntilMs > nowMs ? suppressUntilMs : nowMs;
 
     let t = suppress;
@@ -182,6 +197,7 @@ export function buildAdventureMapMonstersFromSchedule(
     stage: AdventureMapStageForSchedule,
     nowMs: number,
     suppressUntilByKey: Readonly<Record<string, number>> | null | undefined,
+    mapDwellMultiplierForStage = 1,
 ): AdventureMapMonsterInstance[] {
     const { min: lvMin, max: lvMax } = getAdventureStageLevelRange(stage.stageIndex);
     const sorted = [...stage.monsters].sort((a, b) => {
@@ -197,9 +213,24 @@ export function buildAdventureMapMonstersFromSchedule(
         const isBoss = isAdventureChapterBossCodexId(row.codexId);
         const key = adventureMapSuppressKey(stage.id, row.codexId);
         const suppressUntil = suppressUntilByKey?.[key];
-        if (!adventureMapIsEffectivelyVisible(nowMs, stage.id, row.codexId, isBoss, suppressUntil)) continue;
+        if (
+            !adventureMapIsEffectivelyVisible(
+                nowMs,
+                stage.id,
+                row.codexId,
+                isBoss,
+                suppressUntil,
+                mapDwellMultiplierForStage,
+            )
+        )
+            continue;
 
-        const { dwell, cycle, phase } = getAdventureMapCycleParams(stage.id, row.codexId, isBoss);
+        const { dwell, cycle, phase } = getAdventureMapCycleParams(
+            stage.id,
+            row.codexId,
+            isBoss,
+            mapDwellMultiplierForStage,
+        );
         const local = posInCycle(nowMs, phase, cycle);
         const windowStart = nowMs - local;
         const windowEnd = windowStart + dwell;

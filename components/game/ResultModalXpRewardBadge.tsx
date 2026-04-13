@@ -10,27 +10,27 @@ export type ResultModalXpVariant = 'strategy' | 'playful';
 const VARIANT = {
     strategy: {
         box: 'border-emerald-400/35 bg-gradient-to-br from-emerald-700/45 via-emerald-950/95 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-emerald-400/30',
-        labelMode: 'text-[0.5rem] font-bold leading-none text-emerald-100/95 sm:text-[0.52rem]',
-        labelExp: 'mt-[3px] text-[0.58rem] font-black leading-none tracking-[0.08em] text-emerald-50 sm:text-[0.6rem]',
-        amount: 'text-[0.65rem] font-semibold tabular-nums leading-tight text-emerald-100 sm:text-[0.7rem]',
+        labelMode: 'text-[0.55rem] font-bold leading-none text-emerald-100/95 min-[1024px]:text-xs',
+        labelExp: 'mt-[3px] text-[0.62rem] font-black leading-none tracking-[0.08em] text-emerald-50 min-[1024px]:text-[0.7rem]',
+        amount:
+            'text-sm font-bold tabular-nums leading-tight text-emerald-100 min-[1024px]:text-base',
         labelModeCompact:
-            'text-[0.42rem] min-[360px]:text-[0.46rem] min-[400px]:text-[0.5rem] font-bold leading-none text-emerald-100/95 sm:text-[0.52rem]',
+            'text-[0.5rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.54rem] font-bold leading-none text-emerald-100/95',
         labelExpCompact:
-            'mt-px text-[0.48rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.56rem] font-black leading-none tracking-[0.06em] text-emerald-50 sm:text-[0.6rem]',
+            'mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black leading-none tracking-[0.06em] text-emerald-50',
         amountCompact:
-            'text-[0.58rem] min-[360px]:text-[0.62rem] font-semibold tabular-nums leading-tight text-emerald-100 sm:text-[0.7rem]',
+            'text-[0.72rem] font-bold tabular-nums leading-tight text-emerald-100',
     },
     playful: {
         box: 'border-sky-400/45 bg-gradient-to-br from-sky-600/55 via-violet-900/85 to-indigo-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] ring-sky-400/35',
-        labelMode: 'text-[0.5rem] font-bold leading-none text-sky-100/95 sm:text-[0.52rem]',
-        labelExp: 'mt-[3px] text-[0.58rem] font-black leading-none tracking-[0.08em] text-violet-100 sm:text-[0.6rem]',
-        amount: 'text-[0.65rem] font-semibold tabular-nums leading-tight text-sky-100 sm:text-[0.7rem]',
+        labelMode: 'text-[0.55rem] font-bold leading-none text-sky-100/95 min-[1024px]:text-xs',
+        labelExp: 'mt-[3px] text-[0.62rem] font-black leading-none tracking-[0.08em] text-violet-100 min-[1024px]:text-[0.7rem]',
+        amount: 'text-sm font-bold tabular-nums leading-tight text-sky-100 min-[1024px]:text-base',
         labelModeCompact:
-            'text-[0.42rem] min-[360px]:text-[0.46rem] min-[400px]:text-[0.5rem] font-bold leading-none text-sky-100/95 sm:text-[0.52rem]',
+            'text-[0.5rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.54rem] font-bold leading-none text-sky-100/95',
         labelExpCompact:
-            'mt-px text-[0.48rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.56rem] font-black leading-none tracking-[0.06em] text-violet-100 sm:text-[0.6rem]',
-        amountCompact:
-            'text-[0.58rem] min-[360px]:text-[0.62rem] font-semibold tabular-nums leading-tight text-sky-100 sm:text-[0.7rem]',
+            'mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black leading-none tracking-[0.06em] text-violet-100',
+        amountCompact: 'text-[0.72rem] font-bold tabular-nums leading-tight text-sky-100',
     },
 } as const;
 
@@ -70,8 +70,10 @@ export const ResultModalXpRewardBadge: React.FC<{
                 <span className={isCompact ? v.labelModeCompact : v.labelMode}>{modeLabel}</span>
                 <span className={isCompact ? v.labelExpCompact : v.labelExp}>EXP</span>
             </div>
-            <span className={`text-center whitespace-nowrap ${isCompact ? v.amountCompact : v.amount}`}>
-                +{amount.toLocaleString()}
+            <span
+                className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}
+            >
+                <span className="whitespace-nowrap">+{amount.toLocaleString()}</span>
             </span>
         </div>
     );

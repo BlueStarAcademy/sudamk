@@ -16,7 +16,25 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import { broadcastPlayingSnapshotBeforeScoring } from '../utils/broadcastPlayingBeforeScoring.js';
 
+/** 로비 AI 대국(모험·봇 대전): 계가 직전에 마지막 판면이 한 번 보이도록 */
+const isLobbyAiStrategicGame = (game: types.LiveGameSession) =>
+    !!game.isAiGame &&
+    !game.isSinglePlayer &&
+    game.gameCategory !== 'tower' &&
+    game.gameCategory !== 'singleplayer' &&
+    game.gameCategory !== 'guildwar';
+
+/** `currentPlayer`가 곧 둘 차례인 플레이어가 서버 AI인지 (착수 반영 후 `currentPlayer`는 다음 수 차례) */
+async function isCurrentPlayerTheAi(game: types.LiveGameSession): Promise<boolean> {
+    if (!game.isAiGame) return false;
+    const cp = game.currentPlayer;
+    if (cp !== types.Player.Black && cp !== types.Player.White) return false;
+    const { aiUserId } = await import('../aiPlayer.js');
+    const pid = cp === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    return pid === aiUserId;
+}
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
     const p1 = game.player1;
@@ -351,11 +369,50 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.lastMove = { x, y };
                     game.passCount = 0;
                     if (result.capturedStones.length > 0) {
-                        game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + result.capturedStones.length;
                         if (!game.justCaptured) game.justCaptured = [];
                         for (const stone of result.capturedStones) {
-                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false, capturePoints: 1 });
+                            const capturedPlayerEnum = humanPlayerEnum;
+                            let points = 1;
+                            let wasHiddenForJustCaptured = false;
+
+                            const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+                            if (isBaseStone) {
+                                game.baseStoneCaptures[aiPlayerEnum]++;
+                                points = 5;
+                            } else {
+                                const wasPatternStone = consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum);
+                                if (wasPatternStone) {
+                                    points = 2;
+                                } else {
+                                    const moveIndex = game.moveHistory.findIndex((m) => m.x === stone.x && m.y === stone.y);
+                                    const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                                    const wasAiInitialHidden =
+                                        (game as any).aiInitialHiddenStone &&
+                                        (game as any).aiInitialHiddenStone.x === stone.x &&
+                                        (game as any).aiInitialHiddenStone.y === stone.y;
+                                    if (wasHidden || wasAiInitialHidden) {
+                                        game.hiddenStoneCaptures[aiPlayerEnum] =
+                                            (game.hiddenStoneCaptures[aiPlayerEnum] || 0) + 1;
+                                        points = 5;
+                                        wasHiddenForJustCaptured = true;
+                                        if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                                        if (
+                                            !game.permanentlyRevealedStones.some((p) => p.x === stone.x && p.y === stone.y)
+                                        ) {
+                                            game.permanentlyRevealedStones.push(stone);
+                                        }
+                                    }
+                                }
+                            }
+                            game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + points;
+                            game.justCaptured.push({
+                                point: stone,
+                                player: capturedPlayerEnum,
+                                wasHidden: wasHiddenForJustCaptured,
+                                capturePoints: points,
+                            });
                         }
+                        stripPatternStonesAtConsumedIntersections(game);
                     }
                     game.currentPlayer = humanPlayerEnum;
                     game.gameStatus = 'playing';
@@ -382,6 +439,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         const turnsAfter = (game.moveHistory || []).length;
                         if (turnsAfter >= scoringTurnLimitAfterAi) {
                             console.log(`[handleStrategicAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${turnsAfter}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
+                            if (isLobbyAiStrategicGame(game)) {
+                                await broadcastPlayingSnapshotBeforeScoring(game);
+                            }
                             game.gameStatus = 'scoring';
                             game.totalTurns = turnsAfter;
                             await db.saveGame(game);
@@ -426,6 +486,9 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 const totalTurnsSoFar = (game.moveHistory || []).length;
                 if (totalTurnsSoFar >= scoringTurnLimit) {
                     console.log(`[handleStrategicAction] Game ${game.id} at/over scoringTurnLimit (${totalTurnsSoFar} >= ${scoringTurnLimit}), triggering getGameResult without applying move`);
+                    if (isLobbyAiStrategicGame(game)) {
+                        await broadcastPlayingSnapshotBeforeScoring(game);
+                    }
                     game.gameStatus = 'scoring';
                     game.totalTurns = totalTurnsSoFar;
                     await db.saveGame(game);
@@ -553,12 +616,18 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
 
                 const moveAttempt = { x, y, player: myPlayerEnum };
+                const treatAsPveLike =
+                    game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame;
                 const result = processMove(
                     tempBoardState,
                     moveAttempt,
                     game.koInfo,
                     game.moveHistory.length,
-                    { ignoreSuicide: false, isSinglePlayer: false, opponentPlayer: undefined }
+                    {
+                        ignoreSuicide: false,
+                        isSinglePlayer: treatAsPveLike,
+                        opponentPlayer: treatAsPveLike ? opponentPlayerEnum : undefined,
+                    }
                 );
 
                 // 공개 애니메이션은 항상 재생
@@ -818,21 +887,30 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     let wasHiddenForJustCaptured = false; // default for justCaptured
 
                     if (game.isSinglePlayer || isStrategicAiGame || (game as any).gameCategory === 'guildwar') {
-                        const wasPatternStone = consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum);
-                        if (wasPatternStone) {
-                            points = 2;
+                        const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+                        if (isBaseStone) {
+                            game.baseStoneCaptures[myPlayerEnum]++;
+                            points = 5;
                         } else {
-                            // 싱글/탑/길드전: 히든·AI초기히든은 5점 (문양돌과 겹치면 문양 점수 우선 — 위에서 처리됨)
-                            const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
-                            const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                            const wasAiInitialHidden = (game as any).aiInitialHiddenStone && (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
-                            if (wasHidden || wasAiInitialHidden) {
-                                game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
-                                points = 5;
-                                wasHiddenForJustCaptured = true;
-                                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                                if (!game.permanentlyRevealedStones.some(p => p.x === stone.x && p.y === stone.y)) {
-                                    game.permanentlyRevealedStones.push(stone);
+                            const wasPatternStone = consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum);
+                            if (wasPatternStone) {
+                                points = 2;
+                            } else {
+                                // 싱글/탑/길드전: 히든·AI초기히든은 5점 (문양돌과 겹치면 문양 점수 우선 — 위에서 처리됨)
+                                const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                                const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                                const wasAiInitialHidden =
+                                    (game as any).aiInitialHiddenStone &&
+                                    (game as any).aiInitialHiddenStone.x === stone.x &&
+                                    (game as any).aiInitialHiddenStone.y === stone.y;
+                                if (wasHidden || wasAiInitialHidden) {
+                                    game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
+                                    points = 5;
+                                    wasHiddenForJustCaptured = true;
+                                    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                                    if (!game.permanentlyRevealedStones.some(p => p.x === stone.x && p.y === stone.y)) {
+                                        game.permanentlyRevealedStones.push(stone);
+                                    }
                                 }
                             }
                         }
@@ -969,19 +1047,31 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 const newTotalTurns = (game.moveHistory || []).length;
                 game.totalTurns = newTotalTurns;
                 if (newTotalTurns >= scoringTurnLimitAfterMove) {
-                    console.log(`[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimitAfterMove}, triggering getGameResult`);
-                    game.gameStatus = 'scoring';
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('../socket.js');
-                    const gameToBroadcast = { ...game };
-                    delete (gameToBroadcast as any).boardState;
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                    try {
-                        await getGameResult(game);
-                    } catch (scoringError: any) {
-                        console.error(`[handleStrategicAction] Error during scoring (turn limit) for game ${game.id}:`, scoringError?.message);
+                    // 모험: 제한 수순에 도달한 직후 다음 차례가 AI면, 먼저 계가하지 않고 AI 착수 후(goAiBot) 계가되게 함
+                    const deferScoringForAdventureAi =
+                        game.gameCategory === 'adventure' && (await isCurrentPlayerTheAi(game));
+                    if (deferScoringForAdventureAi) {
+                        console.log(
+                            `[handleStrategicAction] Adventure: at scoringTurnLimit (${newTotalTurns}/${scoringTurnLimitAfterMove}) but AI is next — deferring scoring until after AI move`,
+                        );
+                    } else {
+                        console.log(`[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimitAfterMove}, triggering getGameResult`);
+                        if (isLobbyAiStrategicGame(game)) {
+                            await broadcastPlayingSnapshotBeforeScoring(game);
+                        }
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('../socket.js');
+                        const gameToBroadcast = { ...game };
+                        delete (gameToBroadcast as any).boardState;
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                        try {
+                            await getGameResult(game);
+                        } catch (scoringError: any) {
+                            console.error(`[handleStrategicAction] Error during scoring (turn limit) for game ${game.id}:`, scoringError?.message);
+                        }
+                        return {};
                     }
-                    return {};
                 }
             }
 

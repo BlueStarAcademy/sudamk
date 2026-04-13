@@ -1,4 +1,5 @@
 import React from 'react';
+import { useResilientImgSrc } from '../../hooks/useResilientImgSrc.js';
 
 function frameToGrid(frameIndex: number, cols: number, rows: number): { col: number; row: number } {
     const maxIndex = cols * rows - 1;
@@ -25,10 +26,13 @@ export const AdventureMonsterSpriteFrame: React.FC<{
      */
     softBackdrop?: boolean;
 }> = ({ sheetUrl, frameIndex, cols, rows, className = '', imgClassName = '', style, softBackdrop = false }) => {
+    const { src, onError } = useResilientImgSrc(sheetUrl);
     const { col, row } = frameToGrid(frameIndex, cols, rows);
     const c = Math.max(1, Math.floor(cols));
     const r = Math.max(1, Math.floor(rows));
     const singleCell = c === 1 && r === 1;
+    /** GPU 일부 환경에서 img+filter 합성 시 깜빡임·깨짐이 나와 drop-shadow만 유지 */
+    const softImgFilter = softBackdrop ? 'drop-shadow(0 2px 8px rgba(0,0,0,0.88))' : undefined;
     if (singleCell) {
         return (
             <div className={`relative overflow-hidden ${className}`.trim()} style={style}>
@@ -43,17 +47,17 @@ export const AdventureMonsterSpriteFrame: React.FC<{
                     />
                 ) : null}
                 <img
-                    src={sheetUrl}
+                    src={src}
                     alt=""
                     draggable={false}
-                    className={`pointer-events-none absolute left-1/2 top-1/2 z-[1] max-h-full max-w-full -translate-x-1/2 -translate-y-1/2 select-none object-contain ${imgClassName}`.trim()}
-                    style={
-                        softBackdrop
-                            ? {
-                                  filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.88)) contrast(1.1) saturate(1.06)',
-                              }
-                            : undefined
-                    }
+                    loading="eager"
+                    decoding="async"
+                    className={`pointer-events-none absolute left-1/2 top-1/2 z-[1] max-h-full max-w-full select-none object-contain ${imgClassName}`.trim()}
+                    style={{
+                        transform: 'translate3d(-50%, -50%, 0)',
+                        ...(softImgFilter ? { filter: softImgFilter } : {}),
+                    }}
+                    onError={onError}
                 />
             </div>
         );
@@ -71,21 +75,20 @@ export const AdventureMonsterSpriteFrame: React.FC<{
                 />
             ) : null}
             <img
-                src={sheetUrl}
+                src={src}
                 alt=""
                 draggable={false}
+                loading="eager"
+                decoding="async"
                 className={`relative z-[1] block max-h-none max-w-none select-none ${imgClassName}`.trim()}
                 style={{
                     width: `${c * 100}%`,
                     height: `${r * 100}%`,
                     objectFit: 'fill',
-                    transform: `translate(-${(col / c) * 100}%, -${(row / r) * 100}%)`,
-                    ...(softBackdrop
-                        ? {
-                              filter: 'drop-shadow(0 2px 8px rgba(0,0,0,0.88)) contrast(1.1) saturate(1.06)',
-                          }
-                        : {}),
+                    transform: `translate3d(-${(col / c) * 100}%, -${(row / r) * 100}%, 0)`,
+                    ...(softImgFilter ? { filter: softImgFilter } : {}),
                 }}
+                onError={onError}
             />
         </div>
     );

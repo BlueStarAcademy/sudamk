@@ -315,7 +315,11 @@ const makeStrategicAiMove = async (game: types.LiveGameSession) => {
     if (isHiddenMode && game.isSinglePlayer && !game.aiHiddenItemUsed && game.aiHiddenItemTurn !== undefined && totalTurns >= game.aiHiddenItemTurn) {
         // AI 히든 아이템 사용 연출
         game.aiHiddenItemUsed = true;
-        game.foulInfo = { message: 'AI봇이 히든 아이템을 사용했습니다!', expiry: now + 6000 };
+        const hiddenNoticeMsg =
+            (game as any).gameCategory === 'adventure'
+                ? '몬스터가 히든 아이템을 사용했습니다!'
+                : 'AI봇이 히든 아이템을 사용했습니다!';
+        game.foulInfo = { message: hiddenNoticeMsg, expiry: now + 6000 };
         
         // 6초간 생각하는 연출을 위해 게임 상태를 특별한 상태로 설정
         game.gameStatus = 'playing'; // 상태는 유지하되, 애니메이션으로 표시

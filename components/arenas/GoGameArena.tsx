@@ -15,6 +15,8 @@ interface GoGameArenaProps extends GameProps {
     isMobile: boolean;
     myRevealedMoves: number[];
     showLastMoveMarker: boolean;
+    /** 히든 아이템 사용·AI 히든 연출 중 바둑판 패널 테두리 */
+    showBoardGlow?: boolean;
     isBoardRotated?: boolean;
     onToggleBoardRotation?: () => void;
     // 온라인 전략바둑 AI 대국용: 서버 응답 전 낙관적 표시용 임시 돌
@@ -34,6 +36,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         isMobile,
         myRevealedMoves,
         showLastMoveMarker,
+        showBoardGlow = false,
         isBoardRotated = false,
         onToggleBoardRotation,
         pendingMove,
@@ -85,6 +88,10 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         }
         return result;
     }, [session.revealedHiddenMoves, session.moveHistory]);
+
+    /** 베이스 배치·덤 입찰 단계: 바둑판에 양측 베이스돌 좌표 전달(덤 배팅 중에도 배치 상태 표시) */
+    const showPlacedBaseStoneArrays =
+        gameStatus === 'base_placement' || gameStatus === 'komi_bidding' || gameStatus === 'komi_bid_reveal';
 
     const backgroundClass = useMemo(() => {
         if (session.gameCategory === 'guildwar') {
@@ -170,7 +177,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 </button>
             )}
             {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
-            <div className="w-full h-full max-w-full max-h-full flex items-center justify-center min-w-0 min-h-0">
+            <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center min-w-0 min-h-0">
                 <div className="w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0">
                 <GoBoard
                 boardState={session.boardState}
@@ -219,8 +226,8 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 showTerritoryOverlay={showTerritoryOverlay}
                 showHintOverlay={false}
                 showLastMoveMarker={showLastMoveMarker}
-                baseStones_p1={gameStatus === 'base_placement' ? session.baseStones_p1 : undefined}
-                baseStones_p2={gameStatus === 'base_placement' ? session.baseStones_p2 : undefined}
+                baseStones_p1={showPlacedBaseStoneArrays ? session.baseStones_p1 : undefined}
+                baseStones_p2={showPlacedBaseStoneArrays ? session.baseStones_p2 : undefined}
                 currentUser={props.currentUser}
                 blackPlayerNickname={blackPlayer?.nickname || '흑'}
                 whitePlayerNickname={whitePlayer?.nickname || '백'}
@@ -233,6 +240,12 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 onBoardRuleFlash={props.onBoardRuleFlash}
                 />
                 </div>
+                {showBoardGlow && (
+                    <div
+                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]"
+                        aria-hidden
+                    />
+                )}
             </div>
         </div>
     );

@@ -80,7 +80,13 @@ const DB_QUERY_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000;
 const CHUNK_TIMEOUT_MS = isRailwayOrProd ? 7000 : 4000;
 const CHUNK_SIZE = isRailwayOrProd ? 10 : 20;
 
-const mapRowToGame = (row: { id: string; data: unknown; status: string; category: string | null }): LiveGameSession | null => {
+const mapRowToGame = (row: {
+  id: string;
+  data: unknown;
+  status: string;
+  category: string | null;
+  aiHiddenItemAnimationEndTime?: bigint | null;
+}): LiveGameSession | null => {
   if (!row || !row.data) return null;
   try {
     // 최적화: data가 이미 객체인 경우 JSON.parse/stringify 스킵
@@ -111,11 +117,23 @@ const mapRowToGame = (row: { id: string; data: unknown; status: string; category
     ) {
       game.gameCategory = "guildwar" as any;
     }
+    if (
+      (game.aiHiddenItemAnimationEndTime == null || !Number.isFinite(game.aiHiddenItemAnimationEndTime)) &&
+      row.aiHiddenItemAnimationEndTime != null
+    ) {
+      game.aiHiddenItemAnimationEndTime = Number(row.aiHiddenItemAnimationEndTime);
+    }
     return game;
   } catch (error) {
     console.warn(`[gameService] Failed to parse game ${row.id}:`, error);
     return null;
   }
+};
+
+const prismaAiHiddenItemAnimationEndTime = (game: LiveGameSession): bigint | null => {
+  const t = game.aiHiddenItemAnimationEndTime;
+  if (t == null || !Number.isFinite(t)) return null;
+  return BigInt(Math.trunc(t));
 };
 
 const deriveMeta = (game: LiveGameSession) => {
@@ -423,6 +441,7 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
       game.gameCategory = "guildwar" as any;
     }
     const { status, category, isEnded } = deriveMeta(game);
+    const aiHiddenEnd = prismaAiHiddenItemAnimationEndTime(game);
     await prisma.liveGame.upsert({
       where: { id: game.id },
       create: {
@@ -430,13 +449,15 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
         status,
         category,
         isEnded,
-        data: game
+        data: game,
+        aiHiddenItemAnimationEndTime: aiHiddenEnd
       },
       update: {
         status,
         category,
         isEnded,
         data: game,
+        aiHiddenItemAnimationEndTime: aiHiddenEnd,
         updatedAt: new Date()
       }
     });
@@ -446,6 +467,7 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
       try {
         await prisma.$connect();
         const { status, category, isEnded } = deriveMeta(game);
+        const aiHiddenEnd = prismaAiHiddenItemAnimationEndTime(game);
         await prisma.liveGame.upsert({
           where: { id: game.id },
           create: {
@@ -453,13 +475,15 @@ export async function saveGame(game: LiveGameSession): Promise<void> {
             status,
             category,
             isEnded,
-            data: game
+            data: game,
+            aiHiddenItemAnimationEndTime: aiHiddenEnd
           },
           update: {
             status,
             category,
             isEnded,
             data: game,
+            aiHiddenItemAnimationEndTime: aiHiddenEnd,
             updatedAt: new Date()
           }
         });

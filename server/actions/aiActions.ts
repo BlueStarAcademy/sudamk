@@ -87,8 +87,8 @@ export async function handleAiAction(
       }
     }
 
-    // 게임 시작 시간 설정
-    if (!postInit.gameStartTime) {
+    // 실제 대국(playing) 전에는 설정하지 않음 — nigiri_reveal 등은 transitionToPlaying에서 설정
+    if (postInit.gameStatus === 'playing' && !postInit.gameStartTime) {
       postInit.gameStartTime = now;
     }
 

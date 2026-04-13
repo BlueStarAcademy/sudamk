@@ -10,9 +10,12 @@ import { processMove } from '../goLogic.js';
 /** 2차 덤 동점 → 무작위 흑백 시 룰렛 연출 후 시작 확인으로 넘기는 시간(ms) */
 const BASE_COLOR_ROULETTE_PHASE_MS = 5200;
 
+/** 모험 베이스: 몬스터 대전은 카운트다운·자동 타임아웃 없이 유저 조작만으로 진행 */
+const isAdventureBaseGame = (game: types.LiveGameSession) => game.gameCategory === 'adventure';
+
 export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'base_placement';
-    game.basePlacementDeadline = now + 30000;
+    game.basePlacementDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
     game.baseStones_p1 = [];
     game.baseStones_p2 = [];
     game.settings.komi = 0.5; // Base komi for bidding
@@ -230,7 +233,7 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
     game.basePlacementDeadline = undefined;
 
     game.gameStatus = 'komi_bidding';
-    game.komiBiddingDeadline = now + 30000;
+    game.komiBiddingDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
     game.komiBids = { [game.player1.id]: null, [game.player2.id]: null };
     game.komiBiddingRound = 1;
     // 입찰 중에는 시간 비활성 유지
@@ -250,7 +253,8 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
             const p2StonesCount = game.baseStones_p2?.length ?? 0;
             const target = game.settings.baseStones ?? 4;
             const bothDonePlacing = p1StonesCount >= target && p2StonesCount >= target;
-            const deadlinePassed = game.basePlacementDeadline && now > game.basePlacementDeadline;
+            const deadlinePassed =
+                !isAdventureBaseGame(game) && !!game.basePlacementDeadline && now > game.basePlacementDeadline;
 
             if (bothDonePlacing || deadlinePassed) {
                 resolveBasePlacementAndTransition(game, now);
@@ -273,8 +277,9 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                 }
             }
             const bothHaveBid = game.komiBids?.[p1Id] != null && game.komiBids?.[p2Id] != null;
-            const deadlinePassed = game.komiBiddingDeadline && now > game.komiBiddingDeadline;
-        
+            const deadlinePassed =
+                !isAdventureBaseGame(game) && !!game.komiBiddingDeadline && now > game.komiBiddingDeadline;
+
             if (bothHaveBid || deadlinePassed) {
                 if (deadlinePassed) {
                     // A non-competitive bid as a penalty for timeout.
@@ -285,7 +290,8 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                     if (!game.komiBids![p2Id]) game.komiBids![p2Id] = timeoutBid;
                 }
                 game.gameStatus = 'komi_bid_reveal';
-                game.revealEndTime = now + 4000;
+                // 모험: 결과 연출 대기 없이 다음 틱에서 바로 흑백·판 반영
+                game.revealEndTime = isAdventureBaseGame(game) ? now - 1 : now + 4000;
             }
             break;
         }
@@ -322,7 +328,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                     } else {
                         if ((game.komiBiddingRound || 1) === 1) {
                             game.gameStatus = 'komi_bidding';
-                            game.komiBiddingDeadline = now + 30000;
+                            game.komiBiddingDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
                             game.komiBids = { [p1.id]: null, [p2.id]: null };
                             game.komiBiddingRound = 2;
                             game.komiBidRevealProcessed = false;
@@ -359,11 +365,11 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                     game.boardState = newBoardState;
                     if (useBaseColorRoulettePhase) {
                         game.gameStatus = 'base_color_roulette';
-                        game.revealEndTime = now + BASE_COLOR_ROULETTE_PHASE_MS;
+                        game.revealEndTime = isAdventureBaseGame(game) ? now - 1 : now + BASE_COLOR_ROULETTE_PHASE_MS;
                         game.preGameConfirmations = {};
                     } else {
                         game.gameStatus = 'base_game_start_confirmation';
-                        game.revealEndTime = now + 30000;
+                        game.revealEndTime = isAdventureBaseGame(game) ? undefined : now + 30000;
                         game.preGameConfirmations = { [p1.id]: false, [p2.id]: false };
                         if (game.isAiGame) {
                             const aiId = p1.id === aiUserId ? p1.id : p2.id;
@@ -385,7 +391,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
         case 'base_color_roulette': {
             if (game.revealEndTime && now > game.revealEndTime) {
                 game.gameStatus = 'base_game_start_confirmation';
-                game.revealEndTime = now + 30000;
+                game.revealEndTime = isAdventureBaseGame(game) ? undefined : now + 30000;
                 game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
                 if (game.isAiGame) {
                     const aiId = p1Id === aiUserId ? p1Id : p2Id;
@@ -396,7 +402,8 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
         }
         case 'base_game_start_confirmation': {
             const bothConfirmed = game.preGameConfirmations?.[p1Id] && game.preGameConfirmations?.[p2Id];
-            const deadlinePassed = game.revealEndTime && now > game.revealEndTime;
+            const deadlinePassed =
+                !isAdventureBaseGame(game) && !!game.revealEndTime && now > game.revealEndTime;
             if (bothConfirmed || deadlinePassed) {
                 transitionToPlaying(game, now);
             }

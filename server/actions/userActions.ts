@@ -25,7 +25,7 @@ import {
     getAdventureAllowedBattleModes,
     resolveAdventureBoardSize,
 } from '../../shared/utils/adventureBattleBoard.js';
-import { UserStatus } from '../../types/enums.js';
+import { GameMode, UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
@@ -45,6 +45,8 @@ import {
     applyAdventureMonsterDefeatToProfile,
     parseAdventureMonsterLevel,
 } from '../utils/adventureMonsterDefeat.js';
+import { getRegionalHiddenScanBonus, getRegionalMissileBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { changeAdventureRegionalSpecialtyBuffs } from '../utils/adventureRegionalBuffReroll.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -173,6 +175,14 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 settings.kataServerLevel = KATA_SERVER_LEVEL_BY_PROFILE_STEP[kataStep];
                 settings.goAiBotLevel = kataStep;
                 applyAdventureStrategicGameSettings(settings, boardSize, mode);
+                const scanExtra = getRegionalHiddenScanBonus(user.adventureProfile, stageId!);
+                if (mode === GameMode.Hidden && scanExtra > 0) {
+                    settings.scanCount = (settings.scanCount ?? 0) + scanExtra;
+                }
+                const missileExtra = getRegionalMissileBonus(user.adventureProfile, stageId!);
+                if (mode === GameMode.Missile && missileExtra > 0) {
+                    settings.missileCount = (settings.missileCount ?? 0) + missileExtra;
+                }
 
                 const negotiation: types.Negotiation = {
                     id: `neg-adv-${randomUUID()}`,
@@ -247,6 +257,23 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 });
                 return { error: err?.message || '모험 대전 생성 중 오류가 발생했습니다.' };
             }
+        }
+        case 'REROLL_ADVENTURE_REGIONAL_BUFF': {
+            const { stageId, lockedIndices } = (payload || {}) as { stageId?: string; lockedIndices?: number[] };
+            if (!stageId || typeof stageId !== 'string') {
+                return { error: '스테이지가 필요합니다.' };
+            }
+            const rollErr = changeAdventureRegionalSpecialtyBuffs(user, stageId, Array.isArray(lockedIndices) ? lockedIndices : []);
+            if (rollErr) {
+                return { error: rollErr };
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'REROLL_ADVENTURE_REGIONAL_BUFF');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after REROLL_ADVENTURE_REGIONAL_BUFF`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['adventureProfile', 'gold']);
+            return { clientResponse: { updatedUser } };
         }
         case 'CHANGE_NICKNAME': {
             const { newNickname } = payload;

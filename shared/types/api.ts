@@ -234,6 +234,7 @@ export type ServerAction =
               mapMonsterId: string;
           };
       }
+    | { type: 'REROLL_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; lockedIndices?: number[] } }
     // Inventory & Item Actions
     | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
@@ -325,7 +326,7 @@ export type ServerAction =
     | { type: 'END_SINGLE_PLAYER_GAME', payload: { gameId: string; winner: Player; winReason: WinReason } }
     | { type: 'TOWER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; } }
     | { type: 'SINGLE_PLAYER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; isHidden?: boolean; } }
-    | { type: 'AI_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; } }
+    | { type: 'AI_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player } }
     | { type: 'START_SINGLE_PLAYER_MISSION', payload: { missionId: string } }
     | { type: 'CLAIM_SINGLE_PLAYER_MISSION_REWARD', payload: { missionId: string } }
     | { type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS', payload?: never }

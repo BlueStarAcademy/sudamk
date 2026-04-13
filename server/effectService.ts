@@ -11,6 +11,7 @@ import {
     getAdventureUnderstandingRegionalCoreBuff,
     sumAdventureUnderstandingGoldBonusPercent,
 } from '../utils/adventureUnderstanding.js';
+import { sumRegionalAdvGoldPercentForProfile } from '../utils/adventureRegionalSpecialtyBuff.js';
 
 export interface MannerEffects {
     maxActionPoints: number;
@@ -205,7 +206,8 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
     calculatedEffects.adventureCodexGoldBonusPercent =
         (calculatedEffects.adventureCodexGoldBonusPercent ?? 0) +
         codexBossPct.adventureGoldPercent +
-        sumAdventureUnderstandingGoldBonusPercent(user.adventureProfile);
+        sumAdventureUnderstandingGoldBonusPercent(user.adventureProfile) +
+        sumRegionalAdvGoldPercentForProfile(user.adventureProfile);
 
     const advDrop = getAdventureUnderstandingDropBonusesPercent(user.adventureProfile);
     calculatedEffects.adventureUnderstandingEquipmentDropBonusPercent =

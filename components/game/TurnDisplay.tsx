@@ -13,6 +13,12 @@ import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
+const MONSTER_HIDDEN_ITEM_MESSAGE = '몬스터가 히든 아이템을 사용했습니다!';
+
+function isAiOpponentHiddenNoticeMessage(msg: string | undefined): boolean {
+    if (!msg) return false;
+    return msg === AI_HIDDEN_ITEM_MESSAGE || msg === MONSTER_HIDDEN_ITEM_MESSAGE;
+}
 
 const BASE_PLACEMENT_TIME_LIMIT_SEC = 30;
 
@@ -187,8 +193,36 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const [alkkagiRoundEndSecLeft, setAlkkagiRoundEndSecLeft] = useState(0);
     const [percentage, setPercentage] = useState(100);
     const [foulMessage, setFoulMessage] = useState<string | null>(null);
+    const [opponentHiddenTickerPulse, setOpponentHiddenTickerPulse] = useState(0);
     const prevTimeoutPlayerId = usePrevious(session.lastTimeoutPlayerId);
     const prevFoulInfoMessage = usePrevious(session.foulInfo?.message);
+    const prevGameStatus = usePrevious(session.gameStatus);
+
+    const opponentAiHiddenTickerEnd = useMemo(() => {
+        const aiHiddenAnimEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
+        const hiddenNoticeFromFoul = isAiOpponentHiddenNoticeMessage(session.foulInfo?.message);
+        if (session.animation?.type === 'ai_thinking' && aiHiddenAnimEnd != null) {
+            return aiHiddenAnimEnd;
+        }
+        if (hiddenNoticeFromFoul && session.foulInfo?.expiry != null) {
+            return session.foulInfo.expiry;
+        }
+        return null;
+    }, [
+        session.animation?.type,
+        (session as any).aiHiddenItemAnimationEndTime,
+        session.foulInfo?.message,
+        session.foulInfo?.expiry,
+    ]);
+
+    const wantsOpponentHiddenTicker = useMemo(() => {
+        const hiddenNoticeFromFoul = isAiOpponentHiddenNoticeMessage(session.foulInfo?.message);
+        return (
+            session.gameStatus === 'playing' &&
+            opponentAiHiddenTickerEnd != null &&
+            (session.animation?.type === 'ai_thinking' || hiddenNoticeFromFoul)
+        );
+    }, [session.gameStatus, opponentAiHiddenTickerEnd, session.animation?.type, session.foulInfo?.message]);
 
     /** 주사위/도둑 PVP만 전광판 하단 턴 타이머 막대 표시. AI 대국은 카운트다운·막대 없음 */
     const isPlayfulTurn = useMemo(() => {
@@ -280,21 +314,16 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
 
     useEffect(() => {
-        if (session.foulInfo && session.foulInfo.message !== prevFoulInfoMessage) {
-            setFoulMessage(session.foulInfo.message);
-            audioService.timeoutFoul();
-            const timer = setTimeout(() => setFoulMessage(null), 5000);
-            return () => clearTimeout(timer);
+        if (!session.foulInfo || session.foulInfo.message === prevFoulInfoMessage) return;
+        const msg = session.foulInfo.message;
+        if (isAiOpponentHiddenNoticeMessage(msg)) {
+            return;
         }
+        setFoulMessage(msg);
+        audioService.timeoutFoul();
+        const timer = setTimeout(() => setFoulMessage(null), 5000);
+        return () => clearTimeout(timer);
     }, [session.foulInfo, prevFoulInfoMessage]);
-
-    useEffect(() => {
-        if (foulMessage !== AI_HIDDEN_ITEM_MESSAGE) return;
-        const isUserTurnAfterAiHiddenMove = session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
-        if (isUserTurnAfterAiHiddenMove) {
-            setFoulMessage(null);
-        }
-    }, [foulMessage, session.gameStatus, session.currentPlayer]);
 
     useEffect(() => {
         if (session.lastTimeoutPlayerId && session.lastTimeoutPlayerId !== prevTimeoutPlayerId) {
@@ -318,16 +347,28 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     ]);
     
     useEffect(() => {
-        // Reset foul message when moving to a new turn/phase to prevent it from persisting.
         const resetStatuses: GameStatus[] = [
-            'playing', 'ended', 'no_contest', // Strategic/General
-            'alkkagi_playing', 'curling_playing', 'dice_rolling', 'dice_placing', 'thief_rolling', 'thief_placing' // Playful
+            'playing',
+            'ended',
+            'no_contest',
+            'alkkagi_playing',
+            'curling_playing',
+            'dice_rolling',
+            'dice_placing',
+            'thief_rolling',
+            'thief_placing',
         ];
-    
+        if (prevGameStatus === undefined || prevGameStatus === session.gameStatus) return;
         if (resetStatuses.includes(session.gameStatus)) {
             setFoulMessage(null);
         }
-    }, [session.gameStatus]);
+    }, [session.gameStatus, prevGameStatus]);
+
+    useEffect(() => {
+        if (!wantsOpponentHiddenTicker) return;
+        const id = setInterval(() => setOpponentHiddenTickerPulse((n) => n + 1), 250);
+        return () => clearInterval(id);
+    }, [wantsOpponentHiddenTicker, opponentAiHiddenTickerEnd]);
 
     const isItemMode = ['hidden_placing', 'scanning', 'missile_selecting'].includes(session.gameStatus);
 
@@ -424,6 +465,12 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         </div>
     );
 
+    void opponentHiddenTickerPulse;
+    const showOpponentAiHiddenMarquee =
+        wantsOpponentHiddenTicker &&
+        opponentAiHiddenTickerEnd != null &&
+        Date.now() < opponentAiHiddenTickerEnd;
+
     if (boardRuleFlashMessage) {
         return wrapContent(
             `${baseClasses} ${themeClasses} ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-4 min-h-[3rem]'} border-2 border-amber-400/55`,
@@ -443,7 +490,39 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             </div>
         );
     }
-    
+
+    if (showOpponentAiHiddenMarquee) {
+        const hiddenNoticeFromFoul = isAiOpponentHiddenNoticeMessage(session.foulInfo?.message);
+        const headline =
+            hiddenNoticeFromFoul && session.foulInfo?.message
+                ? session.foulInfo.message
+                : session.gameCategory === 'adventure' || session.adventureMonsterCodexId
+                  ? MONSTER_HIDDEN_ITEM_MESSAGE
+                  : AI_HIDDEN_ITEM_MESSAGE;
+        // AI/몬스터 히든 연출: 전광판은 카운트다운·막대 없이 안내만 (연출 시간은 바둑판 패널 테두리로 표시)
+        return wrapContent(
+            `${baseClasses} ${themeClasses} border-2 border-amber-400/50 ${isMobile ? 'gap-1 px-2 min-h-[2.45rem]' : 'gap-1.5 px-4 min-h-[3rem]'}`,
+            <div
+                className={`w-full flex-shrink-0 overflow-hidden flex items-center justify-center ${
+                    isMobile ? 'min-h-[1.15rem] py-0.5' : 'min-h-[1.5rem]'
+                }`}
+            >
+                <div
+                    className={`flex items-center justify-center text-center font-bold ${textClass} tracking-wider ${
+                        isMobile
+                            ? 'px-0.5 text-[clamp(0.58rem,1.85vmin,0.68rem)] leading-tight whitespace-normal'
+                            : 'text-[clamp(0.8rem,2.5vmin,1rem)]'
+                    }`}
+                    style={{
+                        textShadow: '0 0 8px rgba(255, 255, 255, 0.5), 0 0 16px rgba(255, 255, 255, 0.3)',
+                    }}
+                >
+                    {headline}
+                </div>
+            </div>
+        );
+    }
+
     if (foulMessage) {
         return wrapContent(
             `flex-shrink-0 bg-danger rounded-lg flex items-center justify-center shadow-inner animate-pulse border-2 border-red-500 ${

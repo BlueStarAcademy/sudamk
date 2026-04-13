@@ -1386,18 +1386,28 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
             const scansLeft = myScansLeft ?? 0;
             const scanDisabled = !isMyTurn || isSpectator || gameStatus !== 'playing' || scansLeft <= 0 || !canScan;
+            const scanHighlightAdventure = session.gameCategory === 'adventure' && !scanDisabled;
             buttons.push(
-                <LabeledControlButton
-                    key="scan"
-                    src="/images/button/scan.png"
-                    alt="스캔"
-                    label="스캔"
-                    onClick={() => handleUseItem('scan')}
-                    disabled={scanDisabled}
-                    title="상대 히든 스톤 탐지"
-                    count={scansLeft}
-                    compact={isMobile}
-                />
+                <div
+                    key="scan-wrap"
+                    className={
+                        scanHighlightAdventure
+                            ? 'rounded-md p-px ring-2 ring-cyan-400/80 shadow-[0_0_14px_rgba(34,211,238,0.35)] animate-pulse'
+                            : undefined
+                    }
+                >
+                    <LabeledControlButton
+                        key="scan"
+                        src="/images/button/scan.png"
+                        alt="스캔"
+                        label="스캔"
+                        onClick={() => handleUseItem('scan')}
+                        disabled={scanDisabled}
+                        title="상대 히든 스톤 탐지"
+                        count={scansLeft}
+                        compact={isMobile}
+                    />
+                </div>
             );
         }
 

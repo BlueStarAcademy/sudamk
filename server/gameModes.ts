@@ -238,9 +238,8 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         if (stonesToReveal.length === 0) {
             console.log(`[getGameResult] No hidden stones to reveal for game ${game.id}, proceeding to scoring`);
         }
-        // 발견되지 않은 히든 돌들이 있으면 공개 애니메이션 후 계가
+        // 발견되지 않은 히든 돌들이 있으면 공개 애니메이션 후 계가(모험은 애니메이션 생략 → 바로 계가, 사석은 히든당 5점으로 집계)
         if (stonesToReveal.length > 0) {
-            // 히든돌 공개 애니메이션 추가
             const now = Date.now();
             const stonesToRevealWithPlayer = stonesToReveal.map(point => {
                 // moveHistory에서 원래 플레이어 확인
@@ -250,56 +249,57 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 const player = moveIndex !== -1 ? game.moveHistory[moveIndex].player : (isAiInitial ? types.Player.White : types.Player.Black);
                 return { point, player };
             });
-            
+
             game.permanentlyRevealedStones.push(...stonesToReveal);
             console.log(`[getGameResult] Revealed ${stonesToReveal.length} hidden stones before scoring for game ${game.id}`);
-            
-            // 히든돌 공개 애니메이션 설정
-            game.animation = {
-                type: 'hidden_reveal',
-                stones: stonesToRevealWithPlayer,
-                startTime: now,
-                duration: 2000
-            };
-            game.revealAnimationEndTime = now + 2000;
-            game.gameStatus = 'hidden_final_reveal';
-            
-            // 애니메이션 종료 후 계가 진행하도록 설정
-            await db.saveGame(game);
-            const { broadcastToGameParticipants } = await import('./socket.js');
-            const gameToBroadcast = { ...game };
-            delete (gameToBroadcast as any).boardState;
-            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
 
-            // 정공법: "결과를 바꾸지 않되 더 빨리"를 위해 애니메이션 동안 KataGo 계가 분석을 미리 시작한다.
-            // - 아직 scoring 상태로 바꾸지 않음 (UI/상태 전환은 기존 로직 유지)
-            // - 분석 결과는 저장/브로드캐스트하지 않고, 다음 getGameResult 호출 시 재사용만 한다.
-            const existing = scoringPrecompute.get(game.id);
-            const nowMs = Date.now();
-            if (!existing || (nowMs - existing.startedAt) > PRECOMPUTE_TTL_MS) {
-                scoringPrecompute.delete(game.id);
-                const snapshot = JSON.parse(JSON.stringify({
-                    ...game,
-                    // boardState/moveHistory는 분석 정확도에 중요하므로 스냅샷 고정
-                    boardState: game.boardState,
-                    moveHistory: game.moveHistory,
-                }));
-                const scoringLim = getScoringKataGoLimits();
-                const p = analyzeGame(snapshot as types.LiveGameSession, {
-                    includePolicy: false,
-                    includeOwnership: true,
-                    maxVisits: scoringLim.maxVisits,
-                    maxTimeSec: scoringLim.maxTimeSec,
-                }).catch((e) => {
-                    // 프리컴퓨트 실패는 치명적이지 않음. 본 분석 단계에서 정상 재시도됨.
-                    throw e;
-                });
-                scoringPrecompute.set(game.id, { startedAt: nowMs, promise: p });
-                console.log(`[getGameResult] Started KataGo precompute during hidden_final_reveal for game ${game.id}`);
+            const skipHiddenFinalRevealAnim = game.gameCategory === GameCategory.Adventure;
+
+            if (!skipHiddenFinalRevealAnim) {
+                // 히든돌 공개 애니메이션 설정
+                game.animation = {
+                    type: 'hidden_reveal',
+                    stones: stonesToRevealWithPlayer,
+                    startTime: now,
+                    duration: 2000
+                };
+                game.revealAnimationEndTime = now + 2000;
+                game.gameStatus = 'hidden_final_reveal';
+
+                // 애니메이션 종료 후 계가 진행하도록 설정
+                await db.saveGame(game);
+                const { broadcastToGameParticipants } = await import('./socket.js');
+                const gameToBroadcast = { ...game };
+                delete (gameToBroadcast as any).boardState;
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+
+                // 정공법: "결과를 바꾸지 않되 더 빨리"를 위해 애니메이션 동안 KataGo 계가 분석을 미리 시작한다.
+                const existing = scoringPrecompute.get(game.id);
+                const nowMs = Date.now();
+                if (!existing || (nowMs - existing.startedAt) > PRECOMPUTE_TTL_MS) {
+                    scoringPrecompute.delete(game.id);
+                    const snapshot = JSON.parse(JSON.stringify({
+                        ...game,
+                        boardState: game.boardState,
+                        moveHistory: game.moveHistory,
+                    }));
+                    const scoringLim = getScoringKataGoLimits();
+                    const p = analyzeGame(snapshot as types.LiveGameSession, {
+                        includePolicy: false,
+                        includeOwnership: true,
+                        maxVisits: scoringLim.maxVisits,
+                        maxTimeSec: scoringLim.maxTimeSec,
+                    }).catch((e) => {
+                        throw e;
+                    });
+                    scoringPrecompute.set(game.id, { startedAt: nowMs, promise: p });
+                    console.log(`[getGameResult] Started KataGo precompute during hidden_final_reveal for game ${game.id}`);
+                }
+
+                return game;
             }
-            
-            // 애니메이션이 끝날 때까지 대기하지 않고 즉시 반환 (updateHiddenState에서 처리)
-            return game;
+
+            console.log(`[getGameResult] Adventure: skipping hidden_final_reveal animation, proceeding to scoring for game ${game.id}`);
         }
     }
     

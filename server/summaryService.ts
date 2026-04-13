@@ -8,7 +8,7 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
 import * as mannerService from './mannerService.js';
-import { openEquipmentBox1 } from './shop.js';
+import { openEquipmentBox1, rollRandomEquipmentFromGradeWeights } from './shop.js';
 import * as effectService from './effectService.js';
 import { randomUUID } from 'crypto';
 // FIX: Correctly import aiUser and getAiUser.
@@ -23,11 +23,14 @@ import {
 } from '../shared/utils/strategicAiDifficulty.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import * as guildService from './guildService.js';
+import { adventureMonsterGoldLevelMultiplier } from '../constants/adventureConstants.js';
 import {
-    adventureMaxEquipmentBoxTier,
-    adventureMaxMaterialBoxTier,
-    adventureMonsterGoldLevelMultiplier,
-} from '../constants/adventureConstants.js';
+    getAdventureChapterDirectLootDefinition,
+    resolveAdventureChapterIndexForLoot,
+} from '../shared/utils/adventureChapterDirectLoot.js';
+import { ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE } from '../shared/constants/adventureStrategicGold.js';
+import { rollAdventureEnhancementStoneQuantity } from '../shared/utils/adventureEnhancementStoneQty.js';
+import { ItemGrade } from '../types/enums.js';
 import {
     applyAdventureMonsterDefeatToProfile,
     applyAdventureMonsterMapSuppressAfterPlayerLoss,
@@ -698,7 +701,7 @@ const CONSUMABLE_NAME_ALIASES: Record<string, string> = {
     resource_box_6: '재료 상자 VI',
 };
 
-export const createConsumableItemInstance = (name: string): InventoryItem | null => {
+export const createConsumableItemInstance = (name: string, quantity: number = 1): InventoryItem | null => {
     const resolvedName = CONSUMABLE_NAME_ALIASES[name] ?? name;
     const template = CONSUMABLE_ITEMS.find(item => item.name === resolvedName) ?? MATERIAL_ITEMS[resolvedName];
     if (!template) {
@@ -706,10 +709,12 @@ export const createConsumableItemInstance = (name: string): InventoryItem | null
         return null;
     }
 
+    const q = Number.isFinite(quantity) && quantity > 0 ? Math.floor(quantity) : 1;
+
     return {
         ...template,
         id: `item-${randomUUID()}`,
-        quantity: 1,
+        quantity: q,
         createdAt: Date.now(),
         isEquipped: false,
         level: 1,
@@ -765,10 +770,7 @@ const PLAYFUL_LOOT_TABLE_1_ROUND: { name: string; chance: number; type: 'equipme
     { name: '장비 상자 I', chance: 2, type: 'equipment' },
 ];
 
-// Strategic Gold Map
-const STRATEGIC_GOLD_REWARDS: Record<number, number> = {
-    19: 1500, 17: 1300, 15: 1100, 13: 900, 11: 700, 9: 500, 7: 300
-};
+const STRATEGIC_GOLD_REWARDS = ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE;
 
 // Playful Gold Map
 const PLAYFUL_GOLD_REWARDS: Record<number, number> = {
@@ -924,8 +926,14 @@ function calculateAdventureMonsterBattleRewards(
     const advHgMat = effects.adventureUnderstandingHighGradeMaterialBonusPercent ?? 0;
     const { codexOnlyPercent, understandingPercent } = splitAdventureGoldBonusPercents(effects, adventureProfile);
 
-    const eqMaxTier = adventureMaxEquipmentBoxTier(level);
-    const matMaxTier = adventureMaxMaterialBoxTier(level);
+    const chapterIdx = resolveAdventureChapterIndexForLoot(game.adventureStageId);
+    const lootDef = getAdventureChapterDirectLootDefinition(chapterIdx);
+    const equipHighGradeBias = new Set<ItemGrade>([
+        ItemGrade.Rare,
+        ItemGrade.Epic,
+        ItemGrade.Legendary,
+        ItemGrade.Mythic,
+    ]);
 
     const slotMul = Math.max(0.45, rewardMultiplier);
     const dropExtra = effects.winDropBonusPercent + effects.itemDropRateBonus;
@@ -953,15 +961,12 @@ function calculateAdventureMonsterBattleRewards(
     const understandingGoldBonus = Math.max(0, goldReward - withoutUnderstandingFinal);
 
     const items: InventoryItem[] = [];
-    const isHighTierEquipmentBox = (name: string) => name.startsWith('장비 상자 ') && !name.endsWith(' I');
-    const isHighTierMaterialBox = (name: string) => name.startsWith('재료 상자 ') && !name.endsWith(' I');
 
     const rollSlot = (
         type: 'equipment' | 'material',
-        maxTier: number,
         typeDropBonus: number,
         hgPct: number,
-    ): { obtained: boolean; displayName?: string } => {
+    ): { obtained: boolean; displayName?: string; quantity?: number } => {
         const baseAcquire = (0.1 + (level / 50) * 0.48) * (isBoss19Board ? 1.35 : 1);
         const acquireChance = Math.min(
             0.9,
@@ -970,45 +975,50 @@ function calculateAdventureMonsterBattleRewards(
         if (Math.random() >= acquireChance) {
             return { obtained: false };
         }
-        const pool = STRATEGIC_LOOT_TABLE.filter(
-            (l) => l.type === type && boxTierRomanFromLootName(l.name) <= maxTier,
-        );
-        if (pool.length === 0) {
-            return { obtained: false };
+        const bossHgMul = isBoss19Board ? 1.32 : 1;
+        if (type === 'equipment') {
+            const gradeRows = lootDef.equipmentGrades.map(({ grade, weight }) => {
+                let w = weight;
+                if (equipHighGradeBias.has(grade)) {
+                    w *= (1 + hgPct / 100) * bossHgMul;
+                }
+                return { grade, weight: w };
+            });
+            const eq = rollRandomEquipmentFromGradeWeights(gradeRows);
+            items.push(eq);
+            return { obtained: true, displayName: eq.name };
         }
-        const weights = pool.map((l) => {
-            let w = l.chance;
-            const highMul =
-                type === 'equipment' && isHighTierEquipmentBox(l.name)
-                    ? (1 + hgPct / 100) * (isBoss19Board ? 1.32 : 1)
-                    : type === 'material' && isHighTierMaterialBox(l.name)
-                      ? (1 + hgPct / 100) * (isBoss19Board ? 1.32 : 1)
-                      : 1;
-            return w * highMul;
+        const matRows = lootDef.materials.map(({ name, weight }) => {
+            let w = weight;
+            if (name !== '하급 강화석') {
+                w *= (1 + hgPct / 100) * bossHgMul;
+            }
+            return { name, weight: w };
         });
-        let weightSum = weights.reduce((a, b) => a + b, 0);
+        const weightSum = matRows.reduce((a, b) => a + b.weight, 0);
         if (weightSum <= 0) {
             return { obtained: false };
         }
         let r = Math.random() * weightSum;
-        let pickIdx = pool.length - 1;
-        for (let i = 0; i < pool.length; i++) {
-            r -= weights[i];
+        let pickedName = matRows[matRows.length - 1]!.name;
+        for (const row of matRows) {
+            r -= row.weight;
             if (r <= 0) {
-                pickIdx = i;
+                pickedName = row.name;
                 break;
             }
         }
-        const picked = pool[pickIdx];
-        const inst = createConsumableItemInstance(picked.name);
-        if (inst) {
-            items.push(inst);
+        const qty = rollAdventureEnhancementStoneQuantity(pickedName, isBoss19Board);
+        const inst = createConsumableItemInstance(pickedName, qty);
+        if (!inst) {
+            return { obtained: false };
         }
-        return { obtained: true, displayName: picked.name };
+        items.push(inst);
+        return { obtained: true, displayName: pickedName, quantity: inst.quantity };
     };
 
-    const equipmentSlot = rollSlot('equipment', eqMaxTier, itemDropBonus + advEqDrop, advHgEq);
-    const materialSlot = rollSlot('material', matMaxTier, materialDropBonus + advMatDrop, advHgMat);
+    const equipmentSlot = rollSlot('equipment', itemDropBonus + advEqDrop, advHgEq);
+    const materialSlot = rollSlot('material', materialDropBonus + advMatDrop, advHgMat);
 
     return {
         gold: goldReward,
@@ -1021,7 +1031,11 @@ function calculateAdventureMonsterBattleRewards(
                 ...(understandingGoldBonus > 0 ? { understandingBonus: understandingGoldBonus } : {}),
             },
             equipment: { obtained: equipmentSlot.obtained, displayName: equipmentSlot.displayName },
-            material: { obtained: materialSlot.obtained, displayName: materialSlot.displayName },
+            material: {
+                obtained: materialSlot.obtained,
+                displayName: materialSlot.displayName,
+                ...(materialSlot.obtained && materialSlot.quantity != null ? { quantity: materialSlot.quantity } : {}),
+            },
         },
     };
 }
@@ -1304,13 +1318,15 @@ const processPlayerSummary = async (
             stageId: game.adventureStageId!,
             battleMode: game.adventureMonsterBattleMode!,
         });
+        // 도감·지역 이해도 반영 후 이펙트 재계산 — 골드% 분리(split)와 드롭 보너스가 갱신 프로필과 일치해야 함
+        const effectsAfterAdventure = effectService.calculateUserEffects(updatedPlayer);
         const advR = calculateAdventureMonsterBattleRewards(
             game,
             itemDropBonus,
             materialDropBonus,
             rewardMultiplier,
-            effects,
-            player.adventureProfile,
+            effectsAfterAdventure,
+            updatedPlayer.adventureProfile,
         );
         rewards = {
             gold: advR.gold,

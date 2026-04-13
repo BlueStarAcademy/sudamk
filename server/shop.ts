@@ -153,6 +153,11 @@ export const createItemFromTemplate = (template: Omit<InventoryItem, 'id' | 'cre
 export const applyEnhancementStarsToEquipmentItem = applyEnhancementStarsShared;
 export { createSeededRandom };
 
+/** 모험 몬스터 등: 등급 가중치로 장비 1개 즉시 생성 */
+export function rollRandomEquipmentFromGradeWeights(lootTable: { grade: ItemGrade; weight: number }[]): InventoryItem {
+    return openBoxWithLootTable(lootTable);
+}
+
 function openBoxWithLootTable(lootTable: { grade: ItemGrade; weight: number }[]): InventoryItem {
     const totalWeight = lootTable.reduce((sum, item) => sum + item.weight, 0);
     let random = Math.random() * totalWeight;

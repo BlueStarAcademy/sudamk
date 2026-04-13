@@ -3,7 +3,13 @@ import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getGoLogic, processMove } from '../goLogic.js';
 import { getGameResult } from '../gameModes.js';
-import { initializeNigiri, updateNigiriState, handleNigiriAction } from './nigiri.js';
+import {
+    initializeNigiri,
+    updateNigiriState,
+    handleNigiriAction,
+    enterNigiriRevealWithAssignedColors,
+} from './nigiri.js';
+import { aiUserId } from '../aiPlayer.js';
 import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
@@ -14,6 +20,7 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 
 /** 모험 맵 AI전: 베이스 제외 랜덤 흑백, 따내기는 도전자(플레이어1) 항상 흑. 그 외는 기존 설정 또는 기본 흑. */
 const resolveStrategicAiHumanColor = (game: types.LiveGameSession, neg: types.Negotiation): types.Player => {
@@ -25,6 +32,25 @@ const resolveStrategicAiHumanColor = (game: types.LiveGameSession, neg: types.Ne
         return Math.random() < 0.5 ? types.Player.Black : types.Player.White;
     }
     return neg.settings.player1Color || types.Player.Black;
+};
+
+/** 모험에서 서버가 흑백을 정한 뒤에도 PVP와 같이 룰렛·확인 모달을 보여줌. 베이스는 입찰로 색이 정해져 제외, 따내기는 도전자 고정 흑이라 제외. */
+const adventureAiColorRevealModal = (game: types.LiveGameSession) =>
+    game.gameCategory === types.GameCategory.Adventure &&
+    game.mode !== types.GameMode.Base &&
+    game.mode !== types.GameMode.Capture;
+
+const transitionPlayingOrAdventureNigiriReveal = (game: types.LiveGameSession, now: number) => {
+    if (adventureAiColorRevealModal(game)) {
+        enterNigiriRevealWithAssignedColors(game, now);
+        const conf = game.preGameConfirmations;
+        if (conf) {
+            if (game.player1.id === aiUserId) conf[game.player1.id] = true;
+            if (game.player2.id === aiUserId) conf[game.player2.id] = true;
+        }
+    } else {
+        transitionToPlaying(game, now);
+    }
 };
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -49,7 +75,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                     game.whitePlayerId = p1.id;
                     game.blackPlayerId = p2.id;
                 }
-                transitionToPlaying(game, now);
+                transitionPlayingOrAdventureNigiriReveal(game, now);
             } else {
                 initializeNigiri(game, now);
             }
@@ -75,12 +101,26 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                     typeof st.captureTargetWhite === 'number'
                         ? st.captureTargetWhite
                         : (st.captureTarget ?? 20);
+                let blackT = blackTarget;
+                let whiteT = whiteTarget;
+                const advStageId = (game as { adventureStageId?: string }).adventureStageId;
+                const capBonus =
+                    advStageId && neg.challenger?.adventureProfile
+                        ? getRegionalCaptureOpponentTargetBonus(neg.challenger.adventureProfile, advStageId)
+                        : 0;
+                if (capBonus > 0) {
+                    if (humanPlayerColor === types.Player.Black) {
+                        whiteT += capBonus;
+                    } else {
+                        blackT += capBonus;
+                    }
+                }
                 game.effectiveCaptureTargets = {
                     [types.Player.None]: 0,
-                    [types.Player.Black]: blackTarget,
-                    [types.Player.White]: whiteTarget,
+                    [types.Player.Black]: blackT,
+                    [types.Player.White]: whiteT,
                 };
-                transitionToPlaying(game, now);
+                transitionPlayingOrAdventureNigiriReveal(game, now);
             } else {
                 initializeCapture(game, now);
             }
@@ -99,7 +139,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                     game.whitePlayerId = p1.id;
                     game.blackPlayerId = p2.id;
                 }
-                transitionToPlaying(game, now);
+                transitionPlayingOrAdventureNigiriReveal(game, now);
             } else {
                 initializeNigiri(game, now); // Also uses nigiri
             }
@@ -115,7 +155,7 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
                     game.whitePlayerId = p1.id;
                     game.blackPlayerId = p2.id;
                 }
-                transitionToPlaying(game, now);
+                transitionPlayingOrAdventureNigiriReveal(game, now);
             } else {
                 initializeNigiri(game, now); // Also uses nigiri
             }
@@ -574,12 +614,20 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 (game as any).aiInitialHiddenStone.y === y &&
                 !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
 
-            const moveIndexAtTarget = game.moveHistory.findIndex(m => m.x === x && m.y === y);
+            let moveIndexAtTarget = -1;
+            const moveHistoryForIndex = game.moveHistory || [];
+            for (let i = moveHistoryForIndex.length - 1; i >= 0; i--) {
+                const m = moveHistoryForIndex[i];
+                if (m.x === x && m.y === y) {
+                    moveIndexAtTarget = i;
+                    break;
+                }
+            }
             const isTargetHiddenOpponentStone =
                 (stoneAtTarget === opponentPlayerEnum &&
-                moveIndexAtTarget !== -1 &&
-                game.hiddenMoves?.[moveIndexAtTarget] &&
-                !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y)) ||
+                    moveIndexAtTarget !== -1 &&
+                    game.hiddenMoves?.[moveIndexAtTarget] &&
+                    !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y)) ||
                 isAiInitialHiddenStone;
 
             if (stoneAtTarget !== types.Player.None && !isTargetHiddenOpponentStone) {
@@ -596,44 +644,83 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             if (isTargetHiddenOpponentStone) {
-                // AI 초기 히든돌인 경우 moveHistory에 추가
                 if (isAiInitialHiddenStone) {
                     if (!game.hiddenMoves) game.hiddenMoves = {};
                     const hiddenMoveIndex = game.moveHistory.length;
                     game.moveHistory.push({
                         player: opponentPlayerEnum,
                         x: x,
-                        y: y
+                        y: y,
                     });
                     game.hiddenMoves[hiddenMoveIndex] = true;
                 }
-                
-                game.captures[myPlayerEnum] += 5; // Hidden stones are worth 5 points
-                game.hiddenStoneCaptures[myPlayerEnum]++;
-                
-                if (!game.justCaptured) game.justCaptured = [];
-                game.justCaptured.push({ point: { x, y }, player: opponentPlayerEnum, wasHidden: true, capturePoints: 5 });
-                
-                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                game.permanentlyRevealedStones.push({ x, y });
 
-                game.animation = { 
-                    type: 'hidden_reveal', 
-                    stones: [{ point: { x, y }, player: opponentPlayerEnum }], 
-                    startTime: now, 
-                    duration: 2000 
+                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                if (!game.permanentlyRevealedStones.some(p => p.x === x && p.y === y)) {
+                    game.permanentlyRevealedStones.push({ x, y });
+                }
+
+                const tempBoardState = (game.boardState || []).map((row: types.Player[]) => [...row]);
+                if (tempBoardState[y] && tempBoardState[y][x] !== undefined) {
+                    tempBoardState[y][x] = types.Player.None;
+                }
+
+                const moveAttempt = { x, y, player: myPlayerEnum };
+                const treatAsPveLike =
+                    game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame;
+                const simResult = processMove(
+                    tempBoardState,
+                    moveAttempt,
+                    game.koInfo,
+                    game.moveHistory.length,
+                    {
+                        ignoreSuicide: false,
+                        isSinglePlayer: treatAsPveLike,
+                        opponentPlayer: treatAsPveLike ? opponentPlayerEnum : undefined,
+                    }
+                );
+
+                game.animation = {
+                    type: 'hidden_reveal',
+                    stones: [{ point: { x, y }, player: opponentPlayerEnum }],
+                    startTime: now,
+                    duration: 2000,
                 };
                 game.revealAnimationEndTime = now + 2000;
                 game.gameStatus = 'hidden_reveal_animating';
-                
-                // 시간 일시정지
+                game.itemUseDeadline = undefined;
+
+                if (simResult?.isValid) {
+                    game.pendingCapture = {
+                        stones: [{ x, y }, ...(simResult.capturedStones || [])],
+                        move: moveAttempt,
+                        hiddenContributors: [{ x, y }],
+                    } as any;
+
+                    game.boardState = simResult.newBoardState;
+                    game.boardState[y][x] = opponentPlayerEnum;
+                    for (const s of simResult.capturedStones || []) {
+                        game.boardState[s.y][s.x] = opponentPlayerEnum;
+                    }
+
+                    game.lastMove = { x, y };
+                    game.lastTurnStones = null;
+                    game.moveHistory.push(moveAttempt);
+
+                    game.koInfo = simResult.newKoInfo;
+                    game.passCount = 0;
+                    game.justCaptured = [];
+                } else {
+                    game.pendingCapture = null;
+                    game.justCaptured = [];
+                }
+
                 if (game.turnDeadline) {
                     game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
                     game.turnDeadline = undefined;
                     game.turnStartTime = undefined;
                 }
-                game.itemUseDeadline = undefined;
-                
+
                 return {};
             }
 
@@ -853,7 +940,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     let wasHiddenForJustCaptured = false; // default for justCaptured
 
                     if (game.isSinglePlayer || (game as any).gameCategory === 'guildwar') {
-                        if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
+                        const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+                        if (isBaseStone) {
+                            game.baseStoneCaptures[myPlayerEnum]++;
+                            points = 5;
+                        } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
                             points = 2;
                         }
                     } else { // PvP logic

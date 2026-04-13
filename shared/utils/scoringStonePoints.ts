@@ -39,8 +39,13 @@ function isPatternStoneForOwner(game: ScoringStoneSessionSlice, stone: Point, st
 function wasHiddenPlacement(game: ScoringStoneSessionSlice, stone: Point): boolean {
     const mh = game.moveHistory;
     if (!mh?.length) return false;
-    const moveIndex = mh.findIndex((m) => m && m.x === stone.x && m.y === stone.y);
-    return moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+    for (let i = mh.length - 1; i >= 0; i--) {
+        const m = mh[i];
+        if (m && m.x === stone.x && m.y === stone.y) {
+            return !!game.hiddenMoves?.[i];
+        }
+    }
+    return false;
 }
 
 function wasAiInitialHiddenStone(game: ScoringStoneSessionSlice, stone: Point): boolean {

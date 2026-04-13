@@ -106,7 +106,7 @@ const CORE_ORDER: CoreStat[] = [
     CoreStat.Stability,
 ];
 
-/** 챕터 내 버프 슬롯(코어 플랫 6 + 모험% 5). 보스가 쓰는 슬롯은 일반에게 배정하지 않음 */
+/** 챕터 내 효과 슬롯(코어 플랫 6 + 모험% 5). 보스가 쓰는 슬롯은 일반에게 배정하지 않음 */
 const NORMAL_BUFF_SLOT_ORDER: string[] = [
     ...CORE_ORDER.map((s) => `flat:${s}`),
     'gold',
@@ -175,7 +175,7 @@ function designFromSlotKey(slotKey: string): AdventureMonsterComprehensionDesign
     };
 }
 
-/** 고유 버프 슬롯이 부족한 일반 몬스터 — 모험 골드 %만 부여 */
+/** 고유 효과 슬롯이 부족한 일반 몬스터 — 모험 골드 %만 부여 */
 function designOverflowNormalAdventureGold(): AdventureMonsterComprehensionDesign {
     return {
         isBoss: false,

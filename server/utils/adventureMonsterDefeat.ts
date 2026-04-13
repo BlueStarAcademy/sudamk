@@ -5,8 +5,13 @@ import {
     adventureMapSuppressKey,
     getAdventureMapSuppressUntilAfterDefeat,
 } from '../../shared/utils/adventureMapSchedule.js';
-import { getAdventureCodexIdSet } from '../../utils/adventureCodexComprehension.js';
+import { getRegionalMapMonsterDwellMultiplierForStage } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import {
+    getAdventureCodexComprehensionLevel,
+    getAdventureCodexIdSet,
+} from '../../utils/adventureCodexComprehension.js';
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
+import { applyRegionalSpecialtyBuffTierGrants } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import * as effectService from '../effectService.js';
 
 const ALLOWED_MODES = new Set(['classic', 'capture', 'base', 'hidden', 'missile']);
@@ -58,16 +63,21 @@ export function applyAdventureMonsterDefeatToProfile(
     uniq.add(codexId);
 
     const uxp = { ...(prev.understandingXpByStage ?? {}) };
-    uxp[stageId] = (uxp[stageId] ?? 0) + 12;
+    /** 지역 이해도: 기본 + 해당 몬스터 도감 이해도 레벨(승리 후)만큼 추가 — 도감과 영구 연동 */
+    const codexLevelAfter = getAdventureCodexComprehensionLevel(counts[codexId] ?? 0);
+    const understandingXpBefore = uxp[stageId] ?? 0;
+    uxp[stageId] = understandingXpBefore + 12 + codexLevelAfter;
+    const understandingXpAfter = uxp[stageId]!;
 
     const defeatAt = Date.now();
     const isBoss = isAdventureChapterBossCodexId(codexId);
-    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(defeatAt, stageId, codexId, isBoss);
+    const mapDwellMult = getRegionalMapMonsterDwellMultiplierForStage(prev, stageId);
+    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(defeatAt, stageId, codexId, isBoss, mapDwellMult);
     const suppressKey = adventureMapSuppressKey(stageId, codexId);
     const adventureMapSuppressUntilByKey = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
     adventureMapSuppressUntilByKey[suppressKey] = suppressUntil;
 
-    user.adventureProfile = {
+    let nextProfile = {
         ...prev,
         codexDefeatCounts: counts,
         monstersDefeatedByMode: byMode,
@@ -77,6 +87,8 @@ export function applyAdventureMonsterDefeatToProfile(
         lastPlayedStageId: stageId,
         adventureMapSuppressUntilByKey,
     };
+    nextProfile = applyRegionalSpecialtyBuffTierGrants(nextProfile, stageId, understandingXpBefore, understandingXpAfter);
+    user.adventureProfile = nextProfile;
 
     try {
         effectService.syncActionPointsStateAfterEquipmentChange(user);
@@ -94,7 +106,8 @@ export function applyAdventureMonsterMapSuppressAfterPlayerLoss(
     const prev = normalizeAdventureProfile(user.adventureProfile);
     const isBoss = isAdventureChapterBossCodexId(codexId);
     const at = Date.now();
-    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(at, stageId, codexId, isBoss);
+    const mapDwellMult = getRegionalMapMonsterDwellMultiplierForStage(prev, stageId);
+    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(at, stageId, codexId, isBoss, mapDwellMult);
     const suppressKey = adventureMapSuppressKey(stageId, codexId);
     const adventureMapSuppressUntilByKey = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
     adventureMapSuppressUntilByKey[suppressKey] = suppressUntil;

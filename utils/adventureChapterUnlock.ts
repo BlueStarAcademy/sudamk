@@ -55,6 +55,45 @@ export function isAdventureStageUnlocked(stageId: string, ctx: AdventureChapterU
     return isAdventureChapterUnlockedByStageIndex(stage.stageIndex, ctx);
 }
 
+/** 잠금 카드 한 줄 요건: 짧은 문구 + 달성 여부(달성 시 초록 표시용) */
+export type AdventureChapterUnlockConditionLine = {
+    key: string;
+    text: string;
+    satisfied: boolean;
+};
+
+export function getAdventureChapterUnlockConditionLines(
+    stageIndex: number,
+    ctx: AdventureChapterUnlockContext,
+): AdventureChapterUnlockConditionLine[] {
+    if (ctx.isAdmin) return [];
+    const rule = ruleForStageIndex(stageIndex);
+    if (!rule) return [];
+    const strat = Math.max(0, Math.floor(Number(ctx.strategyLevel) || 0));
+    const lines: AdventureChapterUnlockConditionLine[] = [];
+
+    lines.push({
+        key: 'strategy',
+        text: `전략바둑 ${rule.minStrategyLevel}레벨`,
+        satisfied: strat >= rule.minStrategyLevel,
+    });
+
+    if (rule.prerequisiteStageId != null) {
+        const prev = ADVENTURE_STAGES.find((s) => s.id === rule.prerequisiteStageId);
+        const xp = ctx.understandingXpByStage?.[rule.prerequisiteStageId] ?? 0;
+        const tier = getAdventureUnderstandingTierFromXp(xp);
+        const needTierIdx = ADVENTURE_CHAPTER_PRIOR_MIN_TIER_INDEX;
+        const needLabel = ADVENTURE_UNDERSTANDING_TIER_LABELS[needTierIdx];
+        lines.push({
+            key: `prior-${rule.prerequisiteStageId}`,
+            text: `${prev?.title ?? rule.prerequisiteStageId} [${needLabel}]`,
+            satisfied: tier >= needTierIdx,
+        });
+    }
+
+    return lines;
+}
+
 /** 잠금 시 카드·툴팁용 짧은 안내 (관리자면 빈 배열) */
 export function getAdventureChapterUnlockBlockers(stageIndex: number, ctx: AdventureChapterUnlockContext): string[] {
     if (ctx.isAdmin) return [];

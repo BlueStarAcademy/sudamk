@@ -201,13 +201,13 @@ const TowerLobby: React.FC = () => {
 
     const rankingColClass = isNativeMobile
         ? 'flex max-h-[32dvh] min-h-0 w-full flex-none flex-col gap-1 overflow-hidden pb-0.5'
-        : 'flex-[0_0_20%] max-w-[20%] flex flex-col gap-2 min-h-0 overflow-hidden';
+        : 'flex-[4_1_0%] min-w-0 flex flex-col gap-2 min-h-0 overflow-hidden';
     const imageColClass = isNativeMobile
         ? 'relative h-[14dvh] max-h-[120px] min-h-[72px] w-full flex-shrink-0 overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 shadow-lg shadow-amber-900/40 backdrop-blur-md'
-        : 'flex-[0_0_25%] max-w-[25%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0';
+        : 'flex-[5_1_0%] min-w-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50 relative min-h-0';
     const stageColClass = isNativeMobile
         ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-1 shadow-lg shadow-amber-900/40 backdrop-blur-md sm:p-2'
-        : 'flex-[0_0_35%] max-w-[35%] bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50';
+        : 'flex-[7_1_0%] min-w-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 flex flex-col min-h-0 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50';
     const quickColClass = isNativeMobile
         ? `flex h-[min(30dvh,280px)] min-h-[200px] flex-col overflow-hidden self-center ${PC_QUICK_RAIL_COLUMN_CLASS}`
         : `overflow-hidden ${PC_QUICK_RAIL_COLUMN_CLASS}`;
@@ -1190,7 +1190,7 @@ const TowerLobby: React.FC = () => {
                     {renderTowerMainColumns()}
                 </div>
             ) : (
-                <div className="flex-1 flex flex-row justify-center gap-2 sm:gap-3 lg:gap-4 px-2 sm:px-3 lg:px-4 py-2 sm:py-3 lg:py-4 min-h-0 overflow-hidden">
+                <div className="flex min-h-0 w-full min-w-0 flex-1 flex-row gap-2 overflow-hidden px-2 py-2 sm:gap-3 sm:px-3 sm:py-3 lg:gap-4 lg:px-4 lg:py-4">
                     {renderTowerMainColumns()}
                 </div>
             )}

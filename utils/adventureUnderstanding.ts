@@ -17,7 +17,7 @@ import {
     getAdventureUnderstandingTierFromXp,
 } from '../constants/adventureConstants.js';
 
-/** 모험 일지 · 지역 이해도 코어 버프 표시 순서 */
+/** 모험 일지 · 지역 이해도 코어 효과 표시 순서 */
 export const ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER: readonly CoreStat[] = [
     CoreStat.Concentration,
     CoreStat.ThinkingSpeed,
@@ -46,6 +46,7 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
             uniqueMonsterIdsCaught: [],
             lastPlayedStageId: null,
             adventureMapSuppressUntilByKey: {},
+            regionalSpecialtyBuffsByStageId: {},
         };
     }
     return {
@@ -56,6 +57,9 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
         uniqueMonsterIdsCaught: [...(p.uniqueMonsterIdsCaught ?? [])],
         lastPlayedStageId: p.lastPlayedStageId ?? null,
         adventureMapSuppressUntilByKey: { ...(p.adventureMapSuppressUntilByKey ?? {}) },
+        regionalSpecialtyBuffsByStageId: { ...(p.regionalSpecialtyBuffsByStageId ?? {}) },
+        regionalBuffRerollUtcDate: p.regionalBuffRerollUtcDate,
+        regionalBuffRerollCountToday: p.regionalBuffRerollCountToday,
     };
 }
 
@@ -131,7 +135,7 @@ export function getAdventureUnderstandingStatEffectBonusPercent(profile: Adventu
 }
 
 /**
- * 모험 일지 「지역 이해도 버프」 표시용: 지역 이해도 + 몬스터 도감(일반·보스)을 합연산한 값.
+ * 모험 일지 「지역 이해도 효과」 표시용: 지역 이해도 + 몬스터 도감(일반·보스)을 합연산한 값.
  * `calculateUserEffects`의 모험 패시브(장비 제외)와 동일한 합산 규칙.
  */
 export type CombinedAdventureRegionalBuffTotals = {
@@ -142,6 +146,31 @@ export type CombinedAdventureRegionalBuffTotals = {
     highGradeMaterialPercent: number;
     coreByStat: Record<CoreStat, { flat: number; percent: number }>;
 };
+
+/** 몬스터 도감 이해도(일반·보스)만 합산 — 모험 일지 「몬스터 이해도 효과」 표시용 */
+export function getMonsterCodexComprehensionBuffTotals(
+    profile: AdventureProfile | null | undefined,
+): CombinedAdventureRegionalBuffTotals {
+    const codexTot = accumulateAdventureCodexComprehension(profile);
+    const codexBoss = accumulateAdventureCodexBossPercentBonuses(profile);
+    const coreByStat = {} as Record<CoreStat, { flat: number; percent: number }>;
+    for (const s of Object.values(CoreStat)) {
+        coreByStat[s] = {
+            flat: Math.floor(codexTot.coreFlat[s] ?? 0),
+            percent: codexBoss.corePercent[s] ?? 0,
+        };
+    }
+    return {
+        goldBonusPercent: codexTot.adventureGoldBonusPercent + codexBoss.adventureGoldPercent,
+        equipmentDropPercent: codexBoss.itemDropPercent + codexTot.adventureEquipmentDropBonusPercent,
+        highGradeEquipmentPercent:
+            codexBoss.highGradeEquipmentPercent + codexTot.adventureHighGradeEquipmentBonusPercent,
+        materialDropPercent: codexBoss.materialDropPercent + codexTot.adventureMaterialDropBonusPercent,
+        highGradeMaterialPercent:
+            codexBoss.highGradeMaterialPercent + codexTot.adventureHighGradeMaterialBonusPercent,
+        coreByStat,
+    };
+}
 
 export function getCombinedAdventureRegionalBuffTotals(
     profile: AdventureProfile | null | undefined,

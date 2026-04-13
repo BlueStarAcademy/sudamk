@@ -1302,7 +1302,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
                     
                     const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y) : -1;
-                    const isHiddenMove = hiddenMoves && moveIndex !== -1 && hiddenMoves[moveIndex];
+                    const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
+                    const isHiddenMove =
+                        hiddenMoves &&
+                        moveIndex !== -1 &&
+                        !!hiddenMoves[moveIndex] &&
+                        !!histMove &&
+                        histMove.player === actualPlayer;
                     // 서버의 영구 공개 목록 또는 현재 히든 공개 애니메이션에 포함된 돌은 공개된 것으로 표시 (반투명 해제)
                     const isInRevealAnimation = animation?.type === 'hidden_reveal' && animation.stones?.some((s: { point: Point }) => s.point.x === x && s.point.y === y);
                     const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y) || !!isInRevealAnimation;
@@ -1371,6 +1377,36 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         </g>
                     );
                 })}
+                {(gameStatus === 'komi_bidding' || gameStatus === 'komi_bid_reveal') && (
+                    <>
+                        {baseStones_p1?.map((stone, i) => {
+                            const { cx, cy } = toSvgCoords(stone);
+                            return (
+                                <Stone
+                                    key={`komi-base-p1-${i}`}
+                                    player={Player.Black}
+                                    cx={cx}
+                                    cy={cy}
+                                    isBaseStone
+                                    radius={stone_radius}
+                                />
+                            );
+                        })}
+                        {baseStones_p2?.map((stone, i) => {
+                            const { cx, cy } = toSvgCoords(stone);
+                            return (
+                                <Stone
+                                    key={`komi-base-p2-${i}`}
+                                    player={Player.White}
+                                    cx={cx}
+                                    cy={cy}
+                                    isBaseStone
+                                    radius={stone_radius}
+                                />
+                            );
+                        })}
+                    </>
+                )}
                 {winningLine && winningLine.length > 0 && ( <path d={`M ${toSvgCoords(winningLine[0]).cx} ${toSvgCoords(winningLine[0]).cy} L ${toSvgCoords(winningLine[winningLine.length - 1]).cx} ${toSvgCoords(winningLine[winningLine.length - 1]).cy}`} stroke="rgba(239, 68, 68, 0.8)" strokeWidth="10" strokeLinecap="round" className="animate-fade-in" /> )}
                 
                 {/* 착수 버튼 모드/AI 낙관 표시용 임시 돌 (예상착점) */}

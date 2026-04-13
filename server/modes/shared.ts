@@ -269,7 +269,9 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
     if (game.gameStatus === 'turn_preference_selection') {
         const p1Choice = game.turnChoices?.[p1Id];
         const p2Choice = game.turnChoices?.[p2Id];
-        const deadlinePassed = game.turnChoiceDeadline && now > game.turnChoiceDeadline;
+        const adventureNoTurnPrefTimeout = game.gameCategory === 'adventure';
+        const deadlinePassed =
+            !adventureNoTurnPrefTimeout && !!game.turnChoiceDeadline && now > game.turnChoiceDeadline;
 
         // 양쪽 선택이 완료되면 즉시 다음 단계로 전환 (타임아웃 대기 불필요)
         if (p1Choice && p2Choice) {

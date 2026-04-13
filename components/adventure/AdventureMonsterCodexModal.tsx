@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import {
     ADVENTURE_CODEX_CHAPTER_UI,
@@ -9,6 +9,8 @@ import { AdventureMonsterSpriteFrame } from './AdventureMonsterSprite.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { CORE_STATS_DATA } from '../../constants.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
+import type { AdventureMapMonsterInstance } from '../../shared/utils/adventureMapSchedule.js';
+import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSituationList.js';
 import {
     ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL,
     ADVENTURE_CODEX_MAX_LEVEL,
@@ -43,9 +45,22 @@ function codexComprehensionGradeBorderClass(grade: ItemGrade | null): string {
     }
 }
 
+export type AdventureMonsterCodexMapSituationProps = {
+    stageId: string;
+    mapMonsters: AdventureMapMonsterInstance[];
+    suppressRecord: Record<string, number>;
+    onPickRow: (codexId: string) => void;
+};
+
 interface Props {
     onClose: () => void;
     isTopmost?: boolean;
+    /** 맵 등: 출현 상황 탭 표시 */
+    mapSituation?: AdventureMonsterCodexMapSituationProps | null;
+    /** mapSituation 있을 때 첫 탭 (기본: situation) */
+    initialMainTab?: 'situation' | 'codex';
+    /** 상황 탭 없이 도감만 열 때 챕터 탭 초기값 (현재 맵 스테이지 id) */
+    defaultCodexStageId?: string | null;
 }
 
 function codexLevelProgress(wins: number, level: number): {
@@ -69,16 +84,44 @@ function codexLevelProgress(wins: number, level: number): {
     return { prog: 0, nextAt, prevThreshold };
 }
 
-const AdventureMonsterCodexModal: React.FC<Props> = ({ onClose, isTopmost }) => {
-    const [tabId, setTabId] = useState<AdventureStageId>(ADVENTURE_STAGES[0].id);
+const AdventureMonsterCodexModal: React.FC<Props> = ({
+    onClose,
+    isTopmost,
+    mapSituation,
+    initialMainTab,
+    defaultCodexStageId,
+}) => {
+    const showSituationTab = Boolean(mapSituation);
+    const [mainTab, setMainTab] = useState<'situation' | 'codex'>(() =>
+        showSituationTab ? (initialMainTab ?? 'situation') : 'codex',
+    );
+    const [, setSituationTick] = useState(0);
+    useEffect(() => {
+        if (!showSituationTab || mainTab !== 'situation') return;
+        const id = window.setInterval(() => setSituationTick((t) => t + 1), 1000);
+        return () => clearInterval(id);
+    }, [showSituationTab, mainTab]);
+
+    const [tabId, setTabId] = useState<AdventureStageId>(() => {
+        const sid = mapSituation?.stageId ?? defaultCodexStageId ?? undefined;
+        if (sid && ADVENTURE_STAGES.some((s) => s.id === sid)) return sid as AdventureStageId;
+        return ADVENTURE_STAGES[0].id;
+    });
     const stage = ADVENTURE_STAGES.find((s) => s.id === tabId) ?? ADVENTURE_STAGES[0];
     const chapterUi = ADVENTURE_CODEX_CHAPTER_UI[stage.id];
     const { currentUserWithStatus } = useAppContext();
     const counts = currentUserWithStatus?.adventureProfile?.codexDefeatCounts ?? {};
+    const situationNowMs = Date.now();
+
+    const mainTabBtn =
+        'min-w-0 flex-1 rounded-lg border px-2 py-2 text-center text-xs font-bold transition sm:px-3 sm:py-2.5 sm:text-sm';
+    const mainTabOn = 'border-amber-400/55 bg-amber-500/15 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
+    const mainTabOff =
+        'border-transparent bg-zinc-900/50 text-zinc-500 hover:border-white/12 hover:bg-zinc-900/70 hover:text-zinc-200';
 
     return (
         <DraggableWindow
-            title="모험 몬스터 도감"
+            title={showSituationTab ? '모험 몬스터' : '모험 몬스터 도감'}
             onClose={onClose}
             windowId="adventure-monster-codex"
             initialWidth={1160}
@@ -86,6 +129,52 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({ onClose, isTopmost }) => 
             isTopmost={isTopmost}
         >
             <div className="flex max-h-[min(85vh,800px)] flex-col overflow-hidden">
+                {showSituationTab ? (
+                    <div
+                        role="tablist"
+                        aria-label="몬스터 창 구분"
+                        className="mb-3 flex shrink-0 gap-1.5 sm:gap-2"
+                    >
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={mainTab === 'situation'}
+                            onClick={() => setMainTab('situation')}
+                            className={`${mainTabBtn} ${mainTab === 'situation' ? mainTabOn : mainTabOff}`}
+                        >
+                            몬스터 상황
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={mainTab === 'codex'}
+                            onClick={() => setMainTab('codex')}
+                            className={`${mainTabBtn} ${mainTab === 'codex' ? mainTabOn : mainTabOff}`}
+                        >
+                            몬스터 도감
+                        </button>
+                    </div>
+                ) : null}
+
+                {showSituationTab && mainTab === 'situation' && mapSituation ? (
+                    <div
+                        role="tabpanel"
+                        aria-label="몬스터 상황"
+                        className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+                    >
+                        <p className="text-center text-[11px] font-bold uppercase tracking-wide text-emerald-400/90 sm:text-xs">
+                            출현 · 대기 시간
+                        </p>
+                        <AdventureChapterMonsterSituationList
+                            stageId={mapSituation.stageId}
+                            mapMonsters={mapSituation.mapMonsters}
+                            suppressRecord={mapSituation.suppressRecord}
+                            nowMs={situationNowMs}
+                            onPickRow={mapSituation.onPickRow}
+                        />
+                    </div>
+                ) : (
+                    <>
                 <div
                     role="tablist"
                     aria-label="도감 챕터"
@@ -315,6 +404,8 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({ onClose, isTopmost }) => 
                         </ul>
                     </div>
                 </div>
+                    </>
+                )}
             </div>
         </DraggableWindow>
     );

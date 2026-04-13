@@ -69,6 +69,9 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         baseStones_p2,
     } = session;
 
+    const showPlacedBaseStoneArrays =
+        gameStatus === 'base_placement' || gameStatus === 'komi_bidding' || gameStatus === 'komi_bid_reveal';
+
     const myRevealedStones = useMemo(() => {
         const points: Point[] = [];
         if (moveHistory && revealedHiddenMoves && currentUser?.id) {
@@ -136,10 +139,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
             {gameStatus === 'scoring' && !session.analysisResult?.['system'] && <ScoringOverlay variant="fullscreen" />}
             <div className={`relative w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-                {/* 히든 사용 중: 테두리만 깜빡이도록 별도 레이어 사용 (바둑판은 깜빡이지 않음) */}
-                {showBoardGlow && (
-                    <div className="absolute inset-0 rounded-lg pointer-events-none ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]" aria-hidden />
-                )}
                 {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
                 <div className="w-full h-full flex items-center justify-center rounded-lg min-w-0 min-h-0 overflow-hidden">
                 <div className="w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0">
@@ -188,8 +187,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     justCaptured={justCaptured}
                     captures={session.captures}
                     baseStones={baseStones}
-                    baseStones_p1={gameStatus === 'base_placement' ? baseStones_p1 : undefined}
-                    baseStones_p2={gameStatus === 'base_placement' ? baseStones_p2 : undefined}
+                    baseStones_p1={showPlacedBaseStoneArrays ? baseStones_p1 : undefined}
+                    baseStones_p2={showPlacedBaseStoneArrays ? baseStones_p2 : undefined}
                     analysisResult={session.analysisResult?.[currentUser.id] ?? ((gameStatus === 'ended' || (gameStatus === 'scoring' && session.analysisResult?.['system'])) ? session.analysisResult?.['system'] : null)}
                     showTerritoryOverlay={showTerritoryOverlay}
                     isSinglePlayer={true}
@@ -201,6 +200,13 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                 />
                 </div>
                 </div>
+                {/* 히든 사용 중: 테두리만 깜빡이도록 보드 위 오버레이 (뒤에 두면 판에 가려짐) */}
+                {showBoardGlow && (
+                    <div
+                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]"
+                        aria-hidden
+                    />
+                )}
             </div>
             {isPaused && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">

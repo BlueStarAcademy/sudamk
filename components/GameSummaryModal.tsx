@@ -5,7 +5,7 @@ import { audioService } from '../services/audioService.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, aiUserId } from '../constants';
+import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, EQUIPMENT_POOL, MATERIAL_ITEMS, aiUserId } from '../constants';
 import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
@@ -28,10 +28,11 @@ import {
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
     RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
-import { MATERIAL_ITEMS } from '../constants/items.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 
 interface GameSummaryModalProps {
@@ -824,14 +825,33 @@ const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
 const ADVENTURE_DEFAULT_MAT_BOX_IMG =
     CONSUMABLE_ITEMS.find((c) => c.name === '재료 상자 I')?.image ?? '/images/Box/ResourceBox1.png';
 
-function adventureConsumableImage(name: string | undefined): string | null {
-    if (!name) return null;
-    const ci = CONSUMABLE_ITEMS.find((c) => c.name === name);
-    return ci?.image ?? null;
+function normalizeRewardImagePath(src: string | undefined | null): string | null {
+    if (!src) return null;
+    return src.startsWith('/') ? src : `/${src}`;
 }
 
-/** 모험 결과: 미획득 슬롯(아이콘 + 미획득) */
-function AdventureMissedRewardSlot({ compact, iconSrc }: { compact: boolean; iconSrc: string }) {
+/** 모험 슬롯 표시명 → 아이콘 경로 (장비·재료·소모품 상자 등) */
+function adventureRewardSlotItemImage(displayName: string | undefined): string | null {
+    if (!displayName) return null;
+    const ci = CONSUMABLE_ITEMS.find((c) => c.name === displayName);
+    if (ci?.image) return normalizeRewardImagePath(ci.image);
+    const mat = MATERIAL_ITEMS[displayName];
+    if (mat?.image) return normalizeRewardImagePath(mat.image);
+    const eq = EQUIPMENT_POOL.find((e) => e.name === displayName);
+    if (eq?.image) return normalizeRewardImagePath(eq.image);
+    return null;
+}
+
+/** 모험 결과: 미획득 슬롯(아이콘 + 미획득) — 장비·재료 상자에 물음표 오버레이 */
+function AdventureMissedRewardSlot({
+    compact,
+    iconSrc,
+    questionOverlay,
+}: {
+    compact: boolean;
+    iconSrc: string;
+    questionOverlay?: boolean;
+}) {
     const box = compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
     const imgCls = compact
         ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5 opacity-50 grayscale'
@@ -839,14 +859,24 @@ function AdventureMissedRewardSlot({ compact, iconSrc }: { compact: boolean; ico
     return (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
             <div
-                className={`flex items-center justify-center rounded-lg border-2 border-white/15 bg-slate-950/50 ring-1 ring-inset ring-white/10 ${box}`}
+                className={`relative flex items-center justify-center rounded-lg border-2 border-white/15 bg-slate-950/50 ring-1 ring-inset ring-white/10 ${box}`}
             >
                 <img src={iconSrc} alt="" className={imgCls} draggable={false} />
+                {questionOverlay ? (
+                    <span
+                        className={`pointer-events-none absolute inset-0 flex items-center justify-center font-black text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.95),0_0_12px_rgba(0,0,0,0.65)] ${
+                            compact ? 'text-lg min-[400px]:text-xl' : 'text-2xl min-[1024px]:text-3xl'
+                        }`}
+                        aria-hidden
+                    >
+                        ?
+                    </span>
+                ) : null}
             </div>
             <span
                 className={
                     compact
-                        ? 'text-center text-[0.65rem] font-bold tabular-nums text-slate-500'
+                        ? 'text-center text-[0.72rem] font-bold tabular-nums text-slate-500'
                         : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
                 }
             >
@@ -869,7 +899,9 @@ function AdventureBattleFixedRewardRow({
     compact: boolean;
 }) {
     const xpOk = xpChange > 0;
-    const rowClass = compact ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`;
+    const rowClass = compact
+        ? RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
+        : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`;
 
     const xpMissedBox = (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
@@ -881,17 +913,33 @@ function AdventureBattleFixedRewardRow({
                 }`}
                 aria-hidden
             >
-                <span className={compact ? 'text-[0.42rem] font-bold text-emerald-100/80' : 'text-[0.5rem] font-bold text-emerald-100/80'}>
+                <span
+                    className={
+                        compact
+                            ? `text-[0.5rem] min-[360px]:text-[0.52rem] min-[400px]:text-[0.54rem] font-bold ${
+                                  isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'
+                              }`
+                            : `text-[0.5rem] font-bold ${isPlayful ? 'text-sky-100/85' : 'text-emerald-100/80'}`
+                    }
+                >
                     {isPlayful ? '놀이' : '전략'}
                 </span>
-                <span className={compact ? 'mt-px text-[0.48rem] font-black text-emerald-50' : 'mt-0.5 text-[0.58rem] font-black text-emerald-50'}>
+                <span
+                    className={
+                        compact
+                            ? `mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black ${
+                                  isPlayful ? 'text-violet-100' : 'text-emerald-50'
+                              }`
+                            : `mt-0.5 text-[0.58rem] font-black ${isPlayful ? 'text-violet-100' : 'text-emerald-50'}`
+                    }
+                >
                     EXP
                 </span>
             </div>
             <span
                 className={
                     compact
-                        ? 'text-center text-[0.65rem] font-bold tabular-nums text-slate-500'
+                        ? 'text-center text-[0.72rem] font-bold tabular-nums text-slate-500'
                         : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
                 }
             >
@@ -922,23 +970,23 @@ function AdventureBattleFixedRewardRow({
             )}
             {slots.equipment.obtained && slots.equipment.displayName ? (
                 <ResultModalItemRewardSlot
-                    imageSrc={adventureConsumableImage(slots.equipment.displayName)}
+                    imageSrc={adventureRewardSlotItemImage(slots.equipment.displayName)}
                     name={slots.equipment.displayName}
                     quantity={1}
                     compact={compact}
                 />
             ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} />
+                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_EQUIP_BOX_IMG} questionOverlay />
             )}
             {slots.material.obtained && slots.material.displayName ? (
                 <ResultModalItemRewardSlot
-                    imageSrc={adventureConsumableImage(slots.material.displayName)}
+                    imageSrc={adventureRewardSlotItemImage(slots.material.displayName)}
                     name={slots.material.displayName}
-                    quantity={1}
+                    quantity={slots.material.quantity ?? 1}
                     compact={compact}
                 />
             ) : (
-                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} />
+                <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} questionOverlay />
             )}
         </div>
     );
@@ -970,6 +1018,7 @@ const MatchPlayersRoster: React.FC<{
         if (!e) return null;
         return { imageWebp: e.imageWebp, name: e.name, level: Math.max(1, session.adventureMonsterLevel ?? 1) };
     }, [session]);
+    const monsterPortrait = useResilientImgSrc(adventureMonster?.imageWebp);
 
     const blackAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === blackPlayer.avatarId)?.url;
     const blackBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === blackPlayer.borderId)?.url;
@@ -983,6 +1032,13 @@ const MatchPlayersRoster: React.FC<{
 
     const blackIsMonster = !!(adventureMonster && blackPlayer.id === aiUserId);
     const whiteIsMonster = !!(adventureMonster && whitePlayer.id === aiUserId);
+
+    const blackMonsterFrame = isPlayful
+        ? 'border-sky-400/45 bg-gradient-to-br from-sky-800/50 via-violet-950/88 to-black/85 ring-1 ring-inset ring-sky-400/22'
+        : 'border-emerald-400/45 bg-gradient-to-br from-emerald-800/50 via-emerald-950/88 to-black/85 ring-1 ring-inset ring-emerald-400/22';
+    const whiteMonsterFrame = isPlayful
+        ? 'border-indigo-400/40 bg-gradient-to-br from-indigo-900/48 via-violet-900/65 to-black/85 ring-1 ring-inset ring-indigo-400/18'
+        : 'border-teal-400/38 bg-gradient-to-br from-teal-900/48 via-slate-900/82 to-black/85 ring-1 ring-inset ring-teal-400/18';
 
     if (mobileCompactRoster) {
         const nickRowHuman = (nickname: string, stone: '흑' | '백', lv: number) => (
@@ -1022,10 +1078,18 @@ const MatchPlayersRoster: React.FC<{
                 <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-stone-600/40 bg-black/35 px-1.5 py-1.5 ring-1 ring-stone-500/10">
                     {blackIsMonster && adventureMonster ? (
                         <div
-                            className="shrink-0 overflow-hidden rounded-md border border-stone-500/40 bg-black/50"
+                            className={`shrink-0 overflow-hidden rounded-md ${blackMonsterFrame}`}
                             style={{ width: avatarPxAlk, height: avatarPxAlk }}
                         >
-                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                            <img
+                                src={monsterPortrait.src}
+                                alt=""
+                                className="h-full w-full object-contain"
+                                draggable={false}
+                                loading="eager"
+                                decoding="async"
+                                onError={monsterPortrait.onError}
+                            />
                         </div>
                     ) : (
                         <Avatar
@@ -1041,10 +1105,18 @@ const MatchPlayersRoster: React.FC<{
                 <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-500/35 bg-slate-950/55 px-1.5 py-1.5 ring-1 ring-slate-400/12">
                     {whiteIsMonster && adventureMonster ? (
                         <div
-                            className="shrink-0 overflow-hidden rounded-md border border-slate-400/35 bg-black/50"
+                            className={`shrink-0 overflow-hidden rounded-md ${whiteMonsterFrame}`}
                             style={{ width: avatarPxAlk, height: avatarPxAlk }}
                         >
-                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                            <img
+                                src={monsterPortrait.src}
+                                alt=""
+                                className="h-full w-full object-contain"
+                                draggable={false}
+                                loading="eager"
+                                decoding="async"
+                                onError={monsterPortrait.onError}
+                            />
                         </div>
                     ) : (
                         <Avatar
@@ -1068,10 +1140,18 @@ const MatchPlayersRoster: React.FC<{
                 <div className="relative flex items-center gap-2.5">
                     {blackIsMonster && adventureMonster ? (
                         <div
-                            className="shrink-0 overflow-hidden rounded-lg border border-stone-500/45 bg-black/50"
+                            className={`shrink-0 overflow-hidden rounded-lg ${blackMonsterFrame}`}
                             style={{ width: avatarPx, height: avatarPx }}
                         >
-                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                            <img
+                                src={monsterPortrait.src}
+                                alt=""
+                                className="h-full w-full object-contain"
+                                draggable={false}
+                                loading="eager"
+                                decoding="async"
+                                onError={monsterPortrait.onError}
+                            />
                         </div>
                     ) : (
                         <Avatar
@@ -1110,10 +1190,18 @@ const MatchPlayersRoster: React.FC<{
                 <div className="relative flex items-center gap-2.5">
                     {whiteIsMonster && adventureMonster ? (
                         <div
-                            className="shrink-0 overflow-hidden rounded-lg border border-slate-400/35 bg-black/50"
+                            className={`shrink-0 overflow-hidden rounded-lg ${whiteMonsterFrame}`}
                             style={{ width: avatarPx, height: avatarPx }}
                         >
-                            <img src={adventureMonster.imageWebp} alt="" className="h-full w-full object-contain" draggable={false} />
+                            <img
+                                src={monsterPortrait.src}
+                                alt=""
+                                className="h-full w-full object-contain"
+                                draggable={false}
+                                loading="eager"
+                                decoding="async"
+                                onError={monsterPortrait.onError}
+                            />
                         </div>
                     ) : (
                         <Avatar
@@ -1560,7 +1648,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 const nameWithoutSpace = displayName.includes('골드 꾸러미')
                                     ? displayName.replace('골드 꾸러미', '골드꾸러미')
                                     : displayName;
-                                const imagePath =
+                                const rawPath =
                                     (item as { image?: string }).image ||
                                     CONSUMABLE_ITEMS.find(
                                         (ci: { name: string }) =>
@@ -1570,11 +1658,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     )?.image ||
                                     MATERIAL_ITEMS[displayName]?.image ||
                                     MATERIAL_ITEMS[nameWithSpace]?.image ||
-                                    MATERIAL_ITEMS[nameWithoutSpace]?.image;
+                                    MATERIAL_ITEMS[nameWithoutSpace]?.image ||
+                                    EQUIPMENT_POOL.find(
+                                        (e) =>
+                                            e.name === displayName ||
+                                            e.name === nameWithSpace ||
+                                            e.name === nameWithoutSpace
+                                    )?.image;
+                                const imagePath = normalizeRewardImagePath(rawPath);
                                 return (
                                     <ResultModalItemRewardSlot
                                         key={item.id || idx}
-                                        imageSrc={imagePath || null}
+                                        imageSrc={imagePath}
                                         name={displayName}
                                         quantity={item.quantity}
                                         compact={isMobile}
@@ -1693,6 +1788,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     active={mobileResultTab}
                                     matchPanel={
                                     <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
+                                        <h2
+                                            className="mb-0 w-full flex-shrink-0 border-b border-amber-500/25 pb-1 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-200/85"
+                                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                        >
+                                            경기 내용
+                                        </h2>
                                         <MatchPlayersRoster
                                             session={session}
                                             blackPlayer={blackPlayer}
@@ -1896,16 +1997,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     }
                                 />
                             </div>
-                            {pvpRewardsSection}
                         </div>
                     </>
                 ) : (
                     <div className="flex min-h-0 flex-row items-stretch gap-2 overflow-visible sm:gap-3">
                         <div className="flex min-h-0 w-1/2 min-w-0 shrink-0 flex-col items-center overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 sm:p-3">
-                            <h2
-                                className="mb-1.5 w-full flex-shrink-0 border-b border-amber-500/20 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.14em] text-amber-200/75 sm:text-sm min-[1024px]:text-base"
-                                style={{ fontSize: `${10 * mobileTextScale}px` }}
-                            >
+                            <h2 className="mb-0 w-full flex-shrink-0 border-b border-amber-500/20 pb-1 text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs min-[1024px]:text-sm">
                                 경기 내용
                             </h2>
                             <MatchPlayersRoster
@@ -2086,8 +2183,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             </div>
             </div>
                 <div
-                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} ${isMobile ? 'mt-2' : 'mt-3'} ${arenaPostGameButtonGridClass} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 pt-2 sm:px-2 sm:pb-1.5 sm:pt-2.5`}
+                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex flex-col gap-1.5 ${isMobile ? 'mt-2' : 'mt-3'} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 pt-2 sm:px-2 sm:pb-1.5 sm:pt-2.5`}
                 >
+                    {isMobile ? <div className="min-w-0 w-full shrink-0">{pvpRewardsSection}</div> : null}
+                    <div className={`${arenaPostGameButtonGridClass} min-w-0 shrink-0`}>
                     {canUseGameRecordUi && onAction && (
                         <button
                             type="button"
@@ -2157,6 +2256,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             확인
                         </button>
                     )}
+                    </div>
                 </div>
             </>
         </DraggableWindow>

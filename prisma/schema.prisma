@@ -193,6 +193,8 @@ model LiveGame {
   category  String?
   isEnded   Boolean  @default(false)
   data      Json
+  /// AI 히든 아이템 연출 종료 시각(epoch ms). JSON data와 중복 저장해 새로고침·재로딩 시에도 유지
+  aiHiddenItemAnimationEndTime BigInt?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
