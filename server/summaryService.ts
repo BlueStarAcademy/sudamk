@@ -860,37 +860,36 @@ const calculateGameRewards = (
 
     // Determine gold multiplier
     const outcomeMultiplier = isWinner ? 1.0 : isDraw ? 0 : 0.25;
-    let goldReward = Math.round(baseGold * outcomeMultiplier);
+    let baseRewardBeforeBuffs = Math.round(baseGold * outcomeMultiplier);
 
     // Apply AI game penalty (모험 몬스터 대전은 별도 보상 경로에서 처리)
     if (isAiGame && game.gameCategory !== 'adventure') {
-        goldReward = Math.round(goldReward * 0.2);
+        baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * 0.2);
     }
     
     // Apply reward multiplier for all games
-    goldReward = Math.round(goldReward * rewardMultiplier);
+    baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * rewardMultiplier);
 
-    // Apply manner penalties and bonuses
-    goldReward = Math.round(goldReward * effects.goldRewardMultiplier);
-    if (isWinner && effects.winGoldBonusPercent !== 0) {
-        goldReward = Math.round(goldReward * (1 + effects.winGoldBonusPercent / 100));
-    }
+    // 버프는 모두 "기본 보상 대비 N%" 합연산으로 처리 (버프 간 곱증폭 방지)
+    const globalGoldPercent = (effects.goldRewardMultiplier - 1) * 100;
+    const winGoldPercent = isWinner ? effects.winGoldBonusPercent : 0;
+    const nonAdventureBonusPercent = globalGoldPercent + winGoldPercent;
+    let goldReward = Math.max(
+        0,
+        baseRewardBeforeBuffs + Math.round(baseRewardBeforeBuffs * (nonAdventureBonusPercent / 100)),
+    );
     let adventureGoldUnderstandingBonus: number | undefined;
     if (isWinner && game.gameCategory === 'adventure') {
         const { codexOnlyPercent, understandingPercent } = splitAdventureGoldBonusPercents(effects, player.adventureProfile);
-        if (codexOnlyPercent > 0 || understandingPercent > 0) {
-            let g = goldReward;
-            if (codexOnlyPercent > 0) {
-                g = Math.round(g * (1 + codexOnlyPercent / 100));
-            }
-            const afterCodexOnly = g;
-            if (understandingPercent > 0) {
-                g = Math.round(g * (1 + understandingPercent / 100));
-            }
-            goldReward = g;
-            adventureGoldUnderstandingBonus =
-                understandingPercent > 0 ? Math.max(0, goldReward - afterCodexOnly) : undefined;
-        }
+        const adventureBonusPercent = codexOnlyPercent + understandingPercent;
+        goldReward = Math.max(
+            0,
+            baseRewardBeforeBuffs + Math.round(baseRewardBeforeBuffs * (globalGoldPercent + winGoldPercent + adventureBonusPercent) / 100),
+        );
+        adventureGoldUnderstandingBonus =
+            understandingPercent > 0
+                ? Math.max(0, Math.round(baseRewardBeforeBuffs * (understandingPercent / 100)))
+                : undefined;
     }
 
     // Determine item drop logic
@@ -900,7 +899,7 @@ const calculateGameRewards = (
         (!isAiGame || (game.gameCategory === 'adventure' && isWinner)); 
     
     if (canDropItem && lootTable.length > 0) {
-        const dropChanceMultiplier = (isWinner ? 1.0 : 0.5) * rewardMultiplier * effects.dropChanceMultiplier;
+        const baseDropChanceMultiplier = (isWinner ? 1.0 : 0.5) * rewardMultiplier;
         const isAdventureCategory = game.gameCategory === 'adventure';
         const advEqDrop = isAdventureCategory ? (effects.adventureUnderstandingEquipmentDropBonusPercent ?? 0) : 0;
         const advMatDrop = isAdventureCategory ? (effects.adventureUnderstandingMaterialDropBonusPercent ?? 0) : 0;
@@ -914,14 +913,20 @@ const calculateGameRewards = (
                 loot.type === 'equipment'
                     ? itemDropBonus + advEqDrop
                     : materialDropBonus + advMatDrop;
-            let highTierMul = 1;
-            if (isAdventureCategory && loot.type === 'equipment' && isHighTierEquipmentBox(loot.name)) {
-                highTierMul = 1 + advHgEq / 100;
-            } else if (isAdventureCategory && loot.type === 'material' && isHighTierMaterialBox(loot.name)) {
-                highTierMul = 1 + advHgMat / 100;
-            }
-            const baseChance = loot.chance * dropChanceMultiplier * highTierMul;
-            const additionalPercent = bonus + (isWinner ? effects.winDropBonusPercent : 0) + effects.itemDropRateBonus;
+            const highTierBonusPercent =
+                isAdventureCategory && loot.type === 'equipment' && isHighTierEquipmentBox(loot.name)
+                    ? advHgEq
+                    : (isAdventureCategory && loot.type === 'material' && isHighTierMaterialBox(loot.name)
+                        ? advHgMat
+                        : 0);
+            const baseChance = loot.chance * baseDropChanceMultiplier;
+            const dropMultiplierPercent = (effects.dropChanceMultiplier - 1) * 100;
+            const additionalPercent =
+                dropMultiplierPercent +
+                bonus +
+                (isWinner ? effects.winDropBonusPercent : 0) +
+                effects.itemDropRateBonus +
+                highTierBonusPercent;
             const effectiveChance = baseChance * (1 + additionalPercent / 100);
             
             if (Math.random() * 100 < effectiveChance) {
@@ -985,27 +990,19 @@ function calculateAdventureMonsterBattleRewards(
     const slotMul = Math.max(0.45, rewardMultiplier);
     const dropExtra = effects.winDropBonusPercent + effects.itemDropRateBonus;
 
-    let goldReward = Math.round(baseGold * rewardMultiplier);
-    goldReward = Math.round(goldReward * adventureMonsterGoldLevelMultiplier(level));
-    goldReward = Math.round(goldReward * effects.goldRewardMultiplier);
-    if (effects.winGoldBonusPercent !== 0) {
-        goldReward = Math.round(goldReward * (1 + effects.winGoldBonusPercent / 100));
-    }
-    let gGold = goldReward;
-    if (codexOnlyPercent > 0) {
-        gGold = Math.round(gGold * (1 + codexOnlyPercent / 100));
-    }
-    const goldAfterCodexOnly = gGold;
-    if (understandingPercent > 0) {
-        gGold = Math.round(gGold * (1 + understandingPercent / 100));
-    }
-    goldReward = gGold;
+    // 모험 골드는 "기본 보상 + (기본 보상 기준 N% 가산)" 규칙으로 합연산 처리.
+    // 버프 간 곱증폭을 피하기 위해 각 항목은 동일한 기준금(baseRewardBeforeBuffs)에만 적용한다.
+    let baseRewardBeforeBuffs = Math.round(baseGold * rewardMultiplier);
+    baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * adventureMonsterGoldLevelMultiplier(level));
     const isBoss19Board = game.adventureBoardSize === 19;
     if (isBoss19Board) {
-        goldReward = Math.round(goldReward * 1.68);
+        baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * 1.68);
     }
-    const withoutUnderstandingFinal = isBoss19Board ? Math.round(goldAfterCodexOnly * 1.68) : goldAfterCodexOnly;
-    const understandingGoldBonus = Math.max(0, goldReward - withoutUnderstandingFinal);
+    const globalGoldPercent = (effects.goldRewardMultiplier - 1) * 100;
+    const totalBonusPercent = globalGoldPercent + effects.winGoldBonusPercent + codexOnlyPercent + understandingPercent;
+    const totalBonusGold = Math.round(baseRewardBeforeBuffs * (totalBonusPercent / 100));
+    const goldReward = Math.max(0, baseRewardBeforeBuffs + totalBonusGold);
+    const understandingGoldBonus = Math.max(0, Math.round(baseRewardBeforeBuffs * (understandingPercent / 100)));
 
     const items: InventoryItem[] = [];
 
