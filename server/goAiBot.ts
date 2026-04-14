@@ -1,7 +1,7 @@
 /**
  * 바둑 AI 봇 시스템
- * 싱글플레이, 도전의탑, 전략바둑에서 사용하는 1단계~10단계 바둑 AI 봇
- * KataGo를 사용하지 않고 직접 구현한 바둑 AI
+ * 싱글플레이, 도전의탑, 전략·모험 AI 대국 등에서 사용하는 1단계~10단계 바둑 AI.
+ * 전략 goAi 경로는 KataServer만 사용한다. KATA_SERVER_URL 미설정·API 오류·무효 응답은 모두 예외로 전파한다(휴리스틱 폴백 없음).
  */
 
 import { LiveGameSession, Player, Point } from '../types/index.js';
@@ -27,10 +27,6 @@ function isLobbyAiStrategicGoGame(game: types.LiveGameSession): boolean {
         (game as any).gameCategory !== 'singleplayer' &&
         (game as any).gameCategory !== 'guildwar'
     );
-}
-
-function clearStrategicAiKataSpFallback(game: types.LiveGameSession) {
-    delete (game as any).strategicAiKataSpFallbackActive;
 }
 
 /** 전략 AI 대국: 히든 개수는 player1/player2 좌석 기준(hidden_stones_p1/p2). AI가 항상 p2라는 가정은 길드전·색 배정에 깨질 수 있음 */
@@ -676,6 +672,20 @@ function isUserUnrevealedHiddenPosition(
 /**
  * 유저의 미공개 히든 돌 좌표 목록 (AI가 "유저 통과"로만 인식해야 하므로 해당 칸·인접 칸 착수 금지)
  */
+/** 유저(또는 지정 플레이어)의 아직 permanently에 없는 히든 착점을 모두 완전 공개한다 */
+function revealAllUnrevealedHiddensForPlayerEnum(game: types.LiveGameSession, playerEnum: Player) {
+    if (!game.moveHistory || !game.hiddenMoves) return;
+    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+    for (let i = 0; i < game.moveHistory.length; i++) {
+        if (!game.hiddenMoves[i]) continue;
+        const m = game.moveHistory[i];
+        if (!m || m.player !== playerEnum || m.x < 0 || m.y < 0) continue;
+        if (!game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) {
+            game.permanentlyRevealedStones.push({ x: m.x, y: m.y });
+        }
+    }
+}
+
 function getUserUnrevealedHiddenPoints(
     game: types.LiveGameSession,
     aiPlayerEnum: Player
@@ -714,6 +724,26 @@ function isOnOrAdjacentToUserUnrevealedHidden(
         if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) return true;
     }
     return false;
+}
+
+function isAdventureAiHiddenGame(game: types.LiveGameSession): boolean {
+    return (game as any).gameCategory === 'adventure';
+}
+
+/**
+ * Kata·휴리스틱에서 유저 미공개 히든 근처를 피할 때 사용.
+ * 로비/길드 등은 기존처럼 해당 돌과 4방 인접까지 금지.
+ * 모험 히든은 그 제한이 과해 Kata 수가 전부 폴백되는 경우가 많아, **돌이 있는 칸**만 금지한다.
+ */
+function isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
+    game: types.LiveGameSession,
+    x: number,
+    y: number,
+    aiPlayerEnum: Player
+): boolean {
+    if (isUserUnrevealedHiddenPosition(game, x, y, aiPlayerEnum)) return true;
+    if (isAdventureAiHiddenGame(game)) return false;
+    return isOnOrAdjacentToUserUnrevealedHidden(game, x, y, aiPlayerEnum);
 }
 
 /**
@@ -917,14 +947,21 @@ export async function makeGoAiBotMove(
             const logic = getGoLogic(aiGameForMove);
             const allValidMoves = findAllValidMoves(aiGameForMove, logic, aiPlayerEnum);
             if (allValidMoves.length > 0) {
-                const hiddenMove = allValidMoves[Math.floor(Math.random() * allValidMoves.length)];
-                const result = processMove(
-                    game.boardState,
-                    { ...hiddenMove, player: aiPlayerEnum },
-                    game.koInfo,
-                    game.moveHistory.length
-                );
-                if (result.isValid) {
+                const shuffled = [...allValidMoves];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    const t = shuffled[i];
+                    shuffled[i] = shuffled[j];
+                    shuffled[j] = t;
+                }
+                for (const hiddenMove of shuffled) {
+                    const result = processMove(
+                        game.boardState,
+                        { ...hiddenMove, player: aiPlayerEnum },
+                        game.koInfo,
+                        game.moveHistory.length
+                    );
+                    if (!result.isValid) continue;
                     game.boardState = result.newBoardState;
                     game.lastMove = { x: hiddenMove.x, y: hiddenMove.y };
                     game.moveHistory.push({ player: aiPlayerEnum, x: hiddenMove.x, y: hiddenMove.y });
@@ -1076,24 +1113,33 @@ export async function makeGoAiBotMove(
     }
     
     let selectedMove: Point | null = null;
-    let scoredMoves: Array<{ move: Point; score: number }> = [];
 
-    // 호출부(aiPlayer 등)는 항상 프로필 단계 1~10을 넘긴다. Kata API 값(3, 5 등)과 혼동하지 않는다.
+    if (!isKataServerAvailable()) {
+        throw new Error(
+            `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). game=${game.id}`
+        );
+    }
+
+    // 호출부(aiPlayer 등)는 프로필 단계(1~10)를 넘긴다.
+    // 단, 게임 생성 시 settings.kataServerLevel이 이미 확정되어 있으면 그 값을 우선 사용한다.
     const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
     const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
+    const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
+    const configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
+    const resolvedKataLevel = configuredKataLevel ?? (DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12);
+    if (process.env.NODE_ENV === 'development') {
+        console.log(
+            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel}`
+        );
+    }
 
-    // 0) KataServer 레벨봇: 길드전 제외. 싱글/탑 **따내기**는 목표가 따내기 점수이므로 Kata(정석 바둑) 대신 휴리스틱만 사용.
-    const isGuildWarAiGame = (game as any).gameCategory === 'guildwar';
     const isSpOrTowerPve = isSinglePlayerOrTowerPve(game);
-    const skipKataForCapturePve = isSpOrTowerPve && game.mode === types.GameMode.Capture;
-    const wantKataServer = !isGuildWarAiGame && !skipKataForCapturePve && isKataServerAvailable();
-    /** 이전 턴에서 Kata PASS 복구가 미완료였거나, 이번에 SP식 1수만 둘 때 Kata 호출 생략 */
-    const skipKataForStrategicSpFallback = !!game.strategicAiKataSpFallbackActive;
-    if (wantKataServer && !selectedMove && !skipKataForStrategicSpFallback) {
-        try {
-            const kataLevel = DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12;
-            // 히든바둑: 유저 미공개 히든 수는 통과(-1,-1)로 마스킹
-            const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
+    const userPlayerEnumForHidden = aiPlayerEnum === types.Player.White ? types.Player.Black : types.Player.White;
+    if (!selectedMove) {
+        const kataLevel = resolvedKataLevel;
+        const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
+        const maxKataHiddenRetries = 8;
+        for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
             const moveHistory = useHiddenMask
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
                 : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
@@ -1105,7 +1151,6 @@ export async function makeGoAiBotMove(
                 level: kataLevel,
                 komi: game.settings.komi,
                 gameId: game.id,
-                // 전략바둑 Kata 봇(모든 단계): API에 PASS 후보 제외 요청. 로비만이 아니라 싱글/타워 등 동일.
                 allowPass: false,
             });
 
@@ -1123,7 +1168,7 @@ export async function makeGoAiBotMove(
                 let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
                 if (useHiddenMask && validAfterKataPass.length > 0) {
                     validAfterKataPass = validAfterKataPass.filter(
-                        m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
+                        m => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum)
                     );
                 }
                 if (validAfterKataPass.length === 0) {
@@ -1133,25 +1178,31 @@ export async function makeGoAiBotMove(
                     await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                     return;
                 }
-                console.warn(
-                    `[makeGoAiBotMove] KataServer PASS but ${validAfterKataPass.length} valid moves exist → SP-style heuristic for one move, game=${game.id}`
+                throw new Error(
+                    `[makeGoAiBotMove] KataServer returned PASS while ${validAfterKataPass.length} masked legal moves exist (game=${game.id}). Check KataServer.`
                 );
-                game.strategicAiKataSpFallbackActive = true;
-                selectedMove = null;
-            } else {
-                selectedMove = { x: kataMove.x, y: kataMove.y };
-
-                // 히든바둑: 유저 미공개 히든 칸 또는 인접 칸에 착수하면 휴리스틱으로 대체
-                if (useHiddenMask && selectedMove &&
-                    isOnOrAdjacentToUserUnrevealedHidden(game, selectedMove.x, selectedMove.y, aiPlayerEnum)) {
-                    console.log(`[makeGoAiBotMove] KataServer returned move on/near user's unrevealed hidden (${selectedMove.x},${selectedMove.y}), falling back to heuristic`);
-                    selectedMove = null;
-                } else {
-                    console.log(`[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${kataMove.x},${kataMove.y})`);
-                }
             }
-        } catch (err: any) {
-            console.error(`[makeGoAiBotMove] KataServer 실패 → 내부 휴리스틱 폴백. game=${game.id}, error=${err?.message}`);
+
+            const candidate = { x: kataMove.x, y: kataMove.y };
+            if (
+                useHiddenMask &&
+                isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, candidate.x, candidate.y, aiPlayerEnum)
+            ) {
+                console.warn(
+                    `[makeGoAiBotMove] KataServer suggested (${candidate.x},${candidate.y}) on/near masked user hidden — full reveal & Kata retry (${attempt + 1}/${maxKataHiddenRetries}), game=${game.id}`
+                );
+                revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
+                continue;
+            }
+
+            selectedMove = candidate;
+            console.log(`[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${candidate.x},${candidate.y})`);
+            break;
+        }
+        if (!selectedMove) {
+            throw new Error(
+                `[makeGoAiBotMove] KataServer: could not get a legal move after full hidden reveal retries (game=${game.id})`
+            );
         }
     }
 
@@ -1203,321 +1254,8 @@ export async function makeGoAiBotMove(
         }
     }
 
-    // 1) KataServer 실패 시 내부 goAiBot 휴리스틱 폴백
     if (!selectedMove) {
-        const spStyleKataFallback = !!game.strategicAiKataSpFallbackActive;
-
-        // Kata 비정상 PASS 복구 턴: 싱글플레이와 동일하게 1~3단계 프로필 + 전수 유효수(빠른 샘플링 생략)
-        const profile = spStyleKataFallback
-            ? getGoAiBotProfile(Math.min(3, Math.max(1, goAiProfileLevel)))
-            : getGoAiBotProfile(goAiProfileLevel);
-
-        // AI가 볼 수 있는 보드·수순 (유저의 미공개 히든은 빈 칸/통과로만 인식, 공개 시 재인식)
-        const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-        const aiMoveHistory = (isHiddenMode && shouldMaskUserHiddenFromAi(game)) ? getMoveHistoryForAi(game, aiPlayerEnum) : (game.moveHistory || []);
-        const aiGame: types.LiveGameSession = {
-            ...game,
-            boardState: aiBoardState,
-            moveHistory: aiMoveHistory as types.Move[]
-        };
-
-        const logic = getGoLogic(aiGame);
-    
-        // 살리기 바둑 모드 확인
-        const isSurvivalMode = (game.settings as any)?.isSurvivalMode === true;
-    
-        // 낮은 난이도(1-3)는 간단한 휴리스틱 사용으로 성능 최적화 (Kata 복구 턴에서는 전수 검사 강제)
-        const useFastHeuristic = !spStyleKataFallback && goAiProfileLevel <= 3;
-    
-        // 1. 모든 유효한 수 찾기 (KataGo 사용 안함)
-        let allValidMoves =
-            spStyleKataFallback || !useFastHeuristic
-                ? findAllValidMoves(aiGame, logic, aiPlayerEnum)
-                : findAllValidMovesFast(aiGame, logic, aiPlayerEnum);
-
-        // 싱글플레이·탑 히든: 유저 통과로만 인식 — 유저 미공개 히든 돌 위치와 그 인접 칸은 유효수에서 제외
-        if (isHiddenMode && shouldMaskUserHiddenFromAi(game) && allValidMoves.length > 0) {
-            allValidMoves = allValidMoves.filter(
-                m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
-            );
-        }
-
-        // findAllValidMovesFast가 빈 배열을 주는 경우가 있어 전수 검색으로 재시도 (전략 AI 일반 폴백)
-        if (allValidMoves.length === 0 && !spStyleKataFallback && useFastHeuristic) {
-            allValidMoves = findAllValidMoves(aiGame, logic, aiPlayerEnum);
-            if (isHiddenMode && shouldMaskUserHiddenFromAi(game) && allValidMoves.length > 0) {
-                allValidMoves = allValidMoves.filter(
-                    m => !isOnOrAdjacentToUserUnrevealedHidden(game, m.x, m.y, aiPlayerEnum)
-                );
-            }
-        }
-    
-        // 통과가 없는 바둑(따내기, 싱글플레이, 도전의 탑): AI가 둘 곳이 없으면 서버에서 통과로 턴만 넘김 (시간패 방지)
-        const isNoPassMode = game.isSinglePlayer || (game as any).gameCategory === 'tower' || game.mode === types.GameMode.Capture;
-        if (allValidMoves.length === 0) {
-        if (isNoPassMode) {
-            console.log('[GoAiBot] No valid moves available (no-pass mode). AI passes to avoid time forfeit.');
-            game.passCount = (game.passCount ?? 0) + 1;
-            game.lastMove = { x: -1, y: -1 };
-            game.lastTurnStones = null;
-            game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
-            if (hasTimeControl(game.settings)) {
-                const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                if (game.turnDeadline) {
-                    game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
-                }
-            }
-            game.currentPlayer = opponentPlayerEnum;
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                const isFischer = isFischerStyleTimeControl(game as any);
-                const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
-                if (isNextInByoyomi) {
-                    game.turnDeadline = now + (game.settings.byoyomiTime ?? 30) * 1000;
-                } else {
-                    game.turnDeadline = now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
-                }
-                game.turnStartTime = now;
-            } else {
-                game.turnDeadline = undefined;
-                game.turnStartTime = undefined;
-            }
-            if (game.passCount >= 2) {
-                game.gameStatus = 'scoring';
-                game.totalTurns = (game.moveHistory || []).length;
-                await db.saveGame(game);
-                const { broadcastToGameParticipants } = await import('./socket.js');
-                const gameToBroadcast = { ...game };
-                delete (gameToBroadcast as any).boardState;
-                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                const { getGameResult } = await import('./gameModes.js');
-                await getGameResult(game);
-            } else {
-                await db.saveGame(game);
-                const { broadcastToGameParticipants } = await import('./socket.js');
-                const gameToBroadcast = { ...game };
-                delete (gameToBroadcast as any).boardState;
-                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-            }
-            return;
-        } else {
-            console.log('[GoAiBot] No valid moves available. AI passes (non no-pass mode).');
-            game.passCount = (game.passCount ?? 0) + 1;
-            game.lastMove = { x: -1, y: -1 };
-            game.lastTurnStones = null;
-            game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
-            if (hasTimeControl(game.settings)) {
-                const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                if (game.turnDeadline) {
-                    game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
-                }
-            }
-            game.currentPlayer = opponentPlayerEnum;
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                const isFischer = isFischerStyleTimeControl(game as any);
-                const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
-                if (isNextInByoyomi) {
-                    game.turnDeadline = now + (game.settings.byoyomiTime ?? 30) * 1000;
-                } else {
-                    game.turnDeadline = now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
-                }
-                game.turnStartTime = now;
-            } else {
-                game.turnDeadline = undefined;
-                game.turnStartTime = undefined;
-            }
-            if (game.passCount >= 2) {
-                game.gameStatus = 'scoring';
-                game.totalTurns = (game.moveHistory || []).length;
-                await db.saveGame(game);
-                const { broadcastToGameParticipants } = await import('./socket.js');
-                const gameToBroadcast = { ...game };
-                delete (gameToBroadcast as any).boardState;
-                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                const { getGameResult } = await import('./gameModes.js');
-                await getGameResult(game);
-            } else {
-                await db.saveGame(game);
-                const { broadcastToGameParticipants } = await import('./socket.js');
-                const gameToBroadcast = { ...game };
-                delete (gameToBroadcast as any).boardState;
-                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-            }
-            return;
-        }
-    }
-
-    // 2. 살리기 바둑 모드일 때는 공격적인 로직 사용
-    if (isSurvivalMode && aiPlayerEnum === Player.White) {
-        // 살리기 바둑: AI(백)가 유저(흑)의 돌을 적극적으로 잡으러 오는 전략 사용
-        scoredMoves = scoreMovesForAggressiveCapture(
-            allValidMoves,
-            aiGame,
-            profile,
-            logic,
-            aiPlayerEnum,
-            opponentPlayerEnum
-        );
-    } else if (useFastHeuristic) {
-        // 낮은 난이도: 간단한 휴리스틱 점수화 (성능 최적화)
-        scoredMoves = scoreMovesFast(allValidMoves, aiGame, profile, logic, aiPlayerEnum, opponentPlayerEnum);
-    } else {
-        // 일반 바둑: AI 프로필에 따라 수 선택
-        scoredMoves = scoreMovesByProfile(
-            allValidMoves,
-            aiGame,
-            profile,
-            logic,
-            aiPlayerEnum,
-            opponentPlayerEnum
-        );
-    }
-
-        if (scoredMoves.length === 0 && allValidMoves.length > 0) {
-            console.warn(`[makeGoAiBotMove] scoredMoves empty; using uniform pick from allValidMoves (game=${game.id})`);
-            scoredMoves = allValidMoves.map(m => ({ move: m, score: 0 }));
-        }
-        if (scoredMoves.length === 0) {
-            console.error(`[makeGoAiBotMove] No scoredMoves after heuristics (game=${game.id})`);
-            return;
-        }
-
-    // 3. 실수 확률 적용
-    const pveMistakeMul = isSpOrTowerPve ? 0.62 : 1;
-    if (Math.random() < profile.mistakeRate * pveMistakeMul && scoredMoves.length > 1) {
-        // 실수를 할 경우 (싱글/탑은 승부에 맞게 실수 비율 완화)
-        const mistakeChance = Math.random();
-        if (mistakeChance < 0.3) {
-            // 나쁜 수 선택 (하위 30%)
-            const badMoves = scoredMoves.slice(-Math.ceil(scoredMoves.length * 0.3));
-            selectedMove = badMoves[Math.floor(Math.random() * badMoves.length)].move;
-        } else {
-            // 중간 정도의 수 선택
-            const midMoves = scoredMoves.slice(
-                Math.floor(scoredMoves.length * 0.3),
-                Math.floor(scoredMoves.length * 0.7)
-            );
-            selectedMove = midMoves.length > 0 
-                ? midMoves[Math.floor(Math.random() * midMoves.length)].move
-                : scoredMoves[Math.floor(Math.random() * scoredMoves.length)].move;
-        }
-    } else {
-        // 정상 플레이: 가장 좋은 수 선택
-        selectedMove = scoredMoves[0].move;
-    }
-
-    // 4. 선택된 수 실행 전에 유저의 돌 위에 착점하는지 확인 (싱글플레이 모드)
-    if ((game.isSinglePlayer || game.gameCategory === 'tower') && selectedMove) {
-        const { x, y } = selectedMove;
-        const stoneAtTarget = game.boardState[y]?.[x];
-        
-        // 유저의 돌 위에 착점을 시도하는 경우 차단
-        if (stoneAtTarget === opponentPlayerEnum) {
-            console.error(`[GoAiBot] CRITICAL: AI attempted to place stone on user's stone at (${x}, ${y}), gameId=${game.id}`);
-            
-            // 유효한 수 목록에서 유저의 돌이 있는 위치 제외
-            const filteredMoves = scoredMoves.filter(m => {
-                const stoneAtMove = game.boardState[m.move.y]?.[m.move.x];
-                return stoneAtMove !== opponentPlayerEnum;
-            });
-            
-            if (filteredMoves.length === 0) {
-                // 통과 없는 모드: 통과로 턴만 넘김 (시간패 방지)
-                if (isNoPassMode) {
-                    console.log('[GoAiBot] No valid moves after filtering user stones (no-pass mode). AI passes.');
-                    game.passCount = (game.passCount ?? 0) + 1;
-                    game.lastMove = { x: -1, y: -1 };
-                    game.lastTurnStones = null;
-                    game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
-                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                        const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        if (game.turnDeadline) game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
-                    }
-                    game.currentPlayer = opponentPlayerEnum;
-                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                        const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                        const isFischer = isFischerStyleTimeControl(game as any);
-                        const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
-                        game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
-                        game.turnStartTime = now;
-                    } else {
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
-                    if (game.passCount >= 2) {
-                        game.gameStatus = 'scoring';
-                        game.totalTurns = (game.moveHistory || []).length;
-                        await db.saveGame(game);
-                        const { broadcastToGameParticipants } = await import('./socket.js');
-                        const g = { ...game };
-                        delete (g as any).boardState;
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
-                        const { getGameResult } = await import('./gameModes.js');
-                        await getGameResult(game);
-                    } else {
-                        await db.saveGame(game);
-                        const { broadcastToGameParticipants } = await import('./socket.js');
-                        const g = { ...game };
-                        delete (g as any).boardState;
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
-                    }
-                    return;
-                }
-                console.log('[GoAiBot] No valid moves after filtering user stones. AI passes.');
-                game.passCount = (game.passCount ?? 0) + 1;
-                game.lastMove = { x: -1, y: -1 };
-                game.lastTurnStones = null;
-                game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
-                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                    const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                    if (game.turnDeadline) game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
-                }
-                game.currentPlayer = opponentPlayerEnum;
-                if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                    const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                    const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                    const isFischer = isFischerStyleTimeControl(game as any);
-                    const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
-                    game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
-                    game.turnStartTime = now;
-                } else {
-                    game.turnDeadline = undefined;
-                    game.turnStartTime = undefined;
-                }
-                if (game.passCount >= 2) {
-                    game.gameStatus = 'scoring';
-                    game.totalTurns = (game.moveHistory || []).length;
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('./socket.js');
-                    const g = { ...game };
-                    delete (g as any).boardState;
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
-                    const { getGameResult } = await import('./gameModes.js');
-                    await getGameResult(game);
-                } else {
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('./socket.js');
-                    const g = { ...game };
-                    delete (g as any).boardState;
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
-                }
-                return;
-            }
-            
-            // 필터링된 수 중에서 선택
-            selectedMove = filteredMoves[0].move;
-            console.log(`[GoAiBot] Replaced invalid move with valid move at (${selectedMove.x}, ${selectedMove.y})`);
-        }
-    }
-    } // end of if (!selectedMove) - heuristic path
-
-    if (!selectedMove) {
-        console.error(`[makeGoAiBotMove] No move selected after all strategies, game=${game.id}`);
-        return;
+        throw new Error(`[makeGoAiBotMove] KataServer에서 수를 얻지 못했습니다. game=${game.id}`);
     }
 
     // 4-1. 히든 돌 위에 착점하는지 확인 (히든바둑 모드: 싱글플레이·탑)
@@ -1533,113 +1271,100 @@ export async function makeGoAiBotMove(
         
         // AI가 유저의 히든 돌 위에 착점을 시도하는 경우
         if (isTargetHiddenOpponentStone) {
-            // 1. 즉시 일시정지
-            // 히든 돌 전체공개
-            if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-            if (!game.permanentlyRevealedStones.some(p => p.x === x && p.y === y)) {
-                game.permanentlyRevealedStones.push({ x, y });
-            }
-            
-            // 공개된 히든 돌의 문양 유지 (원래 플레이어의 문양으로 명시적으로 설정)
-            // 싱글플레이에서는 유저(흑)만 히든 돌을 사용하므로, opponentPlayerEnum은 항상 Black
-            // moveHistory에서 원래 플레이어 확인 (확인용)
-            const originalPlayer = moveIndexAtTarget !== -1 
-                ? game.moveHistory[moveIndexAtTarget].player 
-                : opponentPlayerEnum; // moveHistory에서 찾지 못하면 opponentPlayerEnum 사용 (싱글플레이에서는 Black)
-            
-            // 싱글플레이에서는 항상 유저(흑)의 히든 돌이므로, blackPatternStones에 명시적으로 추가
-            if (originalPlayer === Player.Black || opponentPlayerEnum === Player.Black) {
-                // blackPatternStones에 추가 (이미 있으면 유지)
-                if (!game.blackPatternStones) game.blackPatternStones = [];
-                if (
-                    !isPatternIntersectionPermanentlyConsumed(game, { x, y }) &&
-                    !game.blackPatternStones.some(p => p.x === x && p.y === y)
-                ) {
-                    game.blackPatternStones.push({ x, y });
-                }
-                // whitePatternStones에서 제거 (잘못 추가된 경우)
-                if (game.whitePatternStones) {
-                    game.whitePatternStones = game.whitePatternStones.filter(p => !(p.x === x && p.y === y));
-                }
-            } else {
-                // 백의 히든 돌인 경우 (일반적으로는 발생하지 않지만 안전을 위해)
-                if (!game.whitePatternStones) game.whitePatternStones = [];
-                if (
-                    !isPatternIntersectionPermanentlyConsumed(game, { x, y }) &&
-                    !game.whitePatternStones.some(p => p.x === x && p.y === y)
-                ) {
-                    game.whitePatternStones.push({ x, y });
-                }
-                // blackPatternStones에서 제거 (잘못 추가된 경우)
-                if (game.blackPatternStones) {
-                    game.blackPatternStones = game.blackPatternStones.filter(p => !(p.x === x && p.y === y));
-                }
-            }
-            
-            // 일반적인 prunePatternStones 로직
-            // 주의: permanentlyRevealedStones에 있는 위치는 boardState의 player와 관계없이 원래 플레이어의 문양을 유지해야 함
-            const prunePatternStones = () => {
-                if (game.blackPatternStones) {
-                    game.blackPatternStones = game.blackPatternStones.filter(point => {
-                        if (isPatternIntersectionPermanentlyConsumed(game, point)) return false;
-                        const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === point.x && p.y === point.y);
-                        if (isPermanentlyRevealed) {
-                            // 공개된 히든 돌의 경우, moveHistory에서 원래 플레이어 확인
-                            const moveIndex = game.moveHistory.findIndex(m => m.x === point.x && m.y === point.y);
-                            if (moveIndex !== -1) {
-                                const originalMove = game.moveHistory[moveIndex];
-                                // 원래 플레이어가 흑이면 유지
-                                return originalMove.player === Player.Black;
-                            }
-                        }
-                        // 일반적인 경우: boardState의 player 확인
-                        const occupant = game.boardState?.[point.y]?.[point.x];
-                        return occupant === Player.Black;
+                revealAllUnrevealedHiddensForPlayerEnum(game, opponentPlayerEnum);
+                console.warn(
+                    `[makeGoAiBotMove] Kata chose (${x},${y}) on unrevealed user hidden — full reveal & same-turn Kata re-query (game=${game.id})`
+                );
+                const kataLevel = resolvedKataLevel;
+                let replacement: Point | null = null;
+                const maxKataHiddenRetries = 8;
+                for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
+                    const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
+                    const moveHistory = useHiddenMask
+                        ? getMoveHistoryForAi(game, aiPlayerEnum)
+                        : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+
+                    const kataMove = await generateKataServerMove({
+                        boardSize: game.settings.boardSize || 19,
+                        player: aiPlayerEnum === types.Player.White ? 'white' : 'black',
+                        moveHistory,
+                        level: kataLevel,
+                        komi: game.settings.komi,
+                        gameId: game.id,
+                        allowPass: false,
                     });
-                }
-                if (game.whitePatternStones) {
-                    game.whitePatternStones = game.whitePatternStones.filter(point => {
-                        if (isPatternIntersectionPermanentlyConsumed(game, point)) return false;
-                        const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === point.x && p.y === point.y);
-                        if (isPermanentlyRevealed) {
-                            // 공개된 히든 돌의 경우, moveHistory에서 원래 플레이어 확인
-                            const moveIndex = game.moveHistory.findIndex(m => m.x === point.x && m.y === point.y);
-                            if (moveIndex !== -1) {
-                                const originalMove = game.moveHistory[moveIndex];
-                                // 원래 플레이어가 백이면 유지
-                                return originalMove.player === Player.White;
-                            }
+
+                    if (kataMove.x === -1 && kataMove.y === -1) {
+                        const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+                        const aiMoveHistoryForValid = useHiddenMask
+                            ? getMoveHistoryForAi(game, aiPlayerEnum)
+                            : (game.moveHistory || []);
+                        const aiGameForValid: types.LiveGameSession = {
+                            ...game,
+                            boardState: aiBoardState,
+                            moveHistory: aiMoveHistoryForValid as types.Move[],
+                        };
+                        const logicForValid = getGoLogic(aiGameForValid);
+                        let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
+                        if (useHiddenMask && validAfterKataPass.length > 0) {
+                            validAfterKataPass = validAfterKataPass.filter(
+                                m =>
+                                    !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
+                                        game,
+                                        m.x,
+                                        m.y,
+                                        aiPlayerEnum
+                                    )
+                            );
                         }
-                        // 일반적인 경우: boardState의 player 확인
-                        const occupant = game.boardState?.[point.y]?.[point.x];
-                        return occupant === Player.White;
-                    });
+                        if (validAfterKataPass.length === 0) {
+                            console.log(
+                                `[makeGoAiBotMove] Kata re-query PASS (no legal moves) → AI resign, game=${game.id}`
+                            );
+                            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                            return;
+                        }
+                        throw new Error(
+                            `[makeGoAiBotMove] Kata re-query returned PASS while ${validAfterKataPass.length} masked legal moves exist (game=${game.id})`
+                        );
+                    }
+
+                    const candidate = { x: kataMove.x, y: kataMove.y };
+                    if (
+                        useHiddenMask &&
+                        isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
+                            game,
+                            candidate.x,
+                            candidate.y,
+                            aiPlayerEnum
+                        )
+                    ) {
+                        revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
+                        continue;
+                    }
+                    replacement = candidate;
+                    break;
                 }
-            };
-            prunePatternStones();
-            
-            // 2. 히든 돌 공개 애니메이션 설정
-            game.animation = { 
-                type: 'hidden_reveal', 
-                stones: [{ point: { x, y }, player: opponentPlayerEnum }], 
-                startTime: now, 
-                duration: 2000 
-            };
-            game.revealAnimationEndTime = now + 2000;
-            game.gameStatus = 'hidden_reveal_animating'; // 애니메이션 상태로 설정
-            
-            // AI 턴 취소 플래그 설정 (애니메이션 종료 후 턴 복구 및 유저 패스 처리용)
-            (game as any).isAiTurnCancelledAfterReveal = true;
-            
-            // 시간 일시정지
-            if (game.turnDeadline) {
-                game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
-                game.turnDeadline = undefined;
-                game.turnStartTime = undefined;
-            }
-            
-            await db.saveGame(game);
-            return; // 이번 턴은 히든 돌 공개만 하고 실제 수는 두지 않음
+                if (!replacement) {
+                    throw new Error(
+                        `[makeGoAiBotMove] Kata re-query after user-hidden full reveal exhausted retries (game=${game.id})`
+                    );
+                }
+                selectedMove = replacement;
+                const rx = selectedMove.x;
+                const ry = selectedMove.y;
+                const stoneR = game.boardState[ry][rx];
+                const moveIdxR = game.moveHistory.findIndex(m => m.x === rx && m.y === ry);
+                const stillHiddenUser =
+                    stoneR === opponentPlayerEnum &&
+                    moveIdxR !== -1 &&
+                    game.hiddenMoves?.[moveIdxR] &&
+                    !game.permanentlyRevealedStones?.some(p => p.x === rx && p.y === ry);
+                if (stillHiddenUser) {
+                    throw new Error(
+                        `[makeGoAiBotMove] Kata re-query still targets unrevealed user hidden at (${rx},${ry}) (game=${game.id})`
+                    );
+                }
         }
     }
 
@@ -1651,87 +1376,9 @@ export async function makeGoAiBotMove(
         game.moveHistory.length
     );
     if (!result.isValid) {
-        // 유효하지 않은 수를 선택한 경우, 유효한 수 중에서 대체
-        // 유저의 돌 위에 두는 수는 제외
-        const validFallbackMoves = scoredMoves.filter(m => {
-            // 유저의 돌이 있는 위치 제외
-            if (game.isSinglePlayer || game.gameCategory === 'tower') {
-                const stoneAtMove = game.boardState[m.move.y]?.[m.move.x];
-                if (stoneAtMove === opponentPlayerEnum) {
-                    return false;
-                }
-            }
-            
-            // processMove로 유효성 검증
-            const testResult = processMove(
-                game.boardState,
-                { ...m.move, player: aiPlayerEnum },
-                game.koInfo,
-                game.moveHistory.length,
-                {
-                    ignoreSuicide: false,
-                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower',
-                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower') ? opponentPlayerEnum : undefined
-                }
-            );
-            return testResult.isValid;
-        });
-        
-        if (validFallbackMoves.length > 0) {
-            selectedMove = validFallbackMoves[0].move;
-            result = processMove(
-                game.boardState,
-                { ...selectedMove, player: aiPlayerEnum },
-                game.koInfo,
-                game.moveHistory.length,
-                {
-                    ignoreSuicide: false,
-                    isSinglePlayer: game.isSinglePlayer || game.gameCategory === 'tower',
-                    opponentPlayer: (game.isSinglePlayer || game.gameCategory === 'tower') ? opponentPlayerEnum : undefined
-                }
-            );
-            console.log(`[GoAiBot] Replaced invalid move with fallback move at (${selectedMove.x}, ${selectedMove.y})`);
-        } else {
-            console.warn('[GoAiBot] No valid fallback moves available. AI passes.');
-            game.passCount = (game.passCount ?? 0) + 1;
-            game.lastMove = { x: -1, y: -1 };
-            game.lastTurnStones = null;
-            game.moveHistory.push({ player: aiPlayerEnum, x: -1, y: -1 });
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                const timeKey = aiPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                if (game.turnDeadline) game[timeKey] = Math.max(0, (game.turnDeadline - now) / 1000);
-            }
-            game.currentPlayer = opponentPlayerEnum;
-            if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                const isFischer = isFischerStyleTimeControl(game as any);
-                const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
-                game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
-                game.turnStartTime = now;
-            } else {
-                game.turnDeadline = undefined;
-                game.turnStartTime = undefined;
-            }
-            if (game.passCount >= 2) {
-                game.gameStatus = 'scoring';
-                game.totalTurns = (game.moveHistory || []).length;
-                await db.saveGame(game);
-                const { broadcastToGameParticipants } = await import('./socket.js');
-                const g = { ...game };
-                delete (g as any).boardState;
-                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
-                const { getGameResult } = await import('./gameModes.js');
-                await getGameResult(game);
-            } else {
-                await db.saveGame(game);
-                const { broadcastToGameParticipants } = await import('./socket.js');
-                const g = { ...game };
-                delete (g as any).boardState;
-                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: g } }, game);
-            }
-            return;
-        }
+        throw new Error(
+            `[makeGoAiBotMove] Kata가 고른 수가 규칙상 무효입니다 (${selectedMove.x},${selectedMove.y}). game=${game.id}`
+        );
     }
 
     // 5. 최종 수 적용
@@ -1740,7 +1387,6 @@ export async function makeGoAiBotMove(
     game.moveHistory.push({ player: aiPlayerEnum, x: selectedMove.x, y: selectedMove.y });
     game.koInfo = result.newKoInfo;
     game.passCount = 0;
-    clearStrategicAiKataSpFallback(game);
     
     // 싱글플레이 턴 카운팅 업데이트 (AI가 수를 둘 때도 카운팅)
     // 히든돌이 moveHistory에 추가되지 않은 경우를 고려하여 실제 유효한 수만 카운팅
@@ -1761,7 +1407,6 @@ export async function makeGoAiBotMove(
         now
     );
     if (startedRevealAnimation) {
-        clearStrategicAiKataSpFallback(game);
         await db.saveGame(game);
         return; // 애니메이션 종료 후 updateHiddenState에서 처리
     }

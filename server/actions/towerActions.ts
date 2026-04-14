@@ -5,6 +5,11 @@ import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
+import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
+import {
+    resolveTowerCaptureBlackTarget,
+    resolveTowerPlainWhiteCount,
+} from '../../shared/utils/towerStageRules.js';
 import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
@@ -45,48 +50,37 @@ const planTowerAiHiddenTurns = (floor: number, hiddenCount: number): number[] =>
     return plannedTurns.sort((a, b) => a - b);
 };
 
-const generateTowerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
-    const placements = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+/** 층별 Kata 프로필 단계(1~7) → `KATA_SERVER_LEVEL_BY_PROFILE_STEP` */
+const getTowerKataProfileStep = (floor: number): number => {
+    const f = Math.max(1, Math.min(100, Math.floor(floor)));
+    if (f <= 10) return 1;
+    if (f <= 20) return 2;
+    if (f <= 35) return 3;
+    if (f <= 50) return 4;
+    if (f <= 80) return 5;
+    if (f <= 90) return 6;
+    return 7;
+};
+
+const generateTowerBoard = (
+    stage: SinglePlayerStageInfo,
+    floor: number
+): { board: BoardState; blackPattern: Point[]; whitePattern: Point[] } => {
+    const p = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+    const blackPlain = p.black ?? 0;
+    const blackPattern = p.blackPattern ?? 0;
+    const whitePat = p.whitePattern ?? 0;
+    const whitePlain = resolveTowerPlainWhiteCount(floor, blackPlain, blackPattern, whitePat, p.white ?? 0);
     return generateStrategicRandomBoard(
         stage.boardSize,
         {
-            black: placements.black ?? 0,
-            white: placements.white ?? 0,
-            blackPattern: placements.blackPattern ?? 0,
-            whitePattern: placements.whitePattern ?? 0,
+            black: blackPlain,
+            white: whitePlain,
+            blackPattern,
+            whitePattern: whitePat,
         },
         { maxAttempts: 40 }
     );
-};
-
-// 1-19층: goAiBot (내장 AI), 20층+: 그누고 사용
-const TOWER_GNUGO_LEVEL_RANGES: { floorMin: number; floorMax: number; gnugoLevel: number }[] = [
-    { floorMin: 20, floorMax: 29, gnugoLevel: 1 },  // 그누고 1단계
-    { floorMin: 30, floorMax: 39, gnugoLevel: 2 },  // 그누고 2단계
-    { floorMin: 40, floorMax: 49, gnugoLevel: 3 },  // 그누고 3단계
-    { floorMin: 50, floorMax: 59, gnugoLevel: 4 },  // 그누고 4단계
-    { floorMin: 60, floorMax: 69, gnugoLevel: 5 },  // 그누고 5단계
-    { floorMin: 70, floorMax: 79, gnugoLevel: 6 },  // 그누고 6단계
-    { floorMin: 80, floorMax: 84, gnugoLevel: 7 },  // 그누고 7단계
-    { floorMin: 85, floorMax: 89, gnugoLevel: 8 },  // 그누고 8단계
-    { floorMin: 90, floorMax: 94, gnugoLevel: 9 },  // 그누고 9단계
-    { floorMin: 95, floorMax: 100, gnugoLevel: 10 }, // 그누고 10단계
-];
-
-/** 1-19층: goAiBot 레벨 반환. 20층+: 그누고 사용 구간이므로 fallback용 goAiBot 레벨 반환 */
-const getAiLevelFromFloor = (floor: number): number => {
-    if (floor <= 19) {
-        // 1-19층: goAiBot만 사용, 층에 따라 난이도 조절 (1~5)
-        return Math.min(5, Math.max(1, Math.floor(floor / 4) + 1));
-    }
-    return 8; // 20층+ fallback용
-};
-
-/** 20층 이상에서 사용할 그누고 레벨 (1-10). 1-19층이면 null (그누고 미사용) */
-export const getGnuGoLevelFromTowerFloor = (floor: number): number | null => {
-    if (floor <= 19) return null;
-    const range = TOWER_GNUGO_LEVEL_RANGES.find(r => floor >= r.floorMin && floor <= r.floorMax);
-    return range ? range.gnugoLevel : 10; // 기본 최강
 };
 
 export const handleTowerAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
@@ -154,19 +148,23 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 gameMode = GameMode.Standard;
             }
 
-            // 도전의 탑용 AI 유저 생성
-            const aiLevel = getAiLevelFromFloor(floor);
+            // 도전의 탑용 AI: 층별 Kata 프로필 1~7단계
+            const kataProfileStep = getTowerKataProfileStep(floor);
+            const kataServerLevel =
+                KATA_SERVER_LEVEL_BY_PROFILE_STEP[kataProfileStep] ?? KATA_SERVER_LEVEL_BY_PROFILE_STEP[1];
             const botNickname = `탑봇 Lv.${floor}`;
-            const botLevel = aiLevel * 10;
-            
+            const botLevel = kataProfileStep * 10;
+
             const aiUser = {
                 ...getAiUser(gameMode),
                 nickname: botNickname,
                 strategyLevel: botLevel,
                 playfulLevel: botLevel,
             };
-            
-            const { board, blackPattern, whitePattern } = generateTowerBoard(stage);
+
+            const { board, blackPattern, whitePattern } = generateTowerBoard(stage, floor);
+
+            const towerBlackCaptureTarget = resolveTowerCaptureBlackTarget(floor, stage.targetScore?.black);
 
             // 시간룰 설정: 스피드바둑은 피셔, 나머지는 1분+초읽기30초 3회
 			const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl.mainTime ?? 5) : 1;
@@ -175,8 +173,6 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             const enforcedIncrement = isSpeedMode ? (stage.timeControl.increment ?? 0) : 0;
 
             const gameId = `tower-game-${randomUUID()}`;
-            const baseCaptureTargetBlack = stage.targetScore?.black && stage.targetScore.black > 0 ? stage.targetScore.black : 999;
-            const baseCaptureTargetWhite = stage.targetScore?.white && stage.targetScore.white > 0 ? stage.targetScore.white : 999;
 
             // Mix 모드인 경우 mixedModes 설정
             const mixedModes: GameMode[] = [];
@@ -199,8 +195,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                     byoyomiTime: enforcedByoyomiTimeSeconds,
                     byoyomiCount: enforcedByoyomiCount,
                     timeIncrement: enforcedIncrement,
-                    captureTarget: stage.targetScore?.black,
-                    aiDifficulty: aiLevel,
+                    captureTarget:
+                        gameMode === GameMode.Capture ? towerBlackCaptureTarget : stage.targetScore?.black,
+                    aiDifficulty: kataProfileStep,
+                    kataServerLevel,
+                    goAiBotLevel: kataProfileStep,
                     blackTurnLimit: stage.blackTurnLimit,
                     autoScoringTurns: stage.autoScoringTurns,
                     hiddenStoneCount: stage.hiddenCount,
@@ -231,9 +230,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 totalTurns: 0,
             };
 
-            // 1~20층: 따내기 목표점수 직접 설정(입찰 생략, 흑은 사용자 고정)
+            // 1~20층: 따내기 목표점수 직접 설정(입찰 생략, 흑은 사용자 고정). 6~10층·11~20층은 서버 규칙으로 목표 덮어씀.
             if (gameMode === GameMode.Capture) {
-                const blackTarget = stage.targetScore?.black && stage.targetScore.black > 0 ? stage.targetScore.black : 999;
+                const blackTarget = towerBlackCaptureTarget;
                 const whiteTarget = stage.targetScore?.white && stage.targetScore.white > 0 ? stage.targetScore.white : 999;
                 (game as any).effectiveCaptureTargets = {
                     [Player.None]: 0,
@@ -431,7 +430,13 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Stage data not found for refresh.' };
             }
 
-            const { board, blackPattern, whitePattern } = generateTowerBoard(stage);
+            const floorRaw = game.towerFloor;
+            const floorNum = floorRaw != null ? Number(floorRaw) : NaN;
+            const refreshFloor =
+                Number.isFinite(floorNum) && floorNum > 0
+                    ? floorNum
+                    : parseInt(String(stage.id).replace('tower-', ''), 10) || 1;
+            const { board, blackPattern, whitePattern } = generateTowerBoard(stage, refreshFloor);
             game.boardState = board;
             game.blackPatternStones = blackPattern;
             game.whitePatternStones = whitePattern;
@@ -586,7 +591,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             
             // 경험치/골드/층수 등이 반영된 최신 유저를 응답에 포함해 클라이언트가 즉시 반영하도록 함
-            const updatedUser = await db.getUser(game.player1.id);
+            const updatedUser = await db.getUser(game.player1.id, { includeEquipment: true, includeInventory: true });
             return { clientResponse: { gameId: game.id, game, updatedUser: updatedUser ?? undefined } };
         }
         default:

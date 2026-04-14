@@ -2625,7 +2625,8 @@ export const useApp = () => {
                         'EXPAND_INVENTORY',
                         'TOGGLE_EQUIP_ITEM',
                         'MANNER_ACTION',
-                        'START_GUILD_BOSS_BATTLE'
+                        'START_GUILD_BOSS_BATTLE',
+                        'END_TOWER_GAME'
                     ];
                     const isInventoryCriticalAction = inventoryCriticalActions.includes(action.type);
                     
@@ -4568,9 +4569,14 @@ export const useApp = () => {
                                                             ? existingGame.moveHistory
                                                             : (serverMoveHistoryValid ? game.moveHistory : existingGame?.moveHistory);
                                                 
-                                                // 서버의 permanentlyRevealedStones 우선 (히든 따냄/따임·상대 착수 시도 시 영구 공개 반영)
-                                                const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
-                                                const mergedRevealed = serverRevealed ?? existingGame?.permanentlyRevealedStones ?? game.permanentlyRevealedStones ?? [];
+                                                // 서버 공개 목록 + 클라이언트 기존 목록 합집합 (서버가 빈 배열/생략이어도 이미 공개된 히든이 사라지지 않게)
+                                                const existingRevealedSp = existingGame?.permanentlyRevealedStones ?? [];
+                                                const serverRevealedSp = game.permanentlyRevealedStones ?? [];
+                                                const mergedRevealed = [...existingRevealedSp];
+                                                for (const p of serverRevealedSp) {
+                                                    if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
+                                                        mergedRevealed.push(p);
+                                                }
                                                 const mergedPendingCapture = game.pendingCapture ?? existingGame?.pendingCapture ?? null;
                                                 const mergedRevealAnimationEndTime = game.revealAnimationEndTime ?? existingGame?.revealAnimationEndTime;
                                                 const mergedAnimation = game.animation ?? existingGame?.animation ?? null;
@@ -4746,8 +4752,13 @@ export const useApp = () => {
                                                     (wasScanningAnimating || wasMissileAnimatingToPlaying) && (!serverMoveHistoryValid && existingMoveHistoryValid);
                                                 const finalBoardState = preserveBoardFromExisting ? existingGame.boardState : (serverBoardValid ? game.boardState : (existingGame?.boardState ?? game.boardState));
                                                 const finalMoveHistory = preserveMoveHistoryFromExisting ? existingGame.moveHistory : (serverMoveHistoryValid ? game.moveHistory : (existingGame?.moveHistory ?? game.moveHistory));
-                                                const serverRevealed = game.permanentlyRevealedStones && game.permanentlyRevealedStones.length > 0 ? game.permanentlyRevealedStones : null;
-                                                const mergedRevealed = serverRevealed ?? existingGame?.permanentlyRevealedStones ?? game.permanentlyRevealedStones ?? [];
+                                                const existingRevealedGen = existingGame?.permanentlyRevealedStones ?? [];
+                                                const serverRevealedGen = game.permanentlyRevealedStones ?? [];
+                                                const mergedRevealed = [...existingRevealedGen];
+                                                for (const p of serverRevealedGen) {
+                                                    if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
+                                                        mergedRevealed.push(p);
+                                                }
                                                 if (isAnimating || existingGame) {
                                                     updatedGames[gameId] = {
                                                         ...game,
