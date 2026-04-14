@@ -249,26 +249,109 @@ const AnimatedScanMarker: React.FC<{
     animation: Extract<AnimationData, { type: 'scan' }>;
     toSvgCoords: (p: Point) => { cx: number; cy: number };
     stone_radius: number;
-}> = ({ animation, toSvgCoords, stone_radius }) => {
+    boardSizePx: number;
+    padding: number;
+    cellSize: number;
+    /** 스캔 성공 시 해당 교차점의 돌 색 (히든 문양 오버레이용) */
+    revealPlayer: Player;
+}> = ({ animation, toSvgCoords, stone_radius, boardSizePx, padding, cellSize, revealPlayer }) => {
     const { point, success } = animation;
     const { cx, cy } = toSvgCoords(point);
     const size = stone_radius * 2.5;
+    const durMs = animation.duration ?? 2000;
+    const sweepMs = Math.round(durMs * 0.42);
+    const resultMs = Math.max(80, durMs - sweepMs);
+
+    const gridX = padding;
+    const gridY = padding;
+    const gridW = boardSizePx - padding * 2;
+    const gridH = boardSizePx - padding * 2;
+    const beamW = Math.max(cellSize * 2.4, stone_radius * 5);
+    const uid = React.useId().replace(/:/g, '');
+    const clipId = `scan-clip-${uid}`;
+    const gradFailId = `scan-sweep-fail-${uid}`;
+    const gradOkId = `scan-sweep-ok-${uid}`;
+
+    const sweepStyle: React.CSSProperties & { '--scan-travel': string } = {
+        ['--scan-travel' as string]: `${gridW + beamW}px`,
+        animationDuration: `${sweepMs}ms`,
+    };
+
+    const resultPhaseStyle: React.CSSProperties = {
+        animationDuration: `${resultMs}ms`,
+        animationDelay: `${sweepMs}ms`,
+    };
 
     return (
         <g style={{ pointerEvents: 'none' }}>
+            <defs>
+                <clipPath id={clipId}>
+                    <rect x={gridX} y={gridY} width={gridW} height={gridH} rx={cellSize * 0.08} />
+                </clipPath>
+                <linearGradient id={gradFailId} gradientUnits="userSpaceOnUse" x1={0} y1={0} x2={beamW} y2={0}>
+                    <stop offset="0%" stopColor="#fbbf24" stopOpacity="0" />
+                    <stop offset="35%" stopColor="#fde68a" stopOpacity="0.55" />
+                    <stop offset="50%" stopColor="#f8fafc" stopOpacity="0.85" />
+                    <stop offset="65%" stopColor="#fde68a" stopOpacity="0.55" />
+                    <stop offset="100%" stopColor="#fbbf24" stopOpacity="0" />
+                </linearGradient>
+                <linearGradient id={gradOkId} gradientUnits="userSpaceOnUse" x1={0} y1={0} x2={beamW} y2={0}>
+                    <stop offset="0%" stopColor="#34d399" stopOpacity="0" />
+                    <stop offset="38%" stopColor="#6ee7b7" stopOpacity="0.45" />
+                    <stop offset="50%" stopColor="#ecfdf5" stopOpacity="0.72" />
+                    <stop offset="62%" stopColor="#6ee7b7" stopOpacity="0.45" />
+                    <stop offset="100%" stopColor="#34d399" stopOpacity="0" />
+                </linearGradient>
+            </defs>
+
+            <g clipPath={`url(#${clipId})`}>
+                <g transform={`translate(${gridX - beamW}, ${gridY})`}>
+                    <rect
+                        width={beamW}
+                        height={gridH}
+                        fill={success ? `url(#${gradOkId})` : `url(#${gradFailId})`}
+                        className={success ? 'scan-sweep-beam scan-sweep-beam--success' : 'scan-sweep-beam scan-sweep-beam--fail'}
+                        style={sweepStyle}
+                    />
+                </g>
+            </g>
+
             {success ? (
-                <>
-                    <circle cx={cx} cy={cy} r={size * 0.2} fill="none" stroke="#34d399" className="scan-success-circle" style={{ animationDelay: '0s' }} />
-                    <circle cx={cx} cy={cy} r={size * 0.2} fill="none" stroke="#34d399" className="scan-success-circle" style={{ animationDelay: '0.2s' }} />
-                    <circle cx={cx} cy={cy} r={size * 0.2} fill="none" stroke="#34d399" className="scan-success-circle" style={{ animationDelay: '0.4s' }} />
-                </>
+                revealPlayer !== Player.None && (
+                    <g transform={`translate(${cx}, ${cy})`}>
+                        <g className="scan-success-stone-wrap" style={resultPhaseStyle}>
+                            <g opacity={0.58}>
+                                <Stone player={revealPlayer} cx={0} cy={0} isKnownHidden radius={stone_radius} />
+                            </g>
+                        </g>
+                    </g>
+                )
             ) : (
-                <g className="scan-fail-marker">
-                    {/* 고급 스캔 실패 연출: 원형 배경 + 부드러운 X + 글로우 */}
-                    <circle cx={cx} cy={cy} r={size * 0.65} fill="rgba(15, 23, 42, 0.85)" stroke="rgba(248, 113, 113, 0.5)" strokeWidth="1.5" className="scan-fail-bg" />
-                    <circle cx={cx} cy={cy} r={size * 0.58} fill="none" stroke="rgba(248, 113, 113, 0.25)" strokeWidth="2" className="scan-fail-glow" />
-                    <line x1={cx - size * 0.45} y1={cy - size * 0.45} x2={cx + size * 0.45} y2={cy + size * 0.45} stroke="rgba(251, 191, 36, 0.95)" strokeWidth="2.2" strokeLinecap="round" className="scan-fail-line" />
-                    <line x1={cx + size * 0.45} y1={cy - size * 0.45} x2={cx - size * 0.45} y2={cy + size * 0.45} stroke="rgba(251, 191, 36, 0.95)" strokeWidth="2.2" strokeLinecap="round" className="scan-fail-line" style={{ animationDelay: '0.12s' }} />
+                <g transform={`translate(${cx}, ${cy})`}>
+                    <g className="scan-fail-x-wrap" style={resultPhaseStyle}>
+                        <line
+                            x1={-size * 0.48}
+                            y1={-size * 0.48}
+                            x2={size * 0.48}
+                            y2={size * 0.48}
+                            fill="none"
+                            stroke="rgba(254, 243, 199, 0.98)"
+                            strokeWidth={Math.max(2.2, size * 0.1)}
+                            strokeLinecap="round"
+                            className="scan-fail-x-line"
+                        />
+                        <line
+                            x1={size * 0.48}
+                            y1={-size * 0.48}
+                            x2={-size * 0.48}
+                            y2={size * 0.48}
+                            fill="none"
+                            stroke="rgba(251, 191, 36, 0.92)"
+                            strokeWidth={Math.max(2.2, size * 0.1)}
+                            strokeLinecap="round"
+                            className="scan-fail-x-line"
+                        />
+                    </g>
                 </g>
             )}
         </g>
@@ -425,6 +508,8 @@ interface GoBoardProps {
   whitePatternStones?: Point[];
   /** 문양이 영구 소모된 교차점 — 같은 자리에 다시 두어도 문양 표시 안 함 */
   consumedPatternIntersections?: Point[];
+  /** AI 히든 아이템 직후 등: moveHistory/hiddenMoves와 한 틱 어긋나도 히든 문양이 패턴으로 깜빡이지 않게 함 */
+  aiInitialHiddenStone?: Point | null;
   // Analysis props
   analysisResult?: AnalysisResult | null;
   showTerritoryOverlay?: boolean;
@@ -457,7 +542,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         myPlayerEnum, gameStatus, highlightedPoints, highlightStyle = 'circle', myRevealedStones, allRevealedStones, newlyRevealed, isSpectator,
         analysisResult, showTerritoryOverlay = false, showHintOverlay = false, currentUser, blackPlayerNickname, whitePlayerNickname,
         currentPlayer, isItemModeActive, animation, mode, mixedModes, justCaptured, permanentlyRevealedStones, onAction, gameId,
-        showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections, isSinglePlayer = false, isRotated = false, pendingMove = null,
+        showLastMoveMarker, blackPatternStones, whitePatternStones, consumedPatternIntersections,
+        aiInitialHiddenStone = undefined,
+        isSinglePlayer = false, isRotated = false, pendingMove = null,
         captureScoreFloatMinPoints = 2,
         captures,
         onBoardRuleFlash,
@@ -1292,10 +1379,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 
                 {displayBoardState.map((row, y) => row.map((player, x) => {
                     if (player === Player.None) return null;
+                    const isScanSuccessOverlayCell =
+                        animation?.type === 'scan' &&
+                        animation.success &&
+                        !isSpectator &&
+                        animation.playerId === currentUser.id &&
+                        gameStatus === 'scanning_animating' &&
+                        animation.point.x === x &&
+                        animation.point.y === y;
+                    if (isScanSuccessOverlayCell) return null;
                     const { cx, cy } = toSvgCoords({ x, y });
                     
                     // 미사일 선택 가능 여부는 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
-                    const actualPlayer = boardState?.[y]?.[x] ?? player;
+                    // displayBoardState와 동일 소스만 사용 (서버 boardState 참조가 순간적으로 어긋나면 히든 문양이 잘못 붙는 현상 방지)
+                    const actualPlayer = player;
                     
                     const isSingleLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastMove && lastMove.x === x && lastMove.y === y;
                     const isMultiLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastTurnStones && lastTurnStones.some(p => p.x === x && p.y === y);
@@ -1309,12 +1406,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         !!hiddenMoves[moveIndex] &&
                         !!histMove &&
                         histMove.player === actualPlayer;
-                    // 서버의 영구 공개 목록 또는 현재 히든 공개 애니메이션에 포함된 돌은 공개된 것으로 표시 (반투명 해제)
                     const isInRevealAnimation = animation?.type === 'hidden_reveal' && animation.stones?.some((s: { point: Point }) => s.point.x === x && s.point.y === y);
                     const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y) || !!isInRevealAnimation;
+                    const atAiInitialHiddenStone =
+                        !!aiInitialHiddenStone &&
+                        aiInitialHiddenStone.x === x &&
+                        aiInitialHiddenStone.y === y &&
+                        !isPermanentlyRevealed;
+                    const isHiddenMoveForRender =
+                        !!isHiddenMove || (!!atAiInitialHiddenStone && actualPlayer !== myPlayerEnum);
+                    // 서버의 영구 공개 목록 또는 현재 히든 공개 애니메이션에 포함된 돌은 공개된 것으로 표시 (반투명 해제)
                     // 히든 돌 표시 규칙 (모든 히든 사용 경기 공통): 상대에게는 기본 비공개, 스캔 시 반투명, 착수/포착 시 전체 공개
                     let isVisible = true;
-                    if (isHiddenMove) {
+                    if (isHiddenMoveForRender) {
                         if (isSpectator) {
                             isVisible = isGameFinished || !!isPermanentlyRevealed;
                         } else {
@@ -1342,13 +1446,22 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 반투명: 내가 둔 히든 돌(비공개 상태) 또는 스캔으로만 안 돌만. 영구 공개/방금 공개된 돌은 선명하게
                     const isFaint = !isSpectator && (
                         (myRevealedStones?.some(p => p.x === x && p.y === y) && !isPermanentlyRevealed) ||
-                        (isHiddenMove && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
+                        (isHiddenMoveForRender && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
                     );
 
-                    const isBaseStone = baseStones?.some(stone => stone.x === x && stone.y === y && stone.player === actualPlayer);
+                    /** 서버가 추적하는 베이스돌 좌표. 게임 흑/백과 무관하게 p1=진한·p2=밝은 배치 색으로 고정 표시 */
+                    const hasBaseStoneHere = baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false;
+                    const inP1BaseSeat = baseStones_p1?.some((p) => p.x === x && p.y === y) ?? false;
+                    const inP2BaseSeat = baseStones_p2?.some((p) => p.x === x && p.y === y) ?? false;
+                    let seatVisualPlayer = actualPlayer;
+                    if (hasBaseStoneHere && inP1BaseSeat && !inP2BaseSeat) {
+                        seatVisualPlayer = Player.Black;
+                    } else if (hasBaseStoneHere && inP2BaseSeat && !inP1BaseSeat) {
+                        seatVisualPlayer = Player.White;
+                    }
                     // 히든 돌은 공개되어도 히든 문양을 유지. 상대 미공개 히든은 위에서 return null.
                     // (이전: 마지막 수만 문양 제외 → 본인 히든 착수 직후·스캔 직후에도 문양이 안 보이는 버그)
-                    const isKnownHidden = !!isHiddenMove;
+                    const isKnownHidden = !!isHiddenMoveForRender;
                     const isSelectedMissileForRender = selectedMissileStone?.x === x && selectedMissileStone?.y === y;
                     // 미사일 선택 가능 여부: 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
                     const isHoverSelectableMissile = gameStatus === 'missile_selecting' && !selectedMissileStone && actualPlayer === myPlayerEnum;
@@ -1356,7 +1469,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 문양 결정: 히든 돌이 아닌 경우에만 패턴 문양 표시
                     // 히든 돌(공개 여부와 관계없이)은 히든 문양을 우선 표시하므로 패턴 문양을 표시하지 않음
                     let isPatternStone = false;
-                    if (!isHiddenMove) {
+                    if (!isHiddenMoveForRender) {
                         const patternConsumedHere = consumedPatternIntersections?.some((p) => p.x === x && p.y === y);
                         if (!patternConsumedHere) {
                             isPatternStone =
@@ -1366,8 +1479,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         }
                     }
 
-                    
-                    return <Stone key={`${x}-${y}`} player={actualPlayer} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={isBaseStone} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} />;
+                    const stonePlayerForRender =
+                        isKnownHidden || isPatternStone ? actualPlayer : seatVisualPlayer;
+
+                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} />;
                 }))}
                 {myBaseStonesForPlacement?.map((stone, i) => {
                     const { cx, cy } = toSvgCoords(stone);
@@ -1507,7 +1622,17 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                     />
                                 );
                             })()}
-                            {animation.type === 'scan' && !isSpectator && animation.playerId === currentUser.id && <AnimatedScanMarker animation={animation} toSvgCoords={toSvgCoords} stone_radius={stone_radius} />}
+                            {animation.type === 'scan' && !isSpectator && animation.playerId === currentUser.id && (
+                                <AnimatedScanMarker
+                                    animation={animation}
+                                    toSvgCoords={toSvgCoords}
+                                    stone_radius={stone_radius}
+                                    boardSizePx={boardSizePx}
+                                    padding={padding}
+                                    cellSize={cell_size}
+                                    revealPlayer={displayBoardState[animation.point.y]?.[animation.point.x] ?? Player.None}
+                                />
+                            )}
                             {animation.type === 'hidden_reveal' && animation.stones.map((s, i) => ( <Stone key={`reveal-${i}`} player={s.player} cx={toSvgCoords(s.point).cx} cy={toSvgCoords(s.point).cy} isKnownHidden isNewlyRevealed animationClass="sparkle-animation" radius={stone_radius} /> ))}
                             {animation.type === 'bonus_text' && <AnimatedBonusText animation={animation} toSvgCoords={toSvgCoords} cellSize={cell_size} isRotated={isRotated} />}
                         </>

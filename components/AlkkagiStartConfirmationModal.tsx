@@ -39,9 +39,16 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
     const whiteBorderUrl = BORDER_POOL.find(b => b.id === whitePlayer.borderId)?.url;
 
     return (
-        <DraggableWindow title="대국 시작 확인" initialWidth={600} windowId="alkkagi-start-confirm">
+        <DraggableWindow
+            title="대국 시작 확인"
+            initialWidth={460}
+            shrinkHeightToContent
+            windowId="alkkagi-start-confirm"
+            transparentModalBackdrop
+        >
             <div className="text-white">
                 <PreGameColorRoulette
+                    participantsInDisplayOrder={[player1, player2]}
                     blackPlayer={blackPlayer}
                     whitePlayer={whitePlayer}
                     onComplete={() => setRouletteDone(true)}

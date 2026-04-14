@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 // FIX: Import missing types from the centralized types file.
-import { LiveGameSession, Player } from '../types/index.js';
+import { LiveGameSession, Player, GameCategory } from '../types/index.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 
 interface ClientTimerOptions {
@@ -26,12 +26,6 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
-        if (options.isPaused) {
-            // Keep the current displayed times while paused
-            return;
-        }
-
-        // 애니메이션 중에는 시간이 멈춰있어야 함 (애니메이션 종료 후에 시간이 흘러가도록)
         const isAnimating = session.animation !== null && session.animation !== undefined;
         const isAnimationStatus = ['missile_animating', 'scanning_animating', 'hidden_reveal_animating', 'curling_animating', 'alkkagi_animating'].includes(session.gameStatus);
         
@@ -56,14 +50,17 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
-        // 대국 시작 전 상태에서는 시간이 흐르지 않도록 동결
+        // 대국 시작 전(베이스·덤·니기리 등): 서버 값으로만 표시. 싱글/탑 일시정지(isPaused)보다 먼저 동기화
         const preStartStatuses = [
             'pending',
+            'base_placement',
+            'komi_bidding',
+            'base_komi_result',
             'base_game_start_confirmation',
             'base_color_roulette',
             'komi_bid_reveal',
             'nigiri_reveal',
-            'color_start_confirmation'
+            'color_start_confirmation',
         ];
         if (preStartStatuses.includes(session.gameStatus)) {
             // 이전 턴의 deadline 문맥이 남아 있으면 카운트다운이 재개될 수 있어 초기화
@@ -77,7 +74,10 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
-        // 아이템 사용시간은 선수패널에 표시하지 않음 (헷갈리지 않도록)
+        if (options.isPaused) {
+            return;
+        }
+
         let baseDeadline = session.turnDeadline
             || session.alkkagiTurnDeadline
             || session.curlingTurnDeadline
@@ -91,6 +91,21 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         const playingStatuses = ['playing', 'hidden_placing'];
         const now = Date.now();
         const curPlayer = session.currentPlayer;
+
+        // 모험 AI 대국: 턴당 마감은 유저에게만 적용 — 클라이언트에서 몬스터 턴에도 카운트다운하지 않음
+        if (
+            session.isAiGame &&
+            session.gameCategory === GameCategory.Adventure &&
+            playingStatuses.includes(session.gameStatus)
+        ) {
+            deadlineRef.current = null;
+            byoyomiDeadlineRef.current = null;
+            setClientTimes({
+                black: coerce(session.blackTimeLeft),
+                white: coerce(session.whiteTimeLeft),
+            });
+            return;
+        }
 
         // 턴/게임이 바뀌면 이전 턴 기준 마감 ref·초읽기 ref 초기화
         if (deadlineRef.current && (deadlineRef.current.gameId !== session.id || deadlineRef.current.player !== curPlayer)) {

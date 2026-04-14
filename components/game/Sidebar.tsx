@@ -276,6 +276,7 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
                 ) : (
                     <AiGameDescriptionModal
                         session={session}
+                        currentUser={currentUser}
                         readOnly
                         onClose={() => setMatchGuideOpen(false)}
                         onAction={() => {}}

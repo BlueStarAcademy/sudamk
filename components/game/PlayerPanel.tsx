@@ -24,12 +24,12 @@ const formatTime = (seconds: number) => {
     return `${String(hrs).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 };
 
-/** 모험 전체 제한 시간 등: 분:초만 표시 (5:00 → 0:00) */
-const formatMmSsCountdown = (seconds: number) => {
-    const s = Math.max(0, Math.floor(seconds));
-    const mm = Math.floor(s / 60);
-    const ss = s % 60;
-    return `${mm}:${String(ss).padStart(2, '0')}`;
+/** 모험 인카운터 등: 99분 미만은 MM:SS */
+const formatTimeMmSs = (totalSeconds: number) => {
+    const s = Math.max(0, Math.floor(totalSeconds));
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 };
 
 type CurlingScoreBoxMeta = {
@@ -73,15 +73,15 @@ const CapturedStones: React.FC<{
     let countColor = 'text-white';
 
     if (panelType === 'white') {
-        colorClasses = 'bg-gradient-to-br from-gray-50 to-gray-200 border-gray-400';
-        labelColor = 'text-gray-700';
-        countColor = 'text-black';
+        colorClasses = 'bg-gradient-to-br from-slate-100 to-slate-300/95 border-slate-500/90 shadow-sm';
+        labelColor = 'text-slate-800';
+        countColor = 'text-slate-950';
     } else { // black or neutral
         colorClasses = 'bg-gradient-to-br from-gray-800 to-black border-gray-600';
     }
 
     const metaMuted =
-        panelType === 'white' ? 'text-gray-600 border-gray-400/40' : 'text-gray-400 border-white/10';
+        panelType === 'white' ? 'text-slate-700 border-slate-500/50' : 'text-gray-400 border-white/10';
 
     return (
         <div className={`${baseClasses} ${colorClasses}`}>
@@ -121,7 +121,9 @@ const TimeBar: React.FC<{
     isInByoyomi: boolean;
     isFoulMode?: boolean;
     isMobile?: boolean;
-}> = ({ timeLeft, totalTime, byoyomiTime, byoyomiPeriods, totalByoyomi, isActive, isInByoyomi, isFoulMode = false, isMobile = false }) => {
+    /** 백 패널 등 밝은 배경 위에서 막대 대비 강화 */
+    lightSurface?: boolean;
+}> = ({ timeLeft, totalTime, byoyomiTime, byoyomiPeriods, totalByoyomi, isActive, isInByoyomi, isFoulMode = false, isMobile = false, lightSurface = false }) => {
     const percent = useMemo(() => {
         if (isFoulMode) {
              const turnTime = totalTime > 0 ? totalTime : byoyomiTime;
@@ -137,13 +139,21 @@ const TimeBar: React.FC<{
     const clampedPercent = Math.max(0, Math.min(100, percent));
 
     const barH = isMobile ? 'h-2' : 'h-1.5';
+    const trackClass =
+        isInByoyomi || isFoulMode
+            ? 'bg-red-900/75'
+            : lightSurface
+              ? 'bg-slate-600/90 ring-1 ring-inset ring-slate-900/15'
+              : 'bg-gray-700';
+    const fillClass =
+        isInByoyomi || isFoulMode ? 'bg-red-600' : lightSurface ? 'bg-blue-600 shadow-[0_0_8px_rgba(37,99,235,0.45)]' : 'bg-blue-500';
     return (
         <div className="w-full relative">
             {/* The bar track */}
-            <div className={`w-full ${barH} rounded-full transition-colors ${isInByoyomi || isFoulMode ? 'bg-red-900/70' : 'bg-gray-700'}`}>
+            <div className={`w-full ${barH} rounded-full transition-colors ${trackClass}`}>
                 {/* The bar fill */}
                 <div
-                    className={`${barH} rounded-full ${isInByoyomi || isFoulMode ? 'bg-red-500' : 'bg-blue-500'} ${isActive && timeLeft < 5 ? 'animate-pulse' : ''}`}
+                    className={`${barH} rounded-full ${fillClass} ${isActive && timeLeft < 5 ? 'animate-pulse' : ''}`}
                     style={{ width: `${clampedPercent}%`, transition: 'width 0.2s linear' }}
                 />
             </div>
@@ -174,7 +184,7 @@ interface SinglePlayerPanelProps {
     isCurrentUser?: boolean;
     /** 네이티브 모바일·좁은 뷰포트 상단 바: 말줄임 대신 줄바꿈·가변 글자로 전체 표시 */
     fluidTextLayout?: boolean;
-    /** 모험 경기장: 양쪽 패널에 동일한 전체 제한 시간 카운트다운(초) */
+    /** 모험 경기장: TimeBar용 전체 제한 시간 남은 초(양쪽 패널 동일) */
     adventureMatchCountdownSec?: number | null;
     adventureMatchTotalSec?: number | null;
 }
@@ -253,6 +263,18 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         adventureMatchTotalSec != null &&
         adventureMatchTotalSec > 0;
 
+    const adventureHumanEnumForPanel =
+        session.blackPlayerId === aiUserId
+            ? Player.White
+            : session.whitePlayerId === aiUserId
+              ? Player.Black
+              : Player.Black;
+    const adventureMonsterTurnPanel =
+        session.gameCategory === 'adventure' &&
+        useAdventureMatchCountdown &&
+        session.currentPlayer !== Player.None &&
+        session.currentPlayer !== adventureHumanEnumForPanel;
+
     const isDiceGo = mode === GameMode.Dice;
     const isBlackPanel = isDiceGo || playerEnum === Player.Black;
     const isWhitePanel = !isDiceGo && playerEnum === Player.White;
@@ -282,11 +304,11 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
             timeTextClasses = 'text-gray-200';
         } else if (panelType === 'white') {
             panelColorClasses = isActive && !isGameEnded
-                ? 'bg-gray-300 ring-2 ring-blue-500/95 border-blue-500 shadow-[0_0_0_1px_rgba(59,130,246,0.28),0_0_24px_-8px_rgba(59,130,246,0.75)]'
-                : 'bg-gray-200 border-gray-400';
-            nameTextClasses = 'text-black';
-            levelTextClasses = 'text-gray-600';
-            timeTextClasses = 'text-gray-800';
+                ? 'bg-gradient-to-br from-white via-sky-50 to-blue-100/95 ring-2 ring-blue-600/90 border-blue-600 shadow-[0_0_0_1px_rgba(37,99,235,0.35),0_0_22px_-8px_rgba(37,99,235,0.45)]'
+                : 'bg-gradient-to-br from-slate-100 to-slate-300/95 border-slate-500/90 shadow-sm';
+            nameTextClasses = 'text-slate-950 font-bold';
+            levelTextClasses = 'text-slate-800';
+            timeTextClasses = 'text-slate-950';
         } else { // Neutral/unassigned
             panelColorClasses = isActive && !isGameEnded
                 ? 'bg-blue-900/50 ring-2 ring-blue-400/90 border-blue-300/70 shadow-[0_0_18px_-8px_rgba(96,165,250,0.85)]'
@@ -297,8 +319,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         }
     }
     
-    const winnerColor = isSinglePlayer ? 'text-amber-300' : (isBlackPanel ? 'text-yellow-300' : 'text-yellow-600');
-    const loserColor = isSinglePlayer ? 'text-stone-500' : 'text-gray-500';
+    const winnerColor = isSinglePlayer ? 'text-amber-300' : (isBlackPanel ? 'text-yellow-300' : 'text-amber-800');
+    const loserColor = isSinglePlayer ? 'text-stone-500' : (isWhitePanel ? 'text-slate-600' : 'text-gray-500');
     const finalNameClass = isWinner ? winnerColor : isLoser ? loserColor : nameTextClasses;
     const showActiveBorderPulse = isActive && !isGameEnded;
     const activeBorderPulseClass = isSinglePlayer
@@ -306,7 +328,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         : (panelType === 'black'
             ? 'border-cyan-300/90 shadow-[0_0_0_1px_rgba(103,232,249,0.45),0_0_22px_-6px_rgba(34,211,238,0.85)]'
             : (panelType === 'white'
-                ? 'border-blue-500/90 shadow-[0_0_0_1px_rgba(59,130,246,0.4),0_0_22px_-6px_rgba(59,130,246,0.8)]'
+                ? 'border-blue-600/95 shadow-[0_0_0_1px_rgba(29,78,216,0.45),0_0_22px_-6px_rgba(37,99,235,0.55)]'
                 : 'border-blue-300/85 shadow-[0_0_18px_-8px_rgba(96,165,250,0.85)]'));
 
     const totalStones = session.settings.curlingStoneCount || 5;
@@ -404,17 +426,29 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                 </div>
                 <div className={isMobile ? 'mt-0.5' : 'mt-1'}>
                     {useAdventureMatchCountdown && !isGameEnded && (
-                        <TimeBar
-                            timeLeft={adventureMatchCountdownSec!}
-                            totalTime={adventureMatchTotalSec!}
-                            byoyomiTime={effectiveByoyomiTime}
-                            byoyomiPeriods={0}
-                            totalByoyomi={0}
-                            isActive={true}
-                            isInByoyomi={false}
-                            isFoulMode={false}
-                            isMobile={isMobile}
-                        />
+                        <>
+                            <TimeBar
+                                timeLeft={adventureMatchCountdownSec!}
+                                totalTime={adventureMatchTotalSec!}
+                                byoyomiTime={effectiveByoyomiTime}
+                                byoyomiPeriods={0}
+                                totalByoyomi={0}
+                                isActive={!adventureMonsterTurnPanel}
+                                isInByoyomi={false}
+                                isFoulMode={false}
+                                isMobile={isMobile}
+                                lightSurface={panelType === 'white'}
+                            />
+                            <div className={`mt-0.5 flex ${justifyClass}`}>
+                                <span
+                                    className={`font-mono text-xs font-semibold tabular-nums tracking-wide ${
+                                        panelType === 'white' ? 'text-slate-800' : 'text-stone-200'
+                                    }`}
+                                >
+                                    {formatTimeMmSs(adventureMatchCountdownSec ?? 0)}
+                                </span>
+                            </div>
+                        </>
                     )}
                     {!useAdventureMatchCountdown && !showElapsedOnly && (
                         <TimeBar
@@ -427,19 +461,26 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             isInByoyomi={isInByoyomi}
                             isFoulMode={isFoulMode}
                             isMobile={isMobile}
+                            lightSurface={panelType === 'white'}
                         />
                     )}
-                    {(useAdventureMatchCountdown || (showElapsedOnly ? isCurrentUser : true)) && (
+                    {(!useAdventureMatchCountdown && (showElapsedOnly ? isCurrentUser : true)) && (
                     <div className={`flex items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-1`}>
-                        {useAdventureMatchCountdown ? (
-                            <span className={`font-mono font-bold tabular-nums text-rose-200 ${timeTextSize}`}>
-                                {formatMmSsCountdown(adventureMatchCountdownSec!)}
-                            </span>
-                        ) : showElapsedOnly ? (
+                        {showElapsedOnly ? (
                             <span className={`font-mono font-bold ${timeTextClasses} ${timeTextSize}`}>{formatTime(timeLeft)}</span>
                         ) : (
                             <>
-                                <span className={`font-mono font-bold ${isInByoyomi || (isFoulMode && timeLeft < 10) ? 'text-red-400' : timeTextClasses} ${timeTextSize}`}>{formatTime(timeLeft)}</span>
+                                <span
+                                    className={`font-mono font-bold ${
+                                        isInByoyomi || (isFoulMode && timeLeft < 10)
+                                            ? panelType === 'white'
+                                                ? 'text-red-800'
+                                                : 'text-red-400'
+                                            : timeTextClasses
+                                    } ${timeTextSize}`}
+                                >
+                                    {formatTime(timeLeft)}
+                                </span>
                                 {showByoyomiStatus && (
                                     <div
                                         className={`flex items-center gap-1 ${isFoulMode ? 'text-red-300' : 'text-yellow-300'}`}
@@ -528,9 +569,20 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const { player1, player2, blackPlayerId, whitePlayerId, captures, mode, settings, effectiveCaptureTargets, scores, currentPlayer } = session;
 
     const enforceTime = showTimeControl(session);
-    // 경기는 '게임 시작' 버튼을 누른 뒤(playing 등)부터만 경과 시간 산정. pending일 때는 0으로 표시
+    const isBaseRules =
+        mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
+    const basePrePlayFreezeStatuses: GameStatus[] = [
+        'base_placement',
+        'komi_bidding',
+        'komi_bid_reveal',
+        'base_color_roulette',
+        'base_komi_result',
+        'base_game_start_confirmation',
+    ];
+    const freezeElapsedForBaseSetup = isBaseRules && basePrePlayFreezeStatuses.includes(session.gameStatus);
+    // 경기는 '게임 시작' 버튼을 누른 뒤(playing 등)부터만 경과 시간 산정. pending·베이스 준비 단계에서는 0으로 표시
     const gameStart =
-        session.gameStatus === 'pending'
+        session.gameStatus === 'pending' || freezeElapsedForBaseSetup
             ? undefined
             : (session.gameStartTime ?? (session as any).startTime ?? session.createdAt);
     const [elapsedSec, setElapsedSec] = useState(0);
@@ -631,17 +683,31 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const adventureCountdownLive =
         adventureEncounterCountdownUiActive(session.gameCategory, session.gameStatus) &&
         typeof advDeadlineMs === 'number';
+    const adventureHumanPlayerEnum =
+        session.blackPlayerId === aiUserId
+            ? Player.White
+            : session.whitePlayerId === aiUserId
+              ? Player.Black
+              : Player.Black;
+    const adventureMonsterTurn =
+        session.gameCategory === 'adventure' &&
+        adventureCountdownLive &&
+        session.currentPlayer !== Player.None &&
+        session.currentPlayer !== adventureHumanPlayerEnum;
     const [adventureRemSec, setAdventureRemSec] = useState(0);
     useEffect(() => {
         if (!adventureCountdownLive) {
             setAdventureRemSec(0);
             return;
         }
-        const tick = () => setAdventureRemSec(Math.max(0, Math.ceil((advDeadlineMs - Date.now()) / 1000)));
+        const tick = () => {
+            if (adventureMonsterTurn) return;
+            setAdventureRemSec(Math.max(0, Math.ceil((advDeadlineMs - Date.now()) / 1000)));
+        };
         tick();
         const id = setInterval(tick, 250);
         return () => clearInterval(id);
-    }, [adventureCountdownLive, advDeadlineMs, session.id]);
+    }, [adventureCountdownLive, advDeadlineMs, session.id, adventureMonsterTurn]);
     const advBoardSize = session.settings?.boardSize ?? (session as { adventureBoardSize?: number }).adventureBoardSize ?? 9;
     const adventureTotalSec = Math.max(1, getAdventureEncounterCountdownMinutes(advBoardSize) * 60);
     const adventureCdProps =
@@ -662,13 +728,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → 0/N ~ N/N
     const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const strategicLobbyTurnInfo = useMemo(() => {
-        if (
-            !isStrategicMode ||
-            isSinglePlayer ||
-            session.gameCategory === 'tower' ||
-            session.stageId
-        )
-            return null;
+        if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower') return null;
+        // 모험 스테이지는 stageId가 있어도 상단 수순 박스를 표시(도감 스테이지 id와 전략 로비 수순 표시가 겹치지 않음)
+        if (session.stageId && session.gameCategory !== 'adventure') return null;
         const moveHistory = session.moveHistory ?? [];
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCountFromHistory = moveHistory.length;
@@ -688,7 +750,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             return { type: 'scoring_limit' as const, label: '수순', current, total: limit };
         }
         return { type: 'moves_only' as const, label: '수순', current };
-    }, [isStrategicMode, isSinglePlayer, session.gameCategory, session.stageId, settings.scoringTurnLimit, session.moveHistory, session.totalTurns, mode, session.settings]);
+    }, [
+        isStrategicMode,
+        isSinglePlayer,
+        session.gameCategory,
+        session.stageId,
+        settings.scoringTurnLimit,
+        session.moveHistory,
+        session.totalTurns,
+        mode,
+        session.settings,
+    ]);
 
     // 싱글플레이/도전의 탑 턴 안내 패널 계산
     const turnInfo = useMemo(() => {

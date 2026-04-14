@@ -108,7 +108,7 @@ const TurnPreferenceSelection: React.FC<TurnPreferenceSelectionProps> = (props) 
     };
 
     return (
-        <DraggableWindow title="순서 선택" windowId="turn-preference-selection">
+        <DraggableWindow title="순서 선택" windowId="turn-preference-selection" transparentModalBackdrop>
             {renderContent()}
         </DraggableWindow>
     );

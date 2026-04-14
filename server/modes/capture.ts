@@ -1,6 +1,6 @@
 import * as types from '../../types/index.js';
 // FIX: Changed import path to avoid circular dependency
-import { transitionToPlaying } from './shared.js';
+import { transitionToPlaying, shouldEnforceTimeControl } from './shared.js';
 import * as summaryService from '../summaryService.js';
 
 export const initializeCapture = (game: types.LiveGameSession, now: number) => {
@@ -102,7 +102,7 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
             break;
         }
         case 'playing': {
-            if (game.turnDeadline && now > game.turnDeadline) {
+            if (shouldEnforceTimeControl(game) && game.turnDeadline && now > game.turnDeadline) {
                 const timedOutPlayer = game.currentPlayer;
                 const timeKey = timedOutPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = timedOutPlayer === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';

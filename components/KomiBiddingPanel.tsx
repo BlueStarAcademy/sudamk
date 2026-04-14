@@ -9,6 +9,8 @@ interface KomiBiddingPanelProps {
     session: LiveGameSession;
     currentUser: User;
     onAction: (action: ServerAction) => void;
+    /** 베이스 바둑: 바둑판 하단 푸터에만 표시 (드래그 창 없음) */
+    layout?: 'window' | 'inline';
 }
 
 const KOMI_BID_TIME_SEC = 30;
@@ -30,7 +32,7 @@ const AdjustButton: React.FC<{ amount: number; onAdjust: (amount: number) => voi
 );
 
 const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
-    const { session, currentUser, onAction } = props;
+    const { session, currentUser, onAction, layout = 'window' } = props;
     const { id: gameId, player1, player2, komiBids, komiBiddingDeadline, gameStatus, komiBiddingRound, gameCategory } =
         session;
     const isAdventure = gameCategory === GameCategory.Adventure;
@@ -172,7 +174,9 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
     };
 
     if (gameStatus === 'komi_bid_reveal') {
-        return (
+        return layout === 'inline' ? (
+            <div className="w-full min-w-0 max-w-full overflow-x-auto">{renderBidResult()}</div>
+        ) : (
             <DraggableWindow title="덤 설정" {...panelProps}>
                 {renderBidResult()}
             </DraggableWindow>
@@ -180,26 +184,27 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
     }
 
     if (myBid) {
-        return (
-            <DraggableWindow title="덤 설정" {...panelProps}>
-                <div className={`${komiWindowShell} px-4 py-6 text-center`}>
-                    <p className="text-sm font-semibold text-emerald-300/95">설정을 전송했습니다</p>
-                    <p className="mt-2 text-xs text-stone-400">상대방의 덤 설정을 기다리는 중입니다.</p>
-                    <div className="mt-5 flex justify-center">
-                        <div className="h-9 w-9 animate-spin rounded-full border-2 border-emerald-400/25 border-t-emerald-400" />
-                    </div>
+        const waitingBody = (
+            <div className={`${komiWindowShell} px-4 py-6 text-center`}>
+                <p className="text-sm font-semibold text-emerald-300/95">설정을 전송했습니다</p>
+                <p className="mt-2 text-xs text-stone-400">상대방의 덤 설정을 기다리는 중입니다.</p>
+                <div className="mt-5 flex justify-center">
+                    <div className="h-9 w-9 animate-spin rounded-full border-2 border-emerald-400/25 border-t-emerald-400" />
                 </div>
+            </div>
+        );
+        return layout === 'inline' ? (
+            <div className="w-full min-w-0 max-w-full overflow-x-auto">{waitingBody}</div>
+        ) : (
+            <DraggableWindow title="덤 설정" {...panelProps}>
+                {waitingBody}
             </DraggableWindow>
         );
     }
 
     const buttonsDisabled = !!myBid;
 
-    return (
-        <DraggableWindow
-            title={komiBiddingRound === 2 ? '덤 설정 (재설정)' : '덤 설정'}
-            {...panelProps}
-        >
+    const biddingBody = (
             <div className={`${komiWindowShell} px-3 pb-3 pt-2 sm:px-4 sm:pb-4`}>
                 <p className="mb-2 text-center text-[11px] leading-snug text-stone-400">
                     원하는 돌 색과 추가 덤(0~100)을 정하세요. 기본 덤 백 {baseKomi}집.
@@ -270,6 +275,18 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                     {buttonsDisabled ? '설정 완료' : '덤 설정 완료'}
                 </Button>
             </div>
+    );
+
+    return layout === 'inline' ? (
+        <div className="w-full min-w-0 max-w-full overflow-x-auto">
+            {biddingBody}
+        </div>
+    ) : (
+        <DraggableWindow
+            title={komiBiddingRound === 2 ? '덤 설정 (재설정)' : '덤 설정'}
+            {...panelProps}
+        >
+            {biddingBody}
         </DraggableWindow>
     );
 };

@@ -199,6 +199,19 @@ html[data-theme="green"] {
     }
   }
 
+  /* 인게임 경기 시작 등: 뒤 보드는 그대로, 클릭만 막음 */
+  .sudamr-draggable-modal-backdrop.sudamr-draggable-modal-backdrop--transparent {
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .sudamr-draggable-modal-backdrop.sudamr-draggable-modal-backdrop--transparent {
+      background: transparent;
+    }
+  }
+
   /* 고정·드래그 모달 공통 프레임: 숲 톤 + 홈과 맞는 웜 딥 섀도 + 앰버 림 */
   .sudamr-modal-panel,
   .sudamr-floating-modal-surface {
@@ -866,83 +879,92 @@ input, textarea {
   cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='gold' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'></circle><line x1='21' y1='21' x2='16.65' y2='16.65'></line></svg>") 24 24, auto;
 }
 
-@keyframes scan-success-ripple {
-  from {
-    stroke-width: 1px;
-    transform: scale(0.1);
-    opacity: 1;
-  }
-  to {
-    stroke-width: 0.5px;
-    transform: scale(1);
-    opacity: 0;
-  }
-}
-
-.scan-success-circle {
-  animation: scan-success-ripple 2s ease-out forwards;
-}
-
-@keyframes scan-fail-cross {
+/* 히든 스캔: 좌→우 스캔 빔 후 결과(실패=X 팝, 성공=반투명 돌) */
+@keyframes scan-sweep-slide {
   0% {
-    stroke-dashoffset: 120;
+    transform: translateX(0);
     opacity: 0;
   }
-  25% {
+  7% {
     opacity: 1;
   }
-  75% {
-    stroke-dashoffset: 0;
+  88% {
+    transform: translateX(var(--scan-travel, 720px));
     opacity: 1;
   }
   100% {
+    transform: translateX(var(--scan-travel, 720px));
     opacity: 0;
   }
 }
 
-@keyframes scan-fail-bg-in {
+.scan-sweep-beam {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: scan-sweep-slide cubic-bezier(0.33, 0.9, 0.35, 1) forwards;
+}
+
+.scan-sweep-beam--fail {
+  mix-blend-mode: screen;
+}
+
+.scan-sweep-beam--success {
+  mix-blend-mode: soft-light;
+}
+
+@keyframes scan-fail-x-pop {
   0% {
+    transform: scale(0.08);
     opacity: 0;
-    transform: scale(0.6);
+    filter: blur(3px);
   }
   20% {
+    transform: scale(1.05);
     opacity: 1;
-    transform: scale(1.02);
+    filter: blur(0);
   }
-  35% {
-    transform: scale(1);
-  }
-  85% {
+  52% {
+    transform: scale(1.08);
     opacity: 1;
   }
   100% {
+    transform: scale(1.48);
     opacity: 0;
-    transform: scale(1);
+    filter: blur(0.5px);
   }
 }
 
-@keyframes scan-fail-glow-pulse {
-  0%, 100% {
-    opacity: 0.25;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.scan-fail-marker .scan-fail-bg {
+.scan-fail-x-wrap {
   transform-origin: center;
-  animation: scan-fail-bg-in 2s ease-out forwards;
+  transform-box: fill-box;
+  animation: scan-fail-x-pop ease-out forwards;
+  animation-fill-mode: both;
 }
 
-.scan-fail-marker .scan-fail-glow {
-  animation: scan-fail-glow-pulse 1.2s ease-in-out 0.3s 2 forwards;
+.scan-fail-x-line {
+  filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.45));
 }
 
-.scan-fail-line {
-  stroke-dasharray: 120;
-  stroke-dashoffset: 120;
-  animation: scan-fail-cross 2s ease-out forwards;
+@keyframes scan-success-stone-in {
+  0% {
+    transform: scale(0.78);
+    opacity: 0;
+  }
+  26% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.scan-success-stone-wrap {
+  transform-origin: center;
+  transform-box: fill-box;
+  animation: scan-success-stone-in cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-fill-mode: both;
 }
 
 /* --- 2D Dice Animation --- */

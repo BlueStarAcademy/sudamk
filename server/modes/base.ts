@@ -13,6 +13,22 @@ const BASE_COLOR_ROULETTE_PHASE_MS = 5200;
 /** 모험 베이스: 몬스터 대전은 카운트다운·자동 타임아웃 없이 유저 조작만으로 진행 */
 const isAdventureBaseGame = (game: types.LiveGameSession) => game.gameCategory === 'adventure';
 
+const enterBaseGameStartConfirmation = (game: types.LiveGameSession, now: number) => {
+    const p1Id = game.player1.id;
+    const p2Id = game.player2.id;
+    game.gameStatus = 'base_game_start_confirmation';
+    game.revealEndTime = isAdventureBaseGame(game) ? undefined : now + 30000;
+    game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
+    if (game.isAiGame) {
+        const aiId = p1Id === aiUserId ? p1Id : p2Id;
+        game.preGameConfirmations[aiId] = true;
+    }
+    game.preGameKomiSummaryAck = undefined;
+    game.turnDeadline = undefined;
+    game.turnStartTime = undefined;
+    game.pausedTurnTimeLeft = undefined;
+};
+
 export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'base_placement';
     game.basePlacementDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
@@ -24,6 +40,7 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.turnStartTime = undefined;
     game.pausedTurnTimeLeft = undefined;
     game.preGameConfirmations = {};
+    game.preGameKomiSummaryAck = undefined;
 
     // AI 대국: 봇의 베이스돌은 시작 즉시 랜덤으로 모두 배치해 둔다.
     if (game.isAiGame) {
@@ -368,13 +385,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                         game.revealEndTime = isAdventureBaseGame(game) ? now - 1 : now + BASE_COLOR_ROULETTE_PHASE_MS;
                         game.preGameConfirmations = {};
                     } else {
-                        game.gameStatus = 'base_game_start_confirmation';
-                        game.revealEndTime = isAdventureBaseGame(game) ? undefined : now + 30000;
-                        game.preGameConfirmations = { [p1.id]: false, [p2.id]: false };
-                        if (game.isAiGame) {
-                            const aiId = p1.id === aiUserId ? p1.id : p2.id;
-                            game.preGameConfirmations[aiId] = true;
-                        }
+                        enterBaseGameStartConfirmation(game, now);
                     }
                     // Clean up bidding state
                     game.komiBids = undefined;
@@ -390,16 +401,12 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
             break;
         case 'base_color_roulette': {
             if (game.revealEndTime && now > game.revealEndTime) {
-                game.gameStatus = 'base_game_start_confirmation';
-                game.revealEndTime = isAdventureBaseGame(game) ? undefined : now + 30000;
-                game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
-                if (game.isAiGame) {
-                    const aiId = p1Id === aiUserId ? p1Id : p2Id;
-                    game.preGameConfirmations[aiId] = true;
-                }
+                enterBaseGameStartConfirmation(game, now);
             }
             break;
         }
+        case 'base_komi_result':
+            break;
         case 'base_game_start_confirmation': {
             const bothConfirmed = game.preGameConfirmations?.[p1Id] && game.preGameConfirmations?.[p2Id];
             const deadlinePassed =
@@ -447,6 +454,21 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             if (!game.komiBids) game.komiBids = {};
             game.komiBids[user.id] = payload.bid;
             return {};
+        case 'CONFIRM_BASE_KOMI_SUMMARY': {
+            if (game.gameStatus !== 'base_komi_result') return { error: '덤 결과 확인 단계가 아닙니다.' };
+            if (!game.preGameKomiSummaryAck) game.preGameKomiSummaryAck = {};
+            game.preGameKomiSummaryAck[user.id] = true;
+            if (game.isAiGame) {
+                const opponentId = game.player1.id === user.id ? game.player2.id : game.player1.id;
+                game.preGameKomiSummaryAck[opponentId] = true;
+            }
+            const p1Ack = game.player1.id;
+            const p2Ack = game.player2.id;
+            if (game.preGameKomiSummaryAck[p1Ack] && game.preGameKomiSummaryAck[p2Ack]) {
+                enterBaseGameStartConfirmation(game, now);
+            }
+            return {};
+        }
         case 'CONFIRM_BASE_REVEAL':
              if (game.gameStatus !== 'base_game_start_confirmation') return { error: "Not in confirmation phase." };
              if (!game.preGameConfirmations) game.preGameConfirmations = {};

@@ -2,7 +2,7 @@ import { User, GameMode, LiveGameSession, Player, Point, AlkkagiStone, BoardStat
 import { defaultStats, createDefaultInventory, createDefaultQuests, createDefaultBaseStats, createDefaultSpentStatPoints } from './initialData.js';
 import { getOmokLogic } from './omokLogic.js';
 import { getGoLogic, processMove } from './goLogic.js';
-import { AI_GAME_FIRST_MOVE_DELAY_MS, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, SINGLE_PLAYER_STAGES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
+import { AI_GAME_FIRST_MOVE_DELAY_MS, DICE_GO_MAIN_ROLL_TIME, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, SPECIAL_GAME_MODES, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES } from '../constants';
 import { isPlacementValid as isAlkkagiPlacementValid } from './modes/alkkagi.js';
 import { nextAlkkagiStoneId } from '../shared/utils/alkkagiStoneId.js';
 import * as types from '../types/index.js';
@@ -98,269 +98,6 @@ export const getAiUserForGuildWar = (mode: GameMode, boardId: string): User => {
         ...getAiUser(mode),
         nickname: getGuildWarAiBotDisplayName(boardId),
     };
-};
-
-const makeSimpleCaptureAiMove = (game: types.LiveGameSession) => {
-    const difficulty = game.settings.aiDifficulty ?? 1;
-    const probability = difficulty / 10.0;
-    const aiPlayer = game.currentPlayer;
-    const humanPlayer = aiPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-    const logic = getGoLogic(game);
-    const boardSize = game.settings.boardSize;
-    const now = Date.now();
-
-    const applyMove = (move: Point) => {
-        const result = processMove(game.boardState, { ...move, player: aiPlayer }, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
-        if (!result.isValid) {
-            console.error(`[Simple AI] Invalid move generated: ${JSON.stringify(move)} for game ${game.id}. Reason: ${result.reason}`);
-            return;
-        }
-        
-        game.boardState = result.newBoardState;
-        game.lastMove = move;
-        game.moveHistory.push({ player: aiPlayer, ...move });
-        game.koInfo = result.newKoInfo;
-        game.passCount = move.x === -1 ? game.passCount + 1 : 0;
-
-        if (result.capturedStones.length > 0) {
-            if (!game.justCaptured) game.justCaptured = [];
-            for (const stone of result.capturedStones) {
-                const wasPatternStone = (humanPlayer === Player.Black && game.blackPatternStones?.some(p => p.x === stone.x && p.y === stone.y)) ||
-                                        (humanPlayer === Player.White && game.whitePatternStones?.some(p => p.x === stone.x && p.y === stone.y));
-                const points = wasPatternStone ? 2 : 1;
-                game.captures[aiPlayer] += points;
-                game.justCaptured.push({ point: stone, player: humanPlayer, wasHidden: false, capturePoints: points });
-            }
-        }
-        
-        const target = getCaptureTarget(game, aiPlayer);
-        if (target !== undefined && target !== NO_CAPTURE_TARGET && game.captures[aiPlayer] >= target) {
-            summaryService.endGame(game, aiPlayer, 'capture_limit');
-            return;
-        }
-        
-        game.currentPlayer = humanPlayer;
-        game.turnStartTime = now;
-        const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
-        if(stage) {
-            if (stage.timeControl.type === 'byoyomi') {
-                 game.turnDeadline = now + (stage.timeControl.mainTime * 60 * 1000);
-            } else { // fischer
-                 game.turnDeadline = now + (stage.timeControl.mainTime * 60 * 1000);
-            }
-        } else {
-            game.turnDeadline = now + 300 * 1000; // 5 min fallback
-        }
-    };
-
-    const findValidMoves = (board: types.BoardState, player: Player): Point[] => {
-        const moves: Point[] = [];
-        for (let y = 0; y < boardSize; y++) {
-            for (let x = 0; x < boardSize; x++) {
-                if (board[y][x] === types.Player.None) {
-                    const res = processMove(board, { x, y, player }, game.koInfo, game.moveHistory.length);
-                    if (res.isValid) {
-                        moves.push({ x, y });
-                    }
-                }
-            }
-        }
-        return moves;
-    };
-
-    const allValidAiMoves = findValidMoves(game.boardState, aiPlayer);
-    if (allValidAiMoves.length === 0) {
-        applyMove({ x: -1, y: -1 });
-        return;
-    }
-
-    // 1. Winning Capture
-    if (Math.random() < probability) {
-        const target = getCaptureTarget(game, aiPlayer);
-        const winningMoves = target === undefined || target === NO_CAPTURE_TARGET
-            ? []
-            : allValidAiMoves.filter(move => {
-                const res = processMove(game.boardState, { ...move, player: aiPlayer }, game.koInfo, game.moveHistory.length);
-                if (!res.isValid) return false;
-                const captureGain = res.capturedStones.length * (res.capturedStones.some(s => game.whitePatternStones?.some(p => p.x === s.x && p.y === s.y)) ? 2 : 1);
-                return (game.captures[aiPlayer] + captureGain) >= target;
-            });
-        if (winningMoves.length > 0) {
-            applyMove(winningMoves[Math.floor(Math.random() * winningMoves.length)]);
-            return;
-        }
-    }
-    
-    // 2. Block Opponent's Winning Capture
-    if (Math.random() < probability) {
-        const opponentTarget = getCaptureTarget(game, humanPlayer);
-        const opponentWinningMoves = opponentTarget === undefined || opponentTarget === NO_CAPTURE_TARGET
-            ? []
-            : findValidMoves(game.boardState, humanPlayer).filter(move => {
-                const res = processMove(game.boardState, { ...move, player: humanPlayer }, game.koInfo, game.moveHistory.length);
-                if (!res.isValid) return false;
-                const captureGain = res.capturedStones.length * (res.capturedStones.some(s => game.blackPatternStones?.some(p => p.x === s.x && p.y === s.y)) ? 2 : 1);
-                return (game.captures[humanPlayer] + captureGain) >= opponentTarget;
-            });
-
-        if (opponentWinningMoves.length > 0) {
-            const blockMove = opponentWinningMoves[Math.floor(Math.random() * opponentWinningMoves.length)];
-             if (allValidAiMoves.some(m => m.x === blockMove.x && m.y === blockMove.y)) {
-                applyMove(blockMove);
-                return;
-             }
-        }
-    }
-
-    // 3. Maximize Capture
-    if (Math.random() < probability) {
-        let maxCapture = 0;
-        let maxCaptureMoves: Point[] = [];
-        allValidAiMoves.forEach(move => {
-            const res = processMove(game.boardState, { ...move, player: aiPlayer }, game.koInfo, game.moveHistory.length);
-            if (res.isValid && res.capturedStones.length > 0) {
-                const captureScore = res.capturedStones.reduce((acc, stone) => {
-                    const isPattern = game.whitePatternStones?.some(p => p.x === stone.x && p.y === stone.y);
-                    return acc + (isPattern ? 2 : 1);
-                }, 0);
-                if (captureScore > maxCapture) {
-                    maxCapture = captureScore;
-                    maxCaptureMoves = [move];
-                } else if (captureScore === maxCapture) {
-                    maxCaptureMoves.push(move);
-                }
-            }
-        });
-        if (maxCaptureMoves.length > 0) {
-            applyMove(maxCaptureMoves[Math.floor(Math.random() * maxCaptureMoves.length)]);
-            return;
-        }
-    }
-    
-    // 4. Atari opponent
-    if (Math.random() < probability) {
-        const potentialAtariMoves = allValidAiMoves.filter(move => {
-            const tempBoard = JSON.parse(JSON.stringify(game.boardState));
-            tempBoard[move.y][move.x] = aiPlayer;
-            const tempLogic = getGoLogic({ ...game, boardState: tempBoard });
-            for(const neighbor of logic.getNeighbors(move.x, move.y)) {
-                if(tempBoard[neighbor.y][neighbor.x] === humanPlayer) {
-                    const group = tempLogic.findGroup(neighbor.x, neighbor.y, humanPlayer, tempBoard);
-                    if (group && group.liberties === 1) return true;
-                }
-            }
-            return false;
-        });
-
-        if (potentialAtariMoves.length > 0) {
-            applyMove(potentialAtariMoves[Math.floor(Math.random() * potentialAtariMoves.length)]);
-            return;
-        }
-    }
-    
-    // 5. Save own atari group
-    if (Math.random() < probability) {
-        const myAtariGroups = logic.getAllGroups(aiPlayer, game.boardState).filter(g => g.liberties === 1);
-        if (myAtariGroups.length > 0) {
-            const libertyKey = myAtariGroups[0].libertyPoints.values().next().value;
-            if (libertyKey) {
-                const [x, y] = libertyKey.split(',').map(Number);
-                const savingMove = {x, y};
-                if(allValidAiMoves.some(m => m.x === savingMove.x && m.y === savingMove.y)) {
-                    applyMove(savingMove);
-                    return;
-                }
-            }
-        }
-    }
-    
-    // 6. Random adjacent move
-    const adjacentMoves: Point[] = [];
-    const occupiedPoints: Point[] = [];
-    for(let y=0; y<boardSize; y++) {
-        for(let x=0; x<boardSize; x++) {
-            if (game.boardState[y][x] !== Player.None) {
-                occupiedPoints.push({x, y});
-            }
-        }
-    }
-    occupiedPoints.forEach(p => {
-        logic.getNeighbors(p.x, p.y).forEach(n => {
-            if (allValidAiMoves.some(m => m.x === n.x && m.y === n.y) && !adjacentMoves.some(m => m.x === n.x && m.y === n.y)) {
-                adjacentMoves.push(n);
-            }
-        });
-    });
-
-    if (adjacentMoves.length > 0) {
-        applyMove(adjacentMoves[Math.floor(Math.random() * adjacentMoves.length)]);
-        return;
-    }
-
-    // 7. Fully random valid move
-    applyMove(allValidAiMoves[Math.floor(Math.random() * allValidAiMoves.length)]);
-};
-
-
-const makeStrategicAiMove = async (game: types.LiveGameSession) => {
-    const aiPlayerEnum = game.currentPlayer;
-    const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-    const now = Date.now();
-
-    // 히든바둑 모드에서 AI 히든 아이템 사용 체크
-    const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
-    const totalTurns = game.totalTurns || 0;
-    
-    if (isHiddenMode && game.isSinglePlayer && !game.aiHiddenItemUsed && game.aiHiddenItemTurn !== undefined && totalTurns >= game.aiHiddenItemTurn) {
-        // AI 히든 아이템 사용 연출
-        game.aiHiddenItemUsed = true;
-        const hiddenNoticeMsg =
-            (game as any).gameCategory === 'adventure'
-                ? '몬스터가 히든 아이템을 사용했습니다!'
-                : 'AI봇이 히든 아이템을 사용했습니다!';
-        game.foulInfo = { message: hiddenNoticeMsg, expiry: now + 6000 };
-        
-        // 6초간 생각하는 연출을 위해 게임 상태를 특별한 상태로 설정
-        game.gameStatus = 'playing'; // 상태는 유지하되, 애니메이션으로 표시
-        game.animation = {
-            type: 'ai_thinking',
-            startTime: now,
-            duration: 6000,
-            playerId: aiPlayerId
-        };
-        
-        // 6초 후에 실제 수를 두도록 설정
-        game.aiHiddenItemAnimationEndTime = now + 6000;
-        
-        await db.saveGame(game);
-        return; // 이번 턴은 연출만 하고 실제 수는 다음 업데이트에서
-    }
-    
-    // AI 히든 아이템 연출이 끝났는지 확인
-    if (game.aiHiddenItemAnimationEndTime && now >= game.aiHiddenItemAnimationEndTime) {
-        game.aiHiddenItemAnimationEndTime = undefined;
-        game.animation = null;
-        // 이제 실제 히든 수를 둡니다
-    }
-
-    // 카타고 제거: 우리가 만든 AI봇을 사용하도록 변경
-    // makeStrategicAiMove는 더 이상 사용되지 않으며, makeGoAiBotMove를 사용합니다.
-    // 이 함수는 하위 호환성을 위해 유지하되, 실제로는 호출되지 않아야 합니다.
-    console.warn('[AI] makeStrategicAiMove is deprecated. Use makeGoAiBotMove instead.');
-    
-    // 던전(월드챔피언십 등) 봇이면 봇 ID에서 단계 파싱
-    let difficulty = 10;
-    if (aiPlayerId && String(aiPlayerId).startsWith('dungeon-bot-')) {
-        const parts = String(aiPlayerId).split('-');
-        const stageNum = parseInt(parts[3], 10);
-        if (!Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10) {
-            difficulty = stageNum;
-        }
-    }
-    await makeGoAiBotMove(game, Math.max(1, Math.min(10, difficulty)));
-    return;
-    // 아래 코드는 도달 불가능 (deprecated 함수) - 제거됨
 };
 
 // FIX: Implement missing AI functions
@@ -1458,7 +1195,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
             }
         }
 
-        // ========== 전략바둑/도전의탑 AI (goAiBot, makeStrategicAiMove) ==========
+        // ========== 전략바둑/도전의탑 AI (goAiBot → KataServer만) ==========
         // 놀이바둑은 위 switch에서 모두 처리되며, 여기에는 진입하지 않음
         if (!moveExecuted) {
             const isTower = game.gameCategory === 'tower';
@@ -1522,11 +1259,29 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     types.GameMode.Mix
                 ];
                 if (strategicModes.includes(game.mode)) {
-                    await makeStrategicAiMove(game);
+                    let difficulty = 1;
+                    const ks = (game.settings as any)?.kataServerLevel;
+                    if (typeof ks === 'number' && Number.isFinite(ks)) {
+                        const fromKata = profileStepFromKataServerLevel(ks);
+                        if (fromKata != null) {
+                            difficulty = fromKata;
+                        } else if (ks >= 1 && ks <= 10) {
+                            difficulty = ks;
+                        } else if ((game.settings as any)?.goAiBotLevel != null) {
+                            difficulty = Number((game.settings as any).goAiBotLevel) || 1;
+                        } else {
+                            difficulty = game.settings.aiDifficulty || 1;
+                        }
+                    } else if ((game.settings as any)?.goAiBotLevel !== undefined) {
+                        difficulty = Number((game.settings as any).goAiBotLevel) || 1;
+                    } else {
+                        difficulty = game.settings.aiDifficulty || 1;
+                    }
+                    await makeGoAiBotMove(game, Math.max(1, Math.min(10, difficulty)));
                     moveExecuted = true;
                 }
             } else if (game.isSinglePlayer) {
-                makeSimpleCaptureAiMove(game);
+                await makeGoAiBotMove(game, Math.max(1, Math.min(10, game.settings.aiDifficulty || 1)));
                 moveExecuted = true;
             }
         }

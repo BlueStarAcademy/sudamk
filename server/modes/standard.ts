@@ -23,6 +23,27 @@ import {
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 
+/** 모험 히든: 유저 히든이 따냄/따임 연출에 포함되면 같은 턴에 유저의 나머지 미공개 히든도 모두 완전 공개 */
+function adventureRevealAllHumanHiddensIfInvolved(
+    game: types.LiveGameSession,
+    uniqueStonesToReveal: { point: types.Point; player: types.Player }[]
+) {
+    if (game.gameCategory !== types.GameCategory.Adventure || uniqueStonesToReveal.length === 0) return;
+    const humanId = game.player1.id === aiUserId ? game.player2.id : game.player1.id;
+    const humanEnum = humanId === game.blackPlayerId ? types.Player.Black : types.Player.White;
+    if (!uniqueStonesToReveal.some(s => s.player === humanEnum)) return;
+    if (!game.moveHistory || !game.hiddenMoves) return;
+    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+    for (let i = 0; i < game.moveHistory.length; i++) {
+        if (!game.hiddenMoves[i]) continue;
+        const m = game.moveHistory[i];
+        if (!m || m.player !== humanEnum || m.x < 0 || m.y < 0) continue;
+        if (!game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) {
+            game.permanentlyRevealedStones.push({ x: m.x, y: m.y });
+        }
+    }
+}
+
 /** 모험 맵 AI전: 베이스 제외 랜덤 흑백, 따내기는 도전자(플레이어1) 항상 흑. 그 외는 기존 설정 또는 기본 흑. */
 const resolveStrategicAiHumanColor = (game: types.LiveGameSession, neg: types.Negotiation): types.Player => {
     const isAdventure = game.gameCategory === types.GameCategory.Adventure;
@@ -40,6 +61,37 @@ const adventureAiColorRevealModal = (game: types.LiveGameSession) =>
     game.gameCategory === types.GameCategory.Adventure &&
     game.mode !== types.GameMode.Base &&
     game.mode !== types.GameMode.Capture;
+
+const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
+
+/**
+ * 모험 인카운터 제한: 몬스터(AI) 턴에는 남은 시간이 줄지 않도록 마감 시각을 매 틱 `now + frozen`으로 맞춘다.
+ * 도전자 턴에는 frozen을 비우고 마감 시각이 그대로 흐른다.
+ */
+const syncAdventureEncounterDeadlineDuringMonsterTurn = (game: types.LiveGameSession, now: number) => {
+    if (game.gameCategory !== types.GameCategory.Adventure) return;
+    const deadline = (game as any).adventureEncounterDeadlineMs;
+    if (typeof deadline !== 'number') return;
+    if (!adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus)) return;
+
+    let monsterEnum: types.Player | null = null;
+    if (game.blackPlayerId === aiUserId) monsterEnum = types.Player.Black;
+    else if (game.whitePlayerId === aiUserId) monsterEnum = types.Player.White;
+    if (monsterEnum == null || game.currentPlayer === types.Player.None) return;
+
+    const isMonsterTurn = game.currentPlayer === monsterEnum;
+
+    if (isMonsterTurn) {
+        let frozen = (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY];
+        if (typeof frozen !== 'number' || !Number.isFinite(frozen)) {
+            frozen = Math.max(0, deadline - now);
+            (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY] = frozen;
+        }
+        (game as any).adventureEncounterDeadlineMs = now + frozen;
+    } else {
+        (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY] = undefined;
+    }
+};
 
 const transitionPlayingOrAdventureNigiriReveal = (game: types.LiveGameSession, now: number) => {
     if (adventureAiColorRevealModal(game)) {
@@ -167,15 +219,39 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     // This is the core update logic for all Go-based games.
 
+    syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
+
     const advDeadline = (game as any).adventureEncounterDeadlineMs as number | undefined;
+    const adventureEncounterBlocked =
+        game.gameStatus === 'hidden_reveal_animating' ||
+        game.gameStatus === 'scanning_animating' ||
+        game.gameStatus === 'missile_animating' ||
+        (typeof (game as any).aiHiddenItemAnimationEndTime === 'number' && now < (game as any).aiHiddenItemAnimationEndTime);
+
+    let adventureEncounterTimeUp = false;
+    if (game.gameCategory === types.GameCategory.Adventure && typeof advDeadline === 'number') {
+        let monsterEnum: types.Player | null = null;
+        if (game.blackPlayerId === aiUserId) monsterEnum = types.Player.Black;
+        else if (game.whitePlayerId === aiUserId) monsterEnum = types.Player.White;
+        const isMonsterTurn =
+            monsterEnum != null &&
+            game.currentPlayer !== types.Player.None &&
+            game.currentPlayer === monsterEnum;
+        const frozenRem = (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY];
+        adventureEncounterTimeUp = !isMonsterTurn
+            ? now >= advDeadline
+            : typeof frozenRem === 'number' && frozenRem <= 0;
+    }
+
     if (
         game.gameCategory === types.GameCategory.Adventure &&
         game.gameStatus !== 'ended' &&
         game.gameStatus !== 'no_contest' &&
         game.winner == null &&
         typeof advDeadline === 'number' &&
-        now >= advDeadline &&
-        adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus)
+        adventureEncounterTimeUp &&
+        adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus) &&
+        !adventureEncounterBlocked
     ) {
         const aiWinner =
             game.blackPlayerId === aiUserId
@@ -672,13 +748,17 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             if (isTargetHiddenOpponentStone) {
                 if (isAiInitialHiddenStone) {
                     if (!game.hiddenMoves) game.hiddenMoves = {};
-                    const hiddenMoveIndex = game.moveHistory.length;
-                    game.moveHistory.push({
-                        player: opponentPlayerEnum,
-                        x: x,
-                        y: y,
-                    });
-                    game.hiddenMoves[hiddenMoveIndex] = true;
+                    if (moveIndexAtTarget === -1) {
+                        const hiddenMoveIndex = game.moveHistory.length;
+                        game.moveHistory.push({
+                            player: opponentPlayerEnum,
+                            x: x,
+                            y: y,
+                        });
+                        game.hiddenMoves[hiddenMoveIndex] = true;
+                    } else if (!game.hiddenMoves[moveIndexAtTarget]) {
+                        game.hiddenMoves[moveIndexAtTarget] = true;
+                    }
                 }
 
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
@@ -716,7 +796,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.gameStatus = 'hidden_reveal_animating';
                 game.itemUseDeadline = undefined;
 
-                if (simResult?.isValid) {
+                // 모험: 상대 히든 위 착수 시도는 전체 공개·문양 유지만 하고 수·턴은 바꾸지 않음(유효 따냄이어도 동일)
+                const adventureHiddenRevealOnly =
+                    game.gameCategory === types.GameCategory.Adventure;
+
+                if (simResult?.isValid && !adventureHiddenRevealOnly) {
                     game.pendingCapture = {
                         stones: [{ x, y }, ...(simResult.capturedStones || [])],
                         move: moveAttempt,
@@ -739,6 +823,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 } else {
                     game.pendingCapture = null;
                     game.justCaptured = [];
+                }
+
+                if (adventureHiddenRevealOnly && isAiInitialHiddenStone) {
+                    (game as any).aiInitialHiddenStone = undefined;
+                    (game as any).aiInitialHiddenStoneIsPrePlaced = false;
                 }
 
                 if (game.turnDeadline) {
@@ -895,6 +984,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             const uniqueStonesToReveal = Array.from(new Map(allStonesToReveal.map(item => [JSON.stringify(item.point), item])).values());
             
             if (uniqueStonesToReveal.length > 0) {
+                adventureRevealAllHumanHiddensIfInvolved(game, uniqueStonesToReveal);
                 game.gameStatus = 'hidden_reveal_animating';
                 game.animation = {
                     type: 'hidden_reveal',

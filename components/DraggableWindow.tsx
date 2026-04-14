@@ -46,6 +46,11 @@ interface DraggableWindowProps {
     /** false면 전체 화면 딤·블러 배경을 렌더하지 않음(인게임 결과 등에서 보드가 보이게) */
     modalBackdrop?: boolean;
 
+    /**
+     * true면 배경 딤·블러 없이 투명(클릭만 흡수). 인게임 경기 시작 확인 등에서 보드가 그대로 보이게 할 때 사용.
+     */
+    transparentModalBackdrop?: boolean;
+
     closeOnOutsideClick?: boolean;
 
     isTopmost?: boolean;
@@ -284,6 +289,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     shrinkHeightToContent = false,
     modal = true,
     modalBackdrop = true,
+    transparentModalBackdrop = false,
     closeOnOutsideClick = true,
     isTopmost = true,
     headerContent,
@@ -1053,8 +1059,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         <>
             {modal && modalBackdrop && (
                 <div
-                    className={`sudamr-draggable-modal-backdrop ${modalLayerUsesDesignPixels ? 'absolute' : 'fixed'} inset-0`}
+                    className={`sudamr-draggable-modal-backdrop${transparentModalBackdrop ? ' sudamr-draggable-modal-backdrop--transparent' : ''} ${
+                        modalLayerUsesDesignPixels ? 'absolute' : 'fixed'
+                    } inset-0`}
                     style={{ zIndex: effectiveZIndex - 1, pointerEvents: 'auto' }}
+                    aria-hidden
                 />
             )}
             <div

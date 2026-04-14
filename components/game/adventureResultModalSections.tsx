@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { GameSummary } from '../../types.js';
-import { CONSUMABLE_ITEMS, CORE_STATS_DATA, EQUIPMENT_POOL, MATERIAL_ITEMS } from '../../constants.js';
+import { CONSUMABLE_ITEMS, CORE_STATS_DATA, EQUIPMENT_POOL, gradeStyles, MATERIAL_ITEMS } from '../../constants.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
 import {
@@ -20,8 +20,7 @@ import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
     equipmentGradeRewardIconShellClassNames,
-    RESULT_MODAL_BOX_GOLD_CLASS,
-    RESULT_MODAL_BOX_ITEM_CLASS,
+    RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
     RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS,
 } from './ResultModalRewardSlot.js';
@@ -179,9 +178,7 @@ function AdventureMissedRewardSlot({
         : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12 opacity-50 grayscale';
     return (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
-            <div
-                className={`relative flex items-center justify-center rounded-lg border-2 border-white/15 bg-slate-950/50 ring-1 ring-inset ring-white/10 ${box}`}
-            >
+            <div className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${box}`}>
                 <img src={iconSrc} alt="" className={imgCls} draggable={false} />
                 {questionOverlay ? (
                     <span
@@ -269,7 +266,9 @@ function GoldRollingPlaceholder({
 
     return (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
-            <div className={`${RESULT_MODAL_BOX_GOLD_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`}>
+            <div
+                className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`}
+            >
                 <img src="/images/icon/Gold.png" alt="" className={imgClass} />
             </div>
             <VerticalReel rowPx={rowPx} children={[...decoys, finalNum]} />
@@ -301,7 +300,7 @@ function EquipmentRollingPlaceholder({
                     className={
                         gradeBox
                             ? `${gradeBox.outer} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`
-                            : `${RESULT_MODAL_BOX_ITEM_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`
+                            : `${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`
                     }
                 >
                     {gradeBox ? (
@@ -322,13 +321,15 @@ function EquipmentRollingPlaceholder({
                     ) : src ? (
                         <img src={src} alt="" className={imgClass} />
                     ) : (
-                        <span className="text-[0.55rem] font-bold text-violet-200/80">?</span>
+                        <span className="text-[0.55rem] font-bold text-slate-300/85">?</span>
                     )}
                 </div>
                 <span
-                    className={`line-clamp-2 w-full text-center font-semibold leading-tight text-violet-200 ${
-                        compact ? 'text-[0.58rem]' : 'text-[0.65rem] min-[1024px]:text-xs'
-                    } ${isFinal ? '' : 'opacity-70'}`}
+                    className={`line-clamp-2 w-full text-center font-semibold leading-tight ${
+                        isFinal && finalGrade != null
+                            ? gradeStyles[finalGrade]?.color ?? 'text-slate-200'
+                            : 'text-slate-200/90'
+                    } ${compact ? 'text-[0.58rem]' : 'text-[0.65rem] min-[1024px]:text-xs'} ${isFinal ? '' : 'opacity-70'}`}
                 >
                     {name}
                 </span>
@@ -365,14 +366,16 @@ function MaterialRollingPlaceholder({
         const src = adventureRewardSlotItemImage(matName);
         return (
             <div className="flex w-full flex-col items-center justify-center gap-0.5">
-                <div className={`${RESULT_MODAL_BOX_ITEM_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`}>
-                    {src ? <img src={src} alt="" className={imgClass} /> : <span className="text-[0.55rem] text-violet-200">?</span>}
+                <div
+                    className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'}`}
+                >
+                    {src ? <img src={src} alt="" className={imgClass} /> : <span className="text-[0.55rem] text-slate-200/90">?</span>}
                 </div>
                 <span
                     className={
                         compact
-                            ? 'text-[0.72rem] font-bold tabular-nums text-violet-200'
-                            : 'text-sm font-bold tabular-nums text-violet-200 min-[1024px]:text-base'
+                            ? 'text-[0.72rem] font-bold tabular-nums text-slate-200'
+                            : 'text-sm font-bold tabular-nums text-slate-200 min-[1024px]:text-base'
                     }
                 >
                     ×{qty}
@@ -468,6 +471,7 @@ export function AdventureBattleFixedRewardRow({
                     amount={slots.gold.amount}
                     compact={compact}
                     understandingBonus={slots.gold.understandingBonus}
+                    adventureUnifiedSlot
                 />
             ) : (
                 <AdventureMissedRewardSlot compact={compact} iconSrc="/images/icon/Gold.png" />
@@ -479,6 +483,7 @@ export function AdventureBattleFixedRewardRow({
                     quantity={1}
                     compact={compact}
                     alwaysShowNameBelow
+                    adventureUnifiedSlot
                     equipmentGrade={adventureEquipmentGradeFromDisplayName(
                         slots.equipment.displayName,
                         slots.equipment.grade,
@@ -494,6 +499,7 @@ export function AdventureBattleFixedRewardRow({
                     quantity={slots.material.quantity ?? 1}
                     compact={compact}
                     materialQuantityOnly
+                    adventureUnifiedSlot
                 />
             ) : (
                 <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} questionOverlay />

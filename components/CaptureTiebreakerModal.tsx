@@ -47,6 +47,8 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
     const blackUi = { ...blackPlayer, nickname: getSessionPlayerDisplayName(session, blackPlayer) };
     const whiteUi = { ...whitePlayer, nickname: getSessionPlayerDisplayName(session, whitePlayer) };
+    const p1Seat = { ...player1, nickname: getSessionPlayerDisplayName(session, player1) };
+    const p2Seat = { ...player2, nickname: getSessionPlayerDisplayName(session, player2) };
     const blackTarget = effectiveCaptureTargets[Player.Black];
     const whiteTarget = effectiveCaptureTargets[Player.White];
 
@@ -96,6 +98,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
             <div className="space-y-5 text-white">
                 {isTiebreaker && (
                     <PreGameColorRoulette
+                        participantsInDisplayOrder={[p1Seat, p2Seat]}
                         blackPlayer={blackUi}
                         whitePlayer={whiteUi}
                         durationMs={4200}

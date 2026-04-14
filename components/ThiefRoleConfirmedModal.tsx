@@ -38,9 +38,10 @@ const ThiefRoleConfirmedModal: React.FC<ThiefRoleConfirmedModalProps> = ({ sessi
     const policeBorderUrl = BORDER_POOL.find(b => b.id === policePlayer.borderId)?.url;
 
     return (
-        <DraggableWindow title="역할 결정 완료" initialWidth={600} windowId="thief-role-confirm">
+        <DraggableWindow title="역할 결정 완료" initialWidth={600} windowId="thief-role-confirm" transparentModalBackdrop>
             <div className="text-white">
                 <PreGameColorRoulette
+                    participantsInDisplayOrder={[player1, player2]}
                     blackPlayer={thiefPlayer}
                     whitePlayer={policePlayer}
                     onComplete={() => setRouletteDone(true)}

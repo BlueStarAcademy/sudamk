@@ -1,8 +1,8 @@
 /**
  * GnuGo Service
- * 
- * Provides GnuGo AI engine integration using GTP (Go Text Protocol)
- * GnuGo is used as the primary AI for game moves, with goAiBot as fallback
+ *
+ * Provides GnuGo AI engine integration using GTP (Go Text Protocol).
+ * HTTP API 또는 로컬 프로세스로만 동작하며, 실패 시 예외를 던진다(goAiBot 자동 대체 없음).
  */
 
 import { spawn, ChildProcess } from 'child_process';
@@ -422,7 +422,7 @@ export async function generateGnuGoMove(request: GenerateMoveRequest): Promise<P
                 }
             }
         }
-        // Fall through to local process (로컬 없으면 goAiBot fallback으로 전달)
+        // Fall through to local process pool
     }
     
     // Use local process pool
@@ -465,7 +465,7 @@ export function getGnuGoManager(): GnuGoManager {
 /**
  * Check if GnuGo is available (HTTP API or local process pool)
  * 전략바둑 대기실 AI봇: GNUGO_API_URL이 설정되어 있으면 원격 GnuGo 서비스를 사용하고,
- * 설정이 없거나 API 호출이 실패하면 내부 goAiBot(휴리스틱)으로 자동 대체됩니다.
+ * 없으면 로컬 GnuGo 프로세스 풀을 사용한다. 둘 다 없으면 `isGnuGoAvailable()`이 false다.
  */
 export function isGnuGoAvailable(): boolean {
     if (USE_HTTP_API && GNUGO_API_URL) return true;
@@ -486,8 +486,8 @@ export function getGnuGoStatusSummary(): { available: boolean; reason: string } 
     return {
         available: false,
         reason: process.env.GNUGO_API_URL
-            ? 'GNUGO_API_URL 설정됐으나 서비스 연결 실패 가능성 (타임아웃/다운 시 내부 AI로 대체)'
-            : 'GNUGO_API_URL 미설정 — 전략바둑 AI는 내부 goAiBot(휴리스틱)만 사용',
+            ? 'GNUGO_API_URL 설정됐으나 서비스 연결 실패 가능성 (타임아웃/다운)'
+            : 'GNUGO_API_URL 미설정 — 원격 GnuGo 미사용(로컬 풀만 가능)',
     };
 }
 

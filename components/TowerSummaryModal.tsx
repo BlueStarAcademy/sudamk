@@ -185,27 +185,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         return stageFloor === nextFloor;
     }) : null;
     
-    // summary가 없을 때 예상 보상 계산 (즉시 표시를 위해)
     const userTowerFloor = currentUser.towerFloor ?? 0;
     const isCleared = currentFloor <= userTowerFloor;
-    const expectedRewards = useMemo(() => {
-        if (!summary && isWinner && !isCleared && currentStage) {
-            // 승리했고 최초 클리어인 경우 예상 보상 표시
-            const rewards = currentStage.rewards?.firstClear;
-            if (rewards) {
-                return {
-                    gold: rewards.gold ?? 0,
-                    xp: { change: rewards.exp ?? 0 },
-                    items: rewards.items ? rewards.items.map((item: any) => ({ name: item.itemId ?? item.name, quantity: item.quantity || 1 })) : []
-                };
-            }
-        }
-        return null;
-    }, [summary, isWinner, isCleared, currentStage]);
-    
-    // summary가 있으면 summary 사용, 없으면 expectedRewards 사용
-    // summary가 나중에 도착하더라도 expectedRewards를 먼저 표시하여 0.5초 안에 보상 정보가 나타나도록 함
-    const displaySummary = summary || expectedRewards;
+    // 결과창은 서버가 확정한 실제 지급 내역(summary)만 표시한다.
+    const displaySummary = summary;
     const hasRewardSlots =
         !!displaySummary &&
         ((displaySummary.gold ?? 0) > 0 ||
@@ -449,7 +432,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 dimmed={!summary}
                             />
                         )}
-                        {displaySummary.xp && displaySummary.xp.change > 0 && (
+                        {displaySummary?.xp && displaySummary.xp.change > 0 && (
                             <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
                                 <ResultModalXpRewardBadge
                                     variant="strategy"
@@ -458,7 +441,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 />
                             </div>
                         )}
-                        {displaySummary.items &&
+                        {displaySummary?.items &&
                             displaySummary.items.length > 0 &&
                             displaySummary.items.map((item, idx) => {
                                 const displayName = item.name ?? ('itemId' in item ? (item as any).itemId : undefined);

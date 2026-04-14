@@ -20,6 +20,33 @@ import {
 import { broadcastPlayingSnapshotBeforeScoring } from '../utils/broadcastPlayingBeforeScoring.js';
 import { aiUserId } from '../aiPlayer.js';
 
+const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
+
+const syncAdventureEncounterDeadlineDuringMonsterTurn = (game: types.LiveGameSession, now: number) => {
+    if (game.gameCategory !== types.GameCategory.Adventure) return;
+    const deadline = (game as any).adventureEncounterDeadlineMs;
+    if (typeof deadline !== 'number') return;
+    if (!adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus)) return;
+
+    let monsterEnum: types.Player | null = null;
+    if (game.blackPlayerId === aiUserId) monsterEnum = types.Player.Black;
+    else if (game.whitePlayerId === aiUserId) monsterEnum = types.Player.White;
+    if (monsterEnum == null || game.currentPlayer === types.Player.None) return;
+
+    const isMonsterTurn = game.currentPlayer === monsterEnum;
+
+    if (isMonsterTurn) {
+        let frozen = (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY];
+        if (typeof frozen !== 'number' || !Number.isFinite(frozen)) {
+            frozen = Math.max(0, deadline - now);
+            (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY] = frozen;
+        }
+        (game as any).adventureEncounterDeadlineMs = now + frozen;
+    } else {
+        (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY] = undefined;
+    }
+};
+
 /** 로비 AI 대국(모험·봇 대전): 계가 직전에 마지막 판면이 한 번 보이도록 */
 const isLobbyAiStrategicGame = (game: types.LiveGameSession) =>
     !!game.isAiGame &&
@@ -98,15 +125,39 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 };
 
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
+    syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
+
     const advDeadline = (game as any).adventureEncounterDeadlineMs as number | undefined;
+    const adventureEncounterBlocked =
+        game.gameStatus === 'hidden_reveal_animating' ||
+        game.gameStatus === 'scanning_animating' ||
+        game.gameStatus === 'missile_animating' ||
+        (typeof (game as any).aiHiddenItemAnimationEndTime === 'number' && now < (game as any).aiHiddenItemAnimationEndTime);
+
+    let adventureEncounterTimeUp = false;
+    if (game.gameCategory === types.GameCategory.Adventure && typeof advDeadline === 'number') {
+        let monsterEnum: types.Player | null = null;
+        if (game.blackPlayerId === aiUserId) monsterEnum = types.Player.Black;
+        else if (game.whitePlayerId === aiUserId) monsterEnum = types.Player.White;
+        const isMonsterTurn =
+            monsterEnum != null &&
+            game.currentPlayer !== types.Player.None &&
+            game.currentPlayer === monsterEnum;
+        const frozenRem = (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY];
+        adventureEncounterTimeUp = !isMonsterTurn
+            ? now >= advDeadline
+            : typeof frozenRem === 'number' && frozenRem <= 0;
+    }
+
     if (
         game.gameCategory === types.GameCategory.Adventure &&
         game.gameStatus !== 'ended' &&
         game.gameStatus !== 'no_contest' &&
         game.winner == null &&
         typeof advDeadline === 'number' &&
-        now >= advDeadline &&
-        adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus)
+        adventureEncounterTimeUp &&
+        adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus) &&
+        !adventureEncounterBlocked
     ) {
         const aiWinner =
             game.blackPlayerId === aiUserId

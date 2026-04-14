@@ -350,25 +350,48 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
             user.gold += rewards.gold;
             summary.gold = rewards.gold;
             summary.xp = { initial: initialXp, change: addedXp, final: user.strategyXp };
+
+            const grantTowerItemsToInventory = (items: InventoryItem[]): InventoryItem[] => {
+                if (!items.length) return [];
+                const { success, updatedInventory, finalItemsToAdd } = addItemsToInventory(
+                    [...user.inventory],
+                    user.inventorySlots,
+                    items
+                );
+                if (success) {
+                    user.inventory = updatedInventory;
+                    return finalItemsToAdd;
+                }
+
+                // 도전의 탑 보상은 즉시 인벤토리 수령이 보장되어야 하므로 실패 시 강제 적재(기존 스택 우선).
+                const forcedInventory = [...user.inventory];
+                for (const incoming of items) {
+                    const incomingQty = Math.max(1, incoming.quantity ?? 1);
+                    const stack = forcedInventory.find(
+                        (it) => it.name === incoming.name && (it.source ?? null) === (incoming.source ?? null)
+                    );
+                    if (stack) {
+                        stack.quantity = Math.max(1, stack.quantity ?? 1) + incomingQty;
+                    } else {
+                        forcedInventory.push({ ...incoming, quantity: incomingQty });
+                    }
+                }
+                user.inventory = forcedInventory;
+                console.warn(
+                    `[Tower Summary] addItemsToInventory failed on floor ${floor}; forced insertion applied for guaranteed tower reward.`
+                );
+                return items.map((it) => ({ ...it, quantity: Math.max(1, it.quantity ?? 1) }));
+            };
             
             // 아이템 보상 처리
             if (rewards.items && rewards.items.length > 0) {
                 const itemInstances = createItemInstancesFromReward(rewards.items);
-                const { success, updatedInventory, finalItemsToAdd } = addItemsToInventory([...user.inventory], user.inventorySlots, itemInstances);
-                
-                if (success) {
-                    user.inventory = updatedInventory;
-                    summary.items = finalItemsToAdd;
-                } else {
-                    console.error(`[Tower Summary] Insufficient inventory space for user ${user.id} on floor ${floor}. Items not granted.`);
-                    summary.items = [];
-                }
+                const grantedStageItems = grantTowerItemsToInventory(itemInstances);
+                summary.items = [...(summary.items ?? []), ...grantedStageItems];
             }
-            
-            // 도전의 탑 아이템 획득 로직 (30% 확률)
-            const towerItemDropChance = Math.random();
-            if (towerItemDropChance < 0.3) {
-                // 도전의 탑 아이템 정의 (maxOwned 정보 포함)
+
+            // 도전의 탑 전용 아이템 랜덤 드랍 (5%)
+            if (Math.random() < 0.05) {
                 const towerItems = [
                     { name: '턴 추가', weight: 10, maxOwned: 3 },
                     { name: '미사일', weight: 10, maxOwned: 2 },
@@ -376,20 +399,15 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                     { name: '스캔', weight: 30, maxOwned: 5 },
                     { name: '배치변경', weight: 45, maxOwned: 5 },
                 ];
-                
-                // 현재 보유량 확인 및 최대 보유수량에 도달하지 않은 아이템만 필터링
                 const { countTowerLobbyInventoryQty } = await import('./modes/towerPlayerHidden.js');
-                const availableItems = towerItems.filter(towerItem => {
+                const availableItems = towerItems.filter((towerItem) => {
                     const currentQuantity = countTowerLobbyInventoryQty(user.inventory, [towerItem.name]);
                     return currentQuantity < towerItem.maxOwned;
                 });
-                
-                // 사용 가능한 아이템이 있으면 획득
+
                 if (availableItems.length > 0) {
-                    // 가중치 기반 랜덤 선택
                     const totalWeight = availableItems.reduce((sum, item) => sum + item.weight, 0);
                     let random = Math.random() * totalWeight;
-                    
                     let selectedItem = availableItems[0];
                     for (const item of availableItems) {
                         random -= item.weight;
@@ -398,24 +416,16 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                             break;
                         }
                     }
-                    
-                    // 선택된 아이템 생성
+
                     const towerItemInstance = createConsumableItemInstance(selectedItem.name);
                     if (towerItemInstance) {
                         (towerItemInstance as InventoryItem & { source?: string }).source = 'tower';
-                        const { success, updatedInventory, finalItemsToAdd } = addItemsToInventory([...user.inventory], user.inventorySlots, [towerItemInstance]);
-                        
-                        if (success) {
-                            user.inventory = updatedInventory;
-                            if (!summary.items) summary.items = [];
-                            summary.items.push(...finalItemsToAdd);
-                            console.log(`[Tower Summary] Floor ${floor} - Tower item dropped: ${selectedItem.name}`);
-                        } else {
-                            console.error(`[Tower Summary] Insufficient inventory space for tower item ${selectedItem.name} on floor ${floor}`);
+                        const grantedTowerDrop = grantTowerItemsToInventory([towerItemInstance]);
+                        if (grantedTowerDrop.length > 0) {
+                            summary.items = [...(summary.items ?? []), ...grantedTowerDrop];
+                            console.log(`[Tower Summary] Floor ${floor} - Tower item dropped (5%): ${selectedItem.name}`);
                         }
                     }
-                } else {
-                    console.log(`[Tower Summary] Floor ${floor} - Tower item drop chance hit, but all items at max owned`);
                 }
             }
             

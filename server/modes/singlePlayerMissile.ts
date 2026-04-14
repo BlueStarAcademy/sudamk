@@ -143,6 +143,41 @@ function calculateSinglePlayerMissilePath(
     return { to: current, revealedHiddenStone };
 }
 
+function findLatestOwnedMoveIndexAt(
+    game: types.LiveGameSession,
+    point: types.Point,
+    player: types.Player
+): number {
+    for (let i = game.moveHistory.length - 1; i >= 0; i--) {
+        const m = game.moveHistory[i];
+        if (m.x === point.x && m.y === point.y && m.player === player) return i;
+    }
+    return -1;
+}
+
+function relocateMissileStoneMetadata(
+    game: types.LiveGameSession,
+    from: types.Point,
+    to: types.Point,
+    player: types.Player
+) {
+    const patternKey = player === types.Player.Black ? 'blackPatternStones' : 'whitePatternStones';
+    const patternStones = (game as any)[patternKey] as types.Point[] | undefined;
+    if (patternStones?.length) {
+        const idx = patternStones.findIndex((p) => p.x === from.x && p.y === from.y);
+        if (idx !== -1) {
+            patternStones[idx] = { x: to.x, y: to.y };
+        }
+    }
+
+    if (game.permanentlyRevealedStones?.length) {
+        const ridx = game.permanentlyRevealedStones.findIndex((p) => p.x === from.x && p.y === from.y);
+        if (ridx !== -1) {
+            game.permanentlyRevealedStones[ridx] = { x: to.x, y: to.y };
+        }
+    }
+}
+
 export const updateSinglePlayerMissileState = async (game: types.LiveGameSession, now: number): Promise<boolean> => {
     // 싱글플레이 게임이 아니면 처리하지 않음
     if (!game.isSinglePlayer) {
@@ -906,7 +941,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             }
             
             // moveHistory 업데이트: 원래 자리의 이동 기록을 목적지로 변경
-            const fromMoveIndex = game.moveHistory.findIndex(m => m.x === from.x && m.y === from.y && m.player === myPlayerEnum);
+            const fromMoveIndex = findLatestOwnedMoveIndexAt(game, from, myPlayerEnum);
             if (fromMoveIndex !== -1) {
                 // 원래 자리의 이동 기록이 있으면 목적지로 변경
                 game.moveHistory[fromMoveIndex].x = to.x;
@@ -917,28 +952,8 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 // 유저가 직접 착수한 돌만 moveHistory에 있음
             }
             
-            // 문양 돌 이동: 원래 자리가 문양 돌이면 목적지에서도 문양 돌로 유지
-            if (game.blackPatternStones && myPlayerEnum === types.Player.Black) {
-                const patternIdx = game.blackPatternStones.findIndex(p => p.x === from.x && p.y === from.y);
-                if (patternIdx !== -1) {
-                    game.blackPatternStones[patternIdx] = { x: to.x, y: to.y };
-                }
-            }
-            if (game.whitePatternStones && myPlayerEnum === types.Player.White) {
-                const patternIdx = game.whitePatternStones.findIndex(p => p.x === from.x && p.y === from.y);
-                if (patternIdx !== -1) {
-                    game.whitePatternStones[patternIdx] = { x: to.x, y: to.y };
-                }
-            }
-            
-            // 공개된 히든 돌 이동: 원래 자리가 permanentlyRevealedStones에 있으면 목적지에서도 공개 상태 유지
-            // (hiddenMoves는 moveHistory 인덱스 기준이므로 좌표만 바꾼 위 moveHistory 업데이트로 그대로 유지됨)
-            if (game.permanentlyRevealedStones) {
-                const revealedIdx = game.permanentlyRevealedStones.findIndex(p => p.x === from.x && p.y === from.y);
-                if (revealedIdx !== -1) {
-                    game.permanentlyRevealedStones[revealedIdx] = { x: to.x, y: to.y };
-                }
-            }
+            // 문양/공개 히든 좌표 메타를 함께 이동시켜 원래 위치에 잔상이 남지 않게 한다.
+            relocateMissileStoneMetadata(game, from, to, myPlayerEnum);
             
             // 아이템 사용 시간 일시 정지 (애니메이션 중)
             game.itemUseDeadline = undefined;

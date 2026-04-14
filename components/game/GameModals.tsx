@@ -1,7 +1,7 @@
 
 import React from 'react';
 // FIX: Corrected import path for types. The path was './../types.js' which pointed to 'components/types.js', but the file is in the root directory.
-import { GameProps, GameStatus, Negotiation } from '../../types.js';
+import { GameProps, GameMode, GameStatus, Negotiation } from '../../types.js';
 import GameSummaryModal from '../GameSummaryModal.js';
 import NigiriModal from '../NigiriModal.js';
 import CaptureBidModal from '../CaptureBidModal.js';
@@ -27,7 +27,6 @@ import SinglePlayerSummaryModal from '../SinglePlayerSummaryModal.js';
 import TowerSummaryModal from '../TowerSummaryModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import ColorStartConfirmationModal from '../ColorStartConfirmationModal.js';
-
 interface GameModalsProps extends GameProps {
     confirmModalType: 'resign' | null;
     onHideConfirmModal: () => void;
@@ -56,13 +55,16 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
     } = props;
     const { gameStatus, mode, id: gameId } = session;
 
+    const baseUsesBottomStrip =
+        mode === GameMode.Base || (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base)));
+
     const renderModals = () => {
         // AI 봇 대전(대기실의 "AI와 대결하기"로 시작된 일반/로비 AI 경기만):
         // 대국실 입장 시 룰 설명 모달을 먼저 띄우고, "경기 시작" 확인 후 진행
         // (협상(draft) 상태가 남아 activeNegotiation이 잡히더라도, 게임 화면에서는 AI 시작 모달이 우선)
         if (session.isAiGame && gameStatus === 'pending' && !session.isSinglePlayer && session.gameCategory !== 'tower') {
             if (isSpectator) return null;
-            return <AiGameDescriptionModal session={session} onAction={onAction} />;
+            return <AiGameDescriptionModal session={session} currentUser={currentUser} onAction={onAction} />;
         }
 
         // 전략바둑 PVP 흑·백 확인(nigiri_*): 협상 모달보다 우선 (수락 직후 activeNegotiation이 남아 가리는 경우 방지)
@@ -92,6 +94,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             'capture_bidding',
             'dice_rps', 'thief_rps', 'alkkagi_rps', 'curling_rps', 'omok_rps', 'ttamok_rps',
             'color_start_confirmation',
+            'base_komi_result',
             'turn_preference_selection',
             'thief_role_selection',
             'dice_turn_rolling',
@@ -110,9 +113,18 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
-        if (['komi_bidding', 'komi_bid_reveal'].includes(gameStatus)) return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
-        if (gameStatus === 'base_color_roulette') return <BaseColorRouletteModal session={session} />;
-        if (gameStatus === 'base_game_start_confirmation') return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
+        if (['komi_bidding', 'komi_bid_reveal'].includes(gameStatus)) {
+            if (baseUsesBottomStrip) return null;
+            return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
+        }
+        if (gameStatus === 'base_color_roulette') {
+            if (baseUsesBottomStrip) return null;
+            return <BaseColorRouletteModal session={session} />;
+        }
+        if (gameStatus === 'base_game_start_confirmation') {
+            if (isSpectator || !session.blackPlayerId || !session.whitePlayerId) return null;
+            return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
+        }
         if (rpsStates.includes(gameStatus)) return <RPSMinigame session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'alkkagi_start_confirmation') return <AlkkagiStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_start_confirmation') return <CurlingStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;

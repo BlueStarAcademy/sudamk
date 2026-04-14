@@ -292,6 +292,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             initialWidth={760}
             initialHeight={isCompactUi ? 2400 : frameHeight}
             modal={true}
+            transparentModalBackdrop
             closeOnOutsideClick={!!onClose}
             uniformPcScale={!isCompactUi}
             bodyAvoidVerticalStretch={!isCompactUi}

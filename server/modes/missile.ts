@@ -2,7 +2,7 @@
 import * as types from '../../types/index.js';
 import { MISSILE_FLIGHT_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import { getGoLogic } from '../goLogic.js';
-import { pauseGameTimer, resumeGameTimer } from './shared.js';
+import { pauseGameTimer, resumeGameTimer, shouldEnforceTimeControl } from './shared.js';
 import {
     consumeOneTowerLobbyInventoryItem,
     TOWER_LOBBY_MISSILE_NAMES,
@@ -132,6 +132,41 @@ function calculateMissilePath(
     }
     
     return { to: current, revealedHiddenStone };
+}
+
+function findLatestOwnedMoveIndexAt(
+    game: types.LiveGameSession,
+    point: types.Point,
+    player: types.Player
+): number {
+    for (let i = game.moveHistory.length - 1; i >= 0; i--) {
+        const m = game.moveHistory[i];
+        if (m.x === point.x && m.y === point.y && m.player === player) return i;
+    }
+    return -1;
+}
+
+function relocateMissileStoneMetadata(
+    game: types.LiveGameSession,
+    from: types.Point,
+    to: types.Point,
+    player: types.Player
+) {
+    const patternKey = player === types.Player.Black ? 'blackPatternStones' : 'whitePatternStones';
+    const patternStones = (game as any)[patternKey] as types.Point[] | undefined;
+    if (patternStones?.length) {
+        const idx = patternStones.findIndex((p) => p.x === from.x && p.y === from.y);
+        if (idx !== -1) {
+            patternStones[idx] = { x: to.x, y: to.y };
+        }
+    }
+
+    if (game.permanentlyRevealedStones?.length) {
+        const ridx = game.permanentlyRevealedStones.findIndex((p) => p.x === from.x && p.y === from.y);
+        if (ridx !== -1) {
+            game.permanentlyRevealedStones[ridx] = { x: to.x, y: to.y };
+        }
+    }
 }
 
 export const updateMissileState = (game: types.LiveGameSession, now: number): boolean => {
@@ -331,7 +366,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
                     } else {
                         game.whiteTimeLeft = game.pausedTurnTimeLeft ?? 0;
                     }
-                    if (game.settings.timeLimit > 0) {
+                    if (game.settings.timeLimit > 0 && shouldEnforceTimeControl(game)) {
                         const currentPlayerTimeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const timeLeft = (game[currentPlayerTimeKey] ?? 0) as number;
                         if (timeLeft > 0) {
@@ -397,7 +432,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
                     } else {
                         game.whiteTimeLeft = game.pausedTurnTimeLeft ?? 0;
                     }
-                    if (game.settings.timeLimit > 0) {
+                    if (game.settings.timeLimit > 0 && shouldEnforceTimeControl(game)) {
                         const currentPlayerTimeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const timeLeft = (game[currentPlayerTimeKey] ?? 0) as number;
                         if (timeLeft > 0) {
@@ -622,21 +657,29 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             }
             
             // moveHistory: 원래 자리의 이동 기록이 있으면 목적지로 변경, 없으면(배치돌) 새로 추가하지 않음
-            const fromMoveIndex = game.moveHistory.findIndex(m => m.x === from.x && m.y === from.y && m.player === myPlayerEnum);
+            const fromMoveIndex = findLatestOwnedMoveIndexAt(game, from, myPlayerEnum);
             if (fromMoveIndex !== -1) {
                 game.moveHistory[fromMoveIndex].x = to.x;
                 game.moveHistory[fromMoveIndex].y = to.y;
             }
+
+            // 문양/공개 히든 좌표 메타를 함께 이동시켜 원래 위치에 잔상이 남지 않게 한다.
+            relocateMissileStoneMetadata(game, from, to, myPlayerEnum);
             
             // 아이템 사용 시간 일시 정지 (애니메이션 중)
             game.itemUseDeadline = undefined;
             
             // 턴 시간 복원 (애니메이션 중에도 턴이 유지되도록)
-            if (game.settings.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
+            if (game.pausedTurnTimeLeft !== undefined) {
                 const currentPlayerTimeKey = myPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 game[currentPlayerTimeKey] = game.pausedTurnTimeLeft;
-                game.turnDeadline = now + game.pausedTurnTimeLeft * 1000;
-                game.turnStartTime = now;
+                if (shouldEnforceTimeControl(game) && game.settings.timeLimit > 0) {
+                    game.turnDeadline = now + game.pausedTurnTimeLeft * 1000;
+                    game.turnStartTime = now;
+                } else {
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
+                }
             }
             
             // 애니메이션 설정 (MISSILE_FLIGHT_DURATION_MS와 동기)
@@ -709,7 +752,7 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
                             game.whiteTimeLeft = game.pausedTurnTimeLeft;
                         }
                     }
-                    if (game.settings.timeLimit > 0) {
+                    if (game.settings.timeLimit > 0 && shouldEnforceTimeControl(game)) {
                         const currentPlayerTimeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const timeLeft = game[currentPlayerTimeKey] ?? 0;
                         if (timeLeft > 0) {
@@ -773,7 +816,7 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             }
             
             // 타이머 재개 (턴 유지)
-            if (game.settings.timeLimit > 0) {
+            if (game.settings.timeLimit > 0 && shouldEnforceTimeControl(game)) {
                 const currentPlayerTimeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const timeLeft = game[currentPlayerTimeKey] ?? 0;
                 if (timeLeft > 0) {

@@ -103,10 +103,10 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
         }
         case 'hidden_reveal_animating':
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
-                const { pendingCapture } = game;
+                const cap = game.pendingCapture;
                 const isAiTurnCancelled = (game as any).isAiTurnCancelledAfterReveal;
                 // 히든 돌만 공개(따냄 없음): AI가 유저 히든 위에 두려 한 경우 — 타이머만 재개, 턴 유지
-                if (!pendingCapture) {
+                if (!cap) {
                     game.animation = null;
                     game.gameStatus = 'playing';
                     game.revealAnimationEndTime = undefined;
@@ -134,20 +134,26 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 }
                 // 히든 아이템 사용 후 게임 상태 복원
                 game.gameStatus = 'playing';
-                const myPlayerEnum = pendingCapture?.move.player || game.currentPlayer;
+                const myPlayerEnum = cap.move.player;
                 resumeGameTimer(game, now, myPlayerEnum);
-                
-                if (pendingCapture) {
-                    const myPlayerEnum = pendingCapture.move.player;
+
+                {
                     const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-            
+
                     if (!game.justCaptured) game.justCaptured = [];
-            
-                    for (const stone of pendingCapture.stones) {
+
+                    for (const stone of cap.stones) {
                         game.boardState[stone.y][stone.x] = types.Player.None; // Remove stone from board
-            
+
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
-                        const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                        let moveIndex = -1;
+                        for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                            const m = game.moveHistory![i];
+                            if (m.x === stone.x && m.y === stone.y) {
+                                moveIndex = i;
+                                break;
+                            }
+                        }
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         const wasAiInitialHidden = (game as any).aiInitialHiddenStone &&
                             (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
@@ -170,9 +176,12 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                         game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHiddenForEntry || wasAiInitialHidden, capturePoints: points });
                     }
                     stripPatternStonesAtConsumedIntersections(game);
-                    
+                    if (cap.move && typeof cap.move.x === 'number' && typeof cap.move.y === 'number') {
+                        game.boardState[cap.move.y][cap.move.x] = myPlayerEnum;
+                    }
+
                     if (!game.newlyRevealed) game.newlyRevealed = [];
-                    game.newlyRevealed.push(...pendingCapture.hiddenContributors.map(p => ({ point: p, player: myPlayerEnum })));
+                    game.newlyRevealed.push(...cap.hiddenContributors.map(p => ({ point: p, player: myPlayerEnum })));
                 }
 
                 game.animation = null;
@@ -225,7 +234,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 
                 // 일반적인 경우: 다음 플레이어로 턴 전환
                 game.gameStatus = 'playing';
-                const playerWhoMoved = game.currentPlayer;
+                const playerWhoMoved = cap.move.player;
                 const nextPlayer = playerWhoMoved === types.Player.Black ? types.Player.White : types.Player.Black;
                 
                 if (game.settings.timeLimit > 0) {

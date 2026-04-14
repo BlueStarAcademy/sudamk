@@ -5,6 +5,7 @@ import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
+import { resolveTowerCaptureBlackTarget, resolveTowerPlainWhiteCount } from '../shared/utils/towerStageRules.js';
 import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
@@ -54,18 +55,50 @@ const towerTitleH1Class =
     'relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-100 bg-clip-text text-transparent drop-shadow-[0_0_14px_rgba(251,191,36,0.2)]';
 
 const formatTowerRewardItemLabel = (itemId: string): string => {
-    const m = itemId.match(/^장비상자(\d+)$/);
-    if (!m) return itemId;
-    const n = Number(m[1]);
-    const romanMap: Record<number, string> = {
-        1: 'I',
-        2: 'II',
-        3: 'III',
-        4: 'IV',
-        5: 'V',
-        6: 'VI',
-    };
-    return `장비 상자 ${romanMap[n] ?? m[1]}`;
+    return resolveTowerRewardDisplayName(itemId);
+};
+
+const normalizeTowerRewardItemKey = (value: string): string => value.replace(/\s+/g, '');
+
+const TOWER_REWARD_ITEM_NAME_BY_KEY: Record<string, string> = {
+    '장비상자1': '장비 상자 I',
+    '장비상자2': '장비 상자 II',
+    '장비상자3': '장비 상자 III',
+    '장비상자4': '장비 상자 IV',
+    '장비상자5': '장비 상자 V',
+    '장비상자6': '장비 상자 VI',
+    '재료상자1': '재료 상자 I',
+    '재료상자2': '재료 상자 II',
+    '재료상자3': '재료 상자 III',
+    '재료상자4': '재료 상자 IV',
+    '재료상자5': '재료 상자 V',
+    '재료상자6': '재료 상자 VI',
+    '골드꾸러미1': '골드 꾸러미1',
+    '골드꾸러미2': '골드 꾸러미2',
+    '골드꾸러미3': '골드 꾸러미3',
+    '골드꾸러미4': '골드 꾸러미4',
+    '다이아꾸러미1': '다이아 꾸러미1',
+    '다이아꾸러미2': '다이아 꾸러미2',
+    '다이아꾸러미3': '다이아 꾸러미3',
+    '다이아꾸러미4': '다이아 꾸러미4',
+};
+
+const resolveTowerRewardDisplayName = (itemId: string): string => {
+    const normalized = normalizeTowerRewardItemKey(itemId);
+    return TOWER_REWARD_ITEM_NAME_BY_KEY[normalized] ?? itemId;
+};
+
+const resolveTowerRewardImage = (itemId: string): string => {
+    const normalized = normalizeTowerRewardItemKey(itemId);
+    const equipmentMatch = normalized.match(/^장비상자(\d+)$/);
+    if (equipmentMatch) {
+        return `/images/Box/EquipmentBox${equipmentMatch[1]}.png`;
+    }
+    const displayName = resolveTowerRewardDisplayName(itemId);
+    const itemTemplate = CONSUMABLE_ITEMS.find(
+        (item) => normalizeTowerRewardItemKey(item.name) === normalizeTowerRewardItemKey(displayName)
+    );
+    return itemTemplate?.image || '/images/icon/item_box.png';
 };
 
 const TowerLobby: React.FC = () => {
@@ -231,11 +264,21 @@ const TowerLobby: React.FC = () => {
                             const canChallenge = !isLocked && actionPoints >= effectiveActionPointCost;
                             
                             if (!stage) return null;
+
+                            const p = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+                            const towerDisplayBlackTarget = resolveTowerCaptureBlackTarget(floor, stage.targetScore?.black);
+                            const towerDisplayWhitePlain = resolveTowerPlainWhiteCount(
+                                floor,
+                                p.black ?? 0,
+                                p.blackPattern ?? 0,
+                                p.whitePattern ?? 0,
+                                p.white ?? 0
+                            );
                             
                             // 목표 정보 (툴팁·표시용)
                             const getTargetInfo = () => {
                                 if (stage.blackTurnLimit) {
-                                    return `흑 ${stage.targetScore?.black ?? 0}개 따내기 (${stage.blackTurnLimit}턴 제한)`;
+                                    return `흑 ${towerDisplayBlackTarget}개 따내기 (${stage.blackTurnLimit}턴 제한)`;
                                 }
                                 if (stage.autoScoringTurns != null && stage.autoScoringTurns > 0) {
                                     return `[${stage.autoScoringTurns}수 계가] 해당 수까지 두면 자동 계가`;
@@ -266,8 +309,8 @@ const TowerLobby: React.FC = () => {
                                         <div className="flex items-center gap-1 flex-shrink-0">
                                             {reward.items.map((item: any, idx: number) => {
                                                 const itemId = 'itemId' in item ? item.itemId : item.name || item.id;
-                                                const itemImage = getItemImage(itemId);
-                                                const itemDisplayName = getItemDisplayName(itemId);
+                                                const itemImage = resolveTowerRewardImage(itemId);
+                                                const itemDisplayName = resolveTowerRewardDisplayName(itemId);
                                                 return (
                                                     <div key={idx} className="flex items-center gap-0.5">
                                                         <img src={itemImage} alt={itemDisplayName} title={itemDisplayName} className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -278,63 +321,6 @@ const TowerLobby: React.FC = () => {
                                     ) : null}
                                 </>
                             );
-                            
-                            // 아이템 이미지 찾기 함수
-                            function getItemImage(itemId: string): string {
-                                // itemId를 이름으로 변환 (예: '장비상자1' -> '장비 상자 I')
-                                const itemNameMap: Record<string, string> = {
-                                    '장비상자1': '장비 상자 I',
-                                    '장비상자2': '장비 상자 II',
-                                    '장비상자3': '장비 상자 III',
-                                    '장비상자4': '장비 상자 IV',
-                                    '장비상자5': '장비 상자 V',
-                                    '장비상자6': '장비 상자 VI',
-                                    '재료상자1': '재료 상자 I',
-                                    '재료상자2': '재료 상자 II',
-                                    '재료상자3': '재료 상자 III',
-                                    '재료상자4': '재료 상자 IV',
-                                    '재료상자5': '재료 상자 V',
-                                    '재료상자6': '재료 상자 VI',
-                                    '골드꾸러미1': '골드 꾸러미1',
-                                    '골드꾸러미2': '골드 꾸러미2',
-                                    '골드꾸러미3': '골드 꾸러미3',
-                                    '골드꾸러미4': '골드 꾸러미4',
-                                    '다이아꾸러미1': '다이아 꾸러미1',
-                                    '다이아꾸러미2': '다이아 꾸러미2',
-                                    '다이아꾸러미3': '다이아 꾸러미3',
-                                    '다이아꾸러미4': '다이아 꾸러미4',
-                                };
-                                
-                                const itemName = itemNameMap[itemId] || itemId;
-                                const itemTemplate = CONSUMABLE_ITEMS.find(item => item.name === itemName);
-                                return itemTemplate?.image || '/images/icon/item_box.png';
-                            }
-
-							function getItemDisplayName(itemId: string): string {
-								const itemNameMap: Record<string, string> = {
-									'장비상자1': '장비 상자 I',
-									'장비상자2': '장비 상자 II',
-									'장비상자3': '장비 상자 III',
-									'장비상자4': '장비 상자 IV',
-									'장비상자5': '장비 상자 V',
-									'장비상자6': '장비 상자 VI',
-									'재료상자1': '재료 상자 I',
-									'재료상자2': '재료 상자 II',
-									'재료상자3': '재료 상자 III',
-									'재료상자4': '재료 상자 IV',
-									'재료상자5': '재료 상자 V',
-									'재료상자6': '재료 상자 VI',
-									'골드꾸러미1': '골드 꾸러미1',
-									'골드꾸러미2': '골드 꾸러미2',
-									'골드꾸러미3': '골드 꾸러미3',
-									'골드꾸러미4': '골드 꾸러미4',
-									'다이아꾸러미1': '다이아 꾸러미1',
-									'다이아꾸러미2': '다이아 꾸러미2',
-									'다이아꾸러미3': '다이아 꾸러미3',
-									'다이아꾸러미4': '다이아 꾸러미4',
-								};
-								return itemNameMap[itemId] || itemId;
-							}
                             
                             const isCaptureMode = floor <= 20; // 1-20층: 따내기 바둑
                             
@@ -411,7 +397,7 @@ const TowerLobby: React.FC = () => {
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <img src="/images/single/White.png" alt="백" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">{stage.placements.white}</span>
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -419,7 +405,7 @@ const TowerLobby: React.FC = () => {
                                                     <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-amber-400/90 font-semibold whitespace-nowrap">목표</span>
-                                                            <span className="text-yellow-300 font-bold">흑 {stage.targetScore?.black ?? 0}개</span>
+                                                            <span className="text-yellow-300 font-bold">흑 {towerDisplayBlackTarget}개</span>
                                                         </div>
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-amber-400/90 font-semibold whitespace-nowrap">제한</span>
@@ -451,7 +437,7 @@ const TowerLobby: React.FC = () => {
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <img src="/images/single/White.png" alt="백" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-amber-200 font-bold tabular-nums">{stage.placements.white}</span>
+                                                                <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <img src="/images/single/BlackDouble.png" alt="흑 문양" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
@@ -565,17 +551,6 @@ const TowerLobby: React.FC = () => {
             ] as const;
 
             const mobileHeroDrawerOpen = mobileHeroDrawer !== null;
-            const getRewardItemName = (itemId: string): string => {
-                const itemNameMap: Record<string, string> = {
-                    '장비상자1': '장비 상자 I',
-                    '장비상자2': '장비 상자 II',
-                    '장비상자3': '장비 상자 III',
-                    '장비상자4': '장비 상자 IV',
-                    '장비상자5': '장비 상자 V',
-                    '장비상자6': '장비 상자 VI',
-                };
-                return itemNameMap[itemId] || itemId;
-            };
             const setMobileDrawer = (next: 'record' | 'ranking' | 'inventory') => {
                 setMobileRewardTooltipKey(null);
                 setMobileHeroDrawer((prev) => (prev === next ? null : next));
@@ -780,16 +755,16 @@ const TowerLobby: React.FC = () => {
                                                                                 setMobileRewardTooltipKey((prev) => (prev === key ? null : key));
                                                                             }}
                                                                             className="relative inline-flex items-center justify-center"
-                                                                            aria-label={`${getRewardItemName(it.itemId)} 보기`}
+                                                                            aria-label={`${resolveTowerRewardDisplayName(it.itemId)} 보기`}
                                                                         >
                                                                             <img
-                                                                                src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
-                                                                                alt={getRewardItemName(it.itemId)}
+                                                                                src={resolveTowerRewardImage(it.itemId)}
+                                                                                alt={resolveTowerRewardDisplayName(it.itemId)}
                                                                                 className="h-9 w-9 shrink-0 object-contain"
                                                                             />
                                                                             {mobileRewardTooltipKey === `${it.itemId}-${i}` && (
                                                                                 <span className="pointer-events-none absolute -top-7 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-md border border-amber-500/45 bg-gray-950/95 px-2 py-1 text-[10px] font-semibold text-amber-100 shadow-lg">
-                                                                                    {getRewardItemName(it.itemId)}
+                                                                                    {resolveTowerRewardDisplayName(it.itemId)}
                                                                                 </span>
                                                                             )}
                                                                         </button>
@@ -936,8 +911,8 @@ const TowerLobby: React.FC = () => {
                                                 {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
                                                     <span key={i} className="inline-flex items-center gap-1 text-amber-200">
                                                         <img
-                                                            src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
-                                                            alt={it.itemId}
+                                                            src={resolveTowerRewardImage(it.itemId)}
+                                                            alt={resolveTowerRewardDisplayName(it.itemId)}
                                                             className="h-4 w-4 shrink-0"
                                                         />
                                                         ×{it.quantity}
@@ -1169,8 +1144,8 @@ const TowerLobby: React.FC = () => {
                                             {tier.items.map((it) => (
                                                 <span key={`${it.itemId}-${it.quantity}`} className="inline-flex items-center gap-1">
                                                     <img
-                                                        src={`/images/Box/EquipmentBox${it.itemId.replace('장비상자', '')}.png`}
-                                                        alt={it.itemId}
+                                                        src={resolveTowerRewardImage(it.itemId)}
+                                                        alt={resolveTowerRewardDisplayName(it.itemId)}
                                                         className="h-4 w-4 sm:h-6 sm:w-6"
                                                     />
                                                     {formatTowerRewardItemLabel(it.itemId)} x{it.quantity}

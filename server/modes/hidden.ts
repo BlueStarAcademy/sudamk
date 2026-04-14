@@ -1,7 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { getGameResult } from '../gameModes.js';
-import { pauseGameTimer, resumeGameTimer } from './shared.js';
+import { pauseGameTimer, resumeGameTimer, shouldEnforceTimeControl } from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     consumeOpponentPatternStoneIfAny,
@@ -70,17 +70,24 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
             break;
         case 'hidden_reveal_animating':
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
-                const { pendingCapture } = game;
+                const cap = game.pendingCapture;
                 // 히든 돌만 공개(따냄 없음): 상대가 내 히든 위에 두려 한 경우 — 타이머만 재개
-                if (!pendingCapture) {
+                if (!cap) {
                     game.animation = null;
                     game.gameStatus = 'playing';
                     game.revealAnimationEndTime = undefined;
                     game.pendingCapture = null;
                     const cur = game.currentPlayer;
-                    if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
+                    if (game.pausedTurnTimeLeft !== undefined) {
                         const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         game[timeKey] = game.pausedTurnTimeLeft;
+                    }
+                    if (
+                        shouldEnforceTimeControl(game) &&
+                        game.settings?.timeLimit > 0 &&
+                        game.pausedTurnTimeLeft !== undefined
+                    ) {
+                        const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                         const isFischer = isFischerStyleTimeControl(game as any);
                         const byoyomiTime = game.settings.byoyomiTime ?? 0;
                         const isNextInByoyomi = game[timeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
@@ -97,17 +104,24 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     game.pausedTurnTimeLeft = undefined;
                     break;
                 }
-                if (pendingCapture) {
-                    const myPlayerEnum = pendingCapture.move.player;
+                {
+                    const myPlayerEnum = cap.move.player;
                     const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
         
                     if (!game.justCaptured) game.justCaptured = [];
         
-                    for (const stone of pendingCapture.stones) {
+                    for (const stone of cap.stones) {
                         game.boardState[stone.y][stone.x] = types.Player.None; // Remove stone from board
         
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
-                        const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                        let moveIndex = -1;
+                        for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                            const m = game.moveHistory![i];
+                            if (m.x === stone.x && m.y === stone.y) {
+                                moveIndex = i;
+                                break;
+                            }
+                        }
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         const wasAiInitialHidden = (game.isSinglePlayer || isStrategicAiGame) && (game as any).aiInitialHiddenStone &&
                             (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
@@ -139,13 +153,13 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     // pendingCapture.stones에 “수순 좌표(히든 공개 시도 위치)”가 포함되는 경우가 있어,
                     // 여기서 제거된 좌표에는 반드시 “수순을 둔 쪽의 돌”을 다시 배치한다.
                     // (히든돌을 따냈을 때: 공개 연출 중엔 상대 히든이 보이고, 종료 후에는 일반돌로 존재해야 함)
-                    if (pendingCapture.move && typeof pendingCapture.move.x === 'number' && typeof pendingCapture.move.y === 'number') {
-                        game.boardState[pendingCapture.move.y][pendingCapture.move.x] = myPlayerEnum;
+                    if (cap.move && typeof cap.move.x === 'number' && typeof cap.move.y === 'number') {
+                        game.boardState[cap.move.y][cap.move.x] = myPlayerEnum;
                     }
                     stripPatternStonesAtConsumedIntersections(game);
                     
                     if (!game.newlyRevealed) game.newlyRevealed = [];
-                    game.newlyRevealed.push(...pendingCapture.hiddenContributors.map(p => ({ point: p, player: myPlayerEnum })));
+                    game.newlyRevealed.push(...cap.hiddenContributors.map(p => ({ point: p, player: myPlayerEnum })));
                 }
 
                 game.animation = null;
@@ -153,8 +167,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 game.revealAnimationEndTime = undefined;
                 game.pendingCapture = null;
                 
-                // Resume timer for the next player
-                const playerWhoMoved = game.currentPlayer;
+                // Resume timer for the next player (연출 중 game.currentPlayer가 실제 착수자와 다를 수 있음)
+                const playerWhoMoved = cap.move.player;
                 const nextPlayer = playerWhoMoved === types.Player.Black ? types.Player.White : types.Player.Black;
                 
                 if (game.settings.timeLimit > 0) {
@@ -167,8 +181,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 }
                 
                 game.currentPlayer = nextPlayer;
-                
-                if (game.settings.timeLimit > 0) {
+
+                if (shouldEnforceTimeControl(game) && game.settings.timeLimit > 0) {
                     const nextTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     const isFischer = isFischerStyleTimeControl(game as any);
                     const isNextInByoyomi = game[nextTimeKey] <= 0 && game.settings.byoyomiCount > 0 && !isFischer;
@@ -179,8 +193,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     }
                     game.turnStartTime = now;
                 } else {
-                     game.turnDeadline = undefined;
-                     game.turnStartTime = undefined;
+                    game.turnDeadline = undefined;
+                    game.turnStartTime = undefined;
                 }
 
                  game.pausedTurnTimeLeft = undefined;
@@ -258,7 +272,14 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             if ((game[scanKey] ?? 0) <= 0) return { error: "No scans left." };
             game[scanKey] = (game[scanKey] ?? 0) - 1;
 
-            const moveIndex = game.moveHistory.findIndex(m => m.x === x && m.y === y);
+            let moveIndex = -1;
+            for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                const m = game.moveHistory![i];
+                if (m.x === x && m.y === y) {
+                    moveIndex = i;
+                    break;
+                }
+            }
             const success = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
 
             if (success) {

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 're
 import { useGameRecordSaveLock } from '../../hooks/useGameRecordSaveLock.js';
 import { GameMode, LiveGameSession, ServerAction, GameProps, Player, User, Point, GameStatus, AppSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../../constants';
+import { aiUserId } from '../../constants/auth.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../../utils/strategicPvpGameRecord.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
@@ -32,6 +33,7 @@ import {
     arenaGameRoomSinglePlayerSplitPanelAccentClass,
     arenaGameRoomSinglePlayerSplitPanelClass,
 } from './arenaGameRoomStyles.js';
+import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 
 interface ImageButtonProps {
     src: string;
@@ -1192,6 +1194,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const { id: gameId, mode, gameStatus, blackPlayerId, whitePlayerId, player1, player2 } = session;
     const isMixMode = mode === GameMode.Mix;
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
+    const showBaseGameFooterStrip = isBaseGameFooterPhase(session) && !isGameEnded;
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
@@ -1325,20 +1328,52 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     // 서버 START_SCANNING과 동일: 상대 히든 수가 수순에 있고 아직 영구 공개되지 않았으면 스캔 가능.
     // (온라인 브로드캐스트에 boardState가 없을 때 로컬 보드가 비어 있어 스캔이 막히는 문제 방지)
     const canScan = useMemo(() => {
-        if (!session.hiddenMoves || !session.moveHistory) {
-            return false;
+        const fromHistory =
+            session.hiddenMoves &&
+            session.moveHistory &&
+            Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
+                if (!isHidden) return false;
+                const move = session.moveHistory![parseInt(moveIndexStr, 10)];
+                if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) {
+                    return false;
+                }
+                const { x, y } = move;
+                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
+                return !isPermanentlyRevealed;
+            });
+        if (fromHistory) return true;
+
+        const aiPt = (session as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone;
+        if (
+            aiPt &&
+            typeof aiPt.x === 'number' &&
+            typeof aiPt.y === 'number' &&
+            aiPt.x >= 0 &&
+            aiPt.y >= 0 &&
+            (session.gameCategory === 'adventure' || session.isSinglePlayer || session.gameCategory === 'tower')
+        ) {
+            const revealed = session.permanentlyRevealedStones?.some((p) => p.x === aiPt.x && p.y === aiPt.y);
+            if (revealed) return false;
+            const aiEnum =
+                session.blackPlayerId === aiUserId
+                    ? Player.Black
+                    : session.whitePlayerId === aiUserId
+                      ? Player.White
+                      : Player.None;
+            if (aiEnum !== Player.None && aiEnum === opponentPlayerEnum) return true;
         }
-        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
-            if (!isHidden) return false;
-            const move = session.moveHistory[parseInt(moveIndexStr, 10)];
-            if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) {
-                return false;
-            }
-            const { x, y } = move;
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
-            return !isPermanentlyRevealed;
-        });
-    }, [session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, opponentPlayerEnum]);
+        return false;
+    }, [
+        session.hiddenMoves,
+        session.moveHistory,
+        session.permanentlyRevealedStones,
+        session.gameCategory,
+        session.isSinglePlayer,
+        session.blackPlayerId,
+        session.whitePlayerId,
+        opponentPlayerEnum,
+        (session as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone,
+    ]);
     
     const getLuxuryButtonClasses = (_variant?: 'primary' | 'danger' | 'neutral' | 'accent' | 'success') =>
         arenaPostGameButtonClass('neutral', isMobile, 'strip');
@@ -2014,7 +2049,31 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             ) : null}
 
             {/* Row 2: Game and Special/Playful Functions */}
-            {isMobile ? (
+            {showBaseGameFooterStrip ? (
+                <div className={`flex w-full min-w-0 flex-col gap-1 py-1 ${arenaGameRoomControlsInnerPanelClass}`}>
+                    {gameStatus === 'base_placement' && !isSpectator ? (
+                        <div className="flex w-full min-w-0 min-h-[2.75rem] flex-row items-center justify-center px-1 min-[1025px]:min-h-[2.5rem] min-[1025px]:px-2">
+                            <ArenaControlStrip layout="cluster" className="max-w-full min-w-0" gapClass="gap-1 min-[1025px]:gap-2">
+                                <BasePlacementControlStrip
+                                    session={session}
+                                    currentUser={currentUser}
+                                    onAction={onAction}
+                                    isMobile={isMobile}
+                                    isSinglePlayer={!!isSinglePlayer}
+                                />
+                            </ArenaControlStrip>
+                        </div>
+                    ) : null}
+                    <BaseGameFooterPanel
+                        session={session}
+                        currentUser={currentUser}
+                        onAction={onAction}
+                        isMobile={isMobile}
+                        isSinglePlayer={!!isSinglePlayer}
+                        hideBasePlacementActions={gameStatus === 'base_placement' && !isSpectator}
+                    />
+                </div>
+            ) : isMobile ? (
                 isGameEnded ? (
                     <div className={`flex w-full min-w-0 ${arenaGameRoomControlsInnerPanelClass}`}>
                         <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>

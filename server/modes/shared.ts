@@ -265,7 +265,7 @@ export const updateSharedGameState = (game: LiveGameSession, now: number): boole
 
     if (game.gameStatus === 'color_start_confirmation') {
         const bothConfirmed = game.preGameConfirmations?.[p1Id] && game.preGameConfirmations?.[p2Id];
-        const deadlinePassed = game.revealEndTime && now > game.revealEndTime;
+        const deadlinePassed = !game.isAiGame && game.revealEndTime && now > game.revealEndTime;
         if (bothConfirmed || deadlinePassed) {
             game.preGameConfirmations = {};
             game.revealEndTime = undefined;
@@ -559,7 +559,9 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             const p1Id = game.player1.id;
             const p2Id = game.player2.id;
             const bothConfirmedNow = !!game.preGameConfirmations[p1Id] && !!game.preGameConfirmations[p2Id];
-            const deadlinePassed = !!(game.revealEndTime && now > game.revealEndTime);
+            // 봇 대국: 제한시간 만료로 자동 시작하지 않음(모험·로비 AI 등 유저가 직접 확인할 때만 진행)
+            const deadlinePassed =
+                !game.isAiGame && !!(game.revealEndTime && now > game.revealEndTime);
 
             // 메인 루프 tick을 기다리지 않고 즉시 playing 전환 (간헐적 멈춤·모달 잔류 완화)
             if (game.gameStatus === 'nigiri_reveal' && (bothConfirmedNow || deadlinePassed)) {

@@ -70,7 +70,12 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     } = session;
 
     const showPlacedBaseStoneArrays =
-        gameStatus === 'base_placement' || gameStatus === 'komi_bidding' || gameStatus === 'komi_bid_reveal';
+        gameStatus === 'base_placement' ||
+        gameStatus === 'komi_bidding' ||
+        gameStatus === 'komi_bid_reveal' ||
+        gameStatus === 'base_color_roulette' ||
+        gameStatus === 'base_komi_result' ||
+        gameStatus === 'base_game_start_confirmation';
 
     const myRevealedStones = useMemo(() => {
         const points: Point[] = [];

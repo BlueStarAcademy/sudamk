@@ -10,6 +10,7 @@ import {
 } from '../strategicInitialBoard.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
+import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -17,40 +18,51 @@ type HandleActionResult = {
 };
 
 /**
- * 스테이지 ID로부터 AI 레벨 계산
- * 입문1~10: 1단계, 입문11~20: 2단계
- * 초급1~10: 3단계, 초급11~20: 4단계
- * 중급·고급: Gnugo 1단계 사용 (미사일/히든/스캔 아이템 대응)
- * 유단자: Gnugo 2단계 사용
+ * 반(난이도 구간)별 KataServer 프로필 단계 (1~5) → `KATA_SERVER_LEVEL_BY_PROFILE_STEP`과 대응.
+ * 입문~유단자 각 스테이지 1~20 전부 동일 단계.
  */
-const getAiLevelFromStageId = (stageId: string): number => {
-    const [levelName, stageNumStr] = stageId.split('-');
-    const stageNum = parseInt(stageNumStr, 10);
-    
-    if (isNaN(stageNum)) {
-        return 1; // 기본값
-    }
-    
-    const isFirstHalf = stageNum <= 10;
-    
-    switch (levelName) {
-        case '입문':
-            return isFirstHalf ? 1 : 2;
-        case '초급':
-            return isFirstHalf ? 3 : 4;
-        case '중급':
-        case '고급':
-            return 1; // Gnugo 1단계 (미사일/히든/스캔 아이템 사용 가능 스테이지)
-        case '유단자':
-            return 2; // Gnugo 2단계
+const getSinglePlayerKataProfileStep = (level: SinglePlayerLevel): number => {
+    switch (level) {
+        case SinglePlayerLevel.입문:
+            return 1;
+        case SinglePlayerLevel.초급:
+            return 2;
+        case SinglePlayerLevel.중급:
+            return 3;
+        case SinglePlayerLevel.고급:
+            return 4;
+        case SinglePlayerLevel.유단자:
+            return 5;
         default:
-            return 1; // 기본값
+            return 1;
+    }
+};
+
+/** 미리 깔리는 일반 백돌(placements.white)만 구간별로 줄여 난이도 조절 (문양 백돌은 그대로). */
+const singlePlayerPlainWhiteReduction = (level: SinglePlayerLevel): number => {
+    switch (level) {
+        case SinglePlayerLevel.입문:
+            return 0;
+        case SinglePlayerLevel.초급:
+            return 2;
+        case SinglePlayerLevel.중급:
+            return 3;
+        case SinglePlayerLevel.고급:
+            return 4;
+        case SinglePlayerLevel.유단자:
+            return 5;
+        default:
+            return 0;
     }
 };
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
     const center = Math.floor(stage.boardSize / 2);
     let blackToPlace = stage.placements.black;
+    const whitePlain = Math.max(
+        0,
+        stage.placements.white - singlePlayerPlainWhiteReduction(stage.level)
+    );
     let baseBoard: BoardState | undefined;
 
     if (
@@ -70,7 +82,7 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
         stage.boardSize,
         {
             black: blackToPlace,
-            white: stage.placements.white,
+            white: whitePlain,
             blackPattern: stage.placements.blackPattern,
             whitePattern: stage.placements.whitePattern,
         },
@@ -151,14 +163,16 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 gameMode = GameMode.Standard;
             }
 
-            // 싱글플레이용 AI 유저 생성 (스테이지 정보 기반)
-            const aiLevel = getAiLevelFromStageId(stage.id);
+            // 싱글플레이용 AI: 반별 Kata 프로필 1~5단계 (KataServer 레벨봇 API 값은 kataServerLevel)
+            const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
+            const kataServerLevel =
+                KATA_SERVER_LEVEL_BY_PROFILE_STEP[kataProfileStep] ?? KATA_SERVER_LEVEL_BY_PROFILE_STEP[1];
             const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
                              stage.level === SinglePlayerLevel.초급 ? '초급' :
                              stage.level === SinglePlayerLevel.중급 ? '중급' :
                              stage.level === SinglePlayerLevel.고급 ? '고급' : '유단자';
             const botNickname = `${levelName}봇`;
-            const botLevel = aiLevel * 10;
+            const botLevel = kataProfileStep * 10;
             
             const aiUser = {
                 ...getAiUser(gameMode),
@@ -200,7 +214,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     byoyomiCount: enforcedByoyomiCount,
                     timeIncrement: enforcedIncrement,
                     captureTarget: hasAutoScoring ? undefined : stage.targetScore.black, // autoScoringTurns가 있으면 captureTarget 설정하지 않음
-                    aiDifficulty: aiLevel, // 스테이지별 AI 레벨 (1~10단계)
+                    aiDifficulty: kataProfileStep, // makeGoAiBotMove 프로필 단계(1~5) → Kata 레벨봇 매핑
+                    kataServerLevel,
+                    goAiBotLevel: kataProfileStep,
                     survivalTurns: stage.survivalTurns, // 살리기 바둑 모드: AI가 살아남아야 하는 턴 수
                     isSurvivalMode: isSurvivalMode, // 살리기 바둑 모드 플래그
                     hiddenStoneCount: stage.hiddenCount, // 히든바둑: 히든 아이템 개수

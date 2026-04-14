@@ -38,9 +38,16 @@ const CurlingStartConfirmationModal: React.FC<CurlingStartConfirmationModalProps
     const whiteBorderUrl = BORDER_POOL.find(b => b.id === whitePlayer.borderId)?.url;
 
     return (
-        <DraggableWindow title="대국 시작 확인" initialWidth={600} windowId="curling-start-confirm">
+        <DraggableWindow
+            title="대국 시작 확인"
+            initialWidth={460}
+            shrinkHeightToContent
+            windowId="curling-start-confirm"
+            transparentModalBackdrop
+        >
             <div className="text-white">
                 <PreGameColorRoulette
+                    participantsInDisplayOrder={[player1, player2]}
                     blackPlayer={blackPlayer}
                     whitePlayer={whitePlayer}
                     onComplete={() => setRouletteDone(true)}

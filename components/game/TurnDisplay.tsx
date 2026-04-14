@@ -11,7 +11,6 @@ import {
 import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
-import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
 const MONSTER_HIDDEN_ITEM_MESSAGE = '몬스터가 히든 아이템을 사용했습니다!';
@@ -21,7 +20,6 @@ function isAiOpponentHiddenNoticeMessage(msg: string | undefined): boolean {
     return msg === AI_HIDDEN_ITEM_MESSAGE || msg === MONSTER_HIDDEN_ITEM_MESSAGE;
 }
 
-const BASE_PLACEMENT_TIME_LIMIT_SEC = 30;
 
 interface TurnDisplayProps {
     session: LiveGameSession;
@@ -108,12 +106,21 @@ const getGameStatusText = (session: LiveGameSession): string => {
             return player ? `${getSessionPlayerDisplayName(session, player)}님의 차례입니다.` : '대국 진행 중';
         case 'nigiri_choosing':
         case 'nigiri_guessing':
-        case 'nigiri_reveal':
             return '돌 가리기 진행 중...';
+        case 'nigiri_reveal':
+            return session.gameCategory === 'adventure'
+                ? '흑·백 배정을 확인한 뒤 경기 시작을 눌러 주세요.'
+                : '돌 가리기 진행 중...';
         case 'base_placement':
-            return `베이스돌을 바둑판에 배치하세요. (각 ${settings.baseStones ?? 4}개)`;
+            return `베이스돌 배치 · 각 ${settings.baseStones ?? 4}개`;
         case 'komi_bidding':
             return '덤 설정 중...';
+        case 'komi_bid_reveal':
+            return '덤 입찰 결과 공개 중...';
+        case 'base_komi_result':
+            return '흑·백·덤 확정을 확인해 주세요.';
+        case 'base_game_start_confirmation':
+            return '대국 시작 버튼을 누르면 착수가 시작됩니다.';
         case 'base_color_roulette':
             return '흑·백 룰렛으로 선공을 정하는 중입니다…';
         case 'ended':
@@ -137,7 +144,9 @@ const getGameStatusText = (session: LiveGameSession): string => {
                 typeof limit === 'number' &&
                 limit > 0;
             if (isOnlineStrategic) {
-                return '자동계가 수순에 도달하여 계가를 진행합니다.';
+                return session.gameCategory === 'adventure'
+                    ? '자동 계가를 진행합니다.'
+                    : '자동계가 수순에 도달하여 계가를 진행합니다.';
             }
             return '계가를 진행합니다.';
         }
@@ -198,22 +207,6 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const prevTimeoutPlayerId = usePrevious(session.lastTimeoutPlayerId);
     const prevFoulInfoMessage = usePrevious(session.foulInfo?.message);
     const prevGameStatus = usePrevious(session.gameStatus);
-    const [adventureEncSecLeft, setAdventureEncSecLeft] = useState<number | null>(null);
-
-    useEffect(() => {
-        const deadline = session.adventureEncounterDeadlineMs;
-        if (!deadline || !adventureEncounterCountdownUiActive(session.gameCategory, session.gameStatus)) {
-            setAdventureEncSecLeft(null);
-            return;
-        }
-        const tick = () => {
-            setAdventureEncSecLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
-        };
-        tick();
-        const id = setInterval(tick, 500);
-        return () => clearInterval(id);
-    }, [session.gameCategory, session.gameStatus, session.adventureEncounterDeadlineMs, session.id]);
-
     const opponentAiHiddenTickerEnd = useMemo(() => {
         const aiHiddenAnimEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
         const hiddenNoticeFromFoul = isAiOpponentHiddenNoticeMessage(session.foulInfo?.message);
@@ -515,22 +508,22 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 : session.gameCategory === 'adventure' || session.adventureMonsterCodexId
                   ? MONSTER_HIDDEN_ITEM_MESSAGE
                   : AI_HIDDEN_ITEM_MESSAGE;
-        // AI/몬스터 히든 연출: 전광판은 카운트다운·막대 없이 안내만 (연출 시간은 바둑판 패널 테두리로 표시)
+        // AI/몬스터 히든 연출: 전광판에 대형 안내(바둑판 테두리 반짝임과 병행)
         return wrapContent(
-            `${baseClasses} ${themeClasses} border-2 border-amber-400/50 ${isMobile ? 'gap-1 px-2 min-h-[2.45rem]' : 'gap-1.5 px-4 min-h-[3rem]'}`,
+            `${baseClasses} ${themeClasses} border-[3px] border-fuchsia-400/75 shadow-[0_0_28px_rgba(217,70,239,0.35)] ${isMobile ? 'gap-1 px-2 min-h-[3.25rem]' : 'gap-1.5 px-4 min-h-[3.75rem]'}`,
             <div
                 className={`w-full flex-shrink-0 overflow-hidden flex items-center justify-center ${
-                    isMobile ? 'min-h-[1.15rem] py-0.5' : 'min-h-[1.5rem]'
+                    isMobile ? 'min-h-[2rem] py-1' : 'min-h-[2.35rem]'
                 }`}
             >
                 <div
-                    className={`flex items-center justify-center text-center font-bold ${textClass} tracking-wider ${
+                    className={`flex items-center justify-center text-center font-extrabold ${textClass} tracking-wide animate-pulse ${
                         isMobile
-                            ? 'px-0.5 text-[clamp(0.58rem,1.85vmin,0.68rem)] leading-tight whitespace-normal'
-                            : 'text-[clamp(0.8rem,2.5vmin,1rem)]'
+                            ? 'px-1 text-[clamp(0.78rem,2.4vmin,0.95rem)] leading-snug whitespace-normal'
+                            : 'px-2 text-[clamp(1.05rem,3.2vmin,1.45rem)] min-[1025px]:text-[clamp(1.15rem,2.8vmin,1.55rem)]'
                     }`}
                     style={{
-                        textShadow: '0 0 8px rgba(255, 255, 255, 0.5), 0 0 16px rgba(255, 255, 255, 0.3)',
+                        textShadow: '0 0 12px rgba(250, 204, 21, 0.65), 0 0 22px rgba(217, 70, 239, 0.45)',
                     }}
                 >
                     {headline}
@@ -835,108 +828,38 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         const isDonePlacing = myPlacements !== null && myPlacements >= baseStoneCount;
         const hasDeadline = Boolean(session.basePlacementDeadline);
         const secLeft = hasDeadline ? basePlacementSecondsLeft : null;
-        const barPct =
-            hasDeadline && secLeft !== null
-                ? Math.min(100, Math.max(0, (secLeft / BASE_PLACEMENT_TIME_LIMIT_SEC) * 100))
-                : null;
-        const isAdventureVsAi = session.gameCategory === 'adventure' && session.isAiGame;
 
         let primaryLine: string;
         if (viewerUserId == null) {
-            primaryLine = '플레이어들이 베이스돌을 배치하고 있습니다.';
+            primaryLine = '양측 베이스돌 배치 중';
         } else if (isDonePlacing) {
-            primaryLine = '배치 완료 · 상대 배치 대기 중…';
+            primaryLine = '배치 완료 · 상대 대기';
         } else if (myPlacements !== null) {
-            const hint = isAdventureVsAi
-                ? '베이스돌을 바둑판에 놓으세요'
-                : '상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요';
-            const parts = [hint, `배치 ${myPlacements}/${baseStoneCount}`];
-            if (hasDeadline && secLeft !== null) parts.push(`남은 시간 ${secLeft}초`);
-            primaryLine = parts.join(' · ');
+            const seg: string[] = [`나 ${myPlacements}/${baseStoneCount}`];
+            if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') {
+                seg.push(`남은 ${secLeft}초`);
+            }
+            primaryLine = `베이스돌 배치 · ${seg.join(' · ')}`;
         } else {
-            primaryLine = '플레이어들이 베이스돌을 배치하고 있습니다.';
+            primaryLine = '양측 베이스돌 배치 중';
         }
 
-        const showPlacementTools = Boolean(viewerUserId && onAction && myPlacements !== null);
-        const canRandomFill = showPlacementTools && myPlacements! < baseStoneCount;
-        const canResetOrUndo = showPlacementTools && myPlacements! > 0;
-        const btnBase = `flex-1 min-w-[5.25rem] rounded-lg border px-1.5 py-1.5 text-center text-[10px] font-bold transition-colors sm:min-w-0 sm:px-2 sm:text-xs ${
-            isSinglePlayer
-                ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
-                : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
-        }`;
-
         return wrapContent(
-            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-1 px-2 min-h-[2.5rem]' : 'gap-1.5 px-3 min-h-[3rem]'}`,
-            <>
-                <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5 sm:gap-1">
-                    <div
-                        className={`w-full min-w-0 overflow-x-auto overflow-y-hidden flex-shrink-0 [scrollbar-width:thin] ${isMobile ? 'min-h-[1.15rem]' : 'min-h-[1.35rem]'}`}
-                    >
-                        <p
-                            className={`whitespace-nowrap text-center font-bold tracking-wide ${textClass} ${
-                                isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
-                            }`}
-                            style={{
-                                textShadow: isSinglePlayer
-                                    ? '0 0 8px rgba(251, 191, 36, 0.35)'
-                                    : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
-                            }}
-                        >
-                            {primaryLine}
-                        </p>
-                    </div>
-                </div>
-                {barPct !== null && (
-                    <div
-                        className={`relative mt-0.5 w-full flex-shrink-0 overflow-hidden rounded-full border-2 ${
-                            isSinglePlayer ? 'border-black/20 bg-stone-900/70' : 'border-tertiary bg-tertiary'
-                        } ${isMobile ? 'h-1 border' : 'h-[clamp(0.5rem,1.5vh,0.75rem)] border-2'}`}
-                    >
-                        <div
-                            className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-emerald-400 via-lime-400 to-amber-300"
-                            style={{ width: `${barPct}%`, transition: 'width 0.35s linear' }}
-                        />
-                    </div>
-                )}
-                {showPlacementTools && (canRandomFill || canResetOrUndo) && (
-                    <div className="mt-1 flex w-full max-w-lg flex-wrap items-stretch justify-center gap-1 self-center">
-                        {canRandomFill && (
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    onAction!({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId: session.id } })
-                                }
-                                className={btnBase}
-                            >
-                                남은 돌 무작위 배치
-                            </button>
-                        )}
-                        {canResetOrUndo && (
-                            <>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        onAction!({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId: session.id } })
-                                    }
-                                    className={btnBase}
-                                >
-                                    재배치
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        onAction!({ type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId: session.id } })
-                                    }
-                                    className={btnBase}
-                                >
-                                    마지막 취소
-                                </button>
-                            </>
-                        )}
-                    </div>
-                )}
-            </>
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-2 min-h-[2rem]' : 'gap-0 px-3 min-h-[2.25rem]'}`,
+            <div className="flex w-full min-w-0 items-center justify-center">
+                <p
+                    className={`max-w-full truncate text-center font-bold tracking-wide ${textClass} ${
+                        isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.72rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.85rem)]'
+                    }`}
+                    style={{
+                        textShadow: isSinglePlayer
+                            ? '0 0 8px rgba(251, 191, 36, 0.35)'
+                            : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)',
+                    }}
+                >
+                    {primaryLine}
+                </p>
+            </div>
         );
     }
     

@@ -80,7 +80,7 @@ const DiceGoTurnSelectionModal: React.FC<DiceGoTurnSelectionModalProps> = (props
     const opponentBorderUrl = BORDER_POOL.find(b => b.id === opponent.borderId)?.url;
     
     return (
-        <DraggableWindow title="선공/후공 결정" windowId="dice-go-turn-selection">
+        <DraggableWindow title="선공/후공 결정" windowId="dice-go-turn-selection" transparentModalBackdrop>
             <div className="text-center">
                 <p className="text-gray-300 mb-6">준비 버튼을 눌러 주사위를 굴립니다. 높은 숫자가 나온 사람이 선공/후공을 선택합니다.</p>
                 {session.turnOrderRollResult === 'tie' && <p className="text-yellow-400 font-bold text-lg mb-4 animate-pulse">동점! 잠시 후 다시 굴립니다.</p>}

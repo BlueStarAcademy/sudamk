@@ -1480,6 +1480,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 session.isAiGame &&
                 !session.isSinglePlayer &&
                 session.gameCategory !== 'tower' &&
+                session.gameCategory !== 'adventure' &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0) {

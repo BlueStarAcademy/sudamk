@@ -6,6 +6,7 @@ import { ColorAssignmentStickyFooter } from './ColorAssignmentStickyFooter.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { aiUserId } from '../constants/index.js';
 import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
+import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
 
 interface NigiriModalProps {
     session: LiveGameSession;
@@ -22,11 +23,31 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
 
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
-    const monsterName = session.gameCategory === 'adventure' ? getAdventureCodexMonsterById(session.adventureMonsterCodexId)?.name : undefined;
-    const blackUiPlayer = blackPlayer.id === aiUserId && monsterName ? { ...blackPlayer, nickname: monsterName } : blackPlayer;
-    const whiteUiPlayer = whitePlayer.id === aiUserId && monsterName ? { ...whitePlayer, nickname: monsterName } : whitePlayer;
+    const monsterEntry =
+        session.gameCategory === 'adventure' && session.adventureMonsterCodexId
+            ? getAdventureCodexMonsterById(session.adventureMonsterCodexId)
+            : undefined;
+    const monsterName = monsterEntry?.name;
+    const monsterPortraitUrl = monsterEntry?.imageWebp;
+    const blackUiPlayer =
+        blackPlayer.id === aiUserId && monsterName ? { ...blackPlayer, nickname: monsterName } : blackPlayer;
+    const whiteUiPlayer =
+        whitePlayer.id === aiUserId && monsterName ? { ...whitePlayer, nickname: monsterName } : whitePlayer;
+    const p1Seat = { ...player1, nickname: getSessionPlayerDisplayName(session, player1) };
+    const p2Seat = { ...player2, nickname: getSessionPlayerDisplayName(session, player2) };
+    const avatarUrlOverrides =
+        monsterPortraitUrl ? { [aiUserId]: monsterPortraitUrl } satisfies Partial<Record<string, string>> : undefined;
 
-    const cards = <PreGameColorRoulette layout="cardsOnly" blackPlayer={blackUiPlayer} whitePlayer={whiteUiPlayer} />;
+    const cards = (
+        <PreGameColorRoulette
+            key={`${gameId}-${blackPlayerId}-${whitePlayerId}`}
+            layout="cardsOnly"
+            participantsInDisplayOrder={[p1Seat, p2Seat]}
+            blackPlayer={blackUiPlayer}
+            whitePlayer={whiteUiPlayer}
+            avatarUrlOverrides={avatarUrlOverrides}
+        />
+    );
     const footer = (
         <ColorAssignmentStickyFooter
             variant={isHandheld ? 'sticky' : 'inline'}
@@ -36,7 +57,7 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
     );
 
     return (
-        <DraggableWindow title="흑·백 확인" initialWidth={420} shrinkHeightToContent windowId="nigiri">
+        <DraggableWindow title="흑·백 확인" initialWidth={420} shrinkHeightToContent windowId="nigiri" transparentModalBackdrop>
             {isHandheld ? (
                 <>
                     <div className="flex min-h-[168px] flex-col justify-center text-white sm:min-h-[180px]">{cards}</div>

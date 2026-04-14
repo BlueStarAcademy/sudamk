@@ -1190,10 +1190,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             let title = '패배';
             if (winReason === 'resign') title = '기권패';
             if (winReason === 'capture_limit' && isGuildWarCaptureTurnLimitLoss) title = '턴패';
-            if (winReason === 'timeout') title = isGuildWarCaptureTurnLimitLoss ? '턴패' : '시간패';
+            if (winReason === 'timeout') {
+                title = isGuildWarCaptureTurnLimitLoss ? '턴패' : isAdventureGame ? '패배' : '시간패';
+            }
             return { title, color: 'text-red-400' };
         }
-    }, [isWinner, isDraw, winReason, winnerUser, isGuildWarCaptureTurnLimitLoss]);
+    }, [isWinner, isDraw, winReason, winnerUser, isGuildWarCaptureTurnLimitLoss, isAdventureGame]);
     
     const analysisResult = session.analysisResult?.['system']; // System analysis is used for final scores
 
@@ -1274,6 +1276,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             console.error('[GameSummaryModal] Error loading SINGLE_PLAYER_STAGES:', e);
                         }
                     }
+                }
+                if (isAdventureGame) {
+                    return (
+                        <p
+                            className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`}
+                            style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}
+                        >
+                            몬스터가 도망쳤습니다.
+                        </p>
+                    );
                 }
                 // 일반 게임에서 시간 패배한 경우
                 return <p className={`text-center ${isMobile ? 'text-sm' : 'text-lg min-[1024px]:text-xl min-[1280px]:text-2xl'} text-red-400`} style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}>시간이 다 되어 패배했습니다.</p>;

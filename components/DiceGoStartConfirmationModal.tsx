@@ -45,7 +45,13 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
     const whiteBorderUrl = BORDER_POOL.find(b => b.id === whitePlayer.borderId)?.url;
 
     return (
-        <DraggableWindow title="대국 시작 확인" initialWidth={600} windowId="dice-go-start-confirm">
+        <DraggableWindow
+            title="대국 시작 확인"
+            initialWidth={460}
+            shrinkHeightToContent
+            windowId="dice-go-start-confirm"
+            transparentModalBackdrop
+        >
             <div className="text-white">
                 {p1Roll !== null && p2Roll !== null && (
                     <p className="text-center text-gray-300 mb-2">주사위 결과 <span className="font-bold text-yellow-300">{winner.nickname}</span>님이 승리하여 선/후공이 결정되었습니다.</p>

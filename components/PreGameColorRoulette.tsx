@@ -6,6 +6,14 @@ import { AVATAR_POOL, BORDER_POOL } from '../constants';
 interface PreGameColorRouletteProps {
     blackPlayer: User;
     whitePlayer: User;
+    /**
+     * 좌·우 칸을 항상 이 순서(보통 player1 / player2)로 고정하고,
+     * 연출 중에는 각 칸의 흑·백(선공·후공) 배지만 바뀌다가 `blackPlayer` 기준으로 확정된다.
+     * 미지정 시 기존처럼 왼쪽=흑 담당, 오른쪽=백 담당 고정(하이라이트만 번갈아 표시).
+     */
+    participantsInDisplayOrder?: [User, User];
+    /** 플레이어 id → 프로필 이미지 URL (모험 몬스터 초상 등) */
+    avatarUrlOverrides?: Partial<Record<string, string>>;
     durationMs?: number;
     title?: string;
     subtitle?: string;
@@ -21,6 +29,8 @@ const ROULETTE_TICK_MS = 110;
 const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     blackPlayer,
     whitePlayer,
+    participantsInDisplayOrder,
+    avatarUrlOverrides,
     durationMs = 2600,
     title = '룰렛으로 흑/백을 결정하는 중...',
     subtitle = '자동으로 선공과 후공이 배정됩니다.',
@@ -28,17 +38,25 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     suppressHeader = false,
     layout = 'full',
 }) => {
+    const flipMode = Boolean(participantsInDisplayOrder?.[0] && participantsInDisplayOrder?.[1]);
+    const leftSeat = flipMode ? participantsInDisplayOrder![0] : blackPlayer;
+    const rightSeat = flipMode ? participantsInDisplayOrder![1] : whitePlayer;
+    const finalLeftIsBlack = flipMode ? blackPlayer.id === leftSeat.id : true;
+
     const [activeColor, setActiveColor] = useState<Player>(Player.Black);
+    /** flipMode: 왼쪽 칸이 현재 연출상 흑(선공) 역할인지 — 종료 시 서버 배치로 고정 */
+    const [leftIsBlack, setLeftIsBlack] = useState(() => (flipMode ? !finalLeftIsBlack : true));
     const [isFinished, setIsFinished] = useState(false);
     const completedRef = useRef(false);
     const onCompleteRef = useRef(onComplete);
-    const finalColor = Player.Black;
 
     useEffect(() => {
         onCompleteRef.current = onComplete;
     }, [onComplete]);
 
     useEffect(() => {
+        if (flipMode) return;
+
         completedRef.current = false;
         setIsFinished(false);
         setActiveColor(Player.Black);
@@ -52,7 +70,6 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
 
         const finishId = window.setTimeout(() => {
             window.clearInterval(timerId);
-            setActiveColor(finalColor);
             setIsFinished(true);
             if (!completedRef.current) {
                 completedRef.current = true;
@@ -64,13 +81,47 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
             window.clearInterval(timerId);
             window.clearTimeout(finishId);
         };
-    }, [durationMs, layout]);
+    }, [flipMode, durationMs, blackPlayer.id, whitePlayer.id]);
 
-    const renderPlayerCard = (player: User, color: Player, isActive: boolean) => {
-        const avatarUrl = AVATAR_POOL.find(a => a.id === player.avatarId)?.url;
-        const borderUrl = BORDER_POOL.find(b => b.id === player.borderId)?.url;
-        const isBlack = color === Player.Black;
+    useEffect(() => {
+        if (!flipMode) return;
+
+        completedRef.current = false;
+        setIsFinished(false);
+        setLeftIsBlack(!finalLeftIsBlack);
+
+        const timerId = window.setInterval(() => {
+            setLeftIsBlack(prev => !prev);
+        }, ROULETTE_TICK_MS);
+
+        const finishId = window.setTimeout(() => {
+            window.clearInterval(timerId);
+            setLeftIsBlack(finalLeftIsBlack);
+            setIsFinished(true);
+            if (!completedRef.current) {
+                completedRef.current = true;
+                onCompleteRef.current?.();
+            }
+        }, durationMs);
+
+        return () => {
+            window.clearInterval(timerId);
+            window.clearTimeout(finishId);
+        };
+    }, [flipMode, durationMs, finalLeftIsBlack, leftSeat.id, rightSeat.id, blackPlayer.id]);
+
+    const renderPlayerCard = (player: User, isBlackRole: boolean, isActive: boolean) => {
+        const overrideUrl = avatarUrlOverrides?.[player.id];
+        const avatarUrl = overrideUrl ?? AVATAR_POOL.find(a => a.id === player.avatarId)?.url;
+        const borderUrl = overrideUrl ? undefined : BORDER_POOL.find(b => b.id === player.borderId)?.url;
+        const isBlack = isBlackRole;
         const compact = layout === 'cardsOnly';
+
+        const portraitFrameClass = overrideUrl
+            ? `flex shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-gray-800/90 ring-1 ring-white/12 ${
+                  compact ? 'h-[3.25rem] w-[3.25rem] sm:h-14 sm:w-14' : 'h-[3.75rem] w-[3.75rem] sm:h-16 sm:w-16'
+              }`
+            : '';
 
         return (
             <div
@@ -85,13 +136,24 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                 }`}
             >
                 <div className={`flex flex-col items-center text-center ${compact ? 'gap-1.5' : 'gap-2'}`}>
-                    <Avatar
-                        userId={player.id}
-                        userName={player.nickname}
-                        size={compact ? 48 : 60}
-                        avatarUrl={avatarUrl}
-                        borderUrl={borderUrl}
-                    />
+                    {overrideUrl ? (
+                        <div className={portraitFrameClass}>
+                            <img
+                                src={overrideUrl}
+                                alt={player.nickname}
+                                className="max-h-full max-w-full object-contain object-center"
+                                loading="lazy"
+                            />
+                        </div>
+                    ) : (
+                        <Avatar
+                            userId={player.id}
+                            userName={player.nickname}
+                            size={compact ? 48 : 60}
+                            avatarUrl={avatarUrl}
+                            borderUrl={borderUrl}
+                        />
+                    )}
                     <p className={`font-bold ${compact ? 'max-w-full truncate text-xs sm:text-[0.8125rem]' : ''}`}>
                         {player.nickname}
                     </p>
@@ -111,15 +173,18 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     const slotSizeClass = 'w-[5.5rem] h-[5.5rem] sm:w-24 sm:h-24';
 
     if (layout === 'cardsOnly') {
-        return (
-            <div className="space-y-2">
-                <div className="mx-auto flex w-fit items-center justify-center rounded-md border border-amber-400/40 bg-black/45 px-2.5 py-1 text-xs font-bold tracking-wide text-amber-200/95">
-                    {isFinished ? '배정 완료' : activeColor === Player.Black ? '흑 선택 중...' : '백 선택 중...'}
-                </div>
+        if (flipMode) {
+            return (
                 <div className="flex gap-2.5 sm:gap-3">
-                    {renderPlayerCard(blackPlayer, Player.Black, isFinished ? true : activeColor === Player.Black)}
-                    {renderPlayerCard(whitePlayer, Player.White, isFinished ? true : activeColor === Player.White)}
+                    {renderPlayerCard(leftSeat, leftIsBlack, isFinished ? true : leftIsBlack)}
+                    {renderPlayerCard(rightSeat, !leftIsBlack, isFinished ? true : !leftIsBlack)}
                 </div>
+            );
+        }
+        return (
+            <div className="flex gap-2.5 sm:gap-3">
+                {renderPlayerCard(blackPlayer, true, isFinished ? true : activeColor === Player.Black)}
+                {renderPlayerCard(whitePlayer, false, isFinished ? true : activeColor === Player.White)}
             </div>
         );
     }
@@ -140,6 +205,19 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                     >
                         {isFinished ? (
                             <span className="text-center text-base sm:text-lg font-bold text-green-300 px-1">배정 완료</span>
+                        ) : flipMode ? (
+                            <div
+                                key={leftIsBlack ? 'L' : 'R'}
+                                className="flex h-full w-full flex-col items-center justify-center gap-0.5 rounded-[10px] border border-amber-500/35 bg-gray-950/95 px-1 py-0.5"
+                            >
+                                <span className="text-[0.65rem] sm:text-xs font-semibold tracking-wide text-amber-200/95">
+                                    지금 선공(흑) 후보
+                                </span>
+                                <span className="max-w-[95%] truncate text-center text-xs sm:text-sm font-bold text-white">
+                                    {leftIsBlack ? leftSeat.nickname : rightSeat.nickname}
+                                </span>
+                                <span className="text-2xl sm:text-4xl font-black text-yellow-300">흑</span>
+                            </div>
                         ) : (
                             <div
                                 key={activeColor}
@@ -154,21 +232,26 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
                         )}
                     </div>
                     <p className={`text-center text-sm font-semibold ${isFinished ? 'text-green-300' : 'text-yellow-300 animate-pulse'}`}>
-                        {isFinished ? '아래에서 흑·백 배정을 확인하세요.' : '흑과 백이 번갈아 표시됩니다...'}
+                        {isFinished
+                            ? '아래에서 흑·백 배정을 확인하세요.'
+                            : flipMode
+                              ? '두 칸의 흑·백이 바뀌다가 최종 배치로 고정됩니다…'
+                              : '흑과 백이 번갈아 표시됩니다...'}
                     </p>
                 </div>
             </div>
 
             <div className="flex gap-4">
-                {renderPlayerCard(
-                    blackPlayer,
-                    Player.Black,
-                    isFinished ? true : activeColor === Player.Black,
-                )}
-                {renderPlayerCard(
-                    whitePlayer,
-                    Player.White,
-                    isFinished ? true : activeColor === Player.White,
+                {flipMode ? (
+                    <>
+                        {renderPlayerCard(leftSeat, leftIsBlack, isFinished ? true : leftIsBlack)}
+                        {renderPlayerCard(rightSeat, !leftIsBlack, isFinished ? true : !leftIsBlack)}
+                    </>
+                ) : (
+                    <>
+                        {renderPlayerCard(blackPlayer, true, isFinished ? true : activeColor === Player.Black)}
+                        {renderPlayerCard(whitePlayer, false, isFinished ? true : activeColor === Player.White)}
+                    </>
                 )}
             </div>
         </div>

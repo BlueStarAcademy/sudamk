@@ -952,6 +952,8 @@ export type LiveGameSession = {
   tiebreakerStonesThrown?: number;
   stonesThrownThisRound?: { [playerId: string]: number };
   preGameConfirmations?: { [playerId: string]: boolean | number };
+  /** 베이스(구버전): `base_komi_result` 단계에서 각 참가자 확인 — 신규 경기는 `base_game_start_confirmation`만 사용 */
+  preGameKomiSummaryAck?: { [playerId: string]: boolean };
   roundEndConfirmations?: { [playerId: string]: number };
   rematchRejectionCount?: { [playerId: string]: number };
   timeoutFouls?: { [playerId: string]: number };
@@ -962,8 +964,6 @@ export type LiveGameSession = {
   previousAnalysisResult?: { [playerId: string]: AnalysisResult } | null;
   isAiGame?: boolean;
   aiTurnStartTime?: number;
-  /** 전략 AI: Kata가 비정상 PASS를 반환한 뒤 1수는 싱글플레이식 휴리스틱만 사용; 수 적용 후 해제되어 다음 AI 턴은 다시 Kata 요청 */
-  strategicAiKataSpFallbackActive?: boolean;
   mythicBonuses?: {
     [playerId: string]: {
         strategicGoldTriggers: number;

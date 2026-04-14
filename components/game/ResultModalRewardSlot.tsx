@@ -48,6 +48,10 @@ export const RESULT_MODAL_BOX_GOLD_CLASS =
 export const RESULT_MODAL_BOX_ITEM_CLASS =
     'flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-violet-500/45 bg-gradient-to-br from-violet-950/55 via-purple-900/35 to-zinc-950/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-violet-400/15';
 
+/** 모험 경기 결과: 골드·재료·미획득 등 공통 아이콘 슬롯(장비는 등급 배경 셸 별도) */
+export const RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS =
+    'relative flex flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border-2 border-slate-500/40 bg-gradient-to-br from-slate-900/90 via-slate-950/95 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/10';
+
 const BOX_GOLD = RESULT_MODAL_BOX_GOLD_CLASS;
 const BOX_ITEM = RESULT_MODAL_BOX_ITEM_CLASS;
 
@@ -68,7 +72,9 @@ export const ResultModalGoldCurrencySlot: React.FC<{
     dimmed?: boolean;
     /** 도감·지역·특화 효과 등으로 추가된 골드 — 총액 `amount` 옆에 (+N) */
     understandingBonus?: number;
-}> = ({ amount, compact, dimmed, understandingBonus }) => (
+    /** 모험 결과: 골드 슬롯을 장비·재료와 동일 톤의 공통 배경으로 */
+    adventureUnifiedSlot?: boolean;
+}> = ({ amount, compact, dimmed, understandingBonus, adventureUnifiedSlot }) => (
     <div
         className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}
         title={
@@ -77,7 +83,9 @@ export const ResultModalGoldCurrencySlot: React.FC<{
                 : `골드 ${amount.toLocaleString()}`
         }
     >
-        <div className={`${BOX_GOLD} ${imageBoxClass(compact)}`}>
+        <div
+            className={`${adventureUnifiedSlot ? RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS : BOX_GOLD} ${imageBoxClass(compact)}`}
+        >
             <img
                 src="/images/icon/Gold.png"
                 alt=""
@@ -125,6 +133,8 @@ export const ResultModalItemRewardSlot: React.FC<{
     materialQuantityOnly?: boolean;
     /** 장비: 등급별 배경·테두리(일반=회색 톤, 에픽=보라 등) */
     equipmentGrade?: ItemGrade;
+    /** 모험 결과: 등급 없는 슬롯(재료 등)을 골드와 동일 톤의 공통 배경으로 */
+    adventureUnifiedSlot?: boolean;
 }> = ({
     imageSrc,
     name,
@@ -135,6 +145,7 @@ export const ResultModalItemRewardSlot: React.FC<{
     alwaysShowNameBelow,
     materialQuantityOnly,
     equipmentGrade,
+    adventureUnifiedSlot,
 }) => {
     const displayName = formatRewardItemDisplayName(name);
     const imgClass = compact
@@ -146,7 +157,12 @@ export const ResultModalItemRewardSlot: React.FC<{
         quantity >= 1 &&
         (materialQuantityOnly ? true : quantity > 1);
     const showNameBelow = !materialQuantityOnly && (!imageSrc || alwaysShowNameBelow);
-    const labelTone = equipmentGrade != null ? gradeStyles[equipmentGrade]?.color ?? 'text-violet-200' : 'text-violet-200';
+    const labelTone =
+        equipmentGrade != null
+            ? gradeStyles[equipmentGrade]?.color ?? 'text-violet-200'
+            : adventureUnifiedSlot
+              ? 'text-slate-200'
+              : 'text-violet-200';
     const iconBox = (() => {
         if (equipmentGrade != null) {
             const shell = equipmentGradeRewardIconShellClassNames(equipmentGrade);
@@ -171,12 +187,20 @@ export const ResultModalItemRewardSlot: React.FC<{
                 </div>
             );
         }
+        const plainShell =
+            adventureUnifiedSlot && !equipmentGrade
+                ? RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS
+                : BOX_ITEM;
         return (
-            <div className={`${BOX_ITEM} ${imageBoxClass(compact)}`}>
+            <div className={`${plainShell} ${imageBoxClass(compact)}`}>
                 {imageSrc ? (
                     <img src={imageSrc} alt="" className={imgClass} onError={onImageError} />
                 ) : (
-                    <span className="line-clamp-3 px-1 text-center text-[0.58rem] font-medium leading-tight text-violet-200/95 sm:text-[0.62rem]">
+                    <span
+                        className={`line-clamp-3 px-1 text-center text-[0.58rem] font-medium leading-tight sm:text-[0.62rem] ${
+                            adventureUnifiedSlot && !equipmentGrade ? 'text-slate-200/95' : 'text-violet-200/95'
+                        }`}
+                    >
                         {displayName}
                     </span>
                 )}

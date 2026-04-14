@@ -164,6 +164,7 @@ export type ServerAction =
     | { type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId: string } }
     | { type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId: string } }
     | { type: 'UPDATE_KOMI_BID', payload: { gameId: string, bid: KomiBid } }
+    | { type: 'CONFIRM_BASE_KOMI_SUMMARY', payload: { gameId: string } }
     | { type: 'CONFIRM_BASE_REVEAL', payload: { gameId: string } }
     // Hidden Go
     | { type: 'START_HIDDEN_PLACEMENT', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
