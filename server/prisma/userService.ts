@@ -79,6 +79,19 @@ const mergeAdventureProfileForPersistence = (
     mergedByMode[mode] = Math.max(prevN, nextN);
   }
 
+  /**
+   * 지역 특화 버프는 스테이지별 배열 전체가 의미 단위다.
+   * 부분 payload가 들어와도 기존 스테이지 데이터가 통째로 사라지지 않도록 스테이지 키 단위로 병합한다.
+   */
+  const mergedRegionalSpecialtyBuffsByStageId: Record<string, unknown> = {
+    ...(prev.regionalSpecialtyBuffsByStageId ?? {}),
+  };
+  for (const [stageId, entries] of Object.entries(next.regionalSpecialtyBuffsByStageId ?? {})) {
+    mergedRegionalSpecialtyBuffsByStageId[stageId] = Array.isArray(entries)
+      ? entries.map((entry) => ({ ...(entry as Record<string, unknown>) }))
+      : [];
+  }
+
   const mergedUniqueMonsterIdsCaught = Array.from(
     new Set([...(prev.uniqueMonsterIdsCaught ?? []), ...(next.uniqueMonsterIdsCaught ?? [])])
   );
@@ -95,6 +108,7 @@ const mergeAdventureProfileForPersistence = (
       Math.max(0, Math.floor(next.monstersDefeatedTotal ?? 0))
     ),
     uniqueMonsterIdsCaught: mergedUniqueMonsterIdsCaught,
+    regionalSpecialtyBuffsByStageId: mergedRegionalSpecialtyBuffsByStageId as User["adventureProfile"]["regionalSpecialtyBuffsByStageId"],
   };
 };
 
@@ -376,6 +390,7 @@ export async function createUser(user: User): Promise<User> {
 
 export async function updateUser(user: User): Promise<User> {
   let userForPersistence = user;
+  let adventureMergeResolved = false;
   try {
     const currentRow = await prisma.user.findUnique({
       where: { id: user.id },
@@ -390,9 +405,20 @@ export async function updateUser(user: User): Promise<User> {
       if (mergedAdventureProfile !== user.adventureProfile) {
         userForPersistence = { ...user, adventureProfile: mergedAdventureProfile };
       }
+      adventureMergeResolved = true;
     }
-  } catch {
-    // 프로필 병합 실패 시에도 기본 저장 경로는 유지
+  } catch (error: any) {
+    // 모험 프로필 병합이 불가한 상태에서 그대로 저장하면 값이 과거 상태로 되돌아갈 수 있다.
+    // 이 경우 저장을 중단해 초기화/롤백성 덮어쓰기를 방지한다.
+    if (user.adventureProfile !== undefined) {
+      throw new Error(
+        `[updateUser] Adventure profile merge pre-check failed for user ${user.id}: ${error?.message ?? error}`
+      );
+    }
+  }
+
+  if (user.adventureProfile !== undefined && !adventureMergeResolved) {
+    throw new Error(`[updateUser] Adventure profile merge unresolved for user ${user.id}`);
   }
 
   const data = buildPersistentFields(userForPersistence);

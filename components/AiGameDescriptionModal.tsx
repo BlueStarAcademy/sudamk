@@ -5,9 +5,11 @@ import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { LiveGameSession, GameMode, Player, ServerAction } from '../types.js';
+import { LiveGameSession, GameMode, Player, ServerAction, User } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_KOMI, ALKKAGI_GAUGE_SPEEDS, CURLING_GAUGE_SPEEDS } from '../constants.js';
 import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
+import { buildAiPregameRewardVisual } from '../utils/estimateAiPregameRewardSummary.js';
+import { AiPregameRewardVisualStrip } from './game/AiPregameRewardVisualStrip.js';
 import {
   PreGameSummaryGrid,
   PRE_GAME_MODAL_SHELL_CLASS,
@@ -23,6 +25,8 @@ interface Props {
   /** 인게임 「경기방법」: 확인만 표시 */
   readOnly?: boolean;
   onClose?: () => void;
+  /** 보상 추정(레벨 차이·난이도 배율)에 사용. 없으면 기본 배율만 반영 */
+  currentUser?: User;
 }
 
 const getModeMeta = (mode: GameMode) =>
@@ -34,8 +38,8 @@ const formatColor = (color?: Player.Black | Player.White) => {
   return '랜덤';
 };
 
-/** 인게임 AI 대국 시작 모달: 넓은 캔버스로 요약·설정 표가 더 크게 보이도록 */
-const AI_GAME_DESC_DESIGN_W = 1120;
+/** 인게임 AI 대국 시작 모달: 요약·보상 블록 기준 설계 너비(PC에서 균일 scale의 기준) */
+const AI_GAME_DESC_DESIGN_W = 720;
 const AI_GAME_DESC_DESIGN_H_FALLBACK = 820;
 const AI_GAME_DESC_DESIGN_H_MIN = 520;
 const AI_GAME_DESC_DESIGN_H_MAX = 1200;
@@ -133,7 +137,7 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
   return rows;
 };
 
-const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly = false, onClose }) => {
+const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly = false, onClose, currentUser }) => {
   const { modalLayerUsesDesignPixels } = useAppContext();
   const isHandheld = useIsHandheldDevice(1025);
   const { isNativeMobile } = useNativeMobileShell();
@@ -141,6 +145,8 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
   const isMobileSheet = isHandheld || isNativeMobile;
   const meta = useMemo(() => getModeMeta(session.mode), [session.mode]);
   const summaryFour = useMemo(() => getPreGameSummaryFour(session), [session]);
+  const rewardVisual = useMemo(() => buildAiPregameRewardVisual(session, currentUser), [session, currentUser]);
+  const isAdventure = String(session.gameCategory ?? '') === 'adventure';
   /** AI 대기실 입장 모달·인게임 경기방법: 설정 표는 생략(요약 그리드만) */
   const showMatchSettingsTable = !session.isAiGame;
   const settingsRows = useMemo(
@@ -150,7 +156,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
   const isGuildWarAi = String(session.gameCategory ?? '') === 'guildwar';
   const sessionBadgeLabel = isGuildWarAi
     ? '길드 전쟁'
-    : String(session.gameCategory ?? '') === 'adventure'
+    : isAdventure
       ? '모험'
       : session.isAiGame
         ? 'AI 대전'
@@ -174,7 +180,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
     const ro = new ResizeObserver(() => requestAnimationFrame(update));
     ro.observe(el);
     return () => ro.disconnect();
-  }, [session, summaryFour, settingsRows, isMobileSheet]);
+  }, [session, summaryFour, settingsRows, rewardVisual, isMobileSheet]);
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
@@ -233,15 +239,14 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
               {sessionBadgeLabel}
             </span>
           </div>
-          <p className="mt-2 text-xs leading-relaxed text-zinc-300 sm:mt-2.5 sm:text-sm md:text-base lg:text-lg">
-            {readOnly ? (
-              <>시작 전에 안내된 규칙·설정과 동일합니다. 확인 후 창을 닫아 주세요.</>
-            ) : (
-              <>
-                네 가지 요약을 확인한 뒤 <span className="font-semibold text-violet-300">경기 시작</span>을 눌러주세요.
-              </>
-            )}
-          </p>
+          {readOnly ? (
+            <p className="mt-2 text-xs leading-relaxed text-zinc-300 sm:mt-2.5 sm:text-sm md:text-base lg:text-lg">
+              시작 전에 안내된 규칙·설정과 동일합니다. 확인 후 창을 닫아 주세요.
+            </p>
+          ) : null}
+          {isAdventure && rewardVisual ? (
+            <AiPregameRewardVisualStrip visual={rewardVisual} isMobileSheet={isMobileSheet} placement="titlePanel" />
+          ) : null}
         </div>
       </div>
     </div>
@@ -314,8 +319,9 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
         session={session}
         summary={summaryFour}
         singleColumn={isMobileSheet}
-        briefLayout={String(session.gameCategory ?? '') === 'adventure'}
+        briefLayout={isAdventure}
       />
+      {rewardVisual && !isAdventure ? <AiPregameRewardVisualStrip visual={rewardVisual} isMobileSheet={isMobileSheet} /> : null}
       {showMatchSettingsTable ? settingsTableBlock : null}
     </div>
   );
@@ -327,7 +333,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
     <div
       className={`${overlayPositionClass} flex text-base antialiased pointer-events-auto ${
         isMobileSheet
-          ? 'items-center justify-center bg-black/40 px-3 py-4 sm:px-4 sm:py-6'
+          ? 'items-center justify-center bg-transparent px-3 py-4 sm:px-4 sm:py-6'
           : 'items-center justify-center bg-transparent p-4'
       }`}
       style={

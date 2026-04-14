@@ -91,7 +91,12 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
 
     /** 베이스 배치·덤 입찰 단계: 바둑판에 양측 베이스돌 좌표 전달(덤 배팅 중에도 배치 상태 표시) */
     const showPlacedBaseStoneArrays =
-        gameStatus === 'base_placement' || gameStatus === 'komi_bidding' || gameStatus === 'komi_bid_reveal';
+        gameStatus === 'base_placement' ||
+        gameStatus === 'komi_bidding' ||
+        gameStatus === 'komi_bid_reveal' ||
+        gameStatus === 'base_color_roulette' ||
+        gameStatus === 'base_komi_result' ||
+        gameStatus === 'base_game_start_confirmation';
 
     const backgroundClass = useMemo(() => {
         if (session.gameCategory === 'guildwar') {
@@ -172,12 +177,19 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             {onToggleBoardRotation && (
                 <button
                     onClick={onToggleBoardRotation}
-                    className="absolute top-2 right-2 z-10 bg-gray-800/80 hover:bg-gray-700/80 rounded-lg p-2 border border-gray-600 transition-all"
+                    className={`absolute top-2 right-2 z-10 bg-gray-800/80 hover:bg-gray-700/80 border border-gray-600 transition-all ${
+                        isMobile ? 'rounded-md p-1.5' : 'rounded-lg p-2'
+                    }`}
                     title={props.isSpectator
                         ? (isBoardRotated ? '흑의 입장으로 보기' : '백의 입장으로 보기')
                         : '바둑판 180도 회전'}
                 >
-                    <span className="text-xl leading-none" style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none', display: 'inline-block' }}>🔄</span>
+                    <span
+                        className={`${isMobile ? 'text-base' : 'text-xl'} leading-none`}
+                        style={{ transform: isBoardRotated ? 'rotate(180deg)' : 'none', display: 'inline-block' }}
+                    >
+                        🔄
+                    </span>
                 </button>
             )}
             {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
@@ -215,6 +227,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 blackPatternStones={session.blackPatternStones}
                 whitePatternStones={session.whitePatternStones}
                 consumedPatternIntersections={(session as any).consumedPatternIntersections}
+                aiInitialHiddenStone={(session as { aiInitialHiddenStone?: Point }).aiInitialHiddenStone}
                 myPlayerEnum={myPlayerEnum}
                 gameStatus={gameStatus}
                 currentPlayer={session.currentPlayer}
@@ -246,7 +259,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 </div>
                 {showBoardGlow && (
                     <div
-                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]"
+                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-[5px] ring-amber-300/95 shadow-[0_0_32px_rgba(251,191,21,0.65),0_0_48px_rgba(244,114,182,0.35)] animate-[pulse_1.4s_ease-in-out_infinite]"
                         aria-hidden
                     />
                 )}

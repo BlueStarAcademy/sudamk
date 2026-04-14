@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useCallback, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useCallback, useEffect, useRef, useId } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, SINGLE_PLAYER_STAGES } from '../constants';
 import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
@@ -27,6 +27,7 @@ import {
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
+import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 
 interface ProfileProps {
 }
@@ -510,6 +511,7 @@ const ArenaMobilePvpStatStrip: React.FC = () => (
 
 const Profile: React.FC<ProfileProps> = () => {
     const { currentUserWithStatus, allUsers, handlers, hasClaimableQuest, presets, guilds, currentRoute, arenaEntranceAvailability } = useAppContext();
+    const adventureCodexDonutGradId = useId().replace(/:/g, '');
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
     const usePcHomePanelStyle = isNativeMobile && profileTab === 'home';
@@ -1265,7 +1267,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <Button
                                     onClick={handlers.openStatAllocationModal}
                                     colorScheme="none"
-                                    className="!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !px-3 !py-1 !text-xs !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 sm:!px-3.5 sm:!py-1.5 sm:!text-sm"
+                                    className="!shrink-0 !whitespace-nowrap !rounded-lg !border-2 !border-cyan-300/65 !bg-gradient-to-r !from-indigo-500 !via-violet-500 !to-fuchsia-500 !px-3 !py-1.5 !text-xs !font-bold !text-white !shadow-[0_10px_26px_-10px_rgba(99,102,241,0.75)] hover:!brightness-110 sm:!px-3.5 sm:!py-1.5 sm:!text-sm"
                                 >
                                     분배
                                 </Button>
@@ -1303,7 +1305,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <Button
                                     onClick={handlers.openStatAllocationModal}
                                     colorScheme="none"
-                                    className="!shrink-0 !whitespace-nowrap !rounded-lg !border !border-indigo-400/45 !bg-gradient-to-r !from-indigo-500/90 !via-violet-500/85 !to-fuchsia-500/80 !font-semibold !text-white !shadow-[0_6px_20px_-8px_rgba(99,102,241,0.55)] hover:!brightness-110 !px-2 !py-0.5 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]"
+                                    className="!shrink-0 !whitespace-nowrap !rounded-lg !border-2 !border-cyan-300/65 !bg-gradient-to-r !from-indigo-500 !via-violet-500 !to-fuchsia-500 !font-bold !text-white !shadow-[0_10px_26px_-10px_rgba(99,102,241,0.75)] hover:!brightness-110 !px-2.5 !py-1 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]"
                                 >
                                     분배
                                 </Button>
@@ -1342,6 +1344,15 @@ const Profile: React.FC<ProfileProps> = () => {
     const strategicWinRate = strategicTotal > 0 ? Math.round((aggregatedStats.strategic.wins / strategicTotal) * 100) : 0;
     const playfulWinRate = playfulTotal > 0 ? Math.round((aggregatedStats.playful.wins / playfulTotal) * 100) : 0;
     const dungeonProgress = (currentUserWithStatus as any)?.dungeonProgress ?? {};
+    const adventureCodexBreakdown = getAdventureCodexCompletionBreakdown(currentUserWithStatus.adventureProfile);
+    const adventureCodexOverallPercentText =
+        adventureCodexBreakdown.overallPercent >= 10
+            ? `${Math.round(adventureCodexBreakdown.overallPercent)}%`
+            : `${Math.round(adventureCodexBreakdown.overallPercent * 10) / 10}%`;
+    const adventureCodexDonutR = 33;
+    const adventureCodexDonutC = 2 * Math.PI * adventureCodexDonutR;
+    const adventureCodexDonutDash =
+        (Math.min(100, Math.max(0, adventureCodexBreakdown.overallPercent)) / 100) * adventureCodexDonutC;
     /** 2×3: 1행 싱글·탑 / 2행 전략·놀이 / 3행 챔피언십·모험 (PC·모바일 홈 외 공용; 모바일 경기장 전용 화면은 별도) */
     const lobbyGridShell = isNativeMobile
         ? (profileTab === 'home'
@@ -1532,9 +1543,49 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>모험</div>
                             <div className={infoPanelMiddleClass}>
-                                <div className={infoRowClass}>
-                                    <span className={infoLabelClass}>안내</span>
-                                    <span className={infoValueClass}>카드를 눌러 스테이지 로비로 이동</span>
+                                <div className="flex w-full items-center justify-center">
+                                    <div className="relative h-[6.5rem] w-[6.5rem] shrink-0">
+                                        <svg
+                                            viewBox={`0 0 ${(adventureCodexDonutR + 14) * 2} ${(adventureCodexDonutR + 14) * 2}`}
+                                            className="h-full w-full -rotate-90 text-zinc-800"
+                                            aria-hidden
+                                        >
+                                            <circle
+                                                cx={adventureCodexDonutR + 14}
+                                                cy={adventureCodexDonutR + 14}
+                                                r={adventureCodexDonutR}
+                                                fill="none"
+                                                stroke="currentColor"
+                                                strokeWidth={7}
+                                                className="text-zinc-800/95"
+                                            />
+                                            <circle
+                                                cx={adventureCodexDonutR + 14}
+                                                cy={adventureCodexDonutR + 14}
+                                                r={adventureCodexDonutR}
+                                                fill="none"
+                                                stroke={`url(#${adventureCodexDonutGradId})`}
+                                                strokeWidth={7}
+                                                strokeLinecap="round"
+                                                strokeDasharray={`${adventureCodexDonutDash} ${adventureCodexDonutC}`}
+                                            />
+                                            <defs>
+                                                <linearGradient id={adventureCodexDonutGradId} x1="0%" y1="0%" x2="100%" y2="100%">
+                                                    <stop offset="0%" stopColor="rgb(167, 139, 250)" />
+                                                    <stop offset="55%" stopColor="rgb(244, 114, 182)" />
+                                                    <stop offset="100%" stopColor="rgb(251, 191, 36)" />
+                                                </linearGradient>
+                                            </defs>
+                                        </svg>
+                                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
+                                            <span className="text-[1.05rem] font-black tabular-nums text-white drop-shadow sm:text-xl">
+                                                {adventureCodexOverallPercentText}
+                                            </span>
+                                            <span className="min-w-[5.25rem] text-center text-[10px] font-semibold tabular-nums text-zinc-400 sm:min-w-[6rem] sm:text-xs">
+                                                {adventureCodexBreakdown.totalSum}/{adventureCodexBreakdown.totalMax} Lv
+                                            </span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -33,8 +33,10 @@ import { getRegionalMapMonsterDwellMultiplierForStage } from '../../utils/advent
 import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSituationList.js';
 import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
+import { labelRegionalSpecialtyBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
 
 type Props = { stageId: string };
+
 
 type AdventureStageDef = NonNullable<ReturnType<typeof getAdventureStageById>>;
 
@@ -142,6 +144,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     const [rosterModalCodexId, setRosterModalCodexId] = useState<string | null>(null);
     const [monsterHubOpen, setMonsterHubOpen] = useState(false);
     const [monsterHubInitialTab, setMonsterHubInitialTab] = useState<'situation' | 'codex'>('situation');
+    const [regionalEffectModalOpen, setRegionalEffectModalOpen] = useState(false);
     const [mapBox, setMapBox] = useState({ w: 0, h: 0 });
     /** 말풍선이 잘리지 않게 클램프할 맵 카드(overflow hidden) */
     const mapViewportRef = useRef<HTMLDivElement>(null);
@@ -162,6 +165,10 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 : 1,
         [currentUserWithStatus?.adventureProfile, stage?.id],
     );
+
+    const stageRegionalBuffEntries = stage
+        ? currentUserWithStatus?.adventureProfile?.regionalSpecialtyBuffsByStageId?.[stage.id] ?? []
+        : [];
 
     const monsters = useMemo(() => {
         if (!stage) return [];
@@ -466,6 +473,14 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             >
                                 몬스터 도감
                             </button>
+                            <button
+                                type="button"
+                                onClick={() => setRegionalEffectModalOpen(true)}
+                                className="shrink-0 rounded-lg border border-cyan-400/45 bg-cyan-950/70 px-2 py-1.5 text-[10px] font-bold leading-tight text-cyan-100 shadow-sm transition hover:border-amber-400/50 hover:bg-cyan-900/60 active:scale-[0.99]"
+                                aria-label="지역효과 보기"
+                            >
+                                지역효과
+                            </button>
                         </div>
                     </div>
                     <aside
@@ -755,6 +770,40 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     onPickRow={(id) => setRosterModalCodexId(id)}
                                 />
                             </div>
+                        </aside>
+                    </div>
+                ) : null}
+                {!isNativeMobile ? (
+                    <div className="pointer-events-none absolute right-1.5 top-1.5 z-30 w-[min(88vw,17.5rem)] sm:right-2 sm:top-2 sm:w-[18.5rem]">
+                        <aside
+                            className="pointer-events-auto rounded-xl border border-cyan-500/35 bg-zinc-950/92 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+                            aria-label="지역 탐험도 효과"
+                        >
+                            <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
+                                <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90 sm:text-xs">지역 탐험도</p>
+                                <span className="rounded-md border border-cyan-400/30 bg-cyan-950/40 px-1.5 py-0.5 text-[10px] font-bold text-cyan-100 sm:text-xs">
+                                    {stageUnderstandingTierLabel}
+                                </span>
+                            </div>
+                            <p className="mt-1.5 text-[10px] font-mono tabular-nums text-zinc-400 sm:text-[11px]">
+                                XP {stageUnderstandingXp.toLocaleString()}
+                            </p>
+                            <ul className="mt-2 space-y-1.5">
+                                {stageRegionalBuffEntries.length > 0 ? (
+                                    stageRegionalBuffEntries.map((entry, idx) => (
+                                        <li
+                                            key={`${entry.kind}-${idx}`}
+                                            className="rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-[11px] font-semibold leading-snug text-cyan-100/95 sm:text-xs"
+                                        >
+                                            {labelRegionalSpecialtyBuffEntry(entry)}
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-[11px] text-zinc-500 sm:text-xs">
+                                        적용 중인 지역효과 없음
+                                    </li>
+                                )}
+                            </ul>
                         </aside>
                     </div>
                 ) : null}
@@ -1105,6 +1154,58 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     onClose={() => setMonsterHubOpen(false)}
                     isTopmost
                 />
+            ) : null}
+
+            {isNativeMobile && regionalEffectModalOpen ? (
+                <div
+                    className="fixed inset-0 z-[95] flex items-end bg-black/65 backdrop-blur-[2px]"
+                    role="presentation"
+                    onClick={() => setRegionalEffectModalOpen(false)}
+                >
+                    <div
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="지역효과"
+                        className="pointer-events-auto w-full rounded-t-2xl border-x border-t border-cyan-400/45 bg-zinc-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] shadow-[0_-20px_56px_rgba(0,0,0,0.82)]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2.5">
+                            <h2 className="text-sm font-black text-cyan-100">지역효과</h2>
+                            <button
+                                type="button"
+                                onClick={() => setRegionalEffectModalOpen(false)}
+                                className="rounded-lg border border-white/20 bg-white/5 px-3 py-1 text-xs font-bold text-zinc-100"
+                            >
+                                닫기
+                            </button>
+                        </div>
+                        <div className="mt-3 space-y-2">
+                            <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/25 px-2.5 py-2">
+                                <span className="text-xs font-semibold text-zinc-400">탐험도 등급</span>
+                                <span className="rounded-md border border-cyan-400/30 bg-cyan-950/40 px-2 py-0.5 text-xs font-bold text-cyan-100">
+                                    {stageUnderstandingTierLabel}
+                                </span>
+                            </div>
+                            <p className="text-xs font-mono tabular-nums text-zinc-400">XP {stageUnderstandingXp.toLocaleString()}</p>
+                            <ul className="space-y-1.5">
+                                {stageRegionalBuffEntries.length > 0 ? (
+                                    stageRegionalBuffEntries.map((entry, idx) => (
+                                        <li
+                                            key={`${entry.kind}-${idx}`}
+                                            className="rounded-md border border-white/8 bg-black/25 px-2.5 py-2 text-xs font-semibold leading-snug text-cyan-100/95"
+                                        >
+                                            {labelRegionalSpecialtyBuffEntry(entry)}
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="rounded-md border border-white/8 bg-black/25 px-2.5 py-2 text-xs text-zinc-500">
+                                        적용 중인 지역효과 없음
+                                    </li>
+                                )}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
             ) : null}
         </div>
     );

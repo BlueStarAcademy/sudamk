@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import {
     ADVENTURE_CODEX_CHAPTER_UI,
@@ -7,6 +7,7 @@ import {
 } from '../../constants/adventureConstants.js';
 import { AdventureMonsterSpriteFrame } from './AdventureMonsterSprite.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { CORE_STATS_DATA } from '../../constants.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
 import type { AdventureMapMonsterInstance } from '../../shared/utils/adventureMapSchedule.js';
@@ -21,6 +22,77 @@ import {
     getAdventureMonsterComprehensionDesign,
     getCodexComprehensionItemGrade,
 } from '../../utils/adventureCodexComprehension.js';
+import { formatAdventureUnderstandingBonusPercent, getMonsterCodexComprehensionBuffTotals } from '../../utils/adventureUnderstanding.js';
+
+type ChapterComprehensionBuffSummary = {
+    goldBonusPercent: number;
+    equipmentDropPercent: number;
+    highGradeEquipmentPercent: number;
+    materialDropPercent: number;
+    highGradeMaterialPercent: number;
+};
+
+function buildChapterMonsterComprehensionSummary(
+    stage: (typeof ADVENTURE_STAGES)[number],
+    counts: Record<string, number>,
+): ChapterComprehensionBuffSummary {
+    const sum: ChapterComprehensionBuffSummary = {
+        goldBonusPercent: 0,
+        equipmentDropPercent: 0,
+        highGradeEquipmentPercent: 0,
+        materialDropPercent: 0,
+        highGradeMaterialPercent: 0,
+    };
+    for (const m of stage.monsters) {
+        const wins = Math.max(0, Math.floor(counts[m.codexId] ?? 0));
+        const level = getAdventureCodexComprehensionLevel(wins);
+        if (level <= 0) continue;
+        const design = getAdventureMonsterComprehensionDesign(m.codexId);
+        if (design && !design.isBoss && design.normalPercentBonus) {
+            const v = design.normalPercentBonus.percentPerLevel * level;
+            switch (design.normalPercentBonus.kind) {
+                case 'adventureGold':
+                    sum.goldBonusPercent += v;
+                    break;
+                case 'itemDrop':
+                    sum.equipmentDropPercent += v;
+                    break;
+                case 'materialDrop':
+                    sum.materialDropPercent += v;
+                    break;
+                case 'highGradeEquipment':
+                    sum.highGradeEquipmentPercent += v;
+                    break;
+                case 'highGradeMaterial':
+                    sum.highGradeMaterialPercent += v;
+                    break;
+            }
+        }
+        if ('codexPercentBossBonus' in m && m.codexPercentBossBonus) {
+            const bossV = Math.min(level, ADVENTURE_CODEX_MAX_LEVEL) * ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL;
+            switch (m.codexPercentBossBonus.target) {
+                case 'adventureGold':
+                    sum.goldBonusPercent += bossV;
+                    break;
+                case 'itemDrop':
+                    sum.equipmentDropPercent += bossV;
+                    break;
+                case 'materialDrop':
+                    sum.materialDropPercent += bossV;
+                    break;
+                case 'highGradeEquipment':
+                    sum.highGradeEquipmentPercent += bossV;
+                    break;
+                case 'highGradeMaterial':
+                    sum.highGradeMaterialPercent += bossV;
+                    break;
+                default:
+                    break;
+            }
+        }
+    }
+    return sum;
+}
 
 /** 도감 카드 — 이해도 등급은 이미지 프레임 테두리 색으로만 표시 */
 function codexComprehensionGradeBorderClass(grade: ItemGrade | null): string {
@@ -69,8 +141,9 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
     initialMainTab,
     defaultCodexStageId,
 }) => {
+    const { isNativeMobile } = useNativeMobileShell();
     const showSituationTab = Boolean(mapSituation);
-    const [mainTab, setMainTab] = useState<'situation' | 'codex'>(() =>
+    const [mainTab, setMainTab] = useState<'situation' | 'codex' | 'comprehension'>(() =>
         showSituationTab ? (initialMainTab ?? 'situation') : 'codex',
     );
     const [, setSituationTick] = useState(0);
@@ -89,6 +162,11 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
     const chapterUi = ADVENTURE_CODEX_CHAPTER_UI[stage.id];
     const { currentUserWithStatus } = useAppContext();
     const counts = currentUserWithStatus?.adventureProfile?.codexDefeatCounts ?? {};
+    const monsterComprehensionBuff = getMonsterCodexComprehensionBuffTotals(currentUserWithStatus?.adventureProfile);
+    const chapterMonsterComprehensionBuff = useMemo(
+        () => buildChapterMonsterComprehensionSummary(stage, counts),
+        [stage, counts],
+    );
     const situationNowMs = Date.now();
 
     const mainTabBtn =
@@ -131,6 +209,17 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                         >
                             몬스터 도감
                         </button>
+                        {isNativeMobile ? (
+                            <button
+                                type="button"
+                                role="tab"
+                                aria-selected={mainTab === 'comprehension'}
+                                onClick={() => setMainTab('comprehension')}
+                                className={`${mainTabBtn} ${mainTab === 'comprehension' ? mainTabOn : mainTabOff}`}
+                            >
+                                몬스터 이해도
+                            </button>
+                        ) : null}
                     </div>
                 ) : null}
 
@@ -151,12 +240,67 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             onPickRow={mapSituation.onPickRow}
                         />
                     </div>
+                ) : isNativeMobile && mainTab === 'comprehension' ? (
+                    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1">
+                        <div
+                            role="tablist"
+                            aria-label="이해도 챕터"
+                            className="mb-3 flex shrink-0 gap-1 overflow-x-auto overscroll-contain border-b border-white/10 pb-1.5"
+                        >
+                            {ADVENTURE_STAGES.map((s) => {
+                                const sel = s.id === tabId;
+                                const tabUi = ADVENTURE_CODEX_CHAPTER_UI[s.id];
+                                return (
+                                    <button
+                                        key={s.id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={sel}
+                                        onClick={() => setTabId(s.id)}
+                                        className={[
+                                            'shrink-0 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors',
+                                            sel
+                                                ? tabUi.tabSelectedClass
+                                                : [
+                                                      'border-white/12 bg-zinc-900/65 text-zinc-400',
+                                                      tabUi.tabIdleHoverClass,
+                                                  ].join(' '),
+                                        ].join(' ')}
+                                    >
+                                        CH.{s.stageIndex}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <div className="rounded-xl border border-cyan-500/25 bg-cyan-950/15 p-3">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-200/95">몬스터 이해도 효과</p>
+                            <div className="mt-2 grid grid-cols-1 gap-1.5">
+                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                    모험 골드 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.goldBonusPercent)}%
+                                </p>
+                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                    장비 획득 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.equipmentDropPercent)}%
+                                </p>
+                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                    고급 장비 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeEquipmentPercent)}%
+                                </p>
+                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                    재료 획득 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.materialDropPercent)}%
+                                </p>
+                                <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-100">
+                                    고급 재료 +{formatAdventureUnderstandingBonusPercent(chapterMonsterComprehensionBuff.highGradeMaterialPercent)}%
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 ) : (
                     <>
                 <div
                     role="tablist"
                     aria-label="도감 챕터"
-                    className="mb-3 flex shrink-0 gap-2 overflow-x-auto overscroll-contain border-b border-white/10 pb-2.5"
+                    className={`mb-3 flex shrink-0 gap-2 overflow-x-auto overscroll-contain border-b border-white/10 ${
+                        isNativeMobile ? 'pb-1.5' : 'pb-2.5'
+                    }`}
                 >
                     {ADVENTURE_STAGES.map((s) => {
                         const sel = s.id === tabId;
@@ -171,7 +315,9 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                 aria-controls={`codex-panel-${s.id}`}
                                 onClick={() => setTabId(s.id)}
                                 className={[
-                                    'shrink-0 rounded-xl border px-4 py-2.5 text-left text-sm font-bold transition-colors sm:px-5 sm:py-3 sm:text-base',
+                                    isNativeMobile
+                                        ? 'shrink-0 rounded-lg border px-2.5 py-1.5 text-[11px] font-bold transition-colors'
+                                        : 'shrink-0 rounded-xl border px-4 py-2.5 text-left text-sm font-bold transition-colors sm:px-5 sm:py-3 sm:text-base',
                                     sel
                                         ? tabUi.tabSelectedClass
                                         : [
@@ -182,13 +328,15 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             >
                                 <span
                                     className={[
-                                        'font-mono tabular-nums text-xs sm:text-sm',
+                                        isNativeMobile ? 'font-mono tabular-nums text-[11px]' : 'font-mono tabular-nums text-xs sm:text-sm',
                                         sel ? 'opacity-85' : 'text-amber-400/90',
                                     ].join(' ')}
                                 >
-                                    CH.{String(s.stageIndex).padStart(2, '0')}
+                                    CH.{s.stageIndex}
                                 </span>
-                                <span className="mt-0.5 block max-w-[10rem] truncate sm:mt-1 sm:max-w-[12rem]">{s.title}</span>
+                                {!isNativeMobile ? (
+                                    <span className="mt-0.5 block max-w-[10rem] truncate sm:mt-1 sm:max-w-[12rem]">{s.title}</span>
+                                ) : null}
                             </button>
                         );
                     })}
