@@ -81,10 +81,7 @@ function formatWorldEquipmentDropCaptionLines(stage: number): string[] {
     const hiL = EQUIPMENT_GRADE_LABEL_KO[hi] ?? hi;
     const rangeLine = lo === hi ? `등급: ${loL}` : `등급 범위: ${loL}~${hiL}`;
 
-    const fmt = (entries: { grade: EquipmentGradeKey; chance: number }[]) =>
-        entries.map(e => `${EQUIPMENT_GRADE_LABEL_KO[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
-
-    return [rangeLine, '1개/경기 (랜덤)', `승리: ${fmt(config.win)}`, `패배: ${fmt(config.loss)} (하위 등급 쪽 확률↑)`];
+    return [rangeLine];
 }
 
 function formatRankGroupLabel(ranks: number[]): string {

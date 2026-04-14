@@ -9,6 +9,7 @@ export type AdminView =
     | 'mailSystem'
     | 'serverSettings'
     | 'serverMonitoring'
+    | 'dropRateReference'
     | 'homeBoard'
     | 'operations';
 
@@ -59,6 +60,14 @@ const TILES: TileDef[] = [
         icon: '📈',
         accent: 'from-cyan-500/20 to-cyan-600/5',
         ringHover: 'hover:ring-cyan-400/40',
+    },
+    {
+        view: 'dropRateReference',
+        title: '확률 정보',
+        description: '상점 상자, 챔피언십 보상, 대장간 확률 테이블 조회',
+        icon: '🎯',
+        accent: 'from-teal-500/20 to-teal-600/5',
+        ringHover: 'hover:ring-teal-400/40',
     },
     {
         view: 'operations',

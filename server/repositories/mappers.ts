@@ -38,7 +38,15 @@ export const rowToUser = (row: any): types.User | null => {
                  ...(questsFromDb.monthly || {}),
                  quests: questsFromDb.monthly?.quests ?? defaultQuests.monthly?.quests ?? [],
                  claimedMilestones: questsFromDb.monthly?.claimedMilestones ?? defaultQuests.monthly?.claimedMilestones ?? [false, false, false, false, false],
-            }
+            },
+            achievements: {
+                ...(defaultQuests.achievements || { tracks: {} }),
+                ...(questsFromDb.achievements || {}),
+                tracks: {
+                    ...((defaultQuests.achievements && defaultQuests.achievements.tracks) || {}),
+                    ...((questsFromDb.achievements && questsFromDb.achievements.tracks) || {}),
+                },
+            },
         };
 
         normalizeQuestLogProgressCaps(quests);

@@ -72,14 +72,17 @@ export function getAdventureMapCycleParams(
     codexId: string,
     isBoss: boolean,
     dwellMultiplier = 1,
+    /** 출현 대기 구간(off) 길이 배율 — 0.5~1 권장 */
+    offMsMultiplier = 1,
 ) {
     const mult = Math.max(1, dwellMultiplier);
     const dwell = Math.round(ADVENTURE_MONSTER_MAP_STAY_MS * mult);
-    const offMs = isBoss
+    const offBase = isBoss
         ? ADVENTURE_MONSTER_RESPAWN_BOSS_MS
         : ADVENTURE_MONSTER_RESPAWN_NORMAL_MIN_MS +
           (fnv1a32(`${stageId}|${codexId}`) %
               (ADVENTURE_MONSTER_RESPAWN_NORMAL_MAX_MS - ADVENTURE_MONSTER_RESPAWN_NORMAL_MIN_MS + 1));
+    const offMs = Math.max(60_000, Math.round(offBase * Math.max(0.25, Math.min(1, offMsMultiplier))));
     const cycle = dwell + offMs;
     const phase = fnv1a32(`advMapPhase|${stageId}|${codexId}`) % cycle;
     return { dwell, offMs, cycle, phase };
@@ -92,8 +95,9 @@ export function adventureMapIsOnScheduleDwell(
     codexId: string,
     isBoss: boolean,
     dwellMultiplier = 1,
+    offMsMultiplier = 1,
 ): boolean {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier);
     return posInCycle(nowMs, phase, cycle) < dwell;
 }
 
@@ -104,8 +108,9 @@ export function getAdventureMapSuppressUntilAfterDefeat(
     codexId: string,
     isBoss: boolean,
     dwellMultiplier = 1,
+    offMsMultiplier = 1,
 ): number {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier);
     const local = posInCycle(defeatAtMs, phase, cycle);
     if (local < dwell) {
         return defeatAtMs - local + dwell + (cycle - dwell);
@@ -121,8 +126,10 @@ export function adventureMapIsEffectivelyVisible(
     isBoss: boolean,
     suppressUntilMs: number | undefined,
     dwellMultiplier = 1,
+    offMsMultiplier = 1,
 ): boolean {
-    if (!adventureMapIsOnScheduleDwell(nowMs, stageId, codexId, isBoss, dwellMultiplier)) return false;
+    if (!adventureMapIsOnScheduleDwell(nowMs, stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier))
+        return false;
     if (suppressUntilMs != null && nowMs < suppressUntilMs) return false;
     return true;
 }
@@ -138,8 +145,9 @@ export function adventureMapMsUntilNextAppearance(
     isBoss: boolean,
     suppressUntilMs: number | undefined,
     dwellMultiplier = 1,
+    offMsMultiplier = 1,
 ): number {
-    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier);
+    const { dwell, cycle, phase } = getAdventureMapCycleParams(stageId, codexId, isBoss, dwellMultiplier, offMsMultiplier);
     const suppress = suppressUntilMs != null && suppressUntilMs > nowMs ? suppressUntilMs : nowMs;
 
     let t = suppress;
@@ -198,6 +206,7 @@ export function buildAdventureMapMonstersFromSchedule(
     nowMs: number,
     suppressUntilByKey: Readonly<Record<string, number>> | null | undefined,
     mapDwellMultiplierForStage = 1,
+    mapRespawnOffMultiplierForStage = 1,
 ): AdventureMapMonsterInstance[] {
     const { min: lvMin, max: lvMax } = getAdventureStageLevelRange(stage.stageIndex);
     const sorted = [...stage.monsters].sort((a, b) => {
@@ -221,6 +230,7 @@ export function buildAdventureMapMonstersFromSchedule(
                 isBoss,
                 suppressUntil,
                 mapDwellMultiplierForStage,
+                mapRespawnOffMultiplierForStage,
             )
         )
             continue;
@@ -230,6 +240,7 @@ export function buildAdventureMapMonstersFromSchedule(
             row.codexId,
             isBoss,
             mapDwellMultiplierForStage,
+            mapRespawnOffMultiplierForStage,
         );
         const local = posInCycle(nowMs, phase, cycle);
         const windowStart = nowMs - local;

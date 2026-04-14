@@ -210,7 +210,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
     return (
       <div className="mt-2.5 w-full rounded-lg border border-violet-400/18 bg-black/25 p-2.5 ring-1 ring-inset ring-white/[0.04] sm:mt-3 sm:p-3">
         <h3 className="mb-2 flex items-center gap-2 border-b border-violet-400/18 pb-1.5 text-[0.72rem] font-bold text-violet-100/95 sm:mb-2.5 sm:text-xs">
-          획득 가능한 보상(확률)
+          획득 가능한 보상
         </h3>
         <div className="grid grid-cols-4 gap-2 min-[420px]:grid-cols-5 sm:grid-cols-6">
           {uniformSlots.map((slot) => (
@@ -240,7 +240,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
   return (
     <div className="mb-3 mt-4 rounded-xl border border-violet-400/22 bg-zinc-950/45 p-3 shadow-inner ring-1 ring-inset ring-white/[0.04] sm:mb-4 sm:mt-5 sm:p-4">
       <h3 className="mb-2.5 flex items-center gap-2 border-b border-violet-400/18 pb-2 text-sm font-bold text-violet-100/95 sm:text-base">
-        획득 가능한 보상(확률)
+        획득 가능한 보상
       </h3>
       <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-4 sm:gap-x-4 sm:gap-y-5">
         {visual.slots.map((s, i) => renderSlot(s, i, isMobileSheet))}

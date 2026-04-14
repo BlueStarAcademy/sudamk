@@ -11,6 +11,8 @@ import {
     SPECIAL_STATS_DATA,
     MYTHIC_STATS_DATA,
     CORE_STATS_DATA,
+    EQUIPMENT_BOX_LOOT_TABLES,
+    MATERIAL_BOX_PROBABILITIES,
 } from '../shared/constants/index.js';
 import { normalizeInventoryEquipmentItem } from '../shared/utils/inventoryLegacyNormalize.js';
 import {
@@ -176,26 +178,12 @@ function openBoxWithLootTable(lootTable: { grade: ItemGrade; weight: number }[])
     return createItemFromTemplate(template);
 }
 
-const EQUIPMENT_BOX_1_LOOT_TABLE: { grade: ItemGrade; weight: number }[] = [ { grade: ItemGrade.Normal, weight: 70 }, { grade: ItemGrade.Uncommon, weight: 20 }, { grade: ItemGrade.Rare, weight: 10 }];
-const EQUIPMENT_BOX_2_LOOT_TABLE: { grade: ItemGrade; weight: number }[] = [ { grade: ItemGrade.Normal, weight: 50 }, { grade: ItemGrade.Uncommon, weight: 25 }, { grade: ItemGrade.Rare, weight: 20 }, { grade: ItemGrade.Epic, weight: 5 }];
-const EQUIPMENT_BOX_3_LOOT_TABLE: { grade: ItemGrade; weight: number }[] = [ { grade: ItemGrade.Uncommon, weight: 40 }, { grade: ItemGrade.Rare, weight: 30 }, { grade: ItemGrade.Epic, weight: 25 }, { grade: ItemGrade.Legendary, weight: 5 }];
-const EQUIPMENT_BOX_4_LOOT_TABLE: { grade: ItemGrade; weight: number }[] = [ { grade: ItemGrade.Rare, weight: 50 }, { grade: ItemGrade.Epic, weight: 40 }, { grade: ItemGrade.Legendary, weight: 8 }, { grade: ItemGrade.Mythic, weight: 2 }];
-const EQUIPMENT_BOX_5_LOOT_TABLE: { grade: ItemGrade; weight: number }[] = [ { grade: ItemGrade.Epic, weight: 75 }, { grade: ItemGrade.Legendary, weight: 20 }, { grade: ItemGrade.Mythic, weight: 5 }];
-const EQUIPMENT_BOX_6_LOOT_TABLE: { grade: ItemGrade; weight: number }[] = [ { grade: ItemGrade.Legendary, weight: 90 }, { grade: ItemGrade.Mythic, weight: 10 }];
-
-export function openEquipmentBox1(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_1_LOOT_TABLE); }
-export function openEquipmentBox2(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_2_LOOT_TABLE); }
-export function openEquipmentBox3(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_3_LOOT_TABLE); }
-export function openEquipmentBox4(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_4_LOOT_TABLE); }
-export function openEquipmentBox5(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_5_LOOT_TABLE); }
-export function openEquipmentBox6(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_6_LOOT_TABLE); }
-
-const MATERIAL_BOX_1_PROBABILITY = { '하급 강화석': 0.8, '중급 강화석': 0.15, '상급 강화석': 0.05 };
-const MATERIAL_BOX_2_PROBABILITY = { '하급 강화석': 0.35, '중급 강화석': 0.55, '상급 강화석': 0.1 };
-const MATERIAL_BOX_3_PROBABILITY = { '하급 강화석': 0.1, '중급 강화석': 0.45, '상급 강화석': 0.45 };
-const MATERIAL_BOX_4_PROBABILITY = { '중급 강화석': 0.35, '상급 강화석': 0.45, '최상급 강화석': 0.2 };
-const MATERIAL_BOX_5_PROBABILITY = { '상급 강화석': 0.5, '최상급 강화석': 0.4, '신비의 강화석': 0.1 };
-const MATERIAL_BOX_6_PROBABILITY = { '상급 강화석': 0.25, '최상급 강화석': 0.25, '신비의 강화석': 0.5 };
+export function openEquipmentBox1(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_1); }
+export function openEquipmentBox2(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_2); }
+export function openEquipmentBox3(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_3); }
+export function openEquipmentBox4(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_4); }
+export function openEquipmentBox5(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_5); }
+export function openEquipmentBox6(): InventoryItem { return openBoxWithLootTable(EQUIPMENT_BOX_LOOT_TABLES.equipment_box_6); }
 
 const gradeOrder: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
 
@@ -210,14 +198,7 @@ export const openGuildGradeBox = (grade: ItemGrade): InventoryItem => {
 };
 
 export function openMaterialBox(boxId: 'material_box_1' | 'material_box_2' | 'material_box_3' | 'material_box_4' | 'material_box_5' | 'material_box_6', rolls: number): InventoryItem[] {
-    const probabilities = {
-        'material_box_1': MATERIAL_BOX_1_PROBABILITY,
-        'material_box_2': MATERIAL_BOX_2_PROBABILITY,
-        'material_box_3': MATERIAL_BOX_3_PROBABILITY,
-        'material_box_4': MATERIAL_BOX_4_PROBABILITY,
-        'material_box_5': MATERIAL_BOX_5_PROBABILITY,
-        'material_box_6': MATERIAL_BOX_6_PROBABILITY,
-    }[boxId];
+    const probabilities = MATERIAL_BOX_PROBABILITIES[boxId];
 
     const results: { [key: string]: number } = {};
     for (let i = 0; i < rolls; i++) {

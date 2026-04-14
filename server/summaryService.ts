@@ -3,7 +3,7 @@
 import { LiveGameSession, Player, User, GameSummary, StatChange, GameMode, InventoryItem, SpecialStat, WinReason, SinglePlayerStageInfo, QuestReward, Mail } from '../types/index.js';
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
-import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES } from '../constants';
+import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
@@ -36,6 +36,11 @@ import {
     applyAdventureMonsterMapSuppressAfterPlayerLoss,
 } from './utils/adventureMonsterDefeat.js';
 import { normalizeAdventureProfile, sumAdventureUnderstandingGoldBonusPercent } from '../utils/adventureUnderstanding.js';
+import {
+    getRegionalEquipmentDropBonusPercentForStage,
+    getRegionalMaterialDropBonusPercentForStage,
+    getRegionalWinGoldBonusPercentForStage,
+} from '../utils/adventureRegionalSpecialtyBuff.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -73,6 +78,14 @@ function resolveAdventureMonsterBattleModeForSummary(
         default:
             return null;
     }
+}
+
+/** 도감·지역 공통 모험 골드/드롭 %는 모험 몬스터 대전 정산에만 반영 (일반 대국 `calculateGameRewards` 경로 제외) */
+function isAdventureMonsterBattleRewardContext(game: LiveGameSession): boolean {
+    if (game.gameCategory !== 'adventure') return false;
+    if (typeof game.adventureMonsterCodexId !== 'string' || game.adventureMonsterCodexId.length === 0) return false;
+    if (typeof game.adventureStageId !== 'string' || game.adventureStageId.length === 0) return false;
+    return resolveAdventureMonsterBattleModeForSummary(game) != null;
 }
 
 /** 챔피언십 던전 대국(상대 id가 dungeon-bot-) — 퀘스트 「챔피언십 경기 진행하기」용 */
@@ -761,52 +774,6 @@ export const createConsumableItemInstance = (name: string, quantity: number = 1)
 
 // --- START NEW REWARD CONSTANTS ---
 
-// Strategic Loot Table
-const STRATEGIC_LOOT_TABLE: { name: string; chance: number; type: 'equipment' | 'material' }[] = [
-    { name: '재료 상자 IV', chance: 0.1, type: 'material' },
-    { name: '장비 상자 IV', chance: 0.1, type: 'equipment' },
-    { name: '재료 상자 III', chance: 1, type: 'material' },
-    { name: '장비 상자 III', chance: 1, type: 'equipment' },
-    { name: '재료 상자 II', chance: 3, type: 'material' },
-    { name: '장비 상자 II', chance: 3, type: 'equipment' },
-    { name: '재료 상자 I', chance: 15, type: 'material' },
-    { name: '장비 상자 I', chance: 15, type: 'equipment' },
-];
-
-// Playful Loot Tables
-const PLAYFUL_LOOT_TABLE_3_ROUNDS: { name: string; chance: number; type: 'equipment' | 'material' }[] = [
-    { name: '재료 상자 IV', chance: 0.05, type: 'material' },
-    { name: '장비 상자 IV', chance: 0.05, type: 'equipment' },
-    { name: '재료 상자 III', chance: 0.1, type: 'material' },
-    { name: '장비 상자 III', chance: 0.1, type: 'equipment' },
-    { name: '재료 상자 II', chance: 1, type: 'material' },
-    { name: '장비 상자 II', chance: 1, type: 'equipment' },
-    { name: '재료 상자 I', chance: 10, type: 'material' },
-    { name: '장비 상자 I', chance: 10, type: 'equipment' },
-];
-
-const PLAYFUL_LOOT_TABLE_2_ROUNDS: { name: string; chance: number; type: 'equipment' | 'material' }[] = [
-    { name: '재료 상자 IV', chance: 0.03, type: 'material' },
-    { name: '장비 상자 IV', chance: 0.03, type: 'equipment' },
-    { name: '재료 상자 III', chance: 0.05, type: 'material' },
-    { name: '장비 상자 III', chance: 0.05, type: 'equipment' },
-    { name: '재료 상자 II', chance: 0.5, type: 'material' },
-    { name: '장비 상자 II', chance: 0.5, type: 'equipment' },
-    { name: '재료 상자 I', chance: 5, type: 'material' },
-    { name: '장비 상자 I', chance: 5, type: 'equipment' },
-];
-
-const PLAYFUL_LOOT_TABLE_1_ROUND: { name: string; chance: number; type: 'equipment' | 'material' }[] = [
-    { name: '재료 상자 IV', chance: 0.01, type: 'material' },
-    { name: '장비 상자 IV', chance: 0.01, type: 'equipment' },
-    { name: '재료 상자 III', chance: 0.03, type: 'material' },
-    { name: '장비 상자 III', chance: 0.03, type: 'equipment' },
-    { name: '재료 상자 II', chance: 0.1, type: 'material' },
-    { name: '장비 상자 II', chance: 0.1, type: 'equipment' },
-    { name: '재료 상자 I', chance: 2, type: 'material' },
-    { name: '장비 상자 I', chance: 2, type: 'equipment' },
-];
-
 const STRATEGIC_GOLD_REWARDS = ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE;
 
 // Playful Gold Map
@@ -863,9 +830,9 @@ const calculateGameRewards = (
         else if (mode === GameMode.Thief) rounds = 2;
 
         baseGold = PLAYFUL_GOLD_REWARDS[rounds as keyof typeof PLAYFUL_GOLD_REWARDS] || PLAYFUL_GOLD_REWARDS[1];
-        if (rounds === 3) lootTable = PLAYFUL_LOOT_TABLE_3_ROUNDS;
-        else if (rounds === 2) lootTable = PLAYFUL_LOOT_TABLE_2_ROUNDS;
-        else lootTable = PLAYFUL_LOOT_TABLE_1_ROUND;
+        if (rounds === 3) lootTable = PLAYFUL_LOOT_TABLES_BY_ROUNDS[3];
+        else if (rounds === 2) lootTable = PLAYFUL_LOOT_TABLES_BY_ROUNDS[2];
+        else lootTable = PLAYFUL_LOOT_TABLES_BY_ROUNDS[1];
     }
 
     // Determine gold multiplier
@@ -889,7 +856,8 @@ const calculateGameRewards = (
         baseRewardBeforeBuffs + Math.round(baseRewardBeforeBuffs * (nonAdventureBonusPercent / 100)),
     );
     let adventureGoldUnderstandingBonus: number | undefined;
-    if (isWinner && game.gameCategory === 'adventure') {
+    const advMonsterRewardCtx = isAdventureMonsterBattleRewardContext(game);
+    if (isWinner && advMonsterRewardCtx) {
         const { codexOnlyPercent, understandingPercent } = splitAdventureGoldBonusPercents(effects, player.adventureProfile);
         const adventureBonusPercent = codexOnlyPercent + understandingPercent;
         goldReward = Math.max(
@@ -910,11 +878,10 @@ const calculateGameRewards = (
     
     if (canDropItem && lootTable.length > 0) {
         const baseDropChanceMultiplier = (isWinner ? 1.0 : 0.5) * rewardMultiplier;
-        const isAdventureCategory = game.gameCategory === 'adventure';
-        const advEqDrop = isAdventureCategory ? (effects.adventureUnderstandingEquipmentDropBonusPercent ?? 0) : 0;
-        const advMatDrop = isAdventureCategory ? (effects.adventureUnderstandingMaterialDropBonusPercent ?? 0) : 0;
-        const advHgEq = isAdventureCategory ? (effects.adventureUnderstandingHighGradeEquipmentBonusPercent ?? 0) : 0;
-        const advHgMat = isAdventureCategory ? (effects.adventureUnderstandingHighGradeMaterialBonusPercent ?? 0) : 0;
+        const advEqDrop = advMonsterRewardCtx ? (effects.adventureUnderstandingEquipmentDropBonusPercent ?? 0) : 0;
+        const advMatDrop = advMonsterRewardCtx ? (effects.adventureUnderstandingMaterialDropBonusPercent ?? 0) : 0;
+        const advHgEq = advMonsterRewardCtx ? (effects.adventureUnderstandingHighGradeEquipmentBonusPercent ?? 0) : 0;
+        const advHgMat = advMonsterRewardCtx ? (effects.adventureUnderstandingHighGradeMaterialBonusPercent ?? 0) : 0;
         const isHighTierEquipmentBox = (name: string) => name.startsWith('장비 상자 ') && !name.endsWith(' I');
         const isHighTierMaterialBox = (name: string) => name.startsWith('재료 상자 ') && !name.endsWith(' I');
 
@@ -924,9 +891,9 @@ const calculateGameRewards = (
                     ? itemDropBonus + advEqDrop
                     : materialDropBonus + advMatDrop;
             const highTierBonusPercent =
-                isAdventureCategory && loot.type === 'equipment' && isHighTierEquipmentBox(loot.name)
+                advMonsterRewardCtx && loot.type === 'equipment' && isHighTierEquipmentBox(loot.name)
                     ? advHgEq
-                    : (isAdventureCategory && loot.type === 'material' && isHighTierMaterialBox(loot.name)
+                    : (advMonsterRewardCtx && loot.type === 'material' && isHighTierMaterialBox(loot.name)
                         ? advHgMat
                         : 0);
             const baseChance = loot.chance * baseDropChanceMultiplier;
@@ -987,6 +954,10 @@ function calculateAdventureMonsterBattleRewards(
     const advHgEq = effects.adventureUnderstandingHighGradeEquipmentBonusPercent ?? 0;
     const advHgMat = effects.adventureUnderstandingHighGradeMaterialBonusPercent ?? 0;
     const { codexOnlyPercent, understandingPercent } = splitAdventureGoldBonusPercents(effects, adventureProfile);
+    const advStageId = typeof game.adventureStageId === 'string' ? game.adventureStageId : '';
+    const regGoldPct = advStageId ? getRegionalWinGoldBonusPercentForStage(adventureProfile, advStageId) : 0;
+    const regEqPct = advStageId ? getRegionalEquipmentDropBonusPercentForStage(adventureProfile, advStageId) : 0;
+    const regMatPct = advStageId ? getRegionalMaterialDropBonusPercentForStage(adventureProfile, advStageId) : 0;
 
     const chapterIdx = resolveAdventureChapterIndexForLoot(game.adventureStageId);
     const lootDef = getAdventureChapterDirectLootDefinition(chapterIdx);
@@ -1009,7 +980,8 @@ function calculateAdventureMonsterBattleRewards(
         baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * 1.68);
     }
     const globalGoldPercent = (effects.goldRewardMultiplier - 1) * 100;
-    const totalBonusPercent = globalGoldPercent + effects.winGoldBonusPercent + codexOnlyPercent + understandingPercent;
+    const totalBonusPercent =
+        globalGoldPercent + effects.winGoldBonusPercent + codexOnlyPercent + understandingPercent + regGoldPct;
     const totalBonusGold = Math.round(baseRewardBeforeBuffs * (totalBonusPercent / 100));
     const goldReward = Math.max(0, baseRewardBeforeBuffs + totalBonusGold);
     const understandingGoldBonus = Math.max(0, Math.round(baseRewardBeforeBuffs * (understandingPercent / 100)));
@@ -1071,8 +1043,8 @@ function calculateAdventureMonsterBattleRewards(
         return { obtained: true, displayName: pickedName, quantity: inst.quantity };
     };
 
-    const equipmentSlot = rollSlot('equipment', itemDropBonus + advEqDrop, advHgEq);
-    const materialSlot = rollSlot('material', materialDropBonus + advMatDrop, advHgMat);
+    const equipmentSlot = rollSlot('equipment', itemDropBonus + advEqDrop + regEqPct, advHgEq);
+    const materialSlot = rollSlot('material', materialDropBonus + advMatDrop + regMatPct, advHgMat);
 
     return {
         gold: goldReward,
@@ -1509,6 +1481,9 @@ const processPlayerSummary = async (
             if (isWinner) {
                 updateQuestProgress(updatedPlayer, 'win', mode, 1);
             }
+        }
+        if (isWinner && game.gameCategory === 'adventure') {
+            updateQuestProgress(updatedPlayer, 'adventure_win', undefined, 1);
         }
 
         if (liveSessionHasChampionshipDungeonBot(game)) {

@@ -46,6 +46,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
         <PreGameColorRoulette
             key={`${gameId}-start-${blackPlayerId}-${whitePlayerId}`}
             layout="cardsOnly"
+            animate={false}
             participantsInDisplayOrder={[p1Seat, p2Seat]}
             blackPlayer={blackUiPlayer}
             whitePlayer={whiteUiPlayer}

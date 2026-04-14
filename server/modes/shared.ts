@@ -111,7 +111,8 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
     if (game.gameCategory === types.GameCategory.Adventure && (game as any).adventureEncounterDeadlineMs == null) {
         const bs = game.settings?.boardSize ?? (game as any).adventureBoardSize ?? 9;
         const mins = getAdventureEncounterCountdownMinutes(bs);
-        (game as any).adventureEncounterDeadlineMs = now + mins * 60 * 1000;
+        const durMult = Math.max(0.5, Math.min(3, Number((game as any).adventureEncounterDurationMultiplier) || 1));
+        (game as any).adventureEncounterDeadlineMs = now + mins * 60 * 1000 * durMult;
     }
 };
 
@@ -498,7 +499,9 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             if (!game.actionButtonUsedThisCycle) game.actionButtonUsedThisCycle = {};
             game.actionButtonUsedThisCycle[user.id] = true;
             
-            updateQuestProgress(user, 'action_button');
+            if (button.type === 'manner') {
+                updateQuestProgress(user, 'action_button');
+            }
 
             await db.updateUser(user);
             await db.saveGame(game);

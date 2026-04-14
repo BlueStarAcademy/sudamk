@@ -204,84 +204,163 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
 
     const buttonsDisabled = !!myBid;
 
-    const biddingBody = (
-            <div className={`${komiWindowShell} px-3 pb-3 pt-2 sm:px-4 sm:pb-4`}>
-                <p className="mb-2 text-center text-[11px] leading-snug text-stone-400">
-                    원하는 돌 색과 추가 덤(0~100)을 정하세요. 기본 덤 백 {baseKomi}집.
-                </p>
-                {!isAdventure && (
-                    <>
-                        <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
-                            <div
-                                className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300"
-                                style={{ width: `${(timer / KOMI_BID_TIME_SEC) * 100}%`, transition: 'width 0.5s linear' }}
-                            />
-                        </div>
-                        <p className="mb-3 text-center font-mono text-2xl font-bold tabular-nums text-amber-100">{timer}</p>
-                    </>
-                )}
+    if (layout === 'inline') {
+        return (
+            <div className="w-full min-w-0 max-w-full overflow-x-auto">
+                <div className={`${komiWindowShell} flex min-h-[3.25rem] min-w-max items-stretch gap-1.5 px-2 py-1.5`}>
+                    <div className="flex min-w-[4.5rem] flex-col items-center justify-center rounded-lg border border-amber-500/30 bg-black/45 px-2">
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-stone-500">추가 덤</span>
+                        <span className="font-mono text-base font-bold text-amber-200">{komiValue}집</span>
+                    </div>
 
-                <div className="mb-3 flex justify-center gap-2">
-                    <button
-                        type="button"
-                        disabled={buttonsDisabled}
-                        onClick={() => setSelectedColor(Player.Black)}
-                        className={`min-w-[5.5rem] rounded-xl border px-4 py-2 text-sm font-bold transition-all ${
-                            selectedColor === Player.Black
-                                ? 'border-amber-400/60 bg-amber-500/20 text-amber-50 shadow-[0_0_20px_-8px_rgba(251,191,36,0.5)]'
-                                : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
-                        } disabled:opacity-40`}
+                    <div className="flex items-stretch gap-1">
+                        <button
+                            type="button"
+                            disabled={buttonsDisabled}
+                            onClick={() => setSelectedColor(Player.Black)}
+                            className={`min-w-[2.6rem] rounded-lg border px-2 text-xs font-bold transition-all ${
+                                selectedColor === Player.Black
+                                    ? 'border-amber-400/60 bg-amber-500/20 text-amber-50 shadow-[0_0_18px_-8px_rgba(251,191,36,0.5)]'
+                                    : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
+                            } disabled:opacity-40`}
+                        >
+                            흑
+                        </button>
+                        <button
+                            type="button"
+                            disabled={buttonsDisabled}
+                            onClick={() => setSelectedColor(Player.White)}
+                            className={`min-w-[2.6rem] rounded-lg border px-2 text-xs font-bold transition-all ${
+                                selectedColor === Player.White
+                                    ? 'border-slate-300/50 bg-slate-200/15 text-slate-50 shadow-[0_0_18px_-8px_rgba(226,232,240,0.35)]'
+                                    : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
+                            } disabled:opacity-40`}
+                        >
+                            백
+                        </button>
+                    </div>
+
+                    <div className="flex items-stretch gap-1">
+                        <button
+                            type="button"
+                            onClick={() => adjustKomi(1)}
+                            disabled={buttonsDisabled}
+                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            +1
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => adjustKomi(5)}
+                            disabled={buttonsDisabled}
+                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            +5
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => adjustKomi(-1)}
+                            disabled={buttonsDisabled}
+                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            -1
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => adjustKomi(-5)}
+                            disabled={buttonsDisabled}
+                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                        >
+                            -5
+                        </button>
+                    </div>
+
+                    <Button
+                        onClick={handleBidSubmit}
+                        disabled={buttonsDisabled || isSubmitting}
+                        className="!rounded-lg !border !border-amber-400/35 !bg-gradient-to-r !from-amber-700/90 !to-amber-600/85 !px-3 !py-2 !text-xs !font-bold !text-amber-50 hover:!from-amber-600 hover:!to-amber-500"
                     >
-                        흑
-                    </button>
-                    <button
-                        type="button"
-                        disabled={buttonsDisabled}
-                        onClick={() => setSelectedColor(Player.White)}
-                        className={`min-w-[5.5rem] rounded-xl border px-4 py-2 text-sm font-bold transition-all ${
-                            selectedColor === Player.White
-                                ? 'border-slate-300/50 bg-slate-200/15 text-slate-50 shadow-[0_0_20px_-8px_rgba(226,232,240,0.35)]'
-                                : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
-                        } disabled:opacity-40`}
-                    >
-                        백
-                    </button>
+                        완료
+                    </Button>
                 </div>
-
-                <p className="mb-1 text-center text-[10px] font-medium uppercase tracking-wider text-stone-500">추가 덤</p>
-                <div className="mb-2 rounded-xl border border-amber-500/25 bg-black/40 py-2 text-center font-mono text-xl font-bold text-amber-200">
-                    {komiValue}집
-                </div>
-                <div className="mb-1 grid grid-cols-4 gap-1.5">
-                    <AdjustButton amount={10} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                    <AdjustButton amount={5} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                    <AdjustButton amount={3} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                    <AdjustButton amount={1} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                </div>
-                <div className="mb-3 grid grid-cols-4 gap-1.5">
-                    <AdjustButton amount={-10} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                    <AdjustButton amount={-5} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                    <AdjustButton amount={-3} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                    <AdjustButton amount={-1} onAdjust={adjustKomi} disabled={buttonsDisabled} />
-                </div>
-
-                <p className="mb-3 min-h-[2.5rem] text-center text-[11px] leading-snug text-stone-400">{renderDescription()}</p>
-
-                <Button
-                    onClick={handleBidSubmit}
-                    disabled={buttonsDisabled || isSubmitting}
-                    className="w-full !rounded-xl !border !border-amber-400/35 !bg-gradient-to-r !from-amber-700/90 !to-amber-600/85 !py-2.5 !font-bold !text-amber-50 hover:!from-amber-600 hover:!to-amber-500"
-                >
-                    {buttonsDisabled ? '설정 완료' : '덤 설정 완료'}
-                </Button>
             </div>
+        );
+    }
+
+    const biddingBody = (
+        <div className={`${komiWindowShell} px-3 pb-3 pt-2 sm:px-4 sm:pb-4`}>
+            <p className="mb-2 text-center text-[11px] leading-snug text-stone-400">
+                원하는 돌 색과 추가 덤(0~100)을 정하세요. 기본 덤 백 {baseKomi}집.
+            </p>
+            {!isAdventure && (
+                <>
+                    <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
+                        <div
+                            className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300"
+                            style={{ width: `${(timer / KOMI_BID_TIME_SEC) * 100}%`, transition: 'width 0.5s linear' }}
+                        />
+                    </div>
+                    <p className="mb-3 text-center font-mono text-2xl font-bold tabular-nums text-amber-100">{timer}</p>
+                </>
+            )}
+
+            <div className="mb-3 flex justify-center gap-2">
+                <button
+                    type="button"
+                    disabled={buttonsDisabled}
+                    onClick={() => setSelectedColor(Player.Black)}
+                    className={`min-w-[5.5rem] rounded-xl border px-4 py-2 text-sm font-bold transition-all ${
+                        selectedColor === Player.Black
+                            ? 'border-amber-400/60 bg-amber-500/20 text-amber-50 shadow-[0_0_20px_-8px_rgba(251,191,36,0.5)]'
+                            : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
+                    } disabled:opacity-40`}
+                >
+                    흑
+                </button>
+                <button
+                    type="button"
+                    disabled={buttonsDisabled}
+                    onClick={() => setSelectedColor(Player.White)}
+                    className={`min-w-[5.5rem] rounded-xl border px-4 py-2 text-sm font-bold transition-all ${
+                        selectedColor === Player.White
+                            ? 'border-slate-300/50 bg-slate-200/15 text-slate-50 shadow-[0_0_20px_-8px_rgba(226,232,240,0.35)]'
+                            : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
+                    } disabled:opacity-40`}
+                >
+                    백
+                </button>
+            </div>
+
+            <p className="mb-1 text-center text-[10px] font-medium uppercase tracking-wider text-stone-500">추가 덤</p>
+            <div className="mb-2 rounded-xl border border-amber-500/25 bg-black/40 py-2 text-center font-mono text-xl font-bold text-amber-200">
+                {komiValue}집
+            </div>
+            <div className="mb-1 grid grid-cols-4 gap-1.5">
+                <AdjustButton amount={10} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+                <AdjustButton amount={5} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+                <AdjustButton amount={3} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+                <AdjustButton amount={1} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+            </div>
+            <div className="mb-3 grid grid-cols-4 gap-1.5">
+                <AdjustButton amount={-10} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+                <AdjustButton amount={-5} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+                <AdjustButton amount={-3} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+                <AdjustButton amount={-1} onAdjust={adjustKomi} disabled={buttonsDisabled} />
+            </div>
+
+            <p className="mb-3 min-h-[2.5rem] text-center text-[11px] leading-snug text-stone-400">{renderDescription()}</p>
+
+            <Button
+                onClick={handleBidSubmit}
+                disabled={buttonsDisabled || isSubmitting}
+                className="w-full !rounded-xl !border !border-amber-400/35 !bg-gradient-to-r !from-amber-700/90 !to-amber-600/85 !py-2.5 !font-bold !text-amber-50 hover:!from-amber-600 hover:!to-amber-500"
+            >
+                {buttonsDisabled ? '설정 완료' : '덤 설정 완료'}
+            </Button>
+        </div>
     );
 
-    return layout === 'inline' ? (
-        <div className="w-full min-w-0 max-w-full overflow-x-auto">
-            {biddingBody}
-        </div>
-    ) : (
+    return (
         <DraggableWindow
             title={komiBiddingRound === 2 ? '덤 설정 (재설정)' : '덤 설정'}
             {...panelProps}

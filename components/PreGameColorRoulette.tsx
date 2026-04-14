@@ -22,6 +22,8 @@ interface PreGameColorRouletteProps {
     suppressHeader?: boolean;
     /** 흑·백 카드만 표시 (룰렛 박스·안내 문구 없음) */
     layout?: 'full' | 'cardsOnly';
+    /** false면 룰렛 애니메이션 없이 최종 배치만 표시 */
+    animate?: boolean;
 }
 
 const ROULETTE_TICK_MS = 110;
@@ -37,6 +39,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     onComplete,
     suppressHeader = false,
     layout = 'full',
+    animate = true,
 }) => {
     const flipMode = Boolean(participantsInDisplayOrder?.[0] && participantsInDisplayOrder?.[1]);
     const leftSeat = flipMode ? participantsInDisplayOrder![0] : blackPlayer;
@@ -55,6 +58,13 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
     }, [onComplete]);
 
     useEffect(() => {
+        if (!animate) {
+            completedRef.current = true;
+            setIsFinished(true);
+            setActiveColor(Player.Black);
+            setLeftIsBlack(finalLeftIsBlack);
+            return;
+        }
         if (flipMode) return;
 
         completedRef.current = false;
@@ -81,9 +91,10 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
             window.clearInterval(timerId);
             window.clearTimeout(finishId);
         };
-    }, [flipMode, durationMs, blackPlayer.id, whitePlayer.id]);
+    }, [animate, flipMode, durationMs, blackPlayer.id, whitePlayer.id, finalLeftIsBlack]);
 
     useEffect(() => {
+        if (!animate) return;
         if (!flipMode) return;
 
         completedRef.current = false;
@@ -108,7 +119,7 @@ const PreGameColorRoulette: React.FC<PreGameColorRouletteProps> = ({
             window.clearInterval(timerId);
             window.clearTimeout(finishId);
         };
-    }, [flipMode, durationMs, finalLeftIsBlack, leftSeat.id, rightSeat.id, blackPlayer.id]);
+    }, [animate, flipMode, durationMs, finalLeftIsBlack, leftSeat.id, rightSeat.id, blackPlayer.id]);
 
     const renderPlayerCard = (player: User, isBlackRole: boolean, isActive: boolean) => {
         const overrideUrl = avatarUrlOverrides?.[player.id];

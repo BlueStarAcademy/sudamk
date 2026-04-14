@@ -1449,16 +1449,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         (isHiddenMoveForRender && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
                     );
 
-                    /** 서버가 추적하는 베이스돌 좌표. 게임 흑/백과 무관하게 p1=진한·p2=밝은 배치 색으로 고정 표시 */
                     const hasBaseStoneHere = baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false;
-                    const inP1BaseSeat = baseStones_p1?.some((p) => p.x === x && p.y === y) ?? false;
-                    const inP2BaseSeat = baseStones_p2?.some((p) => p.x === x && p.y === y) ?? false;
-                    let seatVisualPlayer = actualPlayer;
-                    if (hasBaseStoneHere && inP1BaseSeat && !inP2BaseSeat) {
-                        seatVisualPlayer = Player.Black;
-                    } else if (hasBaseStoneHere && inP2BaseSeat && !inP1BaseSeat) {
-                        seatVisualPlayer = Player.White;
-                    }
                     // 히든 돌은 공개되어도 히든 문양을 유지. 상대 미공개 히든은 위에서 return null.
                     // (이전: 마지막 수만 문양 제외 → 본인 히든 착수 직후·스캔 직후에도 문양이 안 보이는 버그)
                     const isKnownHidden = !!isHiddenMoveForRender;
@@ -1479,8 +1470,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         }
                     }
 
-                    const stonePlayerForRender =
-                        isKnownHidden || isPatternStone ? actualPlayer : seatVisualPlayer;
+                    const stonePlayerForRender = actualPlayer;
 
                     return <Stone key={`${x}-${y}`} player={stonePlayerForRender} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} />;
                 }))}

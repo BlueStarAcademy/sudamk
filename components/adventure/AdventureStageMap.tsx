@@ -30,7 +30,10 @@ import {
     buildAdventureMapMonstersFromSchedule,
     type AdventureMapMonsterInstance,
 } from '../../shared/utils/adventureMapSchedule.js';
-import { getRegionalMapMonsterDwellMultiplierForStage } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import {
+    getRegionalMapMonsterDwellMultiplierForStage,
+    getRegionalMapMonsterRespawnOffMultiplierForStage,
+} from '../../utils/adventureRegionalSpecialtyBuff.js';
 import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSituationList.js';
 import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
@@ -167,6 +170,13 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 : 1,
         [currentUserWithStatus?.adventureProfile, stage?.id],
     );
+    const mapRespawnOffMult = useMemo(
+        () =>
+            stage
+                ? getRegionalMapMonsterRespawnOffMultiplierForStage(currentUserWithStatus?.adventureProfile, stage.id)
+                : 1,
+        [currentUserWithStatus?.adventureProfile, stage?.id],
+    );
 
     const stageRegionalBuffEntries = stage
         ? currentUserWithStatus?.adventureProfile?.regionalSpecialtyBuffsByStageId?.[stage.id] ?? []
@@ -180,8 +190,8 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
 
     const monsters = useMemo(() => {
         if (!stage) return [];
-        return buildAdventureMapMonstersFromSchedule(stage, Date.now(), suppressRecord, mapDwellMult);
-    }, [stage, suppressRecord, panelSecondTick, mapDwellMult]);
+        return buildAdventureMapMonstersFromSchedule(stage, Date.now(), suppressRecord, mapDwellMult, mapRespawnOffMult);
+    }, [stage, suppressRecord, panelSecondTick, mapDwellMult, mapRespawnOffMult]);
 
     const chapterUnlockCtx: AdventureChapterUnlockContext = useMemo(
         () => ({
@@ -375,11 +385,19 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         for (const row of stage.monsters) {
             const boss = isAdventureChapterBossCodexId(row.codexId);
             const key = adventureMapSuppressKey(stage.id, row.codexId);
-            const m = adventureMapMsUntilNextAppearance(t, stage.id, row.codexId, boss, suppressRecord[key], mapDwellMult);
+            const m = adventureMapMsUntilNextAppearance(
+                t,
+                stage.id,
+                row.codexId,
+                boss,
+                suppressRecord[key],
+                mapDwellMult,
+                mapRespawnOffMult,
+            );
             minM = Math.min(minM, m);
         }
         return Number.isFinite(minM) ? minM : 0;
-    }, [stage, suppressRecord, panelSecondTick, mapDwellMult]);
+    }, [stage, suppressRecord, panelSecondTick, mapDwellMult, mapRespawnOffMult]);
 
     const onBack = () => replaceAppHash('#/adventure');
 
@@ -438,6 +456,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             boss,
             suppressRecord[supK],
             mapDwellMult,
+            mapRespawnOffMult,
         );
         if (rosterModalInstance) {
             rosterModalRightSlot = '출현중';
@@ -776,6 +795,8 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     suppressRecord={suppressRecord}
                                     nowMs={now}
                                     onPickRow={(id) => setRosterModalCodexId(id)}
+                                    mapDwellMultiplier={mapDwellMult}
+                                    mapRespawnOffMultiplier={mapRespawnOffMult}
                                 />
                             </div>
                         </aside>
@@ -1008,6 +1029,8 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 suppressRecord={suppressRecord}
                                 nowMs={now}
                                 onPickRow={(id) => setRosterModalCodexId(id)}
+                                mapDwellMultiplier={mapDwellMult}
+                                mapRespawnOffMultiplier={mapRespawnOffMult}
                             />
                         </div>
                     </aside>
@@ -1151,6 +1174,8 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                   stageId: stage.id,
                                   mapMonsters: monsters,
                                   suppressRecord,
+                                  mapDwellMultiplier: mapDwellMult,
+                                  mapRespawnOffMultiplier: mapRespawnOffMult,
                                   onPickRow: (id: string) => {
                                       setRosterModalCodexId(id);
                                       setMonsterHubOpen(false);

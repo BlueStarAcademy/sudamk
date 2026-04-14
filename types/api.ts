@@ -239,7 +239,8 @@ export type ServerAction =
               mapMonsterId: string;
           };
       }
-    | { type: 'REROLL_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; lockedIndices?: number[] } }
+    | { type: 'REROLL_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; slotIndex: number } }
+    | { type: 'ENHANCE_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; slotIndex: number } }
     // Inventory & Item Actions
     | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
@@ -257,6 +258,7 @@ export type ServerAction =
     | { type: 'MARK_MAIL_AS_READ', payload: { mailId: string } }
     | { type: 'CLAIM_QUEST_REWARD', payload: { questId: string } }
     | { type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: number, questType: 'daily' | 'weekly' | 'monthly' } }
+    | { type: 'CLAIM_ACHIEVEMENT_REWARD', payload: { trackId: string; stageIndex: number } }
     // Shop
     | { type: 'BUY_SHOP_ITEM', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_MATERIAL_BOX', payload: { itemId: string, quantity: number } }

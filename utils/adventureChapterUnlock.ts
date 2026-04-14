@@ -7,8 +7,8 @@ import {
 } from '../constants/adventureConstants.js';
 
 /**
- * 직전 챕터 지역 이해도 요구: 「레벨 2」= 티어 2단계(익숙함) 이상.
- * (0 낯설음, 1 익숙함, 2 친숙함 …)
+ * 직전 챕터 지역 탐험도 요구: 티어 인덱스 1 이상(편함~).
+ * (0 낯섬, 1 편함, 2 익숙함, 3 친숙함, 4 정복)
  */
 export const ADVENTURE_CHAPTER_PRIOR_MIN_TIER_INDEX: AdventureUnderstandingTierIndex = 1;
 

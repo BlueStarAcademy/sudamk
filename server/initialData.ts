@@ -1,6 +1,6 @@
 import { type AppState, type User, type UserCredentials, type QuestLog, type DailyQuestData, type WeeklyCompetitor, type WeeklyQuestData, type MonthlyQuestData, type Guild, CoreStat, GameMode, LeagueTier, GuildMemberRole, GuildResearchId, type InventoryItem } from '../types/index.js';
 // FIX: Corrected import paths to resolve circular dependency.
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, BOT_NAMES, AVATAR_POOL, GUILD_MISSIONS_POOL, GUILD_INITIAL_MEMBER_LIMIT, defaultSettings } from '../constants/index.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, BOT_NAMES, AVATAR_POOL, GUILD_MISSIONS_POOL, GUILD_INITIAL_MEMBER_LIMIT, defaultSettings, ACHIEVEMENT_TRACKS } from '../constants/index.js';
 import * as crypto from 'crypto';
 // FIX: Import createDefaultBaseStats from shared utils.
 import { createDefaultBaseStats } from '../utils/statUtils.js';
@@ -27,6 +27,15 @@ export const createDefaultQuests = (): QuestLog => ({
         activityProgress: 0,
         claimedMilestones: [false, false, false, false, false],
         lastReset: 0,
+    },
+    achievements: {
+        tracks: ACHIEVEMENT_TRACKS.reduce((acc, track) => {
+            acc[track.id] = {
+                currentIndex: 0,
+                claimedIndices: [],
+            };
+            return acc;
+        }, {} as Record<string, { currentIndex: number; claimedIndices: number[] }>),
     },
 });
 

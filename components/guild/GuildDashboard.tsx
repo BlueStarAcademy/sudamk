@@ -2293,70 +2293,55 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
 
             {!isGuildPhone && (
             <>
-            <header className="relative flex flex-shrink-0 items-center justify-center rounded-xl border border-accent/20 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 py-2 shadow-lg mb-2">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 z-10">
-                    <BackButton onClick={() => window.location.hash = '#/profile'} />
-                </div>
-                
-                <div className="flex flex-1 items-center justify-center gap-4 px-20">
-                    <div className="relative group flex-shrink-0 overflow-visible">
-                        <div className="absolute inset-0 bg-gradient-to-br from-accent/30 to-accent/10 rounded-xl blur-sm"></div>
-                        <img src={getGuildIconPath(currentGuild?.icon || guild?.icon)} alt="Guild Icon" className="relative z-10 h-16 w-16 bg-tertiary rounded-xl border-2 border-accent/30 shadow-lg" />
-                        {canManage && (
-                            <button
-                                onClick={() => setIsIconSelectOpen(true)}
-                                className="absolute -bottom-1 -right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center shadow-lg hover:bg-accent/80 transition-all z-20 border-2 border-secondary"
-                                title="길드 마크 변경"
-                                type="button"
-                            >
-                                <span className="text-[10px]">✏️</span>
-                            </button>
-                        )}
-                    </div>
-                    <div className="flex flex-col items-center gap-1 min-w-0 flex-1 max-w-md">
-                        <h1 className="w-full truncate break-words text-center text-3xl font-bold text-highlight drop-shadow-md" title={(() => {
-                            if (!currentGuild) return '';
-                            const guildsGuild = guilds[currentGuild.id || guild.id];
-                            return guildsGuild?.name || currentGuild?.name || guild?.name || '';
-                        })()}>
-                            {(() => {
-                                if (!currentGuild) return '로딩 중...';
-                                const guildsGuild = guilds[currentGuild.id || guild.id];
-                                return guildsGuild?.name || currentGuild?.name || guild?.name || '길드';
-                            })()}
-                        </h1>
-                        <div className="flex items-center gap-3 w-full flex-wrap justify-center">
-                            <div className="text-lg font-semibold text-secondary">레벨 {currentGuild?.level || 1}</div>
-                                <div className="flex-1 min-w-[180px] max-w-md">
-                                    <div className="flex justify-between text-xs text-secondary mb-1">
-                                        <span className="font-semibold">경험치</span>
-                                        <span className="font-semibold">{(currentGuild?.xp ?? currentGuild?.experience ?? 0).toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
-                                    </div>
-                                    <div className="w-full bg-gray-700/50 rounded-full h-2.5 border border-gray-600/50 overflow-hidden shadow-inner">
-                                        <div 
-                                            className="bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]" 
-                                            style={{ width: `${xpProgress}%` }}
-                                        ></div>
+            <main className="grid min-h-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(0,2fr)_auto] gap-2">
+                <div className="flex min-h-0 flex-col gap-2">
+                    <header className="flex flex-shrink-0 items-center gap-3 rounded-xl border border-accent/20 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 px-4 py-2 shadow-lg">
+                        <BackButton onClick={() => window.location.hash = '#/profile'} />
+                        <div className="flex min-w-0 flex-1 items-center gap-3">
+                            <div className="relative group flex-shrink-0 overflow-visible">
+                                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent/30 to-accent/10 blur-sm"></div>
+                                <img src={getGuildIconPath(currentGuild?.icon || guild?.icon)} alt="Guild Icon" className="relative z-10 h-16 w-16 rounded-xl border-2 border-accent/30 bg-tertiary shadow-lg" />
+                                {canManage && (
+                                    <button
+                                        onClick={() => setIsIconSelectOpen(true)}
+                                        className="absolute -bottom-1 -right-1 z-20 flex h-5 w-5 items-center justify-center rounded-full border-2 border-secondary bg-accent shadow-lg transition-all hover:bg-accent/80"
+                                        title="길드 마크 변경"
+                                        type="button"
+                                    >
+                                        <span className="text-[10px]">✏️</span>
+                                    </button>
+                                )}
+                            </div>
+                            <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                <h1 className="w-full truncate break-words text-left text-3xl font-bold text-highlight drop-shadow-md" title={(() => {
+                                    if (!currentGuild) return '';
+                                    const guildsGuild = guilds[currentGuild.id || guild.id];
+                                    return guildsGuild?.name || currentGuild?.name || guild?.name || '';
+                                })()}>
+                                    {(() => {
+                                        if (!currentGuild) return '로딩 중...';
+                                        const guildsGuild = guilds[currentGuild.id || guild.id];
+                                        return guildsGuild?.name || currentGuild?.name || guild?.name || '길드';
+                                    })()}
+                                </h1>
+                                <div className="flex w-full flex-wrap items-center gap-3">
+                                    <div className="text-lg font-semibold text-secondary">레벨 {currentGuild?.level || 1}</div>
+                                    <div className="max-w-md min-w-[180px] flex-1">
+                                        <div className="mb-1 flex justify-between text-xs text-secondary">
+                                            <span className="font-semibold">경험치</span>
+                                            <span className="font-semibold">{(currentGuild?.xp ?? currentGuild?.experience ?? 0).toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
+                                        </div>
+                                        <div className="h-2.5 w-full overflow-hidden rounded-full border border-gray-600/50 bg-gray-700/50 shadow-inner">
+                                            <div
+                                                className="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all duration-500"
+                                                style={{ width: `${xpProgress}%` }}
+                                            ></div>
+                                        </div>
                                     </div>
                                 </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 z-10">
-                        <button 
-                            onClick={() => setIsHelpOpen(true)} 
-                            className="flex h-10 w-10 items-center justify-center rounded-xl border border-accent/20 bg-tertiary/50 shadow-md transition-all hover:scale-110 hover:bg-tertiary/70" 
-                            title="길드 도움말"
-                        >
-                            <img src="/images/button/help.webp" alt="도움말" className="w-full h-full" />
-                        </button>
-                    </div>
-
-            </header>
-
-            <main className="grid min-h-0 flex-1 grid-cols-5 gap-2">
-                <div className="col-span-3 flex min-h-0 flex-col gap-2">
+                    </header>
                         <div className="flex-shrink-0">
                             <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-md border border-stone-600/40 shadow-md">
                                 {tabs.map(tab => {
@@ -2402,9 +2387,8 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     </div>
                 </div>
 
-                <div className="col-span-2 flex h-full min-h-0 gap-1 overflow-hidden">
+                <div className="flex h-full min-h-0 gap-1 overflow-hidden">
                         <div className="flex min-w-0 flex-1 flex-col gap-1">
-                            <GuildDonationPanel guild={currentGuild || guild} guildDonationAnimation={guildDonationAnimation} onDonationComplete={onDonationComplete} goldButtonRef={goldButtonRef} diamondButtonRef={diamondButtonRef} />
                             <ActivityPanel
                                 onOpenMissions={() => setIsMissionsOpen(true)}
                                 onOpenResearch={() => setIsResearchOpen(true)}
@@ -2412,18 +2396,19 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                 missionNotification={missionTabNotification}
                                 onOpenBossGuide={() => setIsBossGuideOpen(true)}
                             />
+                            <GuildDonationPanel guild={currentGuild || guild} guildDonationAnimation={guildDonationAnimation} onDonationComplete={onDonationComplete} goldButtonRef={goldButtonRef} diamondButtonRef={diamondButtonRef} />
                             <div className="flex-1 min-h-0 overflow-hidden">
                                 <WarPanel guild={currentGuild || guild} className="h-full w-full" />
                             </div>
                         </div>
-                        <div
-                            className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
-                            aria-label="퀵 메뉴"
-                        >
-                            <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
-                                <QuickAccessSidebar fillHeight={true} />
-                            </div>
-                        </div>
+                </div>
+                <div
+                    className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
+                    aria-label="퀵 메뉴"
+                >
+                    <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                        <QuickAccessSidebar fillHeight={true} />
+                    </div>
                 </div>
                 
             </main>

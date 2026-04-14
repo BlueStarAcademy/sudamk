@@ -47,6 +47,7 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
             lastPlayedStageId: null,
             adventureMapSuppressUntilByKey: {},
             regionalSpecialtyBuffsByStageId: {},
+            regionalBuffEnhancePointsByStageId: {},
         };
     }
     return {
@@ -58,6 +59,7 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
         lastPlayedStageId: p.lastPlayedStageId ?? null,
         adventureMapSuppressUntilByKey: { ...(p.adventureMapSuppressUntilByKey ?? {}) },
         regionalSpecialtyBuffsByStageId: { ...(p.regionalSpecialtyBuffsByStageId ?? {}) },
+        regionalBuffEnhancePointsByStageId: { ...(p.regionalBuffEnhancePointsByStageId ?? {}) },
         regionalBuffRerollUtcDate: p.regionalBuffRerollUtcDate,
         regionalBuffRerollCountToday: p.regionalBuffRerollCountToday,
     };
@@ -75,7 +77,8 @@ export function getAdventureUnderstandingRegionalCoreBuff(
     for (const s of ADVENTURE_STAGES) {
         const xp = p.understandingXpByStage?.[s.id] ?? 0;
         const tier = getAdventureUnderstandingTierFromXp(xp);
-        if (tier >= 2) eligibleRegionCount += 1;
+        /** 「친숙함」(티어 3) 이상 — 등급 명칭 변경에 맞춤 */
+        if (tier >= 3) eligibleRegionCount += 1;
     }
     return {
         eligibleRegionCount,

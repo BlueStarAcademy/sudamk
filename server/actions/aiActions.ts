@@ -96,7 +96,8 @@ export async function handleAiAction(
     ) {
       const bs = postInit.settings?.boardSize ?? postInit.adventureBoardSize ?? 9;
       const mins = getAdventureEncounterCountdownMinutes(bs);
-      postInit.adventureEncounterDeadlineMs = now + mins * 60 * 1000;
+      const durMult = Math.max(0.5, Math.min(3, Number(postInit.adventureEncounterDurationMultiplier) || 1));
+      postInit.adventureEncounterDeadlineMs = now + mins * 60 * 1000 * durMult;
     }
 
     // 실제 대국(playing) 전에는 설정하지 않음 — nigiri_reveal 등은 transitionToPlaying에서 설정

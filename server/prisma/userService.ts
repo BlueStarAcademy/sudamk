@@ -92,6 +92,15 @@ const mergeAdventureProfileForPersistence = (
       : [];
   }
 
+  const mergedRegionalBuffEnhancePointsByStageId: Record<string, number> = {
+    ...(prev.regionalBuffEnhancePointsByStageId ?? {}),
+  };
+  for (const [stageId, pts] of Object.entries(next.regionalBuffEnhancePointsByStageId ?? {})) {
+    if (typeof pts === 'number' && Number.isFinite(pts)) {
+      mergedRegionalBuffEnhancePointsByStageId[stageId] = Math.floor(pts);
+    }
+  }
+
   const mergedUniqueMonsterIdsCaught = Array.from(
     new Set([...(prev.uniqueMonsterIdsCaught ?? []), ...(next.uniqueMonsterIdsCaught ?? [])])
   );
@@ -109,6 +118,7 @@ const mergeAdventureProfileForPersistence = (
     ),
     uniqueMonsterIdsCaught: mergedUniqueMonsterIdsCaught,
     regionalSpecialtyBuffsByStageId: mergedRegionalSpecialtyBuffsByStageId as User["adventureProfile"]["regionalSpecialtyBuffsByStageId"],
+    regionalBuffEnhancePointsByStageId: mergedRegionalBuffEnhancePointsByStageId,
   };
 };
 

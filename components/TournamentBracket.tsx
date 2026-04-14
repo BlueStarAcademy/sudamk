@@ -30,6 +30,26 @@ function getRewardItemImageUrl(itemName: string): string {
     return (material as any)?.image ?? '';
 }
 
+/** 월드 던전 경기당 장비: 승·패 풀을 합쳐 나올 수 있는 등급의 최저~최고만 표시 */
+const WORLD_DUNGEON_EQUIP_GRADE_ORDER = ['normal', 'uncommon', 'rare', 'epic', 'legendary', 'mythic'] as const;
+function worldDungeonEquipmentGradeRangeText(stage: number): string {
+    const config = DUNGEON_STAGE_EQUIPMENT_DROP[stage] || DUNGEON_STAGE_EQUIPMENT_DROP[1];
+    const grades = [...config.win.map(e => e.grade), ...config.loss.map(e => e.grade)];
+    if (grades.length === 0) return '등급: —';
+    let lo = grades[0]!;
+    let hi = grades[0]!;
+    for (const g of grades) {
+        const gi = WORLD_DUNGEON_EQUIP_GRADE_ORDER.indexOf(g as (typeof WORLD_DUNGEON_EQUIP_GRADE_ORDER)[number]);
+        const loi = WORLD_DUNGEON_EQUIP_GRADE_ORDER.indexOf(lo as (typeof WORLD_DUNGEON_EQUIP_GRADE_ORDER)[number]);
+        const hii = WORLD_DUNGEON_EQUIP_GRADE_ORDER.indexOf(hi as (typeof WORLD_DUNGEON_EQUIP_GRADE_ORDER)[number]);
+        if (gi >= 0 && (loi < 0 || gi < loi)) lo = g;
+        if (gi >= 0 && (hii < 0 || gi > hii)) hi = g;
+    }
+    const loL = EQUIPMENT_GRADE_LABEL_KO[lo as keyof typeof EQUIPMENT_GRADE_LABEL_KO] ?? lo;
+    const hiL = EQUIPMENT_GRADE_LABEL_KO[hi as keyof typeof EQUIPMENT_GRADE_LABEL_KO] ?? hi;
+    return lo === hi ? `등급: ${loL}` : `등급 범위: ${loL}~${hiL}`;
+}
+
 /** 동네 챔피언십 기본 보상(경기당): 실제는 골드 범위 지급 — 골드 아이콘 어둡게 + 물음표 */
 function MysteryNeighborhoodGoldThumb() {
     return (
@@ -2608,34 +2628,31 @@ const FinalRewardPanel: React.FC<{
                 }
                 if (type === 'national') {
                     const config = DUNGEON_STAGE_MATERIAL_ROLLS[stage] || DUNGEON_STAGE_MATERIAL_ROLLS[1];
-                    const winParts = config.win.map(r => `${r.materialName} ${r.min}~${r.max}개 (${r.chance}%)`).join(' · ');
+                    const winParts = config.win.map(r => `${r.materialName} ${r.min}~${r.max}개`).join(' · ');
                     const lossRolls = config.loss ?? config.win;
-                    const lossParts = lossRolls.map(r => `${r.materialName} ${r.min}~${r.max}개 (${r.chance}%)`).join(' · ');
+                    const lossParts = lossRolls.map(r => `${r.materialName} ${r.min}~${r.max}개`).join(' · ');
                     return (
                         <div className="mb-1.5 flex w-full flex-col items-center justify-center gap-2 text-center rounded-lg border border-blue-700/50 bg-blue-900/25 px-1.5 py-1.5">
                             <MysteryBaseRewardBoxThumb accent="blue" />
                             <div className="min-w-0">
                                 <div className="text-[10px] font-semibold text-blue-200/95">기본 보상 (경기당)</div>
                                 <div className="mt-0.5 text-[10px] leading-snug text-blue-100/85">
-                                    <div>승리: {winParts}</div>
-                                    <div>패배: {lossParts}</div>
+                                    <div>승리: {winParts} (랜덤)</div>
+                                    <div>패배: {lossParts} (랜덤)</div>
                                 </div>
                             </div>
                         </div>
                     );
                 }
                 if (type === 'world') {
-                    const config = DUNGEON_STAGE_EQUIPMENT_DROP[stage] || DUNGEON_STAGE_EQUIPMENT_DROP[1];
-                    const winParts = config.win.map(e => `${EQUIPMENT_GRADE_LABEL_KO[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
-                    const lossParts = config.loss.map(e => `${EQUIPMENT_GRADE_LABEL_KO[e.grade] ?? e.grade}(${e.chance}%)`).join(' · ');
+                    const gradeLine = worldDungeonEquipmentGradeRangeText(stage);
                     return (
                         <div className="mb-1.5 flex w-full flex-col items-center justify-center gap-2 text-center rounded-lg border border-purple-700/50 bg-purple-900/25 px-1.5 py-1.5">
                             <MysteryBaseRewardBoxThumb accent="purple" />
                             <div className="min-w-0">
                                 <div className="text-[10px] font-semibold text-purple-200/95">기본 보상 (경기당, 장비 1개)</div>
                                 <div className="mt-0.5 text-[10px] leading-snug text-purple-100/85">
-                                    <div>승리: {winParts}</div>
-                                    <div>패배: {lossParts}</div>
+                                    <div>{gradeLine}</div>
                                 </div>
                             </div>
                         </div>

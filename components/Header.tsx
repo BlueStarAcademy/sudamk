@@ -40,6 +40,42 @@ const MOBILE_HEADER_MAIL_ICON = 'h-[clamp(1rem,3.65vw,1.28rem)] w-[clamp(1rem,3.
 const MOBILE_HEADER_SETTINGS_ICON = 'text-[clamp(0.95rem,3.55vw,1.28rem)]';
 const MOBILE_HEADER_POWER_ICON = 'h-[clamp(1.18rem,4.15vw,1.62rem)] w-[clamp(1.18rem,4.15vw,1.62rem)]';
 
+const getVipHeaderLabel = (user: UserWithStatus): '보상VIP' | '기능VIP' | 'VVIP' | null => {
+    const now = Date.now();
+    const anyUser = user as unknown as Record<string, unknown>;
+    const readExpiry = (keys: string[]): number => {
+        for (const key of keys) {
+            const value = anyUser[key];
+            if (typeof value === 'number' && Number.isFinite(value)) return value;
+        }
+        return 0;
+    };
+    const readText = (keys: string[]): string => {
+        for (const key of keys) {
+            const value = anyUser[key];
+            if (typeof value === 'string' && value.trim()) return value.trim().toLowerCase();
+        }
+        return '';
+    };
+
+    const typedVip = readText(['vipType', 'activeVipType', 'vipTier']);
+    if (typedVip.includes('vvip')) return 'VVIP';
+    if (typedVip.includes('function')) return '기능VIP';
+    if (typedVip.includes('reward')) return '보상VIP';
+
+    const vvipExpiresAt = readExpiry(['vvipExpiresAt', 'vvipEndAt', 'vvipUntil']);
+    const rewardVipExpiresAt = readExpiry(['rewardVipExpiresAt', 'rewardVipEndAt', 'rewardVipUntil']);
+    const functionVipExpiresAt = readExpiry(['functionVipExpiresAt', 'functionVipEndAt', 'functionVipUntil']);
+
+    if (vvipExpiresAt > now) return 'VVIP';
+    const rewardActive = rewardVipExpiresAt > now;
+    const functionActive = functionVipExpiresAt > now;
+    if (rewardActive && functionActive) return 'VVIP';
+    if (functionActive) return '기능VIP';
+    if (rewardActive) return '보상VIP';
+    return null;
+};
+
 const ResourceDisplay = memo<{
     icon: ResourceIconKey;
     value: number;
@@ -195,6 +231,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal } = handlers;
     const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel } = currentUserWithStatus;
     const combinedUserLevel = (Number(strategyLevel) || 0) + (Number(playfulLevel) || 0);
+    const vipHeaderLabel = getVipHeaderLabel(currentUserWithStatus);
 
     // actionPoints가 없으면 기본값 사용
     const safeActionPoints = actionPoints || { current: 0, max: 30 };
@@ -261,11 +298,21 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                           : 'min-h-[clamp(3.5rem,calc(2.85rem+2vw),4.85rem)] flex-wrap gap-2 p-2.5 sm:flex-nowrap sm:gap-3 sm:p-3'
                 }`}
             >
+                {isMobile && vipHeaderLabel && (
+                    <div className="mr-auto shrink-0 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/35 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
+                        {vipHeaderLabel}
+                    </div>
+                )}
                 {!isMobile && (
                 <div
                     className={`flex min-w-0 flex-shrink-0 cursor-pointer items-center gap-2 sm:gap-3 ${dense ? 'max-w-[min(48%,14rem)]' : ''} relative`}
                     onClick={openProfileEditModal}
                 >
+                     {vipHeaderLabel && (
+                        <span className="absolute -left-1 -top-2 rounded-full border border-amber-300/50 bg-gradient-to-r from-amber-500/40 to-yellow-300/20 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-amber-100 shadow-[0_8px_20px_-14px_rgba(251,191,36,0.85)]">
+                            {vipHeaderLabel}
+                        </span>
+                     )}
                      <Avatar userId={currentUserWithStatus.id} userName={currentUserWithStatus.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 36 : compact ? 32 : 40} />
                      <p
                         className={`shrink-0 whitespace-nowrap font-extrabold tabular-nums tracking-tight text-amber-200 drop-shadow-[0_0_10px_rgba(251,191,36,0.35)] ${

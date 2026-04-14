@@ -1,6 +1,7 @@
 import * as db from '../db.js';
 import { randomUUID } from 'crypto';
 import { type ServerAction, type User, type VolatileState, type Guild, InventoryItem, Quest, QuestLog, InventoryItemType, TournamentType, TournamentState, QuestReward } from '../../types/index.js';
+import { ItemGrade } from '../../types/enums.js';
 import { updateQuestProgress } from '../questService.js';
 import { SHOP_ITEMS } from '../shop.js';
 import { 
@@ -16,15 +17,78 @@ import {
     TOURNAMENT_SCORE_REWARDS,
     TOURNAMENT_DEFINITIONS,
     getDungeonRankRewardWorld,
+    ACHIEVEMENT_TRACK_MAP,
 } from '../../constants/index.js';
 import { calculateRanks } from '../tournamentService.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { createItemInstancesFromMailAttachments } from '../mailClaimEquipment.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { clampQuestProgressToTarget } from '../../utils/questProgressCap.js';
+import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
+import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+const TIER_SCORE_REQUIREMENTS: Record<string, number> = {
+    루키: 1300,
+    브론즈: 1400,
+    실버: 1500,
+    골드: 1700,
+    플래티넘: 2000,
+    다이아: 2400,
+    마스터: 3000,
+    챌린저: 3500,
+};
+
+const GRADE_ORDER: ItemGrade[] = [
+    ItemGrade.Normal,
+    ItemGrade.Uncommon,
+    ItemGrade.Rare,
+    ItemGrade.Epic,
+    ItemGrade.Legendary,
+    ItemGrade.Mythic,
+    ItemGrade.Transcendent,
+];
+
+const GRADE_KEY_TO_ITEM_GRADE: Record<string, ItemGrade> = {
+    normal: ItemGrade.Normal,
+    uncommon: ItemGrade.Uncommon,
+    rare: ItemGrade.Rare,
+    epic: ItemGrade.Epic,
+    legendary: ItemGrade.Legendary,
+    mythic: ItemGrade.Mythic,
+    transcendent: ItemGrade.Transcendent,
+};
+
+const ADVENTURE_UNDERSTANDING_TIER_INDEX_BY_LABEL: Record<string, number> = {
+    편함: 1,
+    익숙함: 2,
+    친숙함: 3,
+    정복: 4,
+};
+
+const isAllEquipmentAtLeastGrade = (user: User, gradeKey: string): boolean => {
+    const requiredGrade = GRADE_KEY_TO_ITEM_GRADE[gradeKey];
+    if (!requiredGrade) return false;
+    const requiredIndex = GRADE_ORDER.indexOf(requiredGrade);
+    const slots: Array<keyof NonNullable<User['equipment']>> = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+    for (const slot of slots) {
+        const equippedId = user.equipment?.[slot];
+        if (!equippedId) return false;
+        const item = user.inventory.find((it) => it.id === equippedId);
+        if (!item) return false;
+        const itemIndex = GRADE_ORDER.indexOf(item.grade);
+        if (itemIndex < requiredIndex) return false;
+    }
+    return true;
+};
+
+const getSeasonScoreByTrack = (user: User, trackType: 'strategy_tier' | 'playful_tier'): number => {
+    const key = trackType === 'strategy_tier' ? 'standard' : 'playful';
+    const diff = user.cumulativeRankingScore?.[key] ?? 0;
+    return 1200 + diff;
 };
 
 type HandleActionResult = {
@@ -284,6 +348,97 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                     },
                     updatedUser
                 } 
+            };
+        }
+        case 'CLAIM_ACHIEVEMENT_REWARD': {
+            const { trackId, stageIndex } = payload as { trackId: string; stageIndex: number };
+            const track = ACHIEVEMENT_TRACK_MAP[trackId];
+            if (!track) return { error: '유효하지 않은 업적 트랙입니다.' };
+            if (!Number.isInteger(stageIndex) || stageIndex < 0 || stageIndex >= track.stages.length) {
+                return { error: '유효하지 않은 업적 단계입니다.' };
+            }
+
+            if (!user.quests.achievements) {
+                user.quests.achievements = { tracks: {} };
+            }
+            if (!user.quests.achievements.tracks) {
+                user.quests.achievements.tracks = {};
+            }
+            if (!user.quests.achievements.tracks[trackId]) {
+                user.quests.achievements.tracks[trackId] = {
+                    currentIndex: 0,
+                    claimedIndices: [],
+                };
+            }
+
+            const state = user.quests.achievements.tracks[trackId]!;
+            if (!Array.isArray(state.claimedIndices)) state.claimedIndices = [];
+            if (!Number.isInteger(state.currentIndex) || state.currentIndex < 0) {
+                state.currentIndex = 0;
+            }
+            if (state.currentIndex > track.stages.length - 1) {
+                state.currentIndex = Math.max(0, track.stages.length - 1);
+            }
+
+            if (state.currentIndex !== stageIndex) {
+                return { error: '현재 진행 중인 업적 단계만 수령할 수 있습니다.' };
+            }
+            if (state.claimedIndices.includes(stageIndex)) {
+                return { error: '이미 수령한 업적 보상입니다.' };
+            }
+
+            const stage = track.stages[stageIndex]!;
+            let requirementMet = false;
+            if (stage.requirement.type === 'singleplayer_stage_clear') {
+                const clearedStages = Array.isArray(user.clearedSinglePlayerStages) ? user.clearedSinglePlayerStages : [];
+                requirementMet = clearedStages.includes(stage.requirement.stageId);
+            } else if (stage.requirement.type === 'strategy_level') {
+                requirementMet = (user.strategyLevel ?? 0) >= stage.requirement.level;
+            } else if (stage.requirement.type === 'playful_level') {
+                requirementMet = (user.playfulLevel ?? 0) >= stage.requirement.level;
+            } else if (stage.requirement.type === 'championship_cumulative_score') {
+                requirementMet = (user.cumulativeTournamentScore ?? 0) >= stage.requirement.score;
+            } else if (stage.requirement.type === 'all_equipment_min_grade') {
+                requirementMet = isAllEquipmentAtLeastGrade(user, stage.requirement.grade);
+            } else if (stage.requirement.type === 'strategy_tier' || stage.requirement.type === 'playful_tier') {
+                const score = getSeasonScoreByTrack(user, stage.requirement.type);
+                requirementMet = score >= (TIER_SCORE_REQUIREMENTS[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER);
+            } else if (stage.requirement.type === 'adventure_understanding_tier') {
+                const xp = Math.max(0, Math.floor(user.adventureProfile?.understandingXpByStage?.[stage.requirement.stageId] ?? 0));
+                const currentTier = getAdventureUnderstandingTierFromXp(xp);
+                const requiredTier = ADVENTURE_UNDERSTANDING_TIER_INDEX_BY_LABEL[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER;
+                requirementMet = currentTier >= requiredTier;
+            } else if (stage.requirement.type === 'adventure_codex_score') {
+                const { totalSum } = getAdventureCodexCompletionBreakdown(user.adventureProfile);
+                requirementMet = totalSum >= stage.requirement.score;
+            }
+            if (!requirementMet) {
+                return { error: '아직 업적 조건을 달성하지 않았습니다.' };
+            }
+
+            user.diamonds += stage.rewardDiamonds;
+            state.claimedIndices.push(stageIndex);
+            state.claimedIndices = [...new Set(state.claimedIndices)].sort((a, b) => a - b);
+            state.currentIndex = Math.min(track.stages.length - 1, stageIndex + 1);
+
+            const reward: QuestReward = { diamonds: stage.rewardDiamonds };
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ACHIEVEMENT_REWARD');
+
+            db.updateUser(user).catch(err => {
+                console.error(`[CLAIM_ACHIEVEMENT_REWARD] Failed to save user ${user.id}:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['quests', 'diamonds']);
+
+            return {
+                clientResponse: {
+                    rewardSummary: {
+                        reward,
+                        items: [],
+                        title: `${track.title} 보상`,
+                    },
+                    updatedUser,
+                },
             };
         }
         case 'CLAIM_ACTIVITY_MILESTONE': {

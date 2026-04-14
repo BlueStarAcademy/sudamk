@@ -102,6 +102,21 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.black.itemBonus = 0;
     finalAnalysis.scoreDetails.white.itemBonus = 0;
 
+    /** 모험 지역 탐험도: 클래식/스피드는 itemBonus, 베이스는 baseStoneBonus로 시작 가산점 반영 */
+    const advFlatRaw = (session as { adventureRegionalHumanFlatScoreBonus?: unknown }).adventureRegionalHumanFlatScoreBonus;
+    const advFlat =
+        typeof advFlatRaw === 'number' && Number.isFinite(advFlatRaw) && advFlatRaw > 0 ? Math.floor(advFlatRaw) : 0;
+    if (session.gameCategory === GameCategory.Adventure && advFlat > 0) {
+        const humanIsBlack = session.blackPlayerId !== aiUserId;
+        if (session.mode === types.GameMode.Base) {
+            if (humanIsBlack) finalAnalysis.scoreDetails.black.baseStoneBonus += advFlat;
+            else finalAnalysis.scoreDetails.white.baseStoneBonus += advFlat;
+        } else {
+            if (humanIsBlack) finalAnalysis.scoreDetails.black.itemBonus += advFlat;
+            else finalAnalysis.scoreDetails.white.itemBonus += advFlat;
+        }
+    }
+
     // Recalculate totals
     const blackTotal = finalAnalysis.scoreDetails.black.territory + finalAnalysis.scoreDetails.black.captures + (finalAnalysis.scoreDetails.black.deadStones ?? 0) + finalAnalysis.scoreDetails.black.baseStoneBonus + finalAnalysis.scoreDetails.black.hiddenStoneBonus + finalAnalysis.scoreDetails.black.timeBonus + finalAnalysis.scoreDetails.black.itemBonus;
     const whiteTotal = finalAnalysis.scoreDetails.white.territory + finalAnalysis.scoreDetails.white.captures + finalAnalysis.scoreDetails.white.komi + (finalAnalysis.scoreDetails.white.deadStones ?? 0) + finalAnalysis.scoreDetails.white.baseStoneBonus + finalAnalysis.scoreDetails.white.hiddenStoneBonus + finalAnalysis.scoreDetails.white.timeBonus + finalAnalysis.scoreDetails.white.itemBonus;

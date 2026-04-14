@@ -120,6 +120,8 @@ export type AdventureMonsterCodexMapSituationProps = {
     stageId: string;
     mapMonsters: AdventureMapMonsterInstance[];
     suppressRecord: Record<string, number>;
+    mapDwellMultiplier?: number;
+    mapRespawnOffMultiplier?: number;
     onPickRow: (codexId: string) => void;
 };
 
@@ -238,6 +240,8 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             suppressRecord={mapSituation.suppressRecord}
                             nowMs={situationNowMs}
                             onPickRow={mapSituation.onPickRow}
+                            mapDwellMultiplier={mapSituation.mapDwellMultiplier}
+                            mapRespawnOffMultiplier={mapSituation.mapRespawnOffMultiplier}
                         />
                     </div>
                 ) : isNativeMobile && mainTab === 'comprehension' ? (

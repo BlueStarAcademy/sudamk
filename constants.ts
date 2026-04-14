@@ -4,6 +4,7 @@ export * from './constants/gameSettings.ts';
 export * from './constants/guildConstants.ts';
 export * from './constants/items.ts';
 export * from './constants/quests.ts';
+export * from './constants/achievements.ts';
 export * from './constants/ranking.ts';
 export * from './constants/rules.ts';
 export * from './constants/tournaments.ts';

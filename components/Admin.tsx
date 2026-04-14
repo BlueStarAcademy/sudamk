@@ -6,6 +6,7 @@ import ServerSettingsPanel from './admin/ServerSettingsPanel.js';
 import HomeBoardPanel from './admin/HomeBoardPanel.js';
 import AdminOperationsPanel from './admin/AdminOperationsPanel.js';
 import ServerMonitoringPanel from './admin/ServerMonitoringPanel.js';
+import DropRateReferencePanel from './admin/DropRateReferencePanel.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
@@ -52,6 +53,8 @@ const Admin: React.FC = () => {
                         onBack={handleBack}
                     />
                 );
+            case 'dropRateReference':
+                return <DropRateReferencePanel onBack={handleBack} />;
             case 'homeBoard':
                 return <HomeBoardPanel {...adminProps} />;
             case 'operations':

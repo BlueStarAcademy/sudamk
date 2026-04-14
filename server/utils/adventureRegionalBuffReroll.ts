@@ -1,69 +1,95 @@
 import type { User } from '../../types/index.js';
 import {
-    computeAdventureRegionalBuffChangeCostGold,
-    defaultPercentForRegionalSpecialtyKind,
-    pickReplacementRegionalKind,
+    ADVENTURE_REGIONAL_BUFF_ACTION_GOLD,
+    enhancementPointsGrantedTotalForTier,
+    getRegionalBuffMaxStacks,
+    isRegionalBuffEnhanceable,
+    migrateRegionalBuffEntry,
+    rollRandomRegionalBuffEntry,
+    syncRegionalSpecialtySlotsAndPoints,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
 
+function stageTier(user: User, stageId: string): number {
+    const xp = Math.max(0, Math.floor((user.adventureProfile?.understandingXpByStage ?? {})[stageId] ?? 0));
+    return getAdventureUnderstandingTierFromXp(xp);
+}
+
 /**
- * 지역 특화 효과: 잠긴 인덱스는 유지, 나머지 슬롯만 골드로 무작위 교체.
- * - 효과 1개: 전부 교체(잠금 없음)
- * - 효과 2개 이상: 최소 1개는 잠금(🔒), 최소 1개는 변경 대상(🔓)
+ * 단일 슬롯 효과 변경(리롤). 1000 골드.
+ * 강화가 있었던 경우(stacks>1) 1단계로 초기화하고 사용했던 강화 포인트를 환급한다.
  */
-export function changeAdventureRegionalSpecialtyBuffs(
-    user: User,
-    stageId: string,
-    lockedIndices: number[],
-): string | null {
-    const p = normalizeAdventureProfile(user.adventureProfile);
-    const list = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])];
+export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
+    let p = normalizeAdventureProfile(user.adventureProfile);
+    p = syncRegionalSpecialtySlotsAndPoints(p);
+    const list = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])].map((e) => migrateRegionalBuffEntry(e as any));
     const n = list.length;
-    if (n === 0) {
-        return '해당 지역에 교체할 효과가 없습니다.';
+    if (n <= 0) return '해당 지역에 교체할 효과가 없습니다.';
+    if (slotIndex < 0 || slotIndex >= n) return '잘못된 슬롯입니다.';
+    if ((user.gold ?? 0) < ADVENTURE_REGIONAL_BUFF_ACTION_GOLD) {
+        return `골드가 부족합니다. (필요: ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()})`;
     }
 
-    const locked = new Set(
-        (lockedIndices ?? [])
-            .map((i) => (Number.isInteger(i) ? i : -1))
-            .filter((i) => i >= 0 && i < n),
-    );
+    const ent = migrateRegionalBuffEntry(list[slotIndex]!);
+    const refund = isRegionalBuffEnhanceable(ent.kind) ? Math.max(0, Math.floor(ent.stacks ?? 1) - 1) : 0;
+    const tier = stageTier(user, stageId);
+    const grant = enhancementPointsGrantedTotalForTier(tier);
+    const curPts = Math.max(0, Math.floor(p.regionalBuffEnhancePointsByStageId?.[stageId] ?? 0));
+    const nextPts = Math.min(grant, curPts + refund);
 
-    if (n >= 2) {
-        if (locked.size === 0) {
-            return '효과가 둘 이상일 때는 최소 하나는 잠가 두어야 합니다.';
-        }
-        if (locked.size >= n) {
-            return '변경할 효과를 최소 하나 선택해 주세요. (잠금 해제된 항목이 있어야 합니다)';
-        }
-    } else {
-        if (locked.size > 0) {
-            locked.clear();
-        }
-    }
+    const next = [...list];
+    next[slotIndex] = rollRandomRegionalBuffEntry();
 
-    const lockedCount = n >= 2 ? locked.size : 0;
-    const cost = computeAdventureRegionalBuffChangeCostGold(n, lockedCount);
-    if ((user.gold ?? 0) < cost) {
-        return `골드가 부족합니다. (필요: ${cost.toLocaleString()})`;
-    }
-
-    const working = list.map((e) => ({ ...e }));
-    const sortedUnlock = [];
-    for (let i = 0; i < n; i++) {
-        if (!locked.has(i)) sortedUnlock.push(i);
-    }
-    sortedUnlock.sort((a, b) => a - b);
-
-    for (const idx of sortedUnlock) {
-        const pick = pickReplacementRegionalKind(working, idx);
-        working[idx] = { kind: pick, valuePercent: defaultPercentForRegionalSpecialtyKind(pick) };
-    }
-
-    user.gold = (user.gold ?? 0) - cost;
+    user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
     user.adventureProfile = {
         ...p,
-        regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: working },
+        regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: next },
+        regionalBuffEnhancePointsByStageId: { ...p.regionalBuffEnhancePointsByStageId, [stageId]: nextPts },
     };
+    user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile);
+    return null;
+}
+
+/** 단일 슬롯 강화. 1000 골드 + 강화 포인트 1 */
+export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
+    let p = normalizeAdventureProfile(user.adventureProfile);
+    p = syncRegionalSpecialtySlotsAndPoints(p);
+    const list = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])].map((e) => migrateRegionalBuffEntry(e as any));
+    const n = list.length;
+    if (n <= 0) return '해당 지역에 강화할 효과가 없습니다.';
+    if (slotIndex < 0 || slotIndex >= n) return '잘못된 슬롯입니다.';
+    if ((user.gold ?? 0) < ADVENTURE_REGIONAL_BUFF_ACTION_GOLD) {
+        return `골드가 부족합니다. (필요: ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()})`;
+    }
+
+    const raw = list[slotIndex];
+    if (!raw) return '빈 슬롯입니다. 먼저 효과를 변경(뽑기)해 주세요.';
+    const ent = migrateRegionalBuffEntry(raw as any);
+    if (!isRegionalBuffEnhanceable(ent.kind)) {
+        return '이 효과는 강화할 수 없습니다.';
+    }
+    const max = getRegionalBuffMaxStacks(ent.kind);
+    const st = Math.max(1, Math.floor(ent.stacks ?? 1));
+    if (st >= max) return '이미 최대 강화입니다.';
+
+    const tier = stageTier(user, stageId);
+    const grant = enhancementPointsGrantedTotalForTier(tier);
+    const curPts = Math.max(0, Math.floor(p.regionalBuffEnhancePointsByStageId?.[stageId] ?? 0));
+    if (curPts < 1) return '강화 포인트가 부족합니다.';
+
+    const next = [...list];
+    next[slotIndex] = { ...ent, stacks: st + 1 };
+
+    user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
+    user.adventureProfile = {
+        ...p,
+        regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: next },
+        regionalBuffEnhancePointsByStageId: {
+            ...p.regionalBuffEnhancePointsByStageId,
+            [stageId]: curPts - 1,
+        },
+    };
+    user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile);
     return null;
 }

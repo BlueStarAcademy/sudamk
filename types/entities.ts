@@ -111,11 +111,21 @@ export type MonthlyQuestData = {
   lastReset: number;
 };
 
+export type AchievementTrackState = {
+  currentIndex: number;
+  claimedIndices: number[];
+};
+
+export type AchievementData = {
+  tracks: Record<string, AchievementTrackState>;
+};
+
 
 export type QuestLog = {
     daily?: DailyQuestData;
     weekly?: WeeklyQuestData;
     monthly?: MonthlyQuestData;
+    achievements?: AchievementData;
 };
 
 export type AvatarInfo = {
@@ -268,6 +278,18 @@ export type UserCredentials = {
 };
 
 export type AdventureRegionalSpecialtyBuffKind =
+  | 'regional_win_gold_10pct'
+  | 'regional_equip_drop_3pct'
+  | 'regional_material_drop_5pct'
+  | 'regional_capture_target_plus1'
+  | 'regional_time_limit_plus20pct'
+  | 'regional_monster_respawn_minus10pct'
+  | 'regional_monster_dwell_plus10pct'
+  | 'regional_hidden_scan_plus1'
+  | 'regional_base_start_score_plus1'
+  | 'regional_classic_start_score_plus1'
+  | 'regional_missile_plus1'
+  /** 구형 클라이언트·데이터 호환(서버에서 신규 kind로 마이그레이션) */
   | 'adv_gold_pct'
   | 'map_monster_dwell_pct'
   | 'capture_opponent_target_plus1'
@@ -276,6 +298,9 @@ export type AdventureRegionalSpecialtyBuffKind =
 
 export type AdventureRegionalSpecialtyBuffEntry = {
   kind: AdventureRegionalSpecialtyBuffKind;
+  /** 누적 강화 단계(1=기본). 미사일은 항상 1 */
+  stacks?: number;
+  /** @deprecated — 구 데이터용 */
   valuePercent?: number;
 };
 
@@ -292,6 +317,8 @@ export type AdventureProfile = {
   adventureMapSuppressUntilByKey?: Partial<Record<string, number>>;
   /** 지역 이해도 티어 상승 시 부여되는 영구 특화 효과(스테이지별) */
   regionalSpecialtyBuffsByStageId?: Partial<Record<string, AdventureRegionalSpecialtyBuffEntry[]>>;
+  /** 스테이지별 남은 지역 탐험도 강화 포인트(티어 상승 시 지급) */
+  regionalBuffEnhancePointsByStageId?: Partial<Record<string, number>>;
   /** UTC 날짜(YYYY-MM-DD) — 지역 효과 리롤 일일 카운트 리셋용 */
   regionalBuffRerollUtcDate?: string;
   /** 당일 지역 효과 골드 리롤 사용 횟수 */
@@ -986,6 +1013,10 @@ export type LiveGameSession = {
   adventureBoardSize?: number;
   /** 모험: 경기 시작(CONFIRM) 후 전체 제한 시각(epoch ms) — 초과 시 몬스터 도주 패배 */
   adventureEncounterDeadlineMs?: number;
+  /** 모험: 지역 탐험도 제한시간 +% — 기본 분 × 이 값으로 마감 시각 설정 */
+  adventureEncounterDurationMultiplier?: number;
+  /** 모험: 지역 탐험도 클래식/베이스 시작 가산점(정수) */
+  adventureRegionalHumanFlatScoreBonus?: number;
   stageId?: string;
   towerFloor?: number;  // 도전의 탑 층수
   blackPatternStones?: Point[];

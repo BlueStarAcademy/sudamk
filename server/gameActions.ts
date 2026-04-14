@@ -8,7 +8,7 @@ import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfD
 import * as effectService from './effectService.js';
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
-import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ACTION_POINT_REGEN_INTERVAL_MS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES } from '../shared/constants';
+import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ACTION_POINT_REGEN_INTERVAL_MS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, ACHIEVEMENT_TRACKS } from '../shared/constants';
 import { initializeGame } from './gameModes.js';
 import { handleStrategicGameAction } from './modes/standard.js';
 import {
@@ -85,6 +85,57 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
     if (normalizeLegacyQuestTexts(updatedUser)) {
         modified = true;
     }
+    if (!updatedUser.quests.achievements) {
+        updatedUser.quests.achievements = { tracks: {} };
+        modified = true;
+    }
+    if (!updatedUser.quests.achievements.tracks) {
+        updatedUser.quests.achievements.tracks = {};
+        modified = true;
+    }
+    for (const track of ACHIEVEMENT_TRACKS) {
+        const trackState = updatedUser.quests.achievements.tracks[track.id];
+        if (!trackState) {
+            updatedUser.quests.achievements.tracks[track.id] = { currentIndex: 0, claimedIndices: [] };
+            modified = true;
+            continue;
+        }
+        if (!Array.isArray(trackState.claimedIndices)) {
+            trackState.claimedIndices = [];
+            modified = true;
+        }
+        if (typeof trackState.currentIndex !== 'number' || trackState.currentIndex < 0) {
+            trackState.currentIndex = 0;
+            modified = true;
+        } else {
+            const maxIndex = Math.max(0, track.stages.length - 1);
+            if (trackState.currentIndex > maxIndex) {
+                trackState.currentIndex = maxIndex;
+                modified = true;
+            }
+        }
+    }
+    // Keep existing quest entries but normalize per-period gold rewards.
+    // This applies new balance values immediately without waiting for reset day/week/month.
+    const normalizeQuestRewards = (quests: Quest[] | undefined, gold: number): boolean => {
+        if (!quests) return false;
+        let changed = false;
+        for (const quest of quests) {
+            if (!quest.reward) {
+                quest.reward = { gold };
+                changed = true;
+                continue;
+            }
+            if (quest.reward.gold !== gold) {
+                quest.reward.gold = gold;
+                changed = true;
+            }
+        }
+        return changed;
+    };
+    if (normalizeQuestRewards(updatedUser.quests.daily?.quests, 100)) modified = true;
+    if (normalizeQuestRewards(updatedUser.quests.weekly?.quests, 500)) modified = true;
+    if (normalizeQuestRewards(updatedUser.quests.monthly?.quests, 1500)) modified = true;
 
     // Daily Quests
     if (isDifferentDayKST(updatedUser.quests.daily?.lastReset, now)) {
@@ -181,7 +232,7 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
     return modified ? updatedUser : user;
 };
 
-export const updateQuestProgress = (user: User, type: 'win' | 'participate' | 'action_button' | 'tournament_participate' | 'enhancement_attempt' | 'craft_attempt' | 'chat_greeting' | 'championship_play' | 'login' | 'claim_daily_milestone_100' | 'claim_weekly_milestone_100', mode?: GameMode, amount: number = 1) => {
+export const updateQuestProgress = (user: User, type: 'win' | 'participate' | 'action_button' | 'tournament_participate' | 'enhancement_attempt' | 'equipment_combine_attempt' | 'equipment_refine_attempt' | 'equipment_disassemble_attempt' | 'craft_attempt' | 'chat_greeting' | 'championship_play' | 'adventure_win' | 'login' | 'claim_daily_milestone_100' | 'claim_weekly_milestone_100', mode?: GameMode, amount: number = 1) => {
     if (!user.quests) return;
     const isStrategic = mode ? SPECIAL_GAME_MODES.some(m => m.mode === mode) : false;
     const isPlayful = mode ? PLAYFUL_GAME_MODES.some(m => m.mode === mode) : false;
@@ -203,13 +254,20 @@ export const updateQuestProgress = (user: User, type: 'win' | 'participate' | 'a
             case '놀이바둑 플레이하기': if (type === 'participate' && isPlayful) shouldUpdate = true; break;
             case '전략바둑 승리하기': if (type === 'win' && isStrategic) shouldUpdate = true; break;
             case '놀이바둑 승리하기': if (type === 'win' && isPlayful) shouldUpdate = true; break;
-            case '액션버튼 사용하기': if (type === 'action_button') shouldUpdate = true; break;
+            case '모험에서 승리하기': if (type === 'adventure_win') shouldUpdate = true; break;
+            case '액션버튼 사용하기':
+            case '매너액션 버튼 사용하기':
+                if (type === 'action_button') shouldUpdate = true;
+                break;
             case '챔피언십 경기 완료하기':
             case '챔피언십 경기 진행하기':
             case '자동대국 토너먼트 참여하기':
                 if (type === 'championship_play' || type === 'tournament_participate') shouldUpdate = true;
                 break;
             case '장비 강화시도': if (type === 'enhancement_attempt') shouldUpdate = true; break;
+            case '장비 합성시도': if (type === 'equipment_combine_attempt') shouldUpdate = true; break;
+            case '장비 제련시도': if (type === 'equipment_refine_attempt') shouldUpdate = true; break;
+            case '장비 분해시도': if (type === 'equipment_disassemble_attempt') shouldUpdate = true; break;
             case '재료 합성시도': if (type === 'craft_attempt') shouldUpdate = true; break;
             case '일일퀘스트 활약도100보상 받기 3회':
             case '일일퀘스트 활약도100보상 받기(3/3)':
@@ -1011,7 +1069,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         return handleTournamentAction(volatileState, action, userData);
     }
     if (['TOGGLE_EQUIP_ITEM', 'SELL_ITEM', 'ENHANCE_ITEM', 'DISASSEMBLE_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'CRAFT_MATERIAL', 'COMBINE_ITEMS', 'REFINE_EQUIPMENT'].includes(type)) return handleInventoryAction(volatileState, action, userData);
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'REROLL_ADVENTURE_REGIONAL_BUFF'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, userData);
     if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, userData);
     // Guild actions are now handled above (before game actions)

@@ -5,7 +5,10 @@ import {
     adventureMapSuppressKey,
     getAdventureMapSuppressUntilAfterDefeat,
 } from '../../shared/utils/adventureMapSchedule.js';
-import { getRegionalMapMonsterDwellMultiplierForStage } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import {
+    getRegionalMapMonsterDwellMultiplierForStage,
+    getRegionalMapMonsterRespawnOffMultiplierForStage,
+} from '../../utils/adventureRegionalSpecialtyBuff.js';
 import {
     getAdventureCodexComprehensionLevel,
     getAdventureCodexIdSet,
@@ -72,7 +75,15 @@ export function applyAdventureMonsterDefeatToProfile(
     const defeatAt = Date.now();
     const isBoss = isAdventureChapterBossCodexId(codexId);
     const mapDwellMult = getRegionalMapMonsterDwellMultiplierForStage(prev, stageId);
-    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(defeatAt, stageId, codexId, isBoss, mapDwellMult);
+    const mapOffMult = getRegionalMapMonsterRespawnOffMultiplierForStage(prev, stageId);
+    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(
+        defeatAt,
+        stageId,
+        codexId,
+        isBoss,
+        mapDwellMult,
+        mapOffMult,
+    );
     const suppressKey = adventureMapSuppressKey(stageId, codexId);
     const adventureMapSuppressUntilByKey = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
     adventureMapSuppressUntilByKey[suppressKey] = suppressUntil;
@@ -107,7 +118,8 @@ export function applyAdventureMonsterMapSuppressAfterPlayerLoss(
     const isBoss = isAdventureChapterBossCodexId(codexId);
     const at = Date.now();
     const mapDwellMult = getRegionalMapMonsterDwellMultiplierForStage(prev, stageId);
-    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(at, stageId, codexId, isBoss, mapDwellMult);
+    const mapOffMult = getRegionalMapMonsterRespawnOffMultiplierForStage(prev, stageId);
+    const suppressUntil = getAdventureMapSuppressUntilAfterDefeat(at, stageId, codexId, isBoss, mapDwellMult, mapOffMult);
     const suppressKey = adventureMapSuppressKey(stageId, codexId);
     const adventureMapSuppressUntilByKey = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
     adventureMapSuppressUntilByKey[suppressKey] = suppressUntil;

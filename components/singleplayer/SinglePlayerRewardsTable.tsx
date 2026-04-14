@@ -118,7 +118,7 @@ export interface SinglePlayerRewardsTableProps {
 }
 
 /**
- * 싱글플레이 스테이지의 최초 클리어 / 재도전 클리어 보상 표 (반별 탭).
+ * 싱글플레이 스테이지의 최초 클리어 보상 표 (반별 탭).
  * 데이터 원본: `constants/singlePlayerConstants.ts` · `shared/constants/singlePlayerConstants.ts` 의 `rewards`.
  */
 const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
@@ -176,10 +176,9 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                                 <th className="px-3 py-2.5 font-semibold whitespace-nowrap border-r border-gray-600">
                                     스테이지 ID
                                 </th>
-                                <th className="px-3 py-2.5 font-semibold min-w-[220px] border-r border-gray-600">
+                                <th className="px-3 py-2.5 font-semibold min-w-[220px]">
                                     최초 클리어
                                 </th>
-                                <th className="px-3 py-2.5 font-semibold min-w-[220px]">재도전 클리어</th>
                             </tr>
                         </thead>
                         <tbody className="text-gray-200">
@@ -192,11 +191,8 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                                         <td className="px-3 py-2.5 align-top font-mono text-[13px] sm:text-sm text-amber-100/90 border-r border-gray-700/80 whitespace-nowrap">
                                             {stage.id}
                                         </td>
-                                        <td className="px-3 py-2.5 align-top text-emerald-200/90 border-r border-gray-700/80 leading-snug">
+                                        <td className="px-3 py-2.5 align-top text-emerald-200/90 leading-snug">
                                             <RewardBadges reward={stage.rewards?.firstClear} />
-                                        </td>
-                                        <td className="px-3 py-2.5 align-top text-sky-200/85 leading-snug">
-                                            <RewardBadges reward={stage.rewards?.repeatClear} />
                                         </td>
                                     </tr>
                                 );

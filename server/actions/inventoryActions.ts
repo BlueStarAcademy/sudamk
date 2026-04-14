@@ -255,6 +255,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 user.blacksmithLevel++;
             }
 
+            updateQuestProgress(user, 'equipment_combine_attempt');
+
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'COMBINE_ITEMS');
 
@@ -1433,6 +1435,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             
             const itemBeforeRefinement = JSON.parse(JSON.stringify(originalItemState));
             
+            updateQuestProgress(user, 'equipment_refine_attempt');
+
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'REFINE_EQUIPMENT');
             
@@ -1532,6 +1536,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             // 인벤토리를 깊은 복사하여 새로운 배열로 할당 (참조 문제 방지)
             user.inventory = JSON.parse(JSON.stringify(user.inventory));
             
+            updateQuestProgress(user, 'equipment_disassemble_attempt');
+
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'DISASSEMBLE_ITEM');
 

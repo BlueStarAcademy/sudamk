@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -17,7 +17,7 @@ interface ShopModalProps {
     initialTab?: ShopTab;
 }
 
-type ShopTab = 'equipment' | 'materials' | 'misc' | 'consumables';
+type ShopTab = 'equipment' | 'materials' | 'vip' | 'misc' | 'consumables';
 
 interface PurchasableItem {
     itemId: string;
@@ -33,6 +33,14 @@ interface PurchasableItem {
     purchasesToday?: number;
     /** 아이템 이미지 URL (수량 모달 뷰어용) */
     image?: string;
+}
+
+interface MiscShopProduct {
+    id: string;
+    name: string;
+    duration?: string;
+    priceKRW: number;
+    benefits: string[];
 }
 
 const isSameDayKST = (ts1: number, ts2: number): boolean => {
@@ -230,6 +238,54 @@ const ShopItemCard: React.FC<{
     );
 };
 
+const MiscShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({ product, mobile = false }) => {
+    return (
+        <div className={`rounded-xl border border-violet-400/35 bg-gradient-to-br from-[#20173a]/95 via-[#131a2f]/95 to-[#090e1a]/95 shadow-[0_18px_45px_-28px_rgba(139,92,246,0.7)] ${mobile ? 'p-3' : 'p-4'}`}>
+            <div className="mb-2 flex items-start justify-between gap-2">
+                <h3 className={`${mobile ? 'text-sm' : 'text-base'} font-bold text-white`}>{product.name}</h3>
+                {product.duration && (
+                    <span className="shrink-0 rounded-md bg-violet-500/25 px-2 py-0.5 text-[10px] font-semibold text-violet-100">
+                        {product.duration}
+                    </span>
+                )}
+            </div>
+            <p className={`${mobile ? 'text-xs' : 'text-sm'} font-semibold text-amber-300`}>{product.priceKRW.toLocaleString()}원</p>
+            <ul className={`mt-2 space-y-1 text-slate-200/90 ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
+                {product.benefits.map((benefit, index) => (
+                    <li key={`${product.id}-benefit-${index}`}>- {benefit}</li>
+                ))}
+            </ul>
+            <div className="mt-3 rounded-md border border-slate-500/40 bg-slate-900/50 px-2 py-1 text-center text-[10px] text-slate-300/85">
+                이미지 및 구매 기능은 추후 업데이트 예정
+            </div>
+        </div>
+    );
+};
+
+const VipShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({ product, mobile = false }) => {
+    return (
+        <div className={`rounded-xl border border-yellow-300/40 bg-gradient-to-br from-[#36270d]/95 via-[#21160f]/95 to-[#0d111f]/95 shadow-[0_20px_48px_-28px_rgba(251,191,36,0.8)] ${mobile ? 'p-3' : 'p-4'}`}>
+            <div className="mb-2 flex items-start justify-between gap-2">
+                <h3 className={`${mobile ? 'text-sm' : 'text-base'} font-extrabold text-amber-200`}>{product.name}</h3>
+                {product.duration && (
+                    <span className="shrink-0 rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-semibold text-amber-100">
+                        {product.duration}
+                    </span>
+                )}
+            </div>
+            <p className={`${mobile ? 'text-xs' : 'text-sm'} font-semibold text-amber-300`}>{product.priceKRW.toLocaleString()}원</p>
+            <ul className={`mt-2 space-y-1 text-amber-50/90 ${mobile ? 'text-[11px]' : 'text-xs sm:text-sm'}`}>
+                {product.benefits.map((benefit, index) => (
+                    <li key={`${product.id}-vip-benefit-${index}`}>- {benefit}</li>
+                ))}
+            </ul>
+            <div className="mt-3 rounded-md border border-amber-200/35 bg-black/30 px-2 py-1 text-center text-[10px] text-amber-100/85">
+                중복 구매 시 기간 연장
+            </div>
+        </div>
+    );
+};
+
 const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost, initialTab }) => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
@@ -244,6 +300,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
     const [activeTab, setActiveTab] = useState<ShopTab>(initialTab || 'equipment');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [purchasingItem, setPurchasingItem] = useState<PurchasableItem | null>(null);
+    const materialsMeasureRef = useRef<HTMLDivElement | null>(null);
+    const [mobileBaseContentHeight, setMobileBaseContentHeight] = useState<number | null>(null);
 
     useEffect(() => {
         if (toastMessage) {
@@ -251,6 +309,123 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             return () => clearTimeout(timer);
         }
     }, [toastMessage]);
+
+    const gridClassName = mobileShop
+        ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2'
+        : 'grid grid-cols-4 gap-3';
+    const materialItems = [
+        { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: "material_box_3", name: "재료 상자 III", description: "하급~상급강화석 5개", price: { gold: 3000 }, image: "/images/Box/ResourceBox3.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.png", dailyLimit: 3, type: 'material' as const },
+        { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'mythic_option_change_ticket', name: "신화 옵션 종류 변경권", description: "신화 또는 초월 장비의 신화 옵션을 다른 신화 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.png", dailyLimit: 10, type: 'material' as const },
+    ];
+    const vipProducts: MiscShopProduct[] = [
+        {
+            id: 'reward_vip',
+            name: '보상 VIP',
+            duration: '30일 적용',
+            priceKRW: 9900,
+            benefits: [
+                'VIP 보상 슬롯 추가: 전략바둑/놀이바둑/길드 보스전 보상 수령 시 1개 추가',
+                '길드 코인 획득량 2배 (출석, 기부 등)',
+                '일일/주간/월간 퀘스트 보상 2배',
+                '퀘스트 활약도 보상 2배',
+                'VIP 슬롯 보상: 골드 200% 추가 획득 또는 상자 보상 (장비상자 I~IV, 재료상자 I~IV)',
+            ],
+        },
+        {
+            id: 'function_vip',
+            name: '기능 VIP',
+            duration: '30일 적용',
+            priceKRW: 9900,
+            benefits: [
+                '행동력 최대치 +20',
+                '행동력 회복 속도 50% 증가',
+                '행동력 회복제 III 우편으로 매일 1개 지급',
+                '대장간 경험치 획득 +50%',
+                '장비 강화 성공확률 +10% (최대 100%)',
+                '장비 합성 대성공 확률 +10% (최대 100%)',
+                '장비 분해 대박 확률 +10%',
+                '재료 분해/합성 대박 확률 +10%',
+            ],
+        },
+        {
+            id: 'vvip',
+            name: 'VVIP',
+            duration: '30일 적용',
+            priceKRW: 15900,
+            benefits: ['보상 VIP + 기능 VIP 통합 혜택'],
+        },
+    ];
+    const miscProducts: MiscShopProduct[] = [
+        {
+            id: 'diamond_package_1',
+            name: '다이아 패키지 I',
+            duration: '7일 적용',
+            priceKRW: 4900,
+            benefits: ['매일 우편으로 50다이아 지급 (총 350다이아)', '즉시 100다이아 지급'],
+        },
+        {
+            id: 'diamond_package_2',
+            name: '다이아 패키지 II',
+            duration: '15일 적용',
+            priceKRW: 7900,
+            benefits: ['매일 우편으로 50다이아 지급 (총 750다이아)', '즉시 250다이아 지급'],
+        },
+        {
+            id: 'diamond_package_3',
+            name: '다이아 패키지 III',
+            duration: '30일 적용',
+            priceKRW: 12900,
+            benefits: ['매일 우편으로 50다이아 지급 (총 1500다이아)', '즉시 750다이아 지급'],
+        },
+        {
+            id: 'equipment_package_1',
+            name: '장비상자패키지 I',
+            priceKRW: 2900,
+            benefits: ['장비상자 V 1개', '재료상자 VI 1개'],
+        },
+        {
+            id: 'equipment_package_2',
+            name: '장비상자패키지 II',
+            priceKRW: 4900,
+            benefits: ['장비상자 V 2개', '재료상자 VI 2개'],
+        },
+        {
+            id: 'equipment_package_3',
+            name: '장비상자패키지 III',
+            priceKRW: 7900,
+            benefits: ['장비상자 V 2개', '장비상자 VI 1개', '재료상자 VI 5개'],
+        },
+    ];
+
+    const measureMaterialsHeight = useCallback(() => {
+        if (!mobileShop) {
+            setMobileBaseContentHeight(null);
+            return;
+        }
+        if (!materialsMeasureRef.current) return;
+        const measuredHeight = Math.ceil(materialsMeasureRef.current.scrollHeight);
+        if (measuredHeight > 0) {
+            setMobileBaseContentHeight(measuredHeight);
+        }
+    }, [mobileShop]);
+
+    useEffect(() => {
+        if (!mobileShop) return;
+        const rafId = window.requestAnimationFrame(measureMaterialsHeight);
+        const onResize = () => measureMaterialsHeight();
+        window.addEventListener('resize', onResize);
+        return () => {
+            window.cancelAnimationFrame(rafId);
+            window.removeEventListener('resize', onResize);
+        };
+    }, [mobileShop, measureMaterialsHeight]);
 
     const handleInitiatePurchase = (item: PurchasableItem) => {
         setPurchasingItem(item);
@@ -289,37 +464,34 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             { itemId: 'equipment_box_5', name: "장비 상자 V", description: "에픽~신화 등급 장비", price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.png", type: 'equipment' as const },
             { itemId: 'equipment_box_6', name: "장비 상자 VI", description: "전설~신화 등급 장비", price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.png", type: 'equipment' as const },
         ];
-        const materialItems = [
-            { itemId: "material_box_1", name: "재료 상자 I", description: "하급~상급강화석 5개", price: { gold: 500 }, image: "/images/Box/ResourceBox1.png", dailyLimit: 10, type: 'material' as const },
-            { itemId: "material_box_2", name: "재료 상자 II", description: "하급~상급강화석 5개", price: { gold: 1000 }, image: "/images/Box/ResourceBox2.png", dailyLimit: 10, type: 'material' as const },
-            { itemId: "material_box_3", name: "재료 상자 III", description: "하급~상급강화석 5개", price: { gold: 3000 }, image: "/images/Box/ResourceBox3.png", dailyLimit: 10, type: 'material' as const },
-            { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", dailyLimit: 10, type: 'material' as const },
-            { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", dailyLimit: 10, type: 'material' as const },
-            { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", dailyLimit: 10, type: 'material' as const },
-            { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.png", dailyLimit: 3, type: 'material' as const },
-            { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.png", dailyLimit: 10, type: 'material' as const },
-            { itemId: 'mythic_option_change_ticket', name: "신화 옵션 종류 변경권", description: "신화 또는 초월 장비의 신화 옵션을 다른 신화 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.png", dailyLimit: 10, type: 'material' as const },
-        ];
 
         switch (activeTab) {
             case 'equipment':
                 return (
-                    <div className={`${mobileShop ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                    <div className={gridClassName}>
                         {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
                     </div>
                 );
             case 'materials':
                  return (
-                    <div className={`${mobileShop ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                    <div className={gridClassName}>
                         {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
                     </div>
                 );
             case 'misc':
                 return (
-                    <div className="flex items-center justify-center h-full text-sm text-gray-300">
-                        <p className="text-center">
-                            추후 다이아 패키지 등이 추가될 예정입니다.
-                        </p>
+                    <div className={`${mobileShop ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3'}`}>
+                        {miscProducts.map(product => (
+                            <MiscShopCard key={product.id} product={product} mobile={mobileShop} />
+                        ))}
+                    </div>
+                );
+            case 'vip':
+                return (
+                    <div className={`${mobileShop ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3'}`}>
+                        {vipProducts.map(product => (
+                            <VipShopCard key={product.id} product={product} mobile={mobileShop} />
+                        ))}
                     </div>
                 );
             case 'consumables':
@@ -355,7 +527,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 });
                 const consumableItems = [...baseConsumableItems, ...actionPointShopItems];
                 return (
-                    <div className={`${mobileShop ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2' : 'grid grid-cols-4 gap-3'}`}>
+                    <div className={gridClassName}>
                         {consumableItems.map(item => (
                             <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />
                         ))}
@@ -393,10 +565,23 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <button onClick={() => setActiveTab('equipment')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>장비</button>
                         <button onClick={() => setActiveTab('materials')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>재료</button>
                         <button onClick={() => setActiveTab('consumables')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>소모품</button>
-                        <button onClick={() => setActiveTab('misc')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>기타</button>
+                        <button onClick={() => setActiveTab('vip')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'vip' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>VIP</button>
+                        <button onClick={() => setActiveTab('misc')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>패키지</button>
                     </div>
 
-                    <div className={`flex-1 min-h-0 overflow-y-auto ${mobileShop ? 'pr-0.5' : 'pr-2'}`}>
+                    <div
+                        className={`flex-1 min-h-0 overflow-y-auto ${mobileShop ? 'pr-0.5' : 'pr-2'}`}
+                        style={mobileShop && mobileBaseContentHeight ? { minHeight: `${mobileBaseContentHeight}px` } : undefined}
+                    >
+                        {mobileShop && (
+                            <div className="pointer-events-none absolute left-0 top-0 -z-10 w-full opacity-0" aria-hidden="true">
+                                <div ref={materialsMeasureRef} className={gridClassName}>
+                                    {materialItems.map(item => (
+                                        <ShopItemCard key={`measure-${item.itemId}`} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                         {renderContent()}
                     </div>
 

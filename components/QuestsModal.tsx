@@ -1,12 +1,13 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react';
 import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
-import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS } from '../constants';
+import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS, ACHIEVEMENT_TRACKS } from '../constants';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../constants/ads.js';
 import { clampQuestProgressToTarget } from '../utils/questProgressCap.js';
-import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { getAdventureUnderstandingTierFromXp } from '../constants/adventureConstants.js';
+import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 
 interface QuestsModalProps {
     currentUser: UserWithStatus;
@@ -64,21 +65,179 @@ const getQuestDisplayTitle = (title: string): string => {
     return title;
 };
 
-const AchievementsPlaceholder: React.FC<{ isMobile: boolean }> = ({ isMobile }) => (
-    <div
-        className={`flex flex-col items-center justify-center rounded-2xl border border-amber-500/20 bg-gradient-to-b from-slate-900/80 via-[#0e1016]/95 to-[#080a0f] text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-400/10 ${
-            isMobile ? 'min-h-[11rem] px-4 py-8' : 'min-h-[14rem] px-8 py-12'
-        }`}
-    >
-        <div className="mb-3 text-4xl drop-shadow-[0_0_12px_rgba(251,191,36,0.35)] sm:text-5xl" aria-hidden>
-            🏆
+const AchievementTrackPanel: React.FC<{
+    currentUser: UserWithStatus;
+    onAction: (action: ServerAction) => void;
+    isMobile: boolean;
+}> = ({ currentUser, onAction, isMobile }) => {
+    const [viewIndices, setViewIndices] = useState<Record<string, number>>({});
+    const [detailOpenMap, setDetailOpenMap] = useState<Record<string, boolean>>({});
+    const adventureTierIndexByLabel: Record<string, number> = { 편함: 1, 익숙함: 2, 친숙함: 3, 정복: 4 };
+
+    const isRequirementMet = (stage: (typeof ACHIEVEMENT_TRACKS)[number]['stages'][number]) => {
+        if (stage.requirement.type === 'singleplayer_stage_clear') {
+            return (currentUser.clearedSinglePlayerStages ?? []).includes(stage.requirement.stageId);
+        }
+        if (stage.requirement.type === 'strategy_level') {
+            return (currentUser.strategyLevel ?? 0) >= stage.requirement.level;
+        }
+        if (stage.requirement.type === 'playful_level') {
+            return (currentUser.playfulLevel ?? 0) >= stage.requirement.level;
+        }
+        if (stage.requirement.type === 'championship_cumulative_score') {
+            return (currentUser.cumulativeTournamentScore ?? 0) >= stage.requirement.score;
+        }
+        if (stage.requirement.type === 'all_equipment_min_grade') {
+            const gradeOrder = ['normal', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'transcendent'];
+            const requiredIndex = gradeOrder.indexOf(stage.requirement.grade);
+            const slots: Array<'fan' | 'board' | 'top' | 'bottom' | 'bowl' | 'stones'> = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+            return slots.every((slot) => {
+                const equippedId = currentUser.equipment?.[slot];
+                if (!equippedId) return false;
+                const item = currentUser.inventory.find((it) => it.id === equippedId);
+                if (!item) return false;
+                const normalizedGrade = String(item.grade).toLowerCase();
+                const idx = gradeOrder.indexOf(normalizedGrade);
+                return idx >= requiredIndex;
+            });
+        }
+        if (stage.requirement.type === 'strategy_tier' || stage.requirement.type === 'playful_tier') {
+            const tierScoreMap: Record<string, number> = {
+                루키: 1300,
+                브론즈: 1400,
+                실버: 1500,
+                골드: 1700,
+                플래티넘: 2000,
+                다이아: 2400,
+                마스터: 3000,
+                챌린저: 3500,
+            };
+            const scoreDiff = stage.requirement.type === 'strategy_tier'
+                ? (currentUser.cumulativeRankingScore?.standard ?? 0)
+                : (currentUser.cumulativeRankingScore?.playful ?? 0);
+            const seasonScore = 1200 + scoreDiff;
+            return seasonScore >= (tierScoreMap[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER);
+        }
+        if (stage.requirement.type === 'adventure_understanding_tier') {
+            const xp = Math.max(0, Math.floor(currentUser.adventureProfile?.understandingXpByStage?.[stage.requirement.stageId] ?? 0));
+            const currentTier = getAdventureUnderstandingTierFromXp(xp);
+            const requiredTier = adventureTierIndexByLabel[stage.requirement.tier] ?? Number.MAX_SAFE_INTEGER;
+            return currentTier >= requiredTier;
+        }
+        if (stage.requirement.type === 'adventure_codex_score') {
+            const { totalSum } = getAdventureCodexCompletionBreakdown(currentUser.adventureProfile);
+            return totalSum >= stage.requirement.score;
+        }
+        return false;
+    };
+
+    const totalStages = ACHIEVEMENT_TRACKS.reduce((sum, track) => sum + track.stages.length, 0);
+    const totalClaimed = ACHIEVEMENT_TRACKS.reduce((sum, track) => {
+        const trackState = currentUser.quests?.achievements?.tracks?.[track.id] ?? { currentIndex: 0, claimedIndices: [] };
+        const claimedIndices = Array.isArray(trackState.claimedIndices) ? trackState.claimedIndices : [];
+        return sum + claimedIndices.length;
+    }, 0);
+
+    return (
+        <div className={`rounded-2xl border border-slate-400/15 bg-slate-950/75 shadow-[0_20px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] ${isMobile ? 'p-3' : 'p-4'}`}>
+            <div className="mb-4 flex items-center justify-between gap-3">
+                <div>
+                    <h3 className={`font-bold tracking-tight text-white ${isMobile ? 'text-sm' : 'text-lg'}`}>전체 업적</h3>
+                </div>
+                <span className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-3 py-1 font-bold tabular-nums text-amber-50 ${isMobile ? 'text-xs' : 'text-sm'}`}>
+                    {totalClaimed}/{totalStages}
+                </span>
+            </div>
+            <ul className={`${isMobile ? 'space-y-2' : 'space-y-3'}`}>
+                {ACHIEVEMENT_TRACKS.map((track) => {
+                    const trackState = currentUser.quests?.achievements?.tracks?.[track.id] ?? { currentIndex: 0, claimedIndices: [] };
+                    const claimedIndices = Array.isArray(trackState.claimedIndices) ? trackState.claimedIndices : [];
+                    const currentIndex = Math.max(0, Math.min(track.stages.length - 1, trackState.currentIndex ?? 0));
+                    const viewIndex = Math.max(0, Math.min(track.stages.length - 1, viewIndices[track.id] ?? currentIndex));
+                    const stage = track.stages[viewIndex];
+                    const isCleared = isRequirementMet(stage);
+                    const isClaimed = claimedIndices.includes(viewIndex);
+                    const isCurrentStage = viewIndex === currentIndex;
+                    const canClaim = isCurrentStage && isCleared && !isClaimed;
+                    const isDetailOpen = !!detailOpenMap[track.id];
+
+                    return (
+                        <li key={track.id} className="rounded-2xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] p-2.5 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] sm:p-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <h4 className={`min-w-0 truncate font-semibold tracking-tight text-slate-100 ${isMobile ? 'text-[13px]' : 'text-[15px]'}`}>{track.title}</h4>
+                                <span className="shrink-0 rounded-full border border-amber-500/30 bg-black/30 px-2.5 py-1 text-[11px] font-semibold text-amber-100">
+                                    {viewIndex + 1}/{track.stages.length}
+                                </span>
+                            </div>
+                            <div className="flex items-start justify-between gap-2.5">
+                                <div className="relative min-w-0 flex-1">
+                                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => setDetailOpenMap((prev) => ({ ...prev, [track.id]: !prev[track.id] }))}
+                                            className={`text-left font-bold tracking-tight text-slate-100 hover:text-amber-200 ${isMobile ? 'text-[15px]' : 'text-lg'}`}
+                                            title="클릭하여 상세 설명 보기"
+                                        >
+                                            {stage.title}
+                                        </button>
+                                        <span className={`rounded-md px-2 py-0.5 text-[11px] font-medium ${isCleared ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-700/50 text-slate-300'}`}>
+                                            {isCleared ? '조건 달성' : '미달성'}
+                                        </span>
+                                    </div>
+                                    {isDetailOpen ? (
+                                        <div
+                                            role="dialog"
+                                            aria-label="업적 상세"
+                                            className={`absolute left-0 z-20 mt-2 w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-[#1a1d28]/98 via-[#12151c]/98 to-[#0a0c10]/98 px-3 py-2 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 backdrop-blur-md ${isMobile ? 'max-w-[20rem]' : 'max-w-[24rem]'}`}
+                                        >
+                                            <p className={`text-slate-200 ${isMobile ? 'text-[11px] leading-relaxed' : 'text-xs leading-relaxed'}`}>
+                                                {stage.description}
+                                            </p>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/30 bg-black/30 px-2 py-1">
+                                    <img src="/images/icon/Zem.png" alt="" className="h-4 w-4 object-contain" />
+                                    <span className="text-xs font-semibold text-amber-100 tabular-nums">{stage.rewardDiamonds}</span>
+                                </div>
+                            </div>
+                            <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewIndices((prev) => ({ ...prev, [track.id]: Math.max(0, viewIndex - 1) }))}
+                                    disabled={viewIndex <= 0}
+                                    className="rounded-lg border border-slate-600/40 bg-slate-800/60 px-2 py-1.5 text-[11px] text-slate-200 disabled:opacity-40"
+                                >
+                                    이전
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => onAction({ type: 'CLAIM_ACHIEVEMENT_REWARD', payload: { trackId: track.id, stageIndex: viewIndex } })}
+                                    disabled={!canClaim}
+                                    className={`rounded-lg border px-2 py-1.5 text-[11px] font-semibold ${
+                                        canClaim
+                                            ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50'
+                                            : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
+                                    }`}
+                                >
+                                    {isClaimed ? '완료' : canClaim ? '보상 받기' : isCurrentStage ? '진행 중' : '기록 보기'}
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewIndices((prev) => ({ ...prev, [track.id]: Math.min(track.stages.length - 1, viewIndex + 1) }))}
+                                    disabled={viewIndex >= track.stages.length - 1}
+                                    className="rounded-lg border border-slate-600/40 bg-slate-800/60 px-2 py-1.5 text-[11px] text-slate-200 disabled:opacity-40"
+                                >
+                                    다음
+                                </button>
+                            </div>
+                        </li>
+                    );
+                })}
+            </ul>
         </div>
-        <h3 className="text-base font-semibold tracking-tight text-amber-100/95 sm:text-lg">업적</h3>
-        <p className={`mt-2 max-w-md text-slate-400 ${isMobile ? 'text-xs leading-relaxed' : 'text-sm leading-relaxed'}`}>
-            업적 목록과 보상은 추후 업데이트에서 제공될 예정입니다.
-        </p>
-    </div>
-);
+    );
+};
 
 /** 퀘스트 수령 — 작은 프레임, 징크/에메랄드 톤 (리소스 버튼보다 컴팩트) */
 const QuestClaimStripButton: React.FC<{
@@ -500,13 +659,11 @@ const ActivityPanel: React.FC<{
 
 
 const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost }) => {
-    const { currentUserWithStatus } = useAppContext();
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const isMobile = isCompactViewport || isNativeMobile;
 
-    // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
-    const currentUser = currentUserWithStatus || propCurrentUser;
+    const currentUser = propCurrentUser;
 
     const [activeTab, setActiveTab] = useState<QuestTab>('daily');
     const { quests } = currentUser;
@@ -557,6 +714,55 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
         );
         return questClaimable || milestoneClaimable;
     }, [quests.monthly]);
+
+    const hasClaimableAchievements = useMemo(() => {
+        for (const track of ACHIEVEMENT_TRACKS) {
+            const trackState = quests.achievements?.tracks?.[track.id] ?? { currentIndex: 0, claimedIndices: [] };
+            const claimedIndices = Array.isArray(trackState.claimedIndices) ? trackState.claimedIndices : [];
+            const currentIndex = Math.max(0, Math.min(track.stages.length - 1, trackState.currentIndex ?? 0));
+            const stage = track.stages[currentIndex];
+            if (!stage || claimedIndices.includes(currentIndex)) continue;
+
+            const requirement = stage.requirement;
+            let met = false;
+            if (requirement.type === 'singleplayer_stage_clear') {
+                met = (currentUser.clearedSinglePlayerStages ?? []).includes(requirement.stageId);
+            } else if (requirement.type === 'strategy_level') {
+                met = (currentUser.strategyLevel ?? 0) >= requirement.level;
+            } else if (requirement.type === 'playful_level') {
+                met = (currentUser.playfulLevel ?? 0) >= requirement.level;
+            } else if (requirement.type === 'championship_cumulative_score') {
+                met = (currentUser.cumulativeTournamentScore ?? 0) >= requirement.score;
+            } else if (requirement.type === 'all_equipment_min_grade') {
+                const gradeOrder = ['normal', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'transcendent'];
+                const requiredIdx = gradeOrder.indexOf(requirement.grade);
+                const slots: Array<'fan' | 'board' | 'top' | 'bottom' | 'bowl' | 'stones'> = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+                met = slots.every((slot) => {
+                    const equippedId = currentUser.equipment?.[slot];
+                    if (!equippedId) return false;
+                    const item = currentUser.inventory.find((it) => it.id === equippedId);
+                    if (!item) return false;
+                    const idx = gradeOrder.indexOf(String(item.grade).toLowerCase());
+                    return idx >= requiredIdx;
+                });
+            } else if (requirement.type === 'strategy_tier' || requirement.type === 'playful_tier') {
+                const tierScoreMap: Record<string, number> = { 루키: 1300, 브론즈: 1400, 실버: 1500, 골드: 1700, 플래티넘: 2000, 다이아: 2400, 마스터: 3000, 챌린저: 3500 };
+                const scoreDiff = requirement.type === 'strategy_tier'
+                    ? (currentUser.cumulativeRankingScore?.standard ?? 0)
+                    : (currentUser.cumulativeRankingScore?.playful ?? 0);
+                met = 1200 + scoreDiff >= (tierScoreMap[requirement.tier] ?? Number.MAX_SAFE_INTEGER);
+            } else if (requirement.type === 'adventure_understanding_tier') {
+                const tierMap: Record<string, number> = { 편함: 1, 익숙함: 2, 친숙함: 3, 정복: 4 };
+                const xp = Math.max(0, Math.floor(currentUser.adventureProfile?.understandingXpByStage?.[requirement.stageId] ?? 0));
+                met = getAdventureUnderstandingTierFromXp(xp) >= (tierMap[requirement.tier] ?? Number.MAX_SAFE_INTEGER);
+            } else if (requirement.type === 'adventure_codex_score') {
+                met = getAdventureCodexCompletionBreakdown(currentUser.adventureProfile).totalSum >= requirement.score;
+            }
+
+            if (met) return true;
+        }
+        return false;
+    }, [quests.achievements, currentUser]);
 
     const renderActivityPanel = () => {
         if (activeTab === 'daily') {
@@ -665,6 +871,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                         }`}
                     >
                         업적
+                        {hasClaimableAchievements && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />}
                     </button>
                 </div>
 
@@ -673,7 +880,7 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                 >
                     {activeTab !== 'achievements' ? renderActivityPanel() : null}
                     {activeTab === 'achievements' ? (
-                        <AchievementsPlaceholder isMobile={isMobile} />
+                        <AchievementTrackPanel currentUser={currentUser} onAction={onAction} isMobile={isMobile} />
                     ) : questList.length > 0 ? (
                         <ul className={`${isMobile ? 'mt-2 space-y-2' : 'mt-3 space-y-3'}`}>
                             {questList.map((quest) => (

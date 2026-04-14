@@ -111,11 +111,21 @@ export type MonthlyQuestData = {
   lastReset: number;
 };
 
+export type AchievementTrackState = {
+  currentIndex: number;
+  claimedIndices: number[];
+};
+
+export type AchievementData = {
+  tracks: Record<string, AchievementTrackState>;
+};
+
 
 export type QuestLog = {
     daily?: DailyQuestData;
     weekly?: WeeklyQuestData;
     monthly?: MonthlyQuestData;
+    achievements?: AchievementData;
 };
 
 export type AvatarInfo = {
@@ -267,6 +277,17 @@ export type UserCredentials = {
 };
 
 export type AdventureRegionalSpecialtyBuffKind =
+  | 'regional_win_gold_10pct'
+  | 'regional_equip_drop_3pct'
+  | 'regional_material_drop_5pct'
+  | 'regional_capture_target_plus1'
+  | 'regional_time_limit_plus20pct'
+  | 'regional_monster_respawn_minus10pct'
+  | 'regional_monster_dwell_plus10pct'
+  | 'regional_hidden_scan_plus1'
+  | 'regional_base_start_score_plus1'
+  | 'regional_classic_start_score_plus1'
+  | 'regional_missile_plus1'
   | 'adv_gold_pct'
   | 'map_monster_dwell_pct'
   | 'capture_opponent_target_plus1'
@@ -275,6 +296,7 @@ export type AdventureRegionalSpecialtyBuffKind =
 
 export type AdventureRegionalSpecialtyBuffEntry = {
   kind: AdventureRegionalSpecialtyBuffKind;
+  stacks?: number;
   valuePercent?: number;
 };
 
@@ -296,6 +318,7 @@ export type AdventureProfile = {
    */
   adventureMapSuppressUntilByKey?: Partial<Record<string, number>>;
   regionalSpecialtyBuffsByStageId?: Partial<Record<string, AdventureRegionalSpecialtyBuffEntry[]>>;
+  regionalBuffEnhancePointsByStageId?: Partial<Record<string, number>>;
   regionalBuffRerollUtcDate?: string;
   regionalBuffRerollCountToday?: number;
 };
@@ -984,6 +1007,8 @@ export type LiveGameSession = {
   adventureBoardSize?: number;
   /** 모험: 경기 시작(CONFIRM) 후 전체 제한 시각(epoch ms) — 초과 시 몬스터 도주 패배 */
   adventureEncounterDeadlineMs?: number;
+  adventureEncounterDurationMultiplier?: number;
+  adventureRegionalHumanFlatScoreBonus?: number;
   stageId?: string;
   towerFloor?: number;  // 도전의 탑 층수
   blackPatternStones?: Point[];

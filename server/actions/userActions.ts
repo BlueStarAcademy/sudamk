@@ -45,8 +45,14 @@ import {
     applyAdventureMonsterDefeatToProfile,
     parseAdventureMonsterLevel,
 } from '../utils/adventureMonsterDefeat.js';
-import { getRegionalHiddenScanBonus, getRegionalMissileBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
-import { changeAdventureRegionalSpecialtyBuffs } from '../utils/adventureRegionalBuffReroll.js';
+import {
+    getRegionalBaseHeadStartPoints,
+    getRegionalClassicOrStandardHeadStartPoints,
+    getRegionalAdventureEncounterDurationMultiplier,
+    getRegionalHiddenScanBonus,
+    getRegionalMissileBonus,
+} from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { changeSingleRegionalSlotBuff, enhanceSingleRegionalSlotBuff } from '../utils/adventureRegionalBuffReroll.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -205,6 +211,15 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 };
 
                 const game = await initializeGame(negotiation);
+                const encMult = getRegionalAdventureEncounterDurationMultiplier(user.adventureProfile, stageId!);
+                (game as any).adventureEncounterDurationMultiplier = encMult;
+                let flatScore = 0;
+                if (mode === GameMode.Standard || mode === GameMode.Speed) {
+                    flatScore = getRegionalClassicOrStandardHeadStartPoints(user.adventureProfile, stageId!);
+                } else if (mode === GameMode.Base) {
+                    flatScore = getRegionalBaseHeadStartPoints(user.adventureProfile, stageId!);
+                }
+                if (flatScore > 0) (game as any).adventureRegionalHumanFlatScoreBonus = flatScore;
                 await db.saveGame(game);
 
                 volatileState.userStatuses[game.player1.id] = {
@@ -260,17 +275,42 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             }
         }
         case 'REROLL_ADVENTURE_REGIONAL_BUFF': {
-            const { stageId, lockedIndices } = (payload || {}) as { stageId?: string; lockedIndices?: number[] };
+            const { stageId, slotIndex } = (payload || {}) as { stageId?: string; slotIndex?: number };
             if (!stageId || typeof stageId !== 'string') {
                 return { error: '스테이지가 필요합니다.' };
             }
-            const rollErr = changeAdventureRegionalSpecialtyBuffs(user, stageId, Array.isArray(lockedIndices) ? lockedIndices : []);
+            const idx = Math.floor(Number(slotIndex));
+            if (!Number.isFinite(idx) || idx < 0) {
+                return { error: '슬롯이 필요합니다.' };
+            }
+            const rollErr = changeSingleRegionalSlotBuff(user, stageId, idx);
             if (rollErr) {
                 return { error: rollErr };
             }
             const updatedUser = getSelectiveUserUpdate(user, 'REROLL_ADVENTURE_REGIONAL_BUFF');
             db.updateUser(user).catch((err) => {
                 console.error(`[UserAction] Failed to save user ${user.id} after REROLL_ADVENTURE_REGIONAL_BUFF`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['adventureProfile', 'gold']);
+            return { clientResponse: { updatedUser } };
+        }
+        case 'ENHANCE_ADVENTURE_REGIONAL_BUFF': {
+            const { stageId, slotIndex } = (payload || {}) as { stageId?: string; slotIndex?: number };
+            if (!stageId || typeof stageId !== 'string') {
+                return { error: '스테이지가 필요합니다.' };
+            }
+            const idx = Math.floor(Number(slotIndex));
+            if (!Number.isFinite(idx) || idx < 0) {
+                return { error: '슬롯이 필요합니다.' };
+            }
+            const err = enhanceSingleRegionalSlotBuff(user, stageId, idx);
+            if (err) {
+                return { error: err };
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'ENHANCE_ADVENTURE_REGIONAL_BUFF');
+            db.updateUser(user).catch((e) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after ENHANCE_ADVENTURE_REGIONAL_BUFF`, e);
             });
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['adventureProfile', 'gold']);

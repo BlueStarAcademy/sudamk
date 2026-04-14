@@ -48,12 +48,14 @@ export function getSelectiveUserUpdate(
         'APPLY_PRESET': ['equipment', 'inventory', 'actionPoints', 'lastActionPointUpdate'],
         'RECORD_ADVENTURE_MONSTER_DEFEAT': ['adventureProfile'],
         'REROLL_ADVENTURE_REGIONAL_BUFF': ['adventureProfile', 'gold'],
+        'ENHANCE_ADVENTURE_REGIONAL_BUFF': ['adventureProfile', 'gold'],
         'SAVE_GAME_RECORD': ['savedGameRecords'],
         'DELETE_GAME_RECORD': ['savedGameRecords'],
         
         // 보상 관련
         'CLAIM_QUEST_REWARD': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'CLAIM_ACTIVITY_MILESTONE': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
+        'CLAIM_ACHIEVEMENT_REWARD': ['diamonds', 'quests'],
         'CLAIM_MAIL_ATTACHMENTS': ['inventory', 'gold', 'diamonds', 'actionPoints', 'guildCoins', 'mail'],
         'CLAIM_ALL_MAIL_ATTACHMENTS': ['inventory', 'gold', 'diamonds', 'actionPoints', 'guildCoins', 'mail'],
         'DELETE_MAIL': ['mail'],

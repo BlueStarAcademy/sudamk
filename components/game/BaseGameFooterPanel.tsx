@@ -121,10 +121,18 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
 }) => {
     const { gameStatus, id: gameId } = session;
 
-    if (gameStatus === 'komi_bidding' || gameStatus === 'komi_bid_reveal') {
+    if (gameStatus === 'komi_bidding') {
         return (
             <div className="flex w-full min-w-0 flex-col gap-1">
                 <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction as (a: ServerAction) => void} layout="inline" />
+            </div>
+        );
+    }
+
+    if (gameStatus === 'komi_bid_reveal') {
+        return (
+            <div className="w-full min-w-0 px-1 py-1 text-center text-[11px] leading-snug text-stone-500 sm:text-xs">
+                덤 설정 결과는 화면 중앙 모달에서 확인하세요.
             </div>
         );
     }

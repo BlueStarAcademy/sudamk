@@ -26,6 +26,8 @@ export type AdventureChapterMonsterSituationListProps = {
     nowMs: number;
     onPickRow: (codexId: string) => void;
     listClassName?: string;
+    mapDwellMultiplier?: number;
+    mapRespawnOffMultiplier?: number;
 };
 
 /**
@@ -38,6 +40,8 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
     nowMs,
     onPickRow,
     listClassName,
+    mapDwellMultiplier = 1,
+    mapRespawnOffMultiplier = 1,
 }) => {
     const stage = useMemo(() => getAdventureStageById(stageId), [stageId]);
 
@@ -67,6 +71,8 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                     row.codexId,
                     boss,
                     suppressRecord[supK],
+                    mapDwellMultiplier,
+                    mapRespawnOffMultiplier,
                 );
                 const rightSlot = mapMonster ? '출현중' : formatRemainMs(untilAppear);
                 return (
