@@ -7,6 +7,7 @@ import {
     ADVENTURE_MAP_THEMES,
     ADVENTURE_MONSTER_MODE_LABELS,
     adventureBattleModeToGameMode,
+    getAdventureUnderstandingTierFromXp,
     getAdventureStageById,
     getAdventureStageLevelRange,
     type AdventureMonsterBattleMode,
@@ -34,6 +35,7 @@ import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSitua
 import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
 import { labelRegionalSpecialtyBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { formatAdventureUnderstandingTierLabel } from '../../utils/adventureUnderstanding.js';
 
 type Props = { stageId: string };
 
@@ -169,6 +171,12 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     const stageRegionalBuffEntries = stage
         ? currentUserWithStatus?.adventureProfile?.regionalSpecialtyBuffsByStageId?.[stage.id] ?? []
         : [];
+    const stageUnderstandingXp = stage
+        ? Math.max(0, Math.floor(currentUserWithStatus?.adventureProfile?.understandingXpByStage?.[stage.id] ?? 0))
+        : 0;
+    const stageUnderstandingTierLabel = formatAdventureUnderstandingTierLabel(
+        getAdventureUnderstandingTierFromXp(stageUnderstandingXp),
+    );
 
     const monsters = useMemo(() => {
         if (!stage) return [];
