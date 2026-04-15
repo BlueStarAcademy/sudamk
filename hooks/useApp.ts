@@ -39,6 +39,7 @@ import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
 import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
+import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
 
 /** 도전의 탑 PVE: 일반 수는 클라이언트만 반영되어 서버 game의 판·수순이 뒤처질 수 있음. 히든/스캔/미사일 선택 진입 시 응답으로 덮어쓰면 판이 초기화되는 버그 방지. */
 function mergeTowerServerGameWithClientBoardIfStale(
@@ -182,6 +183,11 @@ export const useApp = () => {
             ...patch,
             // ID는 항상 이전 사용자의 ID로 강제 유지 (보안: 다른 사용자로 로그인 변경 방지)
             id: prevId,
+            // 모험 프로필: 지역 특화 효과는 스테이지 키 단위로만 덮어써서 다른 지역 슬롯이 사라지지 않게 함
+            adventureProfile:
+                patch.adventureProfile !== undefined
+                    ? mergeAdventureProfileForPersistence(patch.adventureProfile, base.adventureProfile)
+                    : base.adventureProfile,
             // inventory는 배열이므로 완전히 교체 (새로운 참조로)
             inventory: mergedInventory,
             // equipment는 객체이므로 완전히 교체 (서버에서 보내는 equipment는 항상 전체 상태)

@@ -6,6 +6,7 @@ import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
 import { isDifferentWeekKST } from '../../utils/timeUtils.js';
 import { ADMIN_USER_ID } from '../../constants/index.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 
 interface GuildMissionsPanelProps {
     guild: GuildType;
@@ -89,6 +90,7 @@ const MissionItem: React.FC<{ mission: GuildMission; guildLevel: number; guild: 
 const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose }) => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+    const isHandheld = useIsHandheldDevice(1025);
     const now = Date.now();
     const isExpired = guild.lastMissionReset && isDifferentWeekKST(guild.lastMissionReset, now);
     
@@ -115,11 +117,14 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
             variant="store"
             mobileViewportFit={isNativeMobile}
             mobileViewportMaxHeightVh={94}
+            mobileLockViewportHeight={isHandheld}
+            bodyNoScroll={isHandheld}
+            hideFooter={isHandheld}
             bodyPaddingClassName={isNativeMobile ? 'p-2' : undefined}
         >
-            <div className="flex flex-col h-full relative overflow-hidden">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-stone-950/50 via-neutral-900/30 to-stone-950/50 pointer-events-none"></div>
-                <div className="relative z-10 flex flex-col h-full">
+                <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col">
                 {hasUnclaimedRewards && (
                     <div className={`flex-shrink-0 ${isNativeMobile ? 'mb-2' : 'mb-3'}`}>
                         <div className={`flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-950/40 ${isNativeMobile ? 'px-2 py-1.5' : 'px-3 py-2'}`}>
@@ -128,7 +133,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                         </div>
                     </div>
                 )}
-                <div className={`flex-grow overflow-y-auto ${isNativeMobile ? 'pr-1' : 'pr-2'}`}>
+                <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] ${isNativeMobile ? 'pr-1' : 'pr-2'}`}>
                     {guild.weeklyMissions && guild.weeklyMissions.length > 0 ? (
                         <ul className="space-y-2">
                             {guild.weeklyMissions.map(mission => (

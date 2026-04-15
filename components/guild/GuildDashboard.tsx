@@ -2196,7 +2196,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
         if (!guildDonationAnimation || guildDonationAnimation.type !== 'gold' || !goldButtonPos) return null;
         return (
             <div 
-                className="fixed -translate-x-1/2 -translate-y-full animate-float-up-and-fade z-[100] pointer-events-none whitespace-nowrap" 
+                className="pointer-events-none fixed -translate-x-1/2 -translate-y-full animate-float-up-and-fade whitespace-nowrap" 
                 style={{ 
                     animationDelay: '0ms',
                     top: `${goldButtonPos.top}px`,
@@ -2217,7 +2217,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
         if (!guildDonationAnimation || guildDonationAnimation.type !== 'diamond' || !diamondButtonPos) return null;
         return (
             <div 
-                className="fixed -translate-x-1/2 -translate-y-full animate-float-up-and-fade z-[100] pointer-events-none whitespace-nowrap" 
+                className="pointer-events-none fixed -translate-x-1/2 -translate-y-full animate-float-up-and-fade whitespace-nowrap" 
                 style={{ 
                     animationDelay: '0ms',
                     top: `${diamondButtonPos.top}px`,
@@ -2571,8 +2571,19 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
             </main>
             </>
             )}
-            {goldAnimation}
-            {diamondAnimation}
+            {typeof document !== 'undefined' &&
+                (goldAnimation || diamondAnimation) &&
+                createPortal(
+                    <div
+                        className="pointer-events-none fixed inset-0 z-[200000]"
+                        style={{ isolation: 'isolate' }}
+                        aria-hidden
+                    >
+                        {goldAnimation}
+                        {diamondAnimation}
+                    </div>,
+                    document.getElementById('sudamr-modal-root') ?? document.body
+                )}
         </div>
     );
 };

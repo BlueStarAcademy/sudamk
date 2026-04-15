@@ -1,15 +1,31 @@
-import type { User } from '../../types/index.js';
+import type {
+    AdventureRegionalSpecialtyBuffEntry,
+    AdventureRegionalSpecialtyBuffKind,
+    User,
+} from '../../types/index.js';
 import {
     ADVENTURE_REGIONAL_BUFF_ACTION_GOLD,
     enhancementPointsGrantedTotalForTier,
     getRegionalBuffMaxStacks,
     isRegionalBuffEnhanceable,
     migrateRegionalBuffEntry,
-    rollRandomRegionalBuffEntry,
+    rollRandomRegionalBuffEntryExcluding,
     syncRegionalSpecialtySlotsAndPoints,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
+
+function usedKindsExceptSlot(
+    list: (AdventureRegionalSpecialtyBuffEntry | undefined)[],
+    exceptIndex: number,
+): Set<AdventureRegionalSpecialtyBuffKind> {
+    const s = new Set<AdventureRegionalSpecialtyBuffKind>();
+    list.forEach((e, idx) => {
+        if (idx === exceptIndex || !e?.kind) return;
+        s.add(e.kind);
+    });
+    return s;
+}
 
 function stageTier(user: User, stageId: string): number {
     const xp = Math.max(0, Math.floor((user.adventureProfile?.understandingXpByStage ?? {})[stageId] ?? 0));
@@ -23,7 +39,12 @@ function stageTier(user: User, stageId: string): number {
 export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
     let p = normalizeAdventureProfile(user.adventureProfile);
     p = syncRegionalSpecialtySlotsAndPoints(p);
-    const list = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])].map((e) => migrateRegionalBuffEntry(e as any));
+    const rawStageList = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])];
+    const list: (AdventureRegionalSpecialtyBuffEntry | undefined)[] = rawStageList.map((e) =>
+        e != null && typeof e === 'object' && String((e as { kind?: unknown }).kind ?? '').trim() !== ''
+            ? migrateRegionalBuffEntry(e as any)
+            : undefined,
+    );
     const n = list.length;
     if (n <= 0) return '해당 지역에 교체할 효과가 없습니다.';
     if (slotIndex < 0 || slotIndex >= n) return '잘못된 슬롯입니다.';
@@ -31,15 +52,36 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
         return `골드가 부족합니다. (필요: ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()})`;
     }
 
-    const ent = migrateRegionalBuffEntry(list[slotIndex]!);
-    const refund = isRegionalBuffEnhanceable(ent.kind) ? Math.max(0, Math.floor(ent.stacks ?? 1) - 1) : 0;
     const tier = stageTier(user, stageId);
     const grant = enhancementPointsGrantedTotalForTier(tier);
     const curPts = Math.max(0, Math.floor(p.regionalBuffEnhancePointsByStageId?.[stageId] ?? 0));
+
+    const rawAtSlot = list[slotIndex];
+    const isEmptySlot =
+        rawAtSlot == null ||
+        typeof rawAtSlot !== 'object' ||
+        !rawAtSlot.kind ||
+        String(rawAtSlot.kind).trim() === '';
+
+    if (isEmptySlot) {
+        const next = list.slice();
+        next[slotIndex] = rollRandomRegionalBuffEntryExcluding(usedKindsExceptSlot(next, slotIndex));
+        user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
+        user.adventureProfile = {
+            ...p,
+            regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: next },
+            regionalBuffEnhancePointsByStageId: { ...p.regionalBuffEnhancePointsByStageId, [stageId]: curPts },
+        };
+        user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile);
+        return null;
+    }
+
+    const ent = migrateRegionalBuffEntry(rawAtSlot as any);
+    const refund = isRegionalBuffEnhanceable(ent.kind) ? Math.max(0, Math.floor(ent.stacks ?? 1) - 1) : 0;
     const nextPts = Math.min(grant, curPts + refund);
 
-    const next = [...list];
-    next[slotIndex] = rollRandomRegionalBuffEntry();
+    const next = list.slice() as (AdventureRegionalSpecialtyBuffEntry | undefined)[];
+    next[slotIndex] = rollRandomRegionalBuffEntryExcluding(usedKindsExceptSlot(next, slotIndex));
 
     user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
     user.adventureProfile = {
@@ -55,7 +97,12 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
 export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
     let p = normalizeAdventureProfile(user.adventureProfile);
     p = syncRegionalSpecialtySlotsAndPoints(p);
-    const list = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])].map((e) => migrateRegionalBuffEntry(e as any));
+    const rawStageListEnh = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])];
+    const list: (AdventureRegionalSpecialtyBuffEntry | undefined)[] = rawStageListEnh.map((e) =>
+        e != null && typeof e === 'object' && String((e as { kind?: unknown }).kind ?? '').trim() !== ''
+            ? migrateRegionalBuffEntry(e as any)
+            : undefined,
+    );
     const n = list.length;
     if (n <= 0) return '해당 지역에 강화할 효과가 없습니다.';
     if (slotIndex < 0 || slotIndex >= n) return '잘못된 슬롯입니다.';

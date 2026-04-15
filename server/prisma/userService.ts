@@ -3,7 +3,7 @@ import type { Prisma } from "@prisma/client";
 import type { User } from "../../types/index.js";
 import { deserializeUser, serializeUser, PrismaUserWithStatus } from "./userAdapter.js";
 import { ensurePrismaEngineReady } from "./gameService.js";
-import { normalizeAdventureProfile } from "../../utils/adventureUnderstanding.js";
+import { mergeAdventureProfileForPersistence } from "../../utils/adventureProfileMerge.js";
 
 const toBigInt = (value: number | undefined): bigint => {
   if (typeof value === "bigint") return value;
@@ -39,88 +39,6 @@ const buildPersistentFields = (user: User) => {
 };
 
 const mapUser = (row: PrismaUserWithStatus): User => deserializeUser(row);
-
-const mergeAdventureProfileForPersistence = (
-  incoming: User["adventureProfile"] | undefined,
-  existing: User["adventureProfile"] | undefined
-): User["adventureProfile"] | undefined => {
-  if (!incoming && !existing) return undefined;
-  if (!incoming) return existing;
-  if (!existing) return incoming;
-
-  const next = normalizeAdventureProfile(incoming);
-  const prev = normalizeAdventureProfile(existing);
-
-  const mergedCodexDefeatCounts: Record<string, number> = { ...(prev.codexDefeatCounts ?? {}) };
-  for (const [codexId, wins] of Object.entries(next.codexDefeatCounts ?? {})) {
-    const prevWins = Math.max(0, Math.floor(mergedCodexDefeatCounts[codexId] ?? 0));
-    const nextWins = Math.max(0, Math.floor(wins ?? 0));
-    mergedCodexDefeatCounts[codexId] = Math.max(prevWins, nextWins);
-  }
-
-  const mergedUnderstandingXpByStage: Record<string, number> = { ...(prev.understandingXpByStage ?? {}) };
-  for (const [stageId, xp] of Object.entries(next.understandingXpByStage ?? {})) {
-    const prevXp = Math.max(0, Math.floor(mergedUnderstandingXpByStage[stageId] ?? 0));
-    const nextXp = Math.max(0, Math.floor(xp ?? 0));
-    mergedUnderstandingXpByStage[stageId] = Math.max(prevXp, nextXp);
-  }
-
-  const mergedSuppressUntilByKey: Record<string, number> = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
-  for (const [key, until] of Object.entries(next.adventureMapSuppressUntilByKey ?? {})) {
-    const prevUntil = Math.max(0, Math.floor(mergedSuppressUntilByKey[key] ?? 0));
-    const nextUntil = Math.max(0, Math.floor(until ?? 0));
-    mergedSuppressUntilByKey[key] = Math.max(prevUntil, nextUntil);
-  }
-
-  const mergedByMode: Record<string, number> = { ...(prev.monstersDefeatedByMode ?? {}) };
-  for (const [mode, n] of Object.entries(next.monstersDefeatedByMode ?? {})) {
-    const prevN = Math.max(0, Math.floor(mergedByMode[mode] ?? 0));
-    const nextN = Math.max(0, Math.floor(n ?? 0));
-    mergedByMode[mode] = Math.max(prevN, nextN);
-  }
-
-  /**
-   * 지역 특화 버프는 스테이지별 배열 전체가 의미 단위다.
-   * 부분 payload가 들어와도 기존 스테이지 데이터가 통째로 사라지지 않도록 스테이지 키 단위로 병합한다.
-   */
-  const mergedRegionalSpecialtyBuffsByStageId: Record<string, unknown> = {
-    ...(prev.regionalSpecialtyBuffsByStageId ?? {}),
-  };
-  for (const [stageId, entries] of Object.entries(next.regionalSpecialtyBuffsByStageId ?? {})) {
-    mergedRegionalSpecialtyBuffsByStageId[stageId] = Array.isArray(entries)
-      ? entries.map((entry) => ({ ...(entry as Record<string, unknown>) }))
-      : [];
-  }
-
-  const mergedRegionalBuffEnhancePointsByStageId: Record<string, number> = {
-    ...(prev.regionalBuffEnhancePointsByStageId ?? {}),
-  };
-  for (const [stageId, pts] of Object.entries(next.regionalBuffEnhancePointsByStageId ?? {})) {
-    if (typeof pts === 'number' && Number.isFinite(pts)) {
-      mergedRegionalBuffEnhancePointsByStageId[stageId] = Math.floor(pts);
-    }
-  }
-
-  const mergedUniqueMonsterIdsCaught = Array.from(
-    new Set([...(prev.uniqueMonsterIdsCaught ?? []), ...(next.uniqueMonsterIdsCaught ?? [])])
-  );
-
-  return {
-    ...prev,
-    ...next,
-    codexDefeatCounts: mergedCodexDefeatCounts,
-    understandingXpByStage: mergedUnderstandingXpByStage,
-    adventureMapSuppressUntilByKey: mergedSuppressUntilByKey,
-    monstersDefeatedByMode: mergedByMode,
-    monstersDefeatedTotal: Math.max(
-      Math.max(0, Math.floor(prev.monstersDefeatedTotal ?? 0)),
-      Math.max(0, Math.floor(next.monstersDefeatedTotal ?? 0))
-    ),
-    uniqueMonsterIdsCaught: mergedUniqueMonsterIdsCaught,
-    regionalSpecialtyBuffsByStageId: mergedRegionalSpecialtyBuffsByStageId as User["adventureProfile"]["regionalSpecialtyBuffsByStageId"],
-    regionalBuffEnhancePointsByStageId: mergedRegionalBuffEnhancePointsByStageId,
-  };
-};
 
 // equipment와 inventory를 별도로 로드하는 헬퍼 함수
 const loadUserWithEquipmentAndInventory = async (query: () => Promise<any>) => {

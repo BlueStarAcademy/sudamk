@@ -17,3 +17,4 @@ export {
 export * from './constants/ui.ts';
 export * from './constants/singlePlayerConstants.ts';
 export * from './shared/constants/negotiationMessages.ts';
+export * from './shared/constants/pvpLootTables.ts';

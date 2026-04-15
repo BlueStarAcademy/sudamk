@@ -15,6 +15,7 @@ import {
     isRegionalBuffEnhanceable,
     labelRegionalSpecialtyBuffEntry,
     migrateRegionalBuffEntry,
+    regionalBuffEnhanceCountSuffix,
     slotCountForUnderstandingTier,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import type { AdventureRegionalSpecialtyBuffEntry, AdventureRegionalSpecialtyBuffKind } from '../../types/entities.js';
@@ -64,12 +65,19 @@ const AdventureRegionalBuffPanel: React.FC<{
     const rouletteIntervalRefs = useRef<Record<number, ReturnType<typeof setInterval> | undefined>>({});
     const rouletteTimeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
     const flashTimeoutRefs = useRef<Record<number, ReturnType<typeof setTimeout> | undefined>>({});
+    /** 동기적으로 연타·다중 슬롯 중복 요청 차단 (스핀 상태 커밋 전까지) */
+    const regionalRerollLockedRef = useRef(false);
     const stage = ADVENTURE_STAGES[tabIdx] ?? ADVENTURE_STAGES[0]!;
     const stageId = stage.id;
     const understandingRow = stageRows[tabIdx] ?? stageRows[0];
 
     const p = useMemo(() => normalizeAdventureProfile(profile), [profile]);
-    const buffs = (p.regionalSpecialtyBuffsByStageId?.[stageId] ?? []).map((e) => migrateRegionalBuffEntry(e as any));
+    const buffs: (AdventureRegionalSpecialtyBuffEntry | undefined)[] = (p.regionalSpecialtyBuffsByStageId?.[stageId] ?? []).map(
+        (e) =>
+            e != null && typeof e === 'object' && String((e as { kind?: unknown }).kind ?? '').trim() !== ''
+                ? migrateRegionalBuffEntry(e as any)
+                : undefined,
+    );
     const tier = understandingRow ? getAdventureUnderstandingTierFromXp(understandingRow.xp) : 0;
     const maxSlots = slotCountForUnderstandingTier(tier);
     const grantPts = enhancementPointsGrantedTotalForTier(tier);
@@ -86,13 +94,12 @@ const AdventureRegionalBuffPanel: React.FC<{
         return labelRegionalSpecialtyBuffEntry({ kind, stacks: 1 } as AdventureRegionalSpecialtyBuffEntry);
     };
 
-    const startRouletteAnimation = (slotIndex: number) => {
+    const startRouletteAnimation = (slotIndex: number, onSpinComplete?: () => void) => {
         const prevInterval = rouletteIntervalRefs.current[slotIndex];
         if (prevInterval) clearInterval(prevInterval);
         const prevTimeout = rouletteTimeoutRefs.current[slotIndex];
         if (prevTimeout) clearTimeout(prevTimeout);
 
-        setSpinningSlots((prev) => ({ ...prev, [slotIndex]: true }));
         setRouletteLabelBySlot((prev) => ({ ...prev, [slotIndex]: randomRouletteLabel() }));
 
         rouletteIntervalRefs.current[slotIndex] = setInterval(() => {
@@ -109,6 +116,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                 delete next[slotIndex];
                 return next;
             });
+            onSpinComplete?.();
         }, 900);
     };
 
@@ -130,20 +138,67 @@ const AdventureRegionalBuffPanel: React.FC<{
         };
     }, []);
 
-    const onChange = (slotIndex: number) => {
-        const ent = migrateRegionalBuffEntry(buffs[slotIndex] as any);
-        const st = Math.max(1, Math.floor(ent.stacks ?? 1));
-        if (st > 1) {
-            const ok = window.confirm(
-                '강화된 효과를 변경하면 1단계 효과로 돌아가며, 이 효과에 쓰인 강화 포인트를 돌려받습니다. 계속할까요?',
-            );
-            if (!ok) return;
+    const anySlotSpinning = useMemo(() => Object.values(spinningSlots).some(Boolean), [spinningSlots]);
+
+    const onChange = async (slotIndex: number) => {
+        if (regionalRerollLockedRef.current || anySlotSpinning) return;
+        const rawSlot = buffs[slotIndex];
+        if (rawSlot) {
+            const ent = migrateRegionalBuffEntry(rawSlot as any);
+            const st = Math.max(1, Math.floor(ent.stacks ?? 1));
+            if (st > 1) {
+                const ok = window.confirm(
+                    '강화된 효과를 변경하면 1단계 효과로 돌아가며, 이 효과에 쓰인 강화 포인트를 돌려받습니다. 계속할까요?',
+                );
+                if (!ok) return;
+            }
         }
-        startRouletteAnimation(slotIndex);
-        handlers.handleAction({
-            type: 'REROLL_ADVENTURE_REGIONAL_BUFF',
-            payload: { stageId, slotIndex },
-        } as any);
+
+        regionalRerollLockedRef.current = true;
+        setSpinningSlots((prev) => ({ ...prev, [slotIndex]: true }));
+        setRouletteLabelBySlot((prev) => ({ ...prev, [slotIndex]: '적용 중…' }));
+
+        try {
+            const res = await handlers.handleAction({
+                type: 'REROLL_ADVENTURE_REGIONAL_BUFF',
+                payload: { stageId, slotIndex },
+            } as any);
+
+            if (res && typeof (res as { error?: string }).error === 'string') {
+                const prevInterval = rouletteIntervalRefs.current[slotIndex];
+                if (prevInterval) clearInterval(prevInterval);
+                const prevTimeout = rouletteTimeoutRefs.current[slotIndex];
+                if (prevTimeout) clearTimeout(prevTimeout);
+                rouletteIntervalRefs.current[slotIndex] = undefined;
+                rouletteTimeoutRefs.current[slotIndex] = undefined;
+                setSpinningSlots((prev) => ({ ...prev, [slotIndex]: false }));
+                setRouletteLabelBySlot((prev) => {
+                    const next = { ...prev };
+                    delete next[slotIndex];
+                    return next;
+                });
+                regionalRerollLockedRef.current = false;
+                return;
+            }
+
+            startRouletteAnimation(slotIndex, () => {
+                regionalRerollLockedRef.current = false;
+            });
+        } catch {
+            const prevInterval = rouletteIntervalRefs.current[slotIndex];
+            if (prevInterval) clearInterval(prevInterval);
+            const prevTimeout = rouletteTimeoutRefs.current[slotIndex];
+            if (prevTimeout) clearTimeout(prevTimeout);
+            rouletteIntervalRefs.current[slotIndex] = undefined;
+            rouletteTimeoutRefs.current[slotIndex] = undefined;
+            setSpinningSlots((prev) => ({ ...prev, [slotIndex]: false }));
+            setRouletteLabelBySlot((prev) => {
+                const next = { ...prev };
+                delete next[slotIndex];
+                return next;
+            });
+            regionalRerollLockedRef.current = false;
+        }
     };
 
     const onEnhance = (slotIndex: number) => {
@@ -156,27 +211,28 @@ const AdventureRegionalBuffPanel: React.FC<{
 
     const getCompactLabel = (e: AdventureRegionalSpecialtyBuffEntry): string => {
         const st = Math.max(1, Math.floor(e.stacks ?? 1));
+        const sfx = regionalBuffEnhanceCountSuffix(e.kind, st);
         switch (e.kind) {
             case 'regional_win_gold_10pct':
-                return `골드 +${st * 10}%`;
+                return `골드 +${st * 10}%${sfx}`;
             case 'regional_equip_drop_3pct':
-                return `장비획득 +${st * 3}%`;
+                return `장비획득 +${st * 3}%${sfx}`;
             case 'regional_material_drop_5pct':
-                return `재료획득 +${st * 5}%`;
+                return `재료획득 +${st * 5}%${sfx}`;
             case 'regional_capture_target_plus1':
-                return `[따내기바둑] 상대목표+${st}`;
+                return `[따내기바둑] 상대목표+${st}${sfx}`;
             case 'regional_time_limit_plus20pct':
-                return `제한시간 +${st * 20}%`;
+                return `제한시간 +${st * 20}%${sfx}`;
             case 'regional_monster_respawn_minus10pct':
-                return `출현대기 -${Math.min(50, st * 10)}%`;
+                return `출현대기 -${Math.min(50, st * 10)}%${sfx}`;
             case 'regional_monster_dwell_plus10pct':
-                return `몬스터체류 +${st * 10}%`;
+                return `몬스터체류 +${st * 10}%${sfx}`;
             case 'regional_hidden_scan_plus1':
-                return `[히든바둑] 스캔+${st}`;
+                return `[히든바둑] 스캔+${st}${sfx}`;
             case 'regional_base_start_score_plus1':
-                return `[베이스바둑] 시작+${st}점`;
+                return `[베이스바둑] 시작+${st}점${sfx}`;
             case 'regional_classic_start_score_plus1':
-                return `[클래식바둑] 시작+${st}점`;
+                return `[클래식바둑] 시작+${st}점${sfx}`;
             case 'regional_missile_plus1':
                 return `[미사일바둑] 미사일+1`;
             default:
@@ -321,8 +377,8 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     )}
                                     <button
                                         type="button"
-                                        disabled={!canAfford || isSpinning}
-                                        onClick={() => onChange(slotIndex)}
+                                        disabled={!canAfford || isSpinning || anySlotSpinning}
+                                        onClick={() => void onChange(slotIndex)}
                                         className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md border border-amber-500/45 bg-amber-950/35 px-2 py-1.5 text-[11px] font-bold text-amber-100 transition-colors enabled:hover:bg-amber-900/45 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
                                         aria-label={`효과 변경, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드`}
                                     >

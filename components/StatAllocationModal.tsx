@@ -225,8 +225,17 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
         'rounded-xl border border-white/[0.1] bg-gradient-to-br from-slate-900/90 via-slate-950/90 to-black/85 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 hover:border-amber-400/35';
 
     return (
-        <DraggableWindow title="능력치 포인트 분배" onClose={onClose} windowId="stat-allocation" initialWidth={isMobile ? 420 : 1000} isTopmost={isTopmost}>
-            <div className={`${shellClass} flex min-h-0 flex-col ${isMobile ? 'h-[min(74vh,560px)] gap-2 p-2 sm:p-2.5' : 'h-auto gap-4'}`}>
+        <DraggableWindow
+            title="능력치 포인트 분배"
+            onClose={onClose}
+            windowId="stat-allocation"
+            initialWidth={isMobile ? 420 : 1000}
+            isTopmost={isTopmost}
+            shrinkHeightToContent={!isMobile}
+        >
+            <div
+                className={`${shellClass} flex min-h-0 flex-col ${isMobile ? 'h-[min(74vh,560px)] gap-2 p-2 sm:p-2.5' : 'gap-2.5 p-3'}`}
+            >
                 {isMobile ? (
                     <div className="flex shrink-0 items-center gap-2 rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
                         <div className="flex h-[140px] w-[60%] shrink-0 items-center justify-center rounded-lg border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-0.5">
@@ -240,14 +249,21 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                         </div>
                     </div>
                 ) : (
-                    <div className="rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-3.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm flex-shrink-0">
-                        <p className="mb-1 text-base font-semibold tracking-wide text-amber-200/90">사용 가능한 보너스 포인트</p>
-                        <p className="text-4xl font-black bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent">{availablePoints}</p>
+                    <div className="flex shrink-0 flex-row items-stretch gap-3 rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
+                        <div className="flex h-[176px] w-[200px] shrink-0 items-center justify-center rounded-lg border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-0.5">
+                            <RadarChart datasets={radarDatasets} maxStatValue={300} size={168} />
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-center">
+                            <p className="text-xs font-semibold tracking-wide text-amber-200/90 sm:text-sm">사용 가능한 보너스 포인트</p>
+                            <p className="text-3xl font-black leading-tight bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent sm:text-4xl">
+                                {availablePoints}
+                            </p>
+                        </div>
                     </div>
                 )}
 
-                <div className={`${isMobile ? 'min-h-0 flex-1 overflow-y-auto pb-1' : ''}`}>
-                    <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-3 gap-2.5'}`}>
+                <div className={isMobile ? 'min-h-0 flex-1 overflow-y-auto pb-1' : ''}>
+                    <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-3 gap-2'}`}>
                         {statGridOrder.map((stat) => {
                             const colorClass = statColors[stat];
                             return (
@@ -255,11 +271,11 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                                     key={stat}
                                     type="button"
                                     onClick={() => setSelectedStat(stat)}
-                                    className={`${statCardClass} ${isMobile ? 'p-1.5 min-h-[62px]' : 'p-2.5'} text-left`}
+                                    className={`${statCardClass} ${isMobile ? 'p-1.5 min-h-[62px]' : 'p-2 min-h-0'} text-left`}
                                 >
                                     <div className="flex items-center justify-between gap-2">
-                                        <span className={`font-bold ${isMobile ? 'text-[11px] sm:text-[12px]' : 'text-sm'} text-slate-100 whitespace-nowrap`}>{CORE_STATS_DATA[stat].name}</span>
-                                        <span className={`font-mono font-black ${isMobile ? 'text-[12px] sm:text-[13px]' : 'text-base'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent whitespace-nowrap`}>
+                                        <span className={`font-bold ${isMobile ? 'text-[11px] sm:text-[12px]' : 'text-[13px]'} text-slate-100 whitespace-nowrap`}>{CORE_STATS_DATA[stat].name}</span>
+                                        <span className={`font-mono font-black ${isMobile ? 'text-[12px] sm:text-[13px]' : 'text-sm'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent whitespace-nowrap`}>
                                             {chartStats[stat]}
                                         </span>
                                     </div>
@@ -269,35 +285,20 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                     </div>
                 </div>
 
-                {!isMobile ? (
-                    <div className="flex justify-center rounded-xl border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_18px_38px_-24px_rgba(251,191,36,0.35)]">
-                        <div className="scale-90">
-                            <RadarChart datasets={radarDatasets} maxStatValue={300} size={220} />
-                        </div>
-                    </div>
-                ) : null}
-
                 {/* 하단: 버튼들 */}
-                <div className={`bg-[#0b0d13] rounded-xl p-1.5 ${isMobile ? '' : 'border-t border-white/10 pt-3'} flex-shrink-0`}>
-                    <div className="flex w-full items-start gap-2">
-                        <div className="flex min-w-0 flex-1 flex-col items-center">
+                <div className={`bg-[#0b0d13] rounded-xl p-1.5 ${isMobile ? '' : 'border-t border-white/10 pt-2'} flex-shrink-0`}>
+                    <div className="flex w-full items-start justify-center">
+                        <div className="flex min-w-0 w-full max-w-md flex-col items-center sm:max-w-lg">
                             <Button
                                 onClick={handleReset}
                                 colorScheme="red"
                                 disabled={!canReset}
-                                className={`${isMobile ? '!text-[10px] sm:!text-[11px] !leading-none !py-1.5 !px-1.5 w-full min-h-[36px] !whitespace-nowrap' : '!text-sm !py-2 !px-3.5'} rounded-lg border border-rose-300/35 bg-gradient-to-r from-rose-600/90 via-rose-500/90 to-orange-500/85 shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:from-rose-500 hover:via-rose-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed`}
+                                className={`${isMobile ? '!text-[10px] sm:!text-[11px] !leading-none !py-1.5 !px-1.5 w-full min-h-[36px] !whitespace-nowrap' : '!text-xs sm:!text-sm !py-1.5 !px-3 w-full'} rounded-lg border border-rose-300/35 bg-gradient-to-r from-rose-600/90 via-rose-500/90 to-orange-500/85 shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:from-rose-500 hover:via-rose-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                                 초기화 (<img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3 inline-block" />{resetCost.toLocaleString()})
                             </Button>
-                            <p className={`${isMobile ? 'text-[10px]' : 'text-xs'} mt-1 whitespace-nowrap text-center text-slate-400`}>일일({remainingResetsToday}/{maxDailyResets})</p>
+                            <p className={`${isMobile ? 'text-[10px]' : 'text-[11px]'} mt-0.5 whitespace-nowrap text-center text-slate-400`}>일일({remainingResetsToday}/{maxDailyResets})</p>
                         </div>
-                        <Button
-                            onClick={onClose}
-                            colorScheme="gray"
-                            className={`${isMobile ? '!text-[10px] sm:!text-xs !py-1.5 !px-2 flex-1 min-h-[36px] !whitespace-nowrap' : '!text-sm !py-2 !px-3.5'} rounded-lg border border-white/15 bg-gradient-to-r from-slate-700/85 to-slate-600/85 shadow-[0_12px_24px_-18px_rgba(15,23,42,0.85)] hover:from-slate-600 hover:to-slate-500`}
-                        >
-                            닫기
-                        </Button>
                     </div>
                 </div>
             </div>

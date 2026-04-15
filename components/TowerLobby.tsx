@@ -165,34 +165,48 @@ const TowerLobby: React.FC = () => {
     const { rankings: towerRankings, loading: towerRankingsLoading } = useTowerRanking(towerRankingsRefetchTrigger);
 
     // 랭킹 계산: 서버에서 받은 랭킹 데이터 사용
-    const { myRankingEntry, top100Users } = useMemo(() => {
+    const { myRankingEntry, top100Users, top100ScrollUsers } = useMemo(() => {
         if (towerRankings.length === 0) {
-            return { myRankingEntry: null, top100Users: [] };
+            return { myRankingEntry: null, top100Users: [], top100ScrollUsers: [] };
         }
-        
+
         // 내 아이디 찾기
         const myEntry = towerRankings.find((entry: any) => entry.id === currentUser.id);
-        
+
         // Top 100 (내 아이디도 100위 안이면 원래 순위에 그대로 표시)
         const top100 = towerRankings.slice(0, 100);
-        
+
+        const top100UsersMapped = top100.map((entry: any) => ({
+            id: entry.id,
+            nickname: entry.nickname,
+            avatarId: entry.avatarId,
+            borderId: entry.borderId,
+            rank: entry.rank,
+            displayFloor: entry.monthlyTowerFloor ?? entry.towerFloor ?? 0,
+        }));
+
+        const myFull =
+            myEntry != null
+                ? {
+                      id: myEntry.id,
+                      nickname: myEntry.nickname,
+                      avatarId: myEntry.avatarId,
+                      borderId: myEntry.borderId,
+                      rank: myEntry.rank,
+                      displayFloor: myEntry.monthlyTowerFloor ?? myEntry.towerFloor ?? 0,
+                  }
+                : null;
+
+        // PC: 상단 고정 행에 본인을 두고 스크롤 목록에서는 중복 제거
+        const top100ScrollUsers =
+            myFull && myFull.rank <= 100
+                ? top100UsersMapped.filter((u) => u.id !== currentUser.id)
+                : top100UsersMapped;
+
         return {
-            myRankingEntry: myEntry ? { 
-                id: myEntry.id,
-                nickname: myEntry.nickname,
-                avatarId: myEntry.avatarId,
-                borderId: myEntry.borderId,
-                rank: myEntry.rank,
-                displayFloor: myEntry.monthlyTowerFloor ?? myEntry.towerFloor ?? 0,
-            } : null,
-            top100Users: top100.map((entry: any) => ({
-                id: entry.id,
-                nickname: entry.nickname,
-                avatarId: entry.avatarId,
-                borderId: entry.borderId,
-                rank: entry.rank,
-                displayFloor: entry.monthlyTowerFloor ?? entry.towerFloor ?? 0,
-            }))
+            myRankingEntry: myFull,
+            top100Users: top100UsersMapped,
+            top100ScrollUsers,
         };
     }, [towerRankings, currentUser.id]);
 
@@ -875,26 +889,27 @@ const TowerLobby: React.FC = () => {
                             보상정보
                         </Button>
                     </div>
-                    {/* PC: 내 기록은 스크롤 밖에 두어 좁은 열에서도 항상 보이게 */}
+                    {/* PC: 내 기록(좌) + 예상 보상(우) 가로 2열 · 순위는 아래 표 상단 고정 행으로만 표시 */}
                     <div className="mb-2 flex-shrink-0">
-                        <div className="rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40 overflow-hidden">
-                            <div className="border-b border-amber-600/50 bg-amber-900/30 px-3 py-2.5">
-                                <h3 className="bg-gradient-to-r from-yellow-200 to-amber-200 bg-clip-text text-sm font-bold text-transparent">내 기록</h3>
+                        <div className="overflow-hidden rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40">
+                            <div className="border-b border-amber-600/50 bg-amber-900/30 px-3 py-2">
+                                <h3 className="bg-gradient-to-r from-yellow-200 to-amber-200 bg-clip-text text-sm font-bold text-transparent">
+                                    내 기록
+                                </h3>
                             </div>
-                            <div className="space-y-3 p-3 text-sm">
-                                <div className="flex items-center justify-between">
-                                    <span className="text-amber-300/90">역대 최고 층수</span>
-                                    <span className="font-bold text-yellow-200">{bestFloorAllTime}층</span>
+                            <div className="grid grid-cols-1 divide-y divide-amber-700/35 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+                                <div className="space-y-2.5 p-3 text-sm">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-amber-300/90">역대 최고 층수</span>
+                                        <span className="font-bold text-yellow-200 tabular-nums">{bestFloorAllTime}층</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className="text-amber-300/90">이번 달 최고 층</span>
+                                        <span className="font-bold text-amber-100 tabular-nums">{effectiveMonthlyFloorForReward}층</span>
+                                    </div>
                                 </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-amber-300/90">이번 달 최고 층</span>
-                                    <span className="font-bold text-amber-100">{effectiveMonthlyFloorForReward}층</span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                    <span className="text-amber-300/90">현재 나의 순위</span>
-                                    <span className="font-bold text-yellow-200">{myRankingEntry ? `${myRankingEntry.rank}위` : '순위 외'}</span>
-                                </div>
-                                <div className="border-t border-amber-700/40 pt-2">
+                                <div className="flex flex-col gap-1.5 p-3">
+                                    <p className="text-[11px] font-semibold tracking-wide text-emerald-200/90">예상 보상</p>
                                     {myRewardTier ? (
                                         <div className="flex flex-col gap-1.5 text-xs">
                                             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -930,55 +945,118 @@ const TowerLobby: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
-                        {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
-                            <p className="px-1 py-2 text-center text-xs text-amber-300/70">10층 이상 클리어 시 랭킹에 표시됩니다.</p>
-                        )}
-                        {/* Top 100 */}
-                        {towerRankingsLoading && towerRankings.length === 0 ? (
-                            <p className="text-center text-amber-300/60 py-8">랭킹 불러오는 중...</p>
-                        ) : top100Users.length > 0 ? (
-                            top100Users.map((user) => {
-                                const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
-                                const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
-                                const isTop3 = (user as any).rank <= 3;
-                                const rank = (user as any).rank;
-                                const isCurrentUser = !!currentUser && user.id === currentUser.id;
-                                return (
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        {(() => {
+                            const pinned =
+                                myRankingEntry ??
+                                (effectiveMonthlyFloorForReward >= 10
+                                    ? {
+                                          id: currentUser!.id,
+                                          nickname: currentUser!.nickname,
+                                          avatarId: currentUser!.avatarId,
+                                          borderId: currentUser!.borderId,
+                                          rank: null as number | null,
+                                          displayFloor: effectiveMonthlyFloorForReward,
+                                      }
+                                    : null);
+                            if (!pinned) return null;
+                            const avatarUrl = AVATAR_POOL.find((a) => a.id === pinned.avatarId)?.url;
+                            const borderUrl = BORDER_POOL.find((b) => b.id === pinned.borderId)?.url;
+                            const pr = pinned.rank;
+                            return (
+                                <div className="mb-1.5 flex shrink-0 flex-col gap-0.5">
                                     <div
-                                        key={user.id}
-                                        className={`flex items-center gap-2 p-2 rounded-lg transition-all ${
-                                            isCurrentUser
-                                                ? 'bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 border-2 border-yellow-400/60 shadow-md shadow-yellow-900/30'
-                                                : isTop3
-                                                ? 'bg-gradient-to-r from-amber-900/40 to-yellow-900/40 border border-amber-500/50 hover:from-amber-800/50 hover:to-yellow-800/50'
-                                                : 'bg-gray-800/40 border border-amber-700/30 hover:bg-gray-700/50 hover:border-amber-600/50'
+                                        className={`flex items-center gap-2 rounded-lg p-2 transition-all ${
+                                            'bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 border-2 border-yellow-400/60 shadow-md shadow-yellow-900/30'
                                         }`}
                                     >
-                                        <span className={`text-xs sm:text-sm font-bold w-6 flex-shrink-0 ${
-                                            rank === 1 ? 'text-yellow-300' : rank === 2 ? 'text-gray-300' : rank === 3 ? 'text-amber-500' : 'text-amber-300'
-                                        }`}>
-                                            {rank}
+                                        <span
+                                            className={`flex w-11 shrink-0 justify-center text-center text-[11px] font-bold leading-tight sm:w-12 sm:text-xs ${
+                                                pr === 1
+                                                    ? 'text-yellow-300'
+                                                    : pr === 2
+                                                      ? 'text-gray-300'
+                                                      : pr === 3
+                                                        ? 'text-amber-500'
+                                                        : pr !== null
+                                                          ? 'text-amber-300'
+                                                          : 'text-amber-200/90'
+                                            }`}
+                                        >
+                                            {pr !== null ? pr : '순위 외'}
                                         </span>
                                         <Avatar
-                                            userId={user.id}
-                                            userName={user.nickname}
+                                            userId={pinned.id}
+                                            userName={pinned.nickname}
                                             avatarUrl={avatarUrl}
                                             borderUrl={borderUrl}
                                             size={32}
                                         />
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-xs sm:text-sm font-semibold truncate ${isCurrentUser ? 'text-yellow-100' : 'text-amber-100'}`}>{user.nickname}</p>
-                                            <p className="text-[10px] sm:text-xs text-amber-300/80">
-                                                층: {(user as any).displayFloor ?? 0}
-                                            </p>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-xs font-semibold text-yellow-100 sm:text-sm">{pinned.nickname}</p>
+                                            <p className="text-[10px] text-amber-300/80 sm:text-xs">층: {pinned.displayFloor ?? 0}</p>
                                         </div>
                                     </div>
-                                );
-                            })
-                        ) : (
-                            <p className="text-center text-amber-300/60 py-8">랭킹 데이터가 없습니다.</p>
-                        )}
+                                </div>
+                            );
+                        })()}
+                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
+                            {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
+                                <p className="px-1 py-2 text-center text-xs text-amber-300/70">10층 이상 클리어 시 랭킹에 표시됩니다.</p>
+                            )}
+                            {towerRankingsLoading && towerRankings.length === 0 ? (
+                                <p className="py-8 text-center text-amber-300/60">랭킹 불러오는 중...</p>
+                            ) : top100Users.length > 0 ? (
+                                <>
+                                    {top100ScrollUsers.map((user) => {
+                                        const avatarUrl = AVATAR_POOL.find((a) => a.id === user.avatarId)?.url;
+                                        const borderUrl = BORDER_POOL.find((b) => b.id === user.borderId)?.url;
+                                        const isTop3 = (user as any).rank <= 3;
+                                        const rank = (user as any).rank;
+                                        return (
+                                            <div
+                                                key={user.id}
+                                                className={`flex items-center gap-2 rounded-lg p-2 transition-all ${
+                                                    isTop3
+                                                        ? 'border border-amber-500/50 bg-gradient-to-r from-amber-900/40 to-yellow-900/40 hover:from-amber-800/50 hover:to-yellow-800/50'
+                                                        : 'border border-amber-700/30 bg-gray-800/40 hover:bg-gray-700/50 hover:border-amber-600/50'
+                                                }`}
+                                            >
+                                                <span
+                                                    className={`w-6 flex-shrink-0 text-xs font-bold sm:text-sm ${
+                                                        rank === 1
+                                                            ? 'text-yellow-300'
+                                                            : rank === 2
+                                                              ? 'text-gray-300'
+                                                              : rank === 3
+                                                                ? 'text-amber-500'
+                                                                : 'text-amber-300'
+                                                    }`}
+                                                >
+                                                    {rank}
+                                                </span>
+                                                <Avatar
+                                                    userId={user.id}
+                                                    userName={user.nickname}
+                                                    avatarUrl={avatarUrl}
+                                                    borderUrl={borderUrl}
+                                                    size={32}
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <p className="truncate text-xs font-semibold text-amber-100 sm:text-sm">{user.nickname}</p>
+                                                    <p className="text-[10px] text-amber-300/80 sm:text-xs">층: {(user as any).displayFloor ?? 0}</p>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                    {top100ScrollUsers.length === 0 && (
+                                        <p className="py-3 text-center text-[11px] text-amber-400/75">Top 100에 표시된 다른 순위가 없습니다.</p>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="py-8 text-center text-amber-300/60">랭킹 데이터가 없습니다.</p>
+                            )}
+                        </div>
                     </div>
                     </div>
 

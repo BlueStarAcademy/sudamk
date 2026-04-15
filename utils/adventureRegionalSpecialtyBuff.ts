@@ -101,27 +101,103 @@ export function migrateRegionalBuffEntry(raw: Partial<AdventureRegionalSpecialty
     return { kind, stacks };
 }
 
-export function rollRandomRegionalBuffEntry(): AdventureRegionalSpecialtyBuffEntry {
-    const pool = ADVENTURE_REGIONAL_SPECIALTY_KINDS;
-    const kind = pool[Math.floor(Math.random() * pool.length)]!;
+/** 이미 채워진 슬롯의 kind와 겹치지 않게 뽑기(동일 스테이지 5슬롯 내 중복 방지). */
+export function rollRandomRegionalBuffEntryExcluding(
+    exclude: ReadonlySet<AdventureRegionalSpecialtyBuffKind>,
+): AdventureRegionalSpecialtyBuffEntry {
+    const pool = ADVENTURE_REGIONAL_SPECIALTY_KINDS.filter((k) => !exclude.has(k));
+    const fallback = ADVENTURE_REGIONAL_SPECIALTY_KINDS;
+    const src = pool.length > 0 ? pool : fallback;
+    const kind = src[Math.floor(Math.random() * src.length)]!;
     return { kind, stacks: 1 };
 }
 
-function listForStage(p: AdventureProfile, stageId: string): AdventureRegionalSpecialtyBuffEntry[] {
-    return (p.regionalSpecialtyBuffsByStageId?.[stageId] ?? []).map((e) => migrateRegionalBuffEntry(e as any));
+export function rollRandomRegionalBuffEntry(): AdventureRegionalSpecialtyBuffEntry {
+    return rollRandomRegionalBuffEntryExcluding(new Set());
 }
 
-function buildStageListWithEmptyFirstSlot(
-    source: AdventureRegionalSpecialtyBuffEntry[],
+/** null/빈 객체/슬롯 구멍 → undefined (migrate 호출 전에 사용) */
+function safeRegionalSlot(e: unknown): AdventureRegionalSpecialtyBuffEntry | undefined {
+    if (e == null || typeof e !== 'object') return undefined;
+    if (!('kind' in e) || String((e as { kind?: unknown }).kind ?? '').trim() === '') return undefined;
+    return migrateRegionalBuffEntry(e as any);
+}
+
+/** 보정·보너스 합산용: 유효 슬롯만 순서대로(인덱스 정보 불필요) */
+function listForStage(p: AdventureProfile, stageId: string): AdventureRegionalSpecialtyBuffEntry[] {
+    const raw = p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [];
+    const out: AdventureRegionalSpecialtyBuffEntry[] = [];
+    for (const e of raw) {
+        const m = safeRegionalSlot(e);
+        if (m) out.push(m);
+    }
+    return out;
+}
+
+function readIndexedSlotsForSync(
+    p: AdventureProfile,
+    stageId: string,
     need: number,
-): AdventureRegionalSpecialtyBuffEntry[] {
+): (AdventureRegionalSpecialtyBuffEntry | undefined)[] {
+    const raw = p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [];
+    /** 티어 하락·동기화 전에 길게 저장됐던 배열의 끝 슬롯까지 읽어 단일 슬롯(n=1) 보정 등에 사용 */
+    const readLength = Math.max(need, raw.length);
+    const out: (AdventureRegionalSpecialtyBuffEntry | undefined)[] = [];
+    for (let i = 0; i < readLength; i++) {
+        out[i] = safeRegionalSlot(raw[i]);
+    }
+    return out;
+}
+
+/**
+ * 슬롯 0은 유저가 「변경」으로 뽑기 전까지 비움. 이미 뽑힌 효과는 sync 시 유지한다.
+ * 슬롯 1..need-1은 비어 있으면 자동 랜덤 부여.
+ */
+function buildStageListWithEmptyFirstSlot(
+    source: (AdventureRegionalSpecialtyBuffEntry | undefined | null)[],
+    need: number,
+): Array<AdventureRegionalSpecialtyBuffEntry | null> {
     const n = Math.max(0, Math.floor(need));
     if (n <= 0) return [];
-    const out: AdventureRegionalSpecialtyBuffEntry[] = new Array(n);
-    // 슬롯 1은 기본으로 비워 두고, 유저가 "변경" 버튼으로 직접 뽑는다.
+    const out: Array<AdventureRegionalSpecialtyBuffEntry | null> = new Array(n).fill(null);
+
+    /** 슬롯이 1개만 열린 티어: 0번이 비어 있고 효과가 뒤 인덱스에만 있던 데이터를 0번으로 끌어올림 */
+    if (n === 1) {
+        const head = source[0];
+        if (head != null && typeof head === 'object' && String((head as any).kind ?? '').trim() !== '') {
+            out[0] = migrateRegionalBuffEntry(head as any);
+            return out;
+        }
+        for (let i = 1; i < source.length; i++) {
+            const cur = source[i];
+            if (cur != null && typeof cur === 'object' && String((cur as any).kind ?? '').trim() !== '') {
+                out[0] = migrateRegionalBuffEntry(cur as any);
+                return out;
+            }
+        }
+        return out;
+    }
+
+    const head = source[0];
+    if (head != null && typeof head === 'object' && String((head as any).kind ?? '').trim() !== '') {
+        out[0] = migrateRegionalBuffEntry(head as any);
+    }
     for (let i = 1; i < n; i++) {
+        const used = new Set<AdventureRegionalSpecialtyBuffKind>();
+        for (let j = 0; j < i; j++) {
+            const e = out[j];
+            if (e?.kind) used.add(e.kind);
+        }
         const cur = source[i];
-        out[i] = cur ? migrateRegionalBuffEntry(cur as any) : rollRandomRegionalBuffEntry();
+        if (cur != null && typeof cur === 'object' && String((cur as any).kind ?? '').trim() !== '') {
+            let m = migrateRegionalBuffEntry(cur as any);
+            if (used.has(m.kind)) {
+                m = rollRandomRegionalBuffEntryExcluding(used);
+            }
+            out[i] = m;
+        } else {
+            out[i] = rollRandomRegionalBuffEntryExcluding(used);
+        }
     }
     return out;
 }
@@ -158,10 +234,10 @@ export function syncRegionalSpecialtySlotsAndPoints(profile: AdventureProfile): 
         const tier = getAdventureUnderstandingTierFromXp(xp);
         const need = slotCountForUnderstandingTier(tier);
         const grant = enhancementPointsGrantedTotalForTier(tier);
-        const prev = listForStage(p, sid);
+        const prev = readIndexedSlotsForSync(p, sid, need);
         const list = buildStageListWithEmptyFirstSlot(prev, need);
-        byStage[sid] = list;
-        const spent = list.reduce((a, e) => a + pointsSpentOnEntry(e), 0);
+        byStage[sid] = list as unknown as AdventureRegionalSpecialtyBuffEntry[];
+        const spent = list.reduce((a, e) => a + (e != null ? pointsSpentOnEntry(e) : 0), 0);
         const cur = pts[sid];
         if (typeof cur !== 'number' || !Number.isFinite(cur)) {
             pts[sid] = Math.max(0, grant - spent);
@@ -190,13 +266,12 @@ export function applyRegionalSpecialtyBuffTierGrants(
 
     const byStage = { ...(p.regionalSpecialtyBuffsByStageId ?? {}) };
     const pts = { ...(p.regionalBuffEnhancePointsByStageId ?? {}) };
-    const list = [...(byStage[stageId] ?? [])].map((e) => migrateRegionalBuffEntry(e as any));
-
     for (let t = t0 + 1; t <= t1; t++) {
         pts[stageId] = (pts[stageId] ?? 0) + t;
     }
     const need = slotCountForUnderstandingTier(t1);
-    byStage[stageId] = buildStageListWithEmptyFirstSlot(list, need);
+    const prevTier = readIndexedSlotsForSync({ ...p, regionalSpecialtyBuffsByStageId: byStage } as AdventureProfile, stageId, need);
+    byStage[stageId] = buildStageListWithEmptyFirstSlot(prevTier, need) as unknown as AdventureRegionalSpecialtyBuffEntry[];
 
     p = { ...p, regionalSpecialtyBuffsByStageId: byStage, regionalBuffEnhancePointsByStageId: pts };
     return syncRegionalSpecialtySlotsAndPoints(p);
@@ -267,7 +342,11 @@ export function getRegionalMapMonsterDwellMultiplierForStage(
     return 1 + pct / 100;
 }
 
-/** 출현 대기(off) 구간 배율 — 값이 작을수록 대기가 짧아짐 */
+/**
+ * 출현 대기(off) 구간 길이 배율 — `getAdventureMapCycleParams`의 `offMs`에 곱해짐.
+ * 스택당 -10%p(합산 상한 50%p) → 배율 1 − red%/100 (하한 0.5).
+ * 즉 비출현(맵에 안 보이는) 구간이 짧아져 같은 주기에서 다음 출현이 앞당겨짐.
+ */
 export function getRegionalMapMonsterRespawnOffMultiplierForStage(
     profile: AdventureProfile | null | undefined,
     stageId: string,
@@ -277,31 +356,39 @@ export function getRegionalMapMonsterRespawnOffMultiplierForStage(
     return Math.max(0.5, 1 - redPct / 100);
 }
 
+/** 강화 가능 효과만 현재 스택/최대 스택 `(n/m)` — 미사일 등 비강화는 빈 문자열 */
+export function regionalBuffEnhanceCountSuffix(kind: AdventureRegionalSpecialtyBuffKind, stacks: number): string {
+    if (!isRegionalBuffEnhanceable(kind)) return '';
+    const st = Math.max(1, Math.floor(stacks));
+    const max = getRegionalBuffMaxStacks(kind);
+    return ` (${st}/${max})`;
+}
+
 export function labelRegionalSpecialtyBuffEntry(e: AdventureRegionalSpecialtyBuffEntry): string {
     const ent = migrateRegionalBuffEntry(e);
     const st = Math.max(1, Math.floor(ent.stacks ?? 1));
-    const max = getRegionalBuffMaxStacks(ent.kind);
+    const sfx = regionalBuffEnhanceCountSuffix(ent.kind, st);
     switch (ent.kind) {
         case 'regional_win_gold_10pct':
-            return `승리 시 골드 +${st * 10}% (최대 ${max * 10}%)`;
+            return `승리 시 골드 +${st * 10}%${sfx}`;
         case 'regional_equip_drop_3pct':
-            return `장비 획득 확률 +${st * 3}% (최대 ${max * 3}%)`;
+            return `장비 획득 확률 +${st * 3}%${sfx}`;
         case 'regional_material_drop_5pct':
-            return `재료 획득 확률 +${st * 5}% (최대 ${max * 5}%)`;
+            return `재료 획득 확률 +${st * 5}%${sfx}`;
         case 'regional_capture_target_plus1':
-            return `[따내기 바둑] 상대 목표 점수 +${st} (최대 +${max})`;
+            return `[따내기 바둑] 상대 목표 점수 +${st}${sfx}`;
         case 'regional_time_limit_plus20pct':
-            return `제한 시간 +${st * 20}% (최대 +${max * 20}%)`;
+            return `제한 시간 +${st * 20}%${sfx}`;
         case 'regional_monster_respawn_minus10pct':
-            return `몬스터 출현 대기 시간 -${Math.min(50, st * 10)}% (최대 -50%)`;
+            return `몬스터 출현 대기 시간 -${Math.min(50, st * 10)}%${sfx}`;
         case 'regional_monster_dwell_plus10pct':
-            return `몬스터 머무는 시간 +${st * 10}% (최대 +${max * 10}%)`;
+            return `몬스터 머무는 시간 +${st * 10}%${sfx}`;
         case 'regional_hidden_scan_plus1':
-            return `[히든 바둑] 스캔 아이템 +${st} (최대 +${max})`;
+            return `[히든 바둑] 스캔 아이템 +${st}${sfx}`;
         case 'regional_base_start_score_plus1':
-            return `[베이스 바둑] 시작 시 +${st}점 (최대 +${max}점)`;
+            return `[베이스 바둑] 시작 시 +${st}점${sfx}`;
         case 'regional_classic_start_score_plus1':
-            return `[클래식 바둑] 시작 시 +${st}점 (최대 +${max}점)`;
+            return `[클래식 바둑] 시작 시 +${st}점${sfx}`;
         case 'regional_missile_plus1':
             return `[미사일 바둑] 미사일 아이템 +1 (강화 불가)`;
         default:
