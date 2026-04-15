@@ -811,10 +811,26 @@ export const analyzeGame = async (
         includeOwnership?: boolean;
     }
 ): Promise<AnalysisResult> => {
-    // Only modes that alter past moves (like missile go) or have a pre-set board (single player) need to send the full board state.
-    const useBoardStateForAnalysis = session.mode === types.GameMode.Missile ||
-                                   (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Missile)) ||
-                                   session.isSinglePlayer;
+    const isScoringRequest =
+        options?.includePolicy === false && (options?.includeOwnership !== false);
+    const isBaseMode =
+        session.mode === types.GameMode.Base ||
+        (session.mode === types.GameMode.Mix && Boolean(session.settings.mixedModes?.includes(types.GameMode.Base)));
+    const isAdventureBase = isBaseMode && (session as any).gameCategory === 'adventure';
+    const resolveBaseStoneColor = (owner: 'p1' | 'p2'): 'B' | 'W' => {
+        if (isAdventureBase) {
+            return owner === 'p1' ? 'B' : 'W';
+        }
+        const blackPlayerId = session.blackPlayerId;
+        if (owner === 'p1') {
+            return session.player1.id === blackPlayerId ? 'B' : 'W';
+        }
+        return session.player2.id === blackPlayerId ? 'B' : 'W';
+    };
+
+    // 계가/분석은 모드와 무관하게 항상 "최종 바둑판 상태"를 단일 진실 소스로 사용한다.
+    // (수순 재구성(moveHistory) 경로는 히든/베이스/포획/특수 연출에서 최종 형상과 어긋날 수 있음)
+    const useBoardStateForAnalysis = true;
 
     let query: any;
     let isCurrentPlayerWhite: boolean;
@@ -842,16 +858,12 @@ export const analyzeGame = async (
         // 2. 베이스 돌 추가 (미리 배치된 돌, moveHistory에 없을 수 있음)
         const baseStones_p1 = (session as any).baseStones_p1 || [];
         const baseStones_p2 = (session as any).baseStones_p2 || [];
-        const blackPlayerId = session.blackPlayerId;
-        const whitePlayerId = session.whitePlayerId;
-        
         for (const stone of baseStones_p1) {
             const pointKey = `${stone.x},${stone.y}`;
             if (!processedPoints.has(pointKey)) {
                 processedPoints.add(pointKey);
-                const player = session.player1.id === blackPlayerId ? 'B' : 'W';
                 initialStones.push([
-                    player,
+                    resolveBaseStoneColor('p1'),
                     pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
                 ]);
             }
@@ -861,9 +873,8 @@ export const analyzeGame = async (
             const pointKey = `${stone.x},${stone.y}`;
             if (!processedPoints.has(pointKey)) {
                 processedPoints.add(pointKey);
-                const player = session.player2.id === blackPlayerId ? 'B' : 'W';
                 initialStones.push([
-                    player,
+                    resolveBaseStoneColor('p2'),
                     pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
                 ]);
             }
@@ -898,15 +909,11 @@ export const analyzeGame = async (
         // 1. 베이스 돌을 먼저 추가 (게임 시작 전에 배치된 돌)
         const baseStones_p1 = (session as any).baseStones_p1 || [];
         const baseStones_p2 = (session as any).baseStones_p2 || [];
-        const blackPlayerId = session.blackPlayerId;
-        const whitePlayerId = session.whitePlayerId;
-        
         for (const stone of baseStones_p1) {
             const pointKey = `${stone.x},${stone.y}`;
             processedPoints.add(pointKey);
-            const player = session.player1.id === blackPlayerId ? 'B' : 'W';
             moves.push([
-                player,
+                resolveBaseStoneColor('p1'),
                 pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
             ]);
         }
@@ -914,9 +921,8 @@ export const analyzeGame = async (
         for (const stone of baseStones_p2) {
             const pointKey = `${stone.x},${stone.y}`;
             processedPoints.add(pointKey);
-            const player = session.player2.id === blackPlayerId ? 'B' : 'W';
             moves.push([
-                player,
+                resolveBaseStoneColor('p2'),
                 pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
             ]);
         }
@@ -952,8 +958,7 @@ export const analyzeGame = async (
     }
 
     /** 계가·REQUEST_SCORING 등: policy 끄고 ownership만 쓰는 호출 → 짧은 HTTP 타임아웃·적은 재시도 */
-    const isScoringHttpProfile =
-        options?.includePolicy === false && (options?.includeOwnership !== false);
+    const isScoringHttpProfile = isScoringRequest;
     const engineBudgetSec = options?.maxTimeSec
         ?? (isScoringHttpProfile
             ? getScoringKataGoLimits().maxTimeSec

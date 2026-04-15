@@ -1048,7 +1048,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     }
     
     if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, userData);
-    if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM') return handleShopAction(volatileState, action, userData);
+    if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM' || type === 'CLAIM_SHOP_AD_REWARD') return handleShopAction(volatileState, action, userData);
     if (type.startsWith('TOURNAMENT') || 
         type.startsWith('START_TOURNAMENT') || 
         type.startsWith('SKIP_TOURNAMENT') || 

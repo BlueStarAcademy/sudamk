@@ -39,6 +39,10 @@ import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
 import { labelRegionalSpecialtyBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { formatAdventureUnderstandingTierLabel } from '../../utils/adventureUnderstanding.js';
+import {
+    getAdventureCodexComprehensionBarProgress,
+    getAdventureCodexComprehensionLevel,
+} from '../../utils/adventureCodexComprehension.js';
 
 type Props = { stageId: string };
 
@@ -179,7 +183,12 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     );
 
     const stageRegionalBuffEntries = stage
-        ? currentUserWithStatus?.adventureProfile?.regionalSpecialtyBuffsByStageId?.[stage.id] ?? []
+        ? (currentUserWithStatus?.adventureProfile?.regionalSpecialtyBuffsByStageId?.[stage.id] ?? []).filter(
+            (entry): entry is { kind: string; stacks?: number } =>
+                entry != null &&
+                typeof entry === 'object' &&
+                String((entry as { kind?: unknown }).kind ?? '').trim() !== '',
+        )
         : [];
     const stageUnderstandingXp = stage
         ? Math.max(0, Math.floor(currentUserWithStatus?.adventureProfile?.understandingXpByStage?.[stage.id] ?? 0))
@@ -261,6 +270,17 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     }, [selectedId]);
 
     const selectedMonster = selectedId ? monsters.find((m) => m.id === selectedId) : undefined;
+    const selectedMonsterCodexWins = selectedMonster
+        ? Math.max(0, Math.floor(currentUserWithStatus?.adventureProfile?.codexDefeatCounts?.[selectedMonster.codexId] ?? 0))
+        : 0;
+    const selectedMonsterComprehensionLevel = getAdventureCodexComprehensionLevel(selectedMonsterCodexWins);
+    const selectedMonsterComprehensionProgress = getAdventureCodexComprehensionBarProgress(
+        selectedMonsterCodexWins,
+        selectedMonsterComprehensionLevel,
+    );
+    const selectedMonsterComprehensionProgressPct = Math.round(
+        Math.min(1, Math.max(0, selectedMonsterComprehensionProgress.prog)) * 100,
+    );
 
     const now = Date.now();
 
@@ -343,6 +363,22 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         if (!rosterModalInstance || !stage) return null;
         return buildAdventureMapMonsterDetails(stage, rosterModalInstance);
     }, [rosterModalInstance, stage]);
+    const rosterModalCodexWins = Math.max(
+        0,
+        Math.floor(
+            currentUserWithStatus?.adventureProfile?.codexDefeatCounts?.[
+                rosterModalInstance?.codexId ?? rosterModalRow?.codexId ?? ''
+            ] ?? 0,
+        ),
+    );
+    const rosterModalComprehensionLevel = getAdventureCodexComprehensionLevel(rosterModalCodexWins);
+    const rosterModalComprehensionProgress = getAdventureCodexComprehensionBarProgress(
+        rosterModalCodexWins,
+        rosterModalComprehensionLevel,
+    );
+    const rosterModalComprehensionProgressPct = Math.round(
+        Math.min(1, Math.max(0, rosterModalComprehensionProgress.prog)) * 100,
+    );
 
     const rosterModalStaticPreview = useMemo(() => {
         if (!rosterModalRow || !stage || rosterModalInstance) return null;
@@ -728,6 +764,30 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                                 {formatRemainMs(selectedMonster.expiresAt - now)}
                                                             </span>
                                                         </div>
+                                                        <div className="mt-2 border-t border-white/10 pt-2">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="shrink-0 text-xs font-semibold text-zinc-500">이해도 레벨</span>
+                                                                <span className="font-mono text-sm font-bold tabular-nums text-cyan-200">
+                                                                    Lv.{selectedMonsterComprehensionLevel}
+                                                                </span>
+                                                            </div>
+                                                            <div className="mt-1.5 flex items-center justify-between gap-2">
+                                                                <span className="shrink-0 text-xs font-semibold text-zinc-500">이해도 경험치</span>
+                                                                <span className="font-mono text-xs font-bold tabular-nums text-zinc-300">
+                                                                    {selectedMonsterComprehensionProgress.nextAt != null
+                                                                        ? `${selectedMonsterCodexWins}/${selectedMonsterComprehensionProgress.nextAt}`
+                                                                        : `최대 · ${selectedMonsterCodexWins}`}
+                                                                </span>
+                                                            </div>
+                                                            <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
+                                                                <div
+                                                                    className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-400 transition-all duration-500"
+                                                                    style={{
+                                                                        width: `${selectedMonsterComprehensionProgress.nextAt == null ? 100 : selectedMonsterComprehensionProgressPct}%`,
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                     <ul className="space-y-1.5 text-[13px] font-medium leading-snug text-zinc-100 sm:text-sm">
                                                         {selectionDetails.quickLines.map((line, i) => (
@@ -915,6 +975,30 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     <span className="text-xs font-bold text-fuchsia-100/95 sm:text-sm">
                                                         {ADVENTURE_MONSTER_MODE_LABELS[rosterModalInstance.mode]}
                                                     </span>
+                                                </div>
+                                            </div>
+                                            <div className="rounded-lg border border-white/10 bg-black/35 px-2.5 py-2">
+                                                <div className="flex items-center justify-between gap-2">
+                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">이해도 레벨</span>
+                                                    <span className="font-mono text-xs font-bold tabular-nums text-cyan-200 sm:text-sm">
+                                                        Lv.{rosterModalComprehensionLevel}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1.5 flex items-center justify-between gap-2">
+                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">이해도 경험치</span>
+                                                    <span className="font-mono text-[11px] font-bold tabular-nums text-zinc-300 sm:text-xs">
+                                                        {rosterModalComprehensionProgress.nextAt != null
+                                                            ? `${rosterModalCodexWins}/${rosterModalComprehensionProgress.nextAt}`
+                                                            : `최대 · ${rosterModalCodexWins}`}
+                                                    </span>
+                                                </div>
+                                                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-400 transition-all duration-500"
+                                                        style={{
+                                                            width: `${rosterModalComprehensionProgress.nextAt == null ? 100 : rosterModalComprehensionProgressPct}%`,
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                             <ul className="space-y-1.5 text-[13px] font-medium leading-snug text-zinc-100 sm:text-sm">
@@ -1123,6 +1207,30 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                       <p className="mt-0.5 font-mono text-sm font-bold tabular-nums text-amber-200">
                                                           {formatRemainMs(selectedMonster.expiresAt - now)}
                                                       </p>
+                                                  </div>
+                                                  <div className="mt-2.5 border-t border-white/10 pt-2.5">
+                                                      <div className="flex items-center justify-between gap-2">
+                                                          <p className="text-xs font-bold text-zinc-500">이해도 레벨</p>
+                                                          <p className="font-mono text-sm font-bold tabular-nums text-cyan-200">
+                                                              Lv.{selectedMonsterComprehensionLevel}
+                                                          </p>
+                                                      </div>
+                                                      <div className="mt-1.5 flex items-center justify-between gap-2">
+                                                          <p className="text-xs font-bold text-zinc-500">이해도 경험치</p>
+                                                          <p className="font-mono text-xs font-bold tabular-nums text-zinc-300">
+                                                              {selectedMonsterComprehensionProgress.nextAt != null
+                                                                  ? `${selectedMonsterCodexWins}/${selectedMonsterComprehensionProgress.nextAt}`
+                                                                  : `최대 · ${selectedMonsterCodexWins}`}
+                                                          </p>
+                                                      </div>
+                                                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
+                                                          <div
+                                                              className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-400 transition-all duration-500"
+                                                              style={{
+                                                                  width: `${selectedMonsterComprehensionProgress.nextAt == null ? 100 : selectedMonsterComprehensionProgressPct}%`,
+                                                              }}
+                                                          />
+                                                      </div>
                                                   </div>
                                               </div>
                                               <ul className="space-y-2 text-sm font-medium leading-snug text-zinc-200">

@@ -17,7 +17,7 @@ interface ShopModalProps {
     initialTab?: ShopTab;
 }
 
-type ShopTab = 'equipment' | 'materials' | 'vip' | 'misc' | 'consumables';
+type ShopTab = 'equipment' | 'materials' | 'consumables' | 'diamonds' | 'misc' | 'vip';
 
 interface PurchasableItem {
     itemId: string;
@@ -42,6 +42,8 @@ interface MiscShopProduct {
     priceKRW: number;
     benefits: string[];
 }
+
+type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
 
 const isSameDayKST = (ts1: number, ts2: number): boolean => {
     if (!ts1 || !ts2) return false;
@@ -125,6 +127,37 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
                     <span className="text-xs text-cyan-100/80 italic mt-1">오늘 구매 한도에 도달했습니다.</span>
                 )}
             </div>
+        </div>
+    );
+};
+
+const ShopAdRewardCard: React.FC<{
+    tab: ShopAdRewardTab;
+    rewardLabel: string;
+    remaining: number;
+    onClaim: (tab: ShopAdRewardTab) => void;
+    mobile?: boolean;
+}> = ({ tab, rewardLabel, remaining, onClaim, mobile = false }) => {
+    const exhausted = remaining <= 0;
+    return (
+        <div className={`group relative overflow-hidden rounded-xl border border-emerald-400/35 bg-gradient-to-br from-[#102b24]/95 via-[#0f172a]/95 to-[#06130f]/95 shadow-[0_22px_55px_-30px_rgba(16,185,129,0.6)] transition-transform duration-300 hover:-translate-y-1 ${mobile ? 'p-2.5' : 'p-3'}`}>
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/80 to-transparent pointer-events-none" />
+            <div className="relative mx-auto mb-1.5 flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/25 via-emerald-500/10 to-transparent shadow-[0_0_20px_-8px_rgba(16,185,129,0.8)]">
+                <span className="text-3xl" role="img" aria-label="광고 보상">🎬</span>
+            </div>
+            <h3 className={`text-center font-bold text-emerald-100 ${mobile ? 'text-[11px]' : 'text-sm'}`}>광고보기 보상</h3>
+            <p className={`mt-1 text-center font-semibold text-cyan-200 ${mobile ? 'text-[10px]' : 'text-xs'}`}>
+                {rewardLabel} ({remaining}/3)
+            </p>
+            <Button
+                onClick={() => onClaim(tab)}
+                disabled={exhausted}
+                colorScheme="none"
+                bare
+                className="mt-2 flex min-h-[2.7rem] w-full items-center justify-center rounded-lg border border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 px-2 py-1.5 text-xs font-bold text-slate-900 transition-colors hover:from-emerald-300 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+                {exhausted ? '오늘 수령 완료' : '광고보기'}
+            </Button>
         </div>
     );
 };
@@ -286,6 +319,21 @@ const VipShopCard: React.FC<{ product: MiscShopProduct; mobile?: boolean }> = ({
     );
 };
 
+const DiamondShopCard: React.FC<{ product: { id: string; diamonds: number; priceKRW: number }; mobile?: boolean }> = ({ product, mobile = false }) => {
+    return (
+        <div className={`rounded-xl border border-sky-300/40 bg-gradient-to-br from-[#102744]/95 via-[#111827]/95 to-[#0a111d]/95 shadow-[0_20px_50px_-30px_rgba(56,189,248,0.75)] ${mobile ? 'p-3' : 'p-4'}`}>
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <h3 className={`${mobile ? 'text-sm' : 'text-base'} font-extrabold text-cyan-100`}>다이아 {product.diamonds.toLocaleString()}개</h3>
+                <span className="rounded-md bg-cyan-400/20 px-2 py-0.5 text-[10px] font-semibold text-cyan-100">충전</span>
+            </div>
+            <p className={`${mobile ? 'text-xs' : 'text-sm'} font-semibold text-amber-300`}>{product.priceKRW.toLocaleString()}원</p>
+            <div className="mt-3 rounded-md border border-sky-300/35 bg-black/30 px-2 py-1 text-center text-[10px] text-sky-100/85">
+                결제 연동 예정
+            </div>
+        </div>
+    );
+};
+
 const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost, initialTab }) => {
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
@@ -403,6 +451,29 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             benefits: ['장비상자 V 2개', '장비상자 VI 1개', '재료상자 VI 5개'],
         },
     ];
+    const diamondProducts = [
+        { id: 'diamond_50', diamonds: 50, priceKRW: 1900 },
+        { id: 'diamond_200', diamonds: 200, priceKRW: 5900 },
+        { id: 'diamond_500', diamonds: 500, priceKRW: 12900 },
+        { id: 'diamond_1000', diamonds: 1000, priceKRW: 19900 },
+        { id: 'diamond_2000', diamonds: 2000, priceKRW: 29900 },
+    ] as const;
+
+    const getAdRewardRemaining = (tab: ShopAdRewardTab) => {
+        const rec = currentUser.dailyShopPurchases?.[`ad_reward_${tab}`];
+        const used = rec && isSameDayKST(rec.date, Date.now()) ? rec.quantity : 0;
+        return Math.max(0, 3 - used);
+    };
+
+    const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {
+        const remaining = getAdRewardRemaining(tab);
+        if (remaining <= 0) {
+            setToastMessage('오늘 광고 보상 수령이 모두 완료되었습니다.');
+            return;
+        }
+        onAction({ type: 'CLAIM_SHOP_AD_REWARD', payload: { tab } });
+        setToastMessage('광고 보상을 수령했습니다.');
+    };
 
     const measureMaterialsHeight = useCallback(() => {
         if (!mobileShop) {
@@ -469,13 +540,42 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             case 'equipment':
                 return (
                     <div className={gridClassName}>
+                        <ShopAdRewardCard
+                            tab="equipment"
+                            rewardLabel="장비상자II"
+                            remaining={getAdRewardRemaining('equipment')}
+                            onClaim={handleClaimShopAdReward}
+                            mobile={mobileShop}
+                        />
                         {equipmentItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
                     </div>
                 );
             case 'materials':
                  return (
                     <div className={gridClassName}>
+                        <ShopAdRewardCard
+                            tab="materials"
+                            rewardLabel="재료상자III"
+                            remaining={getAdRewardRemaining('materials')}
+                            onClaim={handleClaimShopAdReward}
+                            mobile={mobileShop}
+                        />
                         {materialItems.map(item => <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />)}
+                    </div>
+                );
+            case 'diamonds':
+                return (
+                    <div className={`${mobileShop ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3'}`}>
+                        <ShopAdRewardCard
+                            tab="diamonds"
+                            rewardLabel="다이아10"
+                            remaining={getAdRewardRemaining('diamonds')}
+                            onClaim={handleClaimShopAdReward}
+                            mobile={mobileShop}
+                        />
+                        {diamondProducts.map(product => (
+                            <DiamondShopCard key={product.id} product={product} mobile={mobileShop} />
+                        ))}
                     </div>
                 );
             case 'misc':
@@ -528,6 +628,13 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 const consumableItems = [...baseConsumableItems, ...actionPointShopItems];
                 return (
                     <div className={gridClassName}>
+                        <ShopAdRewardCard
+                            tab="consumables"
+                            rewardLabel="행동력 회복제 30"
+                            remaining={getAdRewardRemaining('consumables')}
+                            onClaim={handleClaimShopAdReward}
+                            mobile={mobileShop}
+                        />
                         {consumableItems.map(item => (
                             <ShopItemCard key={item.itemId} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />
                         ))}
@@ -565,8 +672,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         <button onClick={() => setActiveTab('equipment')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>장비</button>
                         <button onClick={() => setActiveTab('materials')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>재료</button>
                         <button onClick={() => setActiveTab('consumables')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>소모품</button>
-                        <button onClick={() => setActiveTab('vip')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'vip' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>VIP</button>
+                        <button onClick={() => setActiveTab('diamonds')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'diamonds' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>다이아</button>
                         <button onClick={() => setActiveTab('misc')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'misc' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>패키지</button>
+                        <button onClick={() => setActiveTab('vip')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'vip' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>VIP</button>
                     </div>
 
                     <div

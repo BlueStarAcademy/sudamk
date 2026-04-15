@@ -67,9 +67,9 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
         rewardType: 'diamonds',
         image: '/images/single/Mission4.png',
         levels: createMissionLevels(
-            [60, 58, 56, 54, 52, 50, 47, 44, 41, 35],
+            [75, 73, 71, 69, 66, 63, 60, 56, 52, 45],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [2, 2, 2, 2, 3, 3, 3, 3, 3, 4],
+            [1, 1, 1, 1, 2, 2, 2, 2, 2, 3],
             '중급-20'
         )
     },
@@ -95,9 +95,9 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
         rewardType: 'diamonds',
         image: '/images/single/Mission6.png',
         levels: createMissionLevels(
-            [60, 58, 56, 54, 52, 50, 47, 44, 41, 35],
+            [75, 73, 71, 69, 66, 63, 60, 56, 52, 45],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-            [3, 3, 3, 3, 4, 4, 4, 4, 4, 5],
+            [1, 1, 1, 2, 2, 2, 2, 3, 3, 3],
             '유단자-20'
         )
     },

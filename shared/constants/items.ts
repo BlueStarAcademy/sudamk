@@ -321,8 +321,8 @@ export const ENHANCEMENT_GOLD_COSTS_BASE: Record<ItemGrade, number> = {
 
 export const calculateEnhancementGoldCost = (grade: ItemGrade, currentStars: number): number => {
     const baseCost = ENHANCEMENT_GOLD_COSTS_BASE[grade];
-    // Cost increases by 1.5x for each star level
-    return Math.round(baseCost * (1.5 ** currentStars));
+    // 후반 강화 속도 과열을 막기 위해 별당 기울기를 상향
+    return Math.round(baseCost * (1.62 ** currentStars));
 };
 
 

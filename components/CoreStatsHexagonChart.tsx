@@ -48,6 +48,8 @@ const R_DATA = 36;
 const R_DATA_INSET = 32;
 /** 꼭짓점 바깥쪽 라벨 배치 반경 (그리드보다 약간 밖) */
 const R_LABEL = 45;
+export const BADUK_ABILITY_STAT_CAP = 1500;
+export const BADUK_ABILITY_TOTAL_CAP = BADUK_ABILITY_STAT_CAP * CORE_STAT_RADAR_ORDER.length;
 
 /**
  * 바둑능력(6개 핵심 능력치 합계) 구간별로 육각형 그래프 한 축의 시각적 최댓값.
@@ -59,7 +61,7 @@ export function radarAxisMaxForBadukAbilityTotal(badukAbilityTotal: number): num
     if (t <= 4000) return 600;
     if (t <= 6000) return 900;
     if (t <= 8000) return 1200;
-    return 1500;
+    return BADUK_ABILITY_STAT_CAP;
 }
 
 function vertex(angleRad: number, r: number): { x: number; y: number } {
@@ -286,6 +288,8 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
             >
                 {CORE_STAT_RADAR_ORDER.map(stat => {
                     const finalV = values[stat] ?? 0;
+                    const displayV = Math.min(BADUK_ABILITY_STAT_CAP, Math.max(0, finalV));
+                    const isOverCap = finalV > BADUK_ABILITY_STAT_CAP;
                     const baseV = baseByStat?.[stat];
                     const bonus = baseV !== undefined ? finalV - baseV : 0;
                     const hasBonus = bonus > 0;
@@ -321,13 +325,15 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                         {stat}
                                     </span>
                                     <span
-                                        className={`shrink-0 text-right font-mono font-bold tabular-nums tracking-tight text-amber-100 ${
+                                        className={`shrink-0 text-right font-mono font-bold tabular-nums tracking-tight ${
+                                            isOverCap ? 'text-red-400' : 'text-amber-100'
+                                        } ${
                                             presetFit
                                                 ? 'min-w-[2.35rem] text-[clamp(8px,2.3vw,10px)]'
                                                 : 'min-w-[3rem] text-[11px] sm:text-xs'
                                         }`}
                                     >
-                                        {finalV}
+                                        {displayV}
                                     </span>
                                     <span
                                         className={`shrink-0 whitespace-nowrap font-semibold tabular-nums text-emerald-400/95 ${
@@ -370,7 +376,9 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                     {stat}
                                 </span>
                                 <span
-                                    className={`shrink-0 ${desktopLike && mobileReadable && halfPanelExpanded ? 'text-center' : 'text-right'} font-mono font-bold tabular-nums tracking-tight text-amber-100 ${
+                                    className={`shrink-0 ${desktopLike && mobileReadable && halfPanelExpanded ? 'text-center' : 'text-right'} font-mono font-bold tabular-nums tracking-tight ${
+                                        isOverCap ? 'text-red-400' : 'text-amber-100'
+                                    } ${
                                         profileMobileCompact
                                         ? 'text-[clamp(8px,2.2vw,9.5px)]'
                                             : desktopLike
@@ -382,7 +390,7 @@ const CoreStatsHexagonChart: React.FC<CoreStatsHexagonChartProps> = ({
                                                 : 'text-[13px] sm:text-sm'
                                     }`}
                                 >
-                                    {finalV}
+                                    {displayV}
                                 </span>
                                 <span
                                     className={`shrink-0 ${desktopLike && mobileReadable && halfPanelExpanded ? 'text-center' : 'text-left'} font-semibold tabular-nums text-emerald-400/95 ${

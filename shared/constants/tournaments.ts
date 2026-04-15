@@ -90,16 +90,16 @@ export const TOURNAMENT_SCORE_REWARDS: Record<TournamentType, Record<number, num
 
 // 단계별 봇 능력치 범위 (각 능력치 개별 값)
 export const DUNGEON_STAGE_BOT_STATS: Record<number, { minStat: number; maxStat: number }> = {
-    1: { minStat: 100, maxStat: 120 },
-    2: { minStat: 130, maxStat: 150 },
-    3: { minStat: 180, maxStat: 210 },
-    4: { minStat: 240, maxStat: 280 },
-    5: { minStat: 320, maxStat: 380 },
-    6: { minStat: 420, maxStat: 500 },
-    7: { minStat: 520, maxStat: 600 },
-    8: { minStat: 620, maxStat: 700 },
-    9: { minStat: 680, maxStat: 750 },
-    10: { minStat: 750, maxStat: 800 },
+    1: { minStat: 120, maxStat: 120 },
+    2: { minStat: 160, maxStat: 160 },
+    3: { minStat: 220, maxStat: 220 },
+    4: { minStat: 300, maxStat: 300 },
+    5: { minStat: 400, maxStat: 400 },
+    6: { minStat: 520, maxStat: 520 },
+    7: { minStat: 660, maxStat: 660 },
+    8: { minStat: 820, maxStat: 820 },
+    9: { minStat: 1000, maxStat: 1000 },
+    10: { minStat: 1200, maxStat: 1200 },
 };
 
 // 던전 타입별 능력치 배율

@@ -383,7 +383,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x >= 0 && m.y >= 0 && m.x < boardSize && m.y < boardSize);
     const stoneCount = game.boardState && Array.isArray(game.boardState) ? game.boardState.flat().filter((c: number) => c !== types.Player.None && c != null).length : 0;
     const hasCaptureMode = (game.captures && (game.captures[types.Player.Black] > 0 || game.captures[types.Player.White] > 0));
-    const shouldNotDeriveFromMoves = isMissileMode || hasCaptureMode;
+    // 히든/미사일은 moveHistory 재생성과 실제 최종 보드가 어긋날 수 있어(공개/포획/특수 연출),
+    // 계가 직전 보정에서도 반드시 실제 boardState를 우선 사용한다.
+    const shouldNotDeriveFromMoves = isMissileMode || isHiddenMode || hasCaptureMode;
     if (!shouldNotDeriveFromMoves && validMoves.length > stoneCount && validMoves.length > 0) {
         const derived: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(types.Player.None));
         for (const move of validMoves) {

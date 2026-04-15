@@ -167,7 +167,12 @@ class AiProcessingQueue {
 
             // 백(AI) 차례일 때 1초 생각하는 연출
             const isPlacingStones = game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing';
-            if (game.currentPlayer === Player.White && !isPlacingStones) {
+            const isAdventureAiGame = game.isAiGame && (game as any).gameCategory === 'adventure';
+            if (isAdventureAiGame && !isPlacingStones) {
+                const thinkDelayMs = 1000 + Math.floor(Math.random() * 1000);
+                await new Promise(resolve => setTimeout(resolve, thinkDelayMs));
+            }
+            if (!isAdventureAiGame && game.currentPlayer === Player.White && !isPlacingStones) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
             // 주사위/도둑 착수 시에도 매 돌마다 1초 텀 (첫 돌·두 번째 돌 모두 1초 후에 두기)

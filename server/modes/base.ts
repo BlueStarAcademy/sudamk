@@ -377,8 +377,18 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                     const newBoardState = Array(game.settings.boardSize).fill(0).map(() => Array(game.settings.boardSize).fill(types.Player.None));
                     const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
                     const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
-                    (game.baseStones_p1 || []).forEach(p => { newBoardState[p.y][p.x] = p1Color; game.baseStones!.push({ ...p, player: p1Color }); });
-                    (game.baseStones_p2 || []).forEach(p => { newBoardState[p.y][p.x] = p2Color; game.baseStones!.push({ ...p, player: p2Color }); });
+                    // 모험 베이스는 덤 결과로 유저 색이 바뀌어도, 배치한 베이스 돌의 흑/백 표시를 고정한다.
+                    // (덤 확정 시 재매핑되며 돌 색이 바뀌는 현상 방지)
+                    const p1BaseStoneColor = isAdventureBaseGame(game) ? types.Player.Black : p1Color;
+                    const p2BaseStoneColor = isAdventureBaseGame(game) ? types.Player.White : p2Color;
+                    (game.baseStones_p1 || []).forEach(p => {
+                        newBoardState[p.y][p.x] = p1BaseStoneColor;
+                        game.baseStones!.push({ ...p, player: p1BaseStoneColor });
+                    });
+                    (game.baseStones_p2 || []).forEach(p => {
+                        newBoardState[p.y][p.x] = p2BaseStoneColor;
+                        game.baseStones!.push({ ...p, player: p2BaseStoneColor });
+                    });
                     game.boardState = newBoardState;
                     if (useBaseColorRoulettePhase) {
                         game.gameStatus = 'base_color_roulette';

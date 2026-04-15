@@ -13,6 +13,7 @@ import {
 } from "../../shared/utils/inventoryLegacyNormalize.js";
 import { consolidateRefinementTicketStacks } from "../../utils/inventoryUtils.js";
 import { normalizeQuestLogProgressCaps } from "../../utils/questProgressCap.js";
+import { normalizeAdventureProfile } from "../../utils/adventureUnderstanding.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
@@ -391,6 +392,10 @@ const applyDefaults = (
     cumulativeTournamentScore: (user.cumulativeTournamentScore != null ? user.cumulativeTournamentScore : 0),
     inventorySlotsMigrated: user.inventorySlotsMigrated ?? false,
     dailyRankings: user.dailyRankings ?? {},
+    adventureProfile: normalizeAdventureProfile(
+      user.adventureProfile ??
+      (status?.serializedUser as User | undefined)?.adventureProfile
+    ),
     towerFloor: user.towerFloor ?? prismaUser.towerFloor ?? 0,
     lastTowerClearTime: user.lastTowerClearTime ?? (prismaUser.lastTowerClearTime != null ? Number(prismaUser.lastTowerClearTime) : undefined),
     monthlyTowerFloor: user.monthlyTowerFloor ?? (prismaUser as any).monthlyTowerFloor ?? 0,

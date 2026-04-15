@@ -5,6 +5,8 @@ import { PortalHoverBubble } from './PortalHoverBubble.js';
 import { TournamentType, UserWithStatus, TournamentState } from '../types.js';
 import { CoreStat, ItemGrade } from '../types/enums.js';
 import { calculateUserEffects } from '../services/effectService.js';
+const CORE_STAT_CAP = 1500;
+
 import {
     TOURNAMENT_DEFINITIONS,
     DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
@@ -14,6 +16,7 @@ import {
 } from '../constants';
 import {
     DUNGEON_STAGE_EQUIPMENT_DROP,
+    DUNGEON_STAGE_MATERIAL_WEIGHTED,
     getDungeonBasicRewardRangeGold,
     getDungeonRankKeysForDisplay,
     getDungeonRankRewardRangeForDisplay,
@@ -52,6 +55,8 @@ type RewardPiece = {
     captionTooltipOnly?: boolean;
     /** 썸네일 바로 아래 한 줄 라벨 (예: 월드 기본 보상「장비」「변경권」) */
     captionBelowThumb?: string;
+    /** true면 썸네일 title(기본 텍스트 설명 툴팁)을 숨김 */
+    suppressTitle?: boolean;
 };
 
 function getDungeonBotStatRangeForStage(stage: number): { minStat: number; maxStat: number } {
@@ -95,6 +100,25 @@ function formatRankGroupLabel(ranks: number[]): string {
 function formatRangeQuantity(min: number, max: number): string {
     if (min === max) return min.toLocaleString();
     return `${min.toLocaleString()}~${max.toLocaleString()}`;
+}
+
+function buildNationalMaterialRangeByName(stage: number): Array<{ materialName: string; min: number; max: number }> {
+    const s = Math.min(10, Math.max(1, Math.floor(stage)));
+    const row = DUNGEON_STAGE_MATERIAL_WEIGHTED[s] ?? DUNGEON_STAGE_MATERIAL_WEIGHTED[1];
+    const merged = [...(row?.win ?? []), ...(row?.loss ?? [])];
+    const byName = new Map<string, { min: number; max: number }>();
+    for (const e of merged) {
+        const prev = byName.get(e.materialName);
+        if (!prev) {
+            byName.set(e.materialName, { min: e.min, max: e.max });
+            continue;
+        }
+        byName.set(e.materialName, {
+            min: Math.min(prev.min, e.min),
+            max: Math.max(prev.max, e.max),
+        });
+    }
+    return Array.from(byName.entries()).map(([materialName, r]) => ({ materialName, min: r.min, max: r.max }));
 }
 
 function parseDungeonRankRangeToPieces(items: DungeonRankRewardRangeItem[]): RewardPiece[] {
@@ -219,18 +243,31 @@ function getBaseRewardPieces(type: TournamentType, stage: number): RewardPiece[]
         ];
     }
     if (type === 'national') {
-        const m = DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage];
-        if (!m) return [];
-        return [
-            {
-                key: 'base-mat',
-                label: m.materialName,
-                quantity: `×${m.quantity}`,
-                imageUrl: getChampionshipRewardItemImageUrl(m.materialName) || '/images/materials/materials1.png',
-                grade: getChampionshipRewardItemGrade(m.materialName),
-                quantityOnThumbOnly: true,
-            },
-        ];
+        const rows = buildNationalMaterialRangeByName(stage);
+        if (rows.length === 0) {
+            const m = DUNGEON_STAGE_BASE_REWARDS_MATERIAL[stage];
+            if (!m) return [];
+            return [
+                {
+                    key: 'base-mat-fallback',
+                    label: m.materialName,
+                    quantity: `${m.quantity.toLocaleString()}~${m.quantity.toLocaleString()}`,
+                    imageUrl: getChampionshipRewardItemImageUrl(m.materialName) || '/images/materials/materials1.png',
+                    grade: getChampionshipRewardItemGrade(m.materialName),
+                    quantityOnThumbOnly: true,
+                    suppressTitle: true,
+                },
+            ];
+        }
+        return rows.map((r, idx) => ({
+            key: `base-mat-${idx}`,
+            label: r.materialName,
+            quantity: formatRangeQuantity(r.min, r.max),
+            imageUrl: getChampionshipRewardItemImageUrl(r.materialName) || '/images/materials/materials1.png',
+            grade: getChampionshipRewardItemGrade(r.materialName),
+            quantityOnThumbOnly: true,
+            suppressTitle: true,
+        }));
     }
     if (type === 'world') {
         const e = DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT[stage];
@@ -405,7 +442,7 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean; compact?: boo
             )}
             <div
                 className={`group/thumb relative overflow-hidden rounded-lg ${fluid ? 'w-full' : 'shrink-0'} ${box} bg-gradient-to-b from-zinc-800/90 to-black/80 ring-1 ${ring} ${tipOnly ? 'cursor-help' : ''}`}
-                title={titleText}
+                title={piece.suppressTitle ? undefined : titleText}
             >
             {piece.mysteryNeighborhoodGold && piece.imageUrl ? (
                 <>
@@ -708,12 +745,22 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
         const out = {} as Record<CoreStat, number>;
         for (const stat of Object.values(CoreStat)) {
             const baseValue = baseByStat[stat] || 0;
-            out[stat] = Math.floor((baseValue + coreStatBonuses[stat].flat) * (1 + coreStatBonuses[stat].percent / 100));
+            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
+            const flatBonus = Number(coreStatBonuses[stat].flat) || 0;
+            const percentBonus = Number(coreStatBonuses[stat].percent) || 0;
+            const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
+            const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
+            const finalValue = baseWithFlat + percentGain;
+            out[stat] = Math.max(0, finalValue);
         }
         return out;
     }, [baseByStat, coreStatBonuses]);
     const myBadukAbilityTotal = useMemo(
-        () => Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0),
+        () =>
+            Object.values(finalByStat).reduce((sum, v) => {
+                const safe = Number.isFinite(v) ? Math.max(0, v) : 0;
+                return sum + Math.min(CORE_STAT_CAP, safe);
+            }, 0),
         [finalByStat]
     );
     const myAvgStat = useMemo(() => Math.round(myBadukAbilityTotal / 6), [myBadukAbilityTotal]);

@@ -7,6 +7,7 @@ export type AdminView =
     | 'dashboard'
     | 'userManagement'
     | 'mailSystem'
+    | 'rewardSystem'
     | 'serverSettings'
     | 'serverMonitoring'
     | 'dropRateReference'
@@ -44,6 +45,14 @@ const TILES: TileDef[] = [
         icon: '✉️',
         accent: 'from-emerald-500/20 to-emerald-600/5',
         ringHover: 'hover:ring-emerald-400/40',
+    },
+    {
+        view: 'rewardSystem',
+        title: '보상 체계',
+        description: '퀘스트/활약도/챔피언십 보상 배율 조회 및 운영 조정',
+        icon: '🎁',
+        accent: 'from-rose-500/20 to-rose-600/5',
+        ringHover: 'hover:ring-rose-400/40',
     },
     {
         view: 'serverSettings',

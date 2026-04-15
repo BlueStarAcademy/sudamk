@@ -11,7 +11,7 @@ import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manne
 import { calculateUserEffects } from '../services/effectService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
-import CoreStatsHexagonChart from './CoreStatsHexagonChart.js';
+import CoreStatsHexagonChart, { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP } from './CoreStatsHexagonChart.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
 import { useRanking } from '../hooks/useRanking.js';
@@ -1233,11 +1233,22 @@ const Profile: React.FC<ProfileProps> = () => {
             const spentStatPoints = currentUserWithStatus.spentStatPoints || {};
             const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
             const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-            const finalValue = Math.floor((baseValue + bonusInfo.flat) * (1 + bonusInfo.percent / 100));
+            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
+            const flatBonus = Number(bonusInfo.flat) || 0;
+            const percentBonus = Number(bonusInfo.percent) || 0;
+            const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
+            const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
+            const finalValue = baseWithFlat + percentGain;
             finalByStat[stat] = isNaN(finalValue) ? 0 : finalValue;
             baseByStat[stat] = baseValue;
         }
-        const badukAbilityTotal = Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0);
+        const badukAbilityTotal = Math.min(
+            BADUK_ABILITY_TOTAL_CAP,
+            Object.values(finalByStat).reduce((sum, v) => {
+                const safeValue = Number.isFinite(v) ? Math.max(0, v) : 0;
+                return sum + Math.min(BADUK_ABILITY_STAT_CAP, safeValue);
+            }, 0),
+        );
         return (
             <div
                 className={`flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-center ${readableHome ? 'gap-1.5 overflow-x-hidden overflow-y-hidden' : ''} ${nh ? 'gap-[clamp(0.2rem,0.85dvh,0.45rem)] overflow-x-hidden' : !readableHome ? 'gap-[clamp(0.35rem,1dvh,0.5rem)] overflow-hidden' : ''}`}

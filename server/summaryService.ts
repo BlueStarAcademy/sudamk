@@ -3,7 +3,7 @@
 import { LiveGameSession, Player, User, GameSummary, StatChange, GameMode, InventoryItem, SpecialStat, WinReason, SinglePlayerStageInfo, QuestReward, Mail } from '../types/index.js';
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
-import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS } from '../constants';
+import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS, ENABLE_PVP_SKILL_REWARD_MULTIPLIER, getPvpSkillRewardMultiplier } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
@@ -41,6 +41,7 @@ import {
     getRegionalMaterialDropBonusPercentForStage,
     getRegionalWinGoldBonusPercentForStage,
 } from '../utils/adventureRegionalSpecialtyBuff.js';
+import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../shared/constants/rewardConfig.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -778,7 +779,12 @@ const STRATEGIC_GOLD_REWARDS = ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE;
 
 // Playful Gold Map
 const PLAYFUL_GOLD_REWARDS: Record<number, number> = {
-    3: 800, 2: 500, 1: 200,
+    3: 650, 2: 420, 1: 170,
+};
+
+const getRewardConfig = async (): Promise<RewardConfig> => {
+    const stored = await db.getKV<unknown>('rewardConfig');
+    return normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
 };
 
 // --- END NEW REWARD CONSTANTS ---
@@ -1355,9 +1361,10 @@ const processPlayerSummary = async (
     let adventureCodexDelta: GameSummary['adventureCodexDelta'];
     let adventureUnderstandingDelta: GameSummary['adventureUnderstandingDelta'];
 
-    let rewards: { gold: number; items: InventoryItem[]; adventureGoldUnderstandingBonus?: number };
+    const rewardConfig = await getRewardConfig();
+    let rewards: { gold: number; diamonds: number; items: InventoryItem[]; adventureGoldUnderstandingBonus?: number };
     if (isNoContest) {
-        rewards = { gold: 0, items: [] };
+        rewards = { gold: 0, diamonds: 0, items: [] };
     } else if (isAdventureWin) {
         const advCodexId = game.adventureMonsterCodexId!;
         const advStageId = game.adventureStageId!;
@@ -1385,12 +1392,17 @@ const processPlayerSummary = async (
         );
         rewards = {
             gold: advR.gold,
+            diamonds: 0,
             items: advR.items,
             ...(advR.understandingGoldBonus > 0 ? { adventureGoldUnderstandingBonus: advR.understandingGoldBonus } : {}),
         };
         adventureRewardSlots = advR.adventureRewardSlots;
     } else {
-        rewards = calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
+        const baseRewards = calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
+        rewards = {
+            ...baseRewards,
+            diamonds: 0,
+        };
         if (isAdventureLoss && typeof game.adventureMonsterCodexId === 'string') {
             const advCodexId = game.adventureMonsterCodexId;
             const prevProf = normalizeAdventureProfile(updatedPlayer.adventureProfile);
@@ -1404,6 +1416,7 @@ const processPlayerSummary = async (
         const demo = !!(game as any).isDemo;
         rewards = {
             gold: demo ? 0 : getGuildWarMatchGoldReward(game.mode, stars),
+            diamonds: 0,
             items: [],
         };
     }
@@ -1417,12 +1430,53 @@ const processPlayerSummary = async (
         }
     }
 
+    // 랭킹전(PVP)은 상대 레이팅 기준으로 보상을 차등 적용
+    const isRankedSkillRewardContext =
+        game.isRankedGame &&
+        !isNoContest &&
+        !isAiGame &&
+        !game.isSinglePlayer &&
+        !isGuildWarMatch &&
+        (isStrategic || isPlayful);
+    if (isRankedSkillRewardContext && ENABLE_PVP_SKILL_REWARD_MULTIPLIER) {
+        const skillMul = getPvpSkillRewardMultiplier(initialRating, opponentRating, isWinner);
+        rewards.gold = Math.round(rewards.gold * skillMul);
+        rewards.diamonds = Math.round((rewards.diamonds || 0) * skillMul);
+        if (rewards.adventureGoldUnderstandingBonus != null) {
+            rewards.adventureGoldUnderstandingBonus = Math.round(rewards.adventureGoldUnderstandingBonus * skillMul);
+        }
+    }
+
     // 랭킹전 매칭이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 보상을 25%로 감소. 랭킹전만 100% 보상.
     if (!isNoContest && !game.isRankedGame && !isAiGame) {
         rewards.gold = Math.round(rewards.gold * 0.25);
         if (rewards.adventureGoldUnderstandingBonus != null) {
             rewards.adventureGoldUnderstandingBonus = Math.round(rewards.adventureGoldUnderstandingBonus * 0.25);
         }
+    }
+
+    // 전략/놀이 PVP 경기 재화 추가 수치 (관리자 보상 설정)
+    const isPvpRewardTarget =
+        !isNoContest &&
+        !isAiGame &&
+        !game.isSinglePlayer &&
+        game.gameCategory !== 'tower' &&
+        game.gameCategory !== 'adventure' &&
+        (isStrategic || isPlayful);
+    if (isPvpRewardTarget && !isDraw) {
+        if (isStrategic) {
+            rewards.gold += isWinner ? rewardConfig.pvpStrategicWinGoldBonus : rewardConfig.pvpStrategicLossGoldBonus;
+            rewards.diamonds += isWinner
+                ? rewardConfig.pvpStrategicWinDiamondBonus
+                : rewardConfig.pvpStrategicLossDiamondBonus;
+        } else if (isPlayful) {
+            rewards.gold += isWinner ? rewardConfig.pvpPlayfulWinGoldBonus : rewardConfig.pvpPlayfulLossGoldBonus;
+            rewards.diamonds += isWinner
+                ? rewardConfig.pvpPlayfulWinDiamondBonus
+                : rewardConfig.pvpPlayfulLossDiamondBonus;
+        }
+        rewards.gold = Math.max(0, Math.floor(rewards.gold));
+        rewards.diamonds = Math.max(0, Math.floor(rewards.diamonds));
     }
 
     // PVP 게임에서 변경권 획득 로직 (전략바둑, 놀이바둑 PVP 모드만)
@@ -1455,6 +1509,9 @@ const processPlayerSummary = async (
     }
 
     updatedPlayer.gold += rewards.gold;
+    if (rewards.diamonds > 0) {
+        updatedPlayer.diamonds += rewards.diamonds;
+    }
 
     // Add dropped items to inventory
     if (rewards.items.length > 0) {
@@ -1544,6 +1601,7 @@ const processPlayerSummary = async (
             losses: gameStats.losses,
         },
         gold: rewards.gold,
+        diamonds: rewards.diamonds,
         items: rewards.items,
         level: levelSummary,
         ...(guildWarStars !== undefined ? { guildWarStars } : {}),

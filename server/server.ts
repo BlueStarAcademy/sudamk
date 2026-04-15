@@ -58,6 +58,7 @@ import { hashPassword, verifyPassword } from './utils/passwordUtils.js';
 import { sendEmailVerification, verifyEmailCode } from './services/emailVerificationService.js';
 import { getKakaoAuthUrl, getKakaoAccessToken, getKakaoUserInfo } from './services/kakaoAuthService.js';
 import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './services/googleAuthService.js';
+import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../shared/constants/rewardConfig.js';
 
 const getTournamentStateByType = (user: types.User, type: types.TournamentType): types.TournamentState | null => {
     switch (type) {
@@ -4593,6 +4594,76 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             });
         } catch (error: any) {
             console.error('[Admin] Error getting KataGo status:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    const requireAdminByUserId = async (userIdRaw: unknown): Promise<types.User | null> => {
+        const userId = String(userIdRaw || '').trim();
+        if (!userId) return null;
+        const adminUser = await db.getUser(userId, { includeEquipment: false, includeInventory: false });
+        if (!adminUser || !adminUser.isAdmin) return null;
+        return adminUser;
+    };
+
+    app.get('/api/admin/reward-config', async (req, res) => {
+        try {
+            const adminUser = await requireAdminByUserId(req.query.userId);
+            if (!adminUser) {
+                return res.status(403).json({ error: 'Forbidden: Admin access required' });
+            }
+            const stored = await db.getKV<unknown>('rewardConfig');
+            const rewardConfig = normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
+            res.json({ rewardConfig });
+        } catch (error: any) {
+            console.error('[Admin] Error getting reward config:', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+    app.get('/admin/reward-config', async (req, res) => {
+        try {
+            const adminUser = await requireAdminByUserId(req.query.userId);
+            if (!adminUser) {
+                return res.status(403).json({ error: 'Forbidden: Admin access required' });
+            }
+            const stored = await db.getKV<unknown>('rewardConfig');
+            const rewardConfig = normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
+            res.json({ rewardConfig });
+        } catch (error: any) {
+            console.error('[Admin] Error getting reward config (alias):', error);
+            res.status(500).json({ error: error.message });
+        }
+    });
+
+    app.post('/api/admin/reward-config', async (req, res) => {
+        try {
+            const adminUser = await requireAdminByUserId(req.body?.userId);
+            if (!adminUser) {
+                return res.status(403).json({ error: 'Forbidden: Admin access required' });
+            }
+            const beforeStored = await db.getKV<unknown>('rewardConfig');
+            const before = normalizeRewardConfig(beforeStored ?? DEFAULT_REWARD_CONFIG);
+            const rewardConfig = normalizeRewardConfig(req.body?.rewardConfig ?? DEFAULT_REWARD_CONFIG);
+            await db.setKV('rewardConfig', rewardConfig);
+            const changed = JSON.stringify(before) !== JSON.stringify(rewardConfig);
+            if (changed) {
+                const logs = (await db.getKV<types.AdminLog[]>('adminLogs')) || [];
+                logs.unshift({
+                    id: `log-${randomUUID()}`,
+                    timestamp: Date.now(),
+                    adminId: adminUser.id,
+                    adminNickname: adminUser.nickname,
+                    targetUserId: 'reward-config',
+                    targetNickname: 'reward-config',
+                    action: 'update_reward_config',
+                    backupData: { before, after: rewardConfig },
+                });
+                if (logs.length > 200) logs.length = 200;
+                await db.setKV('adminLogs', logs);
+            }
+            res.json({ success: true, rewardConfig });
+        } catch (error: any) {
+            console.error('[Admin] Error saving reward config:', error);
             res.status(500).json({ error: error.message });
         }
     });

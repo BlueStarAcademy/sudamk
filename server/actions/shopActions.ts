@@ -12,10 +12,22 @@ import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, ACTION_POINT_PURCHASE_COSTS_DIAMONDS,
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import * as guildService from '../guildService.js';
+import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
+};
+
+const getRewardConfig = async () => {
+    const stored = await db.getKV<unknown>('rewardConfig');
+    return normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
+};
+
+const addRewardBonus = (value: number | undefined, bonus: number): number => {
+    const base = Number(value) || 0;
+    const add = Number(bonus) || 0;
+    return Math.max(0, Math.floor(base + add));
 };
 
 export const handleShopAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
@@ -350,9 +362,9 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             const { potionType, quantity } = payload as { potionType: 'small' | 'medium' | 'large'; quantity: number };
             
             const potionInfo = {
-                small: { name: '컨디션회복제(소)', price: 100 },
-                medium: { name: '컨디션회복제(중)', price: 150 },
-                large: { name: '컨디션회복제(대)', price: 200 }
+                small: { name: '컨디션회복제(소)', price: 180 },
+                medium: { name: '컨디션회복제(중)', price: 270 },
+                large: { name: '컨디션회복제(대)', price: 360 }
             }[potionType];
 
             if (!potionInfo) {
@@ -462,9 +474,9 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 'option_type_change_ticket': { name: '옵션 종류 변경권', price: 2000, dailyLimit: 3 },
                 'option_value_change_ticket': { name: '옵션 수치 변경권', price: 500, dailyLimit: 10 },
                 'mythic_option_change_ticket': { name: '신화 옵션 변경권', price: 500, dailyLimit: 10 },
-                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [100] },
-                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [300] },
-                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [1000] },
+                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [180] },
+                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [540] },
+                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [1800] },
             };
 
             const itemInfo = consumableItems[itemId];
@@ -566,6 +578,91 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                     obtainedItemsBulk: [{ ...newItem }], 
                     updatedUser 
                 } 
+            };
+        }
+        case 'CLAIM_SHOP_AD_REWARD': {
+            const { tab } = (payload || {}) as { tab?: 'equipment' | 'materials' | 'consumables' | 'diamonds' };
+            if (!tab || !['equipment', 'materials', 'consumables', 'diamonds'].includes(tab)) {
+                return { error: '유효하지 않은 상점 탭입니다.' };
+            }
+
+            const now = Date.now();
+            const rewardConfig = await getRewardConfig();
+            const PER_TAB_DAILY_LIMIT = 2;
+            const GLOBAL_DAILY_LIMIT = 3;
+            const purchaseKey = `ad_reward_${tab}`;
+            const globalPurchaseKey = 'ad_reward_global';
+            if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
+            const rec = user.dailyShopPurchases[purchaseKey];
+            const claimsToday = rec && isSameDayKST(rec.date, now) ? rec.quantity : 0;
+            const globalRec = user.dailyShopPurchases[globalPurchaseKey];
+            const globalClaimsToday = globalRec && isSameDayKST(globalRec.date, now) ? globalRec.quantity : 0;
+            if (!user.isAdmin && claimsToday >= PER_TAB_DAILY_LIMIT) {
+                return { error: '오늘 광고 보상 수령 한도에 도달했습니다.' };
+            }
+            if (!user.isAdmin && globalClaimsToday >= GLOBAL_DAILY_LIMIT) {
+                return { error: '오늘 광고 보상 일일 총 수령 한도에 도달했습니다.' };
+            }
+
+            const obtainedItems: InventoryItem[] = [];
+            if (tab === 'diamonds') {
+                const gainedDiamonds = addRewardBonus(10, rewardConfig.shopAdDiamondBonus);
+                user.diamonds = (user.diamonds || 0) + gainedDiamonds;
+            } else {
+                let rewards: InventoryItem[] = [];
+                if (tab === 'equipment') {
+                    const reward = SHOP_ITEMS['equipment_box_2']?.onPurchase?.();
+                    rewards = Array.isArray(reward) ? reward : (reward ? [reward] : []);
+                } else if (tab === 'materials') {
+                    const reward = SHOP_ITEMS['material_box_3']?.onPurchase?.();
+                    rewards = Array.isArray(reward) ? reward : (reward ? [reward] : []);
+                } else if (tab === 'consumables') {
+                    const consumableRewardNameByOrder = ['행동력 회복제(+10)', '행동력 회복제(+20)', '행동력 회복제(+30)'] as const;
+                    const rewardName =
+                        consumableRewardNameByOrder[Math.max(0, Math.min(claimsToday, consumableRewardNameByOrder.length - 1))];
+                    const template = CONSUMABLE_ITEMS.find((item) => item.name === rewardName);
+                    if (!template) return { error: '행동력 회복제 템플릿을 찾을 수 없습니다.' };
+                    rewards = [{
+                        ...template,
+                        id: `item-${randomUUID()}`,
+                        createdAt: now,
+                        quantity: 1,
+                        isEquipped: false,
+                        level: 1,
+                        stars: 0,
+                    }];
+                }
+
+                if (!user.inventory) user.inventory = [];
+                if (!user.inventorySlots) {
+                    user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
+                }
+                const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, rewards);
+                if (!success || !updatedInventory) {
+                    return { error: '인벤토리 공간이 부족합니다.' };
+                }
+                user.inventory = JSON.parse(JSON.stringify(updatedInventory));
+                obtainedItems.push(...rewards);
+            }
+
+            if (!user.isAdmin) {
+                user.dailyShopPurchases[purchaseKey] = { quantity: claimsToday + 1, date: now };
+                user.dailyShopPurchases[globalPurchaseKey] = { quantity: globalClaimsToday + 1, date: now };
+            }
+
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SHOP_AD_REWARD', { includeAll: true });
+            db.updateUser(user).catch((err) => {
+                console.error(`[CLAIM_SHOP_AD_REWARD] Failed to save user ${user.id}:`, err);
+            });
+
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['inventory', 'diamonds', 'dailyShopPurchases']);
+
+            return {
+                clientResponse: {
+                    updatedUser,
+                    obtainedItemsBulk: obtainedItems,
+                },
             };
         }
         case 'BUY_TOWER_ITEM': {

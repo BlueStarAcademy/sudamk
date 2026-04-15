@@ -4,6 +4,8 @@
 import { User, CoreStat, InventoryItem, SpecialStat, MythicStat } from '../types/index.js';
 import { calculateUserEffects } from './effectService.js';
 
+const CORE_STAT_CAP = 1500;
+
 // This function is moved from the client to the server.
 export const calculateTotalStats = (user: User | null | undefined): Record<CoreStat, number> => {
     const finalStats: Record<CoreStat, number> = {} as any;
@@ -30,8 +32,13 @@ export const calculateTotalStats = (user: User | null | undefined): Record<CoreS
     for (const key of Object.values(CoreStat)) {
         const baseValue = baseWithSpent[key];
         const bonus = bonuses[key] || { flat: 0, percent: 0 };
-        const finalValue = Math.floor((baseValue + bonus.flat) * (1 + bonus.percent / 100));
-        finalStats[key] = finalValue;
+        const baseAndSpent = Math.max(0, Number(baseValue) || 0);
+        const flatBonus = Number(bonus.flat) || 0;
+        const percentBonus = Number(bonus.percent) || 0;
+        const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
+        const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
+        const finalValue = baseWithFlat + percentGain;
+        finalStats[key] = Math.min(CORE_STAT_CAP, Math.max(0, finalValue));
     }
     
     return finalStats;

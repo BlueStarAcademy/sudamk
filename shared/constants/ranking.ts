@@ -14,59 +14,59 @@ export const LEAGUE_DATA: { tier: LeagueTier, name: string, scoreThreshold: numb
 
 export const LEAGUE_WEEKLY_REWARDS: Record<LeagueTier, LeagueRewardTier[]> = {
     [LeagueTier.Sprout]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 50, outcome: 'promote' },
-        { rankStart: 2, rankEnd: 2, diamonds: 30, outcome: 'promote' },
-        { rankStart: 3, rankEnd: 3, diamonds: 15, outcome: 'promote' },
-        { rankStart: 4, rankEnd: 16, diamonds: 5, outcome: 'maintain' },
+        { rankStart: 1, rankEnd: 1, diamonds: 40, outcome: 'promote' },
+        { rankStart: 2, rankEnd: 2, diamonds: 24, outcome: 'promote' },
+        { rankStart: 3, rankEnd: 3, diamonds: 12, outcome: 'promote' },
+        { rankStart: 4, rankEnd: 16, diamonds: 4, outcome: 'maintain' },
     ],
     [LeagueTier.Rookie]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 65, outcome: 'promote' },
-        { rankStart: 2, rankEnd: 2, diamonds: 40, outcome: 'promote' },
-        { rankStart: 3, rankEnd: 3, diamonds: 25, outcome: 'promote' },
-        { rankStart: 4, rankEnd: 13, diamonds: 15, outcome: 'maintain' },
-        { rankStart: 14, rankEnd: 16, diamonds: 5, outcome: 'demote' },
+        { rankStart: 1, rankEnd: 1, diamonds: 50, outcome: 'promote' },
+        { rankStart: 2, rankEnd: 2, diamonds: 32, outcome: 'promote' },
+        { rankStart: 3, rankEnd: 3, diamonds: 20, outcome: 'promote' },
+        { rankStart: 4, rankEnd: 13, diamonds: 12, outcome: 'maintain' },
+        { rankStart: 14, rankEnd: 16, diamonds: 4, outcome: 'demote' },
     ],
     [LeagueTier.Rising]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 80, outcome: 'promote' },
-        { rankStart: 2, rankEnd: 2, diamonds: 50, outcome: 'promote' },
-        { rankStart: 3, rankEnd: 3, diamonds: 35, outcome: 'promote' },
-        { rankStart: 4, rankEnd: 13, diamonds: 20, outcome: 'maintain' },
-        { rankStart: 14, rankEnd: 16, diamonds: 10, outcome: 'demote' },
+        { rankStart: 1, rankEnd: 1, diamonds: 60, outcome: 'promote' },
+        { rankStart: 2, rankEnd: 2, diamonds: 40, outcome: 'promote' },
+        { rankStart: 3, rankEnd: 3, diamonds: 28, outcome: 'promote' },
+        { rankStart: 4, rankEnd: 13, diamonds: 16, outcome: 'maintain' },
+        { rankStart: 14, rankEnd: 16, diamonds: 8, outcome: 'demote' },
     ],
     [LeagueTier.Ace]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 95, outcome: 'promote' },
-        { rankStart: 2, rankEnd: 2, diamonds: 60, outcome: 'promote' },
-        { rankStart: 3, rankEnd: 3, diamonds: 45, outcome: 'promote' },
-        { rankStart: 4, rankEnd: 13, diamonds: 25, outcome: 'maintain' },
-        { rankStart: 14, rankEnd: 16, diamonds: 15, outcome: 'demote' },
+        { rankStart: 1, rankEnd: 1, diamonds: 72, outcome: 'promote' },
+        { rankStart: 2, rankEnd: 2, diamonds: 48, outcome: 'promote' },
+        { rankStart: 3, rankEnd: 3, diamonds: 36, outcome: 'promote' },
+        { rankStart: 4, rankEnd: 13, diamonds: 20, outcome: 'maintain' },
+        { rankStart: 14, rankEnd: 16, diamonds: 12, outcome: 'demote' },
     ],
     [LeagueTier.Diamond]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 110, outcome: 'promote' },
-        { rankStart: 2, rankEnd: 2, diamonds: 70, outcome: 'promote' },
-        { rankStart: 3, rankEnd: 3, diamonds: 55, outcome: 'promote' },
-        { rankStart: 4, rankEnd: 13, diamonds: 30, outcome: 'maintain' },
-        { rankStart: 14, rankEnd: 16, diamonds: 20, outcome: 'demote' },
+        { rankStart: 1, rankEnd: 1, diamonds: 84, outcome: 'promote' },
+        { rankStart: 2, rankEnd: 2, diamonds: 56, outcome: 'promote' },
+        { rankStart: 3, rankEnd: 3, diamonds: 44, outcome: 'promote' },
+        { rankStart: 4, rankEnd: 13, diamonds: 24, outcome: 'maintain' },
+        { rankStart: 14, rankEnd: 16, diamonds: 16, outcome: 'demote' },
     ],
     [LeagueTier.Master]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 125, outcome: 'promote' },
-        { rankStart: 2, rankEnd: 2, diamonds: 80, outcome: 'promote' },
-        { rankStart: 3, rankEnd: 3, diamonds: 65, outcome: 'promote' },
-        { rankStart: 4, rankEnd: 13, diamonds: 35, outcome: 'maintain' },
-        { rankStart: 14, rankEnd: 16, diamonds: 25, outcome: 'demote' },
+        { rankStart: 1, rankEnd: 1, diamonds: 96, outcome: 'promote' },
+        { rankStart: 2, rankEnd: 2, diamonds: 64, outcome: 'promote' },
+        { rankStart: 3, rankEnd: 3, diamonds: 52, outcome: 'promote' },
+        { rankStart: 4, rankEnd: 13, diamonds: 28, outcome: 'maintain' },
+        { rankStart: 14, rankEnd: 16, diamonds: 20, outcome: 'demote' },
     ],
     [LeagueTier.Grandmaster]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 150, outcome: 'promote' },
-        { rankStart: 2, rankEnd: 2, diamonds: 100, outcome: 'promote' },
-        { rankStart: 3, rankEnd: 3, diamonds: 80, outcome: 'promote' },
-        { rankStart: 4, rankEnd: 13, diamonds: 50, outcome: 'maintain' },
-        { rankStart: 14, rankEnd: 16, diamonds: 35, outcome: 'demote' },
+        { rankStart: 1, rankEnd: 1, diamonds: 115, outcome: 'promote' },
+        { rankStart: 2, rankEnd: 2, diamonds: 80, outcome: 'promote' },
+        { rankStart: 3, rankEnd: 3, diamonds: 64, outcome: 'promote' },
+        { rankStart: 4, rankEnd: 13, diamonds: 40, outcome: 'maintain' },
+        { rankStart: 14, rankEnd: 16, diamonds: 28, outcome: 'demote' },
     ],
     [LeagueTier.Challenger]: [
-        { rankStart: 1, rankEnd: 1, diamonds: 200, outcome: 'promote' }, // Stays in Challenger
-        { rankStart: 2, rankEnd: 2, diamonds: 125, outcome: 'promote' }, // Stays in Challenger
-        { rankStart: 3, rankEnd: 3, diamonds: 100, outcome: 'promote' }, // Stays in Challenger
-        { rankStart: 4, rankEnd: 13, diamonds: 75, outcome: 'maintain' },
-        { rankStart: 14, rankEnd: 16, diamonds: 50, outcome: 'demote' },
+        { rankStart: 1, rankEnd: 1, diamonds: 150, outcome: 'promote' }, // Stays in Challenger
+        { rankStart: 2, rankEnd: 2, diamonds: 100, outcome: 'promote' }, // Stays in Challenger
+        { rankStart: 3, rankEnd: 3, diamonds: 80, outcome: 'promote' }, // Stays in Challenger
+        { rankStart: 4, rankEnd: 13, diamonds: 60, outcome: 'maintain' },
+        { rankStart: 14, rankEnd: 16, diamonds: 40, outcome: 'demote' },
     ],
 };
 
@@ -83,15 +83,15 @@ export const RANKING_TIERS: { name: string; icon: string; color: string; thresho
 ];
 
 export const SEASONAL_TIER_REWARDS: Record<string, QuestReward> = {
-    '새싹': { diamonds: 75, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 I', quantity: 1 }, { itemId: '골드 꾸러미1', quantity: 1 }] },
-    '루키': { diamonds: 100, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미2', quantity: 1 }] },
-    '브론즈': { diamonds: 125, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미2', quantity: 1 }] },
-    '실버': { diamonds: 150, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미3', quantity: 1 }] },
-    '골드': { diamonds: 200, items: [{ itemId: '장비 상자 III', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미3', quantity: 1 }] },
-    '플래티넘': { diamonds: 250, items: [{ itemId: '장비 상자 IV', quantity: 1 }, { itemId: '재료 상자 IV', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
-    '다이아': { diamonds: 300, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 V', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
-    '마스터': { diamonds: 400, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
-    '챌린저': { diamonds: 500, items: [{ itemId: '장비 상자 VI', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
+    '새싹': { diamonds: 55, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 I', quantity: 1 }, { itemId: '골드 꾸러미1', quantity: 1 }] },
+    '루키': { diamonds: 75, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미2', quantity: 1 }] },
+    '브론즈': { diamonds: 95, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미2', quantity: 1 }] },
+    '실버': { diamonds: 115, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미3', quantity: 1 }] },
+    '골드': { diamonds: 150, items: [{ itemId: '장비 상자 III', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미3', quantity: 1 }] },
+    '플래티넘': { diamonds: 190, items: [{ itemId: '장비 상자 IV', quantity: 1 }, { itemId: '재료 상자 IV', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
+    '다이아': { diamonds: 230, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 V', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
+    '마스터': { diamonds: 300, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
+    '챌린저': { diamonds: 375, items: [{ itemId: '장비 상자 VI', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
 };
 
 export const SEASONAL_TIER_BORDERS: Record<string, string> = {

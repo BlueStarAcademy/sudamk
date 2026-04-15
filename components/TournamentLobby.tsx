@@ -18,6 +18,7 @@ import DraggableWindow from './DraggableWindow.js';
 /** 챔피언십 로비 패널: 경기장 배경 블러(전략/놀이 대기실과 동일 계열) */
 const CHAMPIONSHIP_PANEL_GLASS =
     'backdrop-blur-xl backdrop-saturate-150 will-change-[backdrop-filter] [transform:translateZ(0)]';
+const CORE_STAT_CAP = 1500;
 
 const stringToSeed = (str: string): number => {
     let hash = 0;
@@ -921,12 +922,22 @@ const TournamentLobby: React.FC = () => {
         const out = {} as Record<CoreStat, number>;
         for (const stat of Object.values(CoreStat)) {
             const baseValue = baseByStat[stat] || 0;
-            out[stat] = Math.floor((baseValue + coreStatBonuses[stat].flat) * (1 + coreStatBonuses[stat].percent / 100));
+            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
+            const flatBonus = Number(coreStatBonuses[stat].flat) || 0;
+            const percentBonus = Number(coreStatBonuses[stat].percent) || 0;
+            const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
+            const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
+            const finalValue = baseWithFlat + percentGain;
+            out[stat] = Math.max(0, finalValue);
         }
         return out;
     }, [baseByStat, coreStatBonuses]);
     const badukAbilityTotal = useMemo(
-        () => Object.values(finalByStat).reduce((sum, v) => sum + (Number.isFinite(v) ? v : 0), 0),
+        () =>
+            Object.values(finalByStat).reduce((sum, v) => {
+                const safe = Number.isFinite(v) ? Math.max(0, v) : 0;
+                return sum + Math.min(CORE_STAT_CAP, safe);
+            }, 0),
         [finalByStat],
     );
     const userDungeonCoreStatAverage = useMemo(() => badukAbilityTotal / 6, [badukAbilityTotal]);

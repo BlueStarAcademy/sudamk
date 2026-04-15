@@ -789,6 +789,7 @@ export type GameSummary = {
   };
   overallRecord?: { wins: number; losses: number; aiWins?: number; aiLosses?: number; };
   gold?: number;
+  diamonds?: number;
   /** 모험 지역 이해도 효과로만 추가된 골드(표시용; `gold` 합계에 이미 포함) */
   adventureGoldUnderstandingBonus?: number;
   items?: InventoryItem[];
@@ -1086,8 +1087,9 @@ export type AdminLog = {
     | 'update_home_board_post'
     | 'delete_home_board_post'
     | 'update_user_inventory'
-    | 'append_inventory_items';
-  backupData: Partial<User> | { status: UserStatusInfo } | LiveGameSession | { mailTitle: string } | SanctionLogData | { gameId: string, winnerId: string } | { postId: string, title: string } | { oldGuildId: string | undefined };
+    | 'append_inventory_items'
+    | 'update_reward_config';
+  backupData: Partial<User> | { status: UserStatusInfo } | LiveGameSession | { mailTitle: string } | SanctionLogData | { gameId: string, winnerId: string } | { postId: string, title: string } | { oldGuildId: string | undefined } | { before: Record<string, number>; after: Record<string, number> };
 };
 
 export type Announcement = {

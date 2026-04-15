@@ -646,6 +646,45 @@ function getMoveHistoryForAi(
 }
 
 /**
+ * 베이스 바둑은 시작 시 초기 베이스 돌이 moveHistory에 없어서
+ * KataServer가 빈판으로 오인할 수 있다. 카타 입력용으로만 선행 수로 합쳐 전달한다.
+ */
+function buildKataMoveHistory(
+    game: types.LiveGameSession,
+    moveHistory: Array<{ x: number; y: number; player: number }>
+): Array<{ x: number; y: number; player: number }> {
+    const isBaseMode =
+        game.mode === types.GameMode.Base ||
+        (game.mode === types.GameMode.Mix && Boolean(game.settings.mixedModes?.includes(types.GameMode.Base)));
+    if (!isBaseMode) return moveHistory;
+
+    const baseStones = (game.baseStones ?? []).filter(
+        (s): s is { x: number; y: number; player: Player } =>
+            !!s &&
+            Number.isInteger(s.x) &&
+            Number.isInteger(s.y) &&
+            (s.player === Player.Black || s.player === Player.White)
+    );
+    if (baseStones.length === 0) return moveHistory;
+
+    const occupied = new Set<string>();
+    for (const m of moveHistory) {
+        if (m.x >= 0 && m.y >= 0) occupied.add(`${m.x},${m.y}`);
+    }
+
+    const baseSetupMoves: Array<{ x: number; y: number; player: number }> = [];
+    for (const s of baseStones) {
+        const key = `${s.x},${s.y}`;
+        if (occupied.has(key)) continue;
+        baseSetupMoves.push({ x: s.x, y: s.y, player: s.player });
+        occupied.add(key);
+    }
+
+    if (baseSetupMoves.length === 0) return moveHistory;
+    return [...baseSetupMoves, ...moveHistory];
+}
+
+/**
  * (x,y)가 유저의 미공개 히든 돌 위치인지 여부
  * 싱글플레이 히든바둑: AI가 해당 칸에 착수하지 않도록 판별용
  */
@@ -1084,10 +1123,7 @@ export async function makeGoAiBotMove(
     ) {
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const totalTurnsSoFar = (game.moveHistory || []).length;
-        const overLimit =
-            (game as any).gameCategory === 'adventure'
-                ? totalTurnsSoFar > scoringTurnLimit
-                : totalTurnsSoFar >= scoringTurnLimit;
+        const overLimit = totalTurnsSoFar >= scoringTurnLimit;
         if (overLimit) {
             console.log(
                 `[makeGoAiBotMove] Game ${game.id} already at or over scoringTurnLimit (${totalTurnsSoFar} vs ${scoringTurnLimit}, adventureStrict=${(game as any).gameCategory === 'adventure'}), triggering getGameResult without making a move`,
@@ -1140,9 +1176,10 @@ export async function makeGoAiBotMove(
         const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
         const maxKataHiddenRetries = 8;
         for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
-            const moveHistory = useHiddenMask
+            const rawMoveHistory = useHiddenMask
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
                 : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+            const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
 
             const kataMove = await generateKataServerMove({
                 boardSize: game.settings.boardSize || 19,
@@ -1280,9 +1317,10 @@ export async function makeGoAiBotMove(
                 const maxKataHiddenRetries = 8;
                 for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
                     const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
-                    const moveHistory = useHiddenMask
+                    const rawMoveHistory = useHiddenMask
                         ? getMoveHistoryForAi(game, aiPlayerEnum)
                         : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+                    const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
 
                     const kataMove = await generateKataServerMove({
                         boardSize: game.settings.boardSize || 19,

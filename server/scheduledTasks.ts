@@ -2151,9 +2151,21 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     const maxAttemptsPerGuild = 0;
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
     const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
-    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 23:00 KST (${kstDay === 1 ? 'Mon→Tue' : 'Thu→Fri'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${matchingQueue.length}, DEMO=${DEMO_GUILD_WAR}`);
+    const sanitizedQueue = [...new Set(matchingQueue)].filter((guildId) => {
+        const guild = guilds[guildId];
+        // 탈퇴/삭제 등으로 사라진 길드 ID가 큐에 남아 있으면 실제 매칭이 막힐 수 있어 사전 정리한다.
+        if (!guild) return false;
+        // 이미 매칭 대기 해제된 길드는 큐에서 제거한다.
+        return !!(guild as any).guildWarMatching;
+    });
+    if (sanitizedQueue.length !== matchingQueue.length) {
+        const removedCount = matchingQueue.length - sanitizedQueue.length;
+        console.warn(`[GuildWarMatch] Cleaned stale queue entries: removed=${removedCount}, before=${matchingQueue.length}, after=${sanitizedQueue.length}`);
+        await db.setKV('guildWarMatchingQueue', sanitizedQueue);
+    }
+    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 23:00 KST (${kstDay === 1 ? 'Mon→Tue' : 'Thu→Fri'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${sanitizedQueue.length}, DEMO=${DEMO_GUILD_WAR}`);
     
-    if (matchingQueue.length === 0) {
+    if (sanitizedQueue.length === 0) {
         console.log(`[GuildWarMatch] No guilds in matching queue`);
         lastGuildWarMatchTimestamp = now;
         return;
@@ -2175,7 +2187,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             leaderId: botGuildId,
         };
         const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
-        for (const guildId of matchingQueue) {
+        for (const guildId of sanitizedQueue) {
             const g = guilds[guildId];
             if (!g) continue;
             const guild1ParticipantIds = takePendingParticipantsOrDefault(g);
@@ -2226,7 +2238,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             delete (g as any).guildWarMatching;
             console.log(`[GuildWarMatch] [DEMO] Matched ${g.name} (${guildId}) vs bot guild`);
         }
-        const newQueue = matchingQueue.filter(id => !matchedGuildIds.includes(id));
+        const newQueue = sanitizedQueue.filter(id => !matchedGuildIds.includes(id));
         const existingActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
         const allActiveWars = [...existingActiveWars.filter((w: any) => w.status === 'active'), ...activeWars];
         await db.setKV('activeGuildWars', allActiveWars);
@@ -2243,10 +2255,10 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
 
     // 짝수 개의 길드 매칭
-    const matchedPairs = Math.floor(matchingQueue.length / 2);
+    const matchedPairs = Math.floor(sanitizedQueue.length / 2);
     for (let i = 0; i < matchedPairs; i++) {
-        const guild1Id = matchingQueue[i * 2];
-        const guild2Id = matchingQueue[i * 2 + 1];
+        const guild1Id = sanitizedQueue[i * 2];
+        const guild2Id = sanitizedQueue[i * 2 + 1];
         
         const guild1 = guilds[guild1Id];
         const guild2 = guilds[guild2Id];
@@ -2312,8 +2324,8 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     }
     
     // 홀수 길드가 남으면 봇 길드와 매칭 (상대 길드가 없어도 봇과 매칭되어 전쟁 참여 가능)
-    if (matchingQueue.length % 2 === 1) {
-        const remainingGuildId = matchingQueue[matchingQueue.length - 1];
+    if (sanitizedQueue.length % 2 === 1) {
+        const remainingGuildId = sanitizedQueue[sanitizedQueue.length - 1];
         const remainingGuild = guilds[remainingGuildId];
 
         if (!remainingGuild) {
@@ -2388,7 +2400,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 leaderId: botGuildId,
             };
             
-            if (matchingQueue.length === 1) {
+            if (sanitizedQueue.length === 1) {
                 console.log(`[GuildWarMatch] Single guild in queue - matched ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
             } else {
                 console.log(`[GuildWarMatch] Matched guild ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
@@ -2397,7 +2409,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     }
 
     // 매칭 큐에서 매칭된 길드 제거
-    const newQueue = matchingQueue.filter(id => !matchedGuildIds.includes(id));
+    const newQueue = sanitizedQueue.filter(id => !matchedGuildIds.includes(id));
     
     // 기존 activeWars 가져오기 (이전 매칭이 있으면 유지)
     const existingActiveWars = await db.getKV<any[]>('activeGuildWars') || [];

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { LiveGameSession, TournamentType } from '../../types/index.js';
+import { AdminLog, LiveGameSession, TournamentType } from '../../types/index.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import AdminPageHeader from './AdminPageHeader.js';
@@ -9,6 +9,7 @@ import type { User } from '../../types/index.js';
 
 interface AdminOperationsPanelProps {
     liveGames: LiveGameSession[];
+    adminLogs: AdminLog[];
     onAction: (action: ServerAction) => void;
     onBack: () => void;
     currentUser: User;
@@ -16,7 +17,7 @@ interface AdminOperationsPanelProps {
 
 type OpsMobileTab = 'ops' | 'test';
 
-const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, onAction, onBack, currentUser }) => {
+const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, adminLogs, onAction, onBack, currentUser }) => {
     const [isGameManagerOpen, setIsGameManagerOpen] = useState(false);
     const [gameSearchQuery, setGameSearchQuery] = useState('');
     const [mobileTab, setMobileTab] = useState<OpsMobileTab>('ops');
@@ -93,6 +94,23 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
     };
 
     const sectionClass = `${adminCard} space-y-4`;
+    const recentLogs = useMemo(() => adminLogs.slice(0, 20), [adminLogs]);
+    const rewardConfigLogs = useMemo(
+        () => recentLogs.filter((log) => log.action === 'update_reward_config'),
+        [recentLogs]
+    );
+
+    const describeAdminLog = (log: AdminLog): string => {
+        if (log.action === 'update_reward_config') {
+            const data = log.backupData as { before?: Record<string, number>; after?: Record<string, number> };
+            const before = data?.before || {};
+            const after = data?.after || {};
+            const changedKeys = Object.keys(after).filter((key) => before[key] !== after[key]);
+            if (changedKeys.length === 0) return '보상 배율 저장 (변경 없음)';
+            return `보상 배율 변경: ${changedKeys.join(', ')}`;
+        }
+        return `${log.action} · 대상 ${log.targetNickname}`;
+    };
 
     const championshipSection = (
         <section className={sectionClass}>
@@ -145,6 +163,41 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
         </section>
     );
 
+    const logsSection = (
+        <section className={sectionClass}>
+            <div className="flex items-center justify-between gap-2">
+                <h2 className={adminCardTitle}>최근 관리자 로그</h2>
+                <span className="text-xs text-gray-400">보상 설정 변경 {rewardConfigLogs.length}건</span>
+            </div>
+            <p className="text-sm text-gray-400">`update_reward_config`는 강조 배지와 함께 최근 변경 항목이 노출됩니다.</p>
+            <div className="max-h-72 overflow-y-auto rounded-lg border border-color/50 bg-secondary/20">
+                {recentLogs.length === 0 ? (
+                    <p className="px-3 py-6 text-center text-sm text-gray-500">관리자 로그가 없습니다.</p>
+                ) : (
+                    <ul className="divide-y divide-color/40 text-sm">
+                        {recentLogs.map((log) => {
+                            const isRewardConfig = log.action === 'update_reward_config';
+                            return (
+                                <li key={log.id} className="px-3 py-2.5">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="text-xs text-gray-500">{new Date(log.timestamp).toLocaleString()}</span>
+                                        {isRewardConfig && (
+                                            <span className="rounded-full border border-emerald-400/50 bg-emerald-500/15 px-2 py-0.5 text-[11px] font-semibold text-emerald-300">
+                                                보상설정변경
+                                            </span>
+                                        )}
+                                        <span className="text-xs text-gray-400">{log.adminNickname}</span>
+                                    </div>
+                                    <p className={`mt-1 ${isRewardConfig ? 'text-emerald-200' : 'text-gray-200'}`}>{describeAdminLog(log)}</p>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </div>
+        </section>
+    );
+
     const mobileTabs: { id: OpsMobileTab; label: string }[] = [
         { id: 'ops', label: '운영' },
         { id: 'test', label: '테스트' },
@@ -192,6 +245,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
                             {championshipSection}
                             {tournamentSection}
                             {liveGamesSection}
+                            {logsSection}
                         </>
                     )}
                     {mobileTab === 'test' && guildWarTestSection}
@@ -203,6 +257,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
                 {tournamentSection}
                 {guildWarTestSection}
                 {liveGamesSection}
+                {logsSection}
             </div>
 
             {isGameManagerOpen && (

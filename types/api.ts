@@ -264,6 +264,7 @@ export type ServerAction =
     | { type: 'BUY_MATERIAL_BOX', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_TOWER_ITEM', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_CONSUMABLE', payload: { itemId: string; quantity?: number } }
+    | { type: 'CLAIM_SHOP_AD_REWARD', payload: { tab: 'equipment' | 'materials' | 'consumables' | 'diamonds' } }
     | { type: 'PURCHASE_ACTION_POINTS', payload?: never }
     | { type: 'EXPAND_INVENTORY', payload: { category: InventoryItemType } }
     | { type: 'BUY_BORDER', payload: { borderId: string } }

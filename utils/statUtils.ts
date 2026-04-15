@@ -124,6 +124,7 @@ export const calculateUserEffects = (user: User, guild: Guild | null): Calculate
 
 export const calculateTotalStats = (user: User, guild: Guild | null): Record<CoreStat, number> => {
     const finalStats: Record<CoreStat, number> = {} as any;
+    const CORE_STAT_CAP = 1500;
     
     const baseWithSpent: Record<CoreStat, number> = {} as any;
     for (const key of Object.values(CoreStat) as CoreStat[]) {
@@ -137,8 +138,13 @@ export const calculateTotalStats = (user: User, guild: Guild | null): Record<Cor
         const baseValue = baseWithSpent[key];
         const flatBonus = bonuses[key].flat;
         const percentBonus = bonuses[key].percent;
-        const finalValue = Math.floor((Number(baseValue) + Number(flatBonus)) * (1 + Number(percentBonus) / 100));
-        finalStats[key] = finalValue;
+        const baseAndSpent = Math.max(0, Number(baseValue) || 0);
+        const flat = Number(flatBonus) || 0;
+        const percent = Number(percentBonus) || 0;
+        const baseWithFlat = Math.max(0, baseAndSpent + flat);
+        const percentGain = Math.floor(baseWithFlat * (percent / 100));
+        const finalValue = baseWithFlat + percentGain;
+        finalStats[key] = Math.min(CORE_STAT_CAP, Math.max(0, finalValue));
     }
     
     return finalStats;

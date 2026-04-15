@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import AdminDashboard, { type AdminView } from './admin/AdminDashboard.js';
 import UserManagementPanel from './admin/UserManagementPanel.js';
 import MailSystemPanel from './admin/MailSystemPanel.js';
+import RewardSystemPanel from './admin/RewardSystemPanel.js';
 import ServerSettingsPanel from './admin/ServerSettingsPanel.js';
 import HomeBoardPanel from './admin/HomeBoardPanel.js';
 import AdminOperationsPanel from './admin/AdminOperationsPanel.js';
@@ -46,6 +47,8 @@ const Admin: React.FC = () => {
                 return <MailSystemPanel {...adminProps} />;
             case 'serverSettings':
                 return <ServerSettingsPanel {...adminProps} />;
+            case 'rewardSystem':
+                return <RewardSystemPanel currentUserId={adminProps.currentUser.id} onBack={handleBack} />;
             case 'serverMonitoring':
                 return (
                     <ServerMonitoringPanel
@@ -61,6 +64,7 @@ const Admin: React.FC = () => {
                 return (
                     <AdminOperationsPanel
                         liveGames={adminProps.liveGames}
+                        adminLogs={adminProps.adminLogs}
                         onAction={adminProps.onAction}
                         onBack={handleBack}
                         currentUser={adminProps.currentUser}

@@ -11,10 +11,22 @@ import {
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
+import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
+};
+
+const getRewardConfig = async () => {
+    const stored = await db.getKV<unknown>('rewardConfig');
+    return normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
+};
+
+const addRewardBonus = (value: number | undefined, bonus: number): number => {
+    const base = Number(value) || 0;
+    const add = Number(bonus) || 0;
+    return Math.max(0, Math.floor(base + add));
 };
 
 /**
@@ -559,18 +571,23 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 보상 지급 전 값 저장 (모달 표시용)
             const rewardAmount = availableAmount;
             const rewardType = missionInfo.rewardType;
+            const rewardConfig = await getRewardConfig();
+            const adjustedRewardAmount =
+                rewardType === 'gold'
+                    ? addRewardBonus(rewardAmount, rewardConfig.singleMissionGoldBonus)
+                    : addRewardBonus(rewardAmount, rewardConfig.singleMissionDiamondBonus);
         
             if (rewardType === 'gold') {
-                user.gold += rewardAmount;
+                user.gold += adjustedRewardAmount;
             } else {
-                user.diamonds += rewardAmount;
+                user.diamonds += adjustedRewardAmount;
             }
         
             // 누적 수령액 증가 (레벨업용)
             const currentAccumulatedCollection = typeof missionState.accumulatedCollection === 'number'
                 ? missionState.accumulatedCollection
                 : Number(missionState.accumulatedCollection) || 0;
-            missionState.accumulatedCollection = currentAccumulatedCollection + rewardAmount;
+            missionState.accumulatedCollection = currentAccumulatedCollection + adjustedRewardAmount;
             missionState.accumulatedAmount = 0;
             missionState.lastCollectionTime = productionIntervalMs > 0 ? now - remainderMs : now;
             if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {
@@ -592,7 +609,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 보상 정보를 클라이언트에 반환 (RewardSummaryModal 형식)
             const rewardSummary = {
                 reward: {
-                    [rewardType]: rewardAmount
+                        [rewardType]: adjustedRewardAmount
                 } as { gold?: number; diamonds?: number; actionPoints?: number },
                 items: [],
                 title: `${missionInfo.name} 보상 수령`
@@ -602,7 +619,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 clientResponse: { 
                     updatedUser,
                     reward: {
-                        [rewardType]: rewardAmount
+                        [rewardType]: adjustedRewardAmount
                     },
                     rewardSummary
                 } 
@@ -622,6 +639,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }> = [];
             let totalGold = 0;
             let totalDiamonds = 0;
+            const rewardConfig = await getRewardConfig();
             
             // 이미 시작된 미션만 처리 (시작 시점에 이미 언락 검사 통과했으므로 clearedStages 재검사 생략)
             for (const missionInfo of SINGLE_PLAYER_MISSIONS) {
@@ -664,12 +682,16 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 
                 // 보상 추가
                 const rewardType = missionInfo.rewardType;
+                const adjustedAmount =
+                    rewardType === 'gold'
+                        ? addRewardBonus(availableAmount, rewardConfig.singleMissionGoldBonus)
+                        : addRewardBonus(availableAmount, rewardConfig.singleMissionDiamondBonus);
                 if (rewardType === 'gold') {
-                    user.gold += availableAmount;
-                    totalGold += availableAmount;
+                    user.gold += adjustedAmount;
+                    totalGold += adjustedAmount;
                 } else {
-                    user.diamonds += availableAmount;
-                    totalDiamonds += availableAmount;
+                    user.diamonds += adjustedAmount;
+                    totalDiamonds += adjustedAmount;
                 }
                 
                 rewards.push({
@@ -677,14 +699,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     missionName: missionInfo.name,
                     missionLevel: currentLevel,
                     rewardType,
-                    rewardAmount: availableAmount
+                    rewardAmount: adjustedAmount
                 });
                 
                 // 누적 수령액 증가 (레벨업용)
                 const currentAccumulatedCollection = typeof missionState.accumulatedCollection === 'number'
                     ? missionState.accumulatedCollection
                     : Number(missionState.accumulatedCollection) || 0;
-                missionState.accumulatedCollection = currentAccumulatedCollection + availableAmount;
+                missionState.accumulatedCollection = currentAccumulatedCollection + adjustedAmount;
                 missionState.accumulatedAmount = 0;
                 missionState.lastCollectionTime = productionIntervalMs > 0 ? now - remainderMs : now;
                 if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {

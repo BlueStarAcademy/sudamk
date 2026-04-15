@@ -28,9 +28,21 @@ import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
+import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
+const getRewardConfig = async () => {
+    const stored = await db.getKV<unknown>('rewardConfig');
+    return normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
+};
+
+const addRewardBonus = (value: number | undefined, bonus: number): number => {
+    const base = Number(value) || 0;
+    const add = Number(bonus) || 0;
+    return Math.max(0, Math.floor(base + add));
 };
 
 /** 동일 길드 KV 동시 갱신으로 출석 마일스톤 보상이 이중 지급되는 것을 방지 */
@@ -1125,6 +1137,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const { milestoneIndex } = payload;
             if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
             const gid = user.guildId;
+            const rewardConfig = await getRewardConfig();
 
             return await runGuildKvExclusive(gid, async () => {
                 const guildsKv = (await db.getKV<Record<string, Guild>>('guilds')) || {};
@@ -1170,7 +1183,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     return { error: '사용자를 찾을 수 없습니다.' };
                 }
 
-                freshUser.guildCoins = (freshUser.guildCoins || 0) + milestone.reward.guildCoins;
+                const gainedGuildCoins = addRewardBonus(
+                    milestone.reward.guildCoins,
+                    rewardConfig.guildCheckInCoinBonus
+                );
+                freshUser.guildCoins = (freshUser.guildCoins || 0) + gainedGuildCoins;
                 user.guildCoins = freshUser.guildCoins;
 
                 await db.setKV('guilds', guildsKv);
@@ -1183,7 +1200,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 broadcastUserUpdate(freshUser, ['guildCoins']);
 
                 await broadcast({ type: 'GUILD_UPDATE', payload: { guilds: guildsKv } });
-                const gainedGuildCoins = milestone.reward.guildCoins ?? 0;
                 return {
                     clientResponse: {
                         updatedUser: freshUser,
@@ -1195,6 +1211,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         }
         case 'GUILD_CLAIM_MISSION_REWARD': {
             const { missionId } = payload;
+            const rewardConfig = await getRewardConfig();
             if (!user.guildId) return { error: '길드??가?�되???��? ?�습?�다.' };
             const guild = guilds[user.guildId];
             if (!guild) return { error: '길드�?찾을 ???�습?�다.' };
@@ -1217,7 +1234,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const freshUser = await db.getUser(user.id);
             if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
             
-            freshUser.guildCoins = (freshUser.guildCoins || 0) + mission.personalReward.guildCoins;
+            const gainedGuildCoins = addRewardBonus(
+                mission.personalReward.guildCoins,
+                rewardConfig.guildMissionCoinBonus
+            );
+            freshUser.guildCoins = (freshUser.guildCoins || 0) + gainedGuildCoins;
             user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
         
             // Mark as claimed by the current user
@@ -1941,34 +1962,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const isInQueue = matchingQueue.includes(user.guildId);
             let isMatching = (guild as any).guildWarMatching || isInQueue;
 
-            // 신청 없이 자동 매칭: 활성 전쟁/매칭 대기가 아니면 즉시 큐 등록 후 매칭 시도
-            if (!warInProgress && !isMatching) {
-                matchingQueue.push(user.guildId);
-                (guild as any).guildWarMatching = true;
-                await db.setKV('guildWarMatchingQueue', matchingQueue);
-                await db.setKV('guilds', guilds);
-                const { processGuildWarMatching } = await import('../scheduledTasks.js');
-                await processGuildWarMatching(true);
-                const refreshedActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
-                const refreshedGuilds = await db.getKV<Record<string, Guild>>('guilds') || {};
-                const refreshedWar = refreshedActiveWars.find(
-                    (w: any) => (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && w.status === 'active'
-                );
-                if (refreshedWar && applyBotGuildWarAttemptScript(refreshedWar, Date.now())) {
-                    await db.setKV('activeGuildWars', refreshedActiveWars);
-                }
-                Object.assign(guilds, refreshedGuilds);
-                activeWars.splice(0, activeWars.length, ...refreshedActiveWars);
-                isMatching = !!((refreshedGuilds[user.guildId] as any)?.guildWarMatching);
-                // 방금 매칭으로 생성된 전쟁 반영: 위에서 읽은 warInProgress는 여전히 null일 수 있음
-                warInProgress = activeWars.find(
-                    (w) =>
-                        (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && w.status === 'active'
-                );
-                if (warInProgress && normalizeGuildWarBoardModes(warInProgress)) {
-                    await db.setKV('activeGuildWars', activeWars);
-                }
-            }
+            // 조회 액션은 상태만 반환해야 하므로 자동 큐 등록/강제 매칭을 수행하지 않는다.
             
             // 다음 매칭: 화/금 0:00. 신청 마감: 월/목 23:00 (매칭 1시간 전)
             let nextMatchTime: number | undefined = undefined;

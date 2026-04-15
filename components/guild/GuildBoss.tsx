@@ -26,6 +26,8 @@ import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { LOBBY_MOBILE_BTN_PRIMARY_CLASS, PRE_GAME_MODAL_PRIMARY_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 
+const CORE_STAT_CAP = 1500;
+
 const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { chance?: number; description: string; } | null => {
     if (level === 0) return null;
     const project = GUILD_RESEARCH_PROJECTS[researchId];
@@ -155,7 +157,10 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
             const baseValue = baseWithSpent[key];
             const flatBonus = equipmentOnlyEffects.coreStatBonuses[key].flat;
             const percentBonus = equipmentOnlyEffects.coreStatBonuses[key].percent;
-            const finalValue = Math.floor((baseValue + flatBonus) * (1 + percentBonus / 100));
+            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
+            const baseWithFlat = Math.max(0, baseAndSpent + (Number(flatBonus) || 0));
+            const percentGain = Math.floor(baseWithFlat * ((Number(percentBonus) || 0) / 100));
+            const finalValue = baseWithFlat + percentGain;
             bonuses[key] = finalValue - baseValue;
         }
         return bonuses;
@@ -246,17 +251,21 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
             
             <div className={`flex flex-row items-center ${compact ? 'gap-1.5 mb-1' : 'gap-2 mb-2'}`}>
                 <div className="w-1/2 flex justify-center">
-                    <RadarChart datasets={radarDataset} maxStatValue={1000} size={compact ? 88 : 150} />
+                    <RadarChart datasets={radarDataset} maxStatValue={CORE_STAT_CAP} size={compact ? 88 : 150} />
                 </div>
                 <div className={`w-1/2 grid grid-cols-1 gap-1 ${compact ? 'text-[10px]' : 'text-xs'}`}>
                     {Object.values(CoreStat).map(stat => {
                         const bonus = equipmentBonuses[stat] || 0;
                         const isDebuffed = stat === CoreStat.CombatPower && activeDebuffs['user_combat_power_reduction_percent']?.turns > 0;
+                        const statValue = Number(totalStats[stat]) || 0;
+                        const isCapped = statValue >= CORE_STAT_CAP;
                         return (
                             <div key={stat} className={`flex justify-between items-center bg-tertiary/40 rounded-md ${compact ? 'p-0.5' : 'p-1'}`}>
                                 <span className={`font-semibold text-secondary ${isDebuffed ? 'text-red-400' : ''}`}>{stat}</span>
                                 <div className="flex items-baseline">
-                                    <span className={`font-mono font-bold ${isDebuffed ? 'text-red-400' : 'text-primary'}`}>{totalStats[stat]}</span>
+                                    <span className={`font-mono font-bold ${isDebuffed || isCapped ? 'text-red-400' : 'text-primary'}`}>
+                                        {isCapped ? CORE_STAT_CAP : statValue}
+                                    </span>
                                     {bonus > 0 && <span className="font-mono text-xs text-green-400 ml-0.5">(+{bonus})</span>}
                                 </div>
                             </div>

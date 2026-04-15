@@ -1111,6 +1111,42 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
     }, [flashBoardRuleMessage]);
 
+    const applyOptimisticAiUserMove = useCallback((x: number, y: number) => {
+        const boardStateToUse = restoredBoardState || session.boardState;
+        if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
+        try {
+            const moveResult = processMoveClient(
+                boardStateToUse,
+                { x, y, player: myPlayerEnum },
+                session.koInfo,
+                session.moveHistory?.length || 0
+            );
+            if (!moveResult.isValid) return;
+            handlers.handleAction({
+                type: 'AI_GAME_CLIENT_MOVE',
+                payload: {
+                    gameId,
+                    x,
+                    y,
+                    newBoardState: moveResult.newBoardState,
+                    capturedStones: moveResult.capturedStones,
+                    newKoInfo: moveResult.newKoInfo,
+                    movePlayer: myPlayerEnum,
+                }
+            } as any);
+        } catch (e) {
+            console.warn('[Game] AI_GAME_CLIENT_MOVE optimistic update skipped:', e);
+        }
+    }, [
+        gameId,
+        handlers,
+        myPlayerEnum,
+        restoredBoardState,
+        session.boardState,
+        session.koInfo,
+        session.moveHistory?.length,
+    ]);
+
     useEffect(() => () => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
     }, []);
@@ -1475,42 +1511,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (actionType) {
             console.log('[Game] Sending action:', { actionType, payload, isMyTurn, myPlayerEnum, currentPlayer, gameStatus });
-            // 전략 AI/길드전 AI 대국: 서버 응답 전에도 유저 수를 즉시 보드에 반영
+            // 전략/모험 AI 대국: 서버 응답 전에도 유저 수를 즉시 보드에 반영
             if (actionType === 'PLACE_STONE' &&
                 session.isAiGame &&
                 !session.isSinglePlayer &&
                 session.gameCategory !== 'tower' &&
-                session.gameCategory !== 'adventure' &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0) {
-                const boardStateToUse = restoredBoardState || session.boardState;
-                if (boardStateToUse && Array.isArray(boardStateToUse) && boardStateToUse.length > 0) {
-                    try {
-                        const moveResult = processMoveClient(
-                            boardStateToUse,
-                            { x, y, player: myPlayerEnum },
-                            session.koInfo,
-                            session.moveHistory?.length || 0
-                        );
-                        if (moveResult.isValid) {
-                            handlers.handleAction({
-                                type: 'AI_GAME_CLIENT_MOVE',
-                                payload: {
-                                    gameId,
-                                    x,
-                                    y,
-                                    newBoardState: moveResult.newBoardState,
-                                    capturedStones: moveResult.capturedStones,
-                                    newKoInfo: moveResult.newKoInfo,
-                                    movePlayer: myPlayerEnum,
-                                }
-                            } as any);
-                        }
-                    } catch (e) {
-                        console.warn('[Game] AI_GAME_CLIENT_MOVE optimistic update skipped:', e);
-                    }
-                }
+                applyOptimisticAiUserMove(x, y);
             }
             setIsMoveInFlight(true);
             void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction)).then((res) => {
@@ -1538,7 +1547,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash, myPlayerEnum]);
+    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash, myPlayerEnum, applyOptimisticAiUserMove]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
@@ -1635,6 +1644,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (actionType) {
+            if (
+                actionType === 'PLACE_STONE' &&
+                session.isAiGame &&
+                !session.isSinglePlayer &&
+                session.gameCategory !== 'tower' &&
+                gameStatus === 'playing' &&
+                x >= 0 &&
+                y >= 0
+            ) {
+                applyOptimisticAiUserMove(x, y);
+            }
             setIsMoveInFlight(true);
             const at = actionType;
             void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction)).then((res) => {
@@ -1651,7 +1671,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             });
         }
         setPendingMove(null);
-    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, restoredBoardState, isMoveInFlight, session.gameCategory, session.isSinglePlayer, session.boardState, session.settings.boardSize, session.koInfo, session.moveHistory?.length, session.stonesToPlace, myPlayerEnum, showKoRuleFlash]);
+    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, restoredBoardState, isMoveInFlight, session.gameCategory, session.isSinglePlayer, session.boardState, session.settings.boardSize, session.koInfo, session.moveHistory?.length, session.stonesToPlace, myPlayerEnum, showKoRuleFlash, session.isAiGame, applyOptimisticAiUserMove]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
 

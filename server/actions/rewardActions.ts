@@ -26,6 +26,7 @@ import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { clampQuestProgressToTarget } from '../../utils/questProgressCap.js';
 import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
 import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
+import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../../shared/constants/rewardConfig.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -94,6 +95,17 @@ const getSeasonScoreByTrack = (user: User, trackType: 'strategy_tier' | 'playful
 type HandleActionResult = {
     clientResponse?: any;
     error?: string;
+};
+
+const getRewardConfig = async (): Promise<RewardConfig> => {
+    const stored = await db.getKV<unknown>('rewardConfig');
+    return normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
+};
+
+const addRewardBonus = (value: number | undefined, bonus: number): number => {
+    const base = Number(value) || 0;
+    const add = Number(bonus) || 0;
+    return Math.max(0, Math.floor(base + add));
 };
 
 export const handleRewardAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
@@ -295,6 +307,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (foundQuest.progress < foundQuest.target) return { error: '퀘스트를 아직 완료하지 않았습니다.' };
             
             const { reward, activityPoints } = foundQuest;
+            const rewardConfig = await getRewardConfig();
             const itemsToCreate: InventoryItem[] = [];
             if (reward.items) {
                 const createdItems = createItemInstancesFromReward(reward.items as { itemId: string; quantity: number }[]);
@@ -308,9 +321,15 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             foundQuest.isClaimed = true;
             
-            if (reward.gold) user.gold += reward.gold;
-            if (reward.diamonds) user.diamonds += reward.diamonds;
-            if (reward.actionPoints) user.actionPoints.current += reward.actionPoints;
+            const adjustedReward: QuestReward = {
+                ...reward,
+                gold: addRewardBonus(reward.gold, rewardConfig.questGoldBonus),
+                diamonds: addRewardBonus(reward.diamonds, rewardConfig.questDiamondBonus),
+                actionPoints: addRewardBonus(reward.actionPoints, rewardConfig.questActionPointBonus),
+            };
+            if (adjustedReward.gold) user.gold += adjustedReward.gold;
+            if (adjustedReward.diamonds) user.diamonds += adjustedReward.diamonds;
+            if (adjustedReward.actionPoints) user.actionPoints.current += adjustedReward.actionPoints;
             user.inventory = updatedInventory;
             
             if (activityPoints > 0 && user.quests[questType!]) {
@@ -342,7 +361,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             return { 
                 clientResponse: { 
                     rewardSummary: {
-                        reward,
+                        reward: adjustedReward,
                         items: itemsToCreate,
                         title: `${questType === 'daily' ? '일일' : questType === 'weekly' ? '주간' : '월간'} 퀘스트 보상`
                     },
@@ -443,6 +462,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
         }
         case 'CLAIM_ACTIVITY_MILESTONE': {
             const { milestoneIndex, questType } = payload as { milestoneIndex: number; questType: 'daily' | 'weekly' | 'monthly' };
+            const rewardConfig = await getRewardConfig();
             
             const questDataMap = {
                 daily: { data: user.quests.daily, thresholds: DAILY_MILESTONE_THRESHOLDS, rewards: DAILY_MILESTONE_REWARDS },
@@ -462,6 +482,12 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (data.activityProgress < requiredProgress) return { error: "활약도 점수가 부족합니다." };
 
             const reward = rewards[milestoneIndex];
+            const adjustedReward: QuestReward = {
+                ...reward,
+                gold: addRewardBonus(reward.gold, rewardConfig.activityGoldBonus),
+                diamonds: addRewardBonus(reward.diamonds, rewardConfig.activityDiamondBonus),
+                actionPoints: addRewardBonus(reward.actionPoints, rewardConfig.activityActionPointBonus),
+            };
             
             const itemsToCreate: InventoryItem[] = [];
             if (reward.items) {
@@ -472,9 +498,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
             if (!success) return { error: '보상을 받기에 인벤토리 공간이 부족합니다.' };
             
-            user.gold += reward.gold || 0;
-            user.diamonds += reward.diamonds || 0;
-            user.actionPoints.current += reward.actionPoints || 0;
+            user.gold += adjustedReward.gold || 0;
+            user.diamonds += adjustedReward.diamonds || 0;
+            user.actionPoints.current += adjustedReward.actionPoints || 0;
             user.inventory = updatedInventory;
             
             data.claimedMilestones[milestoneIndex] = true;
@@ -502,7 +528,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             return { 
                 clientResponse: { 
                     rewardSummary: {
-                        reward,
+                        reward: adjustedReward,
                         items: itemsToCreate,
                         title: `${questType === 'daily' ? '일일' : questType === 'weekly' ? '주간' : '월간'} 활약도 보상`
                     },
@@ -606,6 +632,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
         }
         case 'CLAIM_TOURNAMENT_REWARD': {
             const { tournamentType } = payload as { tournamentType: TournamentType };
+            const rewardConfig = await getRewardConfig();
             
             let statusKey: keyof User;
             let tourneyKey: keyof User;
@@ -689,11 +716,12 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 else if (userRank <= 8) scoreRewardKey = 5;
                 else scoreRewardKey = 9;
             }
-            const scoreReward = scoreRewardInfo[scoreRewardKey];
-            if (scoreReward === undefined) {
+            const rawScoreReward = scoreRewardInfo[scoreRewardKey];
+            if (rawScoreReward === undefined) {
                 console.error(`[CLAIM_TOURNAMENT_REWARD] Invalid scoreRewardKey: ${scoreRewardKey} for tournamentType: ${tournamentType}, userRank: ${userRank}`);
                 return { error: `순위에 대한 점수 보상이 정의되지 않았습니다. (순위: ${userRank})` };
             }
+            const scoreReward = addRewardBonus(rawScoreReward, rewardConfig.tournamentScoreBonus);
             
             console.log(`[CLAIM_TOURNAMENT_REWARD] tournamentType: ${tournamentType}, userRank: ${userRank}, scoreRewardKey: ${scoreRewardKey}, scoreReward: ${scoreReward}, currentTournamentScore: ${freshUser.tournamentScore || 0}`);
             
@@ -755,7 +783,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 tournamentType === 'world'
                     ? (() => {
                           const rw = getDungeonRankRewardWorld(currentStage, userRank);
-                          return { diamonds: rw.diamonds ?? 0, items: [], gold: 0 };
+                          return {
+                              diamonds: addRewardBonus(rw.diamonds ?? 0, rewardConfig.tournamentDiamondBonus),
+                              items: [],
+                              gold: 0,
+                          };
                       })()
                     : itemReward;
 
@@ -936,8 +968,10 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 accumulatedGold = tournamentState.accumulatedGold;
             }
             
-            freshUser.gold += (resolvedItemReward?.gold || 0) + accumulatedGold;
-            freshUser.diamonds += (resolvedItemReward?.diamonds || 0);
+            const adjustedRankGold = addRewardBonus(resolvedItemReward?.gold, rewardConfig.tournamentGoldBonus);
+            const adjustedRankDiamonds = addRewardBonus(resolvedItemReward?.diamonds, rewardConfig.tournamentDiamondBonus);
+            freshUser.gold += adjustedRankGold + accumulatedGold;
+            freshUser.diamonds += adjustedRankDiamonds;
             freshUser.inventory = updatedInventory;
             
             // 보상 수령 후 경기장 JSON 삭제 (대용량 데이터 누적 방지)
@@ -983,8 +1017,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 } as InventoryItem);
             }
 
-            const rankGold = resolvedItemReward?.gold || 0;
-            const rankDiamonds = resolvedItemReward?.diamonds || 0;
+            const rankGold = adjustedRankGold;
+            const rankDiamonds = adjustedRankDiamonds;
             if (rankGold > 0) {
                 allObtainedItems.unshift({
                     id: `display-gold-direct-${Date.now()}`,
@@ -1028,8 +1062,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
 
             // rewardSummary 형식으로 변환하여 모달 표시
             const reward: QuestReward = {
-                gold: (resolvedItemReward?.gold || 0) + accumulatedGold,
-                diamonds: resolvedItemReward?.diamonds || 0,
+                gold: adjustedRankGold + accumulatedGold,
+                diamonds: adjustedRankDiamonds,
                 actionPoints: 0,
             };
 

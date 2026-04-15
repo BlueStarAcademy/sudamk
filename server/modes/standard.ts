@@ -428,9 +428,48 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;
+    const resolveFixedScoringTurnState = async () => {
+        let fixedScoringTurnLimit: number | undefined;
+        let countPassAsTurn = false;
+        if ((game as any).gameCategory === 'guildwar') {
+            fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
+        } else if (game.gameCategory === 'tower') {
+            fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
+        } else if (game.isSinglePlayer && game.stageId) {
+            const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
+            const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+            fixedScoringTurnLimit = stage?.autoScoringTurns;
+        } else {
+            fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
+            // 전략바둑 scoringTurnLimit은 PASS(-1, -1)도 턴으로 계산한다.
+            countPassAsTurn = !game.isSinglePlayer && game.gameCategory !== 'tower';
+        }
+        const currentTurnCount = countPassAsTurn
+            ? (game.moveHistory || []).length
+            : (game.moveHistory || []).filter(m => m && m.x !== -1 && m.y !== -1).length;
+        return { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount };
+    };
 
     switch (type) {
         case 'PLACE_STONE': {
+            // 계가까지 수순이 고정된 모드에서는 제한 수순이 이미 채워졌다면 추가 착수를 차단한다.
+            const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();
+            if (fixedScoringTurnLimit != null && fixedScoringTurnLimit > 0) {
+                if (currentTurnCount >= fixedScoringTurnLimit) {
+                    game.totalTurns = currentTurnCount;
+                    if (game.gameStatus !== 'scoring' && game.gameStatus !== 'ended') {
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        try {
+                            await getGameResult(game);
+                        } catch (e: any) {
+                            console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra move, game ${game.id}:`, e?.message);
+                        }
+                    }
+                    return { error: '정해진 수순이 모두 완료되어 더 이상 돌을 놓을 수 없습니다.' };
+                }
+            }
+
             // triggerAutoScoring 플래그가 있으면 계가를 트리거
             if (payload.triggerAutoScoring) {
                 // 온라인 전략바둑/PVP/AI 대국에서는 항상 서버의 게임 상태를 기준으로 계가해야 함
@@ -1246,6 +1285,23 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
         }
         case 'PASS_TURN': {
             if (!isMyTurn || game.gameStatus !== 'playing') return { error: 'Not your turn to pass.' };
+            // 수순 고정 모드에서는 제한 수순 종료 후 PASS도 엄격 차단한다.
+            {
+                const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();
+                if (fixedScoringTurnLimit != null && fixedScoringTurnLimit > 0 && currentTurnCount >= fixedScoringTurnLimit) {
+                    game.totalTurns = currentTurnCount;
+                    if (game.gameStatus !== 'scoring' && game.gameStatus !== 'ended') {
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        try {
+                            await getGameResult(game);
+                        } catch (e: any) {
+                            console.error(`[handleStandardAction] Failed to auto-trigger scoring while blocking extra pass, game ${game.id}:`, e?.message);
+                        }
+                    }
+                    return { error: '정해진 수순이 모두 완료되어 더 이상 진행할 수 없습니다.' };
+                }
+            }
             {
                 const gc = (game as any).gameCategory;
                 const isAiLobbyGame =
@@ -1264,6 +1320,26 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             game.lastMove = { x: -1, y: -1 };
             game.lastTurnStones = null;
             game.moveHistory.push({ player: myPlayerEnum, x: -1, y: -1 });
+            {
+                // PASS 포함 카운트 모드(scoringTurnLimit)에서는 PASS 직후에도 즉시 수순 종료 계가를 트리거한다.
+                const { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount } = await resolveFixedScoringTurnState();
+                if (
+                    countPassAsTurn &&
+                    fixedScoringTurnLimit != null &&
+                    fixedScoringTurnLimit > 0 &&
+                    currentTurnCount >= fixedScoringTurnLimit
+                ) {
+                    game.totalTurns = currentTurnCount;
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    try {
+                        await getGameResult(game);
+                    } catch (e: any) {
+                        console.error(`[handleStandardAction] getGameResult failed after PASS_TURN scoringTurnLimit for game ${game.id}:`, e?.message);
+                    }
+                    return {};
+                }
+            }
 
             if (game.passCount >= 2) {
                 const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));

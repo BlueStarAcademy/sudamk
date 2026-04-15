@@ -7,7 +7,6 @@ import ConversionView from './blacksmith/ConversionView.js';
 import RefinementView from './blacksmith/RefinementView.js';
 import InventoryGrid from './blacksmith/InventoryGrid.js';
 import BlacksmithEquipmentPickerModal from './blacksmith/BlacksmithEquipmentPickerModal.js';
-import RefinementResultModal from './blacksmith/RefinementResultModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { BLACKSMITH_MAX_LEVEL, BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL, BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP } from '../constants/rules';
@@ -401,7 +400,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 selectedItem={selectedItem} 
                 currentUser={currentUserWithStatus} 
                 onAction={handlers.handleAction}
-                refinementResult={null}
+                refinementResult={modals.refinementResult}
                 onResultConfirm={handlers.clearRefinementResult}
                 stackedViewport={stackedForDetail}
             />;
@@ -831,12 +830,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                         </div>
                     </DraggableWindow>
                 )}
-
-            <RefinementResultModal
-                result={modals.refinementResult}
-                onClose={handlers.clearRefinementResult}
-                isTopmost
-            />
         </>
     );
 };

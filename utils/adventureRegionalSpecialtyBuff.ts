@@ -92,10 +92,11 @@ function migrateKind(raw: string): AdventureRegionalSpecialtyBuffKind {
     return LEGACY_KIND_MAP[raw] ?? 'regional_win_gold_10pct';
 }
 
-export function migrateRegionalBuffEntry(raw: Partial<AdventureRegionalSpecialtyBuffEntry> & { kind?: string }): AdventureRegionalSpecialtyBuffEntry {
-    const kind = migrateKind(String(raw.kind ?? 'regional_win_gold_10pct'));
+export function migrateRegionalBuffEntry(raw: (Partial<AdventureRegionalSpecialtyBuffEntry> & { kind?: string }) | null | undefined): AdventureRegionalSpecialtyBuffEntry {
+    const safeRaw = (raw && typeof raw === 'object') ? raw : {};
+    const kind = migrateKind(String(safeRaw.kind ?? 'regional_win_gold_10pct'));
     const max = getRegionalBuffMaxStacks(kind);
-    let stacks = Math.max(1, Math.floor((raw as any).stacks ?? 1));
+    let stacks = Math.max(1, Math.floor((safeRaw as any).stacks ?? 1));
     if (!Number.isFinite(stacks)) stacks = 1;
     stacks = Math.min(max, stacks);
     return { kind, stacks };

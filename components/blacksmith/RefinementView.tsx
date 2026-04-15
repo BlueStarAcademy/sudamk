@@ -10,6 +10,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
 import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
+import RefinementResultModal from './RefinementResultModal.js';
 
 const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
     { id: 'type', itemKey: '옵션 종류 변경권' },
@@ -806,17 +807,6 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                         </span>
                                     </button>
 
-                                    {/* 진행 바 애니메이션 (버튼 밑) */}
-                                    {isRefining && (
-                                        <div className="w-full">
-                                            <div className="w-full bg-gray-700 rounded-full h-2">
-                                                <div
-                                                    className="bg-blue-600 h-2 rounded-full transition-all duration-100"
-                                                    style={{ width: `${refinementProgress}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    )}
                                 </>
                             )}
                         </div>
@@ -826,6 +816,20 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                         </div>
                     )}
                         </div>
+                        {isRefining && (
+                            <div className="mt-2 shrink-0 border-t border-white/10 pt-2">
+                                <div className="mb-1 flex items-center justify-between text-[10px] text-cyan-200/90">
+                                    <span className="font-semibold">제련 진행도</span>
+                                    <span className="font-mono tabular-nums">{Math.max(0, Math.min(100, refinementProgress))}%</span>
+                                </div>
+                                <div className="w-full rounded-full bg-gray-700/90 h-2">
+                                    <div
+                                        className="h-2 rounded-full bg-blue-600 transition-all duration-100"
+                                        style={{ width: `${refinementProgress}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
@@ -851,6 +855,11 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                     })}
                 </div>
             </div>
+            <RefinementResultModal
+                result={refinementResult}
+                onClose={onResultConfirm}
+                isTopmost
+            />
         </div>
     );
 };
