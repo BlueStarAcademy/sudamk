@@ -17,8 +17,18 @@ export const TABLET_NARROW_SHORT_SIDE_LANDSCAPE_MAX_LONG_CSS_PX = 3200;
  * 1023px 등 1px 단위 반올림으로 1024 미만이 되는 기기를 포함하려고 1000으로 둔다.
  */
 export const TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX = 1000;
-/** 가로 태블릿 보정: 짧은 변이 이 값 이상일 때만 태블릿으로 본다(폰 가로 제외). */
-export const TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX = 600;
+/**
+ * 가로 태블릿 보정 하한.
+ * 일부 보급형 안드로이드 태블릿은 CSS viewport가 8~9인치여도 short side가 ~500px대로 내려간다.
+ * 폰 가로(보통 short side 400px대)와의 경계를 두기 위해 500px로 둔다.
+ */
+export const TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX = 500;
+/**
+ * 가로 태블릿 보정: 긴 변 하한.
+ * K10급(1280x800 물리 해상도) 기기에서 브라우저 zoom/DPR 반영 후 long side가 1000 미만으로 보일 수 있어
+ * 태블릿 오검출을 줄이기 위해 800px까지 허용한다.
+ */
+export const TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX = 800;
 
 export type TouchLayoutProfile = {
     /** 폰·소형 터치 기기: 항상 세로형 네이티브 셸 */
@@ -55,7 +65,7 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
         if (
             landscape &&
             shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
-            longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX &&
+            longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX &&
             longSide <= TABLET_NARROW_SHORT_SIDE_LANDSCAPE_MAX_LONG_CSS_PX
         ) {
             return { isPhoneHandheldTouch: false, isLargeTouchTablet: true };
