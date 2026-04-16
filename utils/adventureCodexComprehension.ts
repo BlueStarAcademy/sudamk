@@ -284,8 +284,9 @@ export function getAdventureCodexComprehensionBarProgress(
         return { prog: 1, nextAt: null, prevThreshold };
     }
     if (nextAt != null && nextAt > prevThreshold) {
+        /** 카드 표기(예: 1/10승, 20/30승)와 동일 기준으로 진행률을 맞춘다. */
         return {
-            prog: Math.min(1, (w - prevThreshold) / (nextAt - prevThreshold)),
+            prog: Math.min(1, w / nextAt),
             nextAt,
             prevThreshold,
         };
