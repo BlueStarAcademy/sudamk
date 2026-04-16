@@ -78,6 +78,7 @@ export interface GenerateKataServerMoveParams {
     /**
      * KataServer가 game_id 헤더로 세션을 캐시하는 경우, 히든 전체 공개 등으로 수순이 같은 길이인데
      * 좌표가 바뀌면 이전 국면이 남아 AI가 멈추거나 잘못된 수를 고를 수 있다. 이 값을 바꿔 캐시를 무효화한다.
+     * 재입장(/api/game/rejoin) 시에는 settings.kataSessionResumeSeq 기반 `rsN`이 태그에 포함된다(goAiBot).
      */
     kataSessionTag?: string;
     /** false: PASS 후보 제외(둘 곳이 없을 때만 PASS). 생략 시 서버 기본(true). */

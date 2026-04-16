@@ -127,6 +127,7 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         singlePlayerProgress: 0,
         bonusStatPoints: 0,
         singlePlayerMissions: {},
+        onboardingTutorialPhase: isAdmin ? undefined : 0,
         guildId: undefined,
         guildCoins: 0,
         guildBossAttempts: 0,

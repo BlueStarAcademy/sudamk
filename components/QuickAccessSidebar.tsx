@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { isOnboardingTutorialActive } from '../shared/constants/onboardingTutorial.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
     compact?: boolean;
@@ -32,6 +33,10 @@ type QuickBtn = {
     disabled?: boolean;
     notification?: boolean;
     count?: number;
+    /** 온보딩 안내용 점멸 */
+    pulse?: boolean;
+    /** `data-onboarding-target` — 스포트라이트 */
+    onboardingTarget?: string;
 };
 
 const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
@@ -46,6 +51,23 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 }) => {
     const { handlers, hasClaimableQuest, currentUserWithStatus } = useAppContext();
 
+    const onboardingPhase = currentUserWithStatus?.onboardingTutorialPhase ?? 0;
+    const onboardingActive = isOnboardingTutorialActive(currentUserWithStatus);
+    const tutorialQuickDisabled = (label: string) => {
+        if (!onboardingActive) return false;
+        if (onboardingPhase >= 11) return false;
+        if (label === '가방') return onboardingPhase < 9;
+        if (label === '대장간') return onboardingPhase < 10;
+        if (label === '퀘스트' || label === '기보' || label === '상점') return true;
+        return false;
+    };
+    const tutorialQuickPulse = (label: string) => {
+        if (!onboardingActive) return false;
+        if (label === '가방' && onboardingPhase === 9) return true;
+        if (label === '대장간' && onboardingPhase === 10) return true;
+        return false;
+    };
+
     if (showOnlyWhenQuestCompleted && !hasClaimableQuest) {
         return null;
     }
@@ -57,7 +79,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/quest.png',
                 handler: handlers.openQuests,
-                disabled: false,
+                disabled: tutorialQuickDisabled('퀘스트'),
                 notification: hasClaimableQuest,
             },
             {
@@ -65,7 +87,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/gibo.png',
                 handler: handlers.openGameRecordList,
-                disabled: false,
+                disabled: tutorialQuickDisabled('기보'),
                 notification: false,
             },
             {
@@ -73,15 +95,17 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/enhance.png',
                 handler: handlers.openBlacksmithModal,
-                disabled: false,
+                disabled: tutorialQuickDisabled('대장간'),
                 notification: false,
+                pulse: tutorialQuickPulse('대장간'),
+                onboardingTarget: 'onboarding-quick-forge',
             },
             {
                 label: '상점',
                 gameplay: true,
                 iconUrl: '/images/quickmenu/store.png',
                 handler: () => handlers.openShop(),
-                disabled: false,
+                disabled: tutorialQuickDisabled('상점'),
                 notification: false,
             },
             {
@@ -89,8 +113,10 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 gameplay: true,
                 iconUrl: '/images/quickmenu/bag.png',
                 handler: handlers.openInventory,
-                disabled: false,
+                disabled: tutorialQuickDisabled('가방'),
                 notification: false,
+                pulse: tutorialQuickPulse('가방'),
+                onboardingTarget: 'onboarding-quick-bag',
             },
             {
                 label: '랭킹',
@@ -141,7 +167,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
         ],
-        [handlers, hasClaimableQuest],
+        [handlers, hasClaimableQuest, onboardingActive, onboardingPhase],
     );
 
     const gameplayButtons = buttons.filter((b) => b.gameplay);
@@ -241,7 +267,8 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 }}
                 disabled={btn.disabled}
                 title={btn.label}
-                className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${topBar ? 'h-full min-h-0 py-1' : 'py-1'} ${shell}`}
+                {...(btn.onboardingTarget ? { 'data-onboarding-target': btn.onboardingTarget } : {})}
+                className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''} ${topBar ? 'h-full min-h-0 py-1' : 'py-1'} ${shell}`}
             >
                 <div className={iconShell}>
                     {renderIcon(btn, iconInner)}
@@ -376,7 +403,8 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 }}
                 disabled={btn.disabled}
                 title={btn.label}
-                className={`${base} disabled:cursor-not-allowed disabled:opacity-45`}
+                {...(btn.onboardingTarget ? { 'data-onboarding-target': btn.onboardingTarget } : {})}
+                className={`${base} disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''}`}
             >
                 <div className="flex h-10 w-full items-center justify-center sm:h-11">
                     {btn.iconUrl ? (

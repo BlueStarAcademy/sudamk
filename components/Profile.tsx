@@ -28,6 +28,16 @@ import {
 } from '../constants/arenaEntrance.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
+import { isOnboardingTutorialActive, ONBOARDING_PHASE_COMPLETE } from '../shared/constants/onboardingTutorial.js';
+import {
+    userMeetsGuildFeatureLevelRequirement,
+    MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
+    getCombinedStrategyPlayfulLevel,
+} from '../shared/constants/guildConstants.js';
+
+function isVipExpiresActive(exp?: number): boolean {
+    return typeof exp === 'number' && Number.isFinite(exp) && exp > Date.now();
+}
 
 interface ProfileProps {
 }
@@ -532,6 +542,56 @@ const Profile: React.FC<ProfileProps> = () => {
     const [isGuildJoinModalOpen, setIsGuildJoinModalOpen] = useState(false);
     /** 네이티브 홈 하단 패널: 바둑능력 ↔ 장비보기 */
     const [nativeHomeLowerTab, setNativeHomeLowerTab] = useState<'baduk' | 'equipment'>('baduk');
+    const [tutorialAdminBusy, setTutorialAdminBusy] = useState(false);
+    const tutorialPreviewActive = isOnboardingTutorialActive(currentUserWithStatus);
+
+    const meetsGuildLevelForFeatures = useMemo(
+        () => (currentUserWithStatus ? userMeetsGuildFeatureLevelRequirement(currentUserWithStatus) : false),
+        [currentUserWithStatus?.strategyLevel, currentUserWithStatus?.playfulLevel, currentUserWithStatus?.isAdmin],
+    );
+
+    const handleAdminTutorialToggle = useCallback(async () => {
+        if (!currentUserWithStatus?.isAdmin || !handlers?.handleAction) return;
+        setTutorialAdminBusy(true);
+        try {
+            await handlers.handleAction({
+                type: 'ADVANCE_ONBOARDING_TUTORIAL',
+                payload: { phase: tutorialPreviewActive ? ONBOARDING_PHASE_COMPLETE : 0 },
+            });
+        } finally {
+            setTutorialAdminBusy(false);
+        }
+    }, [currentUserWithStatus, handlers, tutorialPreviewActive]);
+
+    const [vipMenuOpen, setVipMenuOpen] = useState(false);
+    const [vipTestBusy, setVipTestBusy] = useState(false);
+    const vipMenuRef = useRef<HTMLDivElement>(null);
+
+    const sendAdminVipTestFlags = useCallback(
+        async (flags: { rewardVip: boolean; functionVip: boolean; vvip: boolean }) => {
+            if (!handlers?.handleAction || !currentUserWithStatus?.isAdmin) return;
+            setVipTestBusy(true);
+            try {
+                await handlers.handleAction({ type: 'ADMIN_SET_VIP_TEST_FLAGS', payload: flags });
+            } finally {
+                setVipTestBusy(false);
+            }
+        },
+        [handlers, currentUserWithStatus?.isAdmin],
+    );
+
+    useEffect(() => {
+        if (!vipMenuOpen) return;
+        const onPointerDown = (ev: PointerEvent) => {
+            const el = vipMenuRef.current;
+            if (!el) return;
+            if (!el.contains(ev.target as Node)) {
+                setVipMenuOpen(false);
+            }
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    }, [vipMenuOpen]);
 
     useEffect(() => {
         if (profileTab !== 'home') setNativeHomeLowerTab('baduk');
@@ -569,12 +629,32 @@ const Profile: React.FC<ProfileProps> = () => {
     const hasLoadedGuildRef = useRef<Set<string>>(new Set());
     const hasCheckedGuildRef = useRef(false);
     const loadingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-    
+    const prevMeetsGuildLevelRef = useRef<boolean | null>(null);
+
+    useEffect(() => {
+        const p = prevMeetsGuildLevelRef.current;
+        if (p === false && meetsGuildLevelForFeatures) {
+            hasCheckedGuildRef.current = false;
+            setGuildCheckDone(false);
+        }
+        prevMeetsGuildLevelRef.current = meetsGuildLevelForFeatures;
+    }, [meetsGuildLevelForFeatures]);
+
     // 길드 정보 확인 (초기 로딩 시 한 번만 실행)
     // guildCheckDone은 '길드 있음' 또는 '가입한 길드 없음'이 확실할 때만 true → 그 전에는 버튼 노출 안 함
     useEffect(() => {
         if (hasCheckedGuildRef.current) return;
-        
+        const u = currentUserWithStatus;
+        if (!u || !handlers?.handleAction) return;
+
+        if (!meetsGuildLevelForFeatures && !u.guildId) {
+            hasCheckedGuildRef.current = true;
+            setGuildCheckDone(true);
+            setGuildLoadingFailed(false);
+            setCheckedGuildFromApi(null);
+            return;
+        }
+
         const checkGuild = async () => {
             setGuildLoadingFailed(false);
             
@@ -605,8 +685,8 @@ const Profile: React.FC<ProfileProps> = () => {
             }
         };
         
-        checkGuild();
-    }, [handlers]);
+        void checkGuild();
+    }, [handlers, currentUserWithStatus, meetsGuildLevelForFeatures]);
     
     // 다른 경로(두 번째 useEffect 등)로 guildInfo가 들어오면 그때 완료 처리해서 길드 표시
     useEffect(() => {
@@ -616,6 +696,9 @@ const Profile: React.FC<ProfileProps> = () => {
     // 길드에 소속되어 있는데 길드 정보가 없으면 즉시 가져오기 (한 번만 실행)
     useEffect(() => {
         const guildId = currentUserWithStatus?.guildId;
+        if (!meetsGuildLevelForFeatures && !guildId) {
+            return;
+        }
         if (!guildId) {
             // guildId가 없어도 이미 확인했으면 더 이상 처리하지 않음
             if (hasCheckedGuildRef.current) {
@@ -677,7 +760,7 @@ const Profile: React.FC<ProfileProps> = () => {
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentUserWithStatus?.guildId]);
+    }, [currentUserWithStatus?.guildId, meetsGuildLevelForFeatures]);
     
     if (!currentUserWithStatus) return null;
 
@@ -1146,6 +1229,15 @@ const Profile: React.FC<ProfileProps> = () => {
                     <div className={`${nh ? 'min-h-0 py-1 px-1' : 'min-h-[52px]'} ${nh ? '' : readableHome ? 'p-1.5 sm:p-2' : 'p-1 sm:p-1.5'}`}>
                     {!guildCheckDone ? (
                         <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
+                    ) : !meetsGuildLevelForFeatures && !currentUserWithStatus.guildId ? (
+                        <div
+                            className={`px-2 py-2 text-center leading-snug text-zinc-300 ${
+                                nh ? 'text-[10px]' : readableHome ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'
+                            }`}
+                        >
+                            길드는 전략·놀이 레벨 합 {MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES} 이상에서 이용할 수 있습니다. (현재 합{' '}
+                            {getCombinedStrategyPlayfulLevel(currentUserWithStatus)})
+                        </div>
                     ) : guildInfo ? (
                             <div className="flex min-w-0 flex-nowrap items-center gap-1.5 px-0.5 py-1 sm:gap-2 sm:px-1 sm:py-1.5">
                                 <div
@@ -1191,28 +1283,68 @@ const Profile: React.FC<ProfileProps> = () => {
                                         {guildInfo.name}
                                     </div>
                                 </div>
-                                <Button
-                                    onClick={() => (window.location.hash = '#/guild')}
-                                    colorScheme="none"
-                                    className={`!shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white ${
-                                        usePcHomePanelStyle
-                                            ? '!px-2.5 !py-1.5 !text-xs sm:!text-sm'
-                                            : nh
-                                              ? '!px-2 !py-1 !text-[10px]'
-                                              : '!px-2 !py-1 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]'
-                                    }`}
-                                    title="길드 홈 보기"
-                                >
-                                    길드 입장
-                                </Button>
+                                {meetsGuildLevelForFeatures ? (
+                                    <Button
+                                        onClick={() => (window.location.hash = '#/guild')}
+                                        colorScheme="none"
+                                        className={`!shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white ${
+                                            usePcHomePanelStyle
+                                                ? '!px-2.5 !py-1.5 !text-xs sm:!text-sm'
+                                                : nh
+                                                  ? '!px-2 !py-1 !text-[10px]'
+                                                  : '!px-2 !py-1 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]'
+                                        }`}
+                                        title="길드 홈 보기"
+                                    >
+                                        길드 입장
+                                    </Button>
+                                ) : (
+                                    <div className="flex shrink-0 flex-col items-end gap-1">
+                                        <Button
+                                            type="button"
+                                            disabled
+                                            colorScheme="none"
+                                            className={`!shrink-0 cursor-not-allowed !whitespace-nowrap rounded-md border border-zinc-600 bg-zinc-800/80 !text-zinc-400 ${
+                                                nh ? '!px-2 !py-1 !text-[10px]' : '!px-2.5 !py-1 !text-[11px] sm:!text-xs'
+                                            }`}
+                                            title={`레벨 합 ${MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES} 이상에서 길드 홈을 이용할 수 있습니다.`}
+                                        >
+                                            잠금
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            onClick={() => {
+                                                if (!window.confirm('길드를 떠나시겠습니까?')) return;
+                                                void handlers.handleAction({ type: 'LEAVE_GUILD' });
+                                            }}
+                                            colorScheme="none"
+                                            className={`!shrink-0 !whitespace-nowrap rounded-md border border-rose-500/50 bg-rose-950/40 !font-semibold !text-rose-100 hover:border-rose-400 ${
+                                                nh ? '!px-2 !py-0.5 !text-[10px]' : '!px-2 !py-1 !text-[10px] sm:!text-xs'
+                                            }`}
+                                        >
+                                            길드 탈퇴
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                     ) : guildLoadingFailed ? (
-                        <div className="flex min-w-0 items-center gap-2">
-                            <div className="flex min-w-0 flex-1 flex-nowrap gap-2">
-                                <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}>길드창설</Button>
-                                <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}>길드가입</Button>
+                        meetsGuildLevelForFeatures ? (
+                            <div className="flex min-w-0 items-center gap-2">
+                                <div className="flex min-w-0 flex-1 flex-nowrap gap-2">
+                                    <Button onClick={() => setIsGuildCreateModalOpen(true)} colorScheme="none" className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}>길드창설</Button>
+                                    <Button onClick={() => setIsGuildJoinModalOpen(true)} colorScheme="none" className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}>길드가입</Button>
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            <div
+                                className={`px-2 py-2 text-center leading-snug text-zinc-300 ${
+                                    nh ? 'text-[10px]' : readableHome ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'
+                                }`}
+                            >
+                                길드는 전략·놀이 레벨 합 {MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES} 이상에서 이용할 수 있습니다. (현재 합{' '}
+                                {getCombinedStrategyPlayfulLevel(currentUserWithStatus)})
+                            </div>
+                        )
                     ) : (
                         <div className="w-full p-2 min-h-[40px]" aria-hidden="true" />
                     )}
@@ -1221,7 +1353,25 @@ const Profile: React.FC<ProfileProps> = () => {
             </div>
         </div>
         );
-    }, [currentUserWithStatus, handlers, mannerRank, mannerStyle, totalMannerScore, guildInfo, guilds, guildCheckDone, guildLoadingFailed, combinedLevel, nickname, avatarUrl, borderUrl, isNativeMobile, usePcHomePanelStyle, webHomeProfileLayout]);
+    }, [
+        currentUserWithStatus,
+        handlers,
+        mannerRank,
+        mannerStyle,
+        totalMannerScore,
+        guildInfo,
+        guilds,
+        guildCheckDone,
+        guildLoadingFailed,
+        combinedLevel,
+        nickname,
+        avatarUrl,
+        borderUrl,
+        isNativeMobile,
+        usePcHomePanelStyle,
+        webHomeProfileLayout,
+        meetsGuildLevelForFeatures,
+    ]);
 
     const AbilityStatsPanelContent = useMemo(() => {
         const nh = isNativeMobile && !usePcHomePanelStyle;
@@ -1398,7 +1548,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
-                    <div className={mergedCardClass}>
+                    <div className={mergedCardClass} data-onboarding-target="onboarding-sp-home-card">
                         <div className={imagePaneClass}>
                             <div
                                 onClick={onSelectSinglePlayerLobby}
@@ -1425,7 +1575,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 {isNativeMobile && profileTab !== 'home' ? (
                     <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} />
                 ) : (
-                    <div className={mergedCardClass}>
+                    <div className={mergedCardClass} data-onboarding-target="onboarding-tower-card">
                         <div className={imagePaneClass}>
                             <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} />
                         </div>
@@ -1605,6 +1755,97 @@ const Profile: React.FC<ProfileProps> = () => {
             </div>
         </div>
     );
+    const adminVipCorner =
+        currentUserWithStatus.isAdmin ? (
+            <div
+                ref={vipMenuRef}
+                className="pointer-events-auto absolute left-1 top-1 z-[4] max-[680px]:left-0.5 max-[680px]:top-0.5 sm:left-2 sm:top-1.5"
+            >
+                <Button
+                    type="button"
+                    colorScheme="none"
+                    bare
+                    disabled={vipTestBusy}
+                    onClick={() => setVipMenuOpen((o) => !o)}
+                    className="touch-manipulation !rounded-md !border !border-amber-400/55 !bg-amber-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-amber-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
+                    title="VIP 헤더·혜택 UI 테스트"
+                >
+                    VIP
+                </Button>
+                {vipMenuOpen ? (
+                    <div
+                        className="absolute left-0 top-[calc(100%+0.35rem)] z-[5] w-[13.75rem] rounded-xl border border-amber-500/45 bg-zinc-950/98 p-2 shadow-2xl ring-1 ring-black/50 backdrop-blur-sm"
+                        role="dialog"
+                        aria-label="VIP 테스트"
+                    >
+                        <p className="mb-1.5 text-center text-[9px] font-bold uppercase tracking-[0.14em] text-amber-200/90">
+                            VIP 종류
+                        </p>
+                        <div className="space-y-1.5">
+                            {(
+                                [
+                                    { flag: 'rewardVip' as const, label: '보상 VIP' },
+                                    { flag: 'functionVip' as const, label: '기능 VIP' },
+                                    { flag: 'vvip' as const, label: 'VVIP' },
+                                ] as const
+                            ).map((row) => {
+                                const base = currentUserWithStatus;
+                                const curFlags = {
+                                    rewardVip: isVipExpiresActive(base.rewardVipExpiresAt),
+                                    functionVip: isVipExpiresActive(base.functionVipExpiresAt),
+                                    vvip: isVipExpiresActive(base.vvipExpiresAt),
+                                };
+                                const on = curFlags[row.flag];
+                                return (
+                                    <div
+                                        key={row.flag}
+                                        className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-black/35 px-2 py-1.5"
+                                    >
+                                        <span className="min-w-0 text-[11px] font-semibold text-amber-50/95">{row.label}</span>
+                                        <div className="flex shrink-0 gap-0.5">
+                                            <button
+                                                type="button"
+                                                disabled={vipTestBusy}
+                                                onClick={() =>
+                                                    void sendAdminVipTestFlags({
+                                                        ...curFlags,
+                                                        [row.flag]: false,
+                                                    })
+                                                }
+                                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
+                                                    !on
+                                                        ? 'bg-amber-600 text-white'
+                                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                }`}
+                                            >
+                                                OFF
+                                            </button>
+                                            <button
+                                                type="button"
+                                                disabled={vipTestBusy}
+                                                onClick={() =>
+                                                    void sendAdminVipTestFlags({
+                                                        ...curFlags,
+                                                        [row.flag]: true,
+                                                    })
+                                                }
+                                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition-colors ${
+                                                    on
+                                                        ? 'bg-emerald-600 text-white'
+                                                        : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                                                }`}
+                                            >
+                                                ON
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ) : null}
+            </div>
+        ) : null;
     return (
         <div
             className={`bg-transparent text-primary flex w-full flex-col ${isNativeMobile ? 'sudamr-native-route-root h-full max-h-full min-h-0' : 'h-full p-2 sm:p-4 lg:p-2'}`}
@@ -1624,9 +1865,32 @@ const Profile: React.FC<ProfileProps> = () => {
                         {profileTab === 'home' && (
                             <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1 overflow-hidden max-[760px]:gap-0.5 max-[680px]:gap-[0.18rem]">
                                 <div className="grid h-full min-h-0 w-full min-w-0 grid-rows-[minmax(0,1fr)_minmax(0,1fr)] gap-[clamp(0.14rem,0.5dvh,0.28rem)] overflow-hidden max-[680px]:gap-[0.1rem]">
-                                    <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                                    <div
+                                        data-onboarding-target="onboarding-home-profile"
+                                        className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15"
+                                    >
                                         <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                                         <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                                        {adminVipCorner}
+                                        {currentUserWithStatus.isAdmin && (
+                                            <div className="pointer-events-auto absolute right-1 top-1 z-[4] max-[680px]:right-0.5 max-[680px]:top-0.5 sm:right-2 sm:top-1.5">
+                                                <Button
+                                                    type="button"
+                                                    colorScheme="none"
+                                                    bare
+                                                    disabled={tutorialAdminBusy}
+                                                    onClick={() => void handleAdminTutorialToggle()}
+                                                    className="touch-manipulation !rounded-md !border !border-violet-400/55 !bg-violet-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-violet-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
+                                                    title={
+                                                        tutorialPreviewActive
+                                                            ? '신규 튜토리얼 테스트 종료'
+                                                            : '신규 튜토리얼을 0단계부터 테스트'
+                                                    }
+                                                >
+                                                    {tutorialPreviewActive ? '튜토리얼 끝' : '튜토리얼'}
+                                                </Button>
+                                            </div>
+                                        )}
                                         <div
                                             className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden text-on-panel ${profileStackPanelPadProfilePc}`}
                                         >
@@ -1760,9 +2024,32 @@ const Profile: React.FC<ProfileProps> = () => {
                 <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-1.5 overflow-hidden">
                     {/* 좌측: 프로필 패널(스크롤 없음) + 능력치 / 중앙: 입장 카드 / 우측: 퀵 메뉴 */}
                     <div className="grid h-full min-h-0 w-[min(43%,500px)] min-w-[292px] max-w-[500px] shrink-0 grid-rows-[repeat(3,minmax(0,1fr))] gap-[clamp(0.3rem,0.9dvh,0.45rem)] overflow-hidden">
-                        <div className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15">
+                        <div
+                            data-onboarding-target="onboarding-home-profile"
+                            className="relative flex min-h-0 h-full min-w-0 flex-col overflow-hidden rounded-xl border-2 border-amber-500/45 bg-gradient-to-b from-zinc-800 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15"
+                        >
                             <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+                            {profileTab === 'home' && adminVipCorner}
+                            {profileTab === 'home' && currentUserWithStatus.isAdmin && (
+                                <div className="pointer-events-auto absolute right-1.5 top-1.5 z-[4] sm:right-2 sm:top-2">
+                                    <Button
+                                        type="button"
+                                        colorScheme="none"
+                                        bare
+                                        disabled={tutorialAdminBusy}
+                                        onClick={() => void handleAdminTutorialToggle()}
+                                        className="!rounded-md !border !border-violet-400/55 !bg-violet-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-violet-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
+                                        title={
+                                            tutorialPreviewActive
+                                                ? '신규 튜토리얼 테스트 종료'
+                                                : '신규 튜토리얼을 0단계부터 테스트'
+                                        }
+                                    >
+                                        {tutorialPreviewActive ? '튜토리얼 끝' : '튜토리얼'}
+                                    </Button>
+                                </div>
+                            )}
                             <div
                                 className={`flex min-h-0 h-full min-w-0 flex-1 flex-col overflow-hidden text-on-panel ${profileStackPanelPadProfilePc}`}
                             >

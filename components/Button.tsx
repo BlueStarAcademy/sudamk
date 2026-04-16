@@ -9,6 +9,8 @@ interface ButtonProps {
   colorScheme?: ColorScheme;
   variant?: string;
   disabled?: boolean;
+  /** true면 disabled여도 기본 회색·투명 처리 없음(클릭은 막힘). colorScheme none + 커스텀 입장 버튼 등 */
+  disabledWithoutDim?: boolean;
   className?: string;
   type?: 'button' | 'submit' | 'reset';
   title?: string;
@@ -16,6 +18,8 @@ interface ButtonProps {
   cooldownMs?: number;
   /** true면 기본 테두리·배경·기본 fontSize·텍스트 자동 축소를 쓰지 않고 className만 적용 (경기장 종료 패널 등) */
   bare?: boolean;
+  /** 온보딩 스포트라이트 타깃 측정용 */
+  'data-onboarding-target'?: string;
 }
 
 const Button: React.FC<ButtonProps> = ({
@@ -23,14 +27,20 @@ const Button: React.FC<ButtonProps> = ({
   onClick,
   colorScheme = 'accent',
   disabled = false,
+  disabledWithoutDim = false,
   className = '',
   type = 'button',
   title,
   style,
   cooldownMs = 1000,
   bare = false,
+  'data-onboarding-target': dataOnboardingTarget,
 }) => {
-  const baseClasses = "px-4 py-2 font-bold rounded-lg transition-all duration-150 ease-in-out border-2 border-amber-400/60 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3),0_2px_4px_-1px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.1)] active:translate-y-0.5 active:shadow-[0_2px_4px_-1px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-primary disabled:bg-secondary disabled:opacity-70 disabled:cursor-not-allowed whitespace-nowrap overflow-hidden";
+  const baseDisabledDim = 'disabled:bg-secondary disabled:opacity-70 disabled:cursor-not-allowed';
+  const baseDisabledNoDim = 'disabled:cursor-not-allowed';
+  const baseClasses = `px-4 py-2 font-bold rounded-lg transition-all duration-150 ease-in-out border-2 border-amber-400/60 shadow-[0_4px_6px_-1px_rgba(0,0,0,0.3),0_2px_4px_-1px_rgba(0,0,0,0.2),inset_0_1px_0_0_rgba(255,255,255,0.1)] active:translate-y-0.5 active:shadow-[0_2px_4px_-1px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:ring-offset-2 focus:ring-offset-primary whitespace-nowrap overflow-hidden ${
+      disabledWithoutDim ? baseDisabledNoDim : baseDisabledDim
+  }`;
 
   const [isCoolingDown, setIsCoolingDown] = useState(false);
   const cooldownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -167,6 +177,7 @@ const Button: React.FC<ButtonProps> = ({
       className={mergedClassName}
       title={title}
       style={Object.keys(defaultStyle).length ? defaultStyle : undefined}
+      data-onboarding-target={dataOnboardingTarget}
     >
       {bare || hasComplexChildren ? (
         children

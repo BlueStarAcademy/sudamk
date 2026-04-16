@@ -241,6 +241,8 @@ export function PreGameSummaryGrid({
   briefLayout = false,
   /** 도전의 탑: 미사일·히든·스캔 배지가 0일 때 탭하면 상점 */
   onTowerItemZeroClick,
+  /** 온보딩 phase 5: 승패 / 나머지 블록에 `data-onboarding-target` 분리 */
+  embedOnboardingSpotlightTargets = false,
 }: {
   session: LiveGameSession;
   summary: PreGameSummaryFour;
@@ -248,6 +250,7 @@ export function PreGameSummaryGrid({
   singleColumn?: boolean;
   briefLayout?: boolean;
   onTowerItemZeroClick?: (slotKey: string) => void;
+  embedOnboardingSpotlightTargets?: boolean;
 }) {
   const panelShell =
     'group relative min-w-0 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_12px_36px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/20';
@@ -309,194 +312,219 @@ export function PreGameSummaryGrid({
       ? 'select-none text-center text-[0.72rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs'
       : 'select-none text-center text-[0.65rem] font-black italic leading-none tracking-tight drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)] sm:text-xs';
 
-  return (
-    <div className={singleColumn ? 'space-y-2.5 sm:space-y-2.5' : 'space-y-2 sm:space-y-2.5'}>
-      <div className={primaryGridClass}>
-        {primaryCells.map((c) => {
-          if (c.kind === 'goal') {
-            const isWin = c.goalKind === 'win';
-            return (
-              <div
-                key={c.key}
-                className={`${panelShell} flex min-h-0 min-w-0 flex-col ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}
-              >
-                <div
-                  className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl transition-opacity duration-200 group-hover:opacity-90 ${
-                    isWin ? 'bg-amber-400/[0.07]' : 'bg-rose-500/[0.06]'
-                  }`}
-                  aria-hidden
-                />
-                <div className="flex min-w-0 w-full items-start gap-2 sm:gap-2.5">
-                  <div
-                    className={`${imgBoxGoal} ${isWin ? 'border-amber-400/35' : 'border-rose-400/35'}`}
-                  >
-                    <span
-                      className={`${winLoseBadge} ${isWin ? 'text-amber-200' : 'text-rose-200/95'}`}
-                      aria-hidden
-                    >
-                      {isWin ? 'WIN' : 'LOSE'}
-                    </span>
-                  </div>
-                  <div className="relative min-w-0 flex-1 self-stretch">
-                    <div className={titleRow}>{c.title}</div>
-                    <PreGameSummaryCellBody text={c.line} density={cellDensity} />
-                  </div>
-                </div>
-              </div>
-            );
-          }
+  const outerStackClass = singleColumn ? 'space-y-2.5 sm:space-y-2.5' : 'space-y-2 sm:space-y-2.5';
+  const goalCells = primaryCells.filter((c): c is Extract<TopCell, { kind: 'goal' }> => c.kind === 'goal');
+  const imgCells = primaryCells.filter((c): c is Extract<TopCell, { kind: 'img' }> => c.kind === 'img');
 
-          if (c.kind !== 'img') return null;
-
-          return (
-            <div
-              key={c.key}
-              className={`${panelShell} flex min-h-0 min-w-0 items-start gap-2 sm:gap-2.5 ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}
-            >
-              <div
-                className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-400/[0.05] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+  const renderPrimaryCell = (c: TopCell) => {
+    if (c.kind === 'goal') {
+      const isWin = c.goalKind === 'win';
+      return (
+        <div
+          key={c.key}
+          className={`${panelShell} flex min-h-0 min-w-0 flex-col ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}
+        >
+          <div
+            className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full blur-2xl transition-opacity duration-200 group-hover:opacity-90 ${
+              isWin ? 'bg-amber-400/[0.07]' : 'bg-rose-500/[0.06]'
+            }`}
+            aria-hidden
+          />
+          <div className="flex min-w-0 w-full items-start gap-2 sm:gap-2.5">
+            <div className={`${imgBoxGoal} ${isWin ? 'border-amber-400/35' : 'border-rose-400/35'}`}>
+              <span
+                className={`${winLoseBadge} ${isWin ? 'text-amber-200' : 'text-rose-200/95'}`}
                 aria-hidden
-              />
-              <div className={imgBoxPlain}>
-                <img src={c.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)]" />
-              </div>
-              <div className="relative min-w-0 flex-1 self-stretch">
-                <div className={titleRow}>{c.title}</div>
-                <PreGameSummaryCellBody text={c.body} density={cellDensity} />
-              </div>
+              >
+                {isWin ? 'WIN' : 'LOSE'}
+              </span>
             </div>
-          );
-        })}
-      </div>
+            <div className="relative min-w-0 flex-1 self-stretch">
+              <div className={titleRow}>{c.title}</div>
+              <PreGameSummaryCellBody text={c.line} density={cellDensity} />
+            </div>
+          </div>
+        </div>
+      );
+    }
 
-      <div className={`${panelShell} flex min-w-0 flex-col gap-2 ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}>
+    if (c.kind !== 'img') return null;
+
+    return (
+      <div
+        key={c.key}
+        className={`${panelShell} flex min-h-0 min-w-0 items-start gap-2 sm:gap-2.5 ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}
+      >
         <div
           className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-400/[0.05] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
           aria-hidden
         />
-        <div className={titleRow}>{itemStripCell.title}</div>
-        {summary.itemSlots.length === 0 ? (
-          <div
-            className={
-              briefLayout
-                ? `flex ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-0.5 opacity-45`
-                : singleColumn
-                  ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-11 sm:w-11'
-                  : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-10 sm:w-10'
-            }
-            aria-label="아이템 없음"
-            role="img"
-          >
-            <img
-              src="/images/simbols/simbol1.png"
-              alt=""
-              className={
-                briefLayout
-                  ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain opacity-70 grayscale'
-                  : 'max-h-full max-w-full object-contain opacity-70 grayscale'
-              }
-            />
-          </div>
-        ) : (
-          <div
-            className={
-              briefLayout
-                ? 'flex min-w-0 flex-wrap content-start gap-1.5 sm:gap-2'
-                : 'flex min-w-0 flex-wrap content-start gap-2 sm:gap-2.5'
-            }
-          >
-            {summary.itemSlots.map((slot) => (
-              <PreGameItemSlotIcon
-                key={slot.key}
-                slot={slot}
-                comfortable={singleColumn}
-                briefLayout={briefLayout}
-                onZeroClick={
-                  session.gameCategory === 'tower' &&
-                  slot.towerShopOnZero &&
-                  slot.count <= 0 &&
-                  onTowerItemZeroClick
-                    ? () => onTowerItemZeroClick(slot.key)
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-        )}
+        <div className={imgBoxPlain}>
+          <img src={c.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.45)]" />
+        </div>
+        <div className="relative min-w-0 flex-1 self-stretch">
+          <div className={titleRow}>{c.title}</div>
+          <PreGameSummaryCellBody text={c.body} density={cellDensity} />
+        </div>
       </div>
+    );
+  };
 
-      <div className={`${panelShell} ${singleColumn ? 'p-2.5 sm:p-3' : 'p-2.5 sm:p-3'}`}>
-        <div
-          className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-violet-500/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
-          aria-hidden
-        />
+  const itemStripPanel = (
+    <div className={`${panelShell} flex min-w-0 flex-col gap-2 ${singleColumn ? 'p-2.5 sm:p-2.5' : 'p-2 sm:p-2.5'}`}>
+      <div
+        className="pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full bg-amber-400/[0.05] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+        aria-hidden
+      />
+      <div className={titleRow}>{itemStripCell.title}</div>
+      {summary.itemSlots.length === 0 ? (
         <div
           className={
             briefLayout
-              ? singleColumn
-                ? 'text-[0.62rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.65rem]'
-                : 'text-[0.58rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.62rem]'
+              ? `flex ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-0.5 opacity-45`
               : singleColumn
-                ? 'text-[0.7rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.72rem]'
-                : 'text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.7rem]'
+                ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-11 sm:w-11'
+                : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-10 sm:w-10'
           }
+          aria-label="아이템 없음"
+          role="img"
         >
-          특수 규칙
-        </div>
-        {summary.specialHighlights.length === 0 ? (
-          <p
+          <img
+            src="/images/simbols/simbol1.png"
+            alt=""
             className={
               briefLayout
-                ? singleColumn
-                  ? 'mt-1 text-[0.68rem] font-semibold text-slate-400 sm:text-[0.72rem]'
-                  : 'mt-1 text-[0.65rem] font-semibold text-slate-400 sm:text-[0.7rem]'
-                : singleColumn
-                  ? 'mt-1.5 text-[0.8125rem] font-semibold text-slate-400 sm:text-sm'
-                  : 'mt-1.5 text-xs font-semibold text-slate-400 sm:text-sm'
+                ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain opacity-70 grayscale'
+                : 'max-h-full max-w-full object-contain opacity-70 grayscale'
             }
-          >
-            {SUMMARY_NONE}
-          </p>
-        ) : (
-          <div className="mt-2 flex flex-wrap gap-2 sm:gap-2">
-            {summary.specialHighlights.map((row, idx) => (
-              <div
-                key={`${row.text}-${idx}`}
-                className={`flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-amber-500/22 bg-black/32 ring-1 ring-inset ring-white/[0.04] sm:gap-2 ${
-                  briefLayout ? 'px-1.5 py-1 sm:px-2 sm:py-1.5' : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
-                }`}
-              >
-                <div
-                  className={
-                    briefLayout
-                      ? singleColumn
-                        ? 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-9 sm:w-9'
-                        : 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-8 sm:w-8'
-                      : singleColumn
-                        ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-11 sm:w-11'
-                        : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-10 sm:w-10'
-                  }
-                >
-                  <img src={row.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
-                </div>
-                <p
-                  className={
-                    briefLayout
-                      ? singleColumn
-                        ? 'min-w-0 flex-1 text-[0.68rem] font-semibold leading-tight text-white/95 sm:text-[0.72rem]'
-                        : 'min-w-0 flex-1 text-[0.65rem] font-semibold leading-tight text-white/95 sm:text-[0.7rem]'
-                      : singleColumn
-                        ? 'min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm'
-                        : 'min-w-0 flex-1 text-xs font-semibold leading-snug text-white/95 sm:text-sm'
-                  }
-                >
-                  {row.text}
-                </p>
-              </div>
-            ))}
-          </div>
-        )}
+          />
+        </div>
+      ) : (
+        <div
+          className={
+            briefLayout
+              ? 'flex min-w-0 flex-wrap content-start gap-1.5 sm:gap-2'
+              : 'flex min-w-0 flex-wrap content-start gap-2 sm:gap-2.5'
+          }
+        >
+          {summary.itemSlots.map((slot) => (
+            <PreGameItemSlotIcon
+              key={slot.key}
+              slot={slot}
+              comfortable={singleColumn}
+              briefLayout={briefLayout}
+              onZeroClick={
+                session.gameCategory === 'tower' &&
+                slot.towerShopOnZero &&
+                slot.count <= 0 &&
+                onTowerItemZeroClick
+                  ? () => onTowerItemZeroClick(slot.key)
+                  : undefined
+              }
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const specialRulesPanel = (
+    <div className={`${panelShell} ${singleColumn ? 'p-2.5 sm:p-3' : 'p-2.5 sm:p-3'}`}>
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-violet-500/[0.06] blur-2xl transition-opacity duration-200 group-hover:opacity-90"
+        aria-hidden
+      />
+      <div
+        className={
+          briefLayout
+            ? singleColumn
+              ? 'text-[0.62rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.65rem]'
+              : 'text-[0.58rem] font-bold uppercase tracking-[0.09em] text-amber-200/85 sm:text-[0.62rem]'
+            : singleColumn
+              ? 'text-[0.7rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.72rem]'
+              : 'text-[0.62rem] font-bold uppercase tracking-[0.1em] text-amber-200/85 sm:text-[0.7rem]'
+        }
+      >
+        특수 규칙
       </div>
+      {summary.specialHighlights.length === 0 ? (
+        <p
+          className={
+            briefLayout
+              ? singleColumn
+                ? 'mt-1 text-[0.68rem] font-semibold text-slate-400 sm:text-[0.72rem]'
+                : 'mt-1 text-[0.65rem] font-semibold text-slate-400 sm:text-[0.7rem]'
+              : singleColumn
+                ? 'mt-1.5 text-[0.8125rem] font-semibold text-slate-400 sm:text-sm'
+                : 'mt-1.5 text-xs font-semibold text-slate-400 sm:text-sm'
+          }
+        >
+          {SUMMARY_NONE}
+        </p>
+      ) : (
+        <div className="mt-2 flex flex-wrap gap-2 sm:gap-2">
+          {summary.specialHighlights.map((row, idx) => (
+            <div
+              key={`${row.text}-${idx}`}
+              className={`flex min-w-0 max-w-full items-center gap-2 rounded-lg border border-amber-500/22 bg-black/32 ring-1 ring-inset ring-white/[0.04] sm:gap-2 ${
+                briefLayout ? 'px-1.5 py-1 sm:px-2 sm:py-1.5' : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+              }`}
+            >
+              <div
+                className={
+                  briefLayout
+                    ? singleColumn
+                      ? 'flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-9 sm:w-9'
+                      : 'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-8 sm:w-8'
+                    : singleColumn
+                      ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-11 sm:w-11'
+                      : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md border border-amber-400/22 bg-gradient-to-br from-zinc-950/90 to-black/80 p-0.5 shadow-inner sm:h-10 sm:w-10'
+                }
+              >
+                <img src={row.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
+              </div>
+              <p
+                className={
+                  briefLayout
+                    ? singleColumn
+                      ? 'min-w-0 flex-1 text-[0.68rem] font-semibold leading-tight text-white/95 sm:text-[0.72rem]'
+                      : 'min-w-0 flex-1 text-[0.65rem] font-semibold leading-tight text-white/95 sm:text-[0.7rem]'
+                    : singleColumn
+                      ? 'min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm'
+                      : 'min-w-0 flex-1 text-xs font-semibold leading-snug text-white/95 sm:text-sm'
+                }
+              >
+                {row.text}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className={outerStackClass}>
+      {embedOnboardingSpotlightTargets ? (
+        <div data-onboarding-target="onboarding-sp-pregame-winlose" className={primaryGridClass}>
+          {goalCells.map(renderPrimaryCell)}
+        </div>
+      ) : (
+        <div className={primaryGridClass}>{primaryCells.map(renderPrimaryCell)}</div>
+      )}
+
+      {embedOnboardingSpotlightTargets ? (
+        <div data-onboarding-target="onboarding-sp-pregame-rest" className={outerStackClass}>
+          <div className={primaryGridClass}>{imgCells.map(renderPrimaryCell)}</div>
+          {itemStripPanel}
+          {specialRulesPanel}
+        </div>
+      ) : (
+        <>
+          {itemStripPanel}
+          {specialRulesPanel}
+        </>
+      )}
     </div>
   );
 }

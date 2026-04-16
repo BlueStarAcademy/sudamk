@@ -107,6 +107,8 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 const isAiTurnCancelled = (game as any).isAiTurnCancelledAfterReveal;
                 // 히든 돌만 공개(따냄 없음): AI가 유저 히든 위에 두려 한 경우 — 타이머만 재개, 턴 유지
                 if (!cap) {
+                    const pendingAiAfterUserHiddenReveal = (game as any).pendingAiMoveAfterUserHiddenFullReveal;
+                    (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
                     game.animation = null;
                     game.gameStatus = 'playing';
                     game.revealAnimationEndTime = undefined;
@@ -130,6 +132,34 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                         game.turnStartTime = undefined;
                     }
                     game.pausedTurnTimeLeft = undefined;
+                    if (pendingAiAfterUserHiddenReveal) {
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('../socket.js');
+                        const { updateGameCache } = await import('../gameCache.js');
+                        updateGameCache(game);
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        const { makeAiMove } = await import('../aiPlayer.js');
+                        setImmediate(() => {
+                            makeAiMove(game).then(async () => {
+                                try {
+                                    updateGameCache(game);
+                                    await db.saveGame(game);
+                                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                                } catch (e: any) {
+                                    console.error(
+                                        `[updateSinglePlayerHiddenState] AI move after user-hidden full reveal failed for ${game.id}:`,
+                                        e?.message
+                                    );
+                                }
+                            }).catch((err: any) => {
+                                console.error(
+                                    `[updateSinglePlayerHiddenState] makeAiMove after user-hidden full reveal failed for ${game.id}:`,
+                                    err?.message
+                                );
+                            });
+                        });
+                        return;
+                    }
                     break;
                 }
                 // 히든 아이템 사용 후 게임 상태 복원
@@ -188,7 +218,8 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 game.revealAnimationEndTime = undefined;
                 game.pendingCapture = null;
                 (game as any).isAiTurnCancelledAfterReveal = undefined;
-                
+                (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
+
                 // AI 턴이 취소된 경우 (히든돌 공개만 하고 실제 수는 두지 않음) — 바둑판 갱신 후 AI가 다시 수를 두도록 함
                 if (isAiTurnCancelled) {
                     game.gameStatus = 'playing';

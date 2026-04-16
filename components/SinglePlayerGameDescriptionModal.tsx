@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LiveGameSession, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
@@ -27,6 +27,10 @@ import {
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import TowerItemShopModal from './TowerItemShopModal.js';
+import {
+    isOnboardingTutorialActive,
+    ONBOARDING_PREGAME_DESC_STEP_EVENT,
+} from '../shared/constants/onboardingTutorial.js';
 
 const SINGLE_PLAYER_CLEAR_GOLD_BOX = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 const SINGLE_PLAYER_CLEAR_ITEM_BOX = `${RESULT_MODAL_BOX_ITEM_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
@@ -107,6 +111,18 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     );
     const contentMeasureRef = useRef<HTMLDivElement>(null);
     const [frameHeight, setFrameHeight] = useState(780);
+    const [towerShopOpen, setTowerShopOpen] = useState(false);
+    const [pregameDescSubStep, setPregameDescSubStep] = useState(-1);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const onStep = (ev: Event) => {
+            const d = (ev as CustomEvent<number>).detail;
+            setPregameDescSubStep(typeof d === 'number' ? d : -1);
+        };
+        window.addEventListener(ONBOARDING_PREGAME_DESC_STEP_EVENT, onStep as EventListener);
+        return () => window.removeEventListener(ONBOARDING_PREGAME_DESC_STEP_EVENT, onStep as EventListener);
+    }, []);
 
     useLayoutEffect(() => {
         if (isCompactUi) return;
@@ -126,6 +142,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         ro.observe(el);
         return () => ro.disconnect();
     }, [session, stage, summaryFour, isCompactUi]);
+
+    const onboardingPhase5Active =
+        !readOnly &&
+        isOnboardingTutorialActive(currentUser) &&
+        (currentUser?.onboardingTutorialPhase ?? 0) === 5;
+    const onboardingPregameFinalSubStep = onboardingPhase5Active && pregameDescSubStep >= 2;
 
     if (!stage) {
         return null;
@@ -148,7 +170,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const clearReward = isEligibleForFirstClearRewards ? firstClearReward : undefined;
     const hasClearRewardToShow = isEligibleForFirstClearRewards && firstClearRewardHasContent(clearReward);
 
-    const [towerShopOpen, setTowerShopOpen] = useState(false);
     const canOpenTowerShop = isTower && !!currentUser && !!onTowerItemPurchase;
 
     const resolveItemImage = (itemId: string): string | null => {
@@ -242,7 +263,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                     <ResultModalXpRewardBadge
                                         variant="strategy"
                                         amount={clearReward.exp ?? 0}
-                                        density="compact"
+                                        density={onboardingPhase5Active ? 'preGameInline' : 'compact'}
                                     />
                                 )}
                                 {clearReward.items?.map((rewardItem, idx) => {
@@ -285,6 +306,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 singleColumn={isCompactUi}
                 briefLayout
                 onTowerItemZeroClick={canOpenTowerShop ? () => setTowerShopOpen(true) : undefined}
+                embedOnboardingSpotlightTargets={onboardingPhase5Active}
             />
         </div>
     );
@@ -308,7 +330,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 </Button>
             ) : (
                 <>
-            {onClose && (
+            {onClose && !onboardingPregameFinalSubStep && (
                 <Button
                     onClick={onClose}
                     colorScheme="gray"
@@ -322,6 +344,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 </Button>
             )}
             <Button
+                data-onboarding-target={onboardingPregameFinalSubStep ? 'onboarding-sp-game-start' : undefined}
                 onClick={() => onStart?.()}
                 colorScheme="accent"
                 disabled={!onStart}
@@ -358,12 +381,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         <DraggableWindow
             title={`${stageDisplayName} - 게임 설명`}
             windowId="game-description-modal"
-            onClose={onClose}
+            onClose={onboardingPregameFinalSubStep ? undefined : onClose}
             initialWidth={760}
             initialHeight={isCompactUi ? 2400 : frameHeight}
             modal={true}
             transparentModalBackdrop
-            closeOnOutsideClick={!!onClose}
+            closeOnOutsideClick={onboardingPregameFinalSubStep ? false : !!onClose}
             uniformPcScale={!isCompactUi}
             bodyAvoidVerticalStretch={!isCompactUi}
             mobileViewportFit={isCompactUi}
@@ -381,33 +404,40 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             >
                 {isCompactUi ? (
                     <div
-                        className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] ${PRE_GAME_MODAL_LAYER_CLASS}`}
+                        className="flex min-h-0 min-w-0 flex-1 flex-col"
+                        {...(onboardingPhase5Active ? { 'data-onboarding-target': 'onboarding-sp-pregame-body' } : {})}
                     >
-                        {mainBlocks}
+                        <div
+                            className={`min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] ${PRE_GAME_MODAL_LAYER_CLASS}`}
+                        >
+                            {mainBlocks}
+                        </div>
+                        <div
+                            className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap shrink-0 mt-1.5 rounded-b-2xl border-t border-amber-500/35 !gap-2 px-2 py-2 sm:px-3`}
+                        >
+                            {footerButtons(true)}
+                        </div>
                     </div>
                 ) : (
                     <div
                         ref={contentMeasureRef}
                         className={`flex min-h-0 min-w-0 shrink-0 flex-col ${PRE_GAME_MODAL_LAYER_CLASS}`}
                     >
-                        <div className="min-h-0 shrink-0 overflow-visible overflow-x-hidden pr-0.5">
-                            {mainBlocks}
-                        </div>
                         <div
-                            className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap mt-1.5 shrink-0 rounded-b-xl !gap-2 !py-2 !px-3 sm:!px-3.5`}
+                            className="flex min-h-0 min-w-0 flex-1 flex-col"
+                            {...(onboardingPhase5Active ? { 'data-onboarding-target': 'onboarding-sp-pregame-body' } : {})}
                         >
-                            {footerButtons(false)}
+                            <div className="min-h-0 shrink-0 overflow-visible overflow-x-hidden pr-0.5">
+                                {mainBlocks}
+                            </div>
+                            <div
+                                className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap mt-1.5 shrink-0 rounded-b-xl !gap-2 !py-2 !px-3 sm:!px-3.5`}
+                            >
+                                {footerButtons(false)}
+                            </div>
                         </div>
                     </div>
                 )}
-
-                {isCompactUi ? (
-                    <div
-                        className={`${PRE_GAME_MODAL_FOOTER_CLASS} !flex-nowrap shrink-0 mt-1.5 rounded-b-2xl border-t border-amber-500/35 !gap-2 px-2 py-2 sm:px-3`}
-                    >
-                        {footerButtons(true)}
-                    </div>
-                ) : null}
             </div>
         </DraggableWindow>
     );

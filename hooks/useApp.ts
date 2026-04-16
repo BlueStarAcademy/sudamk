@@ -34,6 +34,7 @@ import {
     ARENA_ENTRANCE_CLOSED_MESSAGE,
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
+import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { processMoveClient } from '../client/goLogicClient.js';
@@ -794,6 +795,20 @@ export const useApp = () => {
         
         return { ...currentUser, actionPoints: updatedActionPoints, ...statusData };
     }, [currentUser, onlineUsers, updateTrigger, actionPointUpdateTrigger, activeGameFromLogin]);
+
+    const arenaEntranceAvailabilityResolved = useMemo(() => {
+        const base = mergeArenaEntranceAvailability(arenaEntranceAvailability);
+        const u = currentUserWithStatus;
+        if (!u || isClientAdmin(u)) return base;
+        return applyOnboardingArenaEntranceTutorialLocks(base, u);
+    }, [
+        arenaEntranceAvailability,
+        currentUserWithStatus?.id,
+        currentUserWithStatus?.isAdmin,
+        currentUserWithStatus?.onboardingTutorialPhase,
+        currentUserWithStatus?.strategyLevel,
+        currentUserWithStatus?.playfulLevel,
+    ]);
 
     useEffect(() => {
         currentUserStatusRef.current = currentUserWithStatus;
@@ -1588,6 +1603,7 @@ export const useApp = () => {
                 const opponentPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
                 const boardState = (game.boardState || []).map((row: Player[]) => [...row]);
                 const captures = { ...(game.captures || {}) };
+                const baseStoneCaptures = { ...(game.baseStoneCaptures || {}) };
                 const hiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) };
                 let blackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
                 let whitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
@@ -1605,6 +1621,7 @@ export const useApp = () => {
                     const moveIndex = (game.moveHistory || []).findIndex((m: any) => m.x === stone.x && m.y === stone.y);
                     const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                     const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
+                    const wasBaseStone = !!game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
                     const wasPatternStone = opponentPlayer === Player.Black
                         ? !!blackPatternStones?.some(p => p.x === stone.x && p.y === stone.y)
                         : !!whitePatternStones?.some(p => p.x === stone.x && p.y === stone.y);
@@ -1612,7 +1629,10 @@ export const useApp = () => {
                     let points = 1;
                     let wasHidden = false;
 
-                    if (wasHiddenMove || wasAiInitialHidden) {
+                    if (wasBaseStone) {
+                        points = 5;
+                        baseStoneCaptures[movePlayer] = (baseStoneCaptures[movePlayer] || 0) + 1;
+                    } else if (wasHiddenMove || wasAiInitialHidden) {
                         points = 5;
                         wasHidden = true;
                         hiddenStoneCaptures[movePlayer] = (hiddenStoneCaptures[movePlayer] || 0) + 1;
@@ -1649,6 +1669,7 @@ export const useApp = () => {
                     ...game,
                     boardState,
                     captures,
+                    baseStoneCaptures,
                     hiddenStoneCaptures,
                     blackPatternStones,
                     whitePatternStones,
@@ -2684,7 +2705,8 @@ export const useApp = () => {
                         'TOGGLE_EQUIP_ITEM',
                         'MANNER_ACTION',
                         'START_GUILD_BOSS_BATTLE',
-                        'END_TOWER_GAME'
+                        'END_TOWER_GAME',
+                        'CLAIM_ONBOARDING_INTRO1_FAN',
                     ];
                     const isInventoryCriticalAction = inventoryCriticalActions.includes(action.type);
                     
@@ -3705,6 +3727,67 @@ export const useApp = () => {
                                         }
                                     }
                                 } catch { /* ignore */ }
+                            }
+                            // 온라인 AI 대국: INITIAL_STATE는 boardState를 보내지 않음. rejoin 전 빈 판·턴 표시를 막기 위해 sessionStorage 판·시간 정보 병합
+                            if (isAiGame) {
+                                const cur = next[id];
+                                if (!cur) continue;
+                                const b = cur.boardState;
+                                const hasBoard =
+                                    Array.isArray(b) &&
+                                    b.length > 0 &&
+                                    Array.isArray(b[0]) &&
+                                    b[0].length > 0;
+                                if (!hasBoard) {
+                                    try {
+                                        const stored =
+                                            typeof sessionStorage !== 'undefined'
+                                                ? sessionStorage.getItem(`gameState_${id}`)
+                                                : null;
+                                        if (stored) {
+                                            const parsed = JSON.parse(stored);
+                                            const pb = parsed?.boardState;
+                                            const storedBoardOk =
+                                                Array.isArray(pb) &&
+                                                pb.length > 0 &&
+                                                Array.isArray(pb[0]) &&
+                                                pb[0].length > 0;
+                                            if (parsed?.gameId === id && storedBoardOk) {
+                                                const sm = parsed.moveHistory;
+                                                const cm = cur.moveHistory;
+                                                const useStoredMoves =
+                                                    Array.isArray(sm) &&
+                                                    sm.length > 0 &&
+                                                    (!Array.isArray(cm) || cm.length === 0);
+                                                next[id] = {
+                                                    ...cur,
+                                                    boardState: pb,
+                                                    ...(useStoredMoves ? { moveHistory: sm } : {}),
+                                                    ...(parsed.currentPlayer != null &&
+                                                    (cur.currentPlayer === undefined || cur.currentPlayer === null)
+                                                        ? { currentPlayer: parsed.currentPlayer }
+                                                        : {}),
+                                                    ...(typeof parsed.totalTurns === 'number' &&
+                                                    parsed.totalTurns > 0 &&
+                                                    (cur.totalTurns == null || cur.totalTurns === 0)
+                                                        ? { totalTurns: parsed.totalTurns }
+                                                        : {}),
+                                                    ...(parsed.turnDeadline != null
+                                                        ? {
+                                                              turnDeadline: parsed.turnDeadline,
+                                                              turnStartTime: parsed.turnStartTime,
+                                                          }
+                                                        : {}),
+                                                    ...(parsed.captures && typeof parsed.captures === 'object'
+                                                        ? { captures: parsed.captures }
+                                                        : {}),
+                                                };
+                                            }
+                                        }
+                                    } catch {
+                                        /* ignore */
+                                    }
+                                }
                             }
                         }
                         return next;
@@ -5999,7 +6082,7 @@ export const useApp = () => {
 
     const handleEnterWaitingRoom = (mode: GameMode) => {
         if (!isClientAdmin(currentUser)) {
-            const m = mergeArenaEntranceAvailability(arenaEntranceAvailability);
+            const m = arenaEntranceAvailabilityResolved;
             const lobbyKey: ArenaEntranceKey | null = SPECIAL_GAME_MODES.some((x) => x.mode === mode)
                 ? 'strategicLobby'
                 : PLAYFUL_GAME_MODES.some((x) => x.mode === mode)
@@ -6366,7 +6449,7 @@ export const useApp = () => {
         gameChats,
         adminLogs,
         gameModeAvailability,
-        arenaEntranceAvailability,
+        arenaEntranceAvailability: arenaEntranceAvailabilityResolved,
         announcements,
         globalOverrideAnnouncement,
         announcementInterval,
@@ -6449,7 +6532,7 @@ export const useApp = () => {
             closeInsufficientActionPointsModal: () => setIsInsufficientActionPointsModalOpen(false),
             openOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(true),
             closeOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(false),
-            closeItemObtained: () => {
+            closeItemObtained: async () => {
                 setLastUsedItemResult(null);
                 setTournamentScoreChange(null);
             },

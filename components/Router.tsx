@@ -25,6 +25,7 @@ import GuildWar from './guild/GuildWar.js';
 import AdventureLobby from './adventure/AdventureLobby.js';
 import AdventureStageMap from './adventure/AdventureStageMap.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import { userMeetsGuildFeatureLevelRequirement } from '../shared/constants/guildConstants.js';
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
@@ -102,6 +103,8 @@ const Router: React.FC = () => {
         if (v === 'tower' && !mergedArena.tower) replaceAppHash('#/profile');
         if (v === 'tournament' && !mergedArena.championship) replaceAppHash('#/profile');
         if (v === 'adventure' && !mergedArena.adventure) replaceAppHash('#/profile');
+        const guildOk = userMeetsGuildFeatureLevelRequirement(currentUser);
+        if (!guildOk && (v === 'guild' || v === 'guildboss' || v === 'guildwar')) replaceAppHash('#/profile');
     }, [currentUser, arenaAdminBypass, currentRoute.view, currentRoute.params?.type, currentRoute.params?.mode, mergedArena]);
 
     if (!currentUser) {

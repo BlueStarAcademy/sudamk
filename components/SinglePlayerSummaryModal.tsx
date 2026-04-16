@@ -389,6 +389,13 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         try {
             // onAction이 완료될 때까지 기다림 (Promise 반환)
             await onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } });
+            if (
+                session.stageId === '입문-1' &&
+                (currentUser.onboardingTutorialPhase ?? 0) === 7 &&
+                currentUser.onboardingSpResultTutorialStep === 1
+            ) {
+                await onAction({ type: 'ADVANCE_ONBOARDING_TUTORIAL', payload: { phase: 8 } });
+            }
         } catch (error) {
             console.error('[SinglePlayerSummaryModal] Failed to leave AI game:', error);
         } finally {
@@ -426,12 +433,28 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
     const mobileTextScale = 1;
 
+    const spResultStep = currentUser.onboardingSpResultTutorialStep;
+    const intro1SpResultOnboarding =
+        session.stageId === '입문-1' &&
+        (currentUser.onboardingTutorialPhase ?? 0) === 7 &&
+        typeof spResultStep === 'number';
+    const blockSpModalScroll =
+        intro1SpResultOnboarding && (spResultStep === 0 || spResultStep === 1);
+    const blockSpFooterRow = intro1SpResultOnboarding && spResultStep === 0;
+    const lobbyOnboardingActive = intro1SpResultOnboarding && spResultStep === 1;
+    const blockNonLobbyResultButtons = intro1SpResultOnboarding;
+
     useEffect(() => {
         setMobileResultTab('match');
     }, [session.id]);
 
+    const desktopCompactRewards = !isMobile;
+
     const spRewardsSection = (
-        <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-2`}>
+        <div
+            data-onboarding-target="onboarding-sp-summary-rewards"
+            className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-1.5 sm:p-2`}
+        >
             <h2
                 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
                 style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
@@ -442,7 +465,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 className={
                     isMobile
                         ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS
-                        : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
+                        : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-1.5 sm:gap-2`
                 }
             >
                 {!displaySummary ? (
@@ -464,7 +487,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         {(displaySummary.gold ?? 0) > 0 && (
                             <ResultModalGoldCurrencySlot
                                 amount={displaySummary.gold ?? 0}
-                                compact={isMobile}
+                                compact={desktopCompactRewards || isMobile}
                                 dimmed={!summary}
                             />
                         )}
@@ -473,7 +496,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 <ResultModalXpRewardBadge
                                     variant="strategy"
                                     amount={displaySummary.xp.change}
-                                    density={isMobile ? 'compact' : 'comfortable'}
+                                    density={desktopCompactRewards || isMobile ? 'compact' : 'comfortable'}
                                 />
                             </div>
                         )}
@@ -485,7 +508,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                     imageSrc={item.image || null}
                                     name={item.name}
                                     quantity={item.quantity}
-                                    compact={isMobile}
+                                    compact={desktopCompactRewards || isMobile}
                                     dimmed={!summary}
                                     onImageError={(e) => {
                                         (e.target as HTMLImageElement).style.display = 'none';
@@ -511,8 +534,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="sp-summary-redesigned"
-            initialWidth={800}
-            initialHeight={720}
+            initialWidth={900}
+            initialHeight={780}
             uniformPcScale={false}
             mobileViewportFit
             mobileViewportMaxHeightVh={97}
@@ -524,12 +547,15 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         >
             <>
             <div
+                data-onboarding-target="onboarding-sp-summary-modal"
                 className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex w-full min-h-0 flex-col ${
                     isMobile
                         ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
                         : 'h-full flex-1 ' +
                           (useBodyScrollSizing ? 'overflow-x-hidden' : 'overflow-x-hidden overflow-y-visible')
-                } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
+                } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'} ${
+                    blockSpModalScroll ? 'pointer-events-none' : ''
+                }`}
             >
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
@@ -674,9 +700,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         </div>
                     </>
                 ) : (
-                    <div className="flex min-h-0 flex-row items-stretch gap-1.5 overflow-visible sm:gap-3">
+                    <div className="flex min-h-0 flex-row items-stretch gap-1.5 overflow-visible sm:gap-2.5">
                         <div
-                            className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} w-1/2 min-h-0 shrink-0 overflow-visible p-2.5 sp-summary-left-panel`}
+                            className={`flex min-w-0 flex-col ${SP_SUMMARY_PANEL_CLASS} w-[48%] min-h-0 shrink-0 overflow-visible p-2 sm:p-2.5 sp-summary-left-panel`}
                         >
                             <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}>
                                 경기 결과
@@ -726,7 +752,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             </div>
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-visible">
-                            <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2.5`}>
+                            <div className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2 sm:p-2.5`}>
                                 <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}>기록</h2>
                                 <div className={`flex flex-shrink-0 items-center gap-1.5 ${SP_SUMMARY_INSET_CLASS} p-2`}>
                                     <Avatar
@@ -781,43 +807,52 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             : '!gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
                     }`}
                 >
-                    <div className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5`}>
+                    <div
+                        data-onboarding-target="onboarding-sp-summary-footer"
+                        className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5 ${
+                            blockSpFooterRow ? 'pointer-events-none' : ''
+                        }`}
+                    >
                     <Button
+                        data-onboarding-target="onboarding-sp-summary-confirm"
                         onClick={() => {
                             if (isScoring) return;
                             handleClose(session, onClose);
                         }}
                         bare
                         colorScheme="none"
-                        disabled={isScoring}
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
+                        disabled={isScoring || blockNonLobbyResultButtons}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isScoring || blockNonLobbyResultButtons ? '!cursor-not-allowed !opacity-45' : ''}`}
                     >
                         확인
                     </Button>
                     <Button
+                        data-onboarding-target="onboarding-sp-summary-next"
                         onClick={handleNextStage}
                         bare
                         colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${!canTryNext || isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={!canTryNext || isProcessing}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${!canTryNext || isProcessing || blockNonLobbyResultButtons ? '!cursor-not-allowed !opacity-45' : ''}`}
+                        disabled={!canTryNext || isProcessing || blockNonLobbyResultButtons}
                     >
                         {formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
                     </Button>
                     <Button
+                        data-onboarding-target="onboarding-sp-summary-retry"
                         onClick={handleRetry}
                         bare
                         colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={isProcessing}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing || blockNonLobbyResultButtons ? '!cursor-not-allowed !opacity-45' : ''}`}
+                        disabled={isProcessing || blockNonLobbyResultButtons}
                     >
                         {formatArenaRetryLabel(retryActionPointCost)}
                     </Button>
                     <Button
+                        data-onboarding-target="onboarding-sp-summary-lobby"
                         onClick={handleExitToLobby}
                         bare
                         colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={isProcessing}
+                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing || (intro1SpResultOnboarding && spResultStep !== 1) ? '!cursor-not-allowed !opacity-45' : ''} ${lobbyOnboardingActive ? '!pointer-events-auto relative z-[2]' : ''}`}
+                        disabled={isProcessing || (intro1SpResultOnboarding && spResultStep !== 1)}
                     >
                         대기실로
                     </Button>

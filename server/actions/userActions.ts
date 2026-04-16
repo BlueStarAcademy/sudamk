@@ -46,6 +46,12 @@ import {
     parseAdventureMonsterLevel,
 } from '../utils/adventureMonsterDefeat.js';
 import {
+    canAdvanceOnboardingTutorialPhase,
+    ONBOARDING_INTRO1_FAN_ITEM_ID,
+    ONBOARDING_PHASE_COMPLETE,
+} from '../../shared/constants/onboardingTutorial.js';
+import { createItemInstancesFromReward, addItemsToInventory } from '../../utils/inventoryUtils.js';
+import {
     getRegionalBaseHeadStartPoints,
     getRegionalClassicOrStandardHeadStartPoints,
     getRegionalAdventureEncounterDurationMultiplier,
@@ -922,6 +928,123 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                     redirectTo: '#/login'
                 } 
             };
+        }
+        case 'ADVANCE_ONBOARDING_TUTORIAL': {
+            const { phase } = payload as { phase: number };
+            if (typeof phase !== 'number' || phase < 0 || phase > ONBOARDING_PHASE_COMPLETE) {
+                return { error: '잘못된 요청입니다.' };
+            }
+            if (!user.isAdmin && !canAdvanceOnboardingTutorialPhase(user, phase)) {
+                return { error: '진행할 수 없는 단계입니다.' };
+            }
+            user.onboardingTutorialPhase = phase;
+            if (phase === 7) {
+                user.onboardingSpResultTutorialStep = 0;
+            }
+            if (phase === 8) {
+                (user as types.User & { onboardingSpResultTutorialStep?: number | null }).onboardingSpResultTutorialStep =
+                    null;
+            }
+            // await 필수: 다음 /api/action(CONFIRM 등)이 getCachedUser로 옛 사본을 쓰면 인게임 온보딩(5→6)이 건너뛰어짐
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after ADVANCE_ONBOARDING_TUTORIAL:`, err);
+                return { error: '튜토리얼 진행 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            const { broadcastUserUpdate } = await import('../socket.js');
+            const obFields = ['onboardingTutorialPhase'];
+            if (phase === 7) obFields.push('onboardingSpResultTutorialStep');
+            if (phase === 8) obFields.push('onboardingSpResultTutorialStep');
+            broadcastUserUpdate(user, obFields);
+            const updatedUser = getSelectiveUserUpdate(user, 'ADVANCE_ONBOARDING_TUTORIAL');
+            return { clientResponse: { updatedUser } };
+        }
+        case 'CLAIM_ONBOARDING_INTRO1_FAN': {
+            if (!user.onboardingIntro1FanPendingClaim) {
+                return { error: '수령할 보상이 없습니다.' };
+            }
+            const itemsToCreate = createItemInstancesFromReward([{ itemId: ONBOARDING_INTRO1_FAN_ITEM_ID, quantity: 1 }]);
+            const { success, updatedInventory, finalItemsToAdd } = addItemsToInventory(
+                [...user.inventory],
+                user.inventorySlots,
+                itemsToCreate,
+            );
+            if (!success) {
+                return { error: '가방에 장비 칸이 부족합니다. 공간을 확보한 후 다시 시도해 주세요.' };
+            }
+            user.inventory = updatedInventory;
+            user.onboardingIntro1FanPendingClaim = false;
+            user.onboardingTutorialPhase = 7;
+            user.onboardingSpResultTutorialStep = 0;
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after CLAIM_ONBOARDING_INTRO1_FAN:`, err);
+                return { error: '보상 수령 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, [
+                'inventory',
+                'onboardingTutorialPhase',
+                'onboardingIntro1FanPendingClaim',
+                'onboardingSpResultTutorialStep',
+            ]);
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ONBOARDING_INTRO1_FAN');
+            return { clientResponse: { updatedUser, obtainedItemsBulk: finalItemsToAdd } };
+        }
+        case 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL': {
+            if (user.onboardingTutorialPhase !== 7 || user.onboardingSpResultTutorialStep !== 0) {
+                return { error: '진행할 수 없는 단계입니다.' };
+            }
+            user.onboardingSpResultTutorialStep = 1;
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL:`, err);
+                return { error: '튜토리얼 진행 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['onboardingSpResultTutorialStep']);
+            const updatedUser = getSelectiveUserUpdate(user, 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL');
+            return { clientResponse: { updatedUser } };
+        }
+        case 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ': {
+            if (user.onboardingTutorialPhase !== 7 || user.onboardingSpResultTutorialStep !== 0) {
+                return { error: '진행할 수 없는 단계입니다.' };
+            }
+            user.onboardingSpResultTutorialStep = 1;
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ:`, err);
+                return { error: '튜토리얼 진행 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['onboardingSpResultTutorialStep']);
+            const updatedUser = getSelectiveUserUpdate(user, 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ');
+            return { clientResponse: { updatedUser } };
+        }
+        case 'ADMIN_SET_VIP_TEST_FLAGS': {
+            if (!user.isAdmin) {
+                return { error: '권한이 없습니다.' };
+            }
+            const p = payload as { rewardVip?: unknown; functionVip?: unknown; vvip?: unknown };
+            const toBool = (v: unknown) => v === true;
+            const rewardVip = toBool(p.rewardVip);
+            const functionVip = toBool(p.functionVip);
+            const vvip = toBool(p.vvip);
+            const far = Date.now() + 365 * 24 * 60 * 60 * 1000;
+            user.rewardVipExpiresAt = rewardVip ? far : 0;
+            user.functionVipExpiresAt = functionVip ? far : 0;
+            user.vvipExpiresAt = vvip ? far : 0;
+            const updatedUser = getSelectiveUserUpdate(user, 'ADMIN_SET_VIP_TEST_FLAGS');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after ADMIN_SET_VIP_TEST_FLAGS:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
+            return { clientResponse: { updatedUser } };
         }
         default:
             return { error: 'Unknown user action.' };

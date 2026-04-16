@@ -7,6 +7,7 @@ import { SinglePlayerLevel } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
+import { isOnboardingTutorialActive } from '../shared/constants/onboardingTutorial.js';
 
 /** singlePlayerProgress(다음 플레이 스테이지 전역 인덱스)에 맞는 반 — 대기실 기본 탭 */
 function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLevel {
@@ -37,6 +38,17 @@ const SinglePlayerLobby: React.FC = () => {
     const onBackToProfile = () => window.location.hash = '#/profile';
 
     const [mobileLobbySubTab, setMobileLobbySubTab] = useState<'quests' | 'stages'>('stages');
+
+    useEffect(() => {
+        if (!isOnboardingTutorialActive(currentUserWithStatus)) return;
+        const p = currentUserWithStatus.onboardingTutorialPhase ?? 0;
+        if (p === 2 || p === 4) {
+            setOverrideClass(SinglePlayerLevel.입문);
+            if (isNativeMobile) setMobileLobbySubTab('stages');
+        }
+        if (!isNativeMobile) return;
+        if (p === 8) setMobileLobbySubTab('quests');
+    }, [isNativeMobile, currentUserWithStatus]);
 
     const hasTrainingQuestRewardToClaim = useMemo(
         () => userHasFullTrainingQuestReward(currentUserWithStatus),

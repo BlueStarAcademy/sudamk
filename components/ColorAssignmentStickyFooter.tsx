@@ -4,7 +4,7 @@ import { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 type Props = {
     hasConfirmed: boolean;
     onConfirm: () => void;
-    /** 흑·백 룰렛 연출 중에는 경기 시작을 누를 수 없게 함 */
+    /** 흑·백 룰렛 연출 중에는 시작하기를 누를 수 없게 함(문구는 그대로, 비활성 표시만) */
     rouletteBlockingStart?: boolean;
     /** 모바일: DraggableWindow가 본문 스크롤과 분리해 하단 고정 */
     variant?: 'sticky' | 'inline';
@@ -22,7 +22,7 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
     rouletteBlockingStart = false,
     variant = 'sticky',
 }) => {
-    const label = hasConfirmed ? '상대방 확인 대기 중…' : rouletteBlockingStart ? '흑·백 연출 중…' : '경기 시작';
+    const label = hasConfirmed ? '상대방 확인 대기 중…' : '시작하기';
 
     return (
         <div

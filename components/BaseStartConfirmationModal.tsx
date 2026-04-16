@@ -18,8 +18,11 @@ const startPanelShell =
 
 /** 베이스: 흑·백·덤 확정 + 양측 프로필 — 푸터에는 두지 않고 모달 전용 */
 export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
-    const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, finalKomi } = session;
-    const hasConfirmed = preGameConfirmations?.[currentUser.id];
+    const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, finalKomi, gameStatus } = session;
+    const isKomiResultPhase = gameStatus === 'base_komi_result';
+    const hasConfirmed = isKomiResultPhase
+        ? !!session.preGameKomiSummaryAck?.[currentUser.id]
+        : !!preGameConfirmations?.[currentUser.id];
 
     if (!blackPlayerId || !whitePlayerId) return null;
 
@@ -56,34 +59,43 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
 
     return (
         <div className={`${startPanelShell} space-y-4 px-4 py-4 sm:px-5 sm:py-5`}>
-            <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/85">흑 · 백 · 덤 확정</p>
+            <p className="text-center text-xs font-medium uppercase tracking-[0.18em] text-cyan-300/85">
+                베이스 대국 준비
+            </p>
             <div className="flex justify-center">{cards}</div>
             <div className="space-y-2 rounded-lg border border-white/10 bg-black/35 px-3 py-3 text-[0.9rem] sm:text-[0.95rem]">
                 <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
-                    <span className="shrink-0 font-semibold text-stone-400">흑</span>
+                    <span className="shrink-0 font-semibold text-stone-400">흑돌</span>
                     <span className="truncate text-right font-bold text-stone-100">
                         {getSessionPlayerDisplayName(session, blackPlayer)}
                     </span>
                 </div>
                 <div className="flex items-center justify-between gap-2 pb-1">
-                    <span className="shrink-0 font-semibold text-stone-400">백</span>
+                    <span className="shrink-0 font-semibold text-stone-400">백돌</span>
                     <span className="truncate text-right font-bold text-stone-100">
                         {getSessionPlayerDisplayName(session, whitePlayer)}
                     </span>
                 </div>
                 <p className="border-t border-white/5 pt-2 text-center text-sm text-cyan-100/90">
-                    백 덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
+                    덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
                 </p>
             </div>
             <p className="text-center text-xs leading-relaxed text-stone-400">
-                아래 버튼을 누르면 대국 시계가 시작되고 착수할 수 있습니다.
+                {isKomiResultPhase
+                    ? '흑·백·덤을 확인한 뒤 다음 단계로 진행해 주세요.'
+                    : '준비가 끝나면 시작하기를 눌러 대국을 시작해 주세요.'}
             </p>
             <Button
-                onClick={() => onAction({ type: 'CONFIRM_BASE_REVEAL', payload: { gameId } })}
+                onClick={() =>
+                    onAction({
+                        type: isKomiResultPhase ? 'CONFIRM_BASE_KOMI_SUMMARY' : 'CONFIRM_BASE_REVEAL',
+                        payload: { gameId }
+                    })
+                }
                 disabled={!!hasConfirmed}
                 className="w-full !rounded-xl !border !border-cyan-400/30 !bg-gradient-to-r !from-cyan-900/80 !to-slate-800/90 !py-2.5 !text-[0.95rem] !font-bold !text-cyan-50 hover:!from-cyan-800 hover:!to-slate-700 disabled:!opacity-50"
             >
-                {hasConfirmed ? '상대방 확인 대기 중…' : '대국 시작'}
+                {hasConfirmed ? '상대방 확인 대기 중…' : isKomiResultPhase ? '다음 단계' : '시작하기'}
             </Button>
         </div>
     );
@@ -91,7 +103,7 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
 
 const BaseStartConfirmationModal: React.FC<BaseStartConfirmationModalProps> = (props) => (
     <DraggableWindow
-        title="대국 시작"
+        title="베이스 대국 준비"
         windowId="base-start-confirm"
         initialWidth={420}
         shrinkHeightToContent

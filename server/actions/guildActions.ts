@@ -15,6 +15,7 @@ import {
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
 import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId } from '../../shared/constants/index.js';
+import { MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES, userMeetsGuildFeatureLevelRequirement } from '../../shared/constants/guildConstants.js';
 import { EquipmentSlot, ItemGrade } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
@@ -266,6 +267,19 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
     // 길드 컨텐츠(출석, 미션, 보스전 등)에서 관리자 ID를 클라이언트와 동일한 값으로 통일
     const ADMIN_USER_ID = 'user-admin-static-id';
     const effectiveUserId = user.isAdmin ? ADMIN_USER_ID : user.id;
+
+    if (!userMeetsGuildFeatureLevelRequirement(user)) {
+        const t = type as string;
+        const allowWhenLevelLocked =
+            t === 'LEAVE_GUILD' ||
+            t === 'GUILD_LEAVE' ||
+            (t === 'GET_GUILD_INFO' && Boolean(user.guildId));
+        if (!allowWhenLevelLocked) {
+            return {
+                error: `길드 기능은 전략·놀이 레벨 합 ${MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES} 이상에서 이용할 수 있습니다.`,
+            };
+        }
+    }
 
     switch (type) {
         case 'CREATE_GUILD': {

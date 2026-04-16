@@ -4,6 +4,7 @@ import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { isOnboardingTutorialActive } from '../../shared/constants/onboardingTutorial.js';
 import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
@@ -13,6 +14,17 @@ const PREMIUM_STAGE_ENTER_CLASS =
 /** 좁은 카드(네이티브 대기실): 짧은 한 줄 라벨 + 잘림 방지 */
 const PREMIUM_STAGE_ENTER_CLASS_COMPACT =
     `${PREMIUM_STAGE_ENTER_CLASS} !px-1 !py-2 !text-center !tracking-tight !text-[10px] !overflow-visible`;
+
+/** 페이즈2 온보딩 등: disabled여도 앰버 입장 버튼 색 유지(클릭만 막음) */
+const premiumStageEnterClass = (compact: boolean, stripDisabledVisual: boolean): string => {
+    const raw = compact ? PREMIUM_STAGE_ENTER_CLASS_COMPACT : PREMIUM_STAGE_ENTER_CLASS;
+    if (!stripDisabledVisual) return raw;
+    return raw
+        .replace(/\s*disabled:!cursor-not-allowed/g, '')
+        .replace(/\s*disabled:!opacity-45/g, '')
+        .replace(/\s*disabled:!grayscale/g, '')
+        .replace(/\s*disabled:hover:!brightness-100/g, '');
+};
 
 interface StageGridProps {
     selectedClass: SinglePlayerLevel;
@@ -180,22 +192,61 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                         const gameModeName = getStageGameModeName(stage);
                         const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
                         const hasEnoughAP = currentUser.actionPoints.current >= effectiveActionPointCost;
+                        const spOnboardingPhase = currentUser.onboardingTutorialPhase ?? 0;
+                        const tutorialStage1Spotlight =
+                            isOnboardingTutorialActive(currentUser) &&
+                            stage.id === '입문-1' &&
+                            (spOnboardingPhase === 2 || spOnboardingPhase === 4);
+                        const tutorialBlockStage1Enter =
+                            tutorialStage1Spotlight && spOnboardingPhase === 2;
+                        const tutorialInviteStage1Enter =
+                            tutorialStage1Spotlight && spOnboardingPhase === 4;
+
+                        const stage1OnboardingTargetAttrs = tutorialStage1Spotlight
+                            ? ({ 'data-onboarding-target': 'onboarding-sp-stage-1' } as const)
+                            : {};
 
                         return (
                             <div
                                 key={stage.id}
+                                {...stage1OnboardingTargetAttrs}
                                 className={`
                                     relative bg-tertiary/90 rounded-lg border border-color/40 px-2.5 py-3 flex flex-col items-center justify-between min-h-0 min-w-0
                                     transition-transform duration-150
+                                    ${tutorialBlockStage1Enter ? 'cursor-not-allowed z-[1]' : ''}
+                                    ${tutorialBlockStage1Enter ? 'brightness-[1.18] saturate-110 shadow-[inset_0_0_0_2px_rgba(253,224,71,0.85),0_0_28px_6px_rgba(251,191,36,0.4)]' : ''}
                                     ${isLocked 
                                         ? 'opacity-50 cursor-not-allowed'
                                         : isCleared
-                                            ? 'cursor-pointer ring-1 ring-green-500/70 hover:scale-[1.02]'
-                                            : 'cursor-pointer hover:scale-[1.03] hover:shadow-md'
+                                            ? tutorialBlockStage1Enter
+                                                ? 'ring-1 ring-green-500/70'
+                                                : 'cursor-pointer ring-1 ring-green-500/70 hover:scale-[1.02]'
+                                            : tutorialBlockStage1Enter
+                                              ? ''
+                                              : 'cursor-pointer hover:scale-[1.03] hover:shadow-md'
                                     }
                                 `}
-                                onClick={() => !isLocked && handleStageEnter(stage.id)}
+                                onClick={() =>
+                                    !isLocked &&
+                                    !tutorialBlockStage1Enter &&
+                                    !tutorialInviteStage1Enter &&
+                                    handleStageEnter(stage.id)
+                                }
                             >
+                                {tutorialBlockStage1Enter && (
+                                    <div
+                                        className="pointer-events-auto absolute inset-0 z-[35] rounded-lg bg-transparent"
+                                        aria-hidden
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }}
+                                        onPointerDown={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                        }}
+                                    />
+                                )}
                                 {isLocked && (
                                     <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center z-10">
                                         <span className="text-white font-bold text-lg">🔒</span>
@@ -283,11 +334,17 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     <Button
                                         onClick={(e) => {
                                             e?.stopPropagation();
+                                            if (tutorialBlockStage1Enter) return;
                                             handleStageEnter(stage.id);
                                         }}
                                         colorScheme="none"
-                                        className={isMobile ? PREMIUM_STAGE_ENTER_CLASS_COMPACT : PREMIUM_STAGE_ENTER_CLASS}
-                                        disabled={!hasEnoughAP}
+                                        disabledWithoutDim={tutorialBlockStage1Enter}
+                                        className={`${premiumStageEnterClass(isMobile, tutorialBlockStage1Enter)}${
+                                            tutorialStage1Spotlight && !tutorialBlockStage1Enter
+                                                ? ' !brightness-125 !contrast-105 !ring-2 !ring-amber-200/95 !shadow-[0_0_32px_rgba(251,191,36,0.65),0_4px_22px_rgba(245,158,11,0.45)]'
+                                                : ''
+                                        }`}
+                                        disabled={!hasEnoughAP || tutorialBlockStage1Enter}
                                         title={`입장 · 행동력 ${effectiveActionPointCost}`}
                                         style={
                                             tabShelf

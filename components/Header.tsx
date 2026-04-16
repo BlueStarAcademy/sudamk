@@ -342,6 +342,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         }`}
                     >
                     <div
+                        data-onboarding-target="onboarding-header-ap"
                         className={`flex items-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner ${
                             isMobile
                                 ? 'min-w-0 shrink h-[clamp(1.45rem,4.8vw,1.85rem)] gap-[clamp(0.08rem,0.7vw,0.2rem)] pl-[clamp(0.3rem,1.5vw,0.45rem)] pr-[clamp(0.12rem,0.7vw,0.22rem)] sm:gap-1'

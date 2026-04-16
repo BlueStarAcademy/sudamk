@@ -189,7 +189,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
             : stage.rewards.repeatClear;
         
         console.log(`[SP Summary] Stage ${stage.id} - isFirstClear: ${isFirstClear}, rewards: gold=${rewards.gold}, exp=${rewards.exp}`);
-        
+
         // 최초 클리어인 경우 clearedSinglePlayerStages에 추가
         if (isFirstClear) {
             user.clearedSinglePlayerStages.push(stage.id);
@@ -214,8 +214,8 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
         
         console.log(`[SP Summary] Rewards applied - summary.gold=${summary.gold}, summary.xp.change=${summary.xp.change}, user.gold=${user.gold}, user.strategyXp=${user.strategyXp}`);
         
-        // 아이템 보상 처리
-        const itemsToCreate = rewards.items ? createItemInstancesFromReward(rewards.items) : [];
+        // 아이템 보상 처리 (입문-1 첫 클리어 부채 포함, 즉시 지급)
+        const itemsToCreate = rewards.items?.length ? createItemInstancesFromReward(rewards.items) : [];
         const { success, updatedInventory } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
         
         if (!success) {
@@ -296,6 +296,9 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     // inventory가 실제로 변경된 경우에만 포함 (아이템 보상이 있을 때만)
     if (summary.items && summary.items.length > 0) {
         fieldsToUpdate.push('inventory');
+    }
+    if (user.onboardingTutorialPhase != null) {
+        fieldsToUpdate.push('onboardingTutorialPhase');
     }
     broadcastUserUpdate(user, fieldsToUpdate);
 };

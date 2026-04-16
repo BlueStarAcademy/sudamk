@@ -39,6 +39,20 @@ function bumpKataHiddenRevealCacheTag(game: types.LiveGameSession): string {
     return `hr${n}`;
 }
 
+/**
+ * KataServer `game_id` 헤더용 세션 태그. 재접속(F5)·끊김 후 재입장 시 resume 시퀀스로 캐시를 비우고,
+ * 히든 전체 공개 시에는 기존처럼 hr 태그를 함께 붙인다.
+ */
+export function composeKataSessionTagForGame(game: types.LiveGameSession, hiddenRevealTag?: string): string | undefined {
+    const resumeRaw = Number((game.settings as any)?.kataSessionResumeSeq);
+    const resume = Number.isFinite(resumeRaw) && resumeRaw > 0 ? Math.floor(resumeRaw) : 0;
+    const parts: string[] = [];
+    if (resume > 0) parts.push(`rs${resume}`);
+    if (hiddenRevealTag && String(hiddenRevealTag).trim()) parts.push(String(hiddenRevealTag).trim());
+    if (parts.length === 0) return undefined;
+    return parts.join('-');
+}
+
 /** 전략 AI 대국: 히든 개수는 player1/player2 좌석 기준(hidden_stones_p1/p2). AI가 항상 p2라는 가정은 길드전·색 배정에 깨질 수 있음 */
 function getStrategicAiHiddenStonesKey(game: types.LiveGameSession, aiPlayerEnum: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' {
     const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
@@ -735,6 +749,57 @@ function revealAllUnrevealedHiddensForPlayerEnum(game: types.LiveGameSession, pl
     }
 }
 
+const USER_HIDDEN_FULL_REVEAL_MS = 2000;
+
+/**
+ * AI가 마스킹된 유저 히든을 찍어 전체 공개가 필요할 때: 영구 공개 + 전체공개 연출 후,
+ * `hidden_reveal_animating` 종료 시 update*HiddenState에서 makeAiMove가 다시 호출되도록 플래그를 남긴다.
+ */
+function startUserHiddenFullRevealAnimationForAi(
+    game: types.LiveGameSession,
+    userPlayerEnum: Player,
+    now: number
+): boolean {
+    if (!game.moveHistory || !game.hiddenMoves) return false;
+    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+
+    const stones: { point: types.Point; player: Player }[] = [];
+    for (let i = 0; i < game.moveHistory.length; i++) {
+        if (!game.hiddenMoves[i]) continue;
+        const m = game.moveHistory[i];
+        if (!m || m.player !== userPlayerEnum || m.x < 0 || m.y < 0) continue;
+        if (game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) continue;
+        stones.push({ point: { x: m.x, y: m.y }, player: userPlayerEnum });
+    }
+    if (stones.length === 0) return false;
+
+    for (const s of stones) {
+        if (!game.permanentlyRevealedStones.some(p => p.x === s.point.x && p.y === s.point.y)) {
+            game.permanentlyRevealedStones.push({ ...s.point });
+        }
+    }
+
+    if (game.turnDeadline) {
+        game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+    }
+
+    bumpKataHiddenRevealCacheTag(game);
+    game.gameStatus = 'hidden_reveal_animating';
+    game.animation = {
+        type: 'hidden_reveal',
+        stones,
+        startTime: now,
+        duration: USER_HIDDEN_FULL_REVEAL_MS,
+    };
+    game.revealAnimationEndTime = now + USER_HIDDEN_FULL_REVEAL_MS;
+    game.pendingCapture = null;
+    (game as any).pendingAiMoveAfterUserHiddenFullReveal = true;
+
+    return true;
+}
+
 function getUserUnrevealedHiddenPoints(
     game: types.LiveGameSession,
     aiPlayerEnum: Player
@@ -1199,7 +1264,7 @@ export async function makeGoAiBotMove(
                 level: kataLevel,
                 komi: game.settings.komi,
                 gameId: game.id,
-                kataSessionTag: kataHiddenRevealCacheTag,
+                kataSessionTag: composeKataSessionTagForGame(game, kataHiddenRevealCacheTag),
                 allowPass: false,
             });
 
@@ -1238,8 +1303,12 @@ export async function makeGoAiBotMove(
                 isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, candidate.x, candidate.y, aiPlayerEnum)
             ) {
                 console.warn(
-                    `[makeGoAiBotMove] KataServer suggested (${candidate.x},${candidate.y}) on/near masked user hidden — full reveal & Kata retry (${attempt + 1}/${maxKataHiddenRetries}), game=${game.id}`
+                    `[makeGoAiBotMove] KataServer suggested (${candidate.x},${candidate.y}) on/near masked user hidden — full reveal animation then AI move (${attempt + 1}/${maxKataHiddenRetries}), game=${game.id}`
                 );
+                if (startUserHiddenFullRevealAnimationForAi(game, userPlayerEnumForHidden, now)) {
+                    await db.saveGame(game);
+                    return;
+                }
                 revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
                 kataHiddenRevealCacheTag = bumpKataHiddenRevealCacheTag(game);
                 continue;
@@ -1321,104 +1390,115 @@ export async function makeGoAiBotMove(
         
         // AI가 유저의 히든 돌 위에 착점을 시도하는 경우
         if (isTargetHiddenOpponentStone) {
-                revealAllUnrevealedHiddensForPlayerEnum(game, opponentPlayerEnum);
+            if (startUserHiddenFullRevealAnimationForAi(game, opponentPlayerEnum, now)) {
                 console.warn(
-                    `[makeGoAiBotMove] Kata chose (${x},${y}) on unrevealed user hidden — full reveal & same-turn Kata re-query (game=${game.id})`
+                    `[makeGoAiBotMove] Kata chose (${x},${y}) on unrevealed user hidden — full reveal animation then AI move (game=${game.id})`
                 );
-                const kataLevel = resolvedKataLevel;
-                let replacement: Point | null = null;
-                const maxKataHiddenRetries = 8;
-                let innerKataHiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
-                for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
-                    const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
-                    const rawMoveHistory = useHiddenMask
+                await db.saveGame(game);
+                return;
+            }
+            revealAllUnrevealedHiddensForPlayerEnum(game, opponentPlayerEnum);
+            console.warn(
+                `[makeGoAiBotMove] Kata chose (${x},${y}) on unrevealed user hidden — full reveal (no animation) & same-turn Kata re-query (game=${game.id})`
+            );
+            const kataLevel = resolvedKataLevel;
+            let replacement: Point | null = null;
+            const maxKataHiddenRetries = 8;
+            let innerKataHiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
+            for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
+                const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
+                const rawMoveHistory = useHiddenMask
+                    ? getMoveHistoryForAi(game, aiPlayerEnum)
+                    : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+                const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
+
+                const kataMove = await generateKataServerMove({
+                    boardSize: game.settings.boardSize || 19,
+                    player: aiPlayerEnum === types.Player.White ? 'white' : 'black',
+                    moveHistory,
+                    level: kataLevel,
+                    komi: game.settings.komi,
+                    gameId: game.id,
+                    kataSessionTag: composeKataSessionTagForGame(game, innerKataHiddenRevealTag),
+                    allowPass: false,
+                });
+
+                if (kataMove.x === -1 && kataMove.y === -1) {
+                    const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+                    const aiMoveHistoryForValid = useHiddenMask
                         ? getMoveHistoryForAi(game, aiPlayerEnum)
-                        : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
-                    const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
-
-                    const kataMove = await generateKataServerMove({
-                        boardSize: game.settings.boardSize || 19,
-                        player: aiPlayerEnum === types.Player.White ? 'white' : 'black',
-                        moveHistory,
-                        level: kataLevel,
-                        komi: game.settings.komi,
-                        gameId: game.id,
-                        kataSessionTag: innerKataHiddenRevealTag,
-                        allowPass: false,
-                    });
-
-                    if (kataMove.x === -1 && kataMove.y === -1) {
-                        const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-                        const aiMoveHistoryForValid = useHiddenMask
-                            ? getMoveHistoryForAi(game, aiPlayerEnum)
-                            : (game.moveHistory || []);
-                        const aiGameForValid: types.LiveGameSession = {
-                            ...game,
-                            boardState: aiBoardState,
-                            moveHistory: aiMoveHistoryForValid as types.Move[],
-                        };
-                        const logicForValid = getGoLogic(aiGameForValid);
-                        let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
-                        if (useHiddenMask && validAfterKataPass.length > 0) {
-                            validAfterKataPass = validAfterKataPass.filter(
-                                m =>
-                                    !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
-                                        game,
-                                        m.x,
-                                        m.y,
-                                        aiPlayerEnum
-                                    )
-                            );
-                        }
-                        if (validAfterKataPass.length === 0) {
-                            console.log(
-                                `[makeGoAiBotMove] Kata re-query PASS (no legal moves) → AI resign, game=${game.id}`
-                            );
-                            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                            return;
-                        }
-                        throw new Error(
-                            `[makeGoAiBotMove] Kata re-query returned PASS while ${validAfterKataPass.length} masked legal moves exist (game=${game.id})`
+                        : (game.moveHistory || []);
+                    const aiGameForValid: types.LiveGameSession = {
+                        ...game,
+                        boardState: aiBoardState,
+                        moveHistory: aiMoveHistoryForValid as types.Move[],
+                    };
+                    const logicForValid = getGoLogic(aiGameForValid);
+                    let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
+                    if (useHiddenMask && validAfterKataPass.length > 0) {
+                        validAfterKataPass = validAfterKataPass.filter(
+                            m =>
+                                !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
+                                    game,
+                                    m.x,
+                                    m.y,
+                                    aiPlayerEnum
+                                )
                         );
                     }
-
-                    const candidate = { x: kataMove.x, y: kataMove.y };
-                    if (
-                        useHiddenMask &&
-                        isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
-                            game,
-                            candidate.x,
-                            candidate.y,
-                            aiPlayerEnum
-                        )
-                    ) {
-                        revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
-                        innerKataHiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
-                        continue;
+                    if (validAfterKataPass.length === 0) {
+                        console.log(
+                            `[makeGoAiBotMove] Kata re-query PASS (no legal moves) → AI resign, game=${game.id}`
+                        );
+                        await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                        return;
                     }
-                    replacement = candidate;
-                    break;
-                }
-                if (!replacement) {
                     throw new Error(
-                        `[makeGoAiBotMove] Kata re-query after user-hidden full reveal exhausted retries (game=${game.id})`
+                        `[makeGoAiBotMove] Kata re-query returned PASS while ${validAfterKataPass.length} masked legal moves exist (game=${game.id})`
                     );
                 }
-                selectedMove = replacement;
-                const rx = selectedMove.x;
-                const ry = selectedMove.y;
-                const stoneR = game.boardState[ry][rx];
-                const moveIdxR = game.moveHistory.findIndex(m => m.x === rx && m.y === ry);
-                const stillHiddenUser =
-                    stoneR === opponentPlayerEnum &&
-                    moveIdxR !== -1 &&
-                    game.hiddenMoves?.[moveIdxR] &&
-                    !game.permanentlyRevealedStones?.some(p => p.x === rx && p.y === ry);
-                if (stillHiddenUser) {
-                    throw new Error(
-                        `[makeGoAiBotMove] Kata re-query still targets unrevealed user hidden at (${rx},${ry}) (game=${game.id})`
-                    );
+
+                const candidate = { x: kataMove.x, y: kataMove.y };
+                if (
+                    useHiddenMask &&
+                    isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
+                        game,
+                        candidate.x,
+                        candidate.y,
+                        aiPlayerEnum
+                    )
+                ) {
+                    if (startUserHiddenFullRevealAnimationForAi(game, userPlayerEnumForHidden, now)) {
+                        await db.saveGame(game);
+                        return;
+                    }
+                    revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
+                    innerKataHiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
+                    continue;
                 }
+                replacement = candidate;
+                break;
+            }
+            if (!replacement) {
+                throw new Error(
+                    `[makeGoAiBotMove] Kata re-query after user-hidden full reveal exhausted retries (game=${game.id})`
+                );
+            }
+            selectedMove = replacement;
+            const rx = selectedMove.x;
+            const ry = selectedMove.y;
+            const stoneR = game.boardState[ry][rx];
+            const moveIdxR = game.moveHistory.findIndex(m => m.x === rx && m.y === ry);
+            const stillHiddenUser =
+                stoneR === opponentPlayerEnum &&
+                moveIdxR !== -1 &&
+                game.hiddenMoves?.[moveIdxR] &&
+                !game.permanentlyRevealedStones?.some(p => p.x === rx && p.y === ry);
+            if (stillHiddenUser) {
+                throw new Error(
+                    `[makeGoAiBotMove] Kata re-query still targets unrevealed user hidden at (${rx},${ry}) (game=${game.id})`
+                );
+            }
         }
     }
 

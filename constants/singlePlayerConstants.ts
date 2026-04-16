@@ -107,7 +107,27 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
 const SINGLE_PLAYER_STAGES_BASE: SinglePlayerStageInfo[] = [
     // Data from the spreadsheet image
     // 입문 1~10: 따내기 바둑 (흑에게 15턴 제한)
-    { id: '입문-1', name: '스테이지 1', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 7, targetScore: { black: 5, white: 5 }, placements: { black: 2, white: 2, blackPattern: 0, whitePattern: 1, centerBlackStoneChance: 90 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, blackTurnLimit: 15, rewards: { firstClear: { gold: 100, exp: 10 }, repeatClear: { gold: 10, exp: 10 } } },
+    {
+        id: '입문-1',
+        name: '스테이지 1',
+        level: SinglePlayerLevel.입문,
+        actionPointCost: 2,
+        boardSize: 7,
+        targetScore: { black: 1, white: 99 },
+        fixedOpening: [
+            { x: 3, y: 3, color: 'white' },
+            { x: 2, y: 3, color: 'black' },
+            { x: 3, y: 2, color: 'black' },
+            { x: 3, y: 4, color: 'black' },
+        ],
+        placements: { black: 0, white: 0, blackPattern: 0, whitePattern: 0 },
+        timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
+        blackTurnLimit: 15,
+        rewards: {
+            firstClear: { gold: 100, exp: 10, items: [{ itemId: '푸른 바람 부채', quantity: 1 }] },
+            repeatClear: { gold: 10, exp: 10 },
+        },
+    },
     { id: '입문-2', name: '스테이지 2', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 7, targetScore: { black: 5, white: 5 }, placements: { black: 2, white: 2, blackPattern: 0, whitePattern: 1, centerBlackStoneChance: 90 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, blackTurnLimit: 15, rewards: { firstClear: { gold: 100, exp: 11 }, repeatClear: { gold: 10, exp: 10 } } },
     { id: '입문-3', name: '스테이지 3', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 7, targetScore: { black: 5, white: 5 }, placements: { black: 2, white: 2, blackPattern: 1, whitePattern: 1, centerBlackStoneChance: 90 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, blackTurnLimit: 15, rewards: { firstClear: { gold: 100, exp: 12 }, repeatClear: { gold: 10, exp: 10 } } },
     { id: '입문-4', name: '스테이지 4', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 7, targetScore: { black: 5, white: 5 }, placements: { black: 2, white: 2, blackPattern: 2, whitePattern: 1, centerBlackStoneChance: 90 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, blackTurnLimit: 15, rewards: { firstClear: { gold: 100, exp: 13 }, repeatClear: { gold: 10, exp: 10 } } },

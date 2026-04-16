@@ -14,6 +14,7 @@ import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
 import QuickAccessSidebar from './components/QuickAccessSidebar.js';
+import OnboardingTutorialOverlay from './components/onboarding/OnboardingTutorialOverlay.js';
 import MainBackgroundLayer from './components/MainBackgroundLayer.js';
 import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
@@ -364,7 +365,8 @@ const AppContent: React.FC = () => {
                     </div>
                 </div>
             )}
-            
+            {currentUser ? <OnboardingTutorialOverlay /> : null}
+
             {usePortraitFirstShell ? (
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
                     <style>{`
@@ -383,6 +385,11 @@ const AppContent: React.FC = () => {
                         id="sudamr-game-chrome-root"
                         className="pointer-events-none fixed inset-0 z-[25]"
                         style={{ pointerEvents: 'none' }}
+                    />
+                    <div
+                        id="sudamr-onboarding-root"
+                        className="pointer-events-none fixed inset-0 z-[70]"
+                        aria-hidden
                     />
                     <div
                         id="sudamr-modal-root"
@@ -545,6 +552,19 @@ const AppContent: React.FC = () => {
                                 zIndex: 25,
                                 pointerEvents: 'none',
                             }}
+                        />
+                        <div
+                            id="sudamr-onboarding-root"
+                            style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                width: DESIGN_W,
+                                height: DESIGN_H,
+                                zIndex: 70,
+                                pointerEvents: 'none',
+                            }}
+                            aria-hidden
                         />
                         {/* 
                            Modals/portals that render into document.body will not be scaled.

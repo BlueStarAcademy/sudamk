@@ -4125,6 +4125,36 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // 서버 상태 복원: 재접속한 유저를 in-game으로 설정 (새로고침 후 라우팅/activeGame 일치)
             volatileState.userConnections[userId] = Date.now();
             volatileState.userStatuses[userId] = { status: types.UserStatus.InGame, mode: game.mode, gameId: game.id };
+            // AI 대국: KataServer가 game_id 헤더로 세션을 캐시하는 경우, 끊김·F5 후 재입장 시 이전 국면이 남아
+            // 다음 AI 수가 어긋할 수 있음 → settings.kataSessionResumeSeq를 올려 game_id 태그를 갱신한다.
+            const kataResumeBumpStatuses = new Set([
+                'pending',
+                'playing',
+                'hidden_placing',
+                'scanning',
+                'missile_selecting',
+                'missile_animating',
+                'scanning_animating',
+                'hidden_reveal_animating',
+                'hidden_final_reveal',
+                'scoring',
+            ]);
+            if (game.isAiGame && kataResumeBumpStatuses.has(game.gameStatus || '')) {
+                const s = game.settings as any;
+                const nextSeq = (Number(s?.kataSessionResumeSeq) || 0) + 1;
+                if (!game.settings) (game as any).settings = {};
+                (game.settings as any).kataSessionResumeSeq = nextSeq;
+                await db.saveGame(game);
+                try {
+                    const { updateGameCache } = await import('./gameCache.js');
+                    updateGameCache(game);
+                } catch {
+                    // ignore
+                }
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`[/api/game/rejoin] kataSessionResumeSeq=${nextSeq} for AI game ${game.id} (user ${userId})`);
+                }
+            }
             // 전체 게임 객체 반환 (boardState, moveHistory 포함 - 클라이언트 복원용)
             const sanitized = JSON.parse(JSON.stringify(game)) as types.LiveGameSession;
             return res.status(200).json({ game: sanitized });

@@ -73,6 +73,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 const cap = game.pendingCapture;
                 // 히든 돌만 공개(따냄 없음): 상대가 내 히든 위에 두려 한 경우 — 타이머만 재개
                 if (!cap) {
+                    const pendingAiAfterUserHiddenReveal = (game as any).pendingAiMoveAfterUserHiddenFullReveal;
+                    (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
                     game.animation = null;
                     game.gameStatus = 'playing';
                     game.revealAnimationEndTime = undefined;
@@ -102,6 +104,34 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.turnStartTime = undefined;
                     }
                     game.pausedTurnTimeLeft = undefined;
+                    if (pendingAiAfterUserHiddenReveal && game.isAiGame) {
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('../socket.js');
+                        const { updateGameCache } = await import('../gameCache.js');
+                        updateGameCache(game);
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        const { makeAiMove } = await import('../aiPlayer.js');
+                        setImmediate(() => {
+                            makeAiMove(game).then(async () => {
+                                try {
+                                    updateGameCache(game);
+                                    await db.saveGame(game);
+                                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                                } catch (e: any) {
+                                    console.error(
+                                        `[updateHiddenState] AI move after user-hidden full reveal failed for ${game.id}:`,
+                                        e?.message
+                                    );
+                                }
+                            }).catch((err: any) => {
+                                console.error(
+                                    `[updateHiddenState] makeAiMove after user-hidden full reveal failed for ${game.id}:`,
+                                    err?.message
+                                );
+                            });
+                        });
+                        return;
+                    }
                     break;
                 }
                 {
@@ -166,7 +196,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 game.gameStatus = 'playing';
                 game.revealAnimationEndTime = undefined;
                 game.pendingCapture = null;
-                
+                (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
+
                 // Resume timer for the next player (연출 중 game.currentPlayer가 실제 착수자와 다를 수 있음)
                 const playerWhoMoved = cap.move.player;
                 const nextPlayer = playerWhoMoved === types.Player.Black ? types.Player.White : types.Player.Black;

@@ -179,6 +179,8 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                 const cap = game.pendingCapture;
                 const isAiTurnCancelled = (game as any).isAiTurnCancelledAfterReveal;
                 if (!cap) {
+                    const pendingAiAfterUserHiddenReveal = (game as any).pendingAiMoveAfterUserHiddenFullReveal;
+                    (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
                     game.animation = null;
                     game.gameStatus = 'playing';
                     game.revealAnimationEndTime = undefined;
@@ -195,6 +197,34 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                         game.turnStartTime = undefined;
                     }
                     game.pausedTurnTimeLeft = undefined;
+                    if (pendingAiAfterUserHiddenReveal) {
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('../socket.js');
+                        const { updateGameCache } = await import('../gameCache.js');
+                        updateGameCache(game);
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        const { makeAiMove } = await import('../aiPlayer.js');
+                        setImmediate(() => {
+                            makeAiMove(game).then(async () => {
+                                try {
+                                    updateGameCache(game);
+                                    await db.saveGame(game);
+                                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                                } catch (e: any) {
+                                    console.error(
+                                        `[updateTowerPlayerHiddenState] AI move after user-hidden full reveal failed for ${game.id}:`,
+                                        e?.message
+                                    );
+                                }
+                            }).catch((err: any) => {
+                                console.error(
+                                    `[updateTowerPlayerHiddenState] makeAiMove after user-hidden full reveal failed for ${game.id}:`,
+                                    err?.message
+                                );
+                            });
+                        });
+                        return;
+                    }
                     break;
                 }
                 game.gameStatus = 'playing';
@@ -247,6 +277,7 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                 game.revealAnimationEndTime = undefined;
                 game.pendingCapture = null;
                 (game as any).isAiTurnCancelledAfterReveal = undefined;
+                (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
 
                 if (isAiTurnCancelled) {
                     game.gameStatus = 'playing';

@@ -276,6 +276,31 @@ function getIngameBoardCenteredDefaultPosition(base: { x: number; y: number }): 
     return { x: base.x + dx, y: base.y + dy };
 }
 
+/**
+ * `fixed top-1/2 left-1/2` + translate(-50%,-50%) 기준점이 뷰포트(또는 visualViewport) 중앙일 때,
+ * 모달 중심이 화면이 아니라 바둑판 패널 중심에 오도록 스크린 픽셀 오프셋을 더한다.
+ */
+function getIngameBoardCenteredDefaultPositionViewportFixed(base: { x: number; y: number }): { x: number; y: number } {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return base;
+    const boardEl = document.querySelector('.go-board-panel') as HTMLElement | null;
+    if (!boardEl) return base;
+
+    const boardRect = boardEl.getBoundingClientRect();
+    if (boardRect.width <= 0 || boardRect.height <= 0) return base;
+
+    const vv = window.visualViewport;
+    const refCx = vv ? vv.offsetLeft + vv.width / 2 : window.innerWidth / 2;
+    const refCy = vv ? vv.offsetTop + vv.height / 2 : window.innerHeight / 2;
+
+    const boardCx = boardRect.left + boardRect.width / 2;
+    const boardCy = boardRect.top + boardRect.height / 2;
+
+    return {
+        x: base.x + (boardCx - refCx),
+        y: base.y + (boardCy - refCy),
+    };
+}
+
 // 전역 z-index 카운터: 최상위 모달이 항상 가장 높은 z-index를 가지도록 함
 let globalZIndexCounter = 10000;
 
@@ -355,6 +380,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     /** 대국 화면(Game)에서만 true — 모달을 바둑판 패널 크기·위치에 맞춤 */
     const ingameBoardFrame = useInGameModalLayout();
 
+    const [windowWidth, setWindowWidth] = useState(() =>
+        typeof window !== 'undefined' ? window.innerWidth : 1920,
+    );
+    const [windowHeight, setWindowHeight] = useState(() =>
+        typeof window !== 'undefined' ? window.innerHeight : 1080,
+    );
+
     const designInitialWidth = useMemo(() => {
         const w = initialWidth ?? 800;
         if (modalLayerUsesDesignPixels && ingameBoardFrame) {
@@ -365,9 +397,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const effectiveDefaultPosition = useMemo(() => {
         const base = { x: defaultPosition?.x ?? 0, y: defaultPosition?.y ?? 0 };
-        if (!modalLayerUsesDesignPixels || !ingameBoardFrame) return base;
-        return getIngameBoardCenteredDefaultPosition(base);
-    }, [defaultPosition, modalLayerUsesDesignPixels, ingameBoardFrame]);
+        if (!ingameBoardFrame) return base;
+        if (modalLayerUsesDesignPixels) {
+            return getIngameBoardCenteredDefaultPosition(base);
+        }
+        return getIngameBoardCenteredDefaultPositionViewportFixed(base);
+    }, [defaultPosition, modalLayerUsesDesignPixels, ingameBoardFrame, windowWidth, windowHeight]);
 
     const [rememberPosition, setRememberPosition] = useState(true);
 
@@ -433,8 +468,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     }, [modal, onClose, handleClickOutside]);
 
-
-
     useEffect(() => {
         const handleResize = () => {
             setWindowWidth(window.innerWidth);
@@ -445,12 +478,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-
-
     // 브라우저 크기에 따라 창 크기를 비례적으로 조정
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-    const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-    
     const calculatedWidth = useMemo(() => {
         if (!initialWidth) return undefined;
         

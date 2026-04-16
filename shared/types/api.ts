@@ -191,6 +191,7 @@ export type ServerAction =
     | { type: 'DICE_CONFIRM_START', payload: { gameId: string } }
     | { type: 'DICE_ROLL', payload: { gameId: string; itemType?: 'odd' | 'even' | 'low' | 'high' } }
     | { type: 'DICE_PLACE_STONE', payload: { gameId: string, x: number, y: number } }
+    | { type: 'DICE_PLACE_STONES_BATCH', payload: { gameId: string; placements: Array<{ x: number; y: number }> } }
     // Thief Go
     | { type: 'THIEF_UPDATE_ROLE_CHOICE', payload: { gameId: string; choice: 'thief' | 'police' } }
     | { type: 'CONFIRM_THIEF_ROLE', payload: { gameId: string } }
@@ -217,6 +218,12 @@ export type ServerAction =
     | { type: 'CHANGE_USERNAME', payload: { newUsername: string; password: string } }
     | { type: 'CHANGE_PASSWORD', payload: { currentPassword: string; newPassword: string } }
     | { type: 'WITHDRAW_USER', payload: { password: string; confirmText: string } }
+    | { type: 'ADVANCE_ONBOARDING_TUTORIAL', payload: { phase: number } }
+    | { type: 'CLAIM_ONBOARDING_INTRO1_FAN', payload?: never }
+    | { type: 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', payload?: never }
+    | { type: 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', payload?: never }
+    /** 관리자 본인: VIP 헤더·혜택 UI 테스트용 (만료 시각을 강제로 켜거나 끔) */
+    | { type: 'ADMIN_SET_VIP_TEST_FLAGS'; payload: { rewardVip: boolean; functionVip: boolean; vvip: boolean } }
     | { type: 'UPDATE_MBTI', payload: { mbti: string, isMbtiPublic: boolean, isFirstTime?: boolean } }
     | { type: 'RESET_STAT_POINTS', payload?: never }
     | { type: 'CONFIRM_STAT_ALLOCATION', payload: { newStatPoints: any } }
@@ -235,6 +242,7 @@ export type ServerAction =
               stageId: string;
               battleMode: 'classic' | 'capture' | 'base' | 'hidden' | 'missile';
               monsterLevel: number;
+              /** 맵 몬스터 인스턴스 id — 판 크기 결정 시드와 동일해야 함 */
               mapMonsterId: string;
           };
       }
@@ -296,6 +304,7 @@ export type ServerAction =
     | { type: 'ADMIN_RESET_CHAMPIONSHIP_ALL', payload: { targetUserId: string } }
     | { type: 'ADMIN_RESET_ALL_USERS_CHAMPIONSHIP', payload?: Record<string, never> }
     | { type: 'ADMIN_CLEAR_USER_GUILD', payload: { targetUserId: string } }
+    | { type: 'ADMIN_GUILD_WAR_RECHARGE_DAILY_ATTEMPTS', payload: { targetUserId: string } }
     | { type: 'ADMIN_CREATE_HOME_BOARD_POST', payload: { title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_UPDATE_HOME_BOARD_POST', payload: { postId: string; title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_DELETE_HOME_BOARD_POST', payload: { postId: string } }
@@ -333,6 +342,8 @@ export type ServerAction =
     | { type: 'END_SINGLE_PLAYER_GAME', payload: { gameId: string; winner: Player; winReason: WinReason } }
     | { type: 'TOWER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; } }
     | { type: 'SINGLE_PLAYER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; isHidden?: boolean; } }
+    | { type: 'LOCAL_HIDDEN_REVEAL_TRIGGER', payload: { gameId: string; gameType: 'tower' | 'singleplayer'; point: Point; player: Player; keepTurn?: boolean } }
+    | { type: 'LOCAL_HIDDEN_REVEAL_COMPLETE', payload: { gameId: string; gameType: 'tower' | 'singleplayer' } }
     | { type: 'AI_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player } }
     | { type: 'START_SINGLE_PLAYER_MISSION', payload: { missionId: string } }
     | { type: 'CLAIM_SINGLE_PLAYER_MISSION_REWARD', payload: { missionId: string } }
@@ -396,6 +407,8 @@ export interface GameProps {
     waitingRoomChat: ChatMessage[];
     gameChat: ChatMessage[];
     negotiations: Negotiation[];
+    /** 전광판(TurnDisplay)에 잠시 안내 — 패·둘 수 없는 자리 등 */
+    onBoardRuleFlash?: (message: string) => void;
 }
 
 export interface AdminProps {

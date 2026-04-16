@@ -5,6 +5,7 @@ import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID, ADMIN_NICKNAME } f
 import { containsProfanity } from '../../profanity.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { userMeetsGuildFeatureLevelRequirement } from '../../shared/constants/guildConstants.js';
 import {
     arenaGameRoomChatBodyClass,
     arenaGameRoomChatIconToggleClass,
@@ -160,7 +161,13 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
             : "[메시지 입력]";
 
     const hasGuild = !!currentUserWithStatus?.guildId;
+    const guildChatUnlocked = userMeetsGuildFeatureLevelRequirement(currentUserWithStatus);
+    const hasGuildChatAccess = hasGuild && guildChatUnlocked;
     const activeMessages = activeTab === 'guild' ? guildMessages : messages;
+
+    useEffect(() => {
+        if (!hasGuildChatAccess && activeTab === 'guild') setActiveTab('global');
+    }, [hasGuildChatAccess, activeTab]);
     const compactUi = compactHome || compactTournamentMobile;
     const compactMsg = compactUi ? 'text-[11px] leading-snug' : 'text-xs';
     const compactEmpty = compactUi ? 'text-[11px] leading-snug' : 'text-sm';
@@ -195,7 +202,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
 
     return (
         <div className={rootClass}>
-            {hasGuild ? (
+            {hasGuildChatAccess ? (
                 <div className={tabBarClass}>
                     <button type="button" onClick={() => setActiveTab('global')} className={globalTabClass}>
                         전체채팅

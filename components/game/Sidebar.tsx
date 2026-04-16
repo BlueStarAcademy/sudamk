@@ -21,7 +21,11 @@ import UserNicknameText from '../UserNicknameText.js';
 import { containsProfanity } from '../../profanity.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
-import { getGuildWarBoardMode, getGuildWarStarConditionLines } from '../../shared/constants/guildConstants.js';
+import {
+    getGuildWarBoardMode,
+    getGuildWarStarConditionLines,
+    userMeetsGuildFeatureLevelRequirement,
+} from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
 import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
@@ -419,6 +423,17 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
         }
     }, [cooldown]);
 
+    const guildChatUnlocked = currentUserWithStatus
+        ? userMeetsGuildFeatureLevelRequirement(currentUserWithStatus)
+        : false;
+    const showGuildChatTab = Boolean(currentUserWithStatus?.guildId) && guildChatUnlocked;
+
+    useEffect(() => {
+        if (!showGuildChatTab && activeTab === 'guild') {
+            setActiveTab(isAiGame ? 'global' : 'game');
+        }
+    }, [showGuildChatTab, activeTab, isAiGame]);
+
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (quickChatRef.current && !quickChatRef.current.contains(event.target as Node)) setShowQuickChat(false);
@@ -494,7 +509,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     return (
         <div className={arenaGameRoomChatShellClass}>
             {isAiGame ? (
-                currentUserWithStatus?.guildId ? (
+                showGuildChatTab ? (
                     <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
                         <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>전체채팅</button>
                         <button type="button" onClick={() => setActiveTab('guild')} className={activeTab === 'guild' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>길드채팅</button>
@@ -506,7 +521,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                 <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
                     <button type="button" onClick={() => setActiveTab('game')} className={activeTab === 'game' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>대국실</button>
                     <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>전체채팅</button>
-                    {currentUserWithStatus?.guildId && (
+                    {showGuildChatTab && (
                         <button type="button" onClick={() => setActiveTab('guild')} className={activeTab === 'guild' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>길드채팅</button>
                     )}
                 </div>

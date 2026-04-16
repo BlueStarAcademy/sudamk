@@ -125,7 +125,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             if (baseUsesBottomStrip) return null;
             return <BaseColorRouletteModal session={session} />;
         }
-        if (gameStatus === 'base_game_start_confirmation') {
+        if (gameStatus === 'base_komi_result' || gameStatus === 'base_game_start_confirmation') {
             if (isSpectator || !session.blackPlayerId || !session.whitePlayerId) return null;
             return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         }

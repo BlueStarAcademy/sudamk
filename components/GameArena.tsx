@@ -1,5 +1,5 @@
 import React from 'react';
-import { GameProps, Player, GameMode } from '../types.js';
+import { GameProps, Player, GameMode, Point } from '../types.js';
 
 // Import the new arena components
 import GoGameArena from './arenas/GoGameArena.js';
@@ -37,11 +37,41 @@ interface GameArenaProps extends GameProps {
     captureScoreFloatMinPoints?: number;
     /** 주사위 바둑: 주사위 박스 옆 착수 버튼(전략바둑과 동일 패턴) */
     diceGoPlaceUi?: DiceGoPlaceUiProps;
+    onboardingDemoAnchorPoint?: Point | null;
+    onboardingForcedFirstMovePoint?: Point | null;
+    intro1TutorialHighlight?: Point | null;
 }
 
 const GameArena: React.FC<GameArenaProps> = (props) => {
-    const { session, isSinglePlayerPaused, showBoardGlow, resumeCountdown, isBoardLocked, isBoardRotated, onToggleBoardRotation, pendingMove, captureScoreFloatMinPoints = 2, diceGoPlaceUi, ...restProps } = props;
-    const sharedProps = { ...restProps, session, isBoardRotated, onToggleBoardRotation, pendingMove, showBoardGlow, captureScoreFloatMinPoints, diceGoPlaceUi };
+    const {
+        session,
+        isSinglePlayerPaused,
+        showBoardGlow,
+        resumeCountdown,
+        isBoardLocked,
+        isBoardRotated,
+        onToggleBoardRotation,
+        pendingMove,
+        captureScoreFloatMinPoints = 2,
+        diceGoPlaceUi,
+        onboardingDemoAnchorPoint = null,
+        onboardingForcedFirstMovePoint = null,
+        intro1TutorialHighlight = null,
+        ...restProps
+    } = props;
+    const sharedProps = {
+        ...restProps,
+        session,
+        isBoardRotated,
+        onToggleBoardRotation,
+        pendingMove,
+        showBoardGlow,
+        captureScoreFloatMinPoints,
+        diceGoPlaceUi,
+        onboardingDemoAnchorPoint,
+        onboardingForcedFirstMovePoint,
+        intro1TutorialHighlight,
+    };
     const { mode, isSinglePlayer, gameCategory } = session;
     
     // 도전의 탑 게임도 싱글플레이어 아레나와 동일하게 처리 (바둑 게임이므로)

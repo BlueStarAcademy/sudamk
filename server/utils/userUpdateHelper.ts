@@ -40,6 +40,16 @@ export function getSelectiveUserUpdate(
         // 프로필 관련
         'UPDATE_AVATAR': ['avatarId'],
         'UPDATE_BORDER': ['borderId'],
+        'ADVANCE_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingSpResultTutorialStep'],
+        'CLAIM_ONBOARDING_INTRO1_FAN': [
+            'inventory',
+            'onboardingTutorialPhase',
+            'onboardingIntro1FanPendingClaim',
+            'onboardingSpResultTutorialStep',
+        ],
+        'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL': ['onboardingSpResultTutorialStep'],
+        'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ': ['onboardingSpResultTutorialStep'],
+        'ADMIN_SET_VIP_TEST_FLAGS': ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt'],
         'CHANGE_NICKNAME': ['nickname', 'diamonds', 'staffNicknameDisplayEligibility'],
         'UPDATE_MBTI': ['mbti', 'isMbtiPublic', 'diamonds'],
         'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints'],
@@ -141,7 +151,8 @@ export function getUserDelta(oldUser: User | null, newUser: User): Partial<User>
         'spentStatPoints', 'equipmentPresets', 'mail', 'quests',
         'inventorySlots', 'blacksmithLevel', 'blacksmithXp',
         'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament',
-        'singlePlayerProgress', 'clearedSinglePlayerStages'
+        'singlePlayerProgress', 'clearedSinglePlayerStages', 'onboardingTutorialPhase', 'onboardingIntro1FanPendingClaim',
+        'rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt',
     ];
     
     for (const field of fieldsToCompare) {

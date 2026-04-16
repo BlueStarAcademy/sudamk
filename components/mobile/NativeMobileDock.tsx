@@ -109,6 +109,11 @@ const NativeMobileDock: React.FC = () => {
                                 type="button"
                                 onClick={() => go(tab)}
                                 title={blocked ? '입장이 닫혀 있습니다' : label}
+                                {...(tab === 'singleplayer'
+                                    ? { 'data-onboarding-target': 'onboarding-dock-sp' }
+                                    : tab === 'tower'
+                                      ? { 'data-onboarding-target': 'onboarding-dock-tower' }
+                                      : {})}
                                 className={[
                                     'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-px py-0 text-center transition-all duration-200 active:scale-[0.98] sm:h-12 sm:px-0.5',
                                     blocked ? 'opacity-45 cursor-not-allowed' : '',

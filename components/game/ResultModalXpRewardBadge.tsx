@@ -34,9 +34,14 @@ const VARIANT = {
     },
 } as const;
 
+/** 싱글/탑 게임 설명 모달 클리어 보상 줄: 골드·아이템 슬롯과 동일 (h-9 / sm:h-10) */
+const PRE_GAME_CLEAR_REWARD_BOX_CLASS = 'h-9 w-9 sm:h-10 sm:w-10';
+
 const DENSITY_BOX = {
     compact: RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
     comfortable: COMFORTABLE_BOX_CLASS,
+    /** PreGameDescriptionLayout 계열 한 줄 보상과 픽셀 정렬 맞춤 */
+    preGameInline: PRE_GAME_CLEAR_REWARD_BOX_CLASS,
 } as const;
 
 /**
@@ -46,7 +51,7 @@ const DENSITY_BOX = {
 export const ResultModalXpRewardBadge: React.FC<{
     variant: ResultModalXpVariant;
     amount: number;
-    /** compact: 9–10단(프리모달·모바일 요약) / comfortable: 한 단 더 큼 */
+    /** compact: 결과 모달 보상 줄 / comfortable: 데스크톱 한 단 더 큼 / preGameInline: 싱글 시작 설명 모달 골드·아이템과 동일 크기 */
     density?: keyof typeof DENSITY_BOX;
     className?: string;
     title?: string;
@@ -56,7 +61,25 @@ export const ResultModalXpRewardBadge: React.FC<{
     const modeLabel = variant === 'strategy' ? '전략' : '놀이';
     const defaultTitle = `${modeLabel} 경험치 +${amount.toLocaleString()}`;
 
-    const isCompact = density === 'compact';
+    const isPreGameInline = density === 'preGameInline';
+    const isCompact = density === 'compact' || isPreGameInline;
+
+    const labelModeClass =
+        isPreGameInline && variant === 'strategy'
+            ? 'text-[0.58rem] font-bold leading-none text-emerald-100/95 sm:text-[0.62rem]'
+            : isPreGameInline && variant === 'playful'
+              ? 'text-[0.52rem] font-bold leading-none text-sky-100/95 sm:text-[0.55rem]'
+              : isCompact
+                ? v.labelModeCompact
+                : v.labelMode;
+    const labelExpClass =
+        isPreGameInline && variant === 'strategy'
+            ? 'mt-px text-[0.62rem] font-black leading-none tracking-[0.05em] text-emerald-50 sm:text-[0.66rem]'
+            : isPreGameInline && variant === 'playful'
+              ? 'mt-px text-[0.54rem] font-black leading-none tracking-[0.05em] text-violet-100 sm:text-[0.58rem]'
+              : isCompact
+                ? v.labelExpCompact
+                : v.labelExp;
 
     return (
         <div
@@ -67,8 +90,8 @@ export const ResultModalXpRewardBadge: React.FC<{
                 className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${v.box}`}
                 aria-hidden
             >
-                <span className={isCompact ? v.labelModeCompact : v.labelMode}>{modeLabel}</span>
-                <span className={isCompact ? v.labelExpCompact : v.labelExp}>EXP</span>
+                <span className={labelModeClass}>{modeLabel}</span>
+                <span className={labelExpClass}>EXP</span>
             </div>
             <span
                 className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}

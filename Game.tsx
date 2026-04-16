@@ -48,6 +48,13 @@ import { replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { useAdContext } from './components/ads/AdProvider.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
+import {
+    isOnboardingTutorialActive,
+    ONBOARDING_INGAME_SP_STEP_EVENT,
+    ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT,
+    ONBOARDING_INTRO1_FORCED_CAPTURE_POINT,
+    shouldRestrictIntro1OnboardingFirstMove,
+} from './shared/constants/onboardingTutorial.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
@@ -178,6 +185,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [settings.features.moveConfirmButtonBox]);
     const [isAnalysisActive, setIsAnalysisActive] = useState(false);
     const [isPaused, setIsPaused] = useState(false);
+    const [spIngameOnboardingStep, setSpIngameOnboardingStep] = useState(-1);
+    const [intro1DemoMoveDone, setIntro1DemoMoveDone] = useState(false);
+
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const d = (e as CustomEvent<number>).detail;
+            if (typeof d === 'number') setSpIngameOnboardingStep(d);
+        };
+        window.addEventListener(ONBOARDING_INGAME_SP_STEP_EVENT, handler as EventListener);
+        return () => window.removeEventListener(ONBOARDING_INGAME_SP_STEP_EVENT, handler as EventListener);
+    }, []);
+
+    useEffect(() => {
+        setIntro1DemoMoveDone(false);
+    }, [session.id]);
     const [resumeCountdown, setResumeCountdown] = useState(0);
     const pauseStartedAtRef = useRef<number | null>(null);
     const pauseCountdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -238,6 +260,46 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevMyBaseStoneCountForUnlock = usePrevious(myBaseStoneCountForUnlock);
     const prevAnalysisResult = usePrevious(session.analysisResult?.['system']);
     const isSinglePlayer = session.isSinglePlayer;
+    const onboardingUserPhase = currentUserWithStatus.onboardingTutorialPhase ?? -1;
+    const isIntro1SpOnboardingUi =
+        isSinglePlayer &&
+        session.stageId === '입문-1' &&
+        gameStatus === 'playing' &&
+        isOnboardingTutorialActive(currentUserWithStatus) &&
+        onboardingUserPhase === 6;
+
+    /** 오버레이 이벤트 순서/USER_UPDATE 지연 시에도 스텝 0이 잡히도록 data-onboarding-target 동기화 */
+    useEffect(() => {
+        if (!session.isSinglePlayer || session.stageId !== '입문-1' || gameStatus !== 'playing') {
+            setSpIngameOnboardingStep(-1);
+            return;
+        }
+        if (!isOnboardingTutorialActive(currentUserWithStatus)) return;
+        if (onboardingUserPhase !== 6) return;
+        setSpIngameOnboardingStep((s) => (s < 0 ? 0 : s));
+    }, [
+        session.isSinglePlayer,
+        session.stageId,
+        gameStatus,
+        currentUserWithStatus,
+        onboardingUserPhase,
+    ]);
+
+    const restrictIntro1OnboardingMove = shouldRestrictIntro1OnboardingFirstMove({
+        stageId: session.stageId,
+        gameStatus,
+        userPhase: onboardingUserPhase,
+        ingameSubStep: spIngameOnboardingStep,
+        demoMoveDone: intro1DemoMoveDone,
+        moveHistoryLength: session.moveHistory?.length ?? 0,
+    });
+    const singlePlayerOnboardingBarHighlight =
+        isIntro1SpOnboardingUi && spIngameOnboardingStep === 0
+            ? ('user-panel' as const)
+            : isIntro1SpOnboardingUi && spIngameOnboardingStep === 1
+              ? ('scores-bar' as const)
+              : null;
+    const intro1OnboardingDemoPoint = restrictIntro1OnboardingMove ? ONBOARDING_INTRO1_FORCED_CAPTURE_POINT : null;
     const isTower = session.gameCategory === 'tower';
     const isAdventureGame = session.gameCategory === 'adventure';
     const isGuildWarGame = session.gameCategory === 'guildwar';
@@ -246,7 +308,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isGuildWarTowerStyleUi =
         isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-    const showMoveConfirmPanel = !isPlayfulMode && settings.features.moveConfirmButtonBox;
+    /** 종료·계가·재대결 대기 등에서는 착수 패널이 뷰포트/사이드바를 가리지 않도록 숨김 */
+    const hideMoveConfirmForStatus: GameStatus[] = ['ended', 'no_contest', 'scoring', 'rematch_pending', 'disconnected'];
+    const showMoveConfirmPanel =
+        !isPlayfulMode && settings.features.moveConfirmButtonBox && !hideMoveConfirmForStatus.includes(gameStatus);
     const aiHiddenTurnsFromSession = (session as any).aiHiddenItemTurns;
     const plannedAiHiddenTurns = Array.isArray(aiHiddenTurnsFromSession)
         ? aiHiddenTurnsFromSession
@@ -1487,6 +1552,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     return;
                 }
 
+                if (restrictIntro1OnboardingMove && isSinglePlayer) {
+                    if (x !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x || y !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y) {
+                        flashBoardRuleMessage('튜토리얼: 표시된 자리에 두세요.');
+                        return;
+                    }
+                }
+
                 // 클라이언트에서 move 처리 (바둑 규칙 검증 적용)
                 let moveResult;
                 try {
@@ -1513,7 +1585,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if (moveResult.reason === 'ko') showKoRuleFlash();
                     return;
                 }
-                
+
+                if (
+                    restrictIntro1OnboardingMove &&
+                    isSinglePlayer &&
+                    x === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x &&
+                    y === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y
+                ) {
+                    setIntro1DemoMoveDone(true);
+                    window.dispatchEvent(new CustomEvent(ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT));
+                }
+
                 // 게임 상태 업데이트 (handlers를 통해, 서버로 전송하지 않음)
                 handlers.handleAction({
                     type: isTower ? 'TOWER_CLIENT_MOVE' : 'SINGLE_PLAYER_CLIENT_MOVE',
@@ -1580,7 +1662,43 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 currentUser: currentUser.id
             });
         }
-    }, [isSpectator, gameStatus, isMyTurn, gameId, handlers.handleAction, currentUser.id, player1.id, session.baseStones_p1, session.baseStones_p2, session.settings.baseStones, mode, isMobile, settings.features.moveConfirmButtonBox, settings.features.mobileConfirm, pendingMove, isItemModeActive, session.isSinglePlayer, session.isAiGame, session.gameCategory, isPaused, isBoardLocked, restoredBoardState, session.boardState, session.moveHistory, session.stonesToPlace, isMoveInFlight, isTower, isSinglePlayer, isGuildWarGame, showKoRuleFlash, myPlayerEnum, applyOptimisticAiUserMove]);
+    }, [
+        isSpectator,
+        gameStatus,
+        isMyTurn,
+        gameId,
+        handlers.handleAction,
+        currentUser.id,
+        player1.id,
+        session.baseStones_p1,
+        session.baseStones_p2,
+        session.settings.baseStones,
+        mode,
+        isMobile,
+        settings.features.moveConfirmButtonBox,
+        settings.features.mobileConfirm,
+        pendingMove,
+        isItemModeActive,
+        session.isSinglePlayer,
+        session.isAiGame,
+        session.gameCategory,
+        isPaused,
+        isBoardLocked,
+        restoredBoardState,
+        session.boardState,
+        session.moveHistory,
+        session.stonesToPlace,
+        isMoveInFlight,
+        isTower,
+        isSinglePlayer,
+        isGuildWarGame,
+        showKoRuleFlash,
+        myPlayerEnum,
+        applyOptimisticAiUserMove,
+        restrictIntro1OnboardingMove,
+        flashBoardRuleMessage,
+        session.stageId,
+    ]);
 
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
@@ -1636,6 +1754,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
+                if (restrictIntro1OnboardingMove && session.isSinglePlayer) {
+                    if (x !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x || y !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y) {
+                        flashBoardRuleMessage('튜토리얼: 표시된 자리에 두세요.');
+                        setPendingMove(null);
+                        return;
+                    }
+                }
+
                 let moveResult;
                 try {
                     moveResult = processMoveClient(
@@ -1654,6 +1780,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if (moveResult.reason === 'ko') showKoRuleFlash();
                     setPendingMove(null);
                     return;
+                }
+
+                if (
+                    restrictIntro1OnboardingMove &&
+                    session.isSinglePlayer &&
+                    x === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x &&
+                    y === ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y
+                ) {
+                    setIntro1DemoMoveDone(true);
+                    window.dispatchEvent(new CustomEvent(ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT));
                 }
 
                 actionType = isTower ? ('TOWER_CLIENT_MOVE' as any) : ('SINGLE_PLAYER_CLIENT_MOVE' as any);
@@ -1704,7 +1840,30 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             });
         }
         setPendingMove(null);
-    }, [pendingMove, gameId, handlers, gameStatus, isMyTurn, mode, restoredBoardState, isMoveInFlight, session.gameCategory, session.isSinglePlayer, session.boardState, session.settings.boardSize, session.koInfo, session.moveHistory?.length, session.stonesToPlace, myPlayerEnum, showKoRuleFlash, session.isAiGame, applyOptimisticAiUserMove]);
+    }, [
+        pendingMove,
+        gameId,
+        handlers,
+        gameStatus,
+        isMyTurn,
+        mode,
+        restoredBoardState,
+        isMoveInFlight,
+        session.gameCategory,
+        session.isSinglePlayer,
+        session.boardState,
+        session.settings.boardSize,
+        session.koInfo,
+        session.moveHistory?.length,
+        session.stonesToPlace,
+        myPlayerEnum,
+        showKoRuleFlash,
+        session.isAiGame,
+        applyOptimisticAiUserMove,
+        restrictIntro1OnboardingMove,
+        flashBoardRuleMessage,
+        session.stageId,
+    ]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
 
@@ -2614,7 +2773,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
                         <div className="flex w-full flex-shrink-0 justify-center">
                                 <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
-                                    <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isSinglePlayer={true} isMobile={isMobile} />
+                                    <PlayerPanel
+                                        {...gameProps}
+                                        clientTimes={clientTimes.clientTimes}
+                                        isSinglePlayer={true}
+                                        isMobile={isMobile}
+                                        singlePlayerOnboardingBarHighlight={singlePlayerOnboardingBarHighlight}
+                                    />
                                 </div>
                             </div>
                             <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
@@ -2636,7 +2801,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
                                         isBoardRotated={isBoardRotated}
-                                        onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
+                                        onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
+                                        onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
+                                        onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
+                                        intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                     />
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                     {showMoveConfirmPanel && (
@@ -2668,12 +2836,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {!isMobile && (
                         <div
-                            className={`relative flex-shrink-0 transition-[width] duration-200 ${
+                            className={`relative max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
                                 isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                             }`}
                         >
                             {!isRightSidebarCollapsed && (
-                                <div className="flex h-full items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
+                                <div className="flex h-full max-h-full min-h-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
                                     <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
                                         <SinglePlayerSidebar
                                             session={sessionWithRestoredPatternStones}
@@ -2779,7 +2947,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
                         <div className="flex w-full flex-shrink-0 justify-center">
                             <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
-                                    <PlayerPanel {...gameProps} clientTimes={clientTimes.clientTimes} isSinglePlayer={true} isMobile={isMobile} />
+                                    <PlayerPanel
+                                        {...gameProps}
+                                        clientTimes={clientTimes.clientTimes}
+                                        isSinglePlayer={true}
+                                        isMobile={isMobile}
+                                        singlePlayerOnboardingBarHighlight={singlePlayerOnboardingBarHighlight}
+                                    />
                                 </div>
                             </div>
                             <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
@@ -2800,6 +2974,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         showBoardGlow={boardGlowForHiddenScanItem}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
+                                        onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
+                                        onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
+                                        intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                     />
                                 {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                 {showMoveConfirmPanel && (
@@ -2831,12 +3008,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     
                     {!isMobile && (
                         <div
-                            className={`relative flex-shrink-0 transition-[width] duration-200 ${
+                            className={`relative max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
                                 isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                             }`}
                         >
                             {!isRightSidebarCollapsed && (
-                                <div className="flex h-full items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
+                                <div className="flex h-full max-h-full min-h-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
                                     <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
                                         <TowerSidebar
                                             session={sessionWithRestoredPatternStones}
@@ -2989,6 +3166,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     clientTimes={clientTimes.clientTimes}
                                     isMobile={isMobile}
                                     isSinglePlayer={isSinglePlayer}
+                                    singlePlayerOnboardingBarHighlight={
+                                        isSinglePlayer ? singlePlayerOnboardingBarHighlight : null
+                                    }
                                 />
                             </div>
                         </div>
@@ -3011,7 +3191,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             showLastMoveMarker={settings.features.lastMoveMarker}
                                             captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
                                             isBoardRotated={isBoardRotated}
-                                            onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
+                                            onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
                                             showBoardGlow={
                                                 boardGlowForHiddenScanItem
                                             }
@@ -3027,6 +3207,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                       }
                                                     : undefined
                                             }
+                                            onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
+                                            onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
+                                            intro1TutorialHighlight={intro1OnboardingDemoPoint}
                                         />
                                     </div>
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
@@ -3100,12 +3283,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 
                 {!isMobile && (
                     <div
-                        className={`relative flex-shrink-0 transition-[width] duration-200 ${
+                        className={`relative max-h-full min-h-0 flex-shrink-0 self-stretch transition-[width] duration-200 ${
                             isRightSidebarCollapsed ? 'w-0' : 'w-[320px] xl:w-[360px]'
                         }`}
                     >
                         {!isRightSidebarCollapsed && (
-                            <div className="flex h-full items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
+                            <div className="flex h-full max-h-full min-h-0 items-stretch border-l border-gray-700/80 bg-gray-900/50 rounded-r-lg overflow-hidden">
                                 <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
                                     {isGuildWarTowerStyleUi ? (
                                         <GuildWarTowerSidebar

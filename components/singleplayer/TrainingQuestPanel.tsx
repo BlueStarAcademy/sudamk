@@ -567,6 +567,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                     </>
                                                 ) : !quest.isStarted ? (
                                                     <Button
+                                                        {...(quest.id === 'mission_attendance'
+                                                            ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1' }
+                                                            : {})}
                                                         onClick={() => handleStartMission(quest.id)}
                                                         colorScheme="none"
                                                         className={`${PREMIUM_QUEST_BTN.start}${embeddedQuestBtnTight}`}
@@ -758,7 +761,14 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         </Button>
                                                     </>
                                                 ) : !quest.isStarted ? (
-                                                    <Button onClick={() => handleStartMission(quest.id)} colorScheme="none" className={PREMIUM_QUEST_BTN.start}>
+                                                    <Button
+                                                        {...(quest.id === 'mission_attendance'
+                                                            ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1' }
+                                                            : {})}
+                                                        onClick={() => handleStartMission(quest.id)}
+                                                        colorScheme="none"
+                                                        className={PREMIUM_QUEST_BTN.start}
+                                                    >
                                                         시작
                                                     </Button>
                                                 ) : (

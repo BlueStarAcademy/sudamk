@@ -38,6 +38,8 @@ class AudioService {
     private html5PoolWarmed = false;
     /** iOS Safari: 문서에 연결되지 않은 Audio는 재생이 거절되는 경우가 많음 */
     private html5SinkParent: HTMLElement | null = null;
+    /** soundName별 성공 URL 캐시 */
+    private resolvedSoundUrlByName = new Map<string, string>();
 
     public isReady(): boolean {
         return !!this.audioContext && this.audioContext.state === 'running';
@@ -175,8 +177,7 @@ class AudioService {
         if (this.preloadStarted) return;
         this.preloadStarted = true;
         for (const name of SOUND_BASE_NAMES) {
-            const url = this.getSoundUrl(name);
-            void this.loadSound(url).catch(() => {});
+            void this.loadSoundByName(name).catch(() => {});
         }
     }
 
@@ -245,21 +246,50 @@ class AudioService {
      * 통합 배포·PWA·Capacitor: `/sounds/*.mp3` 가 페이지와 같은 출처에 있으면 절대 URL로 고정해 fetch·Audio 가 동일 키를 쓴다.
      * API 전용 호스트에만 사운드가 있으면 getApiUrl 유지.
      */
+    private getSameOriginSoundUrl(soundName: string): string {
+        const path = `${this.soundsPath}${soundName}.mp3`.replace(/\/{2,}/g, '/');
+        if (typeof window === 'undefined') return path;
+        return new URL(path, window.location.origin).href;
+    }
+
     private getSoundUrl(soundName: string): string {
         const path = `${this.soundsPath}${soundName}.mp3`.replace(/\/{2,}/g, '/');
         const viaApi = getApiUrl(path);
         if (typeof window === 'undefined') return viaApi;
-        if (!API_BASE_URL) {
-            return new URL(path, window.location.origin).href;
-        }
+        const sameOrigin = new URL(path, window.location.origin).href;
+        const resolved = this.resolvedSoundUrlByName.get(soundName);
+        if (resolved) return resolved;
+
+        // 기본은 same-origin 사용. API 호스트를 강제하려면 VITE_SOUNDS_FROM_API=true.
+        const forceApiSounds = import.meta.env.VITE_SOUNDS_FROM_API === 'true';
+        if (!forceApiSounds || !API_BASE_URL) return sameOrigin;
         try {
             if (new URL(viaApi).origin === window.location.origin) {
-                return new URL(path, window.location.origin).href;
+                return sameOrigin;
             }
         } catch {
             /* ignore */
         }
         return viaApi;
+    }
+
+    private async loadSoundByName(soundName: string): Promise<AudioBuffer | null> {
+        const primaryUrl = this.getSoundUrl(soundName);
+        const primary = await this.loadSound(primaryUrl);
+        if (primary) {
+            this.resolvedSoundUrlByName.set(soundName, primaryUrl);
+            return primary;
+        }
+
+        const fallbackUrl = this.getSameOriginSoundUrl(soundName);
+        if (fallbackUrl !== primaryUrl) {
+            const fallback = await this.loadSound(fallbackUrl);
+            if (fallback) {
+                this.resolvedSoundUrlByName.set(soundName, fallbackUrl);
+                return fallback;
+            }
+        }
+        return null;
     }
 
     /** 터치·모바일: WebAudio 는 useEffect 등 비제스처 타이밍에서 재생이 막히는 경우가 많아 HTML5 를 우선한다. */
@@ -429,7 +459,7 @@ class AudioService {
 
         if (this.prefersTouchOrHtml5Sfx()) {
             this.playHtml5Fallback(soundName, category, effectiveVolume, loop);
-            void this.loadSound(url).catch(() => {});
+            void this.loadSoundByName(soundName).catch(() => {});
             return null;
         }
 
@@ -452,7 +482,7 @@ class AudioService {
          */
         const html5El = this.startHtml5Playback(soundName, category, effectiveVolume, loop);
         this.trackLongRunningHtml5(soundName, html5El, loop);
-        void this.loadSound(url).catch(() => {});
+        void this.loadSoundByName(soundName).catch(() => {});
         return null;
     }
 

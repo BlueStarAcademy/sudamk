@@ -12,6 +12,7 @@ import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
+import { ONBOARDING_PHASE_COMPLETE } from '../../shared/constants/onboardingTutorial.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -69,6 +70,19 @@ const singlePlayerPlainWhiteReduction = (level: SinglePlayerLevel): number => {
 };
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
+    if (stage.fixedOpening?.length) {
+        const bs = stage.boardSize;
+        const board: BoardState = Array(bs)
+            .fill(null)
+            .map(() => Array(bs).fill(Player.None));
+        for (const s of stage.fixedOpening) {
+            if (s.x >= 0 && s.x < bs && s.y >= 0 && s.y < bs) {
+                board[s.y][s.x] = s.color === 'black' ? Player.Black : Player.White;
+            }
+        }
+        return { board, blackPattern: [], whitePattern: [] };
+    }
+
     const center = Math.floor(stage.boardSize / 2);
     let blackToPlace = stage.placements.black;
     const whitePlain = Math.max(
@@ -393,9 +407,29 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const { broadcastToGameParticipants } = await import('../socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 
+            // `user`는 /api/action의 getCachedUser 사본 — ADVANCE_ONBOARDING 직후 비동기 저장 타이밍 등으로 phase가 낡을 수 있음
+            const persistedForOnboarding = await db.getUser(user.id);
+            const ob = persistedForOnboarding?.onboardingTutorialPhase ?? user.onboardingTutorialPhase;
+            let updatedUserForClient: typeof user | undefined;
+            if (typeof ob === 'number' && ob === 5 && ob < ONBOARDING_PHASE_COMPLETE) {
+                user.onboardingTutorialPhase = 6;
+                await db.updateUser(user);
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['onboardingTutorialPhase']);
+                // HTTP 응답에 반영 — 클라이언트가 USER_UPDATE 디바운스로 페이즈 6을 놓치는 경우 인게임 튜토리얼이 뜨지 않음
+                updatedUserForClient = user;
+            }
+
             console.log(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Game started successfully:`, { gameId: game.id, gameStatus: game.gameStatus });
             const gameCopy = JSON.parse(JSON.stringify(game));
-            return { clientResponse: { success: true, gameId: game.id, game: gameCopy } };
+            return {
+                clientResponse: {
+                    success: true,
+                    gameId: game.id,
+                    game: gameCopy,
+                    ...(updatedUserForClient ? { updatedUser: updatedUserForClient } : {}),
+                },
+            };
         }
         case 'SINGLE_PLAYER_REFRESH_PLACEMENT': {
             console.log(`[handleSinglePlayerAction] SINGLE_PLAYER_REFRESH_PLACEMENT: gameId=${payload.gameId}`);
