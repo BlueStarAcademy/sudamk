@@ -1069,7 +1069,9 @@ export const useApp = () => {
                 // 애니메이션 정보 저장
                 const animationFrom = g.animation.from;
                 const animationTo = g.animation.to;
-                const playerWhoMoved = g.currentPlayer;
+                const animPlayer = (g.animation as { player?: Player }).player;
+                const playerWhoMoved =
+                    animPlayer === Player.Black || animPlayer === Player.White ? animPlayer : g.currentPlayer;
                 const revealedHiddenStone = (g.animation as any).revealedHiddenStone as Point | null | undefined;
                 
                 // totalTurns와 captures 보존 (애니메이션 완료 시 초기화 방지)
@@ -1733,12 +1735,10 @@ export const useApp = () => {
                         autoScoringTurns = stage?.autoScoringTurns;
                     }
                     if (!skipLobbyCaptureTurnScoring && (autoScoringTurns !== undefined || (gameType === 'singleplayer' && game.stageId))) {
-                    // totalTurns는 항상 유효 수 개수로 확정 (0/N 표시와 트리거 일치)
+                    // totalTurns는 항상 유효 수 개수로 확정 (0/N 표시와 트리거 일치).
+                    // 서버/스토리지의 totalTurns가 수순보다 앞서면(예: 60/60에서 AI 차례 생략) Math.max로 인해 조기 계가되므로 validMoves만 신뢰한다.
                     const validMoves = (updateResult.updatedGame.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
-                    const totalTurns = Math.max(
-                        updateResult.updatedGame.totalTurns ?? 0,
-                        validMoves.length
-                    );
+                    const totalTurns = validMoves.length;
                     updateResult.updatedGame.totalTurns = totalTurns;
                     
                         if (totalTurns > 0 && autoScoringTurns != null && autoScoringTurns > 0) {
@@ -4649,9 +4649,9 @@ export const useApp = () => {
                                                         : (game.settings as any)?.autoScoringTurns;
                                                     
                                                     if (autoScoringTurns != null && autoScoringTurns > 0) {
-                                                        // totalTurns는 항상 유효 수 개수로 확정 (0/N 표시와 트리거 일치)
+                                                        // totalTurns는 유효 착수 수만 반영 (서버 totalTurns가 앞서 있으면 마지막 AI 수 없이 계가되는 버그 방지)
                                                         const validMoves = (game.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1);
-                                                        const totalTurns = Math.max(game.totalTurns ?? 0, validMoves.length);
+                                                        const totalTurns = validMoves.length;
                                                         game.totalTurns = totalTurns;
                                                         const remainingTurns = Math.max(0, autoScoringTurns - totalTurns);
                                                         // 자동계가: 남은 턴이 0 이하(0/N 도달)이면 반드시 계가 트리거

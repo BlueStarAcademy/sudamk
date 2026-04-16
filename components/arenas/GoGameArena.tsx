@@ -45,6 +45,16 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
 
+    const adventurePregameHideBoard =
+        session.gameCategory === 'adventure' &&
+        ['nigiri_reveal', 'color_start_confirmation', 'nigiri_choosing', 'nigiri_guessing'].includes(gameStatus);
+    const boardStateForDisplay =
+        adventurePregameHideBoard && settings?.boardSize
+            ? Array.from({ length: settings.boardSize }, () =>
+                  Array.from({ length: settings.boardSize }, () => Player.None)
+              )
+            : session.boardState;
+
     /** 좌표가 같으면 객체 참조를 유지해 GoBoard 따낸 점수 effect 등이 매 렌더 불필요하게 돌지 않게 함 */
     const displayLastMoveKey = useMemo(() => {
         if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) {
@@ -143,9 +153,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 ? TOWER_STAGES.find(s => s.id === session.stageId)
                 : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
             if (stage?.autoScoringTurns) {
-                const totalTurns = (session.totalTurns != null && session.totalTurns > 0)
-                    ? Math.max(session.totalTurns, validMovesCount)
-                    : validMovesCount;
+                const totalTurns = validMovesCount;
                 const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
                 if (remainingTurns <= 0) return true;
             }
@@ -196,7 +204,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center min-w-0 min-h-0">
                 <div className="w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0">
                 <GoBoard
-                boardState={session.boardState}
+                boardState={boardStateForDisplay}
                 boardSize={settings.boardSize}
                 onBoardClick={handleBoardClick}
                 onMissileLaunch={(from: Point, direction: 'up' | 'down' | 'left' | 'right') => {

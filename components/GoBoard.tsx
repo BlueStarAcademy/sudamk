@@ -1413,8 +1413,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         aiInitialHiddenStone.x === x &&
                         aiInitialHiddenStone.y === y &&
                         !isPermanentlyRevealed;
+                    // 유저 차례에는 AI 히든 아이템 연출용 오버레이만 남아 내가 둔 돌에 잠시 문양이 붙는 현상 방지
                     const isHiddenMoveForRender =
-                        !!isHiddenMove || (!!atAiInitialHiddenStone && actualPlayer !== myPlayerEnum);
+                        !!isHiddenMove ||
+                        (!!atAiInitialHiddenStone &&
+                            actualPlayer !== myPlayerEnum &&
+                            currentPlayer !== myPlayerEnum);
                     // 서버의 영구 공개 목록 또는 현재 히든 공개 애니메이션에 포함된 돌은 공개된 것으로 표시 (반투명 해제)
                     // 히든 돌 표시 규칙 (모든 히든 사용 경기 공통): 상대에게는 기본 비공개, 스캔 시 반투명, 착수/포착 시 전체 공개
                     let isVisible = true;

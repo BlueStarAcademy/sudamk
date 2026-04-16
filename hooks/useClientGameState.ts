@@ -272,6 +272,10 @@ export function updateGameStateAfterMove(
     const updatedCaptures = { ...(game.captures || {}) };
     const updatedHiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) } as typeof game.hiddenStoneCaptures;
     let updatedPermanentlyRevealedStones = [...(game.permanentlyRevealedStones || [])];
+    // 같은 교차점에 다시 착수할 때(히든이 따낸 자리 등) 이전 공개 마커가 남으면 문양/히든 표시가 꼬이므로 일반 착수면 해당 좌표 제거
+    if (!isHidden) {
+        updatedPermanentlyRevealedStones = updatedPermanentlyRevealedStones.filter(p => !(p.x === x && p.y === y));
+    }
     const justCapturedEntries: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[] = [];
 
     if (stonesToReveal.length === 0) {
@@ -302,6 +306,10 @@ export function updateGameStateAfterMove(
                 wasHidden = true;
                 updatedHiddenStoneCaptures[movePlayer] = (updatedHiddenStoneCaptures[movePlayer] || 0) + 1;
                 updatedPermanentlyRevealedStones = upsertPoint(updatedPermanentlyRevealedStones, stone);
+            }
+
+            if (wasHiddenMove && moveIndex !== -1) {
+                delete updatedHiddenMoves[moveIndex];
             }
 
             updatedCaptures[movePlayer] = (updatedCaptures[movePlayer] || 0) + points;

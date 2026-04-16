@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 // FIX: Import missing types from the centralized types file.
 import { LiveGameSession, Player, GameCategory } from '../types/index.js';
+import { aiUserId } from '../constants/index.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 
 interface ClientTimerOptions {
@@ -105,6 +106,28 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
                 white: coerce(session.whiteTimeLeft),
             });
             return;
+        }
+
+        // 싱글플레이·도전의 탑: AI(서버) 차례에는 클라이언트 데드라인으로 유저 시간이 줄어들지 않도록 서버 값만 표시
+        const isPveVsAi =
+            playingStatuses.includes(session.gameStatus) &&
+            (session.isSinglePlayer || session.gameCategory === 'tower') &&
+            (session.blackPlayerId === aiUserId || session.whitePlayerId === aiUserId);
+        if (isPveVsAi) {
+            const aiIsBlack = session.blackPlayerId === aiUserId;
+            const aiIsWhite = session.whitePlayerId === aiUserId;
+            const isAiTurnNow =
+                (session.currentPlayer === Player.Black && aiIsBlack) ||
+                (session.currentPlayer === Player.White && aiIsWhite);
+            if (isAiTurnNow) {
+                deadlineRef.current = null;
+                byoyomiDeadlineRef.current = null;
+                setClientTimes({
+                    black: coerce(session.blackTimeLeft),
+                    white: coerce(session.whiteTimeLeft),
+                });
+                return;
+            }
         }
 
         // 턴/게임이 바뀌면 이전 턴 기준 마감 ref·초읽기 ref 초기화
@@ -275,6 +298,10 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         session.settings?.byoyomiCount,
         session.mode,
         session.settings?.mixedModes,
+        session.isSinglePlayer,
+        session.gameCategory,
+        session.blackPlayerId,
+        session.whitePlayerId,
         options.isPaused,
     ]);
 

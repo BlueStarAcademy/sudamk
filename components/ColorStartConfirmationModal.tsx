@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
@@ -18,6 +18,10 @@ const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = 
     const isHandheld = useIsHandheldDevice(1025);
     const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations } = session;
     const hasConfirmed = !!preGameConfirmations?.[currentUser.id];
+    const [colorRouletteDone, setColorRouletteDone] = useState(false);
+    useEffect(() => {
+        setColorRouletteDone(false);
+    }, [gameId, blackPlayerId, whitePlayerId]);
 
     if (!blackPlayerId || !whitePlayerId) return null;
 
@@ -46,12 +50,14 @@ const ColorStartConfirmationModal: React.FC<ColorStartConfirmationModalProps> = 
             blackPlayer={blackUiPlayer}
             whitePlayer={whiteUiPlayer}
             avatarUrlOverrides={avatarUrlOverrides}
+            onComplete={() => setColorRouletteDone(true)}
         />
     );
     const footer = (
         <ColorAssignmentStickyFooter
             variant={isHandheld ? 'sticky' : 'inline'}
             hasConfirmed={hasConfirmed}
+            rouletteBlockingStart={!colorRouletteDone}
             onConfirm={() => onAction({ type: 'CONFIRM_COLOR_START', payload: { gameId } })}
         />
     );

@@ -284,8 +284,8 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
-    /** 모바일에서도 흑·백 점수를 나란히 비교(클래식 바둑 등 단순 계가) */
-    const scoreGridTwoColsOnMobile = isMobile && mode === GameMode.Standard;
+    /** 모바일: 프로필이 가로(2열)일 때 흑·백 점수 비교도 가로 2열로 맞춤 */
+    const scoreGridTwoColsOnMobile = isMobile;
 
     const rowClass = `flex min-w-0 justify-between gap-2 ${isMobile ? 'text-[10px]' : 'text-xs min-[1024px]:text-[0.8125rem]'}`;
     const labelClass = 'shrink-0 whitespace-nowrap text-slate-400';

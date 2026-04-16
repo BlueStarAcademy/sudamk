@@ -75,6 +75,11 @@ export interface GenerateKataServerMoveParams {
     level: number;      // -31 ~ 9
     komi?: number;
     gameId?: string;
+    /**
+     * KataServer가 game_id 헤더로 세션을 캐시하는 경우, 히든 전체 공개 등으로 수순이 같은 길이인데
+     * 좌표가 바뀌면 이전 국면이 남아 AI가 멈추거나 잘못된 수를 고를 수 있다. 이 값을 바꿔 캐시를 무효화한다.
+     */
+    kataSessionTag?: string;
     /** false: PASS 후보 제외(둘 곳이 없을 때만 PASS). 생략 시 서버 기본(true). */
     allowPass?: boolean;
 }
@@ -88,7 +93,7 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
         throw new Error('KATA_SERVER_URL is not set');
     }
 
-    const { boardSize, moveHistory, level, komi, gameId, allowPass } = params;
+    const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, allowPass } = params;
     const moves = toKataServerMoves(moveHistory, boardSize);
     const isFirstMove = moves.length < 2;
 
@@ -114,7 +119,7 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
         headers['Authorization'] = `key ${KATA_SERVER_KEY}`;
     }
     if (gameId) {
-        headers['game_id'] = gameId;
+        headers['game_id'] = kataSessionTag ? `${gameId}:${kataSessionTag}` : gameId;
     }
 
     const controller = new AbortController();

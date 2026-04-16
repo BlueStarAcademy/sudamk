@@ -29,6 +29,16 @@ function isLobbyAiStrategicGoGame(game: types.LiveGameSession): boolean {
     );
 }
 
+/**
+ * 유저 히든 전체 공개 등으로 수순 길이는 같아도 좌표가 바뀐 뒤, KataServer가 `game_id`로 이전 국면을 캐시하면 AI가 멈추거나
+ * 잘못된 수를 고를 수 있다. 공개 직후 다음 Kata 요청에만 다른 태그를 붙여 캐시를 무효화한다.
+ */
+function bumpKataHiddenRevealCacheTag(game: types.LiveGameSession): string {
+    const n = (((game as any).__kataHiddenRevealSeq as number) ?? 0) + 1;
+    (game as any).__kataHiddenRevealSeq = n;
+    return `hr${n}`;
+}
+
 /** 전략 AI 대국: 히든 개수는 player1/player2 좌석 기준(hidden_stones_p1/p2). AI가 항상 p2라는 가정은 길드전·색 배정에 깨질 수 있음 */
 function getStrategicAiHiddenStonesKey(game: types.LiveGameSession, aiPlayerEnum: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' {
     const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
@@ -1175,6 +1185,7 @@ export async function makeGoAiBotMove(
         const kataLevel = resolvedKataLevel;
         const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
         const maxKataHiddenRetries = 8;
+        let kataHiddenRevealCacheTag: string | undefined;
         for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
             const rawMoveHistory = useHiddenMask
                 ? getMoveHistoryForAi(game, aiPlayerEnum)
@@ -1188,6 +1199,7 @@ export async function makeGoAiBotMove(
                 level: kataLevel,
                 komi: game.settings.komi,
                 gameId: game.id,
+                kataSessionTag: kataHiddenRevealCacheTag,
                 allowPass: false,
             });
 
@@ -1229,6 +1241,7 @@ export async function makeGoAiBotMove(
                     `[makeGoAiBotMove] KataServer suggested (${candidate.x},${candidate.y}) on/near masked user hidden — full reveal & Kata retry (${attempt + 1}/${maxKataHiddenRetries}), game=${game.id}`
                 );
                 revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
+                kataHiddenRevealCacheTag = bumpKataHiddenRevealCacheTag(game);
                 continue;
             }
 
@@ -1315,6 +1328,7 @@ export async function makeGoAiBotMove(
                 const kataLevel = resolvedKataLevel;
                 let replacement: Point | null = null;
                 const maxKataHiddenRetries = 8;
+                let innerKataHiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
                 for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
                     const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
                     const rawMoveHistory = useHiddenMask
@@ -1329,6 +1343,7 @@ export async function makeGoAiBotMove(
                         level: kataLevel,
                         komi: game.settings.komi,
                         gameId: game.id,
+                        kataSessionTag: innerKataHiddenRevealTag,
                         allowPass: false,
                     });
 
@@ -1378,6 +1393,7 @@ export async function makeGoAiBotMove(
                         )
                     ) {
                         revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
+                        innerKataHiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
                         continue;
                     }
                     replacement = candidate;

@@ -349,6 +349,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             return session.boardState;
                         }
                     }
+                    // 미사일: moveHistory 길이는 그대로인데 서버 보드만 돌 위치가 바뀌므로, 저장된 구판이 애니 종료 직후 잔상을 남긴다.
+                    if (
+                        session.boardState &&
+                        Array.isArray(session.boardState) &&
+                        session.boardState.length > 0 &&
+                        (session.gameStatus === 'missile_animating' ||
+                            (session.animation &&
+                                (session.animation.type === 'missile' || session.animation.type === 'hidden_missile')))
+                    ) {
+                        return session.boardState;
+                    }
+                    // 싱글/탑: 수순 길이가 같을 때는 서버 보드가 최종(포획·미사일 반영)인 경우가 많다.
+                    if (
+                        (isSinglePlayer || isTower) &&
+                        serverMoveCount === storedMoveCount &&
+                        session.boardState &&
+                        Array.isArray(session.boardState) &&
+                        session.boardState.length > 0
+                    ) {
+                        return session.boardState;
+                    }
                     // 진행 중이거나 종료/계가 중일 때 모두 sessionStorage 보드 사용 → 결과 모달 시에도 바둑판 유지
                     console.log(`[Game] Restored boardState from sessionStorage for game ${gameId} (gameStatus: ${gameStatus})`);
                     return parsed.boardState;
@@ -994,7 +1015,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         );
         if (!aiMove) return;
         if (isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y)) {
-            lastAiMoveRef.current = { gameId: session.id, moveHistoryLength, player: aiPlayerEnum, timestamp: Date.now() };
+            lastAiMoveRef.current = {
+                gameId: session.id,
+                moveHistoryLength,
+                player: aiPlayerEnum,
+                timestamp: Date.now(),
+                revealSig: session.permanentlyRevealedStones?.length ?? 0,
+            };
             handlers.handleAction({
                 type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
                 payload: {
@@ -1015,7 +1042,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             moveHistoryLength
         );
         if (!aiMoveResult.isValid) return;
-        lastAiMoveRef.current = { gameId: session.id, moveHistoryLength, player: aiPlayerEnum, timestamp: Date.now() };
+        lastAiMoveRef.current = {
+            gameId: session.id,
+            moveHistoryLength,
+            player: aiPlayerEnum,
+            timestamp: Date.now(),
+            revealSig: session.permanentlyRevealedStones?.length ?? 0,
+        };
         // 길드전은 liveGames만 사용하므로 싱글/탑 클라이언트 무브가 적용되지 않음 → 서버 PLACE_STONE(clientSideAi + 히든)으로 동기화
         if (isGuildWarGame) {
             handlers.handleAction({
@@ -1915,7 +1948,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 싱글플레이: 클라이언트 측 AI 자동 처리 (서버 부하 최소화)
     // 보드 잠금은 사용자 입력만 막는 것이므로, AI 수 계산은 보드 잠금과 독립적으로 실행
     const aiMoveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastAiMoveRef = useRef<{ gameId: string; moveHistoryLength: number; player: Player; timestamp: number } | null>(null);
+    const lastAiMoveRef = useRef<{
+        gameId: string;
+        moveHistoryLength: number;
+        player: Player;
+        timestamp: number;
+        /** 히든 공개 등으로 수순 길이는 같아도 국면이 바뀐 경우 AI가 다시 계산하도록 구분 */
+        revealSig: number;
+    } | null>(null);
     
     // moveHistoryLength 변경 시 lastAiMoveRef 검증 및 초기화
     useEffect(() => {
@@ -1933,7 +1973,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 lastAiMoveRef.current = null;
             }
         }
-    }, [session.moveHistory?.length]);
+    }, [session.moveHistory?.length, session.permanentlyRevealedStones?.length]);
     
     useEffect(() => {
         // 이전 timeout이 있으면 취소
@@ -2071,10 +2111,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             // 이미 같은 게임, 같은 moveHistory 길이, 같은 플레이어에 대해 AI 수를 보냈는지 확인
             // (중복 전송 방지)
             // 단, AI 수 계산 중이거나 전송 대기 중인 경우(타임스탬프가 2초 이내)는 제외
+            const permRevealLen = session.permanentlyRevealedStones?.length ?? 0;
             if (lastAiMoveRef.current &&
                 lastAiMoveRef.current.gameId === session.id &&
                 lastAiMoveRef.current.moveHistoryLength === moveHistoryLength &&
-                lastAiMoveRef.current.player === currentPlayer) {
+                lastAiMoveRef.current.player === currentPlayer &&
+                lastAiMoveRef.current.revealSig === permRevealLen) {
                 const timeSinceLastMove = Date.now() - lastAiMoveRef.current.timestamp;
                 // 2초 이내면 아직 전송 대기 중이거나 계산 중일 수 있으므로 무시
                 if (timeSinceLastMove < 2000) {
@@ -2202,7 +2244,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     gameId: currentGameId,
                                     moveHistoryLength: moveHistoryLengthAtCalculation,
                                     player: currentPlayerAtCalculation,
-                                    timestamp: Date.now()
+                                    timestamp: Date.now(),
+                                    revealSig: session.permanentlyRevealedStones?.length ?? 0,
                                 };
                                 handlers.handleAction({
                                     type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
@@ -2237,7 +2280,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 gameId: currentGameId,
                                 moveHistoryLength: moveHistoryLengthAtCalculation,
                                 player: currentPlayerAtCalculation,
-                                timestamp: Date.now()
+                                timestamp: Date.now(),
+                                revealSig: session.permanentlyRevealedStones?.length ?? 0,
                             };
                             
                             // 게임 상태 업데이트 (handlers를 통해)
@@ -2262,6 +2306,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 moveHistoryLength: moveHistoryLengthAtCalculation,
                                 player: currentPlayerAtCalculation,
                                 timestamp: Date.now(),
+                                revealSig: session.permanentlyRevealedStones?.length ?? 0,
                             };
                             handlers.handleAction({
                                 type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',

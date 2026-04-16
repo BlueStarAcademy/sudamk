@@ -809,9 +809,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         // totalTurns가 0이거나 없으면 moveHistory 기준으로 계산 (한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
         if (stage.autoScoringTurns) {
             const validMovesCount = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
-            const totalTurns = (session.totalTurns != null && session.totalTurns > 0)
-                ? Math.max(session.totalTurns, validMovesCount)
-                : validMovesCount;
+            const totalTurns = validMovesCount;
             const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
             return {
                 type: 'auto_scoring' as const,
@@ -862,6 +860,21 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const playerColClass = compactPlayerBar
         ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
         : 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
+
+    const adventurePregameColorReveal =
+        session.gameCategory === 'adventure' &&
+        ['nigiri_reveal', 'color_start_confirmation', 'nigiri_choosing', 'nigiri_guessing'].includes(session.gameStatus);
+
+    if (adventurePregameColorReveal) {
+        return (
+            <div
+                className={`flex w-full items-stretch ${compactPlayerBar ? 'min-h-[4.5rem] justify-between gap-1.5' : 'h-full gap-2 min-[1025px]:gap-1.5'} flex-shrink-0`}
+            >
+                <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
+                <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
+            </div>
+        );
+    }
 
     return (
         <div
