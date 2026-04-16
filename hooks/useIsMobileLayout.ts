@@ -46,12 +46,20 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
     const shortSide = Math.min(w, h);
     const longSide = Math.max(w, h);
     const hasTouch = (typeof navigator !== 'undefined' ? navigator.maxTouchPoints ?? 0 : 0) > 0;
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent ?? '' : '';
+    const isAndroidUa = /Android/i.test(ua);
+    // iPadOS Safari는 데스크톱 UA(Macintosh)로 보일 수 있어 터치 동시 확인이 필요하다.
+    const isIpadLikeUa = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && hasTouch);
     const tabletLikePointer =
         window.matchMedia?.('(pointer: coarse)').matches === true ||
         window.matchMedia?.('(hover: none)').matches === true;
     // 일부 태블릿(키보드/펜/마우스 연결)은 coarse/hover 판정이 바뀌어도 화면 크기상 태블릿이다.
     const likelyTabletBySize = hasTouch && longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX;
-    const treatAsTouchTablet = hasTouch && (tabletLikePointer || likelyTabletBySize);
+    const likelyTabletByUaAndSize =
+        (isAndroidUa || isIpadLikeUa) &&
+        shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
+        longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX;
+    const treatAsTouchTablet = (hasTouch && (tabletLikePointer || likelyTabletBySize)) || likelyTabletByUaAndSize;
 
     if (!treatAsTouchTablet) {
         return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };

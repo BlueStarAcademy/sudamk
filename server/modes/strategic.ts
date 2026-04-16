@@ -55,6 +55,16 @@ const isLobbyAiStrategicGame = (game: types.LiveGameSession) =>
     game.gameCategory !== 'singleplayer' &&
     game.gameCategory !== 'guildwar';
 
+/**
+ * 베이스 돌이 따인 직후 좌표를 baseStones에서 제거한다.
+ * 제거하지 않으면 이후 같은 자리에 둔 일반 돌이 베이스로 오인된다.
+ */
+const removeCapturedBaseStoneMarkers = (game: types.LiveGameSession, capturedStones: types.Point[]) => {
+    if (!game.baseStones || game.baseStones.length === 0 || capturedStones.length === 0) return;
+    const capturedKeys = new Set(capturedStones.map((s) => `${s.x},${s.y}`));
+    game.baseStones = game.baseStones.filter((s) => !capturedKeys.has(`${s.x},${s.y}`));
+};
+
 /** `currentPlayer`가 곧 둘 차례인 플레이어가 서버 AI인지 (착수 반영 후 `currentPlayer`는 다음 수 차례) */
 async function isCurrentPlayerTheAi(game: types.LiveGameSession): Promise<boolean> {
     if (!game.isAiGame) return false;
@@ -486,6 +496,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                             });
                         }
                         stripPatternStonesAtConsumedIntersections(game);
+                        removeCapturedBaseStoneMarkers(game, result.capturedStones);
                     }
                     game.currentPlayer = humanPlayerEnum;
                     game.gameStatus = 'playing';
@@ -1008,6 +1019,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
                 }
                 stripPatternStonesAtConsumedIntersections(game);
+                removeCapturedBaseStoneMarkers(game, result.capturedStones);
             }
 
             const playerWhoMoved = myPlayerEnum;

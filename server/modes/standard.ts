@@ -93,6 +93,16 @@ const syncAdventureEncounterDeadlineDuringMonsterTurn = (game: types.LiveGameSes
     }
 };
 
+/**
+ * 베이스 돌이 따인 직후 좌표를 baseStones에서 제거한다.
+ * 제거하지 않으면 이후 같은 자리에 둔 일반 돌이 베이스로 오인된다.
+ */
+const removeCapturedBaseStoneMarkers = (game: types.LiveGameSession, capturedStones: types.Point[]) => {
+    if (!game.baseStones || game.baseStones.length === 0 || capturedStones.length === 0) return;
+    const capturedKeys = new Set(capturedStones.map((s) => `${s.x},${s.y}`));
+    game.baseStones = game.baseStones.filter((s) => !capturedKeys.has(`${s.x},${s.y}`));
+};
+
 const transitionPlayingOrAdventureNigiriReveal = (game: types.LiveGameSession, now: number) => {
     if (adventureAiColorRevealModal(game)) {
         enterNigiriRevealWithAssignedColors(game, now);
@@ -622,6 +632,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         for (const stone of result.capturedStones) {
                             game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false, capturePoints: 1 });
                         }
+                        removeCapturedBaseStoneMarkers(game, result.capturedStones);
                     }
                     game.currentPlayer = humanPlayerEnum;
                     game.gameStatus = 'playing';
@@ -1123,6 +1134,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
                 }
                 stripPatternStonesAtConsumedIntersections(game);
+                removeCapturedBaseStoneMarkers(game, result.capturedStones);
             }
 
             const playerWhoMoved = myPlayerEnum;
