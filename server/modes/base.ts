@@ -34,6 +34,9 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.basePlacementDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
     game.baseStones_p1 = [];
     game.baseStones_p2 = [];
+    const p1Id = game.player1.id;
+    const p2Id = game.player2.id;
+    game.basePlacementReady = { [p1Id]: false, [p2Id]: false };
     game.settings.komi = 0.5; // Base komi for bidding
     // Base 모드의 실제 시계는 시작 확인 이후(playing)부터 흐르게 유지
     game.turnDeadline = undefined;
@@ -46,7 +49,14 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
     if (game.isAiGame) {
         const aiBaseKey: 'baseStones_p1' | 'baseStones_p2' = game.player1.id === aiUserId ? 'baseStones_p1' : 'baseStones_p2';
         placeRemainingStonesRandomly(game, aiBaseKey);
+        const aiId = p1Id === aiUserId ? p1Id : p2Id;
+        game.basePlacementReady![aiId] = true;
     }
+};
+
+const clearBasePlacementReadyForUser = (game: types.LiveGameSession, userId: string) => {
+    if (!game.basePlacementReady) return;
+    game.basePlacementReady[userId] = false;
 };
 
 // Helper function to check if a stone placement would result in immediate capture
@@ -248,6 +258,7 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
     game.baseStones_p1 = validP1Stones;
     game.baseStones_p2 = validP2Stones;
     game.basePlacementDeadline = undefined;
+    game.basePlacementReady = undefined;
 
     game.gameStatus = 'komi_bidding';
     game.komiBiddingDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
@@ -270,10 +281,14 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
             const p2StonesCount = game.baseStones_p2?.length ?? 0;
             const target = game.settings.baseStones ?? 4;
             const bothDonePlacing = p1StonesCount >= target && p2StonesCount >= target;
+            const bothConfirmedPlacement =
+                bothDonePlacing &&
+                (game.basePlacementReady?.[p1Id] ?? false) &&
+                (game.basePlacementReady?.[p2Id] ?? false);
             const deadlinePassed =
                 !isAdventureBaseGame(game) && !!game.basePlacementDeadline && now > game.basePlacementDeadline;
 
-            if (bothDonePlacing || deadlinePassed) {
+            if (bothConfirmedPlacement || deadlinePassed) {
                 resolveBasePlacementAndTransition(game, now);
             }
             break;
@@ -441,16 +456,19 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             if ((game[myStonesKey]?.length ?? 0) >= game.settings.baseStones!) return { error: "Already placed all stones." };
             if (game[myStonesKey]!.some(p => p.x === payload.x && p.y === payload.y)) return { error: "Already placed a stone there." };
             game[myStonesKey]!.push({ x: payload.x, y: payload.y });
+            clearBasePlacementReadyForUser(game, user.id);
             return {};
         case 'PLACE_REMAINING_BASE_STONES_RANDOMLY':
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
             const playerStonesKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
             placeRemainingStonesRandomly(game, playerStonesKey);
+            clearBasePlacementReadyForUser(game, user.id);
             return {};
         case 'RESET_MY_BASE_STONE_PLACEMENTS':
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
             const resetKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
             game[resetKey] = [];
+            clearBasePlacementReadyForUser(game, user.id);
             return {};
         case 'UNDO_LAST_BASE_STONE_PLACEMENT':
             if (game.gameStatus !== 'base_placement') return { error: "Not in base placement phase." };
@@ -458,7 +476,21 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             const undoArr = game[undoKey];
             if (!undoArr || undoArr.length === 0) return { error: "취소할 배치가 없습니다." };
             undoArr.pop();
+            clearBasePlacementReadyForUser(game, user.id);
             return {};
+        case 'CONFIRM_BASE_PLACEMENT_COMPLETE': {
+            if (game.gameStatus !== 'base_placement') return { error: '베이스돌 배치 단계가 아닙니다.' };
+            const targetStones = game.settings.baseStones ?? 4;
+            const confirmKey = user.id === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+            if ((game[confirmKey]?.length ?? 0) < targetStones) {
+                return { error: '베이스돌을 모두 놓은 뒤에 배치 완료를 눌러 주세요.' };
+            }
+            if (!game.basePlacementReady) {
+                game.basePlacementReady = { [game.player1.id]: false, [game.player2.id]: false };
+            }
+            game.basePlacementReady[user.id] = true;
+            return {};
+        }
         case 'UPDATE_KOMI_BID':
             if (game.gameStatus !== 'komi_bidding' || game.komiBids?.[user.id]) return { error: "Cannot bid now." };
             if (!game.komiBids) game.komiBids = {};

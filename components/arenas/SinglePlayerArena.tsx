@@ -183,7 +183,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     blackPatternStones={blackPatternStones}
                     whitePatternStones={whitePatternStones}
                     consumedPatternIntersections={(session as any).consumedPatternIntersections}
-                    isItemModeActive={isItemModeActive}
+                    isItemModeActive={isItemModeActive || showBoardGlow}
                     hiddenMoves={hiddenMoves}
                     moveHistory={moveHistory}
                     permanentlyRevealedStones={permanentlyRevealedStones}
@@ -208,7 +208,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                 {/* 히든 사용 중: 테두리만 깜빡이도록 보드 위 오버레이 (뒤에 두면 판에 가려짐) */}
                 {showBoardGlow && (
                     <div
-                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-4 ring-amber-400/90 shadow-[0_0_24px_rgba(251,191,36,0.5)] animate-[pulse_2s_ease-in-out_infinite]"
+                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-[6px] ring-amber-300/95 shadow-[0_0_38px_rgba(251,191,36,0.8),0_0_74px_rgba(244,114,182,0.52),inset_0_0_24px_rgba(251,191,36,0.18)] animate-[pulse_1.05s_cubic-bezier(0.4,0,0.2,1)_infinite]"
                         aria-hidden
                     />
                 )}

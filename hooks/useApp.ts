@@ -969,12 +969,31 @@ export const useApp = () => {
                     if (nextArr.length >= baseStonesTarget) return currentGames;
 
                     nextArr.push({ x, y });
+                    const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
                     return {
                         ...currentGames,
                         [gameId]: {
                             ...game,
-                            [myKey]: nextArr
+                            [myKey]: nextArr,
+                            basePlacementReady: { ...prevReady, [uid]: false },
                         } as any
+                    };
+                });
+            }
+        }
+
+        if ((action as any).type === 'CONFIRM_BASE_PLACEMENT_COMPLETE') {
+            const payload = (action as any).payload as { gameId?: string } | undefined;
+            const gameId = payload?.gameId;
+            const uid = currentUserRef.current?.id;
+            if (gameId && uid != null) {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                    const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
+                    return {
+                        ...currentGames,
+                        [gameId]: { ...game, basePlacementReady: { ...prevReady, [uid]: true } } as any,
                     };
                 });
             }
@@ -989,9 +1008,14 @@ export const useApp = () => {
                     const game = currentGames[gameId];
                     if (!game || game.gameStatus !== 'base_placement') return currentGames;
                     const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
+                    const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
                     return {
                         ...currentGames,
-                        [gameId]: { ...game, [myKey]: [] } as any,
+                        [gameId]: {
+                            ...game,
+                            [myKey]: [],
+                            basePlacementReady: { ...prevReady, [uid]: false },
+                        } as any,
                     };
                 });
             }
@@ -1008,9 +1032,31 @@ export const useApp = () => {
                     const myKey = uid === game.player1.id ? 'baseStones_p1' : 'baseStones_p2';
                     const myArr = ((game as any)[myKey] as Point[] | undefined) ?? [];
                     if (myArr.length === 0) return currentGames;
+                    const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
                     return {
                         ...currentGames,
-                        [gameId]: { ...game, [myKey]: myArr.slice(0, -1) } as any,
+                        [gameId]: {
+                            ...game,
+                            [myKey]: myArr.slice(0, -1),
+                            basePlacementReady: { ...prevReady, [uid]: false },
+                        } as any,
+                    };
+                });
+            }
+        }
+
+        if ((action as any).type === 'PLACE_REMAINING_BASE_STONES_RANDOMLY') {
+            const payload = (action as any).payload as { gameId?: string } | undefined;
+            const gameId = payload?.gameId;
+            const uid = currentUserRef.current?.id;
+            if (gameId && uid != null) {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (!game || game.gameStatus !== 'base_placement') return currentGames;
+                    const prevReady = ((game as any).basePlacementReady ?? {}) as Record<string, boolean>;
+                    return {
+                        ...currentGames,
+                        [gameId]: { ...game, basePlacementReady: { ...prevReady, [uid]: false } } as any,
                     };
                 });
             }

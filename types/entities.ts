@@ -893,6 +893,8 @@ export type LiveGameSession = {
   baseStones_p1?: Point[];
   baseStones_p2?: Point[];
   basePlacementDeadline?: number;
+  /** 베이스돌 배치: 각 참가자가 배치 완료 버튼을 눌렀는지 (돌 개수 충족 후) */
+  basePlacementReady?: { [userId: string]: boolean };
   komiBids?: { [userId: string]: KomiBid | null };
   komiBiddingDeadline?: number;
   komiBiddingRound?: number;

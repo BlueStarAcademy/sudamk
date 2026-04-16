@@ -206,19 +206,23 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
 
     if (layout === 'inline') {
         return (
-            <div className="w-full min-w-0 max-w-full overflow-x-auto">
-                <div className={`${komiWindowShell} flex min-h-[3.25rem] min-w-max items-stretch gap-1.5 px-2 py-1.5`}>
-                    <div className="flex min-w-[4.5rem] flex-col items-center justify-center rounded-lg border border-amber-500/30 bg-black/45 px-2">
-                        <span className="text-[9px] font-semibold uppercase tracking-wider text-stone-500">추가 덤</span>
-                        <span className="font-mono text-base font-bold text-amber-200">{komiValue}집</span>
+            <div className="w-full min-w-0 max-w-full">
+                <div
+                    className={`${komiWindowShell} flex min-h-[3.35rem] w-full min-w-0 items-stretch gap-1 px-1 py-1.5 sm:gap-1.5 sm:px-1.5`}
+                >
+                    <div className="flex min-w-0 flex-[0.85] flex-col items-center justify-center rounded-lg border border-amber-500/30 bg-black/45 px-1 py-1 sm:flex-1 sm:px-2">
+                        <span className="text-[9px] font-semibold uppercase tracking-wider text-stone-500 sm:text-[10px]">
+                            추가 덤
+                        </span>
+                        <span className="font-mono text-lg font-bold tabular-nums text-amber-200 sm:text-xl">{komiValue}집</span>
                     </div>
 
-                    <div className="flex items-stretch gap-1">
+                    <div className="flex min-w-0 flex-1 items-stretch gap-1">
                         <button
                             type="button"
                             disabled={buttonsDisabled}
                             onClick={() => setSelectedColor(Player.Black)}
-                            className={`min-w-[2.6rem] rounded-lg border px-2 text-xs font-bold transition-all ${
+                            className={`min-h-[2.6rem] min-w-0 flex-1 rounded-lg border py-2 text-sm font-bold transition-all sm:min-h-[2.75rem] sm:text-base ${
                                 selectedColor === Player.Black
                                     ? 'border-amber-400/60 bg-amber-500/20 text-amber-50 shadow-[0_0_18px_-8px_rgba(251,191,36,0.5)]'
                                     : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
@@ -230,7 +234,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                             type="button"
                             disabled={buttonsDisabled}
                             onClick={() => setSelectedColor(Player.White)}
-                            className={`min-w-[2.6rem] rounded-lg border px-2 text-xs font-bold transition-all ${
+                            className={`min-h-[2.6rem] min-w-0 flex-1 rounded-lg border py-2 text-sm font-bold transition-all sm:min-h-[2.75rem] sm:text-base ${
                                 selectedColor === Player.White
                                     ? 'border-slate-300/50 bg-slate-200/15 text-slate-50 shadow-[0_0_18px_-8px_rgba(226,232,240,0.35)]'
                                     : 'border-white/10 bg-white/5 text-stone-400 hover:bg-white/10'
@@ -240,12 +244,12 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                         </button>
                     </div>
 
-                    <div className="flex items-stretch gap-1">
+                    <div className="grid min-w-0 flex-[1.15] grid-cols-4 gap-0.5 sm:flex-1 sm:gap-1">
                         <button
                             type="button"
                             onClick={() => adjustKomi(1)}
                             disabled={buttonsDisabled}
-                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-h-[2.35rem] rounded-lg border border-white/12 bg-white/5 px-0.5 text-[11px] font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-[2.6rem] sm:text-xs md:text-sm"
                         >
                             +1
                         </button>
@@ -253,7 +257,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                             type="button"
                             onClick={() => adjustKomi(5)}
                             disabled={buttonsDisabled}
-                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-h-[2.35rem] rounded-lg border border-white/12 bg-white/5 px-0.5 text-[11px] font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-[2.6rem] sm:text-xs md:text-sm"
                         >
                             +5
                         </button>
@@ -261,7 +265,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                             type="button"
                             onClick={() => adjustKomi(-1)}
                             disabled={buttonsDisabled}
-                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-h-[2.35rem] rounded-lg border border-white/12 bg-white/5 px-0.5 text-[11px] font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-[2.6rem] sm:text-xs md:text-sm"
                         >
                             -1
                         </button>
@@ -269,7 +273,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                             type="button"
                             onClick={() => adjustKomi(-5)}
                             disabled={buttonsDisabled}
-                            className="rounded-lg border border-white/12 bg-white/5 px-2 text-xs font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40"
+                            className="min-h-[2.35rem] rounded-lg border border-white/12 bg-white/5 px-0.5 text-[11px] font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-40 sm:min-h-[2.6rem] sm:text-xs md:text-sm"
                         >
                             -5
                         </button>
@@ -278,7 +282,7 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
                     <Button
                         onClick={handleBidSubmit}
                         disabled={buttonsDisabled || isSubmitting}
-                        className="!rounded-lg !border !border-amber-400/35 !bg-gradient-to-r !from-amber-700/90 !to-amber-600/85 !px-3 !py-2 !text-xs !font-bold !text-amber-50 hover:!from-amber-600 hover:!to-amber-500"
+                        className="!min-h-[2.6rem] !min-w-0 !flex-[0.95] !shrink-0 !rounded-lg !border !border-amber-400/35 !bg-gradient-to-r !from-amber-700/90 !to-amber-600/85 !px-2 !py-2 !text-xs !font-bold !text-amber-50 hover:!from-amber-600 hover:!to-amber-500 sm:!min-h-[2.75rem] sm:!flex-1 sm:!text-sm"
                     >
                         완료
                     </Button>

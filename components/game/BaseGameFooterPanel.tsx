@@ -57,25 +57,24 @@ export const BasePlacementControlStrip: React.FC<{
     if (myPlacements === null) return null;
 
     const isDonePlacing = myPlacements >= baseStoneCount;
+    const myReady = Boolean(session.basePlacementReady?.[viewerUserId]);
     const showPlacementTools = true;
     const canRandomFill = showPlacementTools && myPlacements < baseStoneCount;
     const canResetOrUndo = showPlacementTools && myPlacements > 0;
 
-    const btnBase = `rounded-md border px-1.5 py-1.5 text-center font-bold transition-colors ${
+    const btnBase = `rounded-lg border text-center font-bold transition-colors ${
         isSinglePlayer
             ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
             : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
-    } ${isMobile ? 'text-[9px] leading-tight' : 'text-[10px] leading-tight sm:text-[11px]'}`;
-
-    const placementCompleteLabel = isDonePlacing ? '배치 완료' : '배치 완료(자동)';
+    } ${isMobile ? 'min-h-[2.35rem] px-2 py-2 text-[11px] leading-tight' : 'min-h-[2.5rem] px-2.5 py-2 text-xs sm:text-sm'}`;
 
     return (
-        <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-center justify-center gap-1">
+        <div className="flex min-w-0 max-w-full flex-1 flex-wrap items-stretch justify-center gap-1.5 gap-y-2">
             {canRandomFill && (
                 <button
                     type="button"
                     onClick={() => onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId } })}
-                    className={`${btnBase} min-w-0 max-w-[44%] shrink sm:max-w-none`}
+                    className={`${btnBase} min-w-0 flex-1 basis-[42%] sm:basis-auto sm:min-w-[7rem]`}
                     title="남은 돌 무작위 배치"
                 >
                     무작위 배치
@@ -86,14 +85,14 @@ export const BasePlacementControlStrip: React.FC<{
                     <button
                         type="button"
                         onClick={() => onAction({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId } })}
-                        className={`${btnBase} shrink-0 px-1.5`}
+                        className={`${btnBase} min-w-[3.75rem] flex-1 sm:flex-none`}
                     >
                         재배치
                     </button>
                     <button
                         type="button"
                         onClick={() => onAction({ type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId } })}
-                        className={`${btnBase} shrink-0 px-1.5`}
+                        className={`${btnBase} min-w-[3.75rem] flex-1 sm:flex-none`}
                     >
                         취소
                     </button>
@@ -101,11 +100,24 @@ export const BasePlacementControlStrip: React.FC<{
             )}
             <button
                 type="button"
-                disabled
-                className={`${btnBase} shrink-0 cursor-not-allowed opacity-60`}
-                title="남은 베이스돌을 모두 놓으면 자동으로 다음 단계로 진행됩니다."
+                disabled={!isDonePlacing || myReady}
+                onClick={() =>
+                    isDonePlacing &&
+                    !myReady &&
+                    onAction({ type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', payload: { gameId } })
+                }
+                className={`${btnBase} min-w-[5.5rem] flex-1 sm:min-w-[6.5rem] ${
+                    !isDonePlacing || myReady ? 'cursor-not-allowed opacity-55' : ''
+                }`}
+                title={
+                    myReady
+                        ? '상대의 배치 완료를 기다리는 중입니다.'
+                        : isDonePlacing
+                          ? '배치를 마쳤다면 눌러 다음 단계로 진행합니다.'
+                          : '베이스돌을 모두 놓은 뒤 눌러 주세요.'
+                }
             >
-                {placementCompleteLabel}
+                {myReady ? '확인 완료' : '배치 완료'}
             </button>
         </div>
     );
@@ -178,6 +190,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
     }, [session.basePlacementDeadline]);
 
     const isDonePlacing = myPlacements !== null && myPlacements >= baseStoneCount;
+    const myReady = Boolean(viewerUserId && session.basePlacementReady?.[viewerUserId]);
     const hasDeadline = Boolean(session.basePlacementDeadline);
     const secLeft = hasDeadline ? basePlacementSecondsLeft : null;
     const barPct =
@@ -209,11 +222,14 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
     let primaryLine: string;
     if (myPlacements === null) {
         primaryLine = '베이스돌 배치 단계입니다.';
-    } else if (isDonePlacing) {
-        primaryLine = '배치 완료 · 상대 배치 대기 중…';
+    } else if (isDonePlacing && !myReady) {
+        primaryLine = `남은 베이스돌 (0/${baseStoneCount}) · 배치 완료를 눌러 주세요`;
+    } else if (isDonePlacing && myReady) {
+        primaryLine = `남은 베이스돌 (0/${baseStoneCount}) · 상대 확인 대기 중…`;
     } else {
         const hint = isAdventureVsAi ? '베이스돌을 바둑판에 놓으세요' : '상대에게 보이지 않게 베이스돌을 바둑판에 놓으세요';
-        const parts = [hint, `배치 ${myPlacements}/${baseStoneCount}`];
+        const remain = Math.max(0, baseStoneCount - myPlacements);
+        const parts = [hint, `남은 베이스돌 (${remain}/${baseStoneCount})`];
         if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') {
             parts.push(`남은 시간 ${secLeft}초`);
         }
@@ -224,16 +240,11 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
     const canRandomFill = showPlacementTools && myPlacements! < baseStoneCount;
     const canResetOrUndo = showPlacementTools && myPlacements! > 0;
 
-    const btnBase = `rounded-lg border px-2 py-2 text-center text-[10px] font-bold transition-colors sm:text-xs ${
+    const btnBase = `rounded-lg border text-center font-bold transition-colors ${
         isSinglePlayer
             ? 'border-amber-500/50 bg-amber-900/40 text-amber-50 hover:bg-amber-800/45'
             : 'border-cyan-400/45 bg-cyan-950/50 text-cyan-50 hover:bg-cyan-900/45'
-    }`;
-
-    const placementCompleteLabel = isDonePlacing ? '배치 완료' : '배치 완료 (자동 진행)';
-    const placementCompleteTitle = isDonePlacing
-        ? '상대가 배치를 끝내면 다음 단계로 넘어갑니다.'
-        : `남은 돌 ${Math.max(0, baseStoneCount - (myPlacements ?? 0))}개를 모두 놓으면 자동으로 진행됩니다.`;
+    } ${isMobile ? 'min-h-[2.45rem] px-2 py-2 text-[11px]' : 'min-h-[2.65rem] px-3 py-2.5 text-xs sm:text-sm'}`;
 
     return (
         <div className={`flex w-full min-w-0 flex-col gap-2 ${isMobile ? 'px-0.5' : 'px-1'}`}>
@@ -261,7 +272,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                     <button
                         type="button"
                         onClick={() => onAction({ type: 'PLACE_REMAINING_BASE_STONES_RANDOMLY', payload: { gameId } })}
-                        className={`${btnBase} min-w-[6rem] flex-1 sm:min-w-0`}
+                        className={`${btnBase} min-w-0 flex-1 basis-[44%] sm:min-w-[7.5rem]`}
                     >
                         남은 돌 무작위 배치
                     </button>
@@ -271,14 +282,14 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                         <button
                             type="button"
                             onClick={() => onAction({ type: 'RESET_MY_BASE_STONE_PLACEMENTS', payload: { gameId } })}
-                            className={`${btnBase} min-w-[3.5rem] flex-1 sm:flex-none`}
+                            className={`${btnBase} min-w-[4rem] flex-1 sm:flex-none`}
                         >
                             재배치
                         </button>
                         <button
                             type="button"
                             onClick={() => onAction({ type: 'UNDO_LAST_BASE_STONE_PLACEMENT', payload: { gameId } })}
-                            className={`${btnBase} min-w-[3.5rem] flex-1 sm:flex-none`}
+                            className={`${btnBase} min-w-[4rem] flex-1 sm:flex-none`}
                         >
                             마지막 취소
                         </button>
@@ -286,11 +297,24 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                 )}
                 <button
                     type="button"
-                    disabled
-                    className={`${btnBase} min-w-[5rem] flex-1 cursor-not-allowed opacity-60`}
-                    title={placementCompleteTitle}
+                    disabled={!isDonePlacing || myReady}
+                    onClick={() =>
+                        isDonePlacing &&
+                        !myReady &&
+                        onAction({ type: 'CONFIRM_BASE_PLACEMENT_COMPLETE', payload: { gameId } })
+                    }
+                    className={`${btnBase} min-w-[5.5rem] flex-1 sm:min-w-[6.5rem] ${
+                        !isDonePlacing || myReady ? 'cursor-not-allowed opacity-55' : ''
+                    }`}
+                    title={
+                        myReady
+                            ? '상대의 배치 완료를 기다리는 중입니다.'
+                            : isDonePlacing
+                              ? '배치를 마쳤다면 눌러 다음 단계로 진행합니다.'
+                              : '베이스돌을 모두 놓은 뒤 눌러 주세요.'
+                    }
                 >
-                    {placementCompleteLabel}
+                    {myReady ? '확인 완료' : '배치 완료'}
                 </button>
             </div>
         </div>

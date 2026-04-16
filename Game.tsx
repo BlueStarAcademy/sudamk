@@ -2444,9 +2444,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     ]);
 
     // 싱글플레이 게임 설명창 표시 여부
-    const showGameDescription = isSinglePlayer && gameStatus === 'pending';
-    // 도전의 탑 게임 설명창 표시 여부
-    const showTowerGameDescription = isTower && gameStatus === 'pending';
+    // 결과 모달과 겹치지 않게: 계가/종료 직후 일시적으로 pending이 섞이는 경우에도 설명창이 위를 덮지 않도록 함
+    const showGameDescription = isSinglePlayer && gameStatus === 'pending' && !showResultModal;
+    const showTowerGameDescription = isTower && gameStatus === 'pending' && !showResultModal;
     
     // 도전의 탑 배경 이미지 설정
     const towerBackgroundImage = isTower && session.towerFloor 
@@ -2543,21 +2543,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         };
     }, [isClientAiHiddenPresentationActive, sessionWithRestoredBoard, aiHiddenItemEffectEndTime]);
 
-    const isAdventureHiddenBoard =
-        isAdventureGame &&
-        (mode === GameMode.Hidden ||
-            (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Hidden))) ||
-            ((session.settings?.hiddenStoneCount ?? 0) > 0));
-    const isLobbyStrategicAiHiddenBoard =
-        session.isAiGame &&
-        !session.isSinglePlayer &&
-        session.gameCategory !== 'tower' &&
-        session.gameCategory !== 'singleplayer' &&
-        !isAdventureGame &&
-        (mode === GameMode.Hidden ||
-            (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Hidden))) ||
-            ((session.settings?.hiddenStoneCount ?? 0) > 0));
-    const boardGlowForHiddenItem = gameStatus === 'hidden_placing' || isAiHiddenPresentationActive;
+    const boardGlowForHiddenScanItem =
+        gameStatus === 'hidden_placing' ||
+            gameStatus === 'scanning' ||
+            gameStatus === 'scanning_animating' ||
+            isAiHiddenPresentationActive;
     
     const gameProps: GameProps = {
         session: sessionWithAiHiddenPresentation, onAction: handlers.handleAction, currentUser: currentUserWithStatus, waitingRoomChat: globalChat,
@@ -2642,7 +2632,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         showLastMoveMarker={settings.features.lastMoveMarker}
                                         captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
                                         isSinglePlayerPaused={isPaused}
-                                        showBoardGlow={gameStatus === 'hidden_placing' || isAiHiddenPresentationActive}
+                                        showBoardGlow={boardGlowForHiddenScanItem}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
                                         isBoardRotated={isBoardRotated}
@@ -2801,7 +2791,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         showLastMoveMarker={settings.features.lastMoveMarker}
                                         captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
                                         isSinglePlayerPaused={isPaused}
-                                        showBoardGlow={gameStatus === 'hidden_placing' || isAiHiddenPresentationActive}
+                                        showBoardGlow={boardGlowForHiddenScanItem}
                                         resumeCountdown={resumeCountdown}
                                         isBoardLocked={isBoardLocked}
                                     />
@@ -3017,10 +3007,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             isBoardRotated={isBoardRotated}
                                             onToggleBoardRotation={() => setIsBoardRotated(prev => !prev)}
                                             showBoardGlow={
-                                                (isGuildWarTowerStyleUi ||
-                                                    isAdventureHiddenBoard ||
-                                                    isLobbyStrategicAiHiddenBoard) &&
-                                                boardGlowForHiddenItem
+                                                boardGlowForHiddenScanItem
                                             }
                                             diceGoPlaceUi={
                                                 settings.features.moveConfirmButtonBox

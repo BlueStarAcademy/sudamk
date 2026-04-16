@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { LiveGameSession, Player, GameStatus, GameMode, User, ServerAction, AlkkagiStone } from '../../types.js';
 import {
     PLAYFUL_GAME_MODES,
@@ -182,6 +182,87 @@ const getGameStatusText = (session: LiveGameSession): string => {
     }
 };
 
+const BASE_KOMI_SCOREBOARD_GUIDE =
+    '두고싶은 돌과 덤을 정하세요. 같은 돌을 선택한 경우 덤을 많이 주는 쪽이 두고싶은 돌로 둡니다.';
+
+function BaseKomiGuideTicker({
+    text,
+    isMobile,
+    isSinglePlayer,
+}: {
+    text: string;
+    isMobile: boolean;
+    isSinglePlayer: boolean;
+}) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const measureRef = useRef<HTMLSpanElement>(null);
+    const [overflow, setOverflow] = useState(false);
+
+    const fontClass = isMobile
+        ? 'text-[clamp(0.78rem,2.6vmin,0.95rem)]'
+        : 'text-[clamp(0.92rem,3.2vmin,1.2rem)] min-[1025px]:text-[clamp(1rem,2.8vmin,1.28rem)]';
+
+    useLayoutEffect(() => {
+        const check = () => {
+            const c = containerRef.current;
+            const m = measureRef.current;
+            if (!c || !m) return;
+            setOverflow(m.scrollWidth > c.clientWidth + 2);
+        };
+        check();
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(check) : null;
+        if (ro && containerRef.current) ro.observe(containerRef.current);
+        window.addEventListener('resize', check);
+        return () => {
+            ro?.disconnect();
+            window.removeEventListener('resize', check);
+        };
+    }, [text, isMobile]);
+
+    const textShadow = isSinglePlayer
+        ? '0 0 8px rgba(251, 191, 36, 0.35)'
+        : '0 0 8px rgba(255, 255, 255, 0.35), 0 0 14px rgba(255, 255, 255, 0.15)';
+
+    return (
+        <div
+            ref={containerRef}
+            className={`relative w-full min-w-0 px-0.5 py-0.5 ${overflow ? 'overflow-hidden' : ''}`}
+        >
+            <span
+                ref={measureRef}
+                className={`pointer-events-none absolute left-0 top-0 -z-10 whitespace-nowrap font-extrabold opacity-0 ${fontClass}`}
+                aria-hidden
+            >
+                {text}
+            </span>
+            {overflow ? (
+                <div className="sudamr-base-komi-marquee-rtl flex w-max will-change-transform">
+                    <span
+                        className={`whitespace-nowrap px-8 font-extrabold tracking-wide text-amber-100 ${fontClass}`}
+                        style={{ textShadow }}
+                    >
+                        {text}
+                    </span>
+                    <span
+                        className={`whitespace-nowrap px-8 font-extrabold tracking-wide text-amber-100 ${fontClass}`}
+                        style={{ textShadow }}
+                        aria-hidden
+                    >
+                        {text}
+                    </span>
+                </div>
+            ) : (
+                <p
+                    className={`text-center font-extrabold leading-snug tracking-wide text-amber-100 [overflow-wrap:anywhere] ${fontClass}`}
+                    style={{ textShadow }}
+                >
+                    {text}
+                </p>
+            )}
+        </div>
+    );
+}
+
 const TurnDisplay: React.FC<TurnDisplayProps> = ({
     session,
     isPaused = false,
@@ -279,6 +360,11 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     const isBasePlacementScoreboard =
         session.gameStatus === 'base_placement' &&
+        (session.mode === GameMode.Base ||
+            (session.mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base))));
+
+    const isKomiBiddingScoreboard =
+        session.gameStatus === 'komi_bidding' &&
         (session.mode === GameMode.Base ||
             (session.mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Base))));
 
@@ -816,6 +902,17 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         );
     }
 
+    if (isKomiBiddingScoreboard) {
+        return wrapContent(
+            `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-1 min-h-[2.65rem] py-1' : 'gap-0 px-2 min-h-[3.1rem] py-1.5'}`,
+            <BaseKomiGuideTicker
+                text={BASE_KOMI_SCOREBOARD_GUIDE}
+                isMobile={isMobile}
+                isSinglePlayer={Boolean(isSinglePlayer)}
+            />
+        );
+    }
+
     if (isBasePlacementScoreboard) {
         const baseStoneCount = session.settings.baseStones ?? 4;
         const { player1, player2 } = session;
@@ -826,20 +923,31 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                   ? session.baseStones_p2?.length ?? 0
                   : null;
         const isDonePlacing = myPlacements !== null && myPlacements >= baseStoneCount;
+        const myReady = viewerUserId != null && Boolean(session.basePlacementReady?.[viewerUserId]);
         const hasDeadline = Boolean(session.basePlacementDeadline);
         const secLeft = hasDeadline ? basePlacementSecondsLeft : null;
+        const remainingStones =
+            myPlacements !== null ? Math.max(0, baseStoneCount - myPlacements) : null;
+
+        const p1Placed = session.baseStones_p1?.length ?? 0;
+        const p2Placed = session.baseStones_p2?.length ?? 0;
+        const isParticipant =
+            viewerUserId != null && (viewerUserId === player1.id || viewerUserId === player2.id);
 
         let primaryLine: string;
-        if (viewerUserId == null) {
-            primaryLine = '양측 베이스돌 배치 중';
-        } else if (isDonePlacing) {
-            primaryLine = '배치 완료 · 상대 대기';
+        if (!isParticipant) {
+            primaryLine = `베이스돌 배치 중 · 흑 ${p1Placed}/${baseStoneCount} · 백 ${p2Placed}/${baseStoneCount}`;
         } else if (myPlacements !== null) {
-            const seg: string[] = [`나 ${myPlacements}/${baseStoneCount}`];
-            if (hasDeadline && secLeft !== null && session.gameCategory !== 'adventure') {
-                seg.push(`남은 ${secLeft}초`);
+            const remainLabel = `남은 베이스돌 (${remainingStones}/${baseStoneCount})`;
+            const timeSeg =
+                hasDeadline && secLeft !== null && session.gameCategory !== 'adventure' ? ` · 남은 ${secLeft}초` : '';
+            if (!isDonePlacing) {
+                primaryLine = `${remainLabel}${timeSeg}`;
+            } else if (!myReady) {
+                primaryLine = `${remainLabel} · 배치 완료를 눌러 주세요${timeSeg}`;
+            } else {
+                primaryLine = `${remainLabel} · 상대 확인 대기${timeSeg}`;
             }
-            primaryLine = `베이스돌 배치 · ${seg.join(' · ')}`;
         } else {
             primaryLine = '양측 베이스돌 배치 중';
         }
@@ -848,8 +956,8 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-2 min-h-[2rem]' : 'gap-0 px-3 min-h-[2.25rem]'}`,
             <div className="flex w-full min-w-0 items-center justify-center">
                 <p
-                    className={`max-w-full truncate text-center font-bold tracking-wide ${textClass} ${
-                        isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.72rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.85rem)]'
+                    className={`max-w-full text-center font-bold leading-snug tracking-wide ${textClass} ${
+                        isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.78rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.92rem)]'
                     }`}
                     style={{
                         textShadow: isSinglePlayer

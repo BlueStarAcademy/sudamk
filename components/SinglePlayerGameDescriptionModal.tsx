@@ -10,6 +10,8 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
+import { getItemTemplateByName, normalizeBoxItemName } from '../utils/itemTemplateLookup.js';
+import { getTowerSessionFloor, isTowerFirstClearAttemptOnFloor } from '../utils/towerPreGameDisplay.js';
 import {
   PreGameSummaryGrid,
   PRE_GAME_MODAL_LAYER_CLASS,
@@ -64,7 +66,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     onStart,
     onClose,
     readOnly = false,
-    currentUser: _currentUser,
+    currentUser,
 }) => {
     const isTower = session.gameCategory === 'tower';
     const stage: SinglePlayerStageInfo | undefined = isTower
@@ -76,7 +78,15 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     /** 좁은 뷰·네이티브: 뷰포트 맞춤 + 본문만 스크롤, 하단 버튼 고정 */
     const isCompactUi = isHandheld || isNativeMobile;
 
-    const summaryFour = useMemo(() => getPreGameSummaryFour(session, stage), [session, stage]);
+    const summaryFour = useMemo(
+        () =>
+            getPreGameSummaryFour(
+                session,
+                stage,
+                isTower ? currentUser?.inventory : undefined
+            ),
+        [session, stage, isTower, currentUser?.inventory]
+    );
     const contentMeasureRef = useRef<HTMLDivElement>(null);
     const [frameHeight, setFrameHeight] = useState(780);
 
@@ -108,10 +118,20 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const modeMeta =
         SPECIAL_GAME_MODES.find((m) => m.mode === session.mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === session.mode);
 
-    /** 싱글/탑: 최초 클리어 보상만 노출 (재도전 별도 보상 문구 없음) */
-    const clearReward = stage.rewards?.firstClear;
+    /** 싱글: 스테이지 firstClear. 탑: 서버 지급과 동일하게 `user.towerFloor < 층`일 때만 firstClear(재도전은 없음). */
+    const sessionFloorTower = isTower ? getTowerSessionFloor(session) : 0;
+    const isTowerEligibleForFirstClear =
+        !isTower ||
+        currentUser == null ||
+        isTowerFirstClearAttemptOnFloor(currentUser.towerFloor, sessionFloorTower);
+    const clearReward = isTowerEligibleForFirstClear ? stage.rewards?.firstClear : undefined;
 
     const resolveItemImage = (itemId: string): string | null => {
+        const normalized = normalizeBoxItemName(itemId);
+        const byNorm = getItemTemplateByName(normalized);
+        if (byNorm?.image) return byNorm.image;
+        const byRaw = getItemTemplateByName(itemId);
+        if (byRaw?.image) return byRaw.image;
         const c = CONSUMABLE_ITEMS.find((it) => it.name === itemId);
         if (c?.image) return c.image;
         if (MATERIAL_ITEMS[itemId]?.image) return MATERIAL_ITEMS[itemId].image;
@@ -224,7 +244,11 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                 })}
                             </div>
                         ) : (
-                            <p className="mt-1 text-center text-[0.8125rem] text-amber-100/75 sm:text-xs">보상 정보 없음</p>
+                            <p className="mt-1 text-center text-[0.8125rem] text-amber-100/75 sm:text-xs">
+                                {isTower && currentUser != null && !isTowerEligibleForFirstClear
+                                    ? '재도전: 최초 통과 시에만 클리어 보상이 지급됩니다.'
+                                    : '보상 정보 없음'}
+                            </p>
                         )}
                     </div>
                 </div>

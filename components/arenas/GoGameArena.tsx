@@ -267,7 +267,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 </div>
                 {showBoardGlow && (
                     <div
-                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-[5px] ring-amber-300/95 shadow-[0_0_32px_rgba(251,191,21,0.65),0_0_48px_rgba(244,114,182,0.35)] animate-[pulse_1.4s_ease-in-out_infinite]"
+                        className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-[6px] ring-amber-300/95 shadow-[0_0_38px_rgba(251,191,36,0.8),0_0_74px_rgba(244,114,182,0.52),inset_0_0_24px_rgba(251,191,36,0.18)] animate-[pulse_1.05s_cubic-bezier(0.4,0,0.2,1)_infinite]"
                         aria-hidden
                     />
                 )}

@@ -1774,3 +1774,24 @@ input[type="range"]::-moz-range-thumb {
 .animate-float-down-and-fade-1s {
   animation: float-down-and-fade-1s 1s ease-out forwards;
 }
+
+/* 베이스 바둑 덤 단계 전광판: 긴 안내 문구 흐름 (오른쪽→왼쪽) */
+@keyframes sudamr-base-komi-marquee-rtl {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.sudamr-base-komi-marquee-rtl {
+  animation: sudamr-base-komi-marquee-rtl 22s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sudamr-base-komi-marquee-rtl {
+    animation: none;
+    transform: translateX(0);
+  }
+}

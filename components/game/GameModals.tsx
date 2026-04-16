@@ -77,13 +77,17 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             return <NegotiationModal negotiation={activeNegotiation} currentUser={currentUser} onAction={onAction} onlineUsers={onlineUsers} />;
         }
 
-        // 싱글플레이: 계가 완료(ended) 후에만 결과 모달 표시. 계가 중(scoring)에는 바둑판 오버레이로 표시
-        if (session.isSinglePlayer && showResultModal !== false && (showResultModal || gameStatus === 'ended')) {
+        // 싱글/탑: `showResultModal`은 Game.tsx effect가 종료·계가 시 true로 올리고, 확인 시 false로 내린다.
+        // `(showResultModal || ended)`만 쓰면 확인 후에도 ended라 모달이 다시 뜨고, `showResultModal !== false`는 초기 false와 구분이 안 되어 끊긴다.
+        const showPveResultShell =
+            showResultModal &&
+            (gameStatus === 'ended' || gameStatus === 'scoring' || gameStatus === 'no_contest');
+
+        if (session.isSinglePlayer && showPveResultShell) {
             return <SinglePlayerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
 
-        // 도전의 탑: 계가 완료(ended) 후에만 결과 모달 표시. 계가 중(scoring)에는 바둑판 오버레이로 표시
-        if (session.gameCategory === 'tower' && showResultModal !== false && (showResultModal || gameStatus === 'ended')) {
+        if (session.gameCategory === 'tower' && showPveResultShell) {
             return <TowerSummaryModal session={session} currentUser={currentUser} onAction={onAction} onClose={onCloseResults} />;
         }
         

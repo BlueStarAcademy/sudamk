@@ -1,6 +1,7 @@
 import { LiveGameSession, GameMode, GameSettings, SinglePlayerStageInfo } from '../types.js';
 import { Player } from '../types/enums.js';
 import { getAdventureEncounterCountdownMinutes } from '../shared/utils/adventureBattleBoard.js';
+import { getTowerItemDisplayCaps } from './towerPreGameDisplay.js';
 
 export type PreGameSpecialHighlight = {
   img: string;
@@ -220,13 +221,16 @@ function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[])
   return slots;
 }
 
-function buildSinglePlayerStageItemSlots(stage: SinglePlayerStageInfo): PreGameItemSlot[] {
+function buildSinglePlayerStageItemSlots(
+  stage: SinglePlayerStageInfo,
+  towerItemCaps?: { missile: number; hidden: number; scan: number } | null
+): PreGameItemSlot[] {
   const slots: PreGameItemSlot[] = [];
-  const m = stage.missileCount ?? 0;
+  const m = towerItemCaps ? towerItemCaps.missile : (stage.missileCount ?? 0);
+  const h = towerItemCaps ? towerItemCaps.hidden : (stage.hiddenCount ?? 0);
+  const s = towerItemCaps ? towerItemCaps.scan : (stage.scanCount ?? 0);
   if (m > 0) slots.push({ key: 'missile', img: '/images/button/missile.png', count: m, title: '미사일' });
-  const h = stage.hiddenCount ?? 0;
   if (h > 0) slots.push({ key: 'hidden', img: '/images/button/hidden.png', count: h, title: '히든 돌' });
-  const s = stage.scanCount ?? 0;
   if (s > 0) slots.push({ key: 'scan', img: '/images/button/scan.png', count: s, title: '스캔' });
   return slots;
 }
@@ -299,7 +303,12 @@ function singlePlayerStageTimeRules(stage: SinglePlayerStageInfo): string {
   return '제한없음';
 }
 
-function singlePlayerStageHighlights(session: LiveGameSession, stage: SinglePlayerStageInfo): PreGameSpecialHighlight[] {
+function singlePlayerStageHighlights(
+  session: LiveGameSession,
+  stage: SinglePlayerStageInfo,
+  /** 도전의 탑: 가방 보유와 스테이지 상한을 반영한 표시용 개수(없으면 스테이지 정의값) */
+  towerItemCaps?: { missile: number; hidden: number; scan: number } | null
+): PreGameSpecialHighlight[] {
   const h: PreGameSpecialHighlight[] = [];
   const isCaptureMode = stage.blackTurnLimit !== undefined || session.mode === GameMode.Capture;
   const bs = defaultBaseStoneCount(session.settings);
@@ -325,13 +334,16 @@ function singlePlayerStageHighlights(session: LiveGameSession, stage: SinglePlay
   if (stage.blackTurnLimit) {
     h.push({ img: '/images/icon/timer.png', text: `흑 ${stage.blackTurnLimit}턴 제한` });
   }
-  if ((stage.missileCount ?? 0) > 0) {
-    h.push({ img: '/images/button/missile.png', text: `미사일 ${stage.missileCount}개` });
+  const missileN = towerItemCaps ? towerItemCaps.missile : (stage.missileCount ?? 0);
+  const hiddenN = towerItemCaps ? towerItemCaps.hidden : (stage.hiddenCount ?? 0);
+  const scanN = towerItemCaps ? towerItemCaps.scan : (stage.scanCount ?? 0);
+  if (missileN > 0) {
+    h.push({ img: '/images/button/missile.png', text: `미사일 ${missileN}개` });
   }
-  if ((stage.hiddenCount ?? 0) > 0 || (stage.scanCount ?? 0) > 0) {
+  if (hiddenN > 0 || scanN > 0) {
     h.push({
       img: '/images/button/hidden.png',
-      text: `히든 ${stage.hiddenCount ?? 0}개 · 스캔 ${stage.scanCount ?? 0}개`,
+      text: `히든 ${hiddenN}개 · 스캔 ${scanN}개`,
     });
   }
   return h;
@@ -376,13 +388,18 @@ function buildAdventurePreGameSummary(session: LiveGameSession): PreGameSummaryF
 /**
  * 인게임 시작 전 모달용 요약 (승리·패배 조건 / 점수 요인 / 시간 규칙 / 아이템 + 특수 규칙 행)
  */
-export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePlayerStageInfo): PreGameSummaryFour {
+export function getPreGameSummaryFour(
+  session: LiveGameSession,
+  stage?: SinglePlayerStageInfo,
+  /** 도전의 탑 전용: 대기실 가방과 동일한 미사일·히든·스캔 표시 개수 */
+  towerLobbyInventory?: Array<{ name?: string; id?: string; quantity?: number; source?: string | null }>
+): PreGameSummaryFour {
   const { mode, settings } = session;
   const mix = mixedList(settings);
   const bs = defaultBaseStoneCount(settings);
 
   if (stage) {
-    return getSinglePlayerStageSummary(session, stage);
+    return getSinglePlayerStageSummary(session, stage, towerLobbyInventory);
   }
 
   if (session.gameCategory === 'adventure') {
@@ -584,7 +601,11 @@ export function getPreGameSummaryFour(session: LiveGameSession, stage?: SinglePl
   };
 }
 
-function getSinglePlayerStageSummary(session: LiveGameSession, stage: SinglePlayerStageInfo): PreGameSummaryFour {
+function getSinglePlayerStageSummary(
+  session: LiveGameSession,
+  stage: SinglePlayerStageInfo,
+  towerLobbyInventory?: Array<{ name?: string; id?: string; quantity?: number; source?: string | null }>
+): PreGameSummaryFour {
   const effectiveTargets = session.effectiveCaptureTargets;
   const blackTarget = effectiveTargets?.[Player.Black];
   const whiteTarget = effectiveTargets?.[Player.White];
@@ -648,12 +669,20 @@ function getSinglePlayerStageSummary(session: LiveGameSession, stage: SinglePlay
     scoreFactors = '영토 · 따낸 돌 · 사석 · 덤(백)';
   }
 
-  const itemBits: string[] = [];
-  if ((stage.missileCount ?? 0) > 0) itemBits.push(`미사일 ${stage.missileCount}개`);
-  if ((stage.hiddenCount ?? 0) > 0) itemBits.push(`히든 ${stage.hiddenCount}개`);
-  if ((stage.scanCount ?? 0) > 0) itemBits.push(`스캔 ${stage.scanCount}개`);
+  const towerCaps =
+    session.gameCategory === 'tower' && towerLobbyInventory !== undefined
+      ? getTowerItemDisplayCaps(stage, towerLobbyInventory)
+      : null;
 
-  const specialHighlights = singlePlayerStageHighlights(session, stage);
+  const itemBits: string[] = [];
+  const mDisp = towerCaps ? towerCaps.missile : (stage.missileCount ?? 0);
+  const hDisp = towerCaps ? towerCaps.hidden : (stage.hiddenCount ?? 0);
+  const sDisp = towerCaps ? towerCaps.scan : (stage.scanCount ?? 0);
+  if (mDisp > 0) itemBits.push(`미사일 ${mDisp}개`);
+  if (hDisp > 0) itemBits.push(`히든 ${hDisp}개`);
+  if (sDisp > 0) itemBits.push(`스캔 ${sDisp}개`);
+
+  const specialHighlights = singlePlayerStageHighlights(session, stage, towerCaps);
 
   return {
     winGoal,
@@ -662,6 +691,6 @@ function getSinglePlayerStageSummary(session: LiveGameSession, stage: SinglePlay
     timeRules: singlePlayerStageTimeRules(stage),
     specialHighlights,
     items: itemBits.length ? itemBits.join(' · ') : NONE,
-    itemSlots: buildSinglePlayerStageItemSlots(stage),
+    itemSlots: buildSinglePlayerStageItemSlots(stage, towerCaps),
   };
 }
