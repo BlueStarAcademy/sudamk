@@ -6,6 +6,9 @@ import type { User, Guild, GuildBossInfo, QuestReward, MannerEffects, GuildBossS
 import { GuildResearchId, CoreStat, SpecialStat, MythicStat } from '../types/enums.js';
 import { GUILD_RESEARCH_PROJECTS } from '../constants/index.js';
 import { calculateGuildBossBattleRewards, clampGuildBossStage, guildBossStatMultiplier } from './guildBossStageUtils.js';
+import { isRewardVipActive } from '../shared/utils/rewardVip.js';
+import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../shared/constants/vipPlayReward.js';
+import { CONSUMABLE_ITEMS } from '../constants/index.js';
 import { BOSS_SKILL_ICON_MAP, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_REGEN_IMG, GUILD_ATTACK_ICON } from '../assets.js';
 import { calculateUserEffects, calculateTotalStats } from './statUtils.js';
 import { getMannerEffects } from './mannerUtils.js';
@@ -310,6 +313,18 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     return {
         damageDealt: finalDamage,
         turnsSurvived,
+        vipPlayRewardSlot: {
+            locked: !isRewardVipActive(user),
+            ...(isRewardVipActive(user)
+                ? {
+                      grantedItem: {
+                          name: VIP_PLAY_REWARD_CONSUMABLE_NAME,
+                          quantity: 1,
+                          image: CONSUMABLE_ITEMS.find((c) => c.name === VIP_PLAY_REWARD_CONSUMABLE_NAME)?.image,
+                      },
+                  }
+                : {}),
+        },
         rewards: {
             tier: calculatedRewards.tier,
             guildXp: calculatedRewards.guildXp,

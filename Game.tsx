@@ -2705,10 +2705,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     {isMobile && (
                         <>
                             <div
-                                className={`fixed top-0 right-0 z-50 flex h-[100dvh] max-h-[100dvh] w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                                className={`fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
                                 style={mobileGameSidebarDrawerStyle}
                             >
-                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                                     <SinglePlayerSidebar
                                         session={sessionWithRestoredPatternStones}
                                         gameChat={gameChat}
@@ -2765,6 +2765,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
                         currentUser={currentUserWithStatus}
+                        onTowerItemPurchase={async (itemId, quantity) => {
+                            await handlers.handleAction({
+                                type: 'BUY_TOWER_ITEM',
+                                payload: { itemId, quantity },
+                            } as ServerAction);
+                        }}
                     />
                 )}
                 <Header compact />
@@ -2862,10 +2868,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     {isMobile && (
                         <>
                             <div
-                                className={`fixed top-0 right-0 z-50 flex h-[100dvh] max-h-[100dvh] w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                                className={`fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
                                 style={mobileGameSidebarDrawerStyle}
                             >
-                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                                     <TowerSidebar
                                         session={sessionWithRestoredPatternStones}
                                         gameChat={gameChat}
@@ -3145,10 +3151,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 {isMobile && (
                     <>
                         <div
-                            className={`fixed top-0 right-0 z-50 flex h-[100dvh] max-h-[100dvh] w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
+                            className={`fixed inset-y-0 right-0 z-50 flex w-[280px] flex-col overflow-hidden bg-secondary shadow-2xl transition-transform duration-300 ease-in-out ${isMobileSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
                             style={mobileGameSidebarDrawerStyle}
                         >
-                            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden">
                                 {isGuildWarTowerStyleUi ? (
                                     <GuildWarTowerSidebar
                                         session={sessionWithRestoredPatternStones}

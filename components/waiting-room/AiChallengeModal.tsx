@@ -32,6 +32,13 @@ interface AiChallengeModalProps {
     seedFromSession?: { mode: GameMode; settings: GameSettings };
 }
 
+/** 전략바둑 대기실 「AI와 대결하기」: 베이스돌 최대 4개 */
+const AI_CHALLENGE_BASE_STONE_COUNTS = (BASE_STONE_COUNTS as readonly number[]).filter((count) => count <= 4);
+/** 전략바둑 대기실 「AI와 대결하기」: 히든 아이템 최대 2개 */
+const AI_CHALLENGE_HIDDEN_STONE_COUNTS = (HIDDEN_STONE_COUNTS as readonly number[]).filter((count) => count <= 2);
+/** 전략바둑 대기실 「AI와 대결하기」: 미사일 아이템 최대 10개 */
+const AI_CHALLENGE_MISSILE_COUNTS = (MISSILE_COUNTS as readonly number[]).filter((count) => count <= 10);
+
 /** 종료된 대국 session.settings → AI 도전 모달 초기값 (NegotiationModal과 유사 검증) */
 function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSettings): GameSettings {
     let newSettings: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...sessionSettings };
@@ -66,8 +73,14 @@ function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSet
             delete (newSettings as any).curlingStoneCount;
         }
     }
-    if (newSettings.baseStones != null && !(BASE_STONE_COUNTS as readonly number[]).includes(newSettings.baseStones)) {
+    if (newSettings.baseStones != null && !AI_CHALLENGE_BASE_STONE_COUNTS.includes(newSettings.baseStones)) {
         delete (newSettings as any).baseStones;
+    }
+    if (newSettings.hiddenStoneCount != null && !AI_CHALLENGE_HIDDEN_STONE_COUNTS.includes(newSettings.hiddenStoneCount)) {
+        delete (newSettings as any).hiddenStoneCount;
+    }
+    if (newSettings.missileCount != null && !AI_CHALLENGE_MISSILE_COUNTS.includes(newSettings.missileCount)) {
+        delete (newSettings as any).missileCount;
     }
     return newSettings;
 }
@@ -185,6 +198,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                 }
                 if (parsed.mixedModes && parsed.mixedModes.includes(GameMode.Base) && parsed.mixedModes.includes(GameMode.Capture)) {
                     parsed.mixedModes = parsed.mixedModes.filter((m: GameMode) => m !== GameMode.Base);
+                }
+                if (parsed.hiddenStoneCount != null && !AI_CHALLENGE_HIDDEN_STONE_COUNTS.includes(parsed.hiddenStoneCount)) {
+                    delete (parsed as any).hiddenStoneCount;
+                }
+                if (parsed.missileCount != null && !AI_CHALLENGE_MISSILE_COUNTS.includes(parsed.missileCount)) {
+                    delete (parsed as any).missileCount;
                 }
                 if (selectedGameMode === GameMode.Capture) {
                     parsed.scoringTurnLimit = 0;
@@ -377,16 +396,16 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         const showScoringTurnLimit = showGoAiLevel && selectedGameMode !== GameMode.Capture;
 
         const AI_LEVELS = [
-            { value: -31, label: '1단계 (입문)' },
-            { value: -25, label: '2단계 (초보)' },
-            { value: -21, label: '3단계 (하급)' },
-            { value: -15, label: '4단계 (초급)' },
-            { value: -12, label: '5단계 (중급)' },
-            { value: -8,  label: '6단계 (중상급)' },
-            { value: -3,  label: '7단계 (상급)' },
-            { value: -1,  label: '8단계 (고급)' },
-            { value: 3,   label: '9단계 (최상급)' },
-            { value: 5,   label: '10단계 (고수)' },
+            { value: -31, label: '1단계' },
+            { value: -25, label: '2단계' },
+            { value: -21, label: '3단계' },
+            { value: -15, label: '4단계' },
+            { value: -12, label: '5단계' },
+            { value: -8,  label: '6단계' },
+            { value: -3,  label: '7단계' },
+            { value: -1,  label: '8단계' },
+            { value: 3,   label: '9단계' },
+            { value: 5,   label: '10단계' },
         ];
 
         const boardSizeOptions = selectedGameMode != null ? getStrategicBoardSizesByMode(selectedGameMode) : BOARD_SIZES;
@@ -492,7 +511,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                                         className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                         style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                                     >
-                                        {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                        {AI_CHALLENGE_BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                                     </select>
                                 </div>
                             )}
@@ -506,7 +525,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                             style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                                         >
-                                            {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                            {AI_CHALLENGE_HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                                         </select>
                                     </div>
                                     <div className="grid grid-cols-2 gap-2 items-center">
@@ -531,7 +550,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                                         className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                         style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                                     >
-                                        {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                        {AI_CHALLENGE_MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                                     </select>
                                 </div>
                             )}
@@ -764,7 +783,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                         >
-                            {BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                            {AI_CHALLENGE_BASE_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                         </select>
                     </div>
                 )}
@@ -779,7 +798,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                                 className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                                 style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                             >
-                                {HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                                {AI_CHALLENGE_HIDDEN_STONE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                             </select>
                         </div>
                         <div className="grid grid-cols-2 gap-2 items-center">
@@ -805,7 +824,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                         >
-                            {MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
+                            {AI_CHALLENGE_MISSILE_COUNTS.map(c => <option key={c} value={c}>{c}개</option>)}
                         </select>
                     </div>
                 )}

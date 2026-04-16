@@ -25,7 +25,7 @@ const INGAME_INNER_ITEM =
 
 /** 우측 대국실 사이드바 외곽 */
 export const arenaGameRoomSidebarShell =
-    'flex min-h-0 flex-col h-full gap-2 rounded-xl p-2.5 sm:p-3 ' +
+    'flex min-h-0 flex-1 flex-col h-full gap-2 rounded-xl p-2.5 sm:p-3 ' +
     'border border-slate-600/40 bg-gradient-to-b from-slate-900/94 via-[#0b0e14] to-[#050608] ' +
     'shadow-[inset_0_1px_0_rgba(255,255,255,0.045),0_14px_48px_-20px_rgba(0,0,0,0.78)] ring-1 ring-inset ring-white/[0.03]';
 

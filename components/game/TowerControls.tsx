@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { GameProps, Player } from '../../types.js';
 import Button from '../Button.js';
 import ConfirmModal from '../ConfirmModal.js';
@@ -27,6 +28,7 @@ import {
     arenaGameRoomIngameInnerItemSurfaceClass,
     arenaGameRoomIngameInnerNeutralSurfaceClass,
 } from './arenaGameRoomStyles.js';
+import TowerItemShopModal from '../TowerItemShopModal.js';
 
 interface TowerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
     showResultModal?: boolean;
@@ -78,6 +80,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const [refreshConfirmModal, setRefreshConfirmModal] = useState(false);
     const [passConfirmModal, setPassConfirmModal] = useState(false);
     const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
+    const [towerItemShopOpen, setTowerItemShopOpen] = useState(false);
     const floor = session.towerFloor ?? 1;
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
     const stage = TOWER_STAGES.find(s => {
@@ -276,10 +279,15 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
     // 턴 추가 아이템 (1~20층, 제한 없음) - 로비·가방과 동기화
     const turnAddCount = showTurnAdd ? getItemCount(TOWER_ITEM_TURN_ADD_NAMES) : 0;
-    const turnAddDisabled = gameStatus !== 'playing' || turnAddCount <= 0;
-    
-    const handleUseTurnAdd = () => {
-        if (gameStatus !== 'playing' || turnAddCount <= 0) return;
+    /** 경기 중이면 0개일 때도 눌러 상점 열기 (사용 확인은 보유 있을 때만) */
+    const turnAddButtonDisabled = gameStatus !== 'playing';
+
+    const handleTurnAddClick = () => {
+        if (gameStatus !== 'playing') return;
+        if (turnAddCount <= 0) {
+            if (currentUser) setTowerItemShopOpen(true);
+            return;
+        }
         setTurnAddConfirmModal(true);
     };
 
@@ -406,13 +414,17 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 					<ImageButton
 						src="/images/button/addturn.png"
 						alt="턴 추가"
-						onClick={handleUseTurnAdd}
-						disabled={turnAddDisabled}
-						title="남은 턴 3턴 추가"
+						onClick={handleTurnAddClick}
+						disabled={turnAddButtonDisabled}
+						title={turnAddCount > 0 ? '남은 턴 3턴 추가' : '도전의 탑 아이템 상점에서 구매'}
 						count={turnAddCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${turnAddDisabled ? 'text-gray-500' : 'text-amber-100'}`}>턴 추가</span>
+					<span
+						className={`${lbl} font-semibold whitespace-nowrap ${turnAddButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}
+					>
+						턴 추가
+					</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
@@ -463,8 +475,25 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 		</>
 	);
 
+	const towerShopPortal =
+		towerItemShopOpen &&
+		currentUser &&
+		createPortal(
+			<div className="fixed inset-0 z-[220]">
+				<TowerItemShopModal
+					currentUser={currentUser}
+					onClose={() => setTowerItemShopOpen(false)}
+					onBuy={async (itemId, quantity) => {
+						await onAction({ type: 'BUY_TOWER_ITEM', payload: { itemId, quantity } } as any);
+					}}
+				/>
+			</div>,
+			document.body
+		);
+
 	return (
 		<>
+		{towerShopPortal}
 		<footer
 			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
 				isMobile

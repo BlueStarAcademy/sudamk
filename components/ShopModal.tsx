@@ -358,6 +358,10 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         }
     }, [toastMessage]);
 
+    useEffect(() => {
+        if (initialTab) setActiveTab(initialTab);
+    }, [initialTab]);
+
     const gridClassName = mobileShop
         ? 'grid grid-cols-2 gap-1.5 min-[390px]:grid-cols-3 min-[390px]:gap-2'
         : 'grid grid-cols-4 gap-3';
@@ -379,11 +383,10 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             duration: '30일 적용',
             priceKRW: 9900,
             benefits: [
-                'VIP 보상 슬롯 추가: 전략바둑/놀이바둑/길드 보스전 보상 수령 시 1개 추가',
+                'VIP 보상 슬롯: 전략·놀이 대국, 모험 승리, 길드 보스전마다 표시 — 승리 시 장비 상자 II 1개 지급',
                 '길드 코인 획득량 2배 (출석, 기부 등)',
                 '일일/주간/월간 퀘스트 보상 2배',
                 '퀘스트 활약도 보상 2배',
-                'VIP 슬롯 보상: 골드 200% 추가 획득 또는 상자 보상 (장비상자 I~IV, 재료상자 I~IV)',
             ],
         },
         {

@@ -4,6 +4,7 @@ import {
     TOWER_ITEM_HIDDEN_NAMES,
     TOWER_ITEM_MISSILE_NAMES,
     TOWER_ITEM_SCAN_NAMES,
+    TOWER_ITEM_TURN_ADD_NAMES,
 } from './towerLobbyInventory.js';
 
 /** 세션에서 도전의 탑 층수 (towerFloor 우선, 없으면 stageId 파싱) */
@@ -27,7 +28,7 @@ export function isTowerFirstClearAttemptOnFloor(userTowerFloor: number | undefin
     return clearedMax < sessionFloor;
 }
 
-export type TowerLobbyItemCounts = { missile: number; hidden: number; scan: number };
+export type TowerLobbyItemCounts = { missile: number; hidden: number; scan: number; turnAdd: number };
 
 export function countTowerLobbyItems(
     inventory: Array<{ name?: string; id?: string; quantity?: number; source?: string | null }> | undefined
@@ -37,6 +38,7 @@ export function countTowerLobbyItems(
         missile: countTowerLobbyInventoryQty(inv, TOWER_ITEM_MISSILE_NAMES),
         hidden: countTowerLobbyInventoryQty(inv, TOWER_ITEM_HIDDEN_NAMES),
         scan: countTowerLobbyInventoryQty(inv, TOWER_ITEM_SCAN_NAMES),
+        turnAdd: countTowerLobbyInventoryQty(inv, TOWER_ITEM_TURN_ADD_NAMES),
     };
 }
 
@@ -56,5 +58,6 @@ export function getTowerItemDisplayCaps(
         missile: capM > 0 ? Math.min(capM, owned.missile) : 0,
         hidden: capH > 0 ? Math.min(capH, owned.hidden) : 0,
         scan: capS > 0 ? Math.min(capS, owned.scan) : 0,
+        turnAdd: owned.turnAdd,
     };
 }

@@ -1237,8 +1237,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
             
-            // After move logic
-            if (game.mode === types.GameMode.Capture || game.isSinglePlayer) {
+            // After move logic (탑은 isSinglePlayer가 false이므로 gameCategory로 포함)
+            if (game.mode === types.GameMode.Capture || game.isSinglePlayer || game.gameCategory === 'tower') {
                 const target = game.effectiveCaptureTargets?.[myPlayerEnum];
                 if (target !== undefined && target !== 999 && game.captures[myPlayerEnum] >= target) {
                     // 따낸 돌 미션을 먼저 적용하여 성공/실패를 확정하고,

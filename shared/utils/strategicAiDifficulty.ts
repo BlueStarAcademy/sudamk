@@ -1,3 +1,6 @@
+import { getAdventureBaseStrategyXp } from '../constants/adventureStrategyXp.js';
+import { getScoringTurnLimitOptionsByBoardSize } from '../../constants/gameSettings.js';
+
 /**
  * 전략바둑 AI 난이도: UI 1~10 단계 ↔ KataServer levelbot 값.
  * (9·10단계는 Kata 값이 3, 5라서 숫자만으로 단계를 판별하면 오해석됨)
@@ -90,6 +93,32 @@ export function aiLobbyRewardMultiplierFromProfileStep(profileStep: number): num
   const t = Math.max(1, Math.min(10, Math.round(profileStep)));
   if (t <= 1) return 1;
   return 1 + t * 0.1;
+}
+
+function strategicLobbyAiBoardXpMultiplier(boardSize: number): number {
+  if (boardSize === 13) return 1.5;
+  if (boardSize === 19) return 2.5;
+  return 1;
+}
+
+function isMaxScoringTurnLimit(boardSize: number, scoringTurnLimit?: number): boolean {
+  if (typeof scoringTurnLimit !== 'number' || !Number.isFinite(scoringTurnLimit) || scoringTurnLimit <= 0) return false;
+  const maxLimit = Math.max(...getScoringTurnLimitOptionsByBoardSize(boardSize).filter((v) => v > 0));
+  return Number.isFinite(maxLimit) && scoringTurnLimit >= maxLimit;
+}
+
+/**
+ * 전략바둑 대기실 AI 대결 승리 기본 EXP.
+ * - 9줄 승리 EXP를 기준(1x)
+ * - 13줄 1.5x, 19줄 2.5x
+ * - 계가까지 턴을 해당 판의 최대치로 설정하면 +0.5x(총 1.5배 추가 곱)
+ */
+export function strategicLobbyAiWinXp(boardSize?: number, scoringTurnLimit?: number): number {
+  const bs = boardSize ?? 9;
+  const baseNine = getAdventureBaseStrategyXp(9);
+  const boardMul = strategicLobbyAiBoardXpMultiplier(bs);
+  const turnMul = isMaxScoringTurnLimit(bs, scoringTurnLimit) ? 1.5 : 1;
+  return Math.max(1, Math.round(baseNine * boardMul * turnMul));
 }
 
 /** 전략/놀이 대기실에서 시작한 AI 대국(싱글·탑·길드전 제외) */

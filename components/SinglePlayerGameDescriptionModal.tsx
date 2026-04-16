@@ -1,4 +1,5 @@
 import React, { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { LiveGameSession, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
@@ -20,6 +21,15 @@ import {
   PRE_GAME_MODAL_ACCENT_BTN_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
+import {
+    RESULT_MODAL_BOX_GOLD_CLASS,
+    RESULT_MODAL_BOX_ITEM_CLASS,
+    RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
+} from './game/ResultModalRewardSlot.js';
+import TowerItemShopModal from './TowerItemShopModal.js';
+
+const SINGLE_PLAYER_CLEAR_GOLD_BOX = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
+const SINGLE_PLAYER_CLEAR_ITEM_BOX = `${RESULT_MODAL_BOX_ITEM_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 
 interface SinglePlayerGameDescriptionModalProps {
     session: LiveGameSession;
@@ -28,6 +38,8 @@ interface SinglePlayerGameDescriptionModalProps {
     /** 인게임 경기방법: 시작하기 대신 확인 버튼만 표시 */
     readOnly?: boolean;
     currentUser?: UserWithStatus;
+    /** 도전의 탑: 경기정보 모달에서 아이템 상점 구매 */
+    onTowerItemPurchase?: (itemId: string, quantity: number) => Promise<void>;
 }
 
 const SINGLE_PLAYER_LEVEL_DISPLAY: Partial<Record<SinglePlayerLevel, string>> = {
@@ -61,12 +73,18 @@ const IN_MODAL_FOOTER_RESERVE_PX = 50;
 const DRAG_FRAME_H_MIN = 320;
 const DRAG_FRAME_H_MAX = 1200;
 
+function firstClearRewardHasContent(reward: { gold?: number; exp?: number; items?: readonly unknown[] } | undefined): boolean {
+    if (!reward) return false;
+    return (reward.gold ?? 0) > 0 || (reward.exp ?? 0) > 0 || (reward.items?.length ?? 0) > 0;
+}
+
 const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModalProps> = ({
     session,
     onStart,
     onClose,
     readOnly = false,
     currentUser,
+    onTowerItemPurchase,
 }) => {
     const isTower = session.gameCategory === 'tower';
     const stage: SinglePlayerStageInfo | undefined = isTower
@@ -118,13 +136,20 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const modeMeta =
         SPECIAL_GAME_MODES.find((m) => m.mode === session.mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === session.mode);
 
-    /** 싱글: 스테이지 firstClear. 탑: 서버 지급과 동일하게 `user.towerFloor < 층`일 때만 firstClear(재도전은 없음). */
+    /** 서버와 동일: 최초 클리어 보상만 표시(재도전·이미 클리어한 층/스테이지는 없음). */
     const sessionFloorTower = isTower ? getTowerSessionFloor(session) : 0;
-    const isTowerEligibleForFirstClear =
-        !isTower ||
-        currentUser == null ||
-        isTowerFirstClearAttemptOnFloor(currentUser.towerFloor, sessionFloorTower);
-    const clearReward = isTowerEligibleForFirstClear ? stage.rewards?.firstClear : undefined;
+    const isEligibleForFirstClearRewards =
+        currentUser == null
+            ? true
+            : isTower
+              ? isTowerFirstClearAttemptOnFloor(currentUser.towerFloor, sessionFloorTower)
+              : !(currentUser.clearedSinglePlayerStages ?? []).includes(stage.id);
+    const firstClearReward = stage.rewards?.firstClear;
+    const clearReward = isEligibleForFirstClearRewards ? firstClearReward : undefined;
+    const hasClearRewardToShow = isEligibleForFirstClearRewards && firstClearRewardHasContent(clearReward);
+
+    const [towerShopOpen, setTowerShopOpen] = useState(false);
+    const canOpenTowerShop = isTower && !!currentUser && !!onTowerItemPurchase;
 
     const resolveItemImage = (itemId: string): string | null => {
         const normalized = normalizeBoxItemName(itemId);
@@ -197,19 +222,18 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                         <p className="w-full shrink-0 whitespace-nowrap text-[0.68rem] font-bold uppercase tracking-[0.12em] text-amber-200/88 sm:text-[0.7rem] sm:tracking-[0.12em] md:text-xs">
                             클리어 보상
                         </p>
-                        {clearReward ? (
-                            <div className="mt-1.5 flex w-full min-w-0 flex-row flex-wrap content-start items-start justify-center gap-x-2 gap-y-2 sm:mt-2 sm:gap-x-2.5">
+                        {hasClearRewardToShow && clearReward ? (
+                            <div className="mt-1.5 flex w-full min-w-0 flex-row flex-wrap content-start items-start justify-center gap-x-1.5 gap-y-1.5 sm:mt-2 sm:gap-x-2">
                                 {(clearReward.gold ?? 0) > 0 && (
                                     <div className="flex flex-col items-center gap-0.5">
-                                        <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-amber-400/40 bg-gradient-to-br from-black/55 via-amber-950/35 to-zinc-950/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-500/25 sm:h-10 sm:w-10">
+                                        <div className={`${SINGLE_PLAYER_CLEAR_GOLD_BOX} ring-1 ring-amber-400/20`} aria-hidden>
                                             <img
                                                 src="/images/icon/Gold.png"
                                                 alt=""
-                                                className="h-6 w-6 object-contain sm:h-7 sm:w-7"
-                                                aria-hidden
+                                                className="h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5"
                                             />
                                         </div>
-                                        <span className="max-w-[4.75rem] text-center text-[0.65rem] font-semibold tabular-nums leading-tight text-amber-100 sm:text-[0.7rem]">
+                                        <span className="max-w-[6.5rem] text-center text-[0.7rem] font-bold tabular-nums leading-tight text-amber-100 sm:text-xs">
                                             {(clearReward.gold ?? 0).toLocaleString()}
                                         </span>
                                     </div>
@@ -218,7 +242,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                     <ResultModalXpRewardBadge
                                         variant="strategy"
                                         amount={clearReward.exp ?? 0}
-                                        density="comfortable"
+                                        density="compact"
                                     />
                                 )}
                                 {clearReward.items?.map((rewardItem, idx) => {
@@ -229,14 +253,18 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                             className="flex flex-col items-center gap-0.5"
                                             title={rewardItem.itemId}
                                         >
-                                            <div className="flex h-9 w-9 items-center justify-center rounded-lg border border-violet-500/35 bg-violet-950/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-violet-400/20 sm:h-10 sm:w-10">
+                                            <div className={`${SINGLE_PLAYER_CLEAR_ITEM_BOX} ring-1 ring-violet-400/15`} aria-hidden>
                                                 {image ? (
-                                                    <img src={image} alt="" className="h-6 w-6 object-contain sm:h-7 sm:w-7" />
+                                                    <img
+                                                        src={image}
+                                                        alt=""
+                                                        className="h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain p-0.5"
+                                                    />
                                                 ) : (
-                                                    <span className="text-lg leading-none">🎁</span>
+                                                    <span className="text-base leading-none sm:text-lg">🎁</span>
                                                 )}
                                             </div>
-                                            <span className="text-center text-[0.62rem] font-semibold tabular-nums leading-tight text-violet-100 sm:text-[0.65rem]">
+                                            <span className="text-center text-[0.68rem] font-bold tabular-nums leading-tight text-violet-100 sm:text-xs">
                                                 ×{rewardItem.quantity}
                                             </span>
                                         </div>
@@ -244,16 +272,20 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                                 })}
                             </div>
                         ) : (
-                            <p className="mt-1 text-center text-[0.8125rem] text-amber-100/75 sm:text-xs">
-                                {isTower && currentUser != null && !isTowerEligibleForFirstClear
-                                    ? '재도전: 최초 통과 시에만 클리어 보상이 지급됩니다.'
-                                    : '보상 정보 없음'}
+                            <p className="mt-2 text-center text-sm font-semibold text-amber-100/85 sm:text-[0.95rem]">
+                                보상없음
                             </p>
                         )}
                     </div>
                 </div>
             </div>
-            <PreGameSummaryGrid session={session} summary={summaryFour} singleColumn={isCompactUi} />
+            <PreGameSummaryGrid
+                session={session}
+                summary={summaryFour}
+                singleColumn={isCompactUi}
+                briefLayout
+                onTowerItemZeroClick={canOpenTowerShop ? () => setTowerShopOpen(true) : undefined}
+            />
         </div>
     );
 
@@ -308,6 +340,20 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         </>
     );
 
+    const towerShopPortal =
+        canOpenTowerShop &&
+        towerShopOpen &&
+        createPortal(
+            <div className="fixed inset-0 z-[220]">
+                <TowerItemShopModal
+                    currentUser={currentUser!}
+                    onClose={() => setTowerShopOpen(false)}
+                    onBuy={onTowerItemPurchase!}
+                />
+            </div>,
+            document.body
+        );
+
     return (
         <DraggableWindow
             title={`${stageDisplayName} - 게임 설명`}
@@ -329,6 +375,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             }
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
+            {towerShopPortal}
             <div
                 className={`flex min-h-0 flex-col text-white ${isCompactUi ? 'h-full min-h-0 flex-1' : 'shrink-0'}`}
             >

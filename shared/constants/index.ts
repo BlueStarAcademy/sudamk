@@ -11,6 +11,8 @@ export * from './ui.js';
 export * from './singlePlayerConstants.js';
 export * from './towerConstants.js';
 export * from './guildConstants.js';
+export * from './adventureStrategyXp.js';
+export * from './vipPlayReward.js';
 export * from './shopLootTables.js';
 export * from './pvpLootTables.js';
 export * from './settings.js';

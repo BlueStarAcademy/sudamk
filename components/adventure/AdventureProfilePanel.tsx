@@ -6,6 +6,7 @@ import {
     ADVENTURE_STAGES,
     ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS,
     getAdventureUnderstandingTierFromXp,
+    getAdventureUnderstandingTierProgress,
 } from '../../constants/adventureConstants.js';
 import {
     ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER,
@@ -40,6 +41,7 @@ const AdventureProfilePanel: React.FC<{
                     : null;
             const lastThreshold = ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS.length - 1];
             const xpGoal = nextThreshold ?? lastThreshold;
+            const tierProgress = getAdventureUnderstandingTierProgress(xp);
             const prog =
                 nextThreshold != null && nextThreshold > ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[tier]
                     ? Math.min(
@@ -51,7 +53,16 @@ const AdventureProfilePanel: React.FC<{
                           ),
                       )
                     : 100;
-            return { ...s, xp, xpGoal, tier, prog, tierLabel: formatAdventureUnderstandingTierLabel(tier) };
+            return {
+                ...s,
+                xp,
+                xpGoal,
+                tier,
+                prog,
+                tierLabel: formatAdventureUnderstandingTierLabel(tier),
+                xpInTier: tierProgress.currentInTier,
+                xpNeedInTier: tierProgress.neededInTier,
+            };
         });
     }, [p.understandingXpByStage]);
 

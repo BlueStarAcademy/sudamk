@@ -5,7 +5,7 @@ import { audioService } from '../services/audioService.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import { PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, EQUIPMENT_POOL, MATERIAL_ITEMS, aiUserId } from '../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, EQUIPMENT_POOL, MATERIAL_ITEMS, aiUserId } from '../constants';
 import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
@@ -30,8 +30,11 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
+import { ResultModalVipRewardSlot } from './game/ResultModalVipRewardSlot.js';
 import { AdventureBattleRewardRowWithReveal, AdventureResultCodexCard } from './game/adventureResultModalSections.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { isRewardVipActive } from '../shared/utils/rewardVip.js';
+import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 
@@ -1091,15 +1094,86 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const { isNativeMobile } = useNativeMobileShell();
     /** 좁은 뷰포트·네이티브 앱에서만 컴팩트 타이포(한 화면 우선). PC·캔버스 넓은 창은 큰 글자 유지 */
     const isMobile = isCompactViewport || isNativeMobile;
-    const { modalLayerUsesDesignPixels } = useAppContext();
+    const { modalLayerUsesDesignPixels, handlers } = useAppContext();
+    /** 보드 프레임(설계 픽셀) 안에서는 결과 보상 슬롯도 컴팩트로 눌러 상하 잘림을 방지 */
+    const useCompactRewardSlots = isMobile || modalLayerUsesDesignPixels;
     /** DraggableWindow `mobileViewportFit` 본문 스크롤 시: 루트를 뷰 높이에 늘리지 않고 콘텐츠만큼 키워 하단 버튼·푸터가 잘리지 않게 함 */
     const useBodyScrollSizing = modalLayerUsesDesignPixels || isMobile;
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
     const isAdventureGame = session.gameCategory === 'adventure';
+    const sessionShowsVipPlayRewardSlot = useMemo(() => {
+        if (isSpectator) return false;
+        const cat = session.gameCategory as string | undefined;
+        if (cat === 'guildwar') return false;
+        if (session.isSinglePlayer || cat === 'tower' || cat === 'singleplayer') return false;
+        if (cat === 'adventure') return true;
+        return SPECIAL_GAME_MODES.some((m) => m.mode === session.mode) || PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode);
+    }, [isSpectator, session.gameCategory, session.isSinglePlayer, session.mode]);
+
+    const vipSlotEffective = useMemo(() => {
+        if (!sessionShowsVipPlayRewardSlot) return undefined;
+        return (
+            mySummary?.vipPlayRewardSlot ?? {
+                locked: !isRewardVipActive(currentUser),
+            }
+        );
+    }, [sessionShowsVipPlayRewardSlot, mySummary?.vipPlayRewardSlot, currentUser]);
+    const vipRewardPreviewImage = useMemo(() => {
+        const raw = CONSUMABLE_ITEMS.find((c) => c.name === VIP_PLAY_REWARD_CONSUMABLE_NAME)?.image;
+        if (!raw) return undefined;
+        return raw.startsWith('/') ? raw : `/${raw}`;
+    }, []);
+    const [vipUnlockRouletteActive, setVipUnlockRouletteActive] = useState(false);
+    const [vipUnlockGranted, setVipUnlockGranted] = useState(false);
+    const prevVipLockedRef = useRef<boolean | null>(null);
+
+    useEffect(() => {
+        setVipUnlockRouletteActive(false);
+        setVipUnlockGranted(false);
+        prevVipLockedRef.current = null;
+    }, [session.id]);
+
+    useEffect(() => {
+        const lockedNow = vipSlotEffective?.locked;
+        if (lockedNow == null) {
+            prevVipLockedRef.current = null;
+            return;
+        }
+        const prev = prevVipLockedRef.current;
+        const unlockedJustNow =
+            prev === true &&
+            lockedNow === false &&
+            !mySummary?.vipPlayRewardSlot?.grantedItem;
+        if (unlockedJustNow) {
+            setVipUnlockGranted(true);
+            setVipUnlockRouletteActive(true);
+            const t = setTimeout(() => setVipUnlockRouletteActive(false), 1400);
+            prevVipLockedRef.current = lockedNow;
+            return () => clearTimeout(t);
+        }
+        prevVipLockedRef.current = lockedNow;
+    }, [vipSlotEffective?.locked, mySummary?.vipPlayRewardSlot?.grantedItem]);
+
+    const vipSlotForRender = useMemo(() => {
+        if (!vipSlotEffective) return undefined;
+        if (vipSlotEffective.locked) return vipSlotEffective;
+        if (vipSlotEffective.grantedItem) return vipSlotEffective;
+        if (!vipUnlockGranted) return vipSlotEffective;
+        return {
+            ...vipSlotEffective,
+            grantedItem: {
+                name: VIP_PLAY_REWARD_CONSUMABLE_NAME,
+                quantity: 1,
+                image: vipRewardPreviewImage,
+            },
+        };
+    }, [vipSlotEffective, vipUnlockGranted, vipRewardPreviewImage]);
+
     const hasPvpRewardSlots = useMemo(() => {
         if (!mySummary) return false;
+        if (sessionShowsVipPlayRewardSlot && vipSlotEffective) return true;
         if (isAdventureGame) {
             return !!mySummary.adventureRewardSlots;
         }
@@ -1108,7 +1182,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             (mySummary.xp?.change ?? 0) > 0 ||
             (mySummary.items?.length ?? 0) > 0
         );
-    }, [mySummary, isAdventureGame]);
+    }, [mySummary, isAdventureGame, sessionShowsVipPlayRewardSlot, vipSlotEffective]);
     const isGuildWar = isGuildWarLiveSession(session as any);
     const guildWarStars = mySummary?.guildWarStars ?? 0;
     const guildWarHouseScore = useMemo(() => {
@@ -1459,7 +1533,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 className={
                     isMobile
                         ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS
-                        : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
+                        : `flex ${
+                              useCompactRewardSlots ? 'min-h-[5.25rem]' : RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS
+                          } flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
                 }
             >
                 {!mySummary ? (
@@ -1483,14 +1559,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 slots={mySummary.adventureRewardSlots}
                                 xpChange={mySummary.xp?.change ?? 0}
                                 isPlayful={isPlayful}
-                                compact={isMobile}
+                                compact={useCompactRewardSlots}
+                                vipPlayRewardSlot={vipSlotForRender}
+                                onVipLockedClick={() => handlers.openShop('vip')}
                             />
                         ) : (
                             <>
                         {(mySummary.gold ?? 0) > 0 && (
                             <ResultModalGoldCurrencySlot
                                 amount={mySummary.gold ?? 0}
-                                compact={isMobile}
+                                compact={useCompactRewardSlots}
                                 understandingBonus={mySummary.adventureGoldUnderstandingBonus}
                             />
                         )}
@@ -1499,7 +1577,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 <ResultModalXpRewardBadge
                                     variant={isPlayful ? 'playful' : 'strategy'}
                                     amount={mySummary.xp!.change}
-                                    density={isMobile ? 'compact' : 'comfortable'}
+                                    density={useCompactRewardSlots ? 'compact' : 'comfortable'}
                                 />
                             </div>
                         )}
@@ -1537,7 +1615,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                         imageSrc={imagePath}
                                         name={displayName}
                                         quantity={item.quantity}
-                                        compact={isMobile}
+                                        compact={useCompactRewardSlots}
                                         onImageError={(e) => {
                                             (e.target as HTMLImageElement).style.display = 'none';
                                         }}
@@ -1548,7 +1626,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             <div className="flex shrink-0 flex-col items-center justify-center gap-0.5">
                                 <div
                                     className={`flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-white/25 bg-slate-950/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-white/10 ${
-                                        isMobile
+                                        useCompactRewardSlots
                                             ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS
                                             : 'h-14 w-14 min-[1024px]:h-[4.75rem] min-[1024px]:w-[4.75rem]'
                                     }`}
@@ -1559,6 +1637,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 </div>
                             </div>
                         )}
+                        {vipSlotForRender ? (
+                            <ResultModalVipRewardSlot
+                                slot={vipSlotForRender}
+                                compact={useCompactRewardSlots}
+                                rouletteActive={vipUnlockRouletteActive}
+                                onLockedClick={vipSlotForRender.locked ? () => handlers.openShop('vip') : undefined}
+                            />
+                        ) : null}
                             </>
                         )}
                     </>

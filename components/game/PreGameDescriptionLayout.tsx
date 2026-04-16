@@ -3,6 +3,7 @@ import { LiveGameSession, GameMode } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants.js';
 import { MatchPlayGuideSection } from '../../utils/matchPlayGuide.js';
 import type { PreGameItemSlot, PreGameSummaryFour } from '../../utils/preGameSummaryFour.js';
+import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSlot.js';
 
 const SUMMARY_NONE = '없음';
 
@@ -168,31 +169,65 @@ function preGameItemSlotRingClass(slot: PreGameItemSlot): string {
   return 'border-amber-400/28 ring-amber-400/12';
 }
 
-function PreGameItemSlotIcon({ slot, comfortable }: { slot: PreGameItemSlot; comfortable?: boolean }) {
+function PreGameItemSlotIcon({
+  slot,
+  comfortable,
+  briefLayout,
+  onZeroClick,
+}: {
+  slot: PreGameItemSlot;
+  comfortable?: boolean;
+  briefLayout?: boolean;
+  onZeroClick?: () => void;
+}) {
   const ring = preGameItemSlotRingClass(slot);
   const a11y = slot.title ? `${slot.title} ${slot.count}개` : `수량 ${slot.count}`;
-  return (
-    <div
-      className={
-        comfortable
-          ? 'relative h-11 w-11 flex-shrink-0 sm:h-11 sm:w-11'
-          : 'relative h-10 w-10 flex-shrink-0 sm:h-11 sm:w-11'
-      }
-      title={slot.title ?? undefined}
-      aria-label={a11y}
-      role="img"
-    >
-      <div
-        className={`flex h-full w-full items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ${ring}`}
-      >
-        <img src={slot.img} alt="" aria-hidden className="max-h-full max-w-full object-contain drop-shadow-md" />
+  const muted = slot.inventoryBadgeMode && slot.count <= 0;
+  const badgeClass = muted
+    ? 'border-2 border-gray-700 bg-gray-600 text-gray-300'
+    : slot.inventoryBadgeMode
+      ? 'border-2 border-purple-900 bg-yellow-400 text-gray-900'
+      : 'border border-amber-500/45 bg-zinc-950/95 text-amber-100';
+  const outerClass = briefLayout
+    ? 'relative flex-shrink-0 flex flex-col items-center gap-0.5'
+    : comfortable
+      ? 'relative h-11 w-11 flex-shrink-0 sm:h-11 sm:w-11'
+      : 'relative h-10 w-10 flex-shrink-0 sm:h-11 sm:w-11';
+  const innerBoxClass = briefLayout
+    ? `${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ${ring}`
+    : `flex h-full w-full items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ${ring}`;
+  const imgClassName = briefLayout
+    ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain drop-shadow-md'
+    : 'max-h-full max-w-full object-contain drop-shadow-md';
+  const badgeSpanClass = briefLayout
+    ? `pointer-events-none absolute -bottom-0.5 -right-0.5 flex min-h-[1.05rem] min-w-[1.05rem] items-center justify-center rounded-md px-0.5 py-px text-center text-[0.56rem] font-black leading-none tabular-nums shadow-[0_2px_8px_rgba(0,0,0,0.65)] min-[360px]:text-[0.58rem] sm:text-[0.62rem] ${badgeClass}`
+    : `pointer-events-none absolute -bottom-0.5 -right-0.5 flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-md px-0.5 py-px text-center text-[0.62rem] font-black leading-none tabular-nums shadow-[0_2px_8px_rgba(0,0,0,0.65)] sm:text-[0.68rem] ${badgeClass}`;
+  const inner = (
+    <>
+      <div className={innerBoxClass}>
+        <img src={slot.img} alt="" aria-hidden className={imgClassName} />
       </div>
-      <span
-        className="pointer-events-none absolute -bottom-0.5 -right-0.5 min-w-[1.15rem] rounded-md border border-amber-500/45 bg-zinc-950/95 px-0.5 py-px text-center text-[0.62rem] font-black leading-none tabular-nums text-amber-100 shadow-[0_2px_8px_rgba(0,0,0,0.65)] sm:text-[0.68rem]"
-        aria-hidden
-      >
+      <span className={badgeSpanClass} aria-hidden>
         {slot.count}
       </span>
+    </>
+  );
+  if (onZeroClick) {
+    return (
+      <button
+        type="button"
+        className={`${outerClass} cursor-pointer rounded-lg border-0 bg-transparent p-0 text-left outline-none ring-amber-400/40 transition hover:brightness-110 focus-visible:ring-2`}
+        title={slot.title ? `${slot.title} 구매` : '아이템 상점'}
+        aria-label={`${a11y}. 탭하여 도전의 탑 아이템 상점 열기`}
+        onClick={onZeroClick}
+      >
+        {inner}
+      </button>
+    );
+  }
+  return (
+    <div className={outerClass} title={slot.title ?? undefined} aria-label={a11y} role="img">
+      {inner}
     </div>
   );
 }
@@ -204,12 +239,15 @@ export function PreGameSummaryGrid({
   singleColumn = false,
   /** 모험 등: 짧은 카피 + 한 단 작은 글자 */
   briefLayout = false,
+  /** 도전의 탑: 미사일·히든·스캔 배지가 0일 때 탭하면 상점 */
+  onTowerItemZeroClick,
 }: {
   session: LiveGameSession;
   summary: PreGameSummaryFour;
   /** 모바일 풀폭: 한 줄에 한 카드씩 세로 스택 */
   singleColumn?: boolean;
   briefLayout?: boolean;
+  onTowerItemZeroClick?: (slotKey: string) => void;
 }) {
   const panelShell =
     'group relative min-w-0 overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_12px_36px_-16px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 transition-[box-shadow,ring-color] duration-200 hover:ring-amber-400/20';
@@ -308,6 +346,8 @@ export function PreGameSummaryGrid({
             );
           }
 
+          if (c.kind !== 'img') return null;
+
           return (
             <div
               key={c.key}
@@ -338,9 +378,11 @@ export function PreGameSummaryGrid({
         {summary.itemSlots.length === 0 ? (
           <div
             className={
-              singleColumn
-                ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-11 sm:w-11'
-                : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-10 sm:w-10'
+              briefLayout
+                ? `flex ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-0.5 opacity-45`
+                : singleColumn
+                  ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-11 sm:w-11'
+                  : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border border-amber-400/20 bg-black/35 p-1 opacity-45 sm:h-10 sm:w-10'
             }
             aria-label="아이템 없음"
             role="img"
@@ -348,13 +390,36 @@ export function PreGameSummaryGrid({
             <img
               src="/images/simbols/simbol1.png"
               alt=""
-              className="max-h-full max-w-full object-contain opacity-70 grayscale"
+              className={
+                briefLayout
+                  ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 object-contain opacity-70 grayscale'
+                  : 'max-h-full max-w-full object-contain opacity-70 grayscale'
+              }
             />
           </div>
         ) : (
-          <div className="flex min-w-0 flex-wrap content-start gap-2 sm:gap-2.5">
+          <div
+            className={
+              briefLayout
+                ? 'flex min-w-0 flex-wrap content-start gap-1.5 sm:gap-2'
+                : 'flex min-w-0 flex-wrap content-start gap-2 sm:gap-2.5'
+            }
+          >
             {summary.itemSlots.map((slot) => (
-              <PreGameItemSlotIcon key={slot.key} slot={slot} comfortable={singleColumn} />
+              <PreGameItemSlotIcon
+                key={slot.key}
+                slot={slot}
+                comfortable={singleColumn}
+                briefLayout={briefLayout}
+                onZeroClick={
+                  session.gameCategory === 'tower' &&
+                  slot.towerShopOnZero &&
+                  slot.count <= 0 &&
+                  onTowerItemZeroClick
+                    ? () => onTowerItemZeroClick(slot.key)
+                    : undefined
+                }
+              />
             ))}
           </div>
         )}

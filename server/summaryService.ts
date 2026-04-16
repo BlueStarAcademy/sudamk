@@ -20,6 +20,7 @@ import {
   aiLobbyRewardMultiplierFromProfileStep,
   isWaitingRoomAiGame,
   resolveAiLobbyProfileStepFromSettings,
+  strategicLobbyAiWinXp,
 } from '../shared/utils/strategicAiDifficulty.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import * as guildService from './guildService.js';
@@ -42,6 +43,9 @@ import {
     getRegionalWinGoldBonusPercentForStage,
 } from '../utils/adventureRegionalSpecialtyBuff.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../shared/constants/rewardConfig.js';
+import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../shared/constants/adventureStrategyXp.js';
+import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../shared/constants/vipPlayReward.js';
+import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -789,27 +793,6 @@ const getRewardConfig = async (): Promise<RewardConfig> => {
 
 // --- END NEW REWARD CONSTANTS ---
 
-/** 모험 몬스터 승리 기본 전략 EXP (판 크기별) */
-const ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE: Record<number, number> = {
-    7: 10,
-    9: 13,
-    11: 15,
-    13: 20,
-    19: 30,
-};
-
-/** 모험 몬스터 레벨 보너스 EXP: 5레벨마다 +1 (Lv1~5=0, Lv50=+9) */
-function getAdventureMonsterLevelXpBonus(levelRaw: unknown): number {
-    const level = Math.max(1, Math.min(50, Math.floor(typeof levelRaw === 'number' ? levelRaw : 1)));
-    return Math.max(0, Math.floor((level - 1) / 5));
-}
-
-function getAdventureBaseStrategyXp(boardSizeRaw: unknown): number {
-    const boardSize = typeof boardSizeRaw === 'number' ? boardSizeRaw : 9;
-    return ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE[boardSize] ?? ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE[9];
-}
-
-
 const calculateGameRewards = (
     game: LiveGameSession, 
     player: User,
@@ -1113,8 +1096,12 @@ const processPlayerSummary = async (
     const initialXp = isStrategic ? updatedPlayer.strategyXp : updatedPlayer.playfulXp;
     const isAdventureGame = game.gameCategory === 'adventure';
     const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
+    const isStrategicLobbyAi = !isNoContest && isWaitingRoomAiGame(game) && isStrategic;
+
     let xpGain = isNoContest ? 0 : (isWinner ? 100 : (isDraw ? 0 : 25)); // Loss XP increased to 25
-    if (!isNoContest && isAdventureGame) {
+    if (!isNoContest && isStrategicLobbyAi) {
+        xpGain = isWinner ? strategicLobbyAiWinXp(game.settings.boardSize, game.settings.scoringTurnLimit) : 0;
+    } else if (!isNoContest && isAdventureGame) {
         if (isWinner) {
             xpGain = getAdventureBaseStrategyXp(adventureBoardSize) + getAdventureMonsterLevelXpBonus(game.adventureMonsterLevel);
         } else {
@@ -1122,13 +1109,13 @@ const processPlayerSummary = async (
         }
     }
 
-    // Apply AI game penalty before other multipliers
-    if (isAiGame && !isAdventureGame) {
+    // Apply AI game penalty (모험·전략 대기실 AI는 별도 처리)
+    if (isAiGame && !isAdventureGame && !isStrategicLobbyAi) {
         xpGain = Math.round(xpGain * 0.2);
     }
 
     // Level difference multiplier
-    if (!isAdventureGame) {
+    if (!isAdventureGame && !isStrategicLobbyAi) {
         const levelDiff = opponentLevel - initialLevel;
         let levelMultiplier = 1 + (levelDiff * 0.1); // 10% per level difference
         levelMultiplier = Math.max(0.5, Math.min(1.5, levelMultiplier)); // Cap between 50% and 150%
@@ -1149,7 +1136,7 @@ const processPlayerSummary = async (
     let rewardMultiplier = 1.0;
     if (isAdventureGame) {
         rewardMultiplier = 1.0;
-    } else if (isStrategic && !isNoContest) {
+    } else if (isStrategic && !isNoContest && !isStrategicLobbyAi) {
         // Base move count for 100% reward, scaled by board size. 19x19 is 100 moves.
         const baseMoveCount = Math.round(100 * Math.pow(game.settings.boardSize / 19, 2));
         const actualMoveCount = game.moveHistory.length;
@@ -1165,8 +1152,10 @@ const processPlayerSummary = async (
         }
     }
     
-    // Apply the multiplier to XP
-    xpGain = Math.round(xpGain * rewardMultiplier);
+    // Apply the multiplier to XP (전략 대기실 AI는 모험 기본 EXP 고정)
+    if (!isStrategicLobbyAi) {
+        xpGain = Math.round(xpGain * rewardMultiplier);
+    }
     // 랭킹전이 아닌 PVP(전략바둑·놀이바둑 친선전)에서는 경험치도 25%로 감소
     if (!isNoContest && !game.isRankedGame && !isAiGame && (isStrategic || isPlayful)) {
         xpGain = Math.round(xpGain * 0.25);
@@ -1175,8 +1164,8 @@ const processPlayerSummary = async (
     if (isGuildWarMatch && guildWarStars === 0) {
         xpGain = 0;
     }
-    // 대기실 AI 대국: 난이도 단계별 보상 (1단=기준, 2단=1.2배 … 10단=2배)
-    if (!isNoContest && isWaitingRoomAiGame(game)) {
+    // 대기실 AI 대국: 난이도 단계별 보상 — 놀이바둑 AI만 (전략 AI는 위에서 고정)
+    if (!isNoContest && isWaitingRoomAiGame(game) && !isGuildWarMatch && !isStrategicLobbyAi) {
         const step = resolveAiLobbyProfileStepFromSettings(game.settings as any);
         const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
         xpGain = Math.round(xpGain * tierMul);
@@ -1421,7 +1410,7 @@ const processPlayerSummary = async (
         };
     }
 
-    if (!isNoContest && isWaitingRoomAiGame(game) && !isGuildWarMatch) {
+    if (!isNoContest && isWaitingRoomAiGame(game) && !isGuildWarMatch && !isStrategicLobbyAi) {
         const step = resolveAiLobbyProfileStepFromSettings(game.settings as any);
         const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
         rewards.gold = Math.round(rewards.gold * tierMul);
@@ -1508,18 +1497,45 @@ const processPlayerSummary = async (
         }
     }
 
+    const qualifiesVipPlayRewardSurface =
+        player.id !== aiUserId &&
+        !isNoContest &&
+        !isGuildWarMatch &&
+        (game.gameCategory as string) !== 'tower' &&
+        (game.gameCategory as string) !== 'singleplayer' &&
+        !game.isSinglePlayer &&
+        (isAdventureGame || isStrategic || isPlayful);
+
+    const vipWinEligible =
+        qualifiesVipPlayRewardSurface &&
+        (isAdventureWin || (!isAdventureGame && isWinner && !isDraw));
+
+    if (isStrategicLobbyAi && player.id !== aiUserId) {
+        rewards.gold = 0;
+        rewards.diamonds = 0;
+        rewards.items = [];
+        delete rewards.adventureGoldUnderstandingBonus;
+    }
+
+    let vipGrant: InventoryItem | null = null;
+    if (vipWinEligible && isRewardVipActive(updatedPlayer)) {
+        vipGrant = createConsumableItemInstance(VIP_PLAY_REWARD_CONSUMABLE_NAME);
+    }
+
+    const itemsForInventory = [...rewards.items, ...(vipGrant ? [vipGrant] : [])];
+
     updatedPlayer.gold += rewards.gold;
     if (rewards.diamonds > 0) {
         updatedPlayer.diamonds += rewards.diamonds;
     }
 
     // Add dropped items to inventory
-    if (rewards.items.length > 0) {
-        const { success, updatedInventory } = addItemsToInventory(updatedPlayer.inventory, updatedPlayer.inventorySlots, rewards.items);
+    if (itemsForInventory.length > 0) {
+        const { success, updatedInventory } = addItemsToInventory(updatedPlayer.inventory, updatedPlayer.inventorySlots, itemsForInventory);
         if (success) {
             // Update inventory with the returned updatedInventory (includes stacked items)
             updatedPlayer.inventory = updatedInventory;
-            await guildService.recordGuildEpicPlusEquipmentAcquisition(updatedPlayer, rewards.items);
+            await guildService.recordGuildEpicPlusEquipmentAcquisition(updatedPlayer, itemsForInventory);
         } else {
             console.error(`[Summary] Insufficient inventory space for user ${updatedPlayer.id}. Items not granted.`);
             // Optionally, send items via mail here in the future
@@ -1610,6 +1626,22 @@ const processPlayerSummary = async (
         ...(adventureUnderstandingDelta ? { adventureUnderstandingDelta } : {}),
         ...(rewards.adventureGoldUnderstandingBonus != null && rewards.adventureGoldUnderstandingBonus > 0
             ? { adventureGoldUnderstandingBonus: rewards.adventureGoldUnderstandingBonus }
+            : {}),
+        ...(qualifiesVipPlayRewardSurface
+            ? {
+                  vipPlayRewardSlot: {
+                      locked: !isRewardVipActive(updatedPlayer),
+                      ...(vipGrant
+                          ? {
+                                grantedItem: {
+                                    name: vipGrant.name,
+                                    quantity: vipGrant.quantity ?? 1,
+                                    image: (vipGrant as { image?: string }).image,
+                                },
+                            }
+                          : {}),
+                  },
+              }
             : {}),
     };
 

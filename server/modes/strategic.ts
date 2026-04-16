@@ -1162,10 +1162,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
 
-            // After move logic
-            if (game.mode === types.GameMode.Capture || game.isSinglePlayer) {
-                const target = game.effectiveCaptureTargets![myPlayerEnum];
-                if (game.captures[myPlayerEnum] >= target) {
+            // After move logic (도전의 탑 따내기: isSinglePlayer false)
+            if (game.mode === types.GameMode.Capture || game.isSinglePlayer || game.gameCategory === 'tower') {
+                const target = game.effectiveCaptureTargets?.[myPlayerEnum];
+                if (target !== undefined && target !== 999 && game.captures[myPlayerEnum] >= target) {
                     await summaryService.endGame(game, myPlayerEnum, 'capture_limit');
                 }
             }

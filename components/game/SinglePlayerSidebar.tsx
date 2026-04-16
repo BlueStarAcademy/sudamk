@@ -32,9 +32,9 @@ const SinglePlayerSidebar: React.FC<SinglePlayerSidebarProps> = ({
     if (!currentUser) return null;
 
     return (
-        <div className="flex min-h-0 flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
+        <div className="flex min-h-0 flex-1 flex-col h-full gap-1.5 bg-gray-900/80 rounded-lg p-2 border border-color">
             <div className="flex-shrink-0 space-y-2">
-                <GameInfoPanel session={session} onClose={onClose} />
+                <GameInfoPanel session={session} currentUser={currentUser} onClose={onClose} onAction={onAction} />
                 <ProverbPanel />
             </div>
             <div className="flex-1 mt-2 min-h-0">

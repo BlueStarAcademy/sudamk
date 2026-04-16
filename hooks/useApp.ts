@@ -496,7 +496,9 @@ export const useApp = () => {
     const [isMailboxOpen, setIsMailboxOpen] = useState(false);
     const [isQuestsOpen, setIsQuestsOpen] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
-    const [shopInitialTab, setShopInitialTab] = useState<'equipment' | 'materials' | 'consumables' | 'misc' | undefined>(undefined);
+    const [shopInitialTab, setShopInitialTab] = useState<
+        'equipment' | 'materials' | 'consumables' | 'misc' | 'diamonds' | 'vip' | undefined
+    >(undefined);
     const [lastUsedItemResult, setLastUsedItemResult] = useState<InventoryItem[] | null>(null);
     const [tournamentScoreChange, setTournamentScoreChange] = useState<{ oldScore: number; newScore: number; scoreReward: number } | null>(null);
     const [disassemblyResult, setDisassemblyResult] = useState<{ gained: { name: string, amount: number }[], jackpot: boolean } | null>(null);
@@ -2038,7 +2040,11 @@ export const useApp = () => {
                 // 승리 조건 체크 (도전의 탑 및 싱글플레이)
                 if (updateResult.shouldCheckVictory && updateResult.checkInfo) {
                     const victoryCheckInfo = updateResult.checkInfo;
-                    checkVictoryCondition(victoryCheckInfo, gameId, game.effectiveCaptureTargets).then(async (result) => {
+                    checkVictoryCondition(
+                        victoryCheckInfo,
+                        gameId,
+                        updateResult.updatedGame.effectiveCaptureTargets ?? game.effectiveCaptureTargets
+                    ).then(async (result) => {
                         if (result) {
                             victoryCheckResult = result;
                             // 게임 상태를 즉시 ended로 업데이트하고 winner도 설정
@@ -6430,7 +6436,7 @@ export const useApp = () => {
             closeMailbox: () => setIsMailboxOpen(false),
             openQuests: () => setIsQuestsOpen(true),
             closeQuests: () => setIsQuestsOpen(false),
-            openShop: (tab?: 'equipment' | 'materials' | 'consumables' | 'misc') => {
+            openShop: (tab?: 'equipment' | 'materials' | 'consumables' | 'misc' | 'diamonds' | 'vip') => {
                 setShopInitialTab(tab);
                 setIsShopOpen(true);
             },

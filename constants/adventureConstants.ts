@@ -253,8 +253,24 @@ export const ADVENTURE_MONSTER_RESPAWN_BOSS_MS = 30 * 60 * 1000;
 
 // --- 지역 이해도 (아이온2 종족 이해도처럼 지역(스테이지)별 누적 XP → 티어 → 패시브 보너스) ---
 
+/**
+ * 단계별 필요 이해도 XP(증분).
+ * 예) [80, 160, 280, 480]이면:
+ * 0→1은 80, 1→2는 160, 2→3은 280, 3→4는 480 필요.
+ */
+export const ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP = [80, 160, 280, 480] as const;
+
 /** 누적 이해도 XP 하한(해당 값 이상이면 티어). 0=낯섬, 1=편함 … */
-export const ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS = [0, 80, 240, 520, 1000] as const;
+export const ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS = [
+    0,
+    ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[0],
+    ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[0] + ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[1],
+    ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[0] + ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[1] + ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[2],
+    ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[0] +
+        ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[1] +
+        ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[2] +
+        ADVENTURE_UNDERSTANDING_TIER_REQUIRED_XP[3],
+] as const;
 
 export const ADVENTURE_UNDERSTANDING_TIER_LABELS = ['낯섬', '편함', '익숙함', '친숙함', '정복'] as const;
 
@@ -270,6 +286,28 @@ export function getAdventureUnderstandingTierFromXp(xp: number): AdventureUnders
         }
     }
     return tier;
+}
+
+export function getAdventureUnderstandingTierProgress(xp: number): {
+    tier: AdventureUnderstandingTierIndex;
+    currentInTier: number;
+    neededInTier: number;
+} {
+    const x = Math.max(0, Math.floor(xp));
+    const tier = getAdventureUnderstandingTierFromXp(x);
+    const curThreshold = ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[tier];
+    const nextThreshold =
+        tier < ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS.length - 1
+            ? ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[tier + 1]
+            : null;
+    if (nextThreshold == null || nextThreshold <= curThreshold) {
+        return { tier, currentInTier: 0, neededInTier: 0 };
+    }
+    return {
+        tier,
+        currentInTier: Math.max(0, x - curThreshold),
+        neededInTier: Math.max(1, nextThreshold - curThreshold),
+    };
 }
 
 /** 이해도 2티어 이상인 지역 수에 비례해 표시하는 “코어 능력치 유효” 보너스 상한(%) */

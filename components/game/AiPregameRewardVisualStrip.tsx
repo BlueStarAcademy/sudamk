@@ -93,10 +93,68 @@ const IconMysterySlot: React.FC<{ image: string }> = ({ image }) => (
   </div>
 );
 
-function renderSlot(slot: AiPregameRewardSlot, idx: number, isMobileSheet: boolean): React.ReactNode {
-  const density = isMobileSheet ? 'compact' : 'comfortable';
+const VipInlineCompactSlot: React.FC<{ locked: boolean }> = ({ locked }) => {
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <div
+        className={`${MAT_BOX_COMPACT} relative overflow-hidden rounded-lg border ${
+          locked
+            ? 'border-amber-300/45 bg-gradient-to-br from-[#3a2610]/95 via-[#21160c]/95 to-[#120d08]/95 ring-1 ring-amber-300/30 shadow-[inset_0_1px_0_rgba(255,245,200,0.14),0_0_14px_rgba(251,191,36,0.18)]'
+            : 'border-fuchsia-300/55 bg-gradient-to-br from-[#3a1437]/95 via-[#251129]/95 to-[#120914]/95 ring-1 ring-fuchsia-300/35 shadow-[inset_0_1px_0_rgba(255,230,255,0.16),0_0_18px_rgba(217,70,239,0.3)]'
+        }`}
+        aria-hidden
+      >
+        <div
+          className="pointer-events-none absolute inset-0 opacity-35"
+          style={{
+            background:
+              locked
+                ? 'radial-gradient(circle at 20% 18%, rgba(255,220,140,0.45), transparent 42%), radial-gradient(circle at 82% 80%, rgba(250,204,21,0.22), transparent 46%)'
+                : 'radial-gradient(circle at 20% 18%, rgba(250,232,255,0.45), transparent 42%), radial-gradient(circle at 82% 80%, rgba(232,121,249,0.25), transparent 46%)',
+          }}
+        />
+        <div className="relative z-[1] flex flex-col items-center justify-center leading-none">
+          <span
+            className={`text-[0.64rem] font-black tracking-[0.11em] sm:text-[0.68rem] ${
+              locked ? 'text-amber-100' : 'text-fuchsia-100'
+            }`}
+          >
+            VIP
+          </span>
+          <span
+            className={`mt-[2px] text-[0.64rem] font-black tracking-[0.11em] sm:text-[0.68rem] ${
+              locked ? 'text-amber-50' : 'text-fuchsia-50'
+            }`}
+          >
+            보상
+          </span>
+        </div>
+      </div>
+      <span className="text-[0.62rem] font-semibold leading-tight text-fuchsia-100/90 sm:text-[0.66rem]">보상 VIP</span>
+    </div>
+  );
+};
+
+function renderSlot(
+  slot: AiPregameRewardSlot,
+  idx: number,
+  isMobileSheet: boolean,
+  layout: 'card' | 'headerInline' = 'card',
+  onVipLockedClick?: () => void,
+): React.ReactNode {
+  const density = layout === 'headerInline' ? 'compact' : isMobileSheet ? 'compact' : 'comfortable';
   switch (slot.kind) {
     case 'xp_win_loss':
+      if (layout === 'headerInline') {
+        return (
+          <div key={`xp-${idx}`} className="flex shrink-0 items-end gap-1">
+            <ResultModalXpRewardBadge variant={slot.xpVariant} amount={slot.winXp} density="compact" />
+            {slot.lossXp > 0 ? (
+              <ResultModalXpRewardBadge variant={slot.xpVariant} amount={slot.lossXp} density="compact" />
+            ) : null}
+          </div>
+        );
+      }
       return (
         <div key={`xp-${idx}`} className="flex w-full flex-wrap items-end justify-center gap-4 sm:gap-6">
           <div className="rounded-xl p-0.5 ring-2 ring-emerald-400/35 ring-offset-1 ring-offset-zinc-950/80">
@@ -108,6 +166,13 @@ function renderSlot(slot: AiPregameRewardSlot, idx: number, isMobileSheet: boole
         </div>
       );
     case 'xp_adventure_win':
+      if (layout === 'headerInline') {
+        return (
+          <div key={`advxp-${idx}`} className="flex shrink-0 justify-end">
+            <ResultModalXpRewardBadge variant="strategy" amount={slot.winXp} density="compact" />
+          </div>
+        );
+      }
       return (
         <div key={`advxp-${idx}`} className="flex w-full justify-center">
           <div className="rounded-xl p-0.5 ring-2 ring-emerald-400/30 ring-offset-1 ring-offset-zinc-950/80">
@@ -127,6 +192,14 @@ function renderSlot(slot: AiPregameRewardSlot, idx: number, isMobileSheet: boole
       return <MaterialQtySlot key={`m-${idx}`} image={slot.image} qtyMin={slot.qtyMin} qtyMax={slot.qtyMax} />;
     case 'icon_only':
       return <IconMysterySlot key={`i-${idx}`} image={slot.image} />;
+    case 'vip_play_reward': {
+      if (layout === 'headerInline') {
+        return <VipInlineCompactSlot key={`vip-${idx}`} locked={slot.locked} />;
+      }
+      return (
+        <VipInlineCompactSlot key={`vip-${idx}`} locked={slot.locked} />
+      );
+    }
     default:
       return null;
   }
@@ -136,8 +209,19 @@ function renderSlot(slot: AiPregameRewardSlot, idx: number, isMobileSheet: boole
 export const AiPregameRewardVisualStrip: React.FC<{
   visual: AiPregameRewardVisual;
   isMobileSheet: boolean;
-  placement?: 'default' | 'titlePanel';
-}> = ({ visual, isMobileSheet, placement = 'default' }) => {
+  placement?: 'default' | 'titlePanel' | 'headerInline';
+  onVipLockedClick?: () => void;
+}> = ({ visual, isMobileSheet, placement = 'default', onVipLockedClick }) => {
+  if (placement === 'headerInline') {
+    return (
+      <div className="flex max-w-full min-w-0 flex-nowrap items-end justify-end overflow-x-auto pb-0.5 [scrollbar-width:thin]">
+        <div className="flex shrink-0 flex-nowrap items-end gap-2">
+          {visual.slots.map((s, i) => renderSlot(s, i, isMobileSheet, 'headerInline', onVipLockedClick))}
+        </div>
+      </div>
+    );
+  }
+
   if (placement === 'titlePanel') {
     const uniformSlots = visual.slots.map((slot, idx) => {
       switch (slot.kind) {
@@ -192,6 +276,14 @@ export const AiPregameRewardVisualStrip: React.FC<{
             isExp: false,
             line: '보상',
           };
+        case 'vip_play_reward':
+          return {
+            key: `vip-${idx}`,
+            image: null as string | null,
+            isExp: false,
+            line: 'VIP 보상',
+            isVipText: true,
+          };
         default:
           return null;
       }
@@ -202,6 +294,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
         line: string;
         isExp: boolean;
         expTopLabel?: string;
+        isVipText?: boolean;
       } => slot !== null,
     );
 
@@ -215,9 +308,29 @@ export const AiPregameRewardVisualStrip: React.FC<{
         <div className="grid grid-cols-4 gap-2 min-[420px]:grid-cols-5 sm:grid-cols-6">
           {uniformSlots.map((slot) => (
             <div key={slot.key} className="flex min-w-0 flex-col items-center gap-1">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-violet-300/30 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-black/90 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-violet-400/20 sm:h-11 sm:w-11">
+              <div
+                className={`relative flex ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} shrink-0 items-center justify-center rounded-lg border p-1 ring-1 ring-inset ${
+                  slot.isVipText
+                    ? 'overflow-hidden border-fuchsia-300/55 bg-gradient-to-br from-[#3a1437]/95 via-[#251129]/95 to-[#120914]/95 shadow-[inset_0_1px_0_rgba(255,230,255,0.16),0_0_18px_rgba(217,70,239,0.3)] ring-fuchsia-300/35'
+                    : 'border-violet-300/30 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-violet-400/20'
+                }`}
+              >
+                {slot.isVipText ? (
+                  <div
+                    className="pointer-events-none absolute inset-0 opacity-35"
+                    style={{
+                      background:
+                        'radial-gradient(circle at 20% 18%, rgba(250,232,255,0.45), transparent 42%), radial-gradient(circle at 82% 80%, rgba(232,121,249,0.25), transparent 46%)',
+                    }}
+                  />
+                ) : null}
                 {slot.image ? (
                   <img src={slot.image} alt="" className="h-full w-full object-contain" />
+                ) : slot.isVipText ? (
+                  <div className="relative z-[1] flex flex-col items-center leading-none">
+                    <span className="text-[0.58rem] font-black tracking-[0.11em] text-fuchsia-100">VIP</span>
+                    <span className="mt-[2px] text-[0.58rem] font-black tracking-[0.11em] text-fuchsia-50">보상</span>
+                  </div>
                 ) : (
                   <div className="flex flex-col items-center leading-none">
                     <span className="text-[0.58rem] font-black tracking-[0.08em] text-emerald-100">
@@ -243,9 +356,8 @@ export const AiPregameRewardVisualStrip: React.FC<{
         획득 가능한 보상
       </h3>
       <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-4 sm:gap-x-4 sm:gap-y-5">
-        {visual.slots.map((s, i) => renderSlot(s, i, isMobileSheet))}
+        {visual.slots.map((s, i) => renderSlot(s, i, isMobileSheet, 'card', onVipLockedClick))}
       </div>
-      <p className="mt-3 text-[0.65rem] leading-relaxed text-zinc-500 sm:mt-3.5 sm:text-xs">{visual.footnote}</p>
     </div>
   );
 };

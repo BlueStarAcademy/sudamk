@@ -29,6 +29,9 @@ import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/g
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
+import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../../shared/constants/vipPlayReward.js';
+import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
+import { createConsumableItemInstance } from '../summaryService.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -2991,6 +2994,23 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             } else {
                 console.warn(`[START_GUILD_BOSS_BATTLE] No generatedEquipment to add to result for user ${freshUser.id}`);
             }
+
+            const vipBossExtra = isRewardVipActive(freshUser) ? createConsumableItemInstance(VIP_PLAY_REWARD_CONSUMABLE_NAME) : null;
+            if (vipBossExtra) {
+                itemsToAdd.push(vipBossExtra);
+            }
+            (result as GuildBossBattleResult).vipPlayRewardSlot = {
+                locked: !isRewardVipActive(freshUser),
+                ...(vipBossExtra
+                    ? {
+                          grantedItem: {
+                              name: vipBossExtra.name,
+                              quantity: vipBossExtra.quantity ?? 1,
+                              image: (vipBossExtra as { image?: string }).image,
+                          },
+                      }
+                    : {}),
+            };
             
             updateQuestProgress(freshUser, 'guild_boss_participate');
             

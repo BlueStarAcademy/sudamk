@@ -2,10 +2,11 @@ import { LiveGameSession, User, GameMode } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants.js';
 import { ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE } from '../shared/constants/adventureStrategicGold.js';
+import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../shared/constants/adventureStrategyXp.js';
+import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import {
-  aiLobbyRewardMultiplierFromProfileStep,
   isWaitingRoomAiGame,
-  resolveAiLobbyProfileStepFromSettings,
+  strategicLobbyAiWinXp,
 } from '../shared/utils/strategicAiDifficulty.js';
 import { getAdventureChapterRewardPreview, getAdventureChapterRewardVisual } from '../shared/utils/adventureChapterRewardPreview.js';
 import type { AdventureStageId } from '../constants/adventureConstants.js';
@@ -15,19 +16,6 @@ const PLAYFUL_GOLD_BASE: Record<number, number> = {
   2: 500,
   1: 200,
 };
-
-const ADVENTURE_STRATEGY_XP_BY_BOARD: Record<number, number> = {
-  7: 10,
-  9: 13,
-  11: 15,
-  13: 20,
-  19: 30,
-};
-
-function adventureMonsterLevelXpBonus(levelRaw: unknown): number {
-  const level = Math.max(1, Math.min(50, Math.floor(typeof levelRaw === 'number' ? levelRaw : 1)));
-  return Math.max(0, Math.floor((level - 1) / 5));
-}
 
 function resolveHumanOpponent(session: LiveGameSession, currentUser?: User): { human: User; opponent: User } | null {
   if (!currentUser) return null;
@@ -48,6 +36,28 @@ function xpLevelMultiplier(human: User, opponent: User, isStrategic: boolean): n
 function baseStrategicWinGold(session: LiveGameSession): number {
   const bs = session.settings.boardSize ?? 19;
   return ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE[bs] ?? ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE[19]!;
+}
+
+/** `GameSummaryModal`의 VIP 슬롯 노출 조건과 동기화 */
+function pregameQualifiesVipPlayRewardSurface(session: LiveGameSession): boolean {
+  const cat = String(session.gameCategory ?? '');
+  if (cat === 'guildwar') return false;
+  if (session.isSinglePlayer || cat === 'tower' || cat === 'singleplayer') return false;
+  return isStrategicOrPlayfulOrAdventure(session);
+}
+
+function isStrategicOrPlayfulOrAdventure(session: LiveGameSession): boolean {
+  const cat = String(session.gameCategory ?? '');
+  if (cat === 'adventure') return true;
+  const isStrategic = SPECIAL_GAME_MODES.some((m) => m.mode === session.mode);
+  const isPlayful = PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode);
+  return isStrategic || isPlayful;
+}
+
+function appendVipPlayRewardSlot(slots: AiPregameRewardSlot[], session: LiveGameSession, currentUser?: User): void {
+  if (!pregameQualifiesVipPlayRewardSurface(session)) return;
+  const locked = !currentUser || !isRewardVipActive(currentUser);
+  slots.push({ kind: 'vip_play_reward', locked });
 }
 
 function basePlayfulWinGold(session: LiveGameSession): number {
@@ -73,7 +83,9 @@ export type AiPregameRewardSlot =
       image: string;
     }
   | { kind: 'material_qty_box'; image: string; qtyMin: number; qtyMax: number }
-  | { kind: 'icon_only'; image: string };
+  | { kind: 'icon_only'; image: string }
+  /** 결과 모달과 동일: 대국·모험 등 VIP 보상 슬롯(잠금/미리보기) */
+  | { kind: 'vip_play_reward'; locked: boolean };
 
 export type AiPregameRewardVisual = {
   slots: AiPregameRewardSlot[];
@@ -93,8 +105,7 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
       const p = getAdventureChapterRewardPreview(session.adventureStageId as AdventureStageId);
       const visual = getAdventureChapterRewardVisual(session.adventureStageId as AdventureStageId);
       const bs = session.adventureBoardSize ?? session.settings.boardSize ?? 9;
-      const baseXp = ADVENTURE_STRATEGY_XP_BY_BOARD[bs] ?? ADVENTURE_STRATEGY_XP_BY_BOARD[9]!;
-      const winXp = baseXp + adventureMonsterLevelXpBonus(session.adventureMonsterLevel);
+      const winXp = getAdventureBaseStrategyXp(bs) + getAdventureMonsterLevelXpBonus(session.adventureMonsterLevel);
       const slots: AiPregameRewardSlot[] = [{ kind: 'xp_adventure_win', winXp }];
       slots.push({
         kind: 'gold_range',
@@ -123,13 +134,16 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
           qtyMax: m.qtyMax,
         });
       }
+      appendVipPlayRewardSlot(slots, session, currentUser);
       return {
         slots,
         footnote: '※ 승리·스테이지·이해도·버프에 따라 실제 지급이 달라질 수 있습니다.',
       };
     } catch {
+      const slots: AiPregameRewardSlot[] = [{ kind: 'icon_only', image: '/images/Box/EquipmentBox1.png' }];
+      appendVipPlayRewardSlot(slots, session, currentUser);
       return {
-        slots: [{ kind: 'icon_only', image: '/images/Box/EquipmentBox1.png' }],
+        slots,
         footnote: '※ 맵·도감에서 보상 정보를 확인할 수 있습니다.',
       };
     }
@@ -152,6 +166,18 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
     };
   }
 
+  const isStrategicLobbyAi = isWaitingRoomAiGame(session) && isStrategic;
+  if (isStrategicLobbyAi) {
+    const winXp = strategicLobbyAiWinXp(session.settings.boardSize ?? 9, session.settings.scoringTurnLimit);
+    const slots: AiPregameRewardSlot[] = [{ kind: 'xp_adventure_win', winXp }];
+    appendVipPlayRewardSlot(slots, session, currentUser);
+    return {
+      slots,
+      footnote:
+        '※ 전략 AI 승리 시 모험과 동일한 기본 전략 경험치만 지급됩니다. 골드·아이템 드롭 없음. 보상 VIP는 승리 시 VIP 슬롯에서 장비 상자 II를 받습니다.',
+    };
+  }
+
   const pair = resolveHumanOpponent(session, currentUser);
   const levelMul = pair ? xpLevelMultiplier(pair.human, pair.opponent, isStrategic) : 1;
   const lobbyMul =
@@ -167,12 +193,14 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
 
   const xpVariant: 'strategy' | 'playful' = isStrategic ? 'strategy' : 'playful';
 
+  const slots: AiPregameRewardSlot[] = [
+    { kind: 'xp_win_loss', xpVariant, winXp, lossXp },
+    { kind: 'gold_point', amount: goldWin, tone: 'win' },
+    { kind: 'gold_point', amount: goldLoss, tone: 'loss' },
+  ];
+  appendVipPlayRewardSlot(slots, session, currentUser);
   return {
-    slots: [
-      { kind: 'xp_win_loss', xpVariant, winXp, lossXp },
-      { kind: 'gold_point', amount: goldWin, tone: 'win' },
-      { kind: 'gold_point', amount: goldLoss, tone: 'loss' },
-    ],
+    slots,
     footnote: '※ EXP·골드는 대국 진행량·버프에 따라 달라질 수 있습니다.',
   };
 }

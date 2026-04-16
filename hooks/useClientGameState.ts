@@ -472,24 +472,25 @@ export async function checkVictoryCondition(
 ): Promise<{ winner: Player; winReason: string } | null> {
     try {
         if (checkInfo.gameType === 'tower') {
-            // 도전의 탑 승리 조건 체크
+            // 서버 START_TOWER / effectiveCaptureTargets와 동일하게 판정 (층별 목표 덮어쓰기 반영)
             const { TOWER_STAGES } = await import('../constants/towerConstants.js');
             const stage = TOWER_STAGES.find((s: any) => s.id === checkInfo.stageId);
-            
-            if (!stage || !stage.targetScore) {
+            if (!stage) {
                 return null;
             }
-            
+            const NO_CAPTURE_TARGET = 999;
+            const blackTarget =
+                effectiveCaptureTargets?.[Player.Black] ?? stage.targetScore?.black ?? NO_CAPTURE_TARGET;
+            const whiteTarget =
+                effectiveCaptureTargets?.[Player.White] ?? stage.targetScore?.white ?? NO_CAPTURE_TARGET;
+
             const blackCaptures = checkInfo.newCaptures[Player.Black] || 0;
             const whiteCaptures = checkInfo.newCaptures[Player.White] || 0;
-            
-            // 흑(유저)이 목표 따낸 돌의 수를 달성하면 승리
-            if (blackCaptures >= stage.targetScore.black) {
+
+            if (blackTarget !== NO_CAPTURE_TARGET && blackCaptures >= blackTarget) {
                 return { winner: Player.Black, winReason: 'capture_limit' };
             }
-            
-            // 백(AI)이 목표 점수를 달성하면 패배
-            if (whiteCaptures >= stage.targetScore.white) {
+            if (whiteTarget !== NO_CAPTURE_TARGET && whiteCaptures >= whiteTarget) {
                 return { winner: Player.White, winReason: 'capture_limit' };
             }
         } else if (checkInfo.gameType === 'singleplayer') {

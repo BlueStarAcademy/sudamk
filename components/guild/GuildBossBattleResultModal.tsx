@@ -7,6 +7,10 @@ import Button from '../Button.js';
 import { PRE_GAME_MODAL_ACCENT_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 import { gradeBackgrounds, EQUIPMENT_POOL } from '../../constants/items.js';
 import { GUILD_BOSS_GRADE_NAMES } from '../../constants/index.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
+import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
+import type { User } from '../../types/index.js';
+import { ResultModalVipRewardSlot } from '../game/ResultModalVipRewardSlot.js';
 
 interface GuildBossBattleResultModalProps {
     result: GuildBossBattleResultType & { bossName: string; previousRank?: number; currentRank?: number };
@@ -97,6 +101,7 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
 );
 
 const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({ result, onClose, isTopmost }) => {
+    const { handlers, currentUserWithStatus } = useAppContext();
     const [cardsFlipped, setCardsFlipped] = useState(false);
     const [flipSettled, setFlipSettled] = useState(false);
     const [rewardCards, setRewardCards] = useState<RewardCard[]>([]);
@@ -294,6 +299,12 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         const label = GUILD_BOSS_GRADE_NAMES[tier - 1];
         return label ? `${label}등급` : 'E등급';
     };
+
+    const vipSlot =
+        result.vipPlayRewardSlot ??
+        (currentUserWithStatus
+            ? { locked: !isRewardVipActive(currentUserWithStatus as User) }
+            : { locked: true });
     
     return (
         <DraggableWindow title="전투 결과" onClose={onClose} windowId="guild-boss-battle-result" initialWidth={600} initialHeight={700} isTopmost={isTopmost}>
@@ -374,6 +385,13 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                                 )}
                             </div>
                         ))}
+                    </div>
+                    <div className="mt-3 flex justify-center border-t border-amber-500/20 pt-3">
+                        <ResultModalVipRewardSlot
+                            slot={vipSlot}
+                            compact={false}
+                            onLockedClick={vipSlot.locked ? () => handlers.openShop('vip') : undefined}
+                        />
                     </div>
                 </div>
                 

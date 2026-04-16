@@ -63,7 +63,13 @@ interface SidebarProps extends GameProps {
     pauseDisabledBecauseAiTurn?: boolean;
 }
 
-export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: UserWithStatus, onClose?: () => void, onOpenSettings?: () => void }> = ({ session, currentUser, onClose, onOpenSettings }) => {
+export const GameInfoPanel: React.FC<{
+    session: LiveGameSession;
+    currentUser?: UserWithStatus;
+    onClose?: () => void;
+    onOpenSettings?: () => void;
+    onAction?: GameProps['onAction'];
+}> = ({ session, currentUser, onClose, onOpenSettings, onAction }) => {
     const [matchGuideOpen, setMatchGuideOpen] = useState(false);
     const { mode, settings, effectiveCaptureTargets } = session;
 
@@ -272,6 +278,13 @@ export const GameInfoPanel: React.FC<{ session: LiveGameSession, currentUser?: U
                         readOnly
                         currentUser={currentUser}
                         onClose={() => setMatchGuideOpen(false)}
+                        onTowerItemPurchase={
+                            session.gameCategory === 'tower' && onAction
+                                ? async (itemId, quantity) => {
+                                      await onAction({ type: 'BUY_TOWER_ITEM', payload: { itemId, quantity } } as ServerAction);
+                                  }
+                                : undefined
+                        }
                     />
                 ) : (
                     <AiGameDescriptionModal
@@ -712,7 +725,13 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     return (
         <div className={`${arenaGameRoomSidebarShell} gap-2`}>
             <div className="flex-shrink-0 space-y-2">
-                <GameInfoPanel session={session} currentUser={props.currentUser} onClose={props.onClose} onOpenSettings={props.onOpenSettings} />
+                <GameInfoPanel
+                    session={session}
+                    currentUser={props.currentUser}
+                    onClose={props.onClose}
+                    onOpenSettings={props.onOpenSettings}
+                    onAction={props.onAction}
+                />
                 <UserListPanel {...props} />
                 <GuildWarStarConditionsPanel session={session} />
                 {/* PC 사이드바 광고 (300×250) */}

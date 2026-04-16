@@ -313,7 +313,8 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     compact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
                                 }`}
                             >
-                                XP ({understandingRow.xp.toLocaleString()}/{understandingRow.xpGoal.toLocaleString()})
+                                XP ({(understandingRow.xpInTier ?? understandingRow.xp).toLocaleString()}/
+                                {(understandingRow.xpNeedInTier ?? understandingRow.xpGoal).toLocaleString()})
                             </p>
                             <p
                                 className={`mt-1 font-semibold tabular-nums text-amber-200/90 ${

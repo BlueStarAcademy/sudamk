@@ -138,7 +138,7 @@ const getSettingsRows = (session: LiveGameSession): { label: string; value: Reac
 };
 
 const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly = false, onClose, currentUser }) => {
-  const { modalLayerUsesDesignPixels } = useAppContext();
+  const { modalLayerUsesDesignPixels, handlers } = useAppContext();
   const isHandheld = useIsHandheldDevice(1025);
   const { isNativeMobile } = useNativeMobileShell();
   /** 스케일 캔버스 밖에서도 보이도록: 터치 기기·네이티브는 풀폭 시트 + 본문 스크롤 */
@@ -163,6 +163,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
         : '온라인 대국';
   const shellRef = useRef<HTMLDivElement>(null);
   const [designH, setDesignH] = useState(AI_GAME_DESC_DESIGN_H_FALLBACK);
+  const [boardCenterOffset, setBoardCenterOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   /** PC만 균일 scale — 모바일은 width 100% + 내부 스크롤로 잘림·미시청 방지 */
   const uniformScale = useViewportUniformScale(AI_GAME_DESC_DESIGN_W, designH, !isMobileSheet);
 
@@ -181,6 +182,46 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
     ro.observe(el);
     return () => ro.disconnect();
   }, [session, summaryFour, settingsRows, rewardVisual, isMobileSheet]);
+
+  useLayoutEffect(() => {
+    if (isMobileSheet) {
+      setBoardCenterOffset({ x: 0, y: 0 });
+      return;
+    }
+    const syncBoardCenteredOffset = () => {
+      if (typeof document === 'undefined') return;
+      const modalRoot = document.getElementById('sudamr-modal-root');
+      const boardEl = document.querySelector('.go-board-panel') as HTMLElement | null;
+      if (!modalRoot || !boardEl) {
+        setBoardCenterOffset({ x: 0, y: 0 });
+        return;
+      }
+      const rootRect = modalRoot.getBoundingClientRect();
+      const boardRect = boardEl.getBoundingClientRect();
+      if (rootRect.width <= 0 || rootRect.height <= 0 || boardRect.width <= 0 || boardRect.height <= 0) {
+        setBoardCenterOffset({ x: 0, y: 0 });
+        return;
+      }
+      const rootCx = rootRect.left + rootRect.width / 2;
+      const rootCy = rootRect.top + rootRect.height / 2;
+      const boardCx = boardRect.left + boardRect.width / 2;
+      const boardCy = boardRect.top + boardRect.height / 2;
+      setBoardCenterOffset({
+        x: boardCx - rootCx,
+        y: boardCy - rootCy,
+      });
+    };
+    syncBoardCenteredOffset();
+    window.addEventListener('resize', syncBoardCenteredOffset);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', syncBoardCenteredOffset);
+    vv?.addEventListener('scroll', syncBoardCenteredOffset);
+    return () => {
+      window.removeEventListener('resize', syncBoardCenteredOffset);
+      vv?.removeEventListener('resize', syncBoardCenteredOffset);
+      vv?.removeEventListener('scroll', syncBoardCenteredOffset);
+    };
+  }, [isMobileSheet, modalLayerUsesDesignPixels]);
 
   const handleStart = () => {
     onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
@@ -207,8 +248,8 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
       <div
         className={
           isMobileSheet
-            ? 'flex flex-row items-start gap-3 sm:gap-5'
-            : 'flex gap-5'
+            ? 'flex flex-row flex-wrap items-start gap-3 sm:gap-4'
+            : 'flex flex-row flex-wrap items-center gap-4 sm:gap-5'
         }
       >
         <div
@@ -224,28 +265,44 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
             <div className="flex h-full items-center justify-center text-sm font-bold text-amber-200/50 sm:text-xl">{session.mode}</div>
           )}
         </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            <h2
+        <div
+          className={
+            isAdventure
+              ? 'flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-end sm:justify-between sm:gap-4'
+              : 'flex min-w-0 flex-1 flex-col items-end gap-2 sm:gap-2.5'
+          }
+        >
+          <div className={`min-w-0 ${isAdventure ? 'shrink' : 'w-full self-start sm:self-auto'}`}>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 sm:gap-2">
+              <h2
+                className={
+                  isMobileSheet
+                    ? 'min-w-0 truncate text-xl font-black tracking-tight text-white drop-shadow-sm sm:text-3xl md:max-w-none md:text-4xl md:whitespace-normal'
+                    : 'min-w-0 max-w-full truncate text-3xl font-black tracking-tight text-white drop-shadow-sm sm:text-4xl md:max-w-none md:whitespace-normal'
+                }
+              >
+                {meta?.name ?? session.mode}
+              </h2>
+              <span className="shrink-0 rounded-full border border-amber-400/45 bg-gradient-to-r from-amber-950/80 to-zinc-900/90 px-2.5 py-1 text-xs font-bold tracking-wide text-amber-100/95 shadow-sm ring-1 ring-amber-500/25 sm:px-3.5 sm:py-1.5 sm:text-sm">
+                {sessionBadgeLabel}
+              </span>
+            </div>
+          </div>
+          {rewardVisual ? (
+            <div
               className={
-                isMobileSheet
-                  ? 'text-xl font-black tracking-tight text-white drop-shadow-sm sm:text-3xl md:text-4xl'
-                  : 'text-3xl font-black tracking-tight text-white drop-shadow-sm sm:text-4xl'
+                isAdventure
+                  ? 'w-full min-w-0 sm:max-w-[min(100%,42rem)]'
+                  : 'w-full min-w-0 rounded-lg border border-violet-400/22 bg-black/30 px-2 py-1.5 ring-1 ring-inset ring-violet-300/15 sm:w-auto sm:max-w-full sm:ml-auto'
               }
             >
-              {meta?.name ?? session.mode}
-            </h2>
-            <span className="rounded-full border border-amber-400/45 bg-gradient-to-r from-amber-950/80 to-zinc-900/90 px-2.5 py-1 text-xs font-bold tracking-wide text-amber-100/95 shadow-sm ring-1 ring-amber-500/25 sm:px-3.5 sm:py-1.5 sm:text-sm">
-              {sessionBadgeLabel}
-            </span>
-          </div>
-          {readOnly ? (
-            <p className="mt-2 text-xs leading-relaxed text-zinc-300 sm:mt-2.5 sm:text-sm md:text-base lg:text-lg">
-              시작 전에 안내된 규칙·설정과 동일합니다. 확인 후 창을 닫아 주세요.
-            </p>
-          ) : null}
-          {isAdventure && rewardVisual ? (
-            <AiPregameRewardVisualStrip visual={rewardVisual} isMobileSheet={isMobileSheet} placement="titlePanel" />
+              <AiPregameRewardVisualStrip
+                visual={rewardVisual}
+                isMobileSheet={isMobileSheet}
+                placement={isAdventure ? 'titlePanel' : 'headerInline'}
+                onVipLockedClick={() => handlers.openShop('vip')}
+              />
+            </div>
           ) : null}
         </div>
       </div>
@@ -321,7 +378,6 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
         singleColumn={isMobileSheet}
         briefLayout={isAdventure}
       />
-      {rewardVisual && !isAdventure ? <AiPregameRewardVisualStrip visual={rewardVisual} isMobileSheet={isMobileSheet} /> : null}
       {showMatchSettingsTable ? settingsTableBlock : null}
     </div>
   );
@@ -360,7 +416,7 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
             : {
                 width: AI_GAME_DESC_DESIGN_W,
                 maxWidth: '100%',
-                transform: `scale(${uniformScale})`,
+                transform: `translate(${boardCenterOffset.x}px, ${boardCenterOffset.y}px) scale(${uniformScale})`,
                 transformOrigin: 'center center',
               }
         }

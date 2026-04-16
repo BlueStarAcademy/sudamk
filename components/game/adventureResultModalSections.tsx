@@ -23,7 +23,9 @@ import {
     RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
     RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS,
 } from './ResultModalRewardSlot.js';
+import { ResultModalVipRewardSlot } from './ResultModalVipRewardSlot.js';
 
 const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
     CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.png';
@@ -399,16 +401,24 @@ export function AdventureBattleFixedRewardRow({
     xpChange,
     isPlayful,
     compact,
+    vipPlayRewardSlot,
+    onVipLockedClick,
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
     isPlayful: boolean;
     compact: boolean;
+    vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
+    onVipLockedClick?: () => void;
 }) {
     const xpOk = xpChange > 0;
     const rowClass = compact
-        ? RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
-        : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
+        ? vipPlayRewardSlot
+            ? RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
+            : RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
+        : vipPlayRewardSlot
+          ? 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1 min-h-[7.6rem]'
+          : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
 
     const xpMissedBox = (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
@@ -504,6 +514,13 @@ export function AdventureBattleFixedRewardRow({
             ) : (
                 <AdventureMissedRewardSlot compact={compact} iconSrc={ADVENTURE_DEFAULT_MAT_BOX_IMG} questionOverlay />
             )}
+            {vipPlayRewardSlot ? (
+                <ResultModalVipRewardSlot
+                    slot={vipPlayRewardSlot}
+                    compact={compact}
+                    onLockedClick={vipPlayRewardSlot.locked ? onVipLockedClick : undefined}
+                />
+            ) : null}
         </div>
     );
 }
@@ -514,11 +531,15 @@ export function AdventureBattleRewardRowWithReveal({
     xpChange,
     isPlayful,
     compact,
+    vipPlayRewardSlot,
+    onVipLockedClick,
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
     isPlayful: boolean;
     compact: boolean;
+    vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
+    onVipLockedClick?: () => void;
 }) {
     const [revealed, setRevealed] = useState(false);
     useEffect(() => {
@@ -527,13 +548,26 @@ export function AdventureBattleRewardRowWithReveal({
     }, []);
 
     if (revealed) {
-        return <AdventureBattleFixedRewardRow slots={slots} xpChange={xpChange} isPlayful={isPlayful} compact={compact} />;
+        return (
+            <AdventureBattleFixedRewardRow
+                slots={slots}
+                xpChange={xpChange}
+                isPlayful={isPlayful}
+                compact={compact}
+                vipPlayRewardSlot={vipPlayRewardSlot}
+                onVipLockedClick={onVipLockedClick}
+            />
+        );
     }
 
     const xpOk = xpChange > 0;
     const rowClass = compact
-        ? RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
-        : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
+        ? vipPlayRewardSlot
+            ? RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
+            : RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
+        : vipPlayRewardSlot
+          ? 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1 min-h-[7.6rem]'
+          : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
 
     const xpMissedBox = (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
@@ -638,6 +672,13 @@ export function AdventureBattleRewardRowWithReveal({
                     />
                 </div>
             )}
+            {vipPlayRewardSlot ? (
+                <ResultModalVipRewardSlot
+                    slot={vipPlayRewardSlot}
+                    compact={compact}
+                    onLockedClick={vipPlayRewardSlot.locked ? onVipLockedClick : undefined}
+                />
+            ) : null}
         </div>
     );
 }
