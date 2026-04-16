@@ -1,11 +1,11 @@
 
 import React, { useEffect } from 'react';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
-import { InventoryItem, ItemGrade, ItemOption, CoreStat, SpecialStat, MythicStat } from '../types.js';
+import { InventoryItem, ItemGrade } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
 import { isActionPointConsumable } from '../constants/items';
-import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
+import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 
 interface ItemObtainedModalProps {
     item: InventoryItem;
@@ -43,35 +43,6 @@ const getStarDisplayInfo = (stars: number) => {
     return { text: "", colorClass: "text-white" };
 };
 
-const OptionSection: React.FC<{ title: string; options: ItemOption[]; color: string; mythic?: boolean }> = ({ title, options, color, mythic }) => {
-    if (options.length === 0) return null;
-    return (
-        <div>
-            <h5 className={`font-semibold ${color} border-b border-gray-600 pb-1 mb-1 text-sm`}>{title}</h5>
-            <ul className={`${mythic ? 'list-none space-y-0.5 text-xs' : 'list-disc list-inside space-y-0.5 text-gray-300 text-xs'}`}>
-                {options.map((opt, i) => (
-                    <li key={i} className={mythic ? 'text-gray-300' : undefined}>
-                        {mythic ? <MythicOptionAbbrev option={opt} textClassName="text-red-300" /> : opt.display}
-                    </li>
-                ))}
-            </ul>
-        </div>
-    );
-};
-
-const renderOptions = (item: InventoryItem) => {
-    if (!item.options) return null;
-    const { main, combatSubs, specialSubs, mythicSubs } = item.options;
-    return (
-        <div className="w-full text-xs text-left space-y-2">
-            <OptionSection title="주옵션" options={[main]} color="text-yellow-300" />
-            <OptionSection title="전투 부옵션" options={combatSubs} color="text-blue-300" />
-            <OptionSection title="특수 부옵션" options={specialSubs} color="text-green-300" />
-            <OptionSection title="신화 부옵션" options={mythicSubs} color="text-red-400" mythic />
-        </div>
-    )
-};
-
 const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, isTopmost }) => {
     const styles = gradeStyles[item.grade];
     const requiredLevel = item.type === 'equipment' ? GRADE_LEVEL_REQUIREMENTS[item.grade] : null;
@@ -79,7 +50,6 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
     const borderClass = item.grade === ItemGrade.Transcendent ? undefined : gradeBorderStyles[item.grade];
     const isCurrency = item.image === '/images/icon/Gold.png' || item.image === '/images/icon/Zem.png';
     
-    // 등급별 글로우 효과 클래스
     const getGlowClass = (grade: ItemGrade) => {
         switch (grade) {
             case 'rare': return 'item-glow-rare';
@@ -91,7 +61,6 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
         }
     };
     
-    // 등급별 텍스트 글로우 효과 클래스
     const getTextGlowClass = (grade: ItemGrade) => {
         switch (grade) {
             case 'rare': return 'text-glow-rare';
@@ -115,6 +84,39 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
             audioService.claimReward();
         }
     }, [item.grade]);
+
+    if (item.type === 'equipment') {
+        return (
+            <DraggableWindow
+                title="장비 상세 정보"
+                onClose={onClose}
+                windowId="item-obtained-equipment"
+                initialWidth={350}
+                shrinkHeightToContent
+                isTopmost={isTopmost}
+                zIndex={70}
+                skipSavedPosition
+                hideFooter
+                mobileViewportFit
+                mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
+            >
+                <>
+                    <div className="min-h-0 shrink-0 px-2 pt-2">
+                        <EquipmentDetailPanel item={item} optionsScrollable={false} />
+                    </div>
+                    <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} p-2 pt-3`}>
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="w-full rounded-xl border border-amber-400/35 bg-gradient-to-b from-emerald-500/95 via-emerald-600/95 to-emerald-800/90 py-3 font-bold text-white shadow-[0_12px_28px_-12px_rgba(16,185,129,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-amber-300/50 hover:from-emerald-400 hover:via-emerald-500 hover:to-emerald-700 active:scale-[0.98]"
+                        >
+                            확인
+                        </button>
+                    </div>
+                </>
+            </DraggableWindow>
+        );
+    }
 
     return (
         <DraggableWindow
@@ -218,12 +220,6 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                     )}
                                 </div>
                             </div>
-
-                            {item.type === 'equipment' && (
-                                <div className="max-h-[26dvh] w-full space-y-1 overflow-y-auto rounded-xl border border-slate-600/45 bg-black/35 p-2 text-left text-[10px] shadow-inner backdrop-blur-sm [scrollbar-gutter:stable] min-[390px]:max-h-[28dvh] min-[390px]:space-y-1.5 min-[390px]:p-2.5 min-[390px]:text-[11px] sm:max-h-40 sm:p-3 sm:text-xs">
-                                    {renderOptions(item)}
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>
