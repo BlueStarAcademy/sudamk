@@ -16,7 +16,6 @@ import {
     ONBOARDING_INGAME_SP_STEP_EVENT,
     ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT,
     ONBOARDING_TUTORIAL_PROFILE_INTRO_TITLE,
-    ONBOARDING_PHASE_COMPLETE,
     ONBOARDING_LAST_TUTORIAL_PHASE,
     canAdvanceOnboardingTutorialPhase,
     resolveOnboardingSpotlightTarget,
@@ -26,6 +25,7 @@ import {
     type OnboardingSpotlightTargetId,
 } from '../../shared/constants/onboardingTutorial.js';
 import {
+    clearOnboardingBagTutorialStep,
     getOnboardingBagTutorialStep,
     setOnboardingBagTutorialStep,
     subscribeOnboardingBagTutorialStep,
@@ -326,6 +326,19 @@ const OnboardingTutorialOverlay: React.FC = () => {
         onAdvanceClamped,
     ]);
 
+    const onSkipTutorial = useCallback(async () => {
+        if (!handlers?.handleAction) return;
+        setBusy(true);
+        try {
+            const res = (await handlers.handleAction({ type: 'SKIP_ONBOARDING_TUTORIAL' })) as { error?: string } | undefined;
+            if (res && typeof res.error === 'string') return;
+            clearPhase8TrainingTutorialStep();
+            clearOnboardingBagTutorialStep();
+        } finally {
+            setBusy(false);
+        }
+    }, [handlers]);
+
     /** 1단계: 「다음」 없이 바둑학원(싱글) 화면 진입 시 2단계로 진행 */
     useEffect(() => {
         if (phase !== 1) {
@@ -479,32 +492,46 @@ const OnboardingTutorialOverlay: React.FC = () => {
         };
     }, [active, phase, phase6IngameSubStep, currentRoute.view]);
 
-    if (!active || !copy) return null;
+    if (!active) return null;
 
-    if (phase >= 9 && phase <= 14 && currentRoute.view !== 'profile') {
-        return null;
-    }
+    const mount = typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') : null;
+    if (!mount) return null;
 
-    if (phase === 5 && currentRoute.view !== 'game') {
-        return null;
-    }
-    if (phase === 6 && currentRoute.view !== 'game') {
-        return null;
-    }
-    if (phase === 4 && currentRoute.view === 'game') {
-        return null;
-    }
-    if (phase === 2 && currentRoute.view !== 'singleplayer') {
-        return null;
-    }
-    if (phase === 4 && currentRoute.view !== 'singleplayer') {
-        return null;
-    }
-    if (phase === 8 && currentRoute.view !== 'singleplayer') {
-        return null;
-    }
+    const mainPanelVisible =
+        Boolean(copy) &&
+        !(phase >= 9 && phase <= 14 && currentRoute.view !== 'profile') &&
+        !(phase === 5 && currentRoute.view !== 'game') &&
+        !(phase === 6 && currentRoute.view !== 'game') &&
+        !(phase === 4 && currentRoute.view === 'game') &&
+        !(phase === 2 && currentRoute.view !== 'singleplayer') &&
+        !(phase === 4 && currentRoute.view !== 'singleplayer') &&
+        !(phase === 8 && currentRoute.view !== 'singleplayer');
 
-    const phase0Slice =
+    const skipLayer = (
+        <div className="pointer-events-none absolute inset-0 z-[85]">
+            <div
+                className="pointer-events-auto absolute"
+                style={{
+                    top: 'max(0.35rem, env(safe-area-inset-top, 0px))',
+                    right: 'max(0.35rem, env(safe-area-inset-right, 0px))',
+                }}
+            >
+                <button
+                    type="button"
+                    onClick={() => void onSkipTutorial()}
+                    disabled={busy}
+                    className="rounded-lg border border-white/25 bg-black/60 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-amber-100 shadow-[0_6px_22px_rgba(0,0,0,0.55)] backdrop-blur-sm transition hover:border-amber-400/45 hover:bg-black/75 disabled:cursor-not-allowed disabled:opacity-45 sm:px-3.5 sm:py-2 sm:text-xs"
+                    aria-label="튜토리얼 건너뛰기"
+                >
+                    SKIP
+                </button>
+            </div>
+        </div>
+    );
+
+    let layer: React.ReactElement | null = null;
+    if (mainPanelVisible && copy) {
+        const phase0Slice =
         phase === 0 ? ONBOARDING_PHASE_0_PROFILE_SUBSTEPS[phase0ProfileSubIndex] ?? ONBOARDING_PHASE_0_PROFILE_SUBSTEPS[0] : null;
     const phase5Slice =
         phase === 5
@@ -590,13 +617,10 @@ const OnboardingTutorialOverlay: React.FC = () => {
             !copy.omitPrimary &&
             !(phase === 5 && phase5GameDescSubStep >= 2));
 
-    const mount = typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') : null;
-    if (!mount) return null;
+        const showBlockingMask = !passThroughLayer;
+        const useHole = showBlockingMask && spotlightId && hole;
 
-    const showBlockingMask = !passThroughLayer;
-    const useHole = showBlockingMask && spotlightId && hole;
-
-    const layer = (
+        layer = (
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-end overflow-hidden">
             {passThroughLayer && (
                 <div className="pointer-events-none absolute inset-0 bg-black/25" aria-hidden />
@@ -702,11 +726,13 @@ const OnboardingTutorialOverlay: React.FC = () => {
                 </div>
             </div>
         </div>
-    );
+        );
+    }
 
     return (
         <>
-            {createPortal(layer, mount)}
+            {createPortal(skipLayer, mount)}
+            {layer ? createPortal(layer, mount) : null}
             {tutorialCompleteRewards && (
                 <OnboardingTutorialCompleteModal
                     gold={tutorialCompleteRewards.gold}

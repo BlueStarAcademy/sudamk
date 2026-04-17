@@ -48,6 +48,7 @@ export function getSelectiveUserUpdate(
             'gold',
             'diamonds',
         ],
+        'SKIP_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome', 'onboardingSpResultTutorialStep'],
         'CLAIM_ONBOARDING_INTRO1_FAN': [
             'inventory',
             'onboardingTutorialPhase',

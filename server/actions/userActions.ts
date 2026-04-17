@@ -47,6 +47,7 @@ import {
 } from '../utils/adventureMonsterDefeat.js';
 import {
     canAdvanceOnboardingTutorialPhase,
+    isOnboardingTutorialActive,
     ONBOARDING_INTRO1_FAN_ITEM_ID,
     ONBOARDING_PHASE_COMPLETE,
     ONBOARDING_LAST_TUTORIAL_PHASE,
@@ -985,6 +986,28 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome']);
             const updatedUser = getSelectiveUserUpdate(user, 'BEGIN_ONBOARDING_ON_FIRST_HOME');
+            return { clientResponse: { updatedUser } };
+        }
+        case 'SKIP_ONBOARDING_TUTORIAL': {
+            if (!isOnboardingTutorialActive(user)) {
+                return { error: '튜토리얼이 진행 중이 아닙니다.' };
+            }
+            user.onboardingTutorialPhase = ONBOARDING_PHASE_COMPLETE;
+            const uSkip = user as types.User & {
+                onboardingTutorialPendingFirstHome?: boolean;
+                onboardingSpResultTutorialStep?: number | null;
+            };
+            uSkip.onboardingTutorialPendingFirstHome = false;
+            uSkip.onboardingSpResultTutorialStep = null;
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after SKIP_ONBOARDING_TUTORIAL`, err);
+                return { error: '튜토리얼 건너뛰기 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome', 'onboardingSpResultTutorialStep']);
+            const updatedUser = getSelectiveUserUpdate(user, 'SKIP_ONBOARDING_TUTORIAL');
             return { clientResponse: { updatedUser } };
         }
         case 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD': {
