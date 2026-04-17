@@ -1510,6 +1510,27 @@ export async function makeGoAiBotMove(
         game.moveHistory.length
     );
     if (!result.isValid) {
+        // 마스킹된 유저 히든이 있는 판에서 Kata가 해당 좌표를 고른 경우:
+        // 전체 공개 연출 후 같은 턴에 재질의하도록 전이한다.
+        if (
+            isHiddenMode &&
+            shouldMaskUserHiddenFromAi(game) &&
+            isUserUnrevealedHiddenPosition(game, selectedMove.x, selectedMove.y, aiPlayerEnum)
+        ) {
+            if (startUserHiddenFullRevealAnimationForAi(game, userPlayerEnumForHidden, now)) {
+                console.warn(
+                    `[makeGoAiBotMove] processMove invalid at (${selectedMove.x},${selectedMove.y}) on unrevealed user hidden — full reveal animation then AI move (game=${game.id})`
+                );
+                await db.saveGame(game);
+                return;
+            }
+            revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
+            console.warn(
+                `[makeGoAiBotMove] processMove invalid at (${selectedMove.x},${selectedMove.y}) on unrevealed user hidden — forced full reveal, retry next AI tick (game=${game.id})`
+            );
+            await db.saveGame(game);
+            return;
+        }
         throw new Error(
             `[makeGoAiBotMove] Kata가 고른 수가 규칙상 무효입니다 (${selectedMove.x},${selectedMove.y}). game=${game.id}`
         );

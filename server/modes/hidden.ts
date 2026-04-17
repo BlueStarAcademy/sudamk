@@ -303,6 +303,9 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             if ((game[scanKey] ?? 0) <= 0) return { error: "No scans left." };
             game[scanKey] = (game[scanKey] ?? 0) - 1;
 
+            const isAiInitialHiddenStone = (game as any).aiInitialHiddenStone &&
+                (game as any).aiInitialHiddenStone.x === x &&
+                (game as any).aiInitialHiddenStone.y === y;
             let moveIndex = -1;
             for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
                 const m = game.moveHistory![i];
@@ -311,7 +314,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
                     break;
                 }
             }
-            const success = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            const success = (moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex]) || !!isAiInitialHiddenStone;
 
             if (success) {
                 if (!game.revealedHiddenMoves) game.revealedHiddenMoves = {};
@@ -319,9 +322,19 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
                 if (!game.revealedHiddenMoves[user.id].includes(moveIndex)) {
                     game.revealedHiddenMoves[user.id].push(moveIndex);
                 }
+                if (isAiInitialHiddenStone) {
+                    if (!(game as any).scannedAiInitialHiddenByUser) (game as any).scannedAiInitialHiddenByUser = {};
+                    (game as any).scannedAiInitialHiddenByUser[user.id] = true;
+                }
+                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                if (!game.permanentlyRevealedStones.some((p) => p.x === x && p.y === y)) {
+                    game.permanentlyRevealedStones.push({ x, y });
+                }
             }
             game.animation = { type: 'scan', point: { x, y }, success, startTime: now, duration: 2000, playerId: user.id };
             game.gameStatus = 'scanning_animating';
+            // 아이템 사용 직후에는 현재 플레이어를 사용한 유저로 고정하여 턴 정지 버그를 방지한다.
+            game.currentPlayer = myPlayerEnum;
 
             // After using the item, restore my time, reset timers and KEEP THE TURN
             resumeGameTimer(game, now, myPlayerEnum);
