@@ -3229,7 +3229,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return;
             }
 
-            const ipAllow = await ensureClientIpAllowsSession(volatileState, req, userForLogin.id, !!userForLogin.isAdmin);
+            const ipAllow = await ensureClientIpAllowsSession(volatileState, req, res, userForLogin.id, !!userForLogin.isAdmin);
             if (!ipAllow.ok) {
                 sendResponse(403, { message: ipAllow.message });
                 return;
@@ -3769,7 +3769,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             user.lastLoginAt = Date.now();
             await db.updateUser(user).catch(err => console.warn('[Kakao] Failed to update lastLoginAt:', err?.message));
 
-            const kakaoIp = await ensureClientIpAllowsSession(volatileState, req, user.id, !!user.isAdmin);
+            const kakaoIp = await ensureClientIpAllowsSession(volatileState, req, res, user.id, !!user.isAdmin);
             if (!kakaoIp.ok) {
                 return res.status(403).json({ message: kakaoIp.message });
             }
@@ -3843,7 +3843,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             user.lastLoginAt = Date.now();
             await db.updateUser(user).catch(err => console.warn('[Google] Failed to update lastLoginAt:', err?.message));
 
-            const googleIp = await ensureClientIpAllowsSession(volatileState, req, user.id, !!user.isAdmin);
+            const googleIp = await ensureClientIpAllowsSession(volatileState, req, res, user.id, !!user.isAdmin);
             if (!googleIp.ok) {
                 return res.status(403).json({ message: googleIp.message });
             }
@@ -4155,7 +4155,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
             // 서버 상태 복원: 재접속한 유저를 in-game으로 설정 (새로고침 후 라우팅/activeGame 일치)
-            const rejoinIp = await ensureClientIpAllowsSession(volatileState, req, userId, !!user.isAdmin);
+            const rejoinIp = await ensureClientIpAllowsSession(volatileState, req, res, userId, !!user.isAdmin);
             if (!rejoinIp.ok) {
                 return res.status(403).json({ error: rejoinIp.message });
             }
@@ -4266,7 +4266,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
             if (isDev) console.log('[/api/state] Finished migration logic');
 
-            const stateIp = await ensureClientIpAllowsSession(volatileState, req, userId, !!user.isAdmin);
+            const stateIp = await ensureClientIpAllowsSession(volatileState, req, res, userId, !!user.isAdmin);
             if (!stateIp.ok) {
                 return res.status(403).json({ message: stateIp.message });
             }
@@ -4522,7 +4522,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
             // --- End Migration Logic ---
 
-            const actionIp = await ensureClientIpAllowsSession(volatileState, req, userId, !!user.isAdmin);
+            const actionIp = await ensureClientIpAllowsSession(volatileState, req, res, userId, !!user.isAdmin);
             if (!actionIp.ok) {
                 respondAction(403, { message: actionIp.message });
                 return;
