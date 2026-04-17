@@ -27,6 +27,7 @@ import {
 } from '../../shared/utils/adventureBattleBoard.js';
 import { GameMode, UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
+import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
 import { isStrategicPvpForGameRecord, isGameStatusSaveableForRecord, isShortGameStrategicNoContest } from '../../utils/strategicPvpGameRecord.js';
@@ -922,6 +923,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             await db.deleteUser(user.id);
             
             // 4. 연결 및 상태 정리
+            releaseIpBindingForUser(volatileState, user.id);
             delete volatileState.userConnections[user.id];
             delete volatileState.userStatuses[user.id];
             
@@ -989,7 +991,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             return { clientResponse: { updatedUser } };
         }
         case 'SKIP_ONBOARDING_TUTORIAL': {
-            if (!isOnboardingTutorialActive(user)) {
+            /** 일반 유저는 진행 중일 때만. 관리자는 미리보기 단계가 DB와 어긋나도 스킵으로 복구 가능 */
+            if (!isOnboardingTutorialActive(user) && !user.isAdmin) {
                 return { error: '튜토리얼이 진행 중이 아닙니다.' };
             }
             user.onboardingTutorialPhase = ONBOARDING_PHASE_COMPLETE;

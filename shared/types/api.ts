@@ -82,6 +82,12 @@ export interface RankedMatchingEntry {
     rating: number;
 }
 
+/** 동일 공인 IP 기준 일반 계정 1슬롯(관리자는 별도 슬롯으로 공존 가능) */
+export interface IpLoginSlot {
+    regularUserId?: string;
+    adminIds?: Record<string, true>;
+}
+
 export interface VolatileState {
     userConnections: Record<string, number>;
     userStatuses: Record<string, UserStatusInfo>;
@@ -103,6 +109,10 @@ export interface VolatileState {
     };
     // PVP 양쪽 접속 끊김 시 재접속 후 안내 메시지 (userId -> 메시지)
     pendingMutualDisconnectByUser?: Record<string, string>;
+    /** 클라이언트 IP(정규화)별 로그인 슬롯 — 일반 1명 + 관리자 다수 허용 */
+    ipLoginSlots?: Record<string, IpLoginSlot>;
+    /** userId가 마지막으로 점유한 클라이언트 IP (ipLoginSlots와 동기) */
+    connectionIpByUserId?: Record<string, string>;
 }
 
 export interface UserStatusInfo {

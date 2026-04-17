@@ -28,7 +28,7 @@ import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
-import { aiUserId } from '../constants/auth.js';
+import { aiUserId, OTHER_DEVICE_LOGIN_SHARED_PC_REASON } from '../constants/auth.js';
 import {
     mergeArenaEntranceAvailability,
     ARENA_ENTRANCE_CLOSED_MESSAGE,
@@ -5456,6 +5456,17 @@ export const useApp = () => {
                             return;
                         }
                         case 'OTHER_DEVICE_LOGIN': {
+                            if (message.payload?.reason === OTHER_DEVICE_LOGIN_SHARED_PC_REASON) {
+                                try {
+                                    sessionStorage.removeItem('currentUser');
+                                } catch {
+                                    // ignore
+                                }
+                                setCurrentUser(null);
+                                setShowOtherDeviceLoginModal(false);
+                                replaceAppHash('#/login');
+                                return;
+                            }
                             setShowOtherDeviceLoginModal(true);
                             return;
                         }

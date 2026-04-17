@@ -29,10 +29,23 @@ export const ONBOARDING_PHASE_COMPLETE = 100;
 /** 마지막 튜토리얼 단계 인덱스(0-based). `튜토리얼 종료` 후 완료 보상 처리 */
 export const ONBOARDING_LAST_TUTORIAL_PHASE = 14;
 
+/** DB·직렬화에서 숫자·문자열 등으로 들어올 수 있음 */
+export function parseOnboardingTutorialPhase(raw: unknown): number | null {
+    if (raw == null) return null;
+    if (typeof raw === 'number' && Number.isFinite(raw)) return raw;
+    if (typeof raw === 'string') {
+        const t = raw.trim();
+        if (t === '') return null;
+        const n = Number(t);
+        return Number.isFinite(n) ? n : null;
+    }
+    return null;
+}
+
 export function isOnboardingTutorialActive(user: User | null | undefined): boolean {
     if (!user) return false;
-    const p = user.onboardingTutorialPhase;
-    return typeof p === 'number' && p >= 0 && p < ONBOARDING_PHASE_COMPLETE;
+    const p = parseOnboardingTutorialPhase(user.onboardingTutorialPhase as unknown);
+    return p != null && p >= 0 && p < ONBOARDING_PHASE_COMPLETE;
 }
 
 export function getOnboardingCombinedLevel(user: User): number {

@@ -11,6 +11,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/index.js
 import { clearAiSession } from '../aiSessionManager.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
+import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 
 
 type HandleActionResult = { 
@@ -82,6 +83,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                         if (volatileState.activeTournaments) {
                             delete volatileState.activeTournaments[user.id];
                         }
+                        releaseIpBindingForUser(volatileState, user.id);
                         delete volatileState.userConnections[user.id];
                         delete volatileState.userStatuses[user.id];
                         return { error: 'Unknown tournament type.' };
@@ -134,6 +136,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
             }
             
+            releaseIpBindingForUser(volatileState, user.id);
             delete volatileState.userConnections[user.id];
             delete volatileState.userStatuses[user.id];
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });

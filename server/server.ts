@@ -52,6 +52,7 @@ import {
     RESERVED_STAFF_NICKNAME_USER_MESSAGE,
 } from '../shared/utils/staffNicknameDisplay.js';
 import { volatileState } from './state.js';
+import { ensureClientIpAllowsSession, releaseIpBindingForUser } from './ipLoginPolicy.js';
 import { CoreStat } from '../types/index.js';
 import { clearAiSession, syncAiSession } from './aiSessionManager.js';
 import { hashPassword, verifyPassword } from './utils/passwordUtils.js';
@@ -608,7 +609,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     isServerReady = false;
     serverInstance = null;
     }
-    
+
+    // Railway 등 리버스 프록시 뒤에서 실제 클라이언트 IP 인식 (IP당 로그인 제한)
+    if (process.env.RAILWAY_ENVIRONMENT || process.env.TRUST_PROXY === '1') {
+        app.set('trust proxy', 1);
+    }
+
     // === 중요: Express 미들웨어를 서버 리스닝 전에 설정 ===
     // 서버가 리스닝을 시작하기 전에 최소한의 미들웨어를 설정하여 요청이 처리되도록 함
     
@@ -1946,6 +1952,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     
                         // 일반 게임에서만 타임아웃 처리
                         // User timed out. They are now disconnected. Remove them from active connections.
+                        releaseIpBindingForUser(volatileState, userId);
                         delete volatileState.userConnections[userId];
                         volatileState.activeTournamentViewers.delete(userId);
                 
@@ -2001,6 +2008,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         } else if (userStatus?.status === types.UserStatus.Waiting) {
                             // User was in waiting room, just remove connection, keep status for potential reconnect.
                             // This allows them to refresh without being kicked out of the user list.
+                            releaseIpBindingForUser(volatileState, userId);
                             delete volatileState.userConnections[userId];
                         }
                     }
@@ -3221,6 +3229,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return;
             }
 
+            const ipAllow = await ensureClientIpAllowsSession(volatileState, req, userForLogin.id, !!userForLogin.isAdmin);
+            if (!ipAllow.ok) {
+                sendResponse(403, { message: ipAllow.message });
+                return;
+            }
+
             const defaultBaseStats = createDefaultBaseStats();
             if (!userForLogin.baseStats) {
                 userForLogin.baseStats = defaultBaseStats;
@@ -3755,6 +3769,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             user.lastLoginAt = Date.now();
             await db.updateUser(user).catch(err => console.warn('[Kakao] Failed to update lastLoginAt:', err?.message));
 
+            const kakaoIp = await ensureClientIpAllowsSession(volatileState, req, user.id, !!user.isAdmin);
+            if (!kakaoIp.ok) {
+                return res.status(403).json({ message: kakaoIp.message });
+            }
+
             // 로그인 처리
             volatileState.userConnections[user.id] = Date.now();
             volatileState.userStatuses[user.id] = { status: types.UserStatus.Online };
@@ -3823,6 +3842,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // 로그인 시 최근 접속 시각 갱신
             user.lastLoginAt = Date.now();
             await db.updateUser(user).catch(err => console.warn('[Google] Failed to update lastLoginAt:', err?.message));
+
+            const googleIp = await ensureClientIpAllowsSession(volatileState, req, user.id, !!user.isAdmin);
+            if (!googleIp.ok) {
+                return res.status(403).json({ message: googleIp.message });
+            }
 
             // 로그인 처리
             volatileState.userConnections[user.id] = Date.now();
@@ -4125,6 +4149,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
             // 서버 상태 복원: 재접속한 유저를 in-game으로 설정 (새로고침 후 라우팅/activeGame 일치)
+            const rejoinIp = await ensureClientIpAllowsSession(volatileState, req, userId, !!user.isAdmin);
+            if (!rejoinIp.ok) {
+                return res.status(403).json({ error: rejoinIp.message });
+            }
             volatileState.userConnections[userId] = Date.now();
             volatileState.userStatuses[userId] = { status: types.UserStatus.InGame, mode: game.mode, gameId: game.id };
             // AI 대국: KataServer가 game_id 헤더로 세션을 캐시하는 경우, 끊김·F5 후 재입장 시 이전 국면이 남아
@@ -4186,6 +4214,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             if (isDev) console.log('[/api/state] User retrieved from cache/DB');
             if (!user) {
                 if (isDev) console.log(`[API/State] User ${userId} not found, cleaning up connection and returning 401.`);
+                releaseIpBindingForUser(volatileState, userId);
                 delete volatileState.userConnections[userId]; // Clean up just in case
                 return res.status(401).json({ message: '세션이 만료되었습니다. 다시 로그인해주세요.' });
             }
@@ -4230,6 +4259,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
             if (isDev) console.log('[/api/state] Finished migration logic');
+
+            const stateIp = await ensureClientIpAllowsSession(volatileState, req, userId, !!user.isAdmin);
+            if (!stateIp.ok) {
+                return res.status(403).json({ message: stateIp.message });
+            }
 
             // Re-establish connection if user is valid but not in volatile memory (e.g., after server restart)
             let didReconnect = false;
@@ -4446,6 +4480,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const getUserDuration = Date.now() - getUserStartTime;
             
             if (!user) {
+                releaseIpBindingForUser(volatileState, userId);
                 delete volatileState.userConnections[userId];
                 respondAction(401, { message: '유효하지 않은 사용자입니다.' });
                 return;
@@ -4480,6 +4515,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
             }
             // --- End Migration Logic ---
+
+            const actionIp = await ensureClientIpAllowsSession(volatileState, req, userId, !!user.isAdmin);
+            if (!actionIp.ok) {
+                respondAction(403, { message: actionIp.message });
+                return;
+            }
 
             // Re-establish connection if needed
             if (!volatileState.userConnections[userId]) {

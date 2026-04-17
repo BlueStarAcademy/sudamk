@@ -2,6 +2,9 @@ import { AVATAR_POOL } from './ui.js';
 
 export const aiUserId = 'ai-player-01';
 
+/** WebSocket OTHER_DEVICE_LOGIN payload.reason — 동일 IP에서 새 일반 로그인 시 기존 탭 즉시 로그아웃 */
+export const OTHER_DEVICE_LOGIN_SHARED_PC_REASON = 'shared_pc_ip' as const;
+
 /** 관리자 계정 ID (서버 initialData/db와 동일해야 함) */
 export const ADMIN_USER_ID = 'user-admin-static-id';
 

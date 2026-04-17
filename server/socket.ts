@@ -2,6 +2,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
 import * as db from './db.js';
 import { volatileState } from './state.js';
+import { releaseIpBindingForUser } from './ipLoginPolicy.js';
 import { scheduleWebSocketMetricsSample } from './serverLoadMetrics.js';
 
 let wss: WebSocketServer;
@@ -115,7 +116,10 @@ export const createWebSocketServer = (server: Server) => {
                         void import('./actions/socialActions.js')
                             .then(({ applyPvpInGameDisconnect }) =>
                                 applyPvpInGameDisconnect(volatileState, userId).then((touched) => {
-                                    if (touched) delete volatileState.userConnections[userId];
+                                    if (touched) {
+                                        releaseIpBindingForUser(volatileState, userId);
+                                        delete volatileState.userConnections[userId];
+                                    }
                                 }),
                             )
                             .catch(() => {});

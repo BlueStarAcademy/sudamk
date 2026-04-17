@@ -22,6 +22,7 @@ import { parseEquipmentStarsFromPayload } from '../../shared/utils/equipmentEnha
 import { normalizeLegacyDivineMythicInventoryItem } from '../../shared/utils/inventoryLegacyNormalize.js';
 import { nicknameContainsReservedStaffTerms } from '../../shared/utils/staffNicknameDisplay.js';
 import { hashPassword } from '../utils/passwordUtils.js';
+import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -193,6 +194,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 }
                 
                 // Also log them out
+                releaseIpBindingForUser(volatileState, targetUserId);
                 delete volatileState.userConnections[targetUserId];
                 delete volatileState.userStatuses[targetUserId];
                 
@@ -302,6 +304,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const backupData = JSON.parse(JSON.stringify(targetUser));
             await db.deleteUser(targetUserId);
 
+            releaseIpBindingForUser(volatileState, targetUserId);
             delete volatileState.userConnections[targetUserId];
             delete volatileState.userStatuses[targetUserId];
 
@@ -400,6 +403,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             }
             
             const backupData = { status: volatileState.userStatuses[targetUserId] };
+            releaseIpBindingForUser(volatileState, targetUserId);
             delete volatileState.userConnections[targetUserId];
             delete volatileState.userStatuses[targetUserId];
             
