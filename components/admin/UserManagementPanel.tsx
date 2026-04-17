@@ -1085,7 +1085,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                 onBack={onBack}
             />
 
-            <div className="flex min-h-0 flex-1 flex-col gap-6 lg:flex-row lg:gap-8">
+            <div className="flex min-h-0 flex-1 flex-col gap-6">
                 <div className={`${adminCard} flex min-h-0 min-w-0 flex-1 flex-col p-4 sm:p-6`}>
                     <div className="mb-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                         <div className="flex min-w-0 flex-1 items-start justify-between gap-2 sm:min-w-0 sm:items-center">
@@ -1096,7 +1096,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                             <button
                                 type="button"
                                 onClick={() => setIsCreateUserModalOpen(true)}
-                                className="shrink-0 rounded-lg border border-amber-400/50 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-200 shadow-sm transition-colors hover:bg-amber-500/25 active:scale-[0.98] lg:hidden"
+                                className="shrink-0 rounded-lg border border-amber-400/50 bg-amber-500/15 px-3 py-2 text-xs font-bold text-amber-200 shadow-sm transition-colors hover:bg-amber-500/25 active:scale-[0.98]"
                             >
                                 신규 발급
                             </button>
@@ -1119,13 +1119,13 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                         ref={listScrollRef}
                         className="min-h-0 flex-1 overflow-y-auto overflow-x-auto rounded-md border border-color/60 [-webkit-overflow-scrolling:touch]"
                     >
-                        <table className="w-full table-fixed text-left text-secondary max-lg:text-[11px] max-lg:leading-tight lg:text-base xl:text-[1.05rem]">
+                        <table className="min-w-max w-full text-left text-secondary max-lg:text-[11px] max-lg:leading-tight lg:text-base xl:text-[1.05rem]">
                             <thead className="bg-secondary text-secondary shadow-sm max-lg:text-[10px] max-lg:uppercase lg:text-sm xl:text-[0.95rem] sticky top-0 z-[1]">
                                 <tr>
-                                    <th scope="col" className="max-lg:w-[22%] max-lg:px-1.5 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
+                                    <th scope="col" className="max-lg:w-[24%] max-lg:px-1.5 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:min-w-[180px]">
                                         닉네임
                                     </th>
-                                    <th scope="col" className="max-lg:w-[24%] max-lg:px-1.5 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
+                                    <th scope="col" className="max-lg:w-[28%] max-lg:px-1.5 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:min-w-[220px]">
                                         아이디
                                     </th>
                                     <th scope="col" className="max-lg:w-[14%] max-lg:px-1 max-lg:py-2 px-4 py-3.5 sm:px-6 lg:w-auto">
@@ -1146,15 +1146,15 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                 {searchedUsers.map(user => (
                                     <tr
                                         key={user.id}
-                                        className="border-b border-color bg-primary hover:bg-secondary/50 max-lg:whitespace-nowrap"
+                                        className="border-b border-color bg-primary hover:bg-secondary/50 whitespace-nowrap"
                                     >
                                         <th
                                             scope="row"
-                                            className="min-w-0 max-w-0 cursor-pointer truncate px-4 py-4 font-medium text-primary hover:text-accent max-lg:px-1.5 max-lg:py-2 sm:px-6 sm:py-5"
+                                            className="cursor-pointer px-4 py-4 font-medium text-primary hover:text-accent max-lg:px-1.5 max-lg:py-2 sm:px-6 sm:py-5"
                                             onClick={() => handlers.openViewingUser(user.id)}
                                             title={`${user.nickname}${user.isAdmin ? ' (관리자)' : ''} — 프로필 보기`}
                                         >
-                                            <span className="block min-w-0 truncate">
+                                            <span className="block">
                                                 {user.nickname}
                                                 {user.isAdmin && (
                                                     <>
@@ -1165,7 +1165,7 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                                             </span>
                                         </th>
                                         <td
-                                            className="min-w-0 max-w-0 truncate px-4 py-4 max-lg:px-1.5 max-lg:py-2 sm:px-6 sm:py-5"
+                                            className="px-4 py-4 max-lg:px-1.5 max-lg:py-2 sm:px-6 sm:py-5"
                                             title={user.username}
                                         >
                                             {user.username}
@@ -1228,27 +1228,13 @@ const UserManagementPanel: React.FC<UserManagementPanelProps> = ({ allUsers: _al
                         <div ref={loadMoreSentinelRef} className="h-2 w-full shrink-0" aria-hidden />
                     </div>
                 </div>
-                <div className={`${adminCard} hidden w-80 shrink-0 flex-col sm:p-6 lg:flex lg:overflow-y-auto`}>
-                    <h2 className={adminCardTitle}>신규 아이디 발급</h2>
-                    <AdminCreateUserForm
-                        username={username}
-                        setUsername={setUsername}
-                        password={password}
-                        setPassword={setPassword}
-                        nickname={nickname}
-                        setNickname={setNickname}
-                        createUserEmail={createUserEmail}
-                        setCreateUserEmail={setCreateUserEmail}
-                        onSubmit={handleCreateUser}
-                    />
-                </div>
             </div>
 
             {typeof document !== 'undefined' &&
                 isCreateUserModalOpen &&
                 createPortal(
                     <div
-                        className="fixed inset-0 z-[500] flex items-end justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-12 sm:items-center sm:p-4 lg:hidden"
+                        className="fixed inset-0 z-[500] flex items-end justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom,0px))] pt-12 sm:items-center sm:p-4"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="admin-create-user-modal-title"
