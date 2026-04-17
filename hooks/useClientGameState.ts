@@ -271,6 +271,11 @@ export function updateGameStateAfterMove(
     };
     const updatedCaptures = { ...(game.captures || {}) };
     const updatedHiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) } as typeof game.hiddenStoneCaptures;
+    const updatedBaseStoneCaptures = {
+        [Player.None]: game.baseStoneCaptures?.[Player.None] ?? 0,
+        [Player.Black]: game.baseStoneCaptures?.[Player.Black] ?? 0,
+        [Player.White]: game.baseStoneCaptures?.[Player.White] ?? 0,
+    } as typeof game.baseStoneCaptures;
     let updatedPermanentlyRevealedStones = [...(game.permanentlyRevealedStones || [])];
     // 같은 교차점에 다시 착수할 때(히든이 따낸 자리 등) 이전 공개 마커가 남으면 문양/히든 표시가 꼬이므로 일반 착수면 해당 좌표 제거
     if (!isHidden) {
@@ -290,10 +295,15 @@ export function updateGameStateAfterMove(
                 !!(game as any).aiInitialHiddenStone &&
                 isSamePoint((game as any).aiInitialHiddenStone, stone);
 
+            const isBaseStone = !!game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+
             let points = 1;
             let wasHidden = false;
 
-            if (isPatternStone) {
+            if (isBaseStone) {
+                points = 5;
+                updatedBaseStoneCaptures[movePlayer] = (updatedBaseStoneCaptures[movePlayer] || 0) + 1;
+            } else if (isPatternStone) {
                 points = 2;
                 if (opponentPlayer === Player.Black) {
                     updatedBlackPatternStones = updatedBlackPatternStones?.filter(p => !isSamePoint(p, stone));
@@ -376,6 +386,7 @@ export function updateGameStateAfterMove(
         hiddenMoves: updatedHiddenMoves,
         permanentlyRevealedStones: updatedPermanentlyRevealedStones,
         hiddenStoneCaptures: updatedHiddenStoneCaptures,
+        baseStoneCaptures: updatedBaseStoneCaptures,
         justCaptured: justCapturedEntries,
         newlyRevealed: [],
         animation: null,

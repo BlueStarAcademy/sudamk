@@ -1412,6 +1412,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isSingleLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastMove && lastMove.x === x && lastMove.y === y;
                     const isMultiLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastTurnStones && lastTurnStones.some(p => p.x === x && p.y === y);
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
+                    const isMyJustPlacedStone = !!lastMove && lastMove.x === x && lastMove.y === y && actualPlayer === myPlayerEnum;
                     
                     const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y) : -1;
                     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
@@ -1432,12 +1433,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isHiddenMoveForRender =
                         !!isHiddenMove ||
                         (!!atAiInitialHiddenStone &&
+                            moveIndex === -1 &&
                             actualPlayer !== myPlayerEnum &&
                             currentPlayer !== myPlayerEnum);
+                    // 방금 내가 둔 돌은 일시적인 hiddenMoves 인덱스 어긋남이 있어도 히든 문양을 붙이지 않는다.
+                    const effectiveHiddenMoveForRender = isMyJustPlacedStone ? false : isHiddenMoveForRender;
                     // 서버의 영구 공개 목록 또는 현재 히든 공개 애니메이션에 포함된 돌은 공개된 것으로 표시 (반투명 해제)
                     // 히든 돌 표시 규칙 (모든 히든 사용 경기 공통): 상대에게는 기본 비공개, 스캔 시 반투명, 착수/포착 시 전체 공개
                     let isVisible = true;
-                    if (isHiddenMoveForRender) {
+                    if (effectiveHiddenMoveForRender) {
                         if (isSpectator) {
                             isVisible = isGameFinished || !!isPermanentlyRevealed;
                         } else {
@@ -1465,13 +1469,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 반투명: 내가 둔 히든 돌(비공개 상태) 또는 스캔으로만 안 돌만. 영구 공개/방금 공개된 돌은 선명하게
                     const isFaint = !isSpectator && (
                         (myRevealedStones?.some(p => p.x === x && p.y === y) && !isPermanentlyRevealed) ||
-                        (isHiddenMoveForRender && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
+                        (effectiveHiddenMoveForRender && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
                     );
 
                     const hasBaseStoneHere = baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false;
                     // 히든 돌은 공개되어도 히든 문양을 유지. 상대 미공개 히든은 위에서 return null.
                     // (이전: 마지막 수만 문양 제외 → 본인 히든 착수 직후·스캔 직후에도 문양이 안 보이는 버그)
-                    const isKnownHidden = !!isHiddenMoveForRender;
+                    const isKnownHidden = !!effectiveHiddenMoveForRender;
                     const isSelectedMissileForRender = selectedMissileStone?.x === x && selectedMissileStone?.y === y;
                     // 미사일 선택 가능 여부: 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
                     const isHoverSelectableMissile = gameStatus === 'missile_selecting' && !selectedMissileStone && actualPlayer === myPlayerEnum;
@@ -1479,7 +1483,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 문양 결정: 히든 돌이 아닌 경우에만 패턴 문양 표시
                     // 히든 돌(공개 여부와 관계없이)은 히든 문양을 우선 표시하므로 패턴 문양을 표시하지 않음
                     let isPatternStone = false;
-                    if (!isHiddenMoveForRender) {
+                    if (!effectiveHiddenMoveForRender) {
                         const patternConsumedHere = consumedPatternIntersections?.some((p) => p.x === x && p.y === y);
                         if (!patternConsumedHere) {
                             isPatternStone =
@@ -1656,7 +1660,27 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                     revealPlayer={displayBoardState[animation.point.y]?.[animation.point.x] ?? Player.None}
                                 />
                             )}
-                            {animation.type === 'hidden_reveal' && animation.stones.map((s, i) => ( <Stone key={`reveal-${i}`} player={s.player} cx={toSvgCoords(s.point).cx} cy={toSvgCoords(s.point).cy} isKnownHidden isNewlyRevealed animationClass="sparkle-animation" radius={stone_radius} /> ))}
+                            {animation.type === 'hidden_reveal' &&
+                                animation.stones.map((s, i) => {
+                                    const isAtLastPlacedPoint =
+                                        !!lastMove &&
+                                        lastMove.x === s.point.x &&
+                                        lastMove.y === s.point.y;
+                                    const isMyJustPlacedRevealPoint =
+                                        isAtLastPlacedPoint && s.player === myPlayerEnum;
+                                    return (
+                                        <Stone
+                                            key={`reveal-${i}`}
+                                            player={s.player}
+                                            cx={toSvgCoords(s.point).cx}
+                                            cy={toSvgCoords(s.point).cy}
+                                            isKnownHidden={!isMyJustPlacedRevealPoint}
+                                            isNewlyRevealed
+                                            animationClass="sparkle-animation"
+                                            radius={stone_radius}
+                                        />
+                                    );
+                                })}
                             {animation.type === 'bonus_text' && <AnimatedBonusText animation={animation} toSvgCoords={toSvgCoords} cellSize={cell_size} isRotated={isRotated} />}
                         </>
                     );

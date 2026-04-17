@@ -61,8 +61,11 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.black.hiddenStoneBonus = 0;
     finalAnalysis.scoreDetails.white.hiddenStoneBonus = 0;
     
-    // Time bonus: 스피드바둑 PVP는 기본시간 대비 ± 5초당 1점. AI 대결은 기본 20점 - (누적시간 5초당 1점 차감).
-    const SPEED_AI_BASE_TIME_BONUS = 20;
+    // Time bonus:
+    // - 스피드바둑 PVP: 기본시간 대비 ± 5초당 1점
+    // - 스피드바둑 AI/싱글: 3분(180초) 기준 잔여시간을 10초당 1점으로 환산 (음수 허용, 소수점 절삭)
+    const SPEED_AI_BASELINE_SECONDS = 180;
+    const SPEED_AI_SECONDS_PER_POINT = 10;
     const isSpeedMode = session.mode === types.GameMode.Speed || (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
     if (isSpeedMode) {
         const blackInitial = preservedTimeInfo?.blackInitialTimeLeft ?? session.blackInitialTimeLeft;
@@ -72,16 +75,16 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         if (blackInitial != null && whiteInitial != null) {
             const isAiOrSinglePlayer = !!session.isAiGame || !!session.isSinglePlayer;
             if (isAiOrSinglePlayer) {
-                // 스피드 바둑 AI/싱글플레이: 기본 20점, 총 누적 사용시간 5초당 1점 차감 (인간 측만 적용, AI는 0)
+                // 스피드 바둑 AI/싱글플레이: floor((180 - 사용시간초) / 10) (인간 측만 적용, AI는 0)
                 const blackUsedSec = Math.max(0, blackInitial - blackTime);
                 const whiteUsedSec = Math.max(0, whiteInitial - whiteTime);
                 const blackIsHuman = session.blackPlayerId !== aiUserId;
                 const whiteIsHuman = session.whitePlayerId !== aiUserId;
                 finalAnalysis.scoreDetails.black.timeBonus = blackIsHuman
-                    ? Math.max(0, SPEED_AI_BASE_TIME_BONUS - Math.floor(blackUsedSec / TIME_BONUS_SECONDS_PER_POINT))
+                    ? Math.floor((SPEED_AI_BASELINE_SECONDS - blackUsedSec) / SPEED_AI_SECONDS_PER_POINT)
                     : 0;
                 finalAnalysis.scoreDetails.white.timeBonus = whiteIsHuman
-                    ? Math.max(0, SPEED_AI_BASE_TIME_BONUS - Math.floor(whiteUsedSec / TIME_BONUS_SECONDS_PER_POINT))
+                    ? Math.floor((SPEED_AI_BASELINE_SECONDS - whiteUsedSec) / SPEED_AI_SECONDS_PER_POINT)
                     : 0;
             } else {
                 // PVP 스피드: 기본시간 대비 ± 초를 5초당 1점으로

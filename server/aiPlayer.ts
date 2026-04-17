@@ -1223,8 +1223,6 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     const parts = String(currentPlayerId).split('-');
                     const stageNum = parseInt(parts[3], 10);
                     difficulty = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
-                } else if ((game as any).gameCategory === 'guildwar') {
-                    difficulty = 3;
                 } else if (game.isSinglePlayer || isTower) {
                     difficulty = game.settings.aiDifficulty || 1;
                 } else {

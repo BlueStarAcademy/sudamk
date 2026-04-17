@@ -1,10 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
-import {
-    consumeOpponentPatternStoneIfAny,
-    stripPatternStonesAtConsumedIntersections,
-} from '../../shared/utils/patternStoneConsume.js';
+import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -16,6 +13,37 @@ export const towerP1ConsumableAllowance = (inventoryQty: number, stageCap: numbe
     if (inventoryQty <= 0) return 0;
     return Math.min(stageCap, inventoryQty);
 };
+
+/**
+ * 도전의 탑 경기 중 상점 구매 시: 인벤은 이미 반영된 뒤 호출한다.
+ * 세션 잔여(미사일·히든·스캔)를 스테이지 상한까지 올려 바로 아이템 사용 가능하게 한다.
+ */
+export function bumpTowerSessionConsumablesAfterShopPurchase(
+    game: types.LiveGameSession,
+    itemId: string,
+    quantity: number
+): boolean {
+    if (game.gameCategory !== 'tower' || game.gameStatus !== 'playing') return false;
+    const floor = (game as any).towerFloor ?? 0;
+    if (floor < 21) return false;
+    if (!Number.isFinite(quantity) || quantity <= 0) return false;
+
+    const s = (game.settings || {}) as any;
+    const bump = (key: 'missiles_p1' | 'hidden_stones_p1' | 'scans_p1', capKey: 'missileCount' | 'hiddenStoneCount' | 'scanCount', defaultCap: number) => {
+        const capRaw = s[capKey];
+        const cap = typeof capRaw === 'number' && capRaw > 0 ? capRaw : defaultCap;
+        const cur = typeof (game as any)[key] === 'number' ? (game as any)[key] : 0;
+        const next = Math.min(cap, Math.max(0, cur) + quantity);
+        if (next === cur) return false;
+        (game as any)[key] = next;
+        return true;
+    };
+
+    if (itemId === '미사일') return bump('missiles_p1', 'missileCount', 2);
+    if (itemId === '히든') return bump('hidden_stones_p1', 'hiddenStoneCount', 2);
+    if (itemId === '스캔') return bump('scans_p1', 'scanCount', 2);
+    return false;
+}
 
 export const TOWER_LOBBY_SCAN_NAMES = ['스캔', 'scan', 'Scan', 'SCAN', '스캔권', '스캔 아이템'] as const;
 export const TOWER_LOBBY_HIDDEN_NAMES = ['히든', 'hidden', 'Hidden'] as const;
@@ -175,164 +203,30 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
             break;
         }
         case 'hidden_reveal_animating':
-            if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
-                const cap = game.pendingCapture;
-                const isAiTurnCancelled = (game as any).isAiTurnCancelledAfterReveal;
-                if (!cap) {
-                    const pendingAiAfterUserHiddenReveal = (game as any).pendingAiMoveAfterUserHiddenFullReveal;
-                    (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
-                    game.animation = null;
-                    game.gameStatus = 'playing';
-                    game.revealAnimationEndTime = undefined;
-                    game.pendingCapture = null;
-                    (game as any).isAiTurnCancelledAfterReveal = undefined;
-                    const cur = game.currentPlayer;
-                    if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
-                        const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        game[timeKey] = game.pausedTurnTimeLeft;
-                        game.turnDeadline = now + (game[timeKey] ?? 0) * 1000;
-                        game.turnStartTime = now;
-                    } else {
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
-                    game.pausedTurnTimeLeft = undefined;
-                    if (pendingAiAfterUserHiddenReveal) {
-                        await db.saveGame(game);
-                        const { broadcastToGameParticipants } = await import('../socket.js');
-                        const { updateGameCache } = await import('../gameCache.js');
-                        updateGameCache(game);
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                        const { makeAiMove } = await import('../aiPlayer.js');
-                        setImmediate(() => {
-                            makeAiMove(game).then(async () => {
-                                try {
-                                    updateGameCache(game);
-                                    await db.saveGame(game);
-                                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                                } catch (e: any) {
-                                    console.error(
-                                        `[updateTowerPlayerHiddenState] AI move after user-hidden full reveal failed for ${game.id}:`,
-                                        e?.message
-                                    );
-                                }
-                            }).catch((err: any) => {
-                                console.error(
-                                    `[updateTowerPlayerHiddenState] makeAiMove after user-hidden full reveal failed for ${game.id}:`,
-                                    err?.message
-                                );
-                            });
-                        });
-                        return;
-                    }
-                    break;
-                }
-                game.gameStatus = 'playing';
-                const myPlayerEnum = cap.move.player;
-                resumeGameTimer(game, now, myPlayerEnum);
-
-                {
-                    const myP = cap.move.player;
-                    const opponentP = myP === types.Player.Black ? types.Player.White : types.Player.Black;
-                    if (!game.justCaptured) game.justCaptured = [];
-                    for (const stone of cap.stones) {
-                        game.boardState[stone.y][stone.x] = types.Player.None;
-                        const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
-                        let moveIndex = -1;
-                        for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
-                            const m = game.moveHistory![i];
-                            if (m.x === stone.x && m.y === stone.y) {
-                                moveIndex = i;
-                                break;
+            await runTowerStyleHiddenRevealAnimatingIfDue(game, now, {
+                logPrefix: 'updateTowerPlayerHiddenState',
+                onPostTurnSwitch: async (g) => {
+                    const floor = (g as any).towerFloor ?? 0;
+                    const stageId = g.stageId || `tower-${floor}`;
+                    const { TOWER_STAGES } = await import('../../constants/towerConstants.js');
+                    const stage =
+                        TOWER_STAGES.find((s: { id: string }) => s.id === stageId) ||
+                        TOWER_STAGES.find((s: { id: string }) => parseInt(s.id.replace('tower-', ''), 10) === floor);
+                    const autoScoringTurns = (stage as any)?.autoScoringTurns;
+                    if (autoScoringTurns !== undefined) {
+                        const isAiTurn = g.currentPlayer === types.Player.White && g.gameCategory === 'tower';
+                        if (!isAiTurn) {
+                            const validMoves = g.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
+                            const totalTurns = g.totalTurns ?? validMoves.length;
+                            g.totalTurns = totalTurns;
+                            if (totalTurns >= autoScoringTurns && g.gameStatus === 'playing') {
+                                const { getGameResult } = await import('../gameModes.js');
+                                await getGameResult(g);
                             }
                         }
-                        const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        const wasAiInitialHidden = (game as any).aiInitialHiddenStone &&
-                            (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
-                        if (wasAiInitialHidden) (game as any).aiInitialHiddenStone = undefined;
-                        let points = 1;
-                        let wasHiddenForEntry = false;
-                        if (isBaseStone) {
-                            game.baseStoneCaptures[myP]++;
-                            points = 5;
-                        } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentP)) {
-                            points = 2;
-                        } else if (wasHidden || wasAiInitialHidden) {
-                            game.hiddenStoneCaptures[myP] = (game.hiddenStoneCaptures[myP] || 0) + 1;
-                            points = 5;
-                            wasHiddenForEntry = true;
-                        }
-                        game.captures[myP] += points;
-                        game.justCaptured.push({ point: stone, player: opponentP, wasHidden: wasHiddenForEntry || wasAiInitialHidden, capturePoints: points });
                     }
-                    stripPatternStonesAtConsumedIntersections(game);
-                    if (cap.move && typeof cap.move.x === 'number' && typeof cap.move.y === 'number') {
-                        game.boardState[cap.move.y][cap.move.x] = myP;
-                    }
-                    if (!game.newlyRevealed) game.newlyRevealed = [];
-                    game.newlyRevealed.push(...cap.hiddenContributors.map(p => ({ point: p, player: myP })));
-                }
-
-                game.animation = null;
-                game.revealAnimationEndTime = undefined;
-                game.pendingCapture = null;
-                (game as any).isAiTurnCancelledAfterReveal = undefined;
-                (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
-
-                if (isAiTurnCancelled) {
-                    game.gameStatus = 'playing';
-                    if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft != null) {
-                        const aiTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        (game as any)[aiTimeKey] = game.pausedTurnTimeLeft;
-                    }
-                    game.pausedTurnTimeLeft = undefined;
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('../socket.js');
-                    const { updateGameCache } = await import('../gameCache.js');
-                    updateGameCache(game);
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                    const { makeAiMove } = await import('../aiPlayer.js');
-                    setImmediate(() => {
-                        makeAiMove(game).then(async () => {
-                            try {
-                                updateGameCache(game);
-                                await db.saveGame(game);
-                                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                            } catch (e: any) {
-                                console.error(`[updateTowerPlayerHiddenState] AI move after hidden reveal failed for ${game.id}:`, e?.message);
-                            }
-                        }).catch((err: any) => {
-                            console.error(`[updateTowerPlayerHiddenState] makeAiMove after hidden reveal failed for ${game.id}:`, err?.message);
-                        });
-                    });
-                    return;
-                }
-
-                game.gameStatus = 'playing';
-                const playerWhoMoved = cap.move.player;
-                const nextPlayer = playerWhoMoved === types.Player.Black ? types.Player.White : types.Player.Black;
-                game.currentPlayer = nextPlayer;
-                game.pausedTurnTimeLeft = undefined;
-
-                const floor = (game as any).towerFloor ?? 0;
-                const stageId = game.stageId || `tower-${floor}`;
-                const { TOWER_STAGES } = await import('../../constants/towerConstants.js');
-                const stage = TOWER_STAGES.find((s: { id: string }) => s.id === stageId) || TOWER_STAGES.find((s: { id: string }) => parseInt(s.id.replace('tower-', ''), 10) === floor);
-                const autoScoringTurns = (stage as any)?.autoScoringTurns;
-                if (autoScoringTurns !== undefined) {
-                    const isAiTurn = game.currentPlayer === types.Player.White && game.gameCategory === 'tower';
-                    if (!isAiTurn) {
-                        const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-                        const totalTurns = game.totalTurns ?? validMoves.length;
-                        game.totalTurns = totalTurns;
-                        if (totalTurns >= autoScoringTurns && game.gameStatus === 'playing') {
-                            const { getGameResult } = await import('../gameModes.js');
-                            await getGameResult(game);
-                            return;
-                        }
-                    }
-                }
-            }
+                },
+            });
             break;
         case 'hidden_final_reveal':
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {

@@ -81,6 +81,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const [passConfirmModal, setPassConfirmModal] = useState(false);
     const [turnAddConfirmModal, setTurnAddConfirmModal] = useState(false);
     const [towerItemShopOpen, setTowerItemShopOpen] = useState(false);
+    const [towerShopInitialItemId, setTowerShopInitialItemId] = useState<string | undefined>(undefined);
+
+    const openTowerItemShop = (itemId: string) => {
+        if (!currentUser) return;
+        setTowerShopInitialItemId(itemId);
+        setTowerItemShopOpen(true);
+    };
     const floor = session.towerFloor ?? 1;
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
     const stage = TOWER_STAGES.find(s => {
@@ -218,10 +225,6 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         );
     }
     
-    const handleRefresh = () => {
-        if (refreshDisabled) return;
-        setRefreshConfirmModal(true);
-    };
     const handleRefreshConfirm = () => {
         setRefreshConfirmModal(false);
         onAction({ type: 'TOWER_REFRESH_PLACEMENT', payload: { gameId: session.id } });
@@ -285,7 +288,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const handleTurnAddClick = () => {
         if (gameStatus !== 'playing') return;
         if (turnAddCount <= 0) {
-            if (currentUser) setTowerItemShopOpen(true);
+            openTowerItemShop('턴 추가');
             return;
         }
         setTurnAddConfirmModal(true);
@@ -301,17 +304,19 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const missileCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_MISSILE_NAMES) : 0;
     const missileMaxCount = (stage as { missileCount?: number } | undefined)?.missileCount ?? (session.settings as { missileCount?: number })?.missileCount ?? 2;
     const outOfSessionMissiles = session.missiles_p1 !== undefined && session.missiles_p1 <= 0;
-    const missileDisabled =
-        isMoveInFlight ||
-        isBoardLocked ||
-        hasPendingRevealResolution ||
-        !isMyTurn ||
+    /** 재고 0이면 경기 중에는 버튼을 막지 않고 탭 시 상점 (턴 추가와 동일) */
+    const missileButtonDisabled =
         gameStatus !== 'playing' ||
-        missileCount <= 0 ||
-        outOfSessionMissiles;
+        (missileCount > 0 &&
+            (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionMissiles));
     
     const handleUseMissile = () => {
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
+        if (gameStatus !== 'playing') return;
+        if (missileCount <= 0) {
+            openTowerItemShop('미사일');
+            return;
+        }
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionMissiles) return;
         onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
     };
     
@@ -321,17 +326,18 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         (session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ??
         2;
     const outOfSessionHidden = session.hidden_stones_p1 !== undefined && session.hidden_stones_p1 <= 0;
-    const hiddenDisabled =
-        isMoveInFlight ||
-        isBoardLocked ||
-        hasPendingRevealResolution ||
-        !isMyTurn ||
+    const hiddenButtonDisabled =
         gameStatus !== 'playing' ||
-        hiddenCount <= 0 ||
-        outOfSessionHidden;
+        (hiddenCount > 0 &&
+            (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionHidden));
     
     const handleUseHidden = () => {
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
+        if (gameStatus !== 'playing') return;
+        if (hiddenCount <= 0) {
+            openTowerItemShop('히든');
+            return;
+        }
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionHidden) return;
         const clientSync = buildPveItemActionClientSync(session);
         onAction({
             type: 'START_HIDDEN_PLACEMENT',
@@ -339,18 +345,23 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         });
     };
 
-    const scanDisabled =
-        isMoveInFlight ||
-        isBoardLocked ||
-        hasPendingRevealResolution ||
-        !canStartScanTurn ||
+    const scanButtonDisabled =
         gameStatus !== 'playing' ||
-        scanInventoryCount <= 0 ||
-        outOfSessionScans ||
-        !canScan;
+        (scanInventoryCount > 0 &&
+            (isMoveInFlight ||
+                isBoardLocked ||
+                hasPendingRevealResolution ||
+                !canStartScanTurn ||
+                outOfSessionScans ||
+                !canScan));
 
     const handleUseScan = () => {
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canStartScanTurn || gameStatus !== 'playing') return;
+        if (gameStatus !== 'playing') return;
+        if (scanInventoryCount <= 0) {
+            openTowerItemShop('스캔');
+            return;
+        }
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canStartScanTurn || outOfSessionScans || !canScan) return;
         const clientSync = buildPveItemActionClientSync(session);
         onAction({
             type: 'START_SCANNING',
@@ -361,7 +372,17 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const refreshCount = getItemCount(TOWER_ITEM_REFRESH_NAMES);
     const refreshMaxCount = 5;
     const canUseRefresh = session.moveHistory && session.moveHistory.length === 0 && session.gameStatus === 'playing' && session.currentPlayer === Player.Black;
-    const refreshDisabled = refreshCount <= 0 || !canUseRefresh;
+    const refreshButtonDisabled = gameStatus !== 'playing' || (refreshCount > 0 && !canUseRefresh);
+
+    const handleRefresh = () => {
+        if (gameStatus !== 'playing') return;
+        if (refreshCount <= 0) {
+            openTowerItemShop('배치변경');
+            return;
+        }
+        if (!canUseRefresh) return;
+        setRefreshConfirmModal(true);
+    };
 
 	const colClass = isMobile ? 'flex flex-col items-center gap-1 shrink-0' : 'flex flex-col items-center gap-1.5';
 	const lbl = isMobile ? 'text-[10px]' : 'text-[12px]';
@@ -396,13 +417,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 					src="/images/button/reflesh.png"
 					alt="배치변경"
 					onClick={handleRefresh}
-					disabled={refreshDisabled}
-					title="배치 새로고침"
+					disabled={refreshButtonDisabled}
+					title={refreshCount > 0 ? '배치 새로고침' : '도전의 탑 아이템 상점에서 구매'}
 					count={refreshCount}
 					maxCount={refreshMaxCount}
 					compact={isMobile}
 				/>
-				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
+				<span className={`${lbl} font-semibold whitespace-nowrap ${refreshButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>배치변경</span>
 			</div>
 		</>
 	);
@@ -433,13 +454,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						src="/images/button/missile.png"
 						alt="미사일"
 						onClick={handleUseMissile}
-						disabled={missileDisabled}
-						title="미사일 발사"
+						disabled={missileButtonDisabled}
+						title={missileCount > 0 ? '미사일 발사' : '도전의 탑 아이템 상점에서 구매'}
 						count={missileCount}
 						maxCount={missileMaxCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${missileDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${missileButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>미사일</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
@@ -448,13 +469,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						src="/images/button/hidden.png"
 						alt="히든"
 						onClick={handleUseHidden}
-						disabled={hiddenDisabled}
-						title="히든 스톤 배치"
+						disabled={hiddenButtonDisabled}
+						title={hiddenCount > 0 ? '히든 스톤 배치' : '도전의 탑 아이템 상점에서 구매'}
 						count={hiddenCount}
 						maxCount={hiddenMaxCount}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${hiddenDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${hiddenButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>히든</span>
 				</div>
 			)}
 			{showMissileAndHiddenForHook && (
@@ -463,13 +484,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						src="/images/button/scan.png"
 						alt="스캔"
 						onClick={handleUseScan}
-						disabled={scanDisabled}
-						title="스캔"
+						disabled={scanButtonDisabled}
+						title={scanInventoryCount > 0 ? '스캔' : '도전의 탑 아이템 상점에서 구매'}
 						count={scanInventoryCount}
 						maxCount={scanCountSettingForHook}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${scanButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>스캔</span>
 				</div>
 			)}
 		</>
@@ -482,7 +503,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 			<div className="fixed inset-0 z-[220]">
 				<TowerItemShopModal
 					currentUser={currentUser}
-					onClose={() => setTowerItemShopOpen(false)}
+					initialSelectedItemId={towerShopInitialItemId}
+					onClose={() => {
+						setTowerItemShopOpen(false);
+						setTowerShopInitialItemId(undefined);
+					}}
 					onBuy={async (itemId, quantity) => {
 						await onAction({ type: 'BUY_TOWER_ITEM', payload: { itemId, quantity } } as any);
 					}}

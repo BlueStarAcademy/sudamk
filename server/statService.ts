@@ -3,6 +3,7 @@
 // FIX: Import missing types from the centralized types file.
 import { User, CoreStat, InventoryItem, SpecialStat, MythicStat } from '../types/index.js';
 import { calculateUserEffects } from './effectService.js';
+import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 
 const CORE_STAT_CAP = 1500;
 
@@ -32,12 +33,9 @@ export const calculateTotalStats = (user: User | null | undefined): Record<CoreS
     for (const key of Object.values(CoreStat)) {
         const baseValue = baseWithSpent[key];
         const bonus = bonuses[key] || { flat: 0, percent: 0 };
-        const baseAndSpent = Math.max(0, Number(baseValue) || 0);
         const flatBonus = Number(bonus.flat) || 0;
         const percentBonus = Number(bonus.percent) || 0;
-        const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
-        const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
-        const finalValue = baseWithFlat + percentGain;
+        const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
         finalStats[key] = Math.min(CORE_STAT_CAP, Math.max(0, finalValue));
     }
     

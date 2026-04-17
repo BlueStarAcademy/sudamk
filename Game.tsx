@@ -1612,7 +1612,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             // 전략바둑 AI 대국 포함: 모든 온라인 게임은 서버에서만 검증/반영
             actionType = 'PLACE_STONE'; 
-            payload.isHidden = gameStatus === 'hidden_placing';
+            const activeHiddenPlacement =
+                gameStatus === 'hidden_placing' &&
+                typeof session.itemUseDeadline === 'number' &&
+                session.itemUseDeadline > Date.now();
+            payload.isHidden = activeHiddenPlacement;
             // 클라이언트의 boardState와 moveHistory를 서버로 전송하여 정확한 검증 가능하도록 함
             payload.boardState = restoredBoardState || session.boardState;
             payload.moveHistory = session.moveHistory || [];
@@ -1806,7 +1810,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else {
                 // 온라인 게임(전략바둑 AI 대국 포함): 서버에서 검증/반영
                 actionType = 'PLACE_STONE';
-                payload.isHidden = gameStatus === 'hidden_placing';
+                const activeHiddenPlacement =
+                    gameStatus === 'hidden_placing' &&
+                    typeof session.itemUseDeadline === 'number' &&
+                    session.itemUseDeadline > Date.now();
+                payload.isHidden = activeHiddenPlacement;
                 payload.boardState = restoredBoardState || session.boardState;
                 payload.moveHistory = session.moveHistory || [];
             }

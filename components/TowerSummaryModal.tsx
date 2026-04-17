@@ -133,7 +133,7 @@ const ScoreDetailsComponent: React.FC<{
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.black.deadStones ?? 0}</span></div>
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.black.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.black.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{scoreDetails.black.timeBonus.toFixed(1)}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
                     <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
@@ -144,7 +144,7 @@ const ScoreDetailsComponent: React.FC<{
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">덤</span> <span className="tabular-nums">{scoreDetails.white.komi}</span></div>
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.white.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.white.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{scoreDetails.white.timeBonus.toFixed(1)}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
                     <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>

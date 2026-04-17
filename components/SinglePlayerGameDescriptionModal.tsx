@@ -26,7 +26,7 @@ import {
     RESULT_MODAL_BOX_ITEM_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
-import TowerItemShopModal from './TowerItemShopModal.js';
+import TowerItemShopModal, { towerShopItemIdFromSlotKey } from './TowerItemShopModal.js';
 import {
     isOnboardingTutorialActive,
     ONBOARDING_PREGAME_DESC_STEP_EVENT,
@@ -112,6 +112,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const contentMeasureRef = useRef<HTMLDivElement>(null);
     const [frameHeight, setFrameHeight] = useState(780);
     const [towerShopOpen, setTowerShopOpen] = useState(false);
+    const [towerShopInitialItemId, setTowerShopInitialItemId] = useState<string | undefined>(undefined);
     const [pregameDescSubStep, setPregameDescSubStep] = useState(-1);
 
     useEffect(() => {
@@ -305,7 +306,15 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 summary={summaryFour}
                 singleColumn={isCompactUi}
                 briefLayout
-                onTowerItemZeroClick={canOpenTowerShop ? () => setTowerShopOpen(true) : undefined}
+                onTowerItemZeroClick={
+                    canOpenTowerShop
+                        ? (slotKey: string) => {
+                              const id = towerShopItemIdFromSlotKey(slotKey);
+                              setTowerShopInitialItemId(id);
+                              setTowerShopOpen(true);
+                          }
+                        : undefined
+                }
                 embedOnboardingSpotlightTargets={onboardingPhase5Active}
             />
         </div>
@@ -370,7 +379,11 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             <div className="fixed inset-0 z-[220]">
                 <TowerItemShopModal
                     currentUser={currentUser!}
-                    onClose={() => setTowerShopOpen(false)}
+                    initialSelectedItemId={towerShopInitialItemId}
+                    onClose={() => {
+                        setTowerShopOpen(false);
+                        setTowerShopInitialItemId(undefined);
+                    }}
                     onBuy={onTowerItemPurchase!}
                 />
             </div>,

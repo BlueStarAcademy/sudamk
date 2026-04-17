@@ -18,6 +18,7 @@ import { runGuildBossBattle } from '../../utils/guildBossSimulator.js';
 import { getCurrentGuildBossStage, scaleGuildBossForStage } from '../../utils/guildBossStageUtils.js';
 import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js';
 import { calculateTotalStats, calculateUserEffects } from '../../utils/statUtils.js';
+import { computeCoreStatFinalFromBonuses } from '../../shared/utils/coreStatComposition.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
@@ -157,10 +158,7 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
             const baseValue = baseWithSpent[key];
             const flatBonus = equipmentOnlyEffects.coreStatBonuses[key].flat;
             const percentBonus = equipmentOnlyEffects.coreStatBonuses[key].percent;
-            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
-            const baseWithFlat = Math.max(0, baseAndSpent + (Number(flatBonus) || 0));
-            const percentGain = Math.floor(baseWithFlat * ((Number(percentBonus) || 0) / 100));
-            const finalValue = baseWithFlat + percentGain;
+            const finalValue = computeCoreStatFinalFromBonuses(baseValue, Number(flatBonus) || 0, Number(percentBonus) || 0);
             bonuses[key] = finalValue - baseValue;
         }
         return bonuses;

@@ -113,7 +113,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>사석:</span> <span>{scoreDetails.black.deadStones ?? 0}</span></div>
                     {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.black.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.black.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{scoreDetails.black.timeBonus.toFixed(1)}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
                     <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
@@ -124,7 +124,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>덤:</span> <span>{scoreDetails.white.komi}</span></div>
                     {isBaseMode && <div className="flex justify-between text-blue-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>베이스 보너스:</span> <span>{scoreDetails.white.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between text-purple-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>히든 보너스:</span> <span>{scoreDetails.white.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{scoreDetails.white.timeBonus.toFixed(1)}</span></div>}
+                    {isSpeedMode && <div className="flex justify-between text-green-300" style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span>시간 보너스:</span> <span>{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
                     <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}><span>총점:</span> <span className="text-amber-200">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>

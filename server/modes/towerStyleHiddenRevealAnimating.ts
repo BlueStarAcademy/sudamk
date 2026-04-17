@@ -1,0 +1,182 @@
+import * as types from '../../types/index.js';
+import * as db from '../db.js';
+import { resumeGameTimer } from './shared.js';
+import {
+    consumeOpponentPatternStoneIfAny,
+    stripPatternStonesAtConsumedIntersections,
+} from '../../shared/utils/patternStoneConsume.js';
+import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
+
+export type TowerStyleHiddenRevealPostTurnHook = (game: types.LiveGameSession, now: number) => Promise<void>;
+
+/**
+ * 도전의 탑 `updateTowerPlayerHiddenState`의 `hidden_reveal_animating` 분기와 동일한 처리.
+ * 싱글플레이·전략 AI·길드전(AI)·모험(AI) 등에서 재사용한다.
+ *
+ * @returns 애니 종료 시점을 처리했으면 true(호출측에서 break), 해당 없으면 false
+ */
+export const runTowerStyleHiddenRevealAnimatingIfDue = async (
+    game: types.LiveGameSession,
+    now: number,
+    options: { logPrefix: string; onPostTurnSwitch?: TowerStyleHiddenRevealPostTurnHook }
+): Promise<boolean> => {
+    if (game.gameStatus !== 'hidden_reveal_animating') return false;
+    if (!game.revealAnimationEndTime || now < game.revealAnimationEndTime) return false;
+
+    const { logPrefix, onPostTurnSwitch } = options;
+    const cap = game.pendingCapture;
+    const isAiTurnCancelled = (game as any).isAiTurnCancelledAfterReveal;
+
+    if (!cap) {
+        const pendingAiAfterUserHiddenReveal = (game as any).pendingAiMoveAfterUserHiddenFullReveal;
+        (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
+        game.animation = null;
+        game.gameStatus = 'playing';
+        game.revealAnimationEndTime = undefined;
+        game.pendingCapture = null;
+        (game as any).isAiTurnCancelledAfterReveal = undefined;
+        const cur = game.currentPlayer;
+        if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft !== undefined) {
+            const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            game[timeKey] = game.pausedTurnTimeLeft;
+            game.turnDeadline = now + (game[timeKey] ?? 0) * 1000;
+            game.turnStartTime = now;
+        } else {
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+        }
+        game.pausedTurnTimeLeft = undefined;
+        if (pendingAiAfterUserHiddenReveal) {
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('../socket.js');
+            const { updateGameCache } = await import('../gameCache.js');
+            updateGameCache(game);
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            const { makeAiMove } = await import('../aiPlayer.js');
+            setImmediate(() => {
+                makeAiMove(game)
+                    .then(async () => {
+                        try {
+                            updateGameCache(game);
+                            await db.saveGame(game);
+                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                        } catch (e: any) {
+                            console.error(`[${logPrefix}] AI move after user-hidden full reveal failed for ${game.id}:`, e?.message);
+                        }
+                    })
+                    .catch((err: any) => {
+                        console.error(`[${logPrefix}] makeAiMove after user-hidden full reveal failed for ${game.id}:`, err?.message);
+                    });
+            });
+            return true;
+        }
+        return true;
+    }
+
+    if (await applyPreserveDiscovererTurnIfPending(game, now, cap)) {
+        (game as any).isAiTurnCancelledAfterReveal = undefined;
+        return true;
+    }
+
+    game.gameStatus = 'playing';
+    const myPlayerEnum = cap.move.player;
+    resumeGameTimer(game, now, myPlayerEnum);
+
+    {
+        const myP = cap.move.player;
+        const opponentP = myP === types.Player.Black ? types.Player.White : types.Player.Black;
+        if (!game.justCaptured) game.justCaptured = [];
+        for (const stone of cap.stones) {
+            game.boardState[stone.y][stone.x] = types.Player.None;
+            const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
+            let moveIndex = -1;
+            for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                const m = game.moveHistory![i];
+                if (m.x === stone.x && m.y === stone.y) {
+                    moveIndex = i;
+                    break;
+                }
+            }
+            const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            const wasAiInitialHidden =
+                (game as any).aiInitialHiddenStone &&
+                (game as any).aiInitialHiddenStone.x === stone.x &&
+                (game as any).aiInitialHiddenStone.y === stone.y;
+            if (wasAiInitialHidden) (game as any).aiInitialHiddenStone = undefined;
+            let points = 1;
+            let wasHiddenForEntry = false;
+            if (isBaseStone) {
+                game.baseStoneCaptures[myP]++;
+                points = 5;
+            } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentP)) {
+                points = 2;
+            } else if (wasHidden || wasAiInitialHidden) {
+                game.hiddenStoneCaptures[myP] = (game.hiddenStoneCaptures[myP] || 0) + 1;
+                points = 5;
+                wasHiddenForEntry = true;
+            }
+            game.captures[myP] += points;
+            game.justCaptured.push({
+                point: stone,
+                player: opponentP,
+                wasHidden: wasHiddenForEntry || wasAiInitialHidden,
+                capturePoints: points,
+            });
+        }
+        stripPatternStonesAtConsumedIntersections(game);
+        if (cap.move && typeof cap.move.x === 'number' && typeof cap.move.y === 'number') {
+            game.boardState[cap.move.y][cap.move.x] = myP;
+        }
+        if (!game.newlyRevealed) game.newlyRevealed = [];
+        game.newlyRevealed.push(...cap.hiddenContributors.map(p => ({ point: p, player: myP })));
+    }
+
+    game.animation = null;
+    game.revealAnimationEndTime = undefined;
+    game.pendingCapture = null;
+    (game as any).isAiTurnCancelledAfterReveal = undefined;
+    (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
+
+    if (isAiTurnCancelled) {
+        game.gameStatus = 'playing';
+        if (game.settings?.timeLimit > 0 && game.pausedTurnTimeLeft != null) {
+            const aiTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+            (game as any)[aiTimeKey] = game.pausedTurnTimeLeft;
+        }
+        game.pausedTurnTimeLeft = undefined;
+        await db.saveGame(game);
+        const { broadcastToGameParticipants } = await import('../socket.js');
+        const { updateGameCache } = await import('../gameCache.js');
+        updateGameCache(game);
+        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+        const { makeAiMove } = await import('../aiPlayer.js');
+        setImmediate(() => {
+            makeAiMove(game)
+                .then(async () => {
+                    try {
+                        updateGameCache(game);
+                        await db.saveGame(game);
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                    } catch (e: any) {
+                        console.error(`[${logPrefix}] AI move after hidden reveal failed for ${game.id}:`, e?.message);
+                    }
+                })
+                .catch((err: any) => {
+                    console.error(`[${logPrefix}] makeAiMove after hidden reveal failed for ${game.id}:`, err?.message);
+                });
+        });
+        return true;
+    }
+
+    game.gameStatus = 'playing';
+    const playerWhoMoved = cap.move.player;
+    const nextPlayer = playerWhoMoved === types.Player.Black ? types.Player.White : types.Player.Black;
+    game.currentPlayer = nextPlayer;
+    game.pausedTurnTimeLeft = undefined;
+
+    if (onPostTurnSwitch) {
+        await onPostTurnSwitch(game, now);
+    }
+
+    return true;
+};

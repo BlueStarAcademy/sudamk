@@ -35,6 +35,7 @@ import {
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { isOnboardingTutorialActive, ONBOARDING_PHASE_COMPLETE } from '../shared/constants/onboardingTutorial.js';
+import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import {
     userMeetsGuildFeatureLevelRequirement,
     MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
@@ -1477,12 +1478,9 @@ const Profile: React.FC<ProfileProps> = () => {
             const spentStatPoints = currentUserWithStatus.spentStatPoints || {};
             const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
             const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
             const flatBonus = Number(bonusInfo.flat) || 0;
             const percentBonus = Number(bonusInfo.percent) || 0;
-            const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
-            const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
-            const finalValue = baseWithFlat + percentGain;
+            const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
             finalByStat[stat] = isNaN(finalValue) ? 0 : finalValue;
             baseByStat[stat] = baseValue;
         }

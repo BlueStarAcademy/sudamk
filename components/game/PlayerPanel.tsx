@@ -47,7 +47,9 @@ const CapturedStones: React.FC<{
     isMobile?: boolean;
     /** 컬링: 라운드·남은 스톤을 점수 박스 안에 함께 표시 */
     curlingMeta?: CurlingScoreBoxMeta;
-}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta }) => {
+    /** false: 상단 패널 세로 스택 등 — 부모 높이를 채우지 않아 겹침 방지 */
+    fillStretchHeight?: boolean;
+}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta, fillStretchHeight = true }) => {
     const displayCount = typeof target === 'number' && target > 0 ? `${count}/${target}` : `${count}`;
     const isDiceGo = mode === GameMode.Dice;
     const isCurling = mode === GameMode.Curling && curlingMeta != null;
@@ -67,7 +69,8 @@ const CapturedStones: React.FC<{
     const diceSize = isMobile ? 'h-2.5 w-2.5' : 'w-[clamp(0.8rem,3vmin,1rem)] h-[clamp(0.8rem,3vmin,1rem)]';
     const marginClass = isCurling ? 'my-0' : isMobile ? 'my-0.5' : 'my-1';
 
-    const baseClasses = `flex shrink-0 flex-col items-center justify-center ${widthClass} rounded-lg shadow-lg border-2 ${paddingClass} text-center ${isCurling ? 'min-h-0 self-stretch' : 'h-full'}`;
+    const heightStretchClass = isCurling ? 'min-h-0 self-stretch' : fillStretchHeight ? 'h-full' : 'h-auto min-h-0';
+    const baseClasses = `flex shrink-0 flex-col items-center justify-center ${widthClass} rounded-lg shadow-lg border-2 ${paddingClass} text-center ${heightStretchClass}`;
     let colorClasses = '';
     let labelColor = 'text-gray-300';
     let countColor = 'text-white';
@@ -340,17 +343,22 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
 
     const avatarSize = isMobile ? 40 : 48;
     const nameTextSize = fluidTextLayout
-        ? 'text-[clamp(0.625rem,2.85vmin,0.8125rem)] min-[380px]:text-[clamp(0.6875rem,2.6vmin,0.875rem)]'
+        ? 'text-[clamp(0.5625rem,2.35vmin,0.8125rem)] min-[380px]:text-[clamp(0.625rem,2.15vmin,0.875rem)]'
         : isMobile
           ? 'text-sm'
           : 'text-[clamp(0.8rem,3vmin,1.125rem)]';
     const levelTextSize = fluidTextLayout
-        ? 'text-[clamp(0.5625rem,2.5vmin,0.6875rem)] min-[380px]:text-[clamp(0.625rem,2.2vmin,0.75rem)]'
+        ? 'text-[clamp(0.5rem,2.05vmin,0.6875rem)] min-[380px]:text-[clamp(0.5625rem,1.9vmin,0.75rem)]'
         : isMobile
           ? 'text-xs'
           : 'text-[clamp(0.6rem,2vmin,0.75rem)]';
     const timeTextSize = isMobile ? 'text-base' : 'text-[clamp(1rem,3.5vmin,1.25rem)]';
+    /** 좁은 상단 바: 타이머·승패가 닉네임과 겹치지 않도록 더 작게 */
+    const displayTimeTextSize =
+        fluidTextLayout && isMobile ? 'text-[clamp(0.625rem,2.35vmin,0.8125rem)]' : timeTextSize;
     const winLoseTextSize = isMobile ? 'text-xl' : 'text-2xl';
+    const displayWinLoseTextSize =
+        fluidTextLayout && isMobile ? 'text-base font-black' : `${winLoseTextSize} font-black`;
     const padding = isMobile ? 'p-1.5' : 'p-1';
     const gap = isMobile ? 'gap-1.5' : 'gap-2';
 
@@ -361,17 +369,51 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         ? ({ 'data-onboarding-target': 'onboarding-sp-ingame-user-panel' } as const)
         : {};
 
+    /** 네이티브 모바일만: 따낸 돌을 아래 줄로 (PC·좁은 창은 가로 패널 형태 유지) */
+    const stackScoreUnderPlayerInfo = fluidTextLayout && isMobile;
+    const rootLayoutClass = stackScoreUnderPlayerInfo
+        ? 'flex-col gap-1.5'
+        : `items-stretch ${gap} ${orderClass}`;
+    const scoreRowAlignClass = stackScoreUnderPlayerInfo ? (isLeft ? 'justify-end' : 'justify-start') : '';
+
+    const capturedStonesEl = (
+        <CapturedStones
+            count={score}
+            target={captureTarget}
+            panelType={panelType}
+            mode={mode}
+            isMobile={isMobile}
+            fillStretchHeight={!stackScoreUnderPlayerInfo}
+            curlingMeta={
+                isCurling
+                    ? {
+                          round: session.curlingRound || 1,
+                          totalRounds: session.settings.curlingRounds || 3,
+                          stonesLeft,
+                          totalStones,
+                      }
+                    : undefined
+            }
+        />
+    );
+
     return (
         <div
-            className={`relative flex min-w-0 items-stretch ${gap} flex-1 ${orderClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}
+            className={`relative flex min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}
             {...ingameOnboardingUserAttrs}
         >
             {showActiveBorderPulse && (
                 <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
             )}
-            <div className={`flex flex-col ${textAlignClass} flex-grow justify-between min-w-0`}>
+            <div
+                className={
+                    stackScoreUnderPlayerInfo
+                        ? `flex w-full shrink-0 min-h-0 flex-col gap-1.5 justify-start ${textAlignClass}`
+                        : `flex min-w-0 flex-1 basis-0 flex-col justify-between ${textAlignClass}`
+                }
+            >
                 <div
-                    className={`flex min-w-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
+                    className={`flex min-w-0 shrink-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
                 >
                     {opponentMonsterDisplay ? (
                         <div
@@ -388,15 +430,21 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     ) : (
                         <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                     )}
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 w-full flex-1 basis-0">
                         <div
-                            className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-wrap content-start gap-x-1 gap-y-0 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
+                            className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-nowrap items-baseline gap-x-1 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
                         >
-                            {!isLeft && isGameEnded && isWinner && <span className={`shrink-0 ${winLoseTextSize} font-black text-blue-400`}>승</span>}
-                            {!isLeft && isGameEnded && isLoser && <span className={`shrink-0 ${winLoseTextSize} font-black text-red-400`}>패</span>}
+                            {!isLeft && isGameEnded && isWinner && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                            )}
+                            {!isLeft && isGameEnded && isLoser && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                            )}
                             <h2
-                                className={`min-w-0 max-w-full font-bold leading-snug [overflow-wrap:anywhere] [word-break:keep-all] ${nameTextSize} ${finalNameClass} ${
-                                    fluidTextLayout ? 'w-full' : 'flex-1 truncate'
+                                className={`min-w-0 max-w-full font-bold leading-snug [writing-mode:horizontal-tb] break-words break-keep ${nameTextSize} ${finalNameClass} ${
+                                    stackScoreUnderPlayerInfo
+                                        ? 'line-clamp-2 block w-full overflow-hidden'
+                                        : 'flex-1 truncate'
                                 }`}
                                 title={nameTitle}
                             >
@@ -421,20 +469,24 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 )}
                                 {role ? ` (${role})` : ''}
                             </h2>
-                            {isLeft && isGameEnded && isWinner && <span className={`shrink-0 ${winLoseTextSize} font-black text-blue-400`}>승</span>}
-                            {isLeft && isGameEnded && isLoser && <span className={`shrink-0 ${winLoseTextSize} font-black text-red-400`}>패</span>}
+                            {isLeft && isGameEnded && isWinner && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
+                            )}
+                            {isLeft && isGameEnded && isLoser && (
+                                <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
+                            )}
                         </div>
                         <p
-                            className={`mt-0.5 max-w-full leading-snug [overflow-wrap:anywhere] [word-break:keep-all] ${levelTextSize} ${levelTextClasses} ${
-                                fluidTextLayout ? '' : 'truncate'
+                            className={`mt-0.5 max-w-full leading-snug [writing-mode:horizontal-tb] break-words break-keep ${levelTextSize} ${levelTextClasses} ${
+                                stackScoreUnderPlayerInfo ? 'line-clamp-2 overflow-hidden' : 'truncate'
                             }`}
-                            title={fluidTextLayout ? undefined : levelText}
+                            title={stackScoreUnderPlayerInfo ? undefined : levelText}
                         >
                             {levelText}
                         </p>
                     </div>
                 </div>
-                <div className={isMobile ? 'mt-0.5' : 'mt-1'}>
+                <div className={`shrink-0 min-w-0 w-full ${stackScoreUnderPlayerInfo ? '' : isMobile ? 'mt-0.5' : 'mt-1'}`}>
                     {useAdventureMatchCountdown && !isGameEnded && (
                         <>
                             <TimeBar
@@ -475,33 +527,35 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         />
                     )}
                     {(!useAdventureMatchCountdown && (showElapsedOnly ? isCurrentUser : true)) && (
-                    <div className={`flex items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-1`}>
+                    <div className={`flex flex-wrap items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-x-1 gap-y-0.5`}>
                         {showElapsedOnly ? (
-                            <span className={`font-mono font-bold ${timeTextClasses} ${timeTextSize}`}>{formatTime(timeLeft)}</span>
+                            <span className={`font-mono font-bold ${timeTextClasses} ${displayTimeTextSize}`}>{formatTime(timeLeft)}</span>
                         ) : (
                             <>
                                 <span
-                                    className={`font-mono font-bold ${
+                                    className={`min-w-0 font-mono font-bold ${
                                         isInByoyomi || (isFoulMode && timeLeft < 10)
                                             ? panelType === 'white'
                                                 ? 'text-red-800'
                                                 : 'text-red-400'
                                             : timeTextClasses
-                                    } ${timeTextSize}`}
+                                    } ${displayTimeTextSize}`}
                                 >
                                     {formatTime(timeLeft)}
                                 </span>
                                 {showByoyomiStatus && (
                                     <div
-                                        className={`flex items-center gap-1 ${isFoulMode ? 'text-red-300' : 'text-yellow-300'}`}
+                                        className={`flex shrink-0 items-center gap-1 ${isFoulMode ? 'text-red-300' : 'text-yellow-300'}`}
                                         title={isFoulMode ? `남은 기회 ${effectiveByoyomiPeriodsLeft}회` : undefined}
                                     >
                                         <img
                                             src="/images/icon/timer.png"
                                             alt={isFoulMode ? '남은 기회' : '초읽기'}
-                                            className={`object-contain ${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
+                                            className={`object-contain ${fluidTextLayout && isMobile ? 'h-4 w-4' : isMobile ? 'h-5 w-5' : 'h-4 w-4'}`}
                                         />
-                                        <span className={`font-semibold tabular-nums ${isMobile ? 'text-sm' : 'text-xs'}`}>
+                                        <span
+                                            className={`font-semibold tabular-nums ${fluidTextLayout && isMobile ? 'text-[11px]' : isMobile ? 'text-sm' : 'text-xs'}`}
+                                        >
                                             {effectiveByoyomiPeriodsLeft}
                                         </span>
                                     </div>
@@ -512,23 +566,11 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     )}
                 </div>
             </div>
-            <CapturedStones
-                count={score}
-                target={captureTarget}
-                panelType={panelType}
-                mode={mode}
-                isMobile={isMobile}
-                curlingMeta={
-                    isCurling
-                        ? {
-                              round: session.curlingRound || 1,
-                              totalRounds: session.settings.curlingRounds || 3,
-                              stonesLeft,
-                              totalStones,
-                          }
-                        : undefined
-                }
-            />
+            {stackScoreUnderPlayerInfo ? (
+                <div className={`flex w-full shrink-0 ${scoreRowAlignClass}`}>{capturedStonesEl}</div>
+            ) : (
+                capturedStonesEl
+            )}
         </div>
     );
 };
@@ -869,9 +911,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
               ? 'min-h-[5rem] w-[4.25rem]'
               : 'w-[4.5rem] sm:w-[4.75rem] md:w-[5.25rem] min-h-[4.25rem]';
 
+    /** 좁은 PC: 대국자 패널은 가로형·스트레치 유지 / 모바일만 상단 바 높이 자동 */
+    const compactBarMobileLayout = compactPlayerBar && isMobile;
     const playerColClass = compactPlayerBar
-        ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
+        ? compactBarMobileLayout
+            ? 'flex min-h-0 min-w-0 flex-1 items-start'
+            : 'flex min-h-0 min-w-0 flex-1 items-stretch'
         : 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
+    const compactBarRowClass = compactPlayerBar
+        ? compactBarMobileLayout
+            ? 'min-h-0 items-start justify-between gap-1.5'
+            : 'min-h-[4.5rem] items-stretch justify-between gap-1.5'
+        : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';
 
     const adventurePregameColorReveal =
         session.gameCategory === 'adventure' &&
@@ -880,7 +931,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     if (adventurePregameColorReveal) {
         return (
             <div
-                className={`flex w-full items-stretch ${compactPlayerBar ? 'min-h-[4.5rem] justify-between gap-1.5' : 'h-full gap-2 min-[1025px]:gap-1.5'} flex-shrink-0`}
+                className={`flex w-full ${compactBarRowClass} flex-shrink-0`}
             >
                 <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
                 <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
@@ -897,7 +948,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     return (
         <div
-            className={`flex w-full items-stretch ${compactPlayerBar ? 'min-h-[4.5rem] justify-between gap-1.5' : 'h-full gap-2 min-[1025px]:gap-1.5'} flex-shrink-0`}
+            className={`flex w-full ${compactBarRowClass} flex-shrink-0`}
             {...barHighlightAttrs}
         >
             <div className={playerColClass}>

@@ -327,6 +327,7 @@ export type ServerAction =
     | { type: 'START_TOURNAMENT_SESSION', payload: { type: TournamentType } }
     | { type: 'START_TOURNAMENT_ROUND', payload: { type: TournamentType } }
     | { type: 'START_TOURNAMENT_MATCH', payload: { type: TournamentType } }
+    | { type: 'SKIP_CHAMPIONSHIP_MATCH', payload: { type: TournamentType } }
     | { type: 'ADVANCE_TOURNAMENT_SIMULATION', payload: { type: TournamentType; timestamp: number } }
     | { type: 'COMPLETE_TOURNAMENT_SIMULATION', payload: { type: TournamentType; result: { timeElapsed: number; player1Score: number; player2Score: number; commentary: CommentaryLine[]; winnerId: string } } }
     | { type: 'CLEAR_TOURNAMENT_SESSION', payload: { type?: TournamentType } }

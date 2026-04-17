@@ -51,16 +51,16 @@ const planTowerAiHiddenTurns = (floor: number, hiddenCount: number): number[] =>
     return plannedTurns.sort((a, b) => a - b);
 };
 
-/** 층별 Kata 프로필 단계(1~7) → `KATA_SERVER_LEVEL_BY_PROFILE_STEP` */
+/** 층별 Kata 프로필 단계(2~8, 기존 대비 전 구간 +1) → `KATA_SERVER_LEVEL_BY_PROFILE_STEP` */
 const getTowerKataProfileStep = (floor: number): number => {
     const f = Math.max(1, Math.min(100, Math.floor(floor)));
-    if (f <= 10) return 1;
-    if (f <= 20) return 2;
-    if (f <= 35) return 3;
-    if (f <= 50) return 4;
-    if (f <= 80) return 5;
-    if (f <= 90) return 6;
-    return 7;
+    if (f <= 10) return 2;
+    if (f <= 20) return 3;
+    if (f <= 35) return 4;
+    if (f <= 50) return 5;
+    if (f <= 80) return 6;
+    if (f <= 90) return 7;
+    return 8;
 };
 
 const generateTowerBoard = (
@@ -149,7 +149,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 gameMode = GameMode.Standard;
             }
 
-            // 도전의 탑용 AI: 층별 Kata 프로필 1~7단계
+            // 도전의 탑용 AI: 층별 Kata 프로필 2~8단계(기존 1~7에서 +1)
             const kataProfileStep = getTowerKataProfileStep(floor);
             const kataServerLevel =
                 KATA_SERVER_LEVEL_BY_PROFILE_STEP[kataProfileStep] ?? KATA_SERVER_LEVEL_BY_PROFILE_STEP[1];

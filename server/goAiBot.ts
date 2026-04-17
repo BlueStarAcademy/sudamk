@@ -18,6 +18,11 @@ import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patter
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
 
+/** AI 히든 연출 직전에 확정한 Kata 좌표(DB/브로드캐스트에 넣지 않음 — 유저 유출 방지) */
+const pendingAiHiddenKataMoveByGameId = new Map<string, Point>();
+
+const hiddenKataCacheKey = (gameId: string | number | undefined): string => String(gameId ?? '');
+
 /** 모험·로비 AI 대국: 계가 전 마지막 착수가 화면에 반영되도록 */
 function isLobbyAiStrategicGoGame(game: types.LiveGameSession): boolean {
     return (
@@ -624,8 +629,9 @@ export function getGoAiBotProfile(level: number): GoAiBotProfile {
  */
 /** AI 대국에서 유저 히든을 AI에게 숨길지 여부 */
 function shouldMaskUserHiddenFromAi(game: types.LiveGameSession): boolean {
-    const isHiddenMode = game.mode === types.GameMode.Hidden ||
-        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const isHiddenMode =
+        game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Hidden));
     if (!isHiddenMode) return false;
 
     const category = (game as any).gameCategory;
@@ -650,8 +656,9 @@ function getMoveHistoryForAi(
     game: types.LiveGameSession,
     aiPlayerEnum: Player
 ): Array<{ x: number; y: number; player: number }> {
-    const isHiddenMode = game.mode === types.GameMode.Hidden ||
-        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const isHiddenMode =
+        game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Hidden));
     if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.moveHistory?.length) {
         return (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
     }
@@ -1009,6 +1016,88 @@ function findBestImmediateCaptureMove(
     return best;
 }
 
+/** AI 히든 아이템 연출 직전에 Kata 한 수를 미리 구한다. 연출 후 재질의 시 좌표가 달라지는 것을 막는다. */
+type PreSelectKataForAiHiddenItemResult =
+    | { status: 'move'; point: Point }
+    | { status: 'user_full_reveal_started' }
+    | { status: 'ended' };
+
+async function preSelectKataMoveForAiHiddenItem(
+    game: types.LiveGameSession,
+    kataLevel: number,
+    aiPlayerEnum: Player,
+    opponentPlayerEnum: Player,
+    now: number
+): Promise<PreSelectKataForAiHiddenItemResult> {
+    const isHiddenMode =
+        game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
+    const userPlayerEnumForHidden =
+        aiPlayerEnum === types.Player.White ? types.Player.Black : types.Player.White;
+    const maxKataHiddenRetries = 8;
+    let kataHiddenRevealCacheTag: string | undefined;
+    for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
+        const rawMoveHistory = useHiddenMask
+            ? getMoveHistoryForAi(game, aiPlayerEnum)
+            : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+        const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
+
+        const kataMove = await generateKataServerMove({
+            boardSize: game.settings.boardSize || 19,
+            player: aiPlayerEnum === types.Player.White ? 'white' : 'black',
+            moveHistory,
+            level: kataLevel,
+            komi: game.settings.komi,
+            gameId: game.id,
+            kataSessionTag: composeKataSessionTagForGame(game, kataHiddenRevealCacheTag),
+            allowPass: false,
+        });
+
+        if (kataMove.x === -1 && kataMove.y === -1) {
+            const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
+            const aiMoveHistoryForValid = useHiddenMask
+                ? getMoveHistoryForAi(game, aiPlayerEnum)
+                : (game.moveHistory || []);
+            const aiGameForValid: types.LiveGameSession = {
+                ...game,
+                boardState: aiBoardState,
+                moveHistory: aiMoveHistoryForValid as types.Move[],
+            };
+            const logicForValid = getGoLogic(aiGameForValid);
+            let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
+            if (useHiddenMask && validAfterKataPass.length > 0) {
+                validAfterKataPass = validAfterKataPass.filter(
+                    m => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum)
+                );
+            }
+            if (validAfterKataPass.length === 0) {
+                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                return { status: 'ended' };
+            }
+            throw new Error(
+                `[preSelectKataMoveForAiHiddenItem] Kata PASS while ${validAfterKataPass.length} masked legal moves exist (game=${game.id})`
+            );
+        }
+
+        const candidate = { x: kataMove.x, y: kataMove.y };
+        if (
+            useHiddenMask &&
+            isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, candidate.x, candidate.y, aiPlayerEnum)
+        ) {
+            if (startUserHiddenFullRevealAnimationForAi(game, userPlayerEnumForHidden, now)) {
+                return { status: 'user_full_reveal_started' };
+            }
+            revealAllUnrevealedHiddensForPlayerEnum(game, userPlayerEnumForHidden);
+            kataHiddenRevealCacheTag = bumpKataHiddenRevealCacheTag(game);
+            continue;
+        }
+
+        return { status: 'move', point: candidate };
+    }
+    throw new Error(`[preSelectKataMoveForAiHiddenItem] exhausted retries game=${game.id}`);
+}
+
 export async function makeGoAiBotMove(
     game: types.LiveGameSession,
     aiLevel: number
@@ -1042,6 +1131,15 @@ export async function makeGoAiBotMove(
         !game.isSinglePlayer &&
         (game as any).gameCategory !== 'tower' &&
         (game as any).gameCategory !== 'singleplayer';
+    const aiHiddenKey = getStrategicAiHiddenStonesKey(game, aiPlayerEnum);
+    if (isHiddenMode && isStrategicAiGame && (game as any)[aiHiddenKey] === undefined) {
+        const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
+        if (cap > 0) {
+            (game as any)[aiHiddenKey] = cap;
+        }
+    }
+    let aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
+    let shouldApplyHiddenOnThisMove = !!(game as any).pendingAiHiddenPlacement;
 
     // AI 히든 아이템 연출 진행 중에는 실제 착수를 하지 않고 대기한다.
     if (game.aiHiddenItemAnimationEndTime != null && now < game.aiHiddenItemAnimationEndTime) {
@@ -1053,81 +1151,79 @@ export async function makeGoAiBotMove(
         game.aiHiddenItemAnimationEndTime = undefined;
         game.animation = null;
         game.foulInfo = null;
-        const aiHiddenKey = getStrategicAiHiddenStonesKey(game, aiPlayerEnum);
-        const aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
-        if (aiHiddenLeft > 0 && isHiddenMode) {
-            const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-            const aiGameForMove: types.LiveGameSession = { ...game, boardState: aiBoardState };
-            const logic = getGoLogic(aiGameForMove);
-            const allValidMoves = findAllValidMoves(aiGameForMove, logic, aiPlayerEnum);
-            if (allValidMoves.length > 0) {
-                const shuffled = [...allValidMoves];
-                for (let i = shuffled.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    const t = shuffled[i];
-                    shuffled[i] = shuffled[j];
-                    shuffled[j] = t;
-                }
-                for (const hiddenMove of shuffled) {
-                    const result = processMove(
-                        game.boardState,
-                        { ...hiddenMove, player: aiPlayerEnum },
-                        game.koInfo,
-                        game.moveHistory.length
-                    );
-                    if (!result.isValid) continue;
-                    game.boardState = result.newBoardState;
-                    game.lastMove = { x: hiddenMove.x, y: hiddenMove.y };
-                    game.moveHistory.push({ player: aiPlayerEnum, x: hiddenMove.x, y: hiddenMove.y });
-                    game.koInfo = result.newKoInfo;
-                    game.passCount = 0;
-                    if (!game.hiddenMoves) game.hiddenMoves = {};
-                    game.hiddenMoves[game.moveHistory.length - 1] = true;
-                    (game as any)[aiHiddenKey] = aiHiddenLeft - 1;
-                    game.aiHiddenItemUsed = true;
-                    if (
-                        game.isSinglePlayer ||
-                        (game as any).gameCategory === 'tower' ||
-                        (game as any).gameCategory === 'adventure'
-                    ) {
-                        (game as any).aiInitialHiddenStone = { x: hiddenMove.x, y: hiddenMove.y };
-                        (game as any).aiInitialHiddenStoneIsPrePlaced = false;
-                        // 스캔 모드 진입 검사가 최신 상태를 보도록, saveGame 전에 캐시 즉시 갱신
-                        const { updateGameCache } = await import('./gameCache.js');
-                        updateGameCache(game);
-                    }
-                    if (game.isSinglePlayer && game.stageId) {
-                        const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-                        game.totalTurns = validMoves.length;
-                    }
+        // 연출 종료 후 "다음 착수는 히든으로 처리" 플래그를 영속 저장한다.
+        // (Kata 질의 실패/재시도에서도 히든 의도가 사라지지 않게)
+        (game as any).pendingAiHiddenPlacement = Boolean(isHiddenMode && aiHiddenLeft > 0);
+        shouldApplyHiddenOnThisMove = !!(game as any).pendingAiHiddenPlacement;
+    }
 
-                    const startedRevealAnimation = applyAiCaptureOutcome(
-                        game,
-                        result,
-                        hiddenMove,
-                        aiPlayerEnum,
-                        opponentPlayerEnum,
-                        isHiddenMode,
-                        true,
-                        now
-                    );
-                    if (startedRevealAnimation) {
-                        await db.saveGame(game);
-                        return;
-                    }
+    // 방어 로직: AI 착수 계산 시점에는 항상 본경기 상태로 정규화한다.
+    // (stale hidden_placing/scanning 잔류로 유저 턴 스캔 비활성·히든 오인 착수 방지)
+    const statusForRecovery = String(game.gameStatus || '');
+    if (statusForRecovery === 'hidden_placing' || statusForRecovery === 'scanning') {
+        game.gameStatus = 'playing';
+        game.itemUseDeadline = undefined;
+        game.pausedTurnTimeLeft = undefined;
+    }
 
-                    game.currentPlayer = opponentPlayerEnum;
-                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                        const nextTimeKey = opponentPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        const byoyomiKey = opponentPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                        const isFischer = isFischerStyleTimeControl(game as any);
-                        const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && game.settings.byoyomiCount > 0 && (game[byoyomiKey] ?? 0) > 0 && !isFischer;
-                        game.turnDeadline = isNextInByoyomi ? now + (game.settings.byoyomiTime ?? 30) * 1000 : now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
-                        game.turnStartTime = now;
-                    } else {
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
+    // 전략바둑 AI 히든 모드: AI 좌석의 hidden_stones_px / aiHiddenItemTurn 미설정 시 초기화
+    if (isHiddenMode && isStrategicAiGame) {
+        const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
+        if (cap > 0 && (game as any)[aiHiddenKey] === undefined) {
+            (game as any)[aiHiddenKey] = cap;
+            aiHiddenLeft = cap;
+        }
+        planStrategicAiHiddenTurns(game, (game as any)[aiHiddenKey] ?? aiHiddenLeft);
+    }
+
+    // AI 히든 아이템 사용 연출 시작 (실제 수는 다음 호출에서 히든으로 둠)
+    aiHiddenLeft = (game as any)[aiHiddenKey] ?? aiHiddenLeft;
+    const plannedAiHiddenTurns = isStrategicAiGame ? planStrategicAiHiddenTurns(game, aiHiddenLeft) : [];
+    const usedAiHiddenItems = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
+    const currentAiTurnIndex = getCurrentAiTurnIndex(game, aiPlayerEnum);
+    const nextPlannedAiHiddenTurn = plannedAiHiddenTurns[usedAiHiddenItems];
+    const shouldUseStrategicAiHiddenItem = isStrategicAiGame && nextPlannedAiHiddenTurn === currentAiTurnIndex;
+
+    if (!isKataServerAvailable()) {
+        throw new Error(
+            `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). game=${game.id}`
+        );
+    }
+
+    const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
+    const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
+    const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
+    const configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
+    const resolvedKataLevel = configuredKataLevel ?? (DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12);
+    if (process.env.NODE_ENV === 'development') {
+        console.log(
+            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel}`
+        );
+    }
+
+    // 연출 직후(이번 틱에 shouldApplyHiddenOnThisMove)에는 여기 들어오면 안 됨:
+    // pending 캐시를 지우고 Kata를 다시 돌려 연출 전·후 좌표가 달라지는 버그가 난다.
+    if (
+        isHiddenMode &&
+        !shouldApplyHiddenOnThisMove &&
+        (shouldUseStrategicAiHiddenItem ||
+            (!game.aiHiddenItemUsed && game.aiHiddenItemTurn != null && totalTurns >= game.aiHiddenItemTurn))
+    ) {
+        const appliesToAi = game.isSinglePlayer || (game as any).gameCategory === 'tower' || isStrategicAiGame;
+        if (aiHiddenLeft > 0 && appliesToAi) {
+            (game as any).pendingAiHiddenPlacement = false;
+
+            // 연출 전에 Kata 좌표를 확정 → 연출 후에는 같은 자리에만 히든으로 둔다(재질의로 좌표가 바뀌지 않음).
+            pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+            try {
+                const pre = await preSelectKataMoveForAiHiddenItem(
+                    game,
+                    resolvedKataLevel,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    now
+                );
+                if (pre.status === 'user_full_reveal_started') {
                     await db.saveGame(game);
                     const { broadcastToGameParticipants } = await import('./socket.js');
                     const gameToBroadcast = { ...game };
@@ -1135,31 +1231,31 @@ export async function makeGoAiBotMove(
                     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
                     return;
                 }
+                if (pre.status === 'ended') {
+                    return;
+                }
+                if (pre.status === 'move') {
+                    const pm = processMove(
+                        game.boardState,
+                        { ...pre.point, player: aiPlayerEnum },
+                        game.koInfo,
+                        game.moveHistory.length
+                    );
+                    if (pm.isValid) {
+                        pendingAiHiddenKataMoveByGameId.set(hiddenKataCacheKey(game.id), { x: pre.point.x, y: pre.point.y });
+                    } else {
+                        console.warn(
+                            `[makeGoAiBotMove] Pre-selected Kata move invalid before AI hidden animation; will re-query after animation game=${game.id} (${pre.point.x},${pre.point.y})`
+                        );
+                    }
+                }
+            } catch (e: any) {
+                console.error(
+                    `[makeGoAiBotMove] Pre-Kata before AI hidden item failed game=${game.id}:`,
+                    e?.message ?? e
+                );
             }
-        }
-    }
 
-    // 전략바둑 AI 히든 모드: AI 좌석의 hidden_stones_px / aiHiddenItemTurn 미설정 시 초기화
-    const aiHiddenKey = getStrategicAiHiddenStonesKey(game, aiPlayerEnum);
-    if (isHiddenMode && isStrategicAiGame) {
-        const cap = (game.settings as any)?.hiddenStoneCount ?? 0;
-        if (cap > 0 && (game as any)[aiHiddenKey] === undefined) {
-            (game as any)[aiHiddenKey] = cap;
-        }
-        planStrategicAiHiddenTurns(game, (game as any)[aiHiddenKey] ?? cap);
-    }
-
-    // AI 히든 아이템 사용 연출 시작 (실제 수는 다음 호출에서 히든으로 둠)
-    const aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
-    const plannedAiHiddenTurns = isStrategicAiGame ? planStrategicAiHiddenTurns(game, aiHiddenLeft) : [];
-    const usedAiHiddenItems = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
-    const currentAiTurnIndex = getCurrentAiTurnIndex(game, aiPlayerEnum);
-    const nextPlannedAiHiddenTurn = plannedAiHiddenTurns[usedAiHiddenItems];
-    const shouldUseStrategicAiHiddenItem = isStrategicAiGame && nextPlannedAiHiddenTurn === currentAiTurnIndex;
-
-    if (isHiddenMode && (shouldUseStrategicAiHiddenItem || (!game.aiHiddenItemUsed && (game.aiHiddenItemTurn != null && totalTurns >= game.aiHiddenItemTurn)))) {
-        const appliesToAi = game.isSinglePlayer || (game as any).gameCategory === 'tower' || isStrategicAiGame;
-        if (aiHiddenLeft > 0 && appliesToAi) {
             if (isStrategicAiGame) {
                 (game as any).aiHiddenItemsUsedCount = usedAiHiddenItems + 1;
             }
@@ -1225,23 +1321,28 @@ export async function makeGoAiBotMove(
     
     let selectedMove: Point | null = null;
 
-    if (!isKataServerAvailable()) {
-        throw new Error(
-            `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). game=${game.id}`
+    const cachedHiddenKata = pendingAiHiddenKataMoveByGameId.get(hiddenKataCacheKey(game.id));
+    if (
+        shouldApplyHiddenOnThisMove &&
+        cachedHiddenKata &&
+        Number.isInteger(cachedHiddenKata.x) &&
+        Number.isInteger(cachedHiddenKata.y)
+    ) {
+        const trial = processMove(
+            game.boardState,
+            { x: cachedHiddenKata.x, y: cachedHiddenKata.y, player: aiPlayerEnum },
+            game.koInfo,
+            game.moveHistory.length
         );
-    }
-
-    // 호출부(aiPlayer 등)는 프로필 단계(1~10)를 넘긴다.
-    // 단, 게임 생성 시 settings.kataServerLevel이 이미 확정되어 있으면 그 값을 우선 사용한다.
-    const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
-    const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
-    const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
-    const configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
-    const resolvedKataLevel = configuredKataLevel ?? (DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12);
-    if (process.env.NODE_ENV === 'development') {
-        console.log(
-            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel}`
-        );
+        if (trial.isValid) {
+            selectedMove = { x: cachedHiddenKata.x, y: cachedHiddenKata.y };
+            // Map은 히든 착수 확정 블록(아래)에서 삭제 — 여기서 지우면 이후 분기에서 좌표가 바뀔 수 있음
+        } else {
+            pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+            console.warn(
+                `[makeGoAiBotMove] Cached AI-hidden Kata move no longer valid; re-querying Kata game=${game.id} (${cachedHiddenKata.x},${cachedHiddenKata.y})`
+            );
+        }
     }
 
     const isSpOrTowerPve = isSinglePlayerOrTowerPve(game);
@@ -1390,6 +1491,9 @@ export async function makeGoAiBotMove(
         
         // AI가 유저의 히든 돌 위에 착점을 시도하는 경우
         if (isTargetHiddenOpponentStone) {
+            if (shouldApplyHiddenOnThisMove) {
+                pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+            }
             if (startUserHiddenFullRevealAnimationForAi(game, opponentPlayerEnum, now)) {
                 console.warn(
                     `[makeGoAiBotMove] Kata chose (${x},${y}) on unrevealed user hidden — full reveal animation then AI move (game=${game.id})`
@@ -1510,6 +1614,9 @@ export async function makeGoAiBotMove(
         game.moveHistory.length
     );
     if (!result.isValid) {
+        if (shouldApplyHiddenOnThisMove) {
+            pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+        }
         // 마스킹된 유저 히든이 있는 판에서 Kata가 해당 좌표를 고른 경우:
         // 전체 공개 연출 후 같은 턴에 재질의하도록 전이한다.
         if (
@@ -1540,8 +1647,25 @@ export async function makeGoAiBotMove(
     game.boardState = result.newBoardState;
     game.lastMove = { x: selectedMove.x, y: selectedMove.y };
     game.moveHistory.push({ player: aiPlayerEnum, x: selectedMove.x, y: selectedMove.y });
+    if (shouldApplyHiddenOnThisMove) {
+        if (!game.hiddenMoves) game.hiddenMoves = {};
+        game.hiddenMoves[game.moveHistory.length - 1] = true;
+        if (aiHiddenLeft > 0) {
+            (game as any)[aiHiddenKey] = aiHiddenLeft - 1;
+            aiHiddenLeft -= 1;
+        }
+        // AI 히든 착수 직후 클라이언트/서버가 동일 좌표를 즉시 참조할 수 있도록 공통 표식 유지.
+        // (전략 AI 대국에서도 스캔 활성 조건의 폴백으로 사용)
+        (game as any).aiInitialHiddenStone = { x: selectedMove.x, y: selectedMove.y };
+        (game as any).aiInitialHiddenStoneIsPrePlaced = false;
+        (game as any).pendingAiHiddenPlacement = false;
+        pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+    }
     game.koInfo = result.newKoInfo;
     game.passCount = 0;
+    game.gameStatus = 'playing';
+    game.itemUseDeadline = undefined;
+    game.pausedTurnTimeLeft = undefined;
     
     // 싱글플레이 턴 카운팅 업데이트 (AI가 수를 둘 때도 카운팅)
     // 히든돌이 moveHistory에 추가되지 않은 경우를 고려하여 실제 유효한 수만 카운팅
@@ -1558,7 +1682,7 @@ export async function makeGoAiBotMove(
         aiPlayerEnum,
         opponentPlayerEnum,
         !!isHiddenMode,
-        false,
+        shouldApplyHiddenOnThisMove,
         now
     );
     if (startedRevealAnimation) {

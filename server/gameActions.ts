@@ -1052,6 +1052,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type === 'USE_CONDITION_POTION' || 
         type === 'BUY_CONDITION_POTION' ||
         type === 'START_TOURNAMENT_MATCH' || 
+        type === 'SKIP_CHAMPIONSHIP_MATCH' ||
         type === 'START_TOURNAMENT_ROUND' ||
         type === 'ENTER_TOURNAMENT_VIEW' || 
         type === 'LEAVE_TOURNAMENT_VIEW' ||

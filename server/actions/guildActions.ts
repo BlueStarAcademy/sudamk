@@ -29,6 +29,7 @@ import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
+import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../../shared/constants/vipPlayReward.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
@@ -2247,6 +2248,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     ? getAiUserForGuildWar(gameMode, boardId)
                     : getAiUser(gameMode);
             
+            // 길드전 9칸: 모드별 Kata 프로필 단계(→ kataServerLevel) — 따내기 3, 히든 7, 미사일 5
+            const guildWarKataProfileStep =
+                normalizedBoardMode === 'capture' ? 3 : normalizedBoardMode === 'hidden' ? 7 : 5;
+            const guildWarKataServerLevel =
+                KATA_SERVER_LEVEL_BY_PROFILE_STEP[guildWarKataProfileStep] ??
+                KATA_SERVER_LEVEL_BY_PROFILE_STEP[3];
+
             // 게임 설정
             const gameSettings = {
                 boardSize: board.boardSize || getGuildWarBoardLineSize(boardId),
@@ -2255,8 +2263,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 byoyomiTime: 0,
                 byoyomiCount: 0,
                 timeIncrement: GUILD_WAR_FISCHER_INCREMENT_SECONDS,
-                aiDifficulty: 3, // 길드전은 전략바둑 AI 3단계
-                goAiBotLevel: 3,
+                aiDifficulty: guildWarKataProfileStep,
+                goAiBotLevel: guildWarKataProfileStep,
+                kataServerLevel: guildWarKataServerLevel,
             };
             
             // 게임 모드별 추가 설정

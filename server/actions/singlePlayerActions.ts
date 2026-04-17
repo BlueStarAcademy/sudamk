@@ -385,7 +385,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game.settings.timeIncrement = enforcedIncrement;
             }
 
-            // 싱글플레이 스피드: 초기 시간 설정 (시간 보너스 20 - 사용초/5 적용을 위해 blackInitialTimeLeft 등 설정)
+            // 싱글플레이 스피드: 초기 시간 설정 (시간 보너스 floor((180-사용초)/10) 계산을 위해 blackInitialTimeLeft 등 설정)
             // 비스피드: 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시)
             if (isSpeedMode) {
                 const initialSec = enforcedMainTimeMinutes * 60;

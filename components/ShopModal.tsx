@@ -403,6 +403,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 '장비 합성 대성공 확률 +10% (최대 100%)',
                 '장비 분해 대박 확률 +10%',
                 '재료 분해/합성 대박 확률 +10%',
+                '챔피언십 경기 SKIP 기능',
             ],
         },
         {

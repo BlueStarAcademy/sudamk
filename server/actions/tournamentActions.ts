@@ -16,6 +16,7 @@ import { broadcast } from '../socket.js';
 import { createDefaultQuests } from '../initialData.js';
 import { getCachedUser, updateUserCache } from '../gameCache.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
+import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 
 
 type HandleActionResult = { 
@@ -995,6 +996,108 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             broadcast({ type: 'USER_UPDATE', payload: { [freshUser.id]: updatedUserCopy } });
 
             // 클라이언트가 즉시 경기 진행 상태를 반영할 수 있도록 updatedUser 반환 (경기 시작 버튼 반응 보장)
+            return { clientResponse: { redirectToTournament: type, updatedUser: updatedUserCopy } };
+        }
+
+        case 'SKIP_CHAMPIONSHIP_MATCH': {
+            const { type } = payload as { type: TournamentType };
+            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
+            if (!champGate.ok) return { error: champGate.error };
+
+            const freshUser = await db.getUser(user.id);
+            if (!freshUser) return { error: 'User not found in DB.' };
+            updateUserCache(freshUser);
+
+            if (!isFunctionVipActive(freshUser)) {
+                return { error: '기능 VIP 또는 VVIP이 활성화된 경우에만 사용할 수 있습니다.' };
+            }
+
+            let stateKey: keyof User;
+            switch (type) {
+                case 'neighborhood': stateKey = 'lastNeighborhoodTournament'; break;
+                case 'national': stateKey = 'lastNationalTournament'; break;
+                case 'world': stateKey = 'lastWorldTournament'; break;
+                default: return { error: 'Invalid tournament type.' };
+            }
+
+            const tournamentState = (freshUser as any)[stateKey] as types.TournamentState | null;
+            if (!tournamentState) return { error: '토너먼트 정보를 찾을 수 없습니다.' };
+
+            const skipRes = await tournamentService.instantSkipChampionshipDungeonMatch(tournamentState, freshUser);
+            if (skipRes.error) return { error: skipRes.error };
+
+            if (!volatileState.activeTournaments) volatileState.activeTournaments = {};
+            volatileState.activeTournaments[freshUser.id] = tournamentState;
+
+            const justFinished = tournamentState.status === 'complete' || tournamentState.status === 'eliminated';
+            if (justFinished) {
+                let statusKey: keyof User;
+                switch (type) {
+                    case 'neighborhood':
+                        statusKey = 'neighborhoodRewardClaimed';
+                        break;
+                    case 'national':
+                        statusKey = 'nationalRewardClaimed';
+                        break;
+                    case 'world':
+                        statusKey = 'worldRewardClaimed';
+                        break;
+                    default:
+                        statusKey = 'neighborhoodRewardClaimed';
+                }
+
+                const alreadyClaimed = (freshUser as any)[statusKey];
+                if (!alreadyClaimed) {
+                    const { calculateRanks } = await import('../tournamentService.js');
+                    const { TOURNAMENT_SCORE_REWARDS } = await import('../../constants.js');
+
+                    try {
+                        const rankings = calculateRanks(tournamentState);
+                        const userRanking = rankings.find(r => r.id === freshUser.id);
+
+                        if (userRanking) {
+                            const userRank = userRanking.rank;
+                            const scoreRewardInfo = TOURNAMENT_SCORE_REWARDS[type];
+                            let scoreRewardKey: number;
+
+                            if (type === 'neighborhood') {
+                                scoreRewardKey = userRank;
+                            } else if (type === 'national') {
+                                scoreRewardKey = userRank <= 4 ? userRank : 5;
+                            } else {
+                                if (userRank <= 4) scoreRewardKey = userRank;
+                                else if (userRank <= 8) scoreRewardKey = 5;
+                                else scoreRewardKey = 9;
+                            }
+
+                            const scoreReward = scoreRewardInfo[scoreRewardKey];
+                            if (scoreReward !== undefined) {
+                                const oldCumulativeScore = freshUser.cumulativeTournamentScore || 0;
+                                freshUser.cumulativeTournamentScore = oldCumulativeScore + scoreReward;
+                                const oldScore = freshUser.tournamentScore || 0;
+                                freshUser.tournamentScore = oldScore + scoreReward;
+                                console.log(`[SKIP_CHAMPIONSHIP_MATCH] Auto-added score for ${type}: rank=${userRank}, scoreReward=${scoreReward}`);
+                            }
+                        }
+                    } catch (error: any) {
+                        console.error(`[SKIP_CHAMPIONSHIP_MATCH] Error calculating ranks for auto-score:`, error);
+                    }
+                }
+            }
+
+            updateUserCache(freshUser);
+            if (justFinished) {
+                await db.updateUser(freshUser);
+            } else {
+                db.updateUser(freshUser).catch(err => {
+                    console.error(`[SKIP_CHAMPIONSHIP_MATCH] Failed to save user ${freshUser.id}:`, err);
+                });
+            }
+
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(freshUser, ['lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament']);
+
+            const updatedUserCopy = JSON.parse(JSON.stringify(freshUser));
             return { clientResponse: { redirectToTournament: type, updatedUser: updatedUserCopy } };
         }
 

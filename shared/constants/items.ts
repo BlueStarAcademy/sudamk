@@ -421,13 +421,13 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
     bottom: {
         isPercentage: false,
         options: {
-            normal:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 8 },
-            uncommon: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 12 },
-            rare:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 16 },
-            epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 20 },
-            legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 24 },
-            mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 30 },
-            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 33 },
+            normal:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 5 },
+            uncommon: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 7 },
+            rare:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 9 },
+            epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 12 },
+            legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 14 },
+            mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 17 },
+            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.Judgment, CoreStat.Calculation, CoreStat.ThinkingSpeed], value: 19 },
         }
     },
     stones: {

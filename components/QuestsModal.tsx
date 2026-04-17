@@ -659,25 +659,23 @@ const ActivityPanel: React.FC<{
                                 className={`relative ${iconClass} rounded-lg border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed ${canClaim ? 'ring-1 ring-amber-400/40 shadow-[0_0_16px_-6px_rgba(251,191,36,0.55)]' : ''}`}
                                 title={isClaimed ? '수령 완료' : progressMet ? '보상 수령' : `${milestone} 활약도 필요`}
                             >
-                                {apBadge ? (
-                                    <div
-                                        className={`relative flex h-full w-full flex-col items-center justify-center rounded-md bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
-                                        aria-label={`${milestone} 활약도 보상 행동력 회복제`}
-                                    >
-                                        <span className="text-2xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-hidden>
-                                            ⚡
-                                        </span>
+                                <div
+                                    className={`relative h-full w-full rounded-md ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
+                                    aria-label={
+                                        apBadge ? `${milestone} 활약도 보상 행동력 회복제` : `${milestone} 활약도 보상`
+                                    }
+                                >
+                                    <img
+                                        src={itemImage}
+                                        alt=""
+                                        className="h-full w-full object-contain p-0.5"
+                                    />
+                                    {apBadge ? (
                                         <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
                                             {apBadge}
                                         </span>
-                                    </div>
-                                ) : (
-                                    <img
-                                        src={itemImage}
-                                        alt={`${milestone} 활약도 보상`}
-                                        className={`h-full w-full object-contain ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
-                                    />
-                                )}
+                                    ) : null}
+                                </div>
                                 {isClaimed && (
                                     <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/65 text-sm text-emerald-400">
                                         ✓

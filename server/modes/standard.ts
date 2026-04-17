@@ -22,6 +22,13 @@ import {
 } from '../../shared/utils/patternStoneConsume.js';
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
+import {
+    skipPendingCaptureForAdventureHiddenReveal,
+    shouldPreserveDiscovererTurnAfterOpponentHiddenReveal,
+    treatAsPveLikeForHiddenOpponentReveal,
+    useAiInitialHiddenCellTracking,
+    useAiInitialHiddenSyntheticCaptureHistory,
+} from './hiddenRevealPolicy.js';
 
 /** 모험 히든: 유저 히든이 따냄/따임 연출에 포함되면 같은 턴에 유저의 나머지 미공개 히든도 모두 완전 공개 */
 function adventureRevealAllHumanHiddensIfInvolved(
@@ -83,8 +90,9 @@ const syncAdventureEncounterDeadlineDuringMonsterTurn = (game: types.LiveGameSes
 
     if (isMonsterTurn) {
         let frozen = (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY];
-        if (typeof frozen !== 'number' || !Number.isFinite(frozen)) {
-            frozen = Math.max(0, deadline - now);
+        if (typeof frozen !== 'number' || !Number.isFinite(frozen) || frozen <= 0) {
+            const inferred = deadline - now;
+            frozen = inferred > 0 ? Math.max(1000, inferred) : 120_000;
             (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY] = frozen;
         }
         (game as any).adventureEncounterDeadlineMs = now + frozen;
@@ -711,6 +719,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
 
             const { x, y, isHidden, boardState: clientBoardState, moveHistory: clientMoveHistory } = payload;
+            const isHiddenPlacementActive =
+                game.gameStatus === 'hidden_placing' &&
+                typeof (game as any).itemUseDeadline === 'number' &&
+                (game as any).itemUseDeadline > now;
+            const effectiveIsHidden = !!isHidden && isHiddenPlacementActive;
             
             // 치명적 버그 방지: 패 위치(-1, -1)에 PLACE_STONE을 보내는 것을 차단
             // (클라이언트 AI 패스는 PASS_TURN 액션으로 처리)
@@ -733,8 +746,13 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             let serverBoardState = game.boardState;
             let serverMoveHistory = game.moveHistory;
             
-            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
-                // 싱글플레이, 도전의 탑, 전략바둑 AI 대국에서는 서버의 실제 boardState를 사용
+            if (
+                game.isSinglePlayer ||
+                game.gameCategory === 'tower' ||
+                game.isAiGame ||
+                (game as any).gameCategory === 'guildwar'
+            ) {
+                // 싱글플레이, 도전의 탑, 길드전, 전략바둑 AI 대국에서는 서버의 실제 boardState를 사용
                 const { getLiveGame } = await import('../db.js');
                 const freshGame = await getLiveGame(game.id);
                 if (freshGame) {
@@ -746,21 +764,24 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             // 범위 체크 후에만 boardState에 접근
             const stoneAtTarget = serverBoardState[y][x];
             
-            // 싱글플레이/도전의 탑/AI 대국은 서버 boardState를 우선 사용한다.
-            if (game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame) {
+            // 싱글플레이/도전의 탑/길드전/AI 대국은 서버 boardState를 우선 사용한다.
+            if (
+                game.isSinglePlayer ||
+                game.gameCategory === 'tower' ||
+                game.isAiGame ||
+                (game as any).gameCategory === 'guildwar'
+            ) {
                 game.boardState = serverBoardState;
                 game.moveHistory = serverMoveHistory;
             }
             // PVP: 클라이언트 boardState를 덮어쓰지 않으므로 game.boardState는 캐시(서버) 상태 유지.
             // 낙관적 업데이트로 이미 둔 수를 보내면 finalStoneCheck에서 거절되어 턴이 안 넘어가는 버그 방지.
 
-            // 싱글/탑/모험: AI 히든 아이템으로 둔 미공개 돌(aiInitialHiddenStone) 위에 착수 시 공개 연출
-            const useAiInitialHiddenTracking =
-                game.isSinglePlayer ||
-                game.gameCategory === 'tower' ||
-                game.gameCategory === 'adventure';
+            // 전략 AI 대기실 히든: goAiBot이 aiInitialHiddenStone을 두지만, 예전에는 여기서 추적 제외 →
+            // 유저가 그 칸을 찍어도 히든 공개 분기로 안 들어가거나 aiInitialHiddenStone이 안 지워져 턴/AI가 꼬일 수 있음.
+            const aiInitialHiddenCellTracking = useAiInitialHiddenCellTracking(game);
             const isAiInitialHiddenStone =
-                useAiInitialHiddenTracking &&
+                aiInitialHiddenCellTracking &&
                 (game as any).aiInitialHiddenStone &&
                 (game as any).aiInitialHiddenStone.x === x &&
                 (game as any).aiInitialHiddenStone.y === y &&
@@ -815,6 +836,12 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (!game.permanentlyRevealedStones.some(p => p.x === x && p.y === y)) {
                     game.permanentlyRevealedStones.push({ x, y });
                 }
+                // AI 초기 히든 표시 좌표가 공개되었으면 즉시 추적 상태를 정리한다.
+                // (클라에서 잠깐 내 돌에 히든 문양이 붙는 현상 방지)
+                if (isAiInitialHiddenStone) {
+                    (game as any).aiInitialHiddenStone = undefined;
+                    (game as any).aiInitialHiddenStoneIsPrePlaced = false;
+                }
 
                 const tempBoardState = (game.boardState || []).map((row: types.Player[]) => [...row]);
                 if (tempBoardState[y] && tempBoardState[y][x] !== undefined) {
@@ -822,8 +849,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
 
                 const moveAttempt = { x, y, player: myPlayerEnum };
-                const treatAsPveLike =
-                    game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame;
+                const treatAsPveLike = treatAsPveLikeForHiddenOpponentReveal(game);
                 const simResult = processMove(
                     tempBoardState,
                     moveAttempt,
@@ -847,19 +873,38 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.itemUseDeadline = undefined;
 
                 // 모험: 상대 히든 위 착수 시도는 전체 공개·문양 유지만 하고 수·턴은 바꾸지 않음(유효 따냄이어도 동일)
-                const adventureHiddenRevealOnly =
-                    game.gameCategory === types.GameCategory.Adventure;
+                const adventureHiddenRevealOnly = skipPendingCaptureForAdventureHiddenReveal(game);
 
+                // 유효한 포획(히든 1점만 따낸 경우 포함): tempBoard에서 히든 칸을 비운 뒤 processMove라
+                // capturedStones가 비어 있어도 착수·보드 반영은 반드시 pendingCapture로 이어져야 한다.
                 if (simResult?.isValid && !adventureHiddenRevealOnly) {
+                    const extraCaptures = simResult.capturedStones || [];
+                    const preserveDiscovererTurnPve = shouldPreserveDiscovererTurnAfterOpponentHiddenReveal(game);
+                    const boardStateBeforeReveal = preserveDiscovererTurnPve
+                        ? (game.boardState || []).map((row: types.Player[]) => [...row])
+                        : undefined;
+                    const koInfoBeforeReveal = preserveDiscovererTurnPve
+                        ? JSON.parse(JSON.stringify(game.koInfo ?? null))
+                        : undefined;
+                    const passCountBeforeReveal = preserveDiscovererTurnPve ? (game.passCount ?? 0) : undefined;
+
                     game.pendingCapture = {
-                        stones: [{ x, y }, ...(simResult.capturedStones || [])],
+                        stones: [{ x, y }, ...extraCaptures],
                         move: moveAttempt,
                         hiddenContributors: [{ x, y }],
+                        ...(preserveDiscovererTurnPve
+                            ? {
+                                  preserveDiscovererTurn: true,
+                                  boardStateBeforeReveal,
+                                  koInfoBeforeReveal,
+                                  passCountBeforeReveal,
+                              }
+                            : {}),
                     } as any;
 
                     game.boardState = simResult.newBoardState;
                     game.boardState[y][x] = opponentPlayerEnum;
-                    for (const s of simResult.capturedStones || []) {
+                    for (const s of extraCaptures) {
                         game.boardState[s.y][s.x] = opponentPlayerEnum;
                     }
 
@@ -906,7 +951,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
             
-            if (isHidden) {
+            if (effectiveIsHidden) {
                 // 히든 아이템 개수 확인 및 감소 (스캔 아이템처럼)
                 const hiddenKey = user.id === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
                 const currentHidden = game[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
@@ -978,11 +1023,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 for (const key of capturingGroupPoints) {
                     const [nx, ny] = key.split(',').map(Number);
                     const isCurrentMove = nx === x && ny === y;
-                    let isHiddenStone = isCurrentMove ? isHidden : false;
+                    let isHiddenStone = isCurrentMove ? effectiveIsHidden : false;
                     if (!isCurrentMove) {
                         const moveIndex = game.moveHistory.findIndex(m => m.x === nx && m.y === ny);
                         isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        if (!isHiddenStone && useAiInitialHiddenTracking && (game as any).aiInitialHiddenStone) {
+                        if (!isHiddenStone && useAiInitialHiddenCellTracking && (game as any).aiInitialHiddenStone) {
                             const aiHidden = (game as any).aiInitialHiddenStone;
                             isHiddenStone = nx === aiHidden.x && ny === aiHidden.y &&
                                 !game.permanentlyRevealedStones?.some(p => p.x === nx && p.y === ny);
@@ -1010,7 +1055,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             }
             
             // AI 초기 히든돌이 따내진 경우 확인
-            if (useAiInitialHiddenTracking && (game as any).aiInitialHiddenStone) {
+            if (useAiInitialHiddenSyntheticCaptureHistory && (game as any).aiInitialHiddenStone) {
                 const aiHidden = (game as any).aiInitialHiddenStone;
                 const isCaptured = result.capturedStones.some(s => s.x === aiHidden.x && s.y === aiHidden.y);
                 if (isCaptured) {
@@ -1048,7 +1093,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 game.lastMove = { x, y };
                 game.lastTurnStones = null;
                 game.moveHistory.push(move);
-                if (isHidden) {
+                if (effectiveIsHidden) {
                     if (!game.hiddenMoves) game.hiddenMoves = {};
                     game.hiddenMoves[game.moveHistory.length - 1] = true;
                 }
@@ -1077,7 +1122,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
 
             game.boardState = result.newBoardState;
             // 히든 착수 시 lastMove를 갱신하지 않음 (새로고침 후 마지막 수 표시가 히든 돌 위치로 겹치는 버그 방지)
-            if (!isHidden) {
+            if (!effectiveIsHidden) {
                 game.lastMove = { x, y };
             }
             game.lastTurnStones = null;
@@ -1085,7 +1130,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
             game.koInfo = result.newKoInfo;
             game.passCount = 0;
 
-            if (isHidden) {
+            if (effectiveIsHidden) {
                 if (!game.hiddenMoves) game.hiddenMoves = {};
                 game.hiddenMoves[game.moveHistory.length - 1] = true;
             }

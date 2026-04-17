@@ -7,6 +7,9 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import { useAiInitialHiddenCellTracking, useTowerStyleHiddenRevealAnimatingResolution } from './hiddenRevealPolicy.js';
+import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
+import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -28,6 +31,17 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
         (game as any).gameCategory !== 'singleplayer' &&
         (game as any).gameCategory !== 'guildwar';
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
+
+    // 방어 로직: 아이템 모드인데 deadline이 없으면 상태가 영구 고착될 수 있다.
+    // (스캔 비활성/일반 착수 히든 오인 등의 연쇄 버그 방지)
+    if (isItemMode && !game.itemUseDeadline) {
+        game.gameStatus = 'playing';
+        game.itemUseDeadline = undefined;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+        game.pausedTurnTimeLeft = undefined;
+        return;
+    }
 
     if (isItemMode && game.itemUseDeadline && now > game.itemUseDeadline) {
         // Item use timed out. 아이템 소멸하고 턴 유지
@@ -69,6 +83,12 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
             }
             break;
         case 'hidden_reveal_animating':
+            if (useTowerStyleHiddenRevealAnimatingResolution(game)) {
+                await runTowerStyleHiddenRevealAnimatingIfDue(game, now, {
+                    logPrefix: 'updateHiddenState',
+                });
+                break;
+            }
             if (game.revealAnimationEndTime && now >= game.revealAnimationEndTime) {
                 const cap = game.pendingCapture;
                 // 히든 돌만 공개(따냄 없음): 상대가 내 히든 위에 두려 한 경우 — 타이머만 재개
@@ -105,31 +125,14 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     }
                     game.pausedTurnTimeLeft = undefined;
                     if (pendingAiAfterUserHiddenReveal && game.isAiGame) {
+                        // 즉시 makeAiMove를 강제 호출하면 AI 락 경합으로 스킵되는 케이스가 있어
+                        // 메인 루프가 안정적으로 처리하도록 AI 턴 시작 시각만 설정한다.
+                        game.aiTurnStartTime = now;
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('../socket.js');
                         const { updateGameCache } = await import('../gameCache.js');
                         updateGameCache(game);
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                        const { makeAiMove } = await import('../aiPlayer.js');
-                        setImmediate(() => {
-                            makeAiMove(game).then(async () => {
-                                try {
-                                    updateGameCache(game);
-                                    await db.saveGame(game);
-                                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                                } catch (e: any) {
-                                    console.error(
-                                        `[updateHiddenState] AI move after user-hidden full reveal failed for ${game.id}:`,
-                                        e?.message
-                                    );
-                                }
-                            }).catch((err: any) => {
-                                console.error(
-                                    `[updateHiddenState] makeAiMove after user-hidden full reveal failed for ${game.id}:`,
-                                    err?.message
-                                );
-                            });
-                        });
                         return;
                     }
                     break;
@@ -137,9 +140,13 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 {
                     const myPlayerEnum = cap.move.player;
                     const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-        
+
+                    if (await applyPreserveDiscovererTurnIfPending(game, now, cap)) {
+                        break;
+                    }
+
                     if (!game.justCaptured) game.justCaptured = [];
-        
+
                     for (const stone of cap.stones) {
                         game.boardState[stone.y][stone.x] = types.Player.None; // Remove stone from board
         
@@ -153,8 +160,11 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                             }
                         }
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        const wasAiInitialHidden = (game.isSinglePlayer || isStrategicAiGame) && (game as any).aiInitialHiddenStone &&
-                            (game as any).aiInitialHiddenStone.x === stone.x && (game as any).aiInitialHiddenStone.y === stone.y;
+                        const wasAiInitialHidden =
+                            useAiInitialHiddenCellTracking(game) &&
+                            (game as any).aiInitialHiddenStone &&
+                            (game as any).aiInitialHiddenStone.x === stone.x &&
+                            (game as any).aiInitialHiddenStone.y === stone.y;
                         
                         let points = 1;
                         let wasHiddenForEntry = false;

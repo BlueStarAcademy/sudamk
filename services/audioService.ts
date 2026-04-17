@@ -3,6 +3,7 @@
 import type { SoundSettings } from '../types.js';
 import { defaultSettings } from '../hooks/useAppSettings.js';
 import { API_BASE_URL, getApiUrl } from '../utils/apiConfig.js';
+import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 
 /** HTML5 autoplay 잠금 해제·풀 워밍업용 초단무음 WAV (data URI) */
 const SILENT_WAV_DATA_URI =
@@ -29,8 +30,18 @@ class AudioService {
     /** 동일 URL 동시 디코드 방지 */
     private bufferLoads = new Map<string, Promise<AudioBuffer | null>>();
     private preloadStarted = false;
-    /** Express/Vite 정적 경로와 일치: `server.ts`의 `app.use('/sounds', ... public/sounds)` */
-    private soundsPath = '/sounds/';
+    /**
+     * 브라우저가 요청할 공개 사운드 경로 (`public/sound` → 서버·프록시는 URL `/sounds/*`로 제공).
+     * `import.meta.env.BASE_URL` 반영: 서브경로 배포·모바일 웹뷰에서 `/sounds`만 쓰면 로컬/404로 잡히는 문제 방지.
+     */
+    private getBrowserSoundPath(soundName: string): string {
+        return resolvePublicUrl(`sounds/${soundName}.mp3`);
+    }
+
+    /** API 호스트에만 사운드가 있을 때(백엔드는 항상 `/sounds/...` 마운트) */
+    private getApiSoundPath(soundName: string): string {
+        return `/sounds/${soundName}.mp3`.replace(/\/{2,}/g, '/');
+    }
     private settings: SoundSettings = defaultSettings.sound;
     private html5AudioUnlocked = false;
     /** Android WebView·앱플레이어: 매번 `new Audio()`는 재생 거절되는 경우가 많아, 제스처 직후 워밍업한 풀에서 꺼내 씀 */
@@ -243,20 +254,30 @@ class AudioService {
     }
 
     /**
-     * 통합 배포·PWA·Capacitor: `/sounds/*.mp3` 가 페이지와 같은 출처에 있으면 절대 URL로 고정해 fetch·Audio 가 동일 키를 쓴다.
-     * API 전용 호스트에만 사운드가 있으면 getApiUrl 유지.
+     * 통합 배포·PWA·Capacitor: `BASE_URL` 반영 경로를 `location.href` 기준 절대 URL로 고정해 fetch·HTML5 Audio가
+     * 동일 출처를 쓰도록 한다. (`origin`만 쓰면 서브경로·일부 WebView에서 잘못된 호스트로 해석되는 경우가 있음)
      */
     private getSameOriginSoundUrl(soundName: string): string {
-        const path = `${this.soundsPath}${soundName}.mp3`.replace(/\/{2,}/g, '/');
+        const path = this.getBrowserSoundPath(soundName);
         if (typeof window === 'undefined') return path;
-        return new URL(path, window.location.origin).href;
+        try {
+            return new URL(path, window.location.href).href;
+        } catch {
+            return path;
+        }
     }
 
     private getSoundUrl(soundName: string): string {
-        const path = `${this.soundsPath}${soundName}.mp3`.replace(/\/{2,}/g, '/');
-        const viaApi = getApiUrl(path);
+        const publicPath = this.getBrowserSoundPath(soundName);
+        const apiPath = this.getApiSoundPath(soundName);
+        const viaApi = getApiUrl(apiPath);
         if (typeof window === 'undefined') return viaApi;
-        const sameOrigin = new URL(path, window.location.origin).href;
+        let sameOrigin: string;
+        try {
+            sameOrigin = new URL(publicPath, window.location.href).href;
+        } catch {
+            sameOrigin = publicPath;
+        }
         const resolved = this.resolvedSoundUrlByName.get(soundName);
         if (resolved) return resolved;
 

@@ -41,6 +41,7 @@ import {
 const ONBOARDING_RING_CLASS = 'onboarding-spotlight-ring';
 
 type HoleFraction = { top: number; left: number; right: number; bottom: number };
+type PanelPlacement = 'top' | 'middle' | 'bottom';
 
 function measureHoleFraction(targetId: OnboardingSpotlightTargetId, root: HTMLElement): HoleFraction | null {
     const el = document.querySelector(`[data-onboarding-target="${targetId}"]`) as HTMLElement | null;
@@ -83,8 +84,13 @@ const OnboardingTutorialOverlay: React.FC = () => {
     const [tutorialCompleteRewards, setTutorialCompleteRewards] = useState<{ gold: number; diamonds: number } | null>(
         null,
     );
+    const [panelDragOffset, setPanelDragOffset] = useState({ x: 0, y: 0 });
+    const [panelDragging, setPanelDragging] = useState(false);
     const prevOnboardingPhaseRef = useRef<number | null>(null);
     const phase8HomeAdvanceLock = useRef(false);
+    const panelRef = useRef<HTMLDivElement | null>(null);
+    const dragPointerIdRef = useRef<number | null>(null);
+    const dragOriginRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
 
     const active = isOnboardingTutorialActive(currentUserWithStatus);
     const phase = currentUserWithStatus?.onboardingTutorialPhase ?? 0;
@@ -492,9 +498,102 @@ const OnboardingTutorialOverlay: React.FC = () => {
         };
     }, [active, phase, phase6IngameSubStep, currentRoute.view]);
 
-    if (!active) return null;
+    useEffect(() => {
+        setPanelDragOffset({ x: 0, y: 0 });
+        setPanelDragging(false);
+        dragPointerIdRef.current = null;
+        dragOriginRef.current = null;
+    }, [phase, spotlightId, currentRoute.view, isHandheld, isNativeMobile]);
 
     const mount = typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') : null;
+
+    const dragEnabled = isHandheld || isNativeMobile;
+    const spotlightCenterY = hole ? hole.top + (100 - hole.top - hole.bottom) / 2 : null;
+    const panelPlacement: PanelPlacement =
+        !dragEnabled || spotlightCenterY == null
+            ? 'bottom'
+            : spotlightCenterY <= 33
+              ? 'bottom'
+              : spotlightCenterY >= 66
+                ? 'top'
+                : 'middle';
+
+    const panelContainerStyle: React.CSSProperties =
+        !dragEnabled
+            ? { marginTop: 'auto', transform: `translate3d(${panelDragOffset.x}px, ${panelDragOffset.y}px, 0)` }
+            : panelPlacement === 'top'
+              ? {
+                    top: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+                    left: '50%',
+                    transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), ${panelDragOffset.y}px, 0)`,
+                }
+              : panelPlacement === 'middle'
+                ? {
+                      top: '50%',
+                      left: '50%',
+                      transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), calc(-50% + ${panelDragOffset.y}px), 0)`,
+                  }
+                : {
+                      bottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+                      left: '50%',
+                      transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), ${panelDragOffset.y}px, 0)`,
+                  };
+
+    const clampPanelOffset = useCallback((nextX: number, nextY: number) => {
+        const el = panelRef.current;
+        if (!el) return { x: nextX, y: nextY };
+        const rect = el.getBoundingClientRect();
+        const maxX = Math.max(0, window.innerWidth / 2 - rect.width / 2 - 8);
+        const maxY = Math.max(0, window.innerHeight / 2 - rect.height / 2 - 8);
+        return {
+            x: Math.max(-maxX, Math.min(maxX, nextX)),
+            y: Math.max(-maxY, Math.min(maxY, nextY)),
+        };
+    }, []);
+
+    const onPanelPointerDown = useCallback(
+        (ev: React.PointerEvent<HTMLDivElement>) => {
+            if (!dragEnabled) return;
+            if (ev.button !== 0) return;
+            dragPointerIdRef.current = ev.pointerId;
+            dragOriginRef.current = {
+                x: ev.clientX,
+                y: ev.clientY,
+                offsetX: panelDragOffset.x,
+                offsetY: panelDragOffset.y,
+            };
+            setPanelDragging(true);
+            ev.currentTarget.setPointerCapture?.(ev.pointerId);
+        },
+        [dragEnabled, panelDragOffset.x, panelDragOffset.y],
+    );
+
+    useEffect(() => {
+        if (!panelDragging) return;
+        const onMove = (ev: PointerEvent) => {
+            if (dragPointerIdRef.current !== ev.pointerId) return;
+            const origin = dragOriginRef.current;
+            if (!origin) return;
+            const next = clampPanelOffset(origin.offsetX + (ev.clientX - origin.x), origin.offsetY + (ev.clientY - origin.y));
+            setPanelDragOffset(next);
+        };
+        const onUp = (ev: PointerEvent) => {
+            if (dragPointerIdRef.current !== ev.pointerId) return;
+            dragPointerIdRef.current = null;
+            dragOriginRef.current = null;
+            setPanelDragging(false);
+        };
+        window.addEventListener('pointermove', onMove);
+        window.addEventListener('pointerup', onUp);
+        window.addEventListener('pointercancel', onUp);
+        return () => {
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+            window.removeEventListener('pointercancel', onUp);
+        };
+    }, [panelDragging, clampPanelOffset]);
+
+    if (!active) return null;
     if (!mount) return null;
 
     const mainPanelVisible =
@@ -683,15 +782,28 @@ const OnboardingTutorialOverlay: React.FC = () => {
             )}
 
             <div
-                className="relative z-[2] flex w-full justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] pt-2 sm:px-5 sm:pb-4"
-                style={{ marginTop: 'auto' }}
+                className="pointer-events-none absolute inset-0 z-[2] px-3 pt-2 sm:px-5 sm:pt-3"
             >
                 <div
-                    className="pointer-events-auto w-full max-w-lg rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5"
+                    ref={panelRef}
+                    className="pointer-events-auto absolute w-[min(100%,32rem)] rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5"
+                    style={panelContainerStyle}
                     role="dialog"
                     aria-modal="false"
                     aria-labelledby="onboarding-tutorial-title"
                 >
+                    {dragEnabled && (
+                        <div
+                            className={`mb-2 flex touch-none select-none items-center justify-center rounded-lg border border-white/10 bg-black/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-200/80 ${
+                                panelDragging ? 'cursor-grabbing' : 'cursor-grab'
+                            }`}
+                            onPointerDown={onPanelPointerDown}
+                            aria-label="튜토리얼 창 이동"
+                            title="드래그하여 위치 이동"
+                        >
+                            이동
+                        </div>
+                    )}
                     <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">
                         튜토리얼
                     </p>

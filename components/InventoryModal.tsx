@@ -7,6 +7,7 @@ import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_S
 
 import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
+import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { ONBOARDING_INTRO1_FAN_ITEM_ID } from '../shared/constants/onboardingTutorial.js';
 import {
@@ -1446,8 +1447,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 const spentStatPoints = currentUser.spentStatPoints || {};
                                                 const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
                                                 const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-                                                const bonus = Math.floor(baseValue * (bonusInfo.percent / 100)) + bonusInfo.flat;
-                                                const finalValue = baseValue + bonus;
+                                                const flatBonus = Number(bonusInfo.flat) || 0;
+                                                const percentBonus = Number(bonusInfo.percent) || 0;
+                                                const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
+                                                const bonus = finalValue - baseValue;
                                                 return (
                                                     <div key={stat} className="flex items-center justify-between rounded-md bg-tertiary/40 p-1" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
                                                         <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
@@ -1887,8 +1890,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     const spentStatPoints = currentUser.spentStatPoints || {};
                                     const baseValue = (baseStats[stat] || 0) + (spentStatPoints[stat] || 0);
                                     const bonusInfo = coreStatBonuses[stat] || { percent: 0, flat: 0 };
-                                    const bonus = Math.floor(baseValue * (bonusInfo.percent / 100)) + bonusInfo.flat;
-                                    const finalValue = baseValue + bonus;
+                                    const flatBonus = Number(bonusInfo.flat) || 0;
+                                    const percentBonus = Number(bonusInfo.percent) || 0;
+                                    const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
+                                    const bonus = finalValue - baseValue;
                                     return (
                                         <div
                                             key={stat}

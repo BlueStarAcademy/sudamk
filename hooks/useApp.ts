@@ -1372,13 +1372,6 @@ export const useApp = () => {
                     [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0),
                 };
 
-                // hidden_placing 상태에서의 수라면 클라이언트에서도 히든 돌로 표시
-                const wasHiddenPlacing = game.gameStatus === 'hidden_placing';
-                const nextMoveIndex = (game.moveHistory?.length || 0);
-                const updatedHiddenMoves = wasHiddenPlacing
-                    ? { ...(game.hiddenMoves || {}), [nextMoveIndex]: true }
-                    : game.hiddenMoves;
-
                 const updatedGame: LiveGameSession = {
                     ...game,
                     boardState: newBoardState,
@@ -1387,9 +1380,10 @@ export const useApp = () => {
                     moveHistory: [...(game.moveHistory || []), { x, y, player: movePlayer }],
                     captures: newCaptures,
                     currentPlayer: movePlayer === Player.Black ? Player.White : Player.Black,
-                    hiddenMoves: updatedHiddenMoves,
-                    // 히든 아이템 사용 후에는 playing 상태로 복원 (서버와 동일하게)
-                    gameStatus: wasHiddenPlacing ? 'playing' : game.gameStatus,
+                    hiddenMoves: game.hiddenMoves,
+                    gameStatus: 'playing',
+                    itemUseDeadline: undefined,
+                    pausedTurnTimeLeft: undefined,
                 };
                 return { ...currentGames, [gameId]: updatedGame };
             });
@@ -2703,6 +2697,7 @@ export const useApp = () => {
                         'BUY_CONDITION_POTION',
                         'USE_CONDITION_POTION',
                         'BUY_BORDER',
+                        'BUY_TOWER_ITEM',
                         'ENHANCE_ITEM',
                         'DISASSEMBLE_ITEM',
                         'COMBINE_ITEMS',
@@ -3136,7 +3131,24 @@ export const useApp = () => {
                         return { ...currentGames, [rollGameId]: next };
                     });
                 }
-                if (effectiveGameId && (action.type === 'ACCEPT_NEGOTIATION' || action.type === 'START_AI_GAME' || action.type === 'START_ADVENTURE_MONSTER_BATTLE' || action.type === 'START_SINGLE_PLAYER_GAME' || action.type === 'START_TOWER_GAME' || action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'CONFIRM_AI_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
+                if (
+                    effectiveGameId &&
+                    (action.type === 'ACCEPT_NEGOTIATION' ||
+                        action.type === 'START_AI_GAME' ||
+                        action.type === 'START_ADVENTURE_MONSTER_BATTLE' ||
+                        action.type === 'START_SINGLE_PLAYER_GAME' ||
+                        action.type === 'START_TOWER_GAME' ||
+                        action.type === 'CONFIRM_TOWER_GAME_START' ||
+                        action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                        action.type === 'CONFIRM_AI_GAME_START' ||
+                        action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
+                        action.type === 'TOWER_REFRESH_PLACEMENT' ||
+                        action.type === 'TOWER_ADD_TURNS' ||
+                        action.type === 'START_SCANNING' ||
+                        action.type === 'START_HIDDEN_PLACEMENT' ||
+                        action.type === 'SCAN_BOARD' ||
+                        (action.type === 'BUY_TOWER_ITEM' && !!game))
+                ) {
                     console.log(`[handleAction] ${action.type} - gameId received:`, effectiveGameId, 'hasGame:', !!game, 'result keys:', Object.keys(result), 'clientResponse keys:', result.clientResponse ? Object.keys(result.clientResponse) : []);
                     
                     // 응답에 게임 데이터가 있으면 즉시 상태에 추가 (WebSocket 업데이트를 기다리지 않음)
@@ -3179,7 +3191,17 @@ export const useApp = () => {
                         } else if (isTowerGame) {
                             setTowerGames(currentGames => {
                                 // CONFIRM·배치변경·턴 추가·스캔/히든 아이템 사용 시 게임 상태가 바뀌었으므로 업데이트
-                                if (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'TOWER_REFRESH_PLACEMENT' || action.type === 'TOWER_ADD_TURNS' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || action.type === 'START_TOWER_GAME' || !currentGames[effectiveGameId]) {
+                                if (
+                                    action.type === 'CONFIRM_TOWER_GAME_START' ||
+                                    action.type === 'TOWER_REFRESH_PLACEMENT' ||
+                                    action.type === 'TOWER_ADD_TURNS' ||
+                                    action.type === 'START_SCANNING' ||
+                                    action.type === 'START_HIDDEN_PLACEMENT' ||
+                                    action.type === 'SCAN_BOARD' ||
+                                    action.type === 'START_TOWER_GAME' ||
+                                    action.type === 'BUY_TOWER_ITEM' ||
+                                    !currentGames[effectiveGameId]
+                                ) {
                                     console.log('[handleAction] Updating tower game:', effectiveGameId, 'gameStatus:', game.gameStatus, 'action type:', action.type, 'existing game status:', currentGames[effectiveGameId]?.gameStatus);
                                     const isRefresh = action.type === 'TOWER_REFRESH_PLACEMENT';
                                     let nextGame = isRefresh && game.boardState
@@ -3191,7 +3213,8 @@ export const useApp = () => {
                                         (action.type === 'START_HIDDEN_PLACEMENT' ||
                                             action.type === 'START_SCANNING' ||
                                             action.type === 'SCAN_BOARD' ||
-                                            action.type === 'TOWER_ADD_TURNS')
+                                            action.type === 'TOWER_ADD_TURNS' ||
+                                            action.type === 'BUY_TOWER_ITEM')
                                     ) {
                                         nextGame = mergeTowerServerGameWithClientBoardIfStale(nextGame, existingTower);
                                     }
@@ -5383,8 +5406,9 @@ export const useApp = () => {
                                         }
                                         updatedGames[gameId] = mergedGame;
 
-                                        // 전략바둑 대기실 그누고(AI) 수: 1초 지연 후 표시 (타워와 동일한 쾌적한 UX)
-                                        // 주사위/도둑 등 놀이바둑은 전략바둑 그누고 1초 지연을 쓰면 안 됨(턴·보드가 밀려 AI 차례처럼 보이는 현상)
+                                        // 전략바둑 AI(KATA 등) 수: 짧은 지연 후 표시 (바로 두면 연출·턴 표시가 어색함)
+                                        // 주사위/도둑 등 놀이바둑은 지연을 쓰지 않음
+                                        const STRATEGIC_AI_MOVE_DELAY_MS = 1000;
                                         const isDiceOrThiefPlayful =
                                             game.mode === GameMode.Dice || game.mode === GameMode.Thief;
                                         const isStrategicAiGame =
@@ -5392,21 +5416,7 @@ export const useApp = () => {
                                         const lastMove = (game.moveHistory as any[])?.[game.moveHistory.length - 1];
                                         const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
                                         const isNewAiMoveLive = isStrategicAiGame && hasNewMoves && lastMove?.player === aiPlayerEnum;
-                                        // 히든 바둑: AI 수를 1초 지연 적용하면 hiddenMoves·수순이 밀려 스캔 비활성·히든 문양 플리커가 난다 → 즉시 반영
-                                        const isHiddenStrategicLive =
-                                            game.mode === GameMode.Hidden ||
-                                            (game.mode === GameMode.Mix &&
-                                                Array.isArray((game.settings as any)?.mixedModes) &&
-                                                (game.settings as any).mixedModes.includes(GameMode.Hidden));
-                                        const lastIncomingIdx =
-                                            game.moveHistory?.length != null && game.moveHistory.length > 0
-                                                ? game.moveHistory.length - 1
-                                                : -1;
-                                        const lastIncomingMoveHidden =
-                                            lastIncomingIdx >= 0 &&
-                                            !!(game.hiddenMoves as Record<number, boolean> | undefined)?.[lastIncomingIdx];
-                                        const deferStrategicAiMoveForEffect =
-                                            isNewAiMoveLive && !isHiddenStrategicLive && !lastIncomingMoveHidden;
+                                        const deferStrategicAiMoveForEffect = isNewAiMoveLive;
                                         if (deferStrategicAiMoveForEffect) {
                                             if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
@@ -5417,7 +5427,7 @@ export const useApp = () => {
                                                 lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
                                                 liveGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
                                                 delete liveGameGnugoDelayTimeoutRef.current[gameId];
-                                            }, 1000);
+                                            }, STRATEGIC_AI_MOVE_DELAY_MS);
                                             return currentGames;
                                         }
 

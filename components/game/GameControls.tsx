@@ -1311,9 +1311,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         console.log('[GameControls] handleResign: Opening confirm modal');
         setConfirmModalType('resign'); 
     };
+    const staleHiddenPlacing =
+        gameStatus === 'hidden_placing' &&
+        !(typeof session.itemUseDeadline === 'number' && session.itemUseDeadline > Date.now());
+    const effectiveGameStatus = staleHiddenPlacing ? 'playing' : gameStatus;
     const handleUseItem = (item: 'hidden' | 'scan' | 'missile') => { 
         console.log('[GameControls] handleUseItem called', { item, gameStatus, gameId });
-        if (gameStatus !== 'playing') {
+        if (effectiveGameStatus !== 'playing') {
             console.log('[GameControls] handleUseItem: Game status is not playing', gameStatus);
             return;
         }
@@ -1350,18 +1354,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             typeof aiPt.y === 'number' &&
             aiPt.x >= 0 &&
             aiPt.y >= 0 &&
-            (session.gameCategory === 'adventure' || session.isSinglePlayer || session.gameCategory === 'tower')
+            (session.isAiGame || session.gameCategory === 'adventure' || session.isSinglePlayer || session.gameCategory === 'tower')
         ) {
             const revealed = session.permanentlyRevealedStones?.some((p) => p.x === aiPt.x && p.y === aiPt.y);
             if (revealed) return false;
-            const aiEnum =
-                session.blackPlayerId === aiUserId
-                    ? Player.Black
-                    : session.whitePlayerId === aiUserId
-                      ? Player.White
-                      : Player.None;
-            if (aiEnum !== Player.None && aiEnum === opponentPlayerEnum) return true;
+            return true;
         }
+        const aiHiddenUsed = !!(session as any).aiHiddenItemUsed;
+        const scannedByMe = !!(session as any).scannedAiInitialHiddenByUser?.[currentUser.id];
+        if (session.isAiGame && aiHiddenUsed && !scannedByMe) return true;
         return false;
     }, [
         session.hiddenMoves,
@@ -1371,7 +1372,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         session.isSinglePlayer,
         session.blackPlayerId,
         session.whitePlayerId,
+        session.isAiGame,
         opponentPlayerEnum,
+        currentUser.id,
+        (session as any).aiHiddenItemUsed,
+        (session as any).scannedAiInitialHiddenByUser,
         (session as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone,
     ]);
     
@@ -1404,7 +1409,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const buttons: React.ReactNode[] = [];
 
         if (isHiddenMode) {
-            const hiddenDisabled = !isMyTurn || isSpectator || gameStatus !== 'playing' || hiddenLeft <= 0;
+            const hiddenDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || hiddenLeft <= 0;
             buttons.push(
                 <LabeledControlButton
                     key="hidden"
@@ -1420,7 +1425,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             );
 
             const scansLeft = myScansLeft ?? 0;
-            const scanDisabled = !isMyTurn || isSpectator || gameStatus !== 'playing' || scansLeft <= 0 || !canScan;
+            const scanDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || scansLeft <= 0 || !canScan;
             const scanHighlightAdventure = session.gameCategory === 'adventure' && !scanDisabled;
             buttons.push(
                 <div
@@ -1448,7 +1453,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
         if (isMissileMode) {
             const missilesLeft = myMissilesLeft ?? 0;
-            const missileDisabled = !isMyTurn || isSpectator || gameStatus !== 'playing' || missilesLeft <= 0;
+            const missileDisabled = !isMyTurn || isSpectator || effectiveGameStatus !== 'playing' || missilesLeft <= 0;
             buttons.push(
                 <LabeledControlButton
                     key="missile"
@@ -1760,7 +1765,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             alt="히든"
                             title="히든 스톤 배치"
                             onClick={() => handleUseItem('hidden')}
-                            disabled={!isMyTurn || gameStatus !== 'playing' || hiddenLeft <= 0}
+                            disabled={!isMyTurn || effectiveGameStatus !== 'playing' || hiddenLeft <= 0}
                             count={hiddenLeft > 0 ? hiddenLeft : undefined}
                             compact={isMobile}
                         />
@@ -1774,7 +1779,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             alt="스캔"
                             title="상대 히든 스톤 탐지"
                             onClick={() => handleUseItem('scan')}
-                            disabled={!isMyTurn || gameStatus !== 'playing' || myScansLeft <= 0 || !canScan}
+                            disabled={!isMyTurn || effectiveGameStatus !== 'playing' || myScansLeft <= 0 || !canScan}
                             count={myScansLeft > 0 ? myScansLeft : undefined}
                             compact={isMobile}
                         />
@@ -1788,7 +1793,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             alt="미사일"
                             title="미사일 발사"
                             onClick={() => handleUseItem('missile')}
-                            disabled={!isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0}
+                            disabled={!isMyTurn || effectiveGameStatus !== 'playing' || myMissilesLeft <= 0}
                             count={myMissilesLeft > 0 ? myMissilesLeft : undefined}
                             compact={isMobile}
                         />

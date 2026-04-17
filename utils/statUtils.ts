@@ -2,6 +2,7 @@
 import type { User, Guild, MannerEffects, InventoryItem } from '../types/index.js';
 import { CoreStat, SpecialStat, MythicStat, GuildResearchId } from '../types/index.js';
 import { GUILD_RESEARCH_PROJECTS, ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/index.js';
+import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import { getMannerEffects } from './mannerUtils.js';
 
 // FIX: Add createDefaultBaseStats function and export it for shared use.
@@ -138,12 +139,9 @@ export const calculateTotalStats = (user: User, guild: Guild | null): Record<Cor
         const baseValue = baseWithSpent[key];
         const flatBonus = bonuses[key].flat;
         const percentBonus = bonuses[key].percent;
-        const baseAndSpent = Math.max(0, Number(baseValue) || 0);
         const flat = Number(flatBonus) || 0;
         const percent = Number(percentBonus) || 0;
-        const baseWithFlat = Math.max(0, baseAndSpent + flat);
-        const percentGain = Math.floor(baseWithFlat * (percent / 100));
-        const finalValue = baseWithFlat + percentGain;
+        const finalValue = computeCoreStatFinalFromBonuses(baseValue, flat, percent);
         finalStats[key] = Math.min(CORE_STAT_CAP, Math.max(0, finalValue));
     }
     

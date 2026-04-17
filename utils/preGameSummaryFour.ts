@@ -319,7 +319,11 @@ function mixScoreFactors(settings: GameSettings, mix: GameMode[]): string {
   return dedup.length ? dedup.join(' · ') : '모드 조합에 따름';
 }
 
-function mixSpecialHighlights(settings: GameSettings, mix: GameMode[]): PreGameSpecialHighlight[] {
+function mixSpecialHighlights(
+  settings: GameSettings,
+  mix: GameMode[],
+  includeFischerGuide: boolean = true
+): PreGameSpecialHighlight[] {
   const h: PreGameSpecialHighlight[] = [];
   const bs = defaultBaseStoneCount(settings);
   if (hasMix(mix, GameMode.Capture)) {
@@ -337,7 +341,7 @@ function mixSpecialHighlights(settings: GameSettings, mix: GameMode[]): PreGameS
   if (hasMix(mix, GameMode.Missile)) {
     h.push({ img: '/images/button/missile.png', text: '미사일로 돌 직선 이동' });
   }
-  if (hasMix(mix, GameMode.Speed)) {
+  if (hasMix(mix, GameMode.Speed) && includeFischerGuide) {
     h.push({ img: '/images/icon/timer.png', text: '피셔 시계 · 착수당 시간 가산 · 계가 시 시간 보너스' });
   }
   const auto = autoScoringLine(settings, GameMode.Mix, mix);
@@ -469,7 +473,7 @@ export function getPreGameSummaryFour(
       loseGoal: LOSE_MIX,
       scoreFactors: mixScoreFactors(settings, mix),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: mixSpecialHighlights(settings, mix),
+      specialHighlights: mixSpecialHighlights(settings, mix, !session.isAiGame),
       items: itemLine(settings, mode, mix),
       itemSlots: buildItemSlots(settings, GameMode.Mix, mix),
     };
@@ -497,9 +501,9 @@ export function getPreGameSummaryFour(
       loseGoal: autoLose ?? (auto ? LOSE_TERRITORY_AUTO(auto) : '계가 후 종합 점수가 낮으면 패배'),
       scoreFactors: territoryScoreParts(settings, mode, mix).join(' · '),
       timeRules: timeLine(settings, mode, mix),
-      specialHighlights: [
-        { img: '/images/icon/timer.png', text: '피셔 시계 · 사용 시간에 따른 계가 시간 보너스' },
-      ],
+      specialHighlights: session.isAiGame
+        ? []
+        : [{ img: '/images/icon/timer.png', text: '피셔 시계 · 사용 시간에 따른 계가 시간 보너스' }],
       items: NONE,
       itemSlots: [],
     };
@@ -691,7 +695,7 @@ function getSinglePlayerStageSummary(
     } else if (typeof session.settings.captureTarget === 'number') {
       const cap = session.settings.captureTarget;
       winGoal = `${cap}점 먼저 획득`;
-      loseGoal = `백이 ${cap}점 먼저 획득 · 또는 계가 열세`;
+      loseGoal = `백이 ${cap}점 먼저 획득`;
     } else {
       winGoal = '따내기 목표 달성';
       loseGoal = '백이 목표 먼저 달성';

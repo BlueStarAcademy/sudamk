@@ -84,7 +84,7 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
         game.turnDeadline = now + byoyomiTimeSec * 1000;
     } else {
         game.turnDeadline = undefined;
-        // 스피드 바둑 AI/싱글플레이: 시간 보너스(20 - 사용초/5) 계산용 초기 시간 저장 (서버는 시간을 강제하지 않음)
+        // 스피드 바둑 AI/싱글플레이: 시간 보너스(floor((180-사용초)/10)) 계산용 초기 시간 저장 (서버는 시간을 강제하지 않음)
         const isSpeed = game.mode === types.GameMode.Speed || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Speed));
         if (isSpeed && (game.isAiGame || game.isSinglePlayer) && game.blackTimeLeft != null && game.whiteTimeLeft != null) {
             game.blackInitialTimeLeft = game.blackTimeLeft;

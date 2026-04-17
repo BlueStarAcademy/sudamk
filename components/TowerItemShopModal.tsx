@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
@@ -25,6 +25,8 @@ interface TowerItemShopModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
     onBuy: (itemId: string, quantity: number) => Promise<void>;
+    /** 0개 탭으로 연 상점일 때 미리 선택할 아이템 (서버 itemId: 턴 추가, 미사일, …) */
+    initialSelectedItemId?: string | null;
 }
 
 const TOWER_ITEMS: TowerItem[] = [
@@ -75,10 +77,41 @@ const TOWER_ITEMS: TowerItem[] = [
     }
 ];
 
-const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, onClose, onBuy }) => {
+function resolveTowerShopItem(itemId?: string | null): TowerItem {
+    if (itemId) {
+        const found = TOWER_ITEMS.find((i) => i.itemId === itemId);
+        if (found) return found;
+    }
+    return TOWER_ITEMS[0];
+}
+
+/** 게임 설명 그리드 슬롯 key 등 → 상점 itemId */
+export function towerShopItemIdFromSlotKey(slotKey: string): string | undefined {
+    switch (slotKey) {
+        case 'turn-add':
+            return '턴 추가';
+        case 'missile':
+            return '미사일';
+        case 'hidden':
+            return '히든';
+        case 'scan':
+            return '스캔';
+        case 'refresh':
+            return '배치변경';
+        default:
+            if (TOWER_ITEMS.some((i) => i.itemId === slotKey)) return slotKey;
+            return undefined;
+    }
+}
+
+const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, onClose, onBuy, initialSelectedItemId }) => {
     const { isNativeMobile } = useNativeMobileShell();
-    const [selectedItem, setSelectedItem] = useState<TowerItem | null>(TOWER_ITEMS[0]);
+    const [selectedItem, setSelectedItem] = useState<TowerItem | null>(() => resolveTowerShopItem(initialSelectedItemId));
     const [cart, setCart] = useState<Record<string, number>>({});
+
+    useEffect(() => {
+        setSelectedItem(resolveTowerShopItem(initialSelectedItemId));
+    }, [initialSelectedItemId]);
 
     const getCurrentOwned = (itemId: string): number =>
         countTowerLobbyInventoryQty(currentUser.inventory, [itemId]);

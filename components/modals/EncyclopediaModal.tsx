@@ -13,6 +13,7 @@ import {
     GRADE_LEVEL_REQUIREMENTS,
     isActionPointConsumable,
 } from '../../constants';
+import { computeEnhancedMainValueAtStars } from '../../shared/utils/equipmentEnhancementStars.js';
 import DraggableWindow from '../DraggableWindow.js';
 
 interface EncyclopediaModalProps {
@@ -57,6 +58,12 @@ function encyclopediaItemKey(item: EncyclopediaItem): string {
 
 function encyclopediaItemsEqual(a: EncyclopediaItem, b: EncyclopediaItem): boolean {
     return a.name === b.name && a.grade === b.grade && a.type === b.type && (a.slot ?? null) === (b.slot ?? null);
+}
+
+function formatEncyclopediaMainStatNumber(v: number): string {
+    if (!Number.isFinite(v)) return '0';
+    const t = Math.round(v * 100) / 100;
+    return Number.isInteger(t) ? String(t) : t.toFixed(2).replace(/\.?0+$/, '');
 }
 
 /** 가방·인벤토리와 동일: 행동력 회복제는 이미지 대신 ⚡ + 수치 */
@@ -223,6 +230,8 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     const [itemBubble, setItemBubble] = useState<{ item: EncyclopediaItem; anchor: DOMRect; modalBounds: DOMRect } | null>(null);
     const bubbleContentRef = useRef<HTMLDivElement>(null);
     const [bubbleSize, setBubbleSize] = useState<{ height: number } | null>(null);
+    /** 장비 도감 말풍선: 주옵·전투부옵 범위 미리보기 강화 단계 0~10 */
+    const [encyclopediaEquipStars, setEncyclopediaEquipStars] = useState(0);
 
     const equipmentItemsBySlot = useMemo(() => {
         const map: Record<EquipmentSlot, EncyclopediaItem[]> = {
@@ -299,6 +308,12 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     useEffect(() => {
         setItemBubble(null);
     }, [mainTab]);
+
+    const encyclopediaBubbleEquipKey =
+        itemBubble?.item?.type === 'equipment' ? encyclopediaItemKey(itemBubble.item) : null;
+    useEffect(() => {
+        setEncyclopediaEquipStars(0);
+    }, [encyclopediaBubbleEquipKey]);
 
 
     useEffect(() => {
@@ -499,7 +514,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         );
     };
 
-    const renderEquipmentSubOptions = (item: EncyclopediaItem) => {
+    const renderEquipmentSubOptions = (item: EncyclopediaItem, previewStars: number) => {
         if (item.type !== 'equipment' || !item.slot) return null;
         const rules = GRADE_SUB_OPTION_RULES[item.grade];
         const formatCount = (count: [number, number]) => (count[0] === count[1] ? `${count[0]}` : `${count[0]}~${count[1]}`);
@@ -513,6 +528,8 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         const mainStatValue = mainStatGradeDef.value;
         const mainIsPercentage = mainStatDef.isPercentage;
         const mainStatNames = mainStatGradeDef.stats.join(' 또는 ');
+        const starsClamped = Math.max(0, Math.min(10, Math.floor(previewStars)));
+        const mainStatAtPreview = computeEnhancedMainValueAtStars(mainStatValue, item.grade, starsClamped);
 
         const sectionTitle = (text: string, accent: string) => (
             <h5 className={`text-[10px] font-extrabold leading-tight tracking-wide sm:text-sm ${accent}`}>{text}</h5>
@@ -526,10 +543,37 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         return (
             <div className="min-h-0 space-y-2.5">
                 <div className={sectionShellClass}>
-                    {sectionTitle('주옵션', 'text-amber-200/95')}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/[0.06] pb-1.5">
+                        {sectionTitle('주옵션', 'text-amber-200/95')}
+                        <label className="flex shrink-0 items-center gap-1.5">
+                            <span className="sr-only">주옵 강화 단계</span>
+                            <select
+                                value={previewStars}
+                                onChange={(e) => setEncyclopediaEquipStars(Number(e.target.value))}
+                                className="cursor-pointer rounded-md border border-amber-500/35 bg-black/50 py-1 pl-2 pr-7 text-[10px] font-semibold text-amber-100 shadow-inner sm:text-xs"
+                            >
+                                <option value={0}>기본 (+0)</option>
+                                {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                                    <option key={n} value={n}>
+                                        +{n}강
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
                     <p className="pt-1 text-[11px] leading-snug text-slate-300 sm:pt-1.5 sm:text-sm sm:leading-relaxed">
-                        <strong className="text-amber-100">{mainStatNames}</strong>: +{mainStatValue}
-                        {mainIsPercentage ? '%' : ''}
+                        <strong className="text-amber-100">{mainStatNames}</strong>
+                        <span className="text-slate-400"> · {starsClamped === 0 ? '기본' : `+${starsClamped}강`} </span>
+                        <span className="font-mono text-amber-100/95">
+                            +{formatEncyclopediaMainStatNumber(mainStatAtPreview)}
+                            {mainIsPercentage ? '%' : ''}
+                        </span>
+                        {starsClamped > 0 ? (
+                            <span className="block pt-0.5 text-[10px] text-slate-500 sm:text-xs">
+                                기본 +{formatEncyclopediaMainStatNumber(mainStatValue)}
+                                {mainIsPercentage ? '%' : ''}
+                            </span>
+                        ) : null}
                     </p>
                 </div>
 
@@ -655,7 +699,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                         </div>
                     </div>
                     <div className="min-h-0 min-w-0 flex-1 pr-0.5 text-left">
-                        {renderEquipmentSubOptions(item)}
+                        {renderEquipmentSubOptions(item, encyclopediaEquipStars)}
                     </div>
                 </div>
             );

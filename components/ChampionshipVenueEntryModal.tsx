@@ -5,6 +5,7 @@ import { PortalHoverBubble } from './PortalHoverBubble.js';
 import { TournamentType, UserWithStatus, TournamentState } from '../types.js';
 import { CoreStat, ItemGrade } from '../types/enums.js';
 import { calculateUserEffects } from '../services/effectService.js';
+import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 const CORE_STAT_CAP = 1500;
 
 import {
@@ -745,13 +746,9 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
         const out = {} as Record<CoreStat, number>;
         for (const stat of Object.values(CoreStat)) {
             const baseValue = baseByStat[stat] || 0;
-            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
             const flatBonus = Number(coreStatBonuses[stat].flat) || 0;
             const percentBonus = Number(coreStatBonuses[stat].percent) || 0;
-            const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
-            const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
-            const finalValue = baseWithFlat + percentGain;
-            out[stat] = Math.max(0, finalValue);
+            out[stat] = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
         }
         return out;
     }, [baseByStat, coreStatBonuses]);

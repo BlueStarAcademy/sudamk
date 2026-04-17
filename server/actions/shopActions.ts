@@ -3,7 +3,7 @@
 
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, InventoryItem } from '../../types/index.js';
+import { type ServerAction, type User, type VolatileState, type LiveGameSession, InventoryItem } from '../../types/index.js';
 import * as shop from '../shop.js';
 import { SHOP_ITEMS } from '../shop.js';
 import { broadcast } from '../socket.js';
@@ -780,14 +780,45 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             }
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
-            const { broadcastUserUpdate } = await import('../socket.js');
+            const { broadcastUserUpdate, broadcastToGameParticipants } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'dailyShopPurchases']);
+
+            let towerGameAfterPurchase: LiveGameSession | null = null;
+            const st = volatileState.userStatuses[user.id];
+            if (st?.gameCategory === 'tower' && st.gameId?.startsWith('tower-game-')) {
+                const { getCachedGame, updateGameCache } = await import('../gameCache.js');
+                const { bumpTowerSessionConsumablesAfterShopPurchase } = await import('../modes/towerPlayerHidden.js');
+                let g: LiveGameSession | null = await getCachedGame(st.gameId);
+                if (!g && volatileState.gameCache?.get(st.gameId)) {
+                    g = volatileState.gameCache.get(st.gameId)!.game as LiveGameSession;
+                }
+                if (!g) {
+                    g = await db.getLiveGame(st.gameId);
+                }
+                if (
+                    g &&
+                    g.gameCategory === 'tower' &&
+                    g.player1?.id === user.id &&
+                    g.gameStatus === 'playing' &&
+                    bumpTowerSessionConsumablesAfterShopPurchase(g, itemId, quantity)
+                ) {
+                    updateGameCache(g);
+                    towerGameAfterPurchase = g;
+                    await db.saveGame(g).catch((err) => {
+                        console.error(`[BUY_TOWER_ITEM] Failed to save game ${g.id}:`, err);
+                    });
+                    broadcastToGameParticipants(g.id, { type: 'GAME_UPDATE', payload: { [g.id]: g } }, g);
+                }
+            }
 
             return {
                 clientResponse: {
                     obtainedItemsBulk: finalItemsToAdd,
-                    updatedUser
-                }
+                    updatedUser,
+                    ...(towerGameAfterPurchase
+                        ? { game: towerGameAfterPurchase, gameId: towerGameAfterPurchase.id }
+                        : {}),
+                },
             };
         }
         default:

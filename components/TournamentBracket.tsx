@@ -14,6 +14,7 @@ import ConditionPotionModal from './ConditionPotionModal.js';
 import { calculateTotalStats } from '../services/statService.js';
 import DungeonStageSummaryModal, { type DungeonStageSummaryModalProps } from './DungeonStageSummaryModal.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
+import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 
 // 순위보상 itemId(재료 상자1~6, 장비 상자1~6) → CONSUMABLE_ITEMS name(재료 상자 I~VI, 장비 상자 I~VI) 매핑
 const REWARD_ITEM_ID_TO_NAME: Record<string, string> = {
@@ -4432,6 +4433,52 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
         return tournament.rounds;
     }, [tournament?.rounds]);
+
+    const functionVipActive = useMemo(() => isFunctionVipActive(currentUser as User), [currentUser]);
+
+    /** 챔피언십 던전(currentStageAttempt)에서 SKIP 노출·클릭 가능 여부 */
+    const championshipDungeonSkipUi = useMemo(() => {
+        const t = tournament;
+        if (!t || t.currentStageAttempt == null) return { visible: false, canAttempt: false };
+        if (t.status === 'complete' || t.status === 'eliminated') return { visible: false, canAttempt: false };
+
+        const hasUnfinishedUserMatch = safeRounds.some((r) =>
+            Array.isArray(r?.matches) && r.matches.some((m) => m.isUserMatch && !m.isFinished)
+        );
+        if (!hasUnfinishedUserMatch) return { visible: false, canAttempt: false };
+
+        if (t.status === 'round_in_progress') {
+            return { visible: true, canAttempt: true };
+        }
+
+        let nextMatch: Match | undefined;
+        if (t.type === 'neighborhood') {
+            const currentRound = t.currentRoundRobinRound || 1;
+            const currentRoundObj = safeRounds.find((r) => r.name === `${currentRound}회차`);
+            if (currentRoundObj) {
+                nextMatch = currentRoundObj.matches.find((m) => m.isUserMatch && !m.isFinished);
+            }
+        } else {
+            nextMatch = safeRounds.flatMap((r) => r.matches).find((m) => m.isUserMatch && !m.isFinished);
+        }
+        const p1 =
+            nextMatch && Array.isArray(t.players) ? t.players.find((p) => p.id === nextMatch!.players[0]?.id) : null;
+        const p2 =
+            nextMatch && Array.isArray(t.players) ? t.players.find((p) => p.id === nextMatch!.players[1]?.id) : null;
+        const playersReady = Boolean(
+            p1 &&
+                p2 &&
+                p1.stats &&
+                p2.stats &&
+                Object.keys(p1.stats).length > 0 &&
+                Object.keys(p2.stats).length > 0
+        );
+
+        if (t.status === 'bracket_ready' || t.status === 'round_complete') {
+            return { visible: true, canAttempt: playersReady };
+        }
+        return { visible: false, canAttempt: false };
+    }, [tournament, safeRounds]);
     
     // 토너먼트 상태 로깅
     useEffect(() => {
@@ -5353,6 +5400,44 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const p1Percent = totalCumulative > 0 ? (p1Cumulative / totalCumulative) * 100 : 50;
     const p2Percent = totalCumulative > 0 ? (p2Cumulative / totalCumulative) * 100 : 50;
 
+    const renderChampionshipSkipButton = (fb: string) => {
+        if (!championshipDungeonSkipUi.visible || !tournament) return null;
+        const vipOk = functionVipActive;
+        const canClick = vipOk && championshipDungeonSkipUi.canAttempt;
+        return (
+            <div className="flex flex-col items-center gap-0.5">
+                <Button
+                    type="button"
+                    onClick={() => {
+                        if (!canClick) return;
+                        onAction({ type: 'SKIP_CHAMPIONSHIP_MATCH', payload: { type: tournament.type } });
+                    }}
+                    disabled={!canClick}
+                    colorScheme={vipOk && canClick ? 'purple' : 'gray'}
+                    className={`${fb} ${!vipOk ? 'opacity-80' : ''}`}
+                    title={
+                        !vipOk
+                            ? '기능 VIP 활성화 후 사용할 수 있습니다.'
+                            : !championshipDungeonSkipUi.canAttempt
+                              ? '상대 정보를 준비하는 중입니다.'
+                              : '경기를 즉시 완료하고 결과를 확인합니다.'
+                    }
+                >
+                    SKIP
+                </Button>
+                {!vipOk ? (
+                    <span className="max-w-[10rem] text-center text-[10px] font-semibold leading-tight text-amber-400">
+                        기능 VIP 활성화
+                    </span>
+                ) : !championshipDungeonSkipUi.canAttempt ? (
+                    <span className="max-w-[10rem] text-center text-[10px] font-medium leading-tight text-slate-400">
+                        상대 정보 준비 중
+                    </span>
+                ) : null}
+            </div>
+        );
+    };
+
     const renderFooterButton = () => {
         if (!tournament) return null;
 
@@ -5469,6 +5554,16 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : null;
 
+    const desktopSkipSlot = !isMobile ? renderChampionshipSkipButton('!text-sm !py-2 !px-4') : null;
+    const desktopCommentaryCoreSlot = footerButtons || countdownDisplay;
+    const desktopCommentaryFooterSlot =
+        !isMobile && (desktopCommentaryCoreSlot || desktopSkipSlot) ? (
+            <div className="mt-1.5 flex w-full flex-wrap items-center justify-center gap-2">
+                {desktopCommentaryCoreSlot}
+                {desktopSkipSlot}
+            </div>
+        ) : undefined;
+
     /** 모바일: 모든 탭 공통 하단 — 경기 시작·진행·카운트다운·보상 수령 */
     const championshipMobileStickyBar = isMobile
         ? (() => {
@@ -5496,13 +5591,19 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   setTimeout(() => setMobileRewardClaimBusy(false), 3000);
               };
 
-              const matchRow = footerButtons || countdownDisplay;
+              const skipBtn = renderChampionshipSkipButton('!text-xs !py-1.5 !px-3');
+              const baseMatchRow = footerButtons || countdownDisplay;
+              const matchRow =
+                  baseMatchRow || skipBtn ? (
+                      <div className="flex w-full flex-wrap items-center justify-center gap-2">
+                          {baseMatchRow}
+                          {skipBtn}
+                      </div>
+                  ) : null;
 
               return (
                   <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-panel-secondary/95 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] backdrop-blur-sm">
-                      {matchRow ? (
-                          <div className="flex w-full flex-wrap items-center justify-center gap-2">{matchRow}</div>
-                      ) : null}
+                      {matchRow}
                       {(isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
                           <div className="space-y-1.5">
                               {isDungeonModeFooter && !isRewardClaimed ? (
@@ -5686,7 +5787,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             <CommentaryPanel
                 commentary={displayTournament.currentMatchCommentary}
                 isSimulating={displayTournament.status === 'round_in_progress'}
-                footerSlot={isMobile ? undefined : footerButtons || countdownDisplay}
+                footerSlot={desktopCommentaryFooterSlot}
                 compact={isMobile}
             />
         </div>

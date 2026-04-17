@@ -9,6 +9,7 @@ import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSid
 import PointsInfoPanel from './PointsInfoPanel.js';
 import Button from './Button.js';
 import { calculateUserEffects } from '../services/effectService.js';
+import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import ChampionshipVenueEntryModal from './ChampionshipVenueEntryModal.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
@@ -922,13 +923,9 @@ const TournamentLobby: React.FC = () => {
         const out = {} as Record<CoreStat, number>;
         for (const stat of Object.values(CoreStat)) {
             const baseValue = baseByStat[stat] || 0;
-            const baseAndSpent = Math.max(0, Number(baseValue) || 0);
             const flatBonus = Number(coreStatBonuses[stat].flat) || 0;
             const percentBonus = Number(coreStatBonuses[stat].percent) || 0;
-            const baseWithFlat = Math.max(0, baseAndSpent + flatBonus);
-            const percentGain = Math.floor(baseWithFlat * (percentBonus / 100));
-            const finalValue = baseWithFlat + percentGain;
-            out[stat] = Math.max(0, finalValue);
+            out[stat] = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
         }
         return out;
     }, [baseByStat, coreStatBonuses]);

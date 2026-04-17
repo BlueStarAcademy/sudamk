@@ -660,6 +660,103 @@ export const processMatchCompletion = async (state: TournamentState, user: User,
         return; // 던전 모드 처리 완료
 };
 
+/**
+ * 챔피언십 던전(currentStageAttempt): 현재 유저 경기를 즉시 시뮬레이션 완료 처리.
+ * `bracket_ready`·`round_complete`(미시작)·`round_in_progress`에서 호출 가능.
+ */
+export const instantSkipChampionshipDungeonMatch = async (
+    state: TournamentState,
+    user: User
+): Promise<{ error?: string }> => {
+    if (state.currentStageAttempt == null) {
+        return { error: '챔피언십 던전에서만 사용할 수 있습니다.' };
+    }
+    if (state.status === 'complete' || state.status === 'eliminated') {
+        return { error: '이미 해당 세션이 종료되었습니다.' };
+    }
+
+    let roundIndex = -1;
+    let matchIndex = -1;
+    let match: Match | null = null;
+
+    if (state.status === 'round_in_progress' && state.currentSimulatingMatch) {
+        roundIndex = state.currentSimulatingMatch.roundIndex;
+        matchIndex = state.currentSimulatingMatch.matchIndex;
+        match = state.rounds[roundIndex]?.matches[matchIndex] ?? null;
+    } else if (state.status === 'bracket_ready' || state.status === 'round_complete') {
+        if (state.type === 'neighborhood') {
+            const currentRound = state.currentRoundRobinRound || 1;
+            const currentRoundObj = state.rounds.find(r => r.name === `${currentRound}회차`);
+            if (currentRoundObj) {
+                const m = currentRoundObj.matches.find(x => x.isUserMatch && !x.isFinished);
+                if (m) {
+                    match = m;
+                    roundIndex = state.rounds.findIndex(r => r.id === currentRoundObj.id);
+                    matchIndex = currentRoundObj.matches.findIndex(x => x.id === m.id);
+                }
+            }
+        } else {
+            for (let i = 0; i < state.rounds.length; i++) {
+                const round = state.rounds[i];
+                const m = round.matches.find(x => x.isUserMatch && !x.isFinished);
+                if (m) {
+                    match = m;
+                    roundIndex = i;
+                    matchIndex = round.matches.findIndex(x => x.id === m.id);
+                    break;
+                }
+            }
+        }
+    } else {
+        return { error: '지금은 스킵할 수 있는 경기가 없습니다.' };
+    }
+
+    if (!match || roundIndex < 0 || matchIndex < 0) {
+        return { error: '스킵할 유저 경기를 찾을 수 없습니다.' };
+    }
+    if (!match.isUserMatch || match.isFinished) {
+        return { error: '스킵할 유저 경기를 찾을 수 없습니다.' };
+    }
+    if (!match.players[0] || !match.players[1]) {
+        return { error: '경기 선수 정보가 올바르지 않습니다.' };
+    }
+
+    const userPlayer = state.players.find(p => p.id === user.id);
+    if (userPlayer) {
+        const latestStats = calculateTotalStats(user);
+        userPlayer.originalStats = JSON.parse(JSON.stringify(latestStats));
+        userPlayer.stats = JSON.parse(JSON.stringify(latestStats));
+    }
+
+    const p1 = state.players.find(pl => pl.id === match.players[0]!.id);
+    const p2 = state.players.find(pl => pl.id === match.players[1]!.id);
+    if (p1 && p1.originalStats) {
+        p1.stats = JSON.parse(JSON.stringify(p1.originalStats));
+    }
+    if (p2 && p2.originalStats) {
+        p2.stats = JSON.parse(JSON.stringify(p2.originalStats));
+    }
+
+    delete (state as any).__clientTimestamp;
+    state.timeElapsed = TOTAL_GAME_DURATION;
+    state.lastScoreIncrement = null;
+
+    simulateAndFinishMatch(match, state.players, user.id);
+
+    const skipNote: CommentaryLine = { text: '[기능 VIP] 경기를 즉시 마쳤습니다.', phase: 'end', isRandomEvent: false };
+    match.commentary = [...(match.commentary || []), skipNote];
+
+    await processMatchCompletion(state, user, match, roundIndex);
+
+    state.timeElapsed = 0;
+    state.currentMatchCommentary = [];
+    state.currentMatchScores = { player1: 0, player2: 0 };
+    state.simulationSeed = undefined;
+    state.currentSimulatingMatch = null;
+
+    return {};
+};
+
 export const createTournament = (type: TournamentType, user: User, players: PlayerForTournament[]): TournamentState => {
     const definition = TOURNAMENT_DEFINITIONS[type];
     const rounds: Round[] = [];
