@@ -26,7 +26,12 @@ import {
     ARENA_ENTRANCE_CLOSED_MESSAGE,
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
-import { USER_PROGRESSION_ARENA_BLOCK_MESSAGE } from '../shared/utils/contentProgressionGates.js';
+import {
+    USER_PROGRESSION_ARENA_BLOCK_MESSAGE,
+    PVP_LOBBIES_MIN_COMBINED_LEVEL,
+    TOWER_ADVENTURE_MIN_STRATEGY_LEVEL,
+    CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL,
+} from '../shared/utils/contentProgressionGates.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { isOnboardingTutorialActive, ONBOARDING_PHASE_COMPLETE } from '../shared/constants/onboardingTutorial.js';
@@ -209,7 +214,9 @@ const LobbyCard: React.FC<{
     integratedRankingScore?: number;
     hideOverlayText?: boolean;
     hideOverlayFooter?: boolean;
-}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, hideOverlayText = false, hideOverlayFooter = false }) => {
+    locked?: boolean;
+    lockReason?: string;
+}> = ({ type, stats, onEnter, onViewStats, level, title, imageUrl, tier, compact, arenaMobile, hideOverlayText = false, hideOverlayFooter = false, locked = false, lockReason }) => {
     const isStrategic = type === 'strategic';
     const shadowColor = isStrategic ? "hover:shadow-blue-500/30" : "hover:shadow-yellow-500/30";
 
@@ -227,17 +234,26 @@ const LobbyCard: React.FC<{
         return (
             <button
                 type="button"
-                onClick={onEnter}
+                onClick={locked ? undefined : onEnter}
+                disabled={locked}
                 aria-label={`${title} 경기장 입장`}
-                className={`group relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/12 bg-black/40 text-left shadow-[0_14px_44px_-18px_rgba(0,0,0,0.85)] ring-1 ring-white/8 transition-all will-change-transform ${popEase} hover:z-10 hover:-translate-y-2 hover:scale-[1.035] ${hoverLift} active:translate-y-0 active:scale-[1.01] ${accentRing} focus:outline-none focus-visible:ring-2`}
+                className={`group relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/12 bg-black/40 text-left shadow-[0_14px_44px_-18px_rgba(0,0,0,0.85)] ring-1 ring-white/8 transition-all will-change-transform ${popEase} ${locked ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : `hover:z-10 hover:-translate-y-2 hover:scale-[1.035] ${hoverLift} active:translate-y-0 active:scale-[1.01]`} ${accentRing} focus:outline-none focus-visible:ring-2`}
             >
                 <img
                     src={imageUrl}
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 ease-out group-hover:scale-105 group-active:scale-[1.02]"
                 />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-black/15 to-black/70" />
-                <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/50 to-transparent pt-3 pb-10 px-3 sm:pt-4 sm:px-4">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/0 via-black/0 to-black/12" />
+                {locked && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
+                        <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
+                        <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
+                            {lockReason ?? '잠금'}
+                        </span>
+                    </div>
+                )}
+                <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/12 to-transparent pt-3 pb-10 px-3 sm:pt-4 sm:px-4">
                     <span
                         className={`block text-center text-[1.05rem] font-extrabold leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] sm:text-xl ${
                             isStrategic
@@ -254,7 +270,7 @@ const LobbyCard: React.FC<{
                             isStrategic ? 'bg-blue-600/88 ring-1 ring-white/15' : 'bg-amber-600/88 ring-1 ring-white/15'
                         }`}
                     >
-                        탭하여 입장
+                        {locked ? '잠금됨' : '탭하여 입장'}
                     </span>
                 </div>
             </button>
@@ -263,12 +279,20 @@ const LobbyCard: React.FC<{
 
     return (
         <div
-            onClick={onEnter}
-            className={`group relative overflow-hidden rounded-xl border border-amber-400/40 text-center transition-all transform shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 ${shadowColor} cursor-pointer text-on-panel ${compactMode ? 'h-full min-h-0 p-0.5' : 'h-full p-1.5 hover:-translate-y-1 lg:p-2.5'}`}
+            onClick={locked ? undefined : onEnter}
+            className={`group relative overflow-hidden rounded-xl border border-amber-400/40 text-center transition-all transform shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 ${shadowColor} text-on-panel ${locked ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer'} ${compactMode ? 'h-full min-h-0 p-0.5' : `h-full p-1.5 ${locked ? '' : 'hover:-translate-y-1'} lg:p-2.5`}`}
         >
             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-amber-200/25" aria-hidden />
             <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-            <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+            <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/0 via-black/0 to-black/14" />
+            {locked && (
+                <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
+                    <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
+                    <span className={`mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 font-bold text-rose-100 ${compactMode ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}>
+                        {lockReason ?? '잠금'}
+                    </span>
+                </div>
+            )}
             <h2 className={`relative z-[1] font-bold flex items-center justify-center gap-0.5 text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.85)] ${hideOverlayText ? 'hidden' : ''} ${compactMode ? 'mb-0 text-[8px] leading-tight' : 'mb-0.5 h-4 text-xs lg:mb-1 lg:h-6 lg:gap-1 lg:text-base'}`}>
                {title}
                {tier && <img src={tier.icon} alt={tier.name} className={compactMode ? 'h-2.5 w-2.5' : 'h-3 w-3 lg:h-5 lg:w-5'} title={tier.name} />}
@@ -277,8 +301,8 @@ const LobbyCard: React.FC<{
             <div className="min-h-0 w-full flex-1 overflow-hidden rounded-md" />
             {!hideOverlayFooter && (
                 <div
-                    onClick={(e) => { e.stopPropagation(); onViewStats(); }}
-                    className={`relative z-[1] mt-0.5 flex w-full cursor-pointer items-center justify-between rounded-md bg-black/50 text-white backdrop-blur-[1px] hover:bg-black/65 ${compactMode ? 'px-0.5 py-px text-[7px]' : 'mt-1 p-0.5 text-[10px] transition-colors lg:mt-2 lg:p-1 lg:text-xs'}`}
+                    onClick={(e) => { e.stopPropagation(); if (!locked) onViewStats(); }}
+                    className={`relative z-[1] mt-0.5 flex w-full items-center justify-between rounded-md bg-black/50 text-white backdrop-blur-[1px] ${locked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-black/65'} ${compactMode ? 'px-0.5 py-px text-[7px]' : 'mt-1 p-0.5 text-[10px] transition-colors lg:mt-2 lg:p-1 lg:text-xs'}`}
                     title="상세 전적 보기"
                 >
                     <span className="min-w-0 truncate">{compactMode ? `${stats.wins}승${stats.losses}패 ${winRate}%` : `총 전적: ${stats.wins}승 ${stats.losses}패 (${winRate}%)`}</span>
@@ -289,13 +313,13 @@ const LobbyCard: React.FC<{
     );
 };
 
-const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false }) => {
+const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason }) => {
     const shadowColor = "hover:shadow-purple-500/30";
     const compactMode = Boolean(compact && !arenaMobile);
 
     if (arenaMobile) {
         const popEase = 'duration-300 ease-[cubic-bezier(0.34,1.45,0.64,1)]';
-        const interactive = !isComingSoon && onClick;
+        const interactive = !isComingSoon && !locked && onClick;
         const shellClass = `relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-2xl border border-white/12 bg-black/35 text-left shadow-[0_14px_44px_-18px_rgba(0,0,0,0.85)] ring-1 ring-purple-500/15 transition-all will-change-transform ${popEase} ${
             interactive
                 ? 'hover:z-10 hover:-translate-y-2 hover:scale-[1.035] hover:shadow-[0_28px_52px_-14px_rgba(0,0,0,0.72),0_12px_40px_-8px_rgba(168,85,247,0.35)] hover:ring-fuchsia-400/30 active:translate-y-0 active:scale-[1.01] cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-fuchsia-400/60'
@@ -308,8 +332,16 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                     alt=""
                     className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 ease-out ${interactive ? 'group-hover:scale-105 group-active:scale-[1.02]' : ''}`}
                 />
-                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/55 via-violet-950/20 to-black/75" />
-                <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/55 to-transparent pt-3 pb-10 px-3 sm:pt-4 sm:px-4">
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-violet-950/5 to-black/16" />
+                {locked && (
+                    <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
+                        <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
+                        <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
+                            {lockReason ?? '잠금'}
+                        </span>
+                    </div>
+                )}
+                <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/12 to-transparent pt-3 pb-10 px-3 sm:pt-4 sm:px-4">
                     <span className="block text-center text-[1.05rem] font-extrabold leading-tight tracking-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] sm:text-xl bg-gradient-to-br from-fuchsia-100 via-white to-violet-200 bg-clip-text text-transparent">
                         {title}
                     </span>
@@ -346,8 +378,8 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
 
     return (
         <div
-            onClick={onClick}
-            className={`${isComingSoon ? 'border border-amber-500/35 opacity-60 grayscale' : 'border border-amber-400/45'} relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 text-on-panel ${compactMode ? 'p-0.5' : 'h-full p-1.5 transform transition-all lg:p-2.5'} ${isComingSoon ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compactMode ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group`}
+            onClick={locked ? undefined : onClick}
+            className={`${isComingSoon ? 'border border-amber-500/35 opacity-60 grayscale' : 'border border-amber-400/45'} relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 text-on-panel ${compactMode ? 'p-0.5' : 'h-full p-1.5 transform transition-all lg:p-2.5'} ${isComingSoon || locked ? 'cursor-not-allowed' : onClick ? `cursor-pointer ${compactMode ? '' : `hover:-translate-y-1 ${shadowColor}`}` : 'cursor-not-allowed'} group ${locked ? 'grayscale-[0.25] opacity-75' : ''}`}
         >
             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-amber-200/25" aria-hidden />
             {isComingSoon && (
@@ -356,7 +388,15 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                 </div>
             )}
             <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-            <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-violet-950/20 to-black/75" />
+            <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/5 via-violet-950/5 to-black/16" />
+            {locked && (
+                <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
+                    <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
+                    <span className={`mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 font-bold text-rose-100 ${compactMode ? 'text-[8px]' : 'text-[10px] sm:text-xs'}`}>
+                        {lockReason ?? '잠금'}
+                    </span>
+                </div>
+            )}
             <h2 className={`relative z-[1] font-bold text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.85)] ${hideOverlayText ? 'hidden' : ''} ${compactMode ? 'mb-0 mt-0 text-[8px]' : 'mb-0.5 mt-0.5 h-4 text-xs lg:mb-1 lg:mt-1 lg:h-6 lg:text-base'} ${isComingSoon ? 'text-gray-300' : ''}`}>{title}</h2>
             <div className="flex w-full min-h-0 flex-1 items-center justify-center overflow-hidden rounded-md" />
             {footerContent && !hideOverlayText && (
@@ -880,6 +920,25 @@ const Profile: React.FC<ProfileProps> = () => {
         [arenaAdminBypass, mergedArena, serverArena],
     );
     
+    const getArenaLobbyLockReason = useCallback(
+        (key: 'strategicLobby' | 'playfulLobby') => {
+            if (arenaAdminBypass || mergedArena[key]) return null;
+            if (!serverArena[key]) return '점검중';
+            const combinedLevel = currentUserWithStatus.strategyLevel + currentUserWithStatus.playfulLevel;
+            return `통합 Lv.${combinedLevel}/${PVP_LOBBIES_MIN_COMBINED_LEVEL}`;
+        },
+        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.strategyLevel, currentUserWithStatus.playfulLevel],
+    );
+    const getArenaEntryLockReason = useCallback(
+        (key: 'tower' | 'adventure' | 'championship') => {
+            if (arenaAdminBypass || mergedArena[key]) return null;
+            if (!serverArena[key]) return '점검중';
+            if (key === 'championship') return `능력치 합 ${CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL}+`;
+            return `전략 Lv.${currentUserWithStatus.strategyLevel}/${TOWER_ADVENTURE_MIN_STRATEGY_LEVEL}`;
+        },
+        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.strategyLevel],
+    );
+
     const onSelectLobby = (type: 'strategic' | 'playful') => {
         const key: ArenaEntranceKey = type === 'strategic' ? 'strategicLobby' : 'playfulLobby';
         tryArenaEnter(key, () => { window.location.hash = `#/waiting/${type}`; });
@@ -1270,8 +1329,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 nh ? 'text-[10px]' : readableHome ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'
                             }`}
                         >
-                            길드는 전략·놀이 레벨 합 {MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES} 이상에서 이용할 수 있습니다. (현재 합{' '}
-                            {getCombinedStrategyPlayfulLevel(currentUserWithStatus)})
+                            [길드] 🔒 {MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES}레벨
                         </div>
                     ) : guildInfo ? (
                             <div className="flex min-w-0 flex-nowrap items-center gap-1.5 px-0.5 py-1 sm:gap-2 sm:px-1 sm:py-1.5">
@@ -1579,7 +1637,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         className="group border border-emerald-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden p-1"
                     >
                         <img src={SINGLE_PLAYER_LOBBY_IMG} alt="바둑학원" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/0 via-black/0 to-black/14" />
                         <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">바둑학원</h2>
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
@@ -1591,7 +1649,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 className="group flex h-full min-h-0 w-full flex-col rounded-xl text-center transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden"
                             >
                                 <img src={SINGLE_PLAYER_LOBBY_IMG} alt="바둑학원" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/0 via-black/0 to-black/14" />
                                 <div className="flex min-h-0 w-full flex-1 rounded-md" />
                             </div>
                         </div>
@@ -1609,11 +1667,11 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} />
+                    <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                 ) : (
                     <div className={mergedCardClass} data-onboarding-target="onboarding-tower-card">
                         <div className={imagePaneClass}>
-                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} />
+                            <PveCard title="도전의 탑" imageUrl="/images/tower/Tower1.png" layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
                         </div>
                         <div className={infoPanelShellClass}>
                             <div className={infoTitleClass}>도전의 탑</div>
@@ -1637,11 +1695,11 @@ const Profile: React.FC<ProfileProps> = () => {
             >
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={true} />
+                    <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={true} locked={!!getArenaLobbyLockReason('strategicLobby')} lockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined} />
                 ) : (
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
-                            <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
+                            <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('strategicLobby')} lockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined} />
                         </div>
                         <div className={`${infoPanelShellClass} border-cyan-300/20`}>
                             <div className={`${infoTitleClass} text-cyan-100`}>전략 바둑</div>
@@ -1666,11 +1724,11 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={true} />
+                    <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={true} locked={!!getArenaLobbyLockReason('playfulLobby')} lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined} />
                 ) : (
                     <div className={mergedCardClass}>
                         <div className={imagePaneClass}>
-                            <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
+                            <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('playfulLobby')} lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined} />
                         </div>
                         <div className={`${infoPanelShellClass} border-amber-300/20`}>
                             <div className={`${infoTitleClass} text-amber-100`}>놀이 바둑</div>
@@ -1696,18 +1754,34 @@ const Profile: React.FC<ProfileProps> = () => {
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
-                    <div onClick={onSelectTournamentLobby} className="group border border-fuchsia-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform hover:-translate-y-1 hover:shadow-purple-500/30 cursor-pointer text-on-panel p-1 relative overflow-hidden">
+                    <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group border border-fuchsia-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform text-on-panel p-1 relative overflow-hidden ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
                         <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
+                        {getArenaEntryLockReason('championship') && (
+                            <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
+                                <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
+                                <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
+                                    {getArenaEntryLockReason('championship')}
+                                </span>
+                            </div>
+                        )}
                         <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">챔피언십</h2>
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
                     <div className={mergedCardClass} data-onboarding-target="onboarding-home-championship-card">
                         <div className={imagePaneClass}>
-                            <div onClick={onSelectTournamentLobby} className="group flex h-full min-h-0 w-full flex-col text-center transition-all transform hover:-translate-y-1 hover:shadow-purple-500/30 cursor-pointer text-on-panel relative overflow-hidden rounded-xl">
+                            <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group flex h-full min-h-0 w-full flex-col text-center transition-all transform text-on-panel relative overflow-hidden rounded-xl ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
                                 <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
+                                {getArenaEntryLockReason('championship') && (
+                                    <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
+                                        <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
+                                        <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
+                                            {getArenaEntryLockReason('championship')}
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="flex min-h-0 w-full flex-1 rounded-md" />
                             </div>
                         </div>
@@ -1733,6 +1807,8 @@ const Profile: React.FC<ProfileProps> = () => {
                         layout="tall"
                         onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
                         compact={true}
+                        locked={!!getArenaEntryLockReason('adventure')}
+                        lockReason={getArenaEntryLockReason('adventure') ?? undefined}
                     />
                 ) : (
                     <div className={mergedCardClass} data-onboarding-target="onboarding-home-adventure-card">
@@ -1744,6 +1820,8 @@ const Profile: React.FC<ProfileProps> = () => {
                                 onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
                                 compact={false}
                                 hideOverlayText={true}
+                                locked={!!getArenaEntryLockReason('adventure')}
+                                lockReason={getArenaEntryLockReason('adventure') ?? undefined}
                             />
                         </div>
                         <div className={infoPanelShellClass}>
@@ -2015,7 +2093,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className="flex w-full max-w-3xl min-h-0 flex-col gap-2.5">
                                     <div className={mergedCardClass}>
                                         <div className={imagePaneClass}>
-                                            <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
+                                            <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('strategicLobby')} lockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined} />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-cyan-300/20`}>
                                             <div className={`${infoTitleClass} text-cyan-100`}>전략 바둑</div>
@@ -2039,7 +2117,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                     <div className={mergedCardClass}>
                                         <div className={imagePaneClass}>
-                                            <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} />
+                                            <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('playfulLobby')} lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined} />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-amber-300/20`}>
                                             <div className={`${infoTitleClass} text-amber-100`}>놀이 바둑</div>

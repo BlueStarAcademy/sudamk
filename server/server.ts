@@ -3981,10 +3981,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(409).json({ message: '이미 사용 중인 닉네임입니다.' });
             }
             
+            const hadTemporaryNickname = !user.nickname || String(user.nickname).startsWith('user_');
+
             // 닉네임 업데이트
             user.nickname = nickname.trim();
             if (!user.isAdmin) {
                 user.staffNicknameDisplayEligibility = false;
+            }
+            if (!user.isAdmin && hadTemporaryNickname) {
+                // 최초 가입 닉네임 확정 직후 홈 진입 시 튜토리얼을 바로 시작한다.
+                (user as User & { onboardingTutorialPendingFirstHome?: boolean }).onboardingTutorialPendingFirstHome = true;
             }
 
             if (bodyAvatarId != null && String(bodyAvatarId).trim() !== '') {

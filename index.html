@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" href="/images/Icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- 터치 폰만: React·번들보다 먼저 세로 잠금 시도(첫 페인트 전). 744·2800 은 hooks/useIsMobileLayout.ts TABLET_* 와 동일 -->
+    <!-- 터치 폰만: React·번들보다 먼저 세로 잠금 시도(첫 페인트 전). 기준은 hooks/useIsMobileLayout.ts와 동기화 -->
     <script>
       (function () {
         try {
@@ -13,15 +13,48 @@
           var shortSide = Math.min(w, h),
             longSide = Math.max(w, h);
           var hasTouch = (navigator.maxTouchPoints || 0) > 0;
-          var tabletLike = false;
+          var ua = navigator.userAgent || '';
+          var isAndroidUa = /Android/i.test(ua);
+          var isIpadLikeUa = /iPad/i.test(ua) || (/Macintosh/i.test(ua) && hasTouch);
+          var tabletLikePointer = false;
           try {
-            tabletLike =
+            tabletLikePointer =
               (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
               (window.matchMedia && window.matchMedia('(hover: none)').matches);
           } catch (e) {}
-          if (!hasTouch || !tabletLike) return;
-          if (shortSide >= 744 && longSide <= 2800) return;
-          if (shortSide >= 744) return;
+
+          var TABLET_8IN_MIN_SHORT_SIDE_CSS_PX = 744;
+          var TABLET_MAX_LONG_SIDE_CSS_PX = 2800;
+          var TABLET_NARROW_SHORT_SIDE_LANDSCAPE_MAX_LONG_CSS_PX = 3200;
+          var TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX = 500;
+          var TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX = 1000;
+          var TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX = 800;
+
+          var likelyTabletBySize = hasTouch && longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_CSS_PX;
+          var likelyTabletByUaAndSize =
+            (isAndroidUa || isIpadLikeUa) &&
+            shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
+            longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX;
+          var treatAsTouchTablet =
+            (hasTouch && (tabletLikePointer || likelyTabletBySize)) || likelyTabletByUaAndSize;
+          if (!treatAsTouchTablet) return;
+
+          var isLargeTouchTablet = false;
+          if (shortSide >= TABLET_8IN_MIN_SHORT_SIDE_CSS_PX && longSide <= TABLET_MAX_LONG_SIDE_CSS_PX) {
+            isLargeTouchTablet = true;
+          } else if (shortSide < TABLET_8IN_MIN_SHORT_SIDE_CSS_PX) {
+            var landscape = w > h;
+            if (
+              landscape &&
+              shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
+              longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX &&
+              longSide <= TABLET_NARROW_SHORT_SIDE_LANDSCAPE_MAX_LONG_CSS_PX
+            ) {
+              isLargeTouchTablet = true;
+            }
+          }
+          if (isLargeTouchTablet) return;
+
           var o = screen.orientation;
           if (!o || !o.lock) return;
           o.lock('portrait').catch(function () {
