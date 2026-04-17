@@ -13,6 +13,7 @@ import {
     getAdventureUnderstandingRegionalCoreBuff,
     sumAdventureUnderstandingGoldBonusPercent,
 } from '../utils/adventureUnderstanding.js';
+import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 
 export interface MannerEffects {
     maxActionPoints: number;
@@ -182,6 +183,14 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
         advDrop.highGradeMaterialPercent +
         codexBossPct.highGradeMaterialPercent +
         codexTotals.adventureHighGradeMaterialBonusPercent;
+
+    if (isFunctionVipActive(user)) {
+        calculatedEffects.maxActionPoints += 20;
+        calculatedEffects.actionPointRegenInterval = Math.max(
+            1,
+            Math.floor(calculatedEffects.actionPointRegenInterval / 1.5),
+        );
+    }
 
     return calculatedEffects;
 };

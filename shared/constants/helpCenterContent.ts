@@ -1,10 +1,7 @@
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from './gameModes.js';
 import { GUILD_BOSS_MAX_ATTEMPTS } from './guildConstants.js';
-import { ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP } from '../../constants/adventureConstants.js';
-import {
-    ADVENTURE_REGIONAL_BUFF_CHANGE_BASE_GOLD,
-    ADVENTURE_REGIONAL_BUFF_CHANGE_EXTRA_GOLD_PER_EXTRA_UNLOCKED,
-} from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP, ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
+import { ADVENTURE_REGIONAL_BUFF_ACTION_GOLD } from '../../utils/adventureRegionalSpecialtyBuff.js';
 
 export type HelpImageRef = { src: string; alt: string; caption?: string };
 
@@ -48,6 +45,12 @@ const playfulGallery: HelpImageRef[] = PLAYFUL_GAME_MODES.map((g) => ({
     src: g.image,
     alt: g.name,
     caption: g.name,
+}));
+
+const adventureChapterGallery: HelpImageRef[] = ADVENTURE_STAGES.map((s) => ({
+    src: s.mapWebp,
+    alt: s.title,
+    caption: s.title,
 }));
 
 export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
@@ -97,7 +100,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                                 '가방: 장비·소모품·재료 인벤토리를 정리합니다.',
                                 '랭킹·채팅: 순위표와 채널 대화를 빠르게 엽니다.',
                                 '도감: 아이템 도감(별도 창)에서 전체 아이콘과 옵션을 봅니다.',
-                                '도움말: 지금 보고 있는 통합 안내입니다. 바둑학원·도전의 탑 규칙은 「바둑학원 · 도전의 탑」 범주에서 확인합니다.',
+                                '도움말: 지금 보고 있는 통합 안내입니다. 모험·챕터·탐험도는 「모험」 범주, 바둑학원·도전의 탑은 「바둑학원 · 도전의 탑」에서 확인합니다.',
                                 '공지: 운영 공지와 이벤트를 확인합니다.',
                             ],
                         },
@@ -327,6 +330,109 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
         ],
     },
     {
+        id: 'adventure',
+        label: '모험',
+        iconSrc: '/images/adventure.png',
+        accentClass: 'from-amber-500/22 via-fuchsia-600/12 to-violet-900/15',
+        subcategories: [
+            {
+                id: 'adventure-chapters',
+                label: '챕터 맵 · 몬스터',
+                article: {
+                    id: 'adventure-chapters',
+                    title: '챕터 맵과 몬스터',
+                    tagline: '입장부터 맵 탐색·대국까지 한눈에.',
+                    hero: { src: '/images/adventure.png', alt: '모험' },
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '홈·프로필에서 모험에 들어가 챕터를 고릅니다. 맵에서 몬스터를 선택해 대국하면 행동력이 소모되고, 승리 시 보상·이해도가 쌓입니다.',
+                        },
+                        { type: 'imageRow', compact: true, images: adventureChapterGallery },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '챕터마다 몬스터 종류·맵·보상 테이블이 다릅니다.',
+                                '몬스터 도감은 종별 승리 누적로 이해도 레벨이 오르며, 챕터·전체 완성도에 반영됩니다.',
+                                '이어서 열리는 챕터는 앞 챕터 조건을 만족해야 합니다.',
+                            ],
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'adventure-exploration',
+                label: '지역 탐험도',
+                article: {
+                    id: 'adventure-exploration',
+                    title: '지역 탐험도 XP',
+                    tagline: '챕터별로 쌓이는 탐험도와 보정 요약.',
+                    hero: { src: '/images/forest.webp', alt: '챕터 맵 예시' },
+                    blocks: [
+                        { type: 'heading', text: 'XP · 티어 · 슬롯', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '해당 챕터 몬스터 전투 승리 시 그 챕터의 지역 탐험도 XP가 오릅니다.',
+                                '티어가 오를 때마다 그 지역 전용 강화 포인트가 늘고, 효과 슬롯이 하나씩 열립니다.',
+                            ],
+                        },
+                        { type: 'heading', text: '패시브 보너스', level: 3 },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '모험 골드·드롭 등 일부 보정은 XP 곡선으로 합산되며, 일지에 숫자로 표시됩니다.',
+                                `「친숙함」 이상을 달성한 지역 수에 따라 코어 능력치에 소폭 보너스가 붙을 수 있으며, 상한은 ${ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP}%입니다.`,
+                            ],
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: adventureChapterGallery,
+                        },
+                        {
+                            type: 'callout',
+                            tone: 'tip',
+                            text: '탐험도·슬롯·강화 포인트는 챕터마다 따로 관리됩니다.',
+                        },
+                    ],
+                },
+            },
+            {
+                id: 'adventure-slots',
+                label: '효과 슬롯',
+                article: {
+                    id: 'adventure-slots',
+                    title: '지역 특화 효과',
+                    tagline: '슬롯에서 뽑는 챕터 전용 버프.',
+                    blocks: [
+                        {
+                            type: 'paragraph',
+                            text: '지역 탐험도 패널에서 챕터 탭을 고르면, 그 지역에서 적용되는 특화 효과 슬롯을 볼 수 있습니다.',
+                        },
+                        {
+                            type: 'imageRow',
+                            compact: true,
+                            images: [
+                                { src: '/images/icon/Gold.png', alt: '골드', caption: '변경·강화 비용' },
+                                { src: '/images/adventure.png', alt: '모험', caption: '효과 획득·변경' },
+                            ],
+                        },
+                        {
+                            type: 'bullets',
+                            items: [
+                                '빈 슬롯: 「효과 획득」으로 무료 랜덤 1종이 들어갑니다.',
+                                `효과가 있는 슬롯: 「변경」 시 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()}골드로 다시 뽑습니다. 강화 단계가 있었다면 확인 후 1단계로 돌아가고 포인트가 환급됩니다.`,
+                                `「강화」는 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()}골드와 강화 포인트 1을 써서 수치를 올립니다. 종류마다 최대 단계가 있습니다.`,
+                                '이미 끼운 종류는 가능한 한 나오지 않도록 뽑힙니다.',
+                            ],
+                        },
+                    ],
+                },
+            },
+        ],
+    },
+    {
         id: 'growth',
         label: '성장 · 스탯',
         iconSrc: '/images/quickmenu/enhance.png',
@@ -372,89 +478,6 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             tone: 'warn',
                             title: '매너와 연동',
                             text: '매너 등급이 낮아지면 최대 행동력이 줄거나 회복 속도에 불리한 효과가 붙을 수 있습니다. 「매너 등급」 항목을 참고하세요.',
-                        },
-                    ],
-                },
-            },
-            {
-                id: 'growth-adventure-understanding',
-                label: '모험 · 지역 이해도',
-                article: {
-                    id: 'growth-adventure-understanding',
-                    title: '모험 지역 이해도 패시브',
-                    tagline: '모험 일지의 지역 이해도가 골드·능력치 보정에 어떻게 반영되는지 설명합니다.',
-                    blocks: [
-                        {
-                            type: 'paragraph',
-                            text: '챕터 맵에서 쌓이는 지역 이해도(경험치)가 오를수록, 모험 골드·장비·고급 장비·재료·고급 재료 보너스가 같은 속도로 함께 서서히 오릅니다. 한 챕터만 깊게 올려도 다섯 줄이 골고루 조금씩 붙고, 이후 챕터를 열면 합산이 이어집니다. 여러 지역을 「친숙함」 이상으로 올리면 코어 능력치 유효값에도 소폭 보너스가 붙습니다.',
-                        },
-                        {
-                            type: 'bullets',
-                            items: [
-                                '모험 골드·장비·재료(고급 포함) 보너스는 지역별 이해도 XP에서 같은 곡선으로 합산되며, 줄마다 표시 상한이 있습니다.',
-                                `코어 능력치 유효 보너스는 「친숙함」 이상 도달한 지역 수를 기준으로 오르며, 상한은 ${ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP}%입니다.`,
-                                '실제 적용 수치는 모험 일지 화면에 숫자로 표시됩니다.',
-                            ],
-                        },
-                        {
-                            type: 'heading',
-                            text: '몬스터 도감 완성도',
-                            level: 3,
-                        },
-                        {
-                            type: 'paragraph',
-                            text: '도감에서 종마다 이해도 레벨(승리 누적)이 오릅니다. 모든 종을 최대 레벨(Lv.10, 300승 구간)까지 채우면 해당 챕터·전체 완성도가 100%가 됩니다. 일지에는 퍼센트와 레벨 합만 간단히 보여 줍니다.',
-                        },
-                        {
-                            type: 'callout',
-                            tone: 'info',
-                            title: '지역 탭·특화 효과',
-                            text: '모험 일지 「지역 이해도」 패널의 지역별 탭, 특화 효과 목록, 리롤 규칙은 아래 「모험 · 지역 특화 효과」 항목에서 설명합니다.',
-                        },
-                    ],
-                },
-            },
-            {
-                id: 'growth-adventure-regional-effects',
-                label: '모험 · 지역 특화 효과',
-                article: {
-                    id: 'growth-adventure-regional-effects',
-                    title: '모험 지역 특화 효과와 변경',
-                    tagline: '모험 일지 「지역 이해도」 패널의 지역별 효과·잠금·변경 비용 안내입니다.',
-                    blocks: [
-                        {
-                            type: 'paragraph',
-                            text: '지역 탭을 누르면 해당 챕터의 이해도 XP·티어·진행 바와, 그 지역에서 획득한 특화 효과 목록을 함께 볼 수 있습니다.',
-                        },
-                        {
-                            type: 'heading',
-                            text: '특화 효과 획득',
-                            level: 3,
-                        },
-                        {
-                            type: 'paragraph',
-                            text: '지역 이해도 티어가 오를 때마다 다섯 종류(모험 골드 %, 맵 몬스터 유지시간 %, 따내기 상대 목표 +1, 히든 스캔 +1, 미사일 +1) 중 아직 갖지 않은 종류가 무작위로 하나씩 영구 추가됩니다.',
-                        },
-                        {
-                            type: 'paragraph',
-                            text: '해당 지역에서 아직 효과가 없다면, 그 지역 몬스터 전투에서 승리해 이해도 경험치를 쌓고 티어를 올리면 됩니다.',
-                        },
-                        {
-                            type: 'heading',
-                            text: '효과 변경하기',
-                            level: 3,
-                        },
-                        {
-                            type: 'paragraph',
-                            text: '「효과 변경하기」로 골드를 내고, 잠금 해제된 슬롯의 특화 효과만 무작위로 다시 뽑을 수 있습니다. 효과가 둘 이상이면 🔓(변경 대상)과 🔒(유지)를 눌러 조절하며, 최소 하나는 잠그고 최소 하나는 바꿀 수 있게 두어야 합니다.',
-                        },
-                        {
-                            type: 'paragraph',
-                            text: `비용은 기본 ${ADVENTURE_REGIONAL_BUFF_CHANGE_BASE_GOLD.toLocaleString()}골드이며, 한 번에 바꿀 슬롯이 늘어날 때마다 ${ADVENTURE_REGIONAL_BUFF_CHANGE_EXTRA_GOLD_PER_EXTRA_UNLOCKED.toLocaleString()}골드씩 추가됩니다. 버튼에 골드 아이콘과 함께 필요 금액이 표시됩니다.`,
-                        },
-                        {
-                            type: 'paragraph',
-                            text: '이미 목록에 있는 종류는 가능한 한 나오지 않도록, 아직 없는 종류를 우선해 뽑습니다.',
                         },
                     ],
                 },

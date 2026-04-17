@@ -1558,6 +1558,9 @@ const processPlayerSummary = async (
                 updateQuestProgress(updatedPlayer, 'win', mode, 1);
             }
         }
+        if (isPvpRewardTarget && !liveSessionHasChampionshipDungeonBot(game)) {
+            updateQuestProgress(updatedPlayer, 'pvp_participate', mode, 1);
+        }
         if (isWinner && game.gameCategory === 'adventure') {
             updateQuestProgress(updatedPlayer, 'adventure_win', undefined, 1);
         }

@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -348,8 +348,6 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
     const [activeTab, setActiveTab] = useState<ShopTab>(initialTab || 'equipment');
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [purchasingItem, setPurchasingItem] = useState<PurchasableItem | null>(null);
-    const materialsMeasureRef = useRef<HTMLDivElement | null>(null);
-    const [mobileBaseContentHeight, setMobileBaseContentHeight] = useState<number | null>(null);
 
     useEffect(() => {
         if (toastMessage) {
@@ -383,10 +381,12 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             duration: '30일 적용',
             priceKRW: 9900,
             benefits: [
-                'VIP 보상 슬롯: 전략·놀이 대국, 모험 승리, 길드 보스전마다 표시 — 승리 시 장비 상자 II 1개 지급',
-                '길드 코인 획득량 2배 (출석, 기부 등)',
-                '일일/주간/월간 퀘스트 보상 2배',
-                '퀘스트 활약도 보상 2배',
+                '[VIP 보상슬롯]',
+                'VIP 보상슬롯 위치 : 전략바둑, 놀이바둑, 모험 승리 보상화면, 길드보스전 보상화면',
+                'VIP 보상(확률성) : 골드200% 추가보상 or 장비 획득(일반~에픽) or 재료 획득(하급~상급)(1~5개)',
+                '길드 코인 획득량 2배(출석,기부,길드보스전)',
+                '일일/주간/월간 퀘스트 보상2배',
+                '퀘스트 활약도 보상2배',
             ],
         },
         {
@@ -478,29 +478,6 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         setToastMessage('광고 보상을 수령했습니다.');
     };
 
-    const measureMaterialsHeight = useCallback(() => {
-        if (!mobileShop) {
-            setMobileBaseContentHeight(null);
-            return;
-        }
-        if (!materialsMeasureRef.current) return;
-        const measuredHeight = Math.ceil(materialsMeasureRef.current.scrollHeight);
-        if (measuredHeight > 0) {
-            setMobileBaseContentHeight(measuredHeight);
-        }
-    }, [mobileShop]);
-
-    useEffect(() => {
-        if (!mobileShop) return;
-        const rafId = window.requestAnimationFrame(measureMaterialsHeight);
-        const onResize = () => measureMaterialsHeight();
-        window.addEventListener('resize', onResize);
-        return () => {
-            window.cancelAnimationFrame(rafId);
-            window.removeEventListener('resize', onResize);
-        };
-    }, [mobileShop, measureMaterialsHeight]);
-
     const handleInitiatePurchase = (item: PurchasableItem) => {
         setPurchasingItem(item);
     };
@@ -558,7 +535,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="materials"
-                            rewardLabel="재료상자III"
+                            rewardLabel="재료상자II"
                             remaining={getAdRewardRemaining('materials')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
@@ -571,7 +548,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={`${mobileShop ? 'grid grid-cols-1 gap-2.5' : 'grid grid-cols-2 gap-3'}`}>
                         <ShopAdRewardCard
                             tab="diamonds"
-                            rewardLabel="다이아10"
+                            rewardLabel="다이아5"
                             remaining={getAdRewardRemaining('diamonds')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
@@ -633,7 +610,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     <div className={gridClassName}>
                         <ShopAdRewardCard
                             tab="consumables"
-                            rewardLabel="행동력 회복제 30"
+                            rewardLabel="행동력 회복제(+10)"
                             remaining={getAdRewardRemaining('consumables')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
@@ -664,14 +641,22 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 initialWidth={900}
                 initialHeight={750}
                 isTopmost={isTopmost && !purchasingItem}
-                bodyScrollable={false}
+                bodyScrollable={!mobileShop}
                 mobileViewportFit={mobileShop}
                 mobileViewportMaxHeightVh={90}
-                bodyNoScroll={mobileShop}
+                bodyNoScroll={false}
                 bodyPaddingClassName={mobileShop ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pt-2.5 !pb-[max(0.8rem,env(safe-area-inset-bottom,0px))]' : undefined}
             >
-                <div className="h-full min-h-0 flex flex-col relative">
-                    <div className={`flex bg-gray-900/70 p-1 rounded-lg mb-3 flex-shrink-0 ${mobileShop ? 'gap-1' : ''}`}>
+                <div
+                    className={
+                        mobileShop
+                            ? 'relative flex min-h-0 w-full flex-col'
+                            : 'relative flex h-full min-h-0 flex-col'
+                    }
+                >
+                    <div
+                        className={`mb-3 flex shrink-0 rounded-lg bg-gray-900/70 p-1 ${mobileShop ? 'sticky top-0 z-20 gap-1 backdrop-blur-sm' : ''}`}
+                    >
                         <button onClick={() => setActiveTab('equipment')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'equipment' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>장비</button>
                         <button onClick={() => setActiveTab('materials')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'materials' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>재료</button>
                         <button onClick={() => setActiveTab('consumables')} className={`flex-1 rounded-md transition-all ${mobileShop ? 'py-2 text-[13px] font-bold' : 'py-2 text-sm font-semibold'} ${activeTab === 'consumables' ? 'bg-blue-600' : 'text-gray-400 hover:bg-gray-700/50'}`}>소모품</button>
@@ -681,18 +666,12 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                     </div>
 
                     <div
-                        className={`flex-1 min-h-0 overflow-y-auto ${mobileShop ? 'pr-0.5' : 'pr-2'}`}
-                        style={mobileShop && mobileBaseContentHeight ? { minHeight: `${mobileBaseContentHeight}px` } : undefined}
+                        className={
+                            mobileShop
+                                ? 'w-full min-w-0 pr-0.5'
+                                : 'min-h-0 flex-1 overflow-y-auto pr-2'
+                        }
                     >
-                        {mobileShop && (
-                            <div className="pointer-events-none absolute left-0 top-0 -z-10 w-full opacity-0" aria-hidden="true">
-                                <div ref={materialsMeasureRef} className={gridClassName}>
-                                    {materialItems.map(item => (
-                                        <ShopItemCard key={`measure-${item.itemId}`} item={item} onBuy={handleInitiatePurchase} currentUser={currentUser} mobile={mobileShop} />
-                                    ))}
-                                </div>
-                            </div>
-                        )}
                         {renderContent()}
                     </div>
 

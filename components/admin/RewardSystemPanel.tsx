@@ -27,7 +27,7 @@ const REWARD_FIELDS: RewardFieldDef[] = [
     { key: 'tournamentScoreBonus', label: '점수 +수치', description: '챔피언십 점수 보상 추가', group: '챔피언십', defaultValueNote: '기본값: 순위별 원본 점수 보상' },
     { key: 'tournamentGoldBonus', label: '골드 +수치', description: '챔피언십 순위 골드 추가', group: '챔피언십', defaultValueNote: '기본값: 순위별 원본 골드 보상' },
     { key: 'tournamentDiamondBonus', label: '다이아 +수치', description: '챔피언십 순위 다이아 추가', group: '챔피언십', defaultValueNote: '기본값: 순위별 원본 다이아 보상' },
-    { key: 'shopAdDiamondBonus', label: '다이아 +수치', description: '상점 광고(다이아 탭) 추가 다이아', group: '상점 광고', defaultValueNote: '기본값: 10 다이아' },
+    { key: 'shopAdDiamondBonus', label: '다이아 +수치', description: '상점 광고(다이아 탭) 추가 다이아', group: '상점 광고', defaultValueNote: '기본값: 5 다이아' },
     { key: 'singleMissionGoldBonus', label: '골드 +수치', description: '싱글 미션 수령 골드 추가', group: '싱글 미션', defaultValueNote: '기본값: 미션/레벨별 원본 골드' },
     { key: 'singleMissionDiamondBonus', label: '다이아 +수치', description: '싱글 미션 수령 다이아 추가', group: '싱글 미션', defaultValueNote: '기본값: 미션/레벨별 원본 다이아' },
     { key: 'guildCheckInCoinBonus', label: '길드코인 +수치', description: '길드 출석 보상 추가', group: '길드 보상', defaultValueNote: '기본값: 출석 마일스톤 원본 길드코인' },
@@ -151,7 +151,7 @@ const RewardSystemPanel: React.FC<RewardSystemPanelProps> = ({ currentUserId, on
             ];
         }
         if (activeTab === '상점 광고') {
-            const base = 10;
+            const base = 5;
             return [
                 {
                     label: '광고 보상 다이아',

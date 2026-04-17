@@ -3,9 +3,9 @@
 import * as db from './db.js';
 import * as types from '../shared/types/index.js';
 import type { WeeklyCompetitor, InventoryItem } from '../shared/types/index.js';
-import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL } from '../shared/constants';
+import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL, CONSUMABLE_ITEMS } from '../shared/constants';
 import { randomUUID } from 'crypto';
-import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate } from '../shared/utils/timeUtils.js';
+import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getTodayKSTDateString } from '../shared/utils/timeUtils.js';
 import { DEMO_GUILD_WAR } from '../shared/constants/auth.js';
 import {
     GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
@@ -22,6 +22,8 @@ import { startTournamentSessionForUser } from './actions/tournamentActions.js';
 import { broadcast } from './socket.js';
 import * as mailRepo from './prisma/mailRepository.js';
 import { volatileState } from './state.js';
+import { FUNCTION_VIP_DAILY_CONDITION_POTION_NAME } from '../shared/constants/vipBenefits.js';
+import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 
 let lastSeasonProcessed: SeasonInfo | null = null;
 let lastWeeklyResetTimestamp: number | null = null;
@@ -30,6 +32,8 @@ let lastDailyRankingUpdateTimestamp: number | null = null;
 let lastDailyQuestResetTimestamp: number | null = null;
 let lastTowerRankingRewardTimestamp: number | null = null;
 let lastGuildWarMatchTimestamp: number | null = null;
+/** 화/금 0시대 큐 잔여분 1회 처리(월·목 23시 매칭 누락·지연 대비) — 같은 KST 일+요일에 한 번만 */
+let lastGuildWarCatchupMark: string | null = null;
 
 async function increaseGuildWarMonthlyParticipationCounts(userIds: string[], now: number): Promise<void> {
     if (!Array.isArray(userIds) || userIds.length === 0) return;
@@ -1945,6 +1949,46 @@ export async function processDailyQuestReset(): Promise<void> {
         console.log(`[DailyQuestReset] Reset daily check-in rewards for ${guildResetCount} guilds`);
     }
 
+    let functionVipMailCount = 0;
+    const dayKey = getTodayKSTDateString(now);
+    for (const u of allUsers) {
+        if (!u?.id || !isFunctionVipActive(u)) continue;
+        const mailId = `mail-vip-function-${dayKey}-${u.id}`;
+        if (u.mail?.some((m) => m.id === mailId)) continue;
+        const template = CONSUMABLE_ITEMS.find((c) => c.name === FUNCTION_VIP_DAILY_CONDITION_POTION_NAME);
+        if (!template) continue;
+        const item: InventoryItem = {
+            ...template,
+            id: `item-${randomUUID()}`,
+            quantity: 1,
+            createdAt: now,
+            isEquipped: false,
+            level: 1,
+            stars: 0,
+        };
+        const mail: types.Mail = {
+            id: mailId,
+            from: 'System',
+            title: '기능 VIP 일일 보상',
+            message:
+                '기능 VIP 혜택으로 컨디션 회복제(대) 1개를 드립니다. 7일 이내에 수령해 주세요.',
+            attachments: { items: [item] },
+            receivedAt: now,
+            expiresAt: now + 7 * 24 * 60 * 60 * 1000,
+            isRead: false,
+            attachmentsClaimed: false,
+        };
+        if (!u.mail) u.mail = [];
+        u.mail.unshift(mail);
+        await db.updateUser(u);
+        const { broadcastUserUpdate } = await import('./socket.js');
+        broadcastUserUpdate(u, ['mail']);
+        functionVipMailCount++;
+    }
+    if (functionVipMailCount > 0) {
+        console.log(`[DailyQuestReset] Sent function VIP daily mail to ${functionVipMailCount} users`);
+    }
+
     lastDailyQuestResetTimestamp = now;
     console.log(`[DailyQuestReset] Reset daily quests for ${resetCount} users, tournament states for ${tournamentResetCount} users, started tournament sessions for ${tournamentSessionStartedCount} user-tournament combinations`);
 }
@@ -2122,21 +2166,29 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }
 
-// 길드전 매칭: 월요일 23:00~23:50, 목요일 23:00~23:50 KST에 실행 → 0시(자정)에는 이미 매칭 완료
-// 신청 마감 23:00, 매칭 23:00~23:50에 실행되어 12시(0시)에 결과 표시
+// 길드전 매칭: 월·목 23:00~23:59 KST + 화·금 0:00~0:34 캐치업(큐 잔여 시)
+// 신청 마감 23:00, 스케줄러는 23시대에 짝 매칭 후 홀수·단독은 봇 길드와 매칭
 export async function processGuildWarMatching(force: boolean = false): Promise<void> {
     const now = Date.now();
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
     const kstMinutes = getKSTMinutes(now);
-    const isMatchTimeWindow = kstHours === 23 && kstMinutes < 50; // 23:00~23:49
-    const isMatchDay = kstDay === 1 || kstDay === 4; // 월요일(1), 목요일(4)
+    const isPrimeMatchWindow = (kstDay === 1 || kstDay === 4) && kstHours === 23 && kstMinutes < 60; // 월·목 23:00~23:59
+    const isCatchUpWindow =
+        (kstDay === 2 || kstDay === 5) && kstHours === 0 && kstMinutes < 35; // 화·금 0:00~0:34
 
-    if (!force && (!isMatchDay || !isMatchTimeWindow)) {
+    if (!force && !isPrimeMatchWindow && !isCatchUpWindow) {
         return;
     }
 
-    if (!force && lastGuildWarMatchTimestamp !== null) {
+    if (!force && isCatchUpWindow) {
+        const catchupKey = `${getStartOfDayKST(now)}-${kstDay}`;
+        if (lastGuildWarCatchupMark === catchupKey) {
+            return;
+        }
+    }
+
+    if (!force && isPrimeMatchWindow && lastGuildWarMatchTimestamp !== null) {
         const lastMatchDayStart = getStartOfDayKST(lastGuildWarMatchTimestamp);
         const currentDayStart = getStartOfDayKST(now);
         if (lastMatchDayStart === currentDayStart) {
@@ -2146,7 +2198,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         }
     }
 
-    const warType = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun'; // 월23시→화수 전쟁, 목23시→금일 전쟁
+    const warType = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun'; // 월·화(캐치업)→화수 전쟁, 목·금(캐치업)→금일 전쟁
     const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
     const maxAttemptsPerGuild = 0;
     const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
@@ -2163,11 +2215,17 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         console.warn(`[GuildWarMatch] Cleaned stale queue entries: removed=${removedCount}, before=${matchingQueue.length}, after=${sanitizedQueue.length}`);
         await db.setKV('guildWarMatchingQueue', sanitizedQueue);
     }
-    console.log(`[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} at 23:00 KST (${kstDay === 1 ? 'Mon→Tue' : 'Thu→Fri'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${sanitizedQueue.length}, DEMO=${DEMO_GUILD_WAR}`);
-    
+    console.log(
+        `[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} ` +
+            `(${isCatchUpWindow ? 'catch-up' : 'prime'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${sanitizedQueue.length}, DEMO=${DEMO_GUILD_WAR}`,
+    );
+
     if (sanitizedQueue.length === 0) {
         console.log(`[GuildWarMatch] No guilds in matching queue`);
-        lastGuildWarMatchTimestamp = now;
+        // 큐가 비어 있을 때 lastGuildWarMatchTimestamp를 쓰면, 같은 날 늦게 큐에 들어온 길드가 스케줄 매칭을 못 받음(START_GUILD_WAR force 없이 대기만 하는 경우)
+        if (!force && isCatchUpWindow) {
+            lastGuildWarCatchupMark = `${getStartOfDayKST(now)}-${kstDay}`;
+        }
         return;
     }
     
@@ -2248,6 +2306,9 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
         await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
         lastGuildWarMatchTimestamp = now;
+        if (!force && isCatchUpWindow) {
+            lastGuildWarCatchupMark = `${getStartOfDayKST(now)}-${kstDay}`;
+        }
         console.log(`[GuildWarMatch] [DEMO] Matched ${activeWars.length} guild(s) vs bot, ${newQueue.length} remaining in queue`);
         return;
     }
@@ -2426,6 +2487,9 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
     
     lastGuildWarMatchTimestamp = now;
+    if (!force && isCatchUpWindow) {
+        lastGuildWarCatchupMark = `${getStartOfDayKST(now)}-${kstDay}`;
+    }
     console.log(`[GuildWarMatch] Matched ${activeWars.length} guild wars, ${newQueue.length} guilds remaining in queue`);
 }
 

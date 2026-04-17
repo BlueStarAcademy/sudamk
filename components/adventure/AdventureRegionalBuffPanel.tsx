@@ -253,9 +253,9 @@ const AdventureRegionalBuffPanel: React.FC<{
                         type="button"
                         onClick={() => setShowHelpModal(true)}
                         className="inline-flex items-center rounded-md border border-fuchsia-400/45 bg-fuchsia-950/45 px-2 py-1 text-[10px] font-bold text-fuchsia-100 transition-colors hover:border-amber-400/45 hover:text-amber-100 sm:text-[11px]"
-                        aria-label="지역 탐험도 도움말 열기"
+                        aria-label="지역 탐험도 효과 정보 열기"
                     >
-                        도움말
+                        효과정보
                     </button>
                 </div>
 
@@ -378,13 +378,29 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     )}
                                     <button
                                         type="button"
-                                        disabled={!canAfford || isSpinning || anySlotSpinning}
+                                        disabled={
+                                            isSpinning ||
+                                            anySlotSpinning ||
+                                            (!isEmptyUnlockedSlot && !canAfford)
+                                        }
                                         onClick={() => void onChange(slotIndex)}
-                                        className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md border border-amber-500/45 bg-amber-950/35 px-2 py-1.5 text-[11px] font-bold text-amber-100 transition-colors enabled:hover:bg-amber-900/45 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
-                                        aria-label={`효과 변경, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드`}
+                                        className={`inline-flex shrink-0 items-center justify-center gap-1 rounded-md border px-2 py-1.5 text-[11px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs ${
+                                            isEmptyUnlockedSlot
+                                                ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100 enabled:hover:bg-emerald-900/45'
+                                                : 'border-amber-500/45 bg-amber-950/35 text-amber-100 enabled:hover:bg-amber-900/45'
+                                        }`}
+                                        aria-label={
+                                            isEmptyUnlockedSlot
+                                                ? '효과 획득 (무료)'
+                                                : `효과 변경, 비용 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD} 골드`
+                                        }
                                     >
-                                        <span>변경</span>
-                                        <GoldCostInline text={ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()} />
+                                        <span>{isEmptyUnlockedSlot ? '효과 획득' : '변경'}</span>
+                                        {!isEmptyUnlockedSlot ? (
+                                            <GoldCostInline text={ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()} />
+                                        ) : (
+                                            <span className="tabular-nums text-emerald-200/90">무료</span>
+                                        )}
                                     </button>
                                     <button
                                         type="button"

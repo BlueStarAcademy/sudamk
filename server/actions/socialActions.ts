@@ -253,10 +253,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         case 'ENTER_WAITING_ROOM': {
             const { mode } = payload;
             if (mode === 'strategic') {
-                const gate = await requireArenaEntranceOpen(user.isAdmin, 'strategicLobby');
+                const gate = await requireArenaEntranceOpen(user.isAdmin, 'strategicLobby', user);
                 if (!gate.ok) return { error: gate.error };
             } else if (mode === 'playful') {
-                const gate = await requireArenaEntranceOpen(user.isAdmin, 'playfulLobby');
+                const gate = await requireArenaEntranceOpen(user.isAdmin, 'playfulLobby', user);
                 if (!gate.ok) return { error: gate.error };
             }
             const currentStatus = volatileState.userStatuses[user.id];
@@ -586,7 +586,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         case 'START_RANKED_MATCHING': {
             const { lobbyType, selectedModes } = payload;
             const gateKey = lobbyType === 'strategic' ? 'strategicLobby' : 'playfulLobby';
-            const rankedGate = await requireArenaEntranceOpen(user.isAdmin, gateKey);
+            const rankedGate = await requireArenaEntranceOpen(user.isAdmin, gateKey, user);
             if (!rankedGate.ok) return { error: rankedGate.error };
             
             // 이미 매칭 중이면 에러

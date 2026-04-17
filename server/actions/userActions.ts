@@ -49,6 +49,7 @@ import {
     canAdvanceOnboardingTutorialPhase,
     ONBOARDING_INTRO1_FAN_ITEM_ID,
     ONBOARDING_PHASE_COMPLETE,
+    ONBOARDING_LAST_TUTORIAL_PHASE,
 } from '../../shared/constants/onboardingTutorial.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../../utils/inventoryUtils.js';
 import {
@@ -59,6 +60,7 @@ import {
     getRegionalMissileBonus,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { changeSingleRegionalSlotBuff, enhanceSingleRegionalSlotBuff } from '../utils/adventureRegionalBuffReroll.js';
+import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -135,6 +137,10 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             return { clientResponse: { updatedUser } };
         }
         case 'START_ADVENTURE_MONSTER_BATTLE': {
+            const advEntrance = await requireArenaEntranceOpen(user.isAdmin, 'adventure', user);
+            if (!advEntrance.ok) {
+                return { error: advEntrance.error };
+            }
             let adventureApDeducted = false;
             let adventureApCostPaid = 0;
             try {
@@ -960,6 +966,67 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const updatedUser = getSelectiveUserUpdate(user, 'ADVANCE_ONBOARDING_TUTORIAL');
             return { clientResponse: { updatedUser } };
         }
+        case 'BEGIN_ONBOARDING_ON_FIRST_HOME': {
+            if (user.isAdmin) {
+                return { error: '관리자 계정은 해당 동작을 사용할 수 없습니다.' };
+            }
+            const u = user as types.User & { onboardingTutorialPendingFirstHome?: boolean };
+            if (!u.onboardingTutorialPendingFirstHome) {
+                return { error: '진행할 수 없는 단계입니다.' };
+            }
+            u.onboardingTutorialPendingFirstHome = false;
+            user.onboardingTutorialPhase = 0;
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after BEGIN_ONBOARDING_ON_FIRST_HOME:`, err);
+                return { error: '튜토리얼 시작 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome']);
+            const updatedUser = getSelectiveUserUpdate(user, 'BEGIN_ONBOARDING_ON_FIRST_HOME');
+            return { clientResponse: { updatedUser } };
+        }
+        case 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD': {
+            if (!user.isAdmin && user.onboardingTutorialPhase !== ONBOARDING_LAST_TUTORIAL_PHASE) {
+                return { error: '진행할 수 없는 단계입니다.' };
+            }
+            const GOLD = 1000;
+            const DIAMONDS = 50;
+            const uext = user as types.User & {
+                onboardingCompletionRewardClaimed?: boolean;
+            };
+            let grantedGold = 0;
+            let grantedDiamonds = 0;
+            if (!uext.onboardingCompletionRewardClaimed) {
+                uext.onboardingCompletionRewardClaimed = true;
+                user.gold = (user.gold ?? 0) + GOLD;
+                user.diamonds = (user.diamonds ?? 0) + DIAMONDS;
+                grantedGold = GOLD;
+                grantedDiamonds = DIAMONDS;
+            }
+            user.onboardingTutorialPhase = ONBOARDING_PHASE_COMPLETE;
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after FINISH_ONBOARDING_TUTORIAL_WITH_REWARD:`, err);
+                return { error: '완료 처리에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, [
+                'onboardingTutorialPhase',
+                'onboardingCompletionRewardClaimed',
+                'gold',
+                'diamonds',
+            ]);
+            const updatedUser = getSelectiveUserUpdate(user, 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD');
+            return {
+                clientResponse: {
+                    updatedUser,
+                    onboardingTutorialCompletionRewards: { gold: grantedGold, diamonds: grantedDiamonds },
+                },
+            };
+        }
         case 'CLAIM_ONBOARDING_INTRO1_FAN': {
             if (!user.onboardingIntro1FanPendingClaim) {
                 return { error: '수령할 보상이 없습니다.' };
@@ -1039,9 +1106,12 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             user.functionVipExpiresAt = functionVip ? far : 0;
             user.vvipExpiresAt = vvip ? far : 0;
             const updatedUser = getSelectiveUserUpdate(user, 'ADMIN_SET_VIP_TEST_FLAGS');
-            db.updateUser(user).catch((err) => {
+            try {
+                await db.updateUser(user);
+            } catch (err) {
                 console.error(`[UserAction] Failed to save user ${user.id} after ADMIN_SET_VIP_TEST_FLAGS:`, err);
-            });
+                return { error: 'VIP 테스트 설정 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
             return { clientResponse: { updatedUser } };

@@ -1,6 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { isOnboardingTutorialActive } from '../shared/constants/onboardingTutorial.js';
+import { calculateTotalStats } from '../services/statService.js';
+import {
+    getBadukAbilitySnapshotFromStats,
+    isBlacksmithQuickUnlocked,
+    isQuestQuickUnlocked,
+} from '../shared/utils/contentProgressionGates.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
     compact?: boolean;
@@ -53,9 +59,21 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 
     const onboardingPhase = currentUserWithStatus?.onboardingTutorialPhase ?? 0;
     const onboardingActive = isOnboardingTutorialActive(currentUserWithStatus);
+    const badukSnap = useMemo(() => {
+        if (!currentUserWithStatus) return null;
+        return getBadukAbilitySnapshotFromStats(currentUserWithStatus, calculateTotalStats(currentUserWithStatus));
+    }, [currentUserWithStatus]);
+    const progressionQuickDisabled = (label: string) => {
+        if (!currentUserWithStatus || currentUserWithStatus.isAdmin) return false;
+        if (!badukSnap) return false;
+        if (label === '퀘스트') return !isQuestQuickUnlocked(badukSnap);
+        if (label === '대장간') return !isBlacksmithQuickUnlocked(badukSnap);
+        return false;
+    };
     const tutorialQuickDisabled = (label: string) => {
+        if (progressionQuickDisabled(label)) return true;
         if (!onboardingActive) return false;
-        if (onboardingPhase >= 11) return false;
+        if (onboardingPhase >= 10) return false;
         if (label === '가방') return onboardingPhase < 9;
         if (label === '대장간') return onboardingPhase < 10;
         if (label === '퀘스트' || label === '기보' || label === '상점') return true;
@@ -167,7 +185,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
         ],
-        [handlers, hasClaimableQuest, onboardingActive, onboardingPhase],
+        [handlers, hasClaimableQuest, onboardingActive, onboardingPhase, badukSnap, currentUserWithStatus?.isAdmin],
     );
 
     const gameplayButtons = buttons.filter((b) => b.gameplay);

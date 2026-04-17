@@ -13,6 +13,7 @@ import {
 import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
+import { updateQuestProgress } from '../questService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -89,7 +90,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
 
     switch(type) {
         case 'START_TOWER_GAME': {
-            const towerGate = await requireArenaEntranceOpen(user.isAdmin, 'tower');
+            const towerGate = await requireArenaEntranceOpen(user.isAdmin, 'tower', user);
             if (!towerGate.ok) return { error: towerGate.error };
             const { floor, useClientSideAi } = payload;
             const stage = TOWER_STAGES.find(s => {
@@ -356,6 +357,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             await db.saveGame(game).catch(err => {
                 console.error(`[CONFIRM_TOWER_GAME_START] Failed to save game ${gameId}:`, err);
             });
+
+            updateQuestProgress(user, 'tower_challenge', undefined, 1);
             
             // 사용자 상태 업데이트
             volatileState.userStatuses[game.player1.id] = { status: UserStatus.InGame, mode: game.mode, gameId: game.id, gameCategory: 'tower' as GameCategory };

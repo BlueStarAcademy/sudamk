@@ -1777,7 +1777,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         console.error('[MainLoop] Error in tryRunDailyDatabaseBackup:', error?.message);
                     }
                     
-                    // Handle guild war matching (매일 0시 KST)
+                    // 길드전 자동 매칭: processGuildWarMatching 내부에서 월·목 23시·화·금 0시 캐치업(KST)일 때만 처리
                     try {
                         const { processGuildWarMatching } = await import('./scheduledTasks.js');
                         await processGuildWarMatching();
@@ -2865,6 +2865,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             console.log('[/api/auth/register] Creating default user...');
             let newUser = createDefaultUser(`user-${randomUUID()}`, trimmedUsername, tempNickname, false);
             (newUser as { email?: string | null }).email = trimmedEmail;
+            (newUser as { onboardingTutorialPendingFirstHome?: boolean }).onboardingTutorialPendingFirstHome = true;
+            delete (newUser as { onboardingTutorialPhase?: number }).onboardingTutorialPhase;
 
             console.log('[/api/auth/register] Resetting and generating quests...');
             newUser = await resetAndGenerateQuests(newUser);

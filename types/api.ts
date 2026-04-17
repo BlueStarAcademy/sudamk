@@ -219,6 +219,8 @@ export type ServerAction =
     | { type: 'CHANGE_PASSWORD', payload: { currentPassword: string; newPassword: string } }
     | { type: 'WITHDRAW_USER', payload: { password: string; confirmText: string } }
     | { type: 'ADVANCE_ONBOARDING_TUTORIAL', payload: { phase: number } }
+    | { type: 'BEGIN_ONBOARDING_ON_FIRST_HOME' }
+    | { type: 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD' }
     | { type: 'CLAIM_ONBOARDING_INTRO1_FAN', payload?: never }
     | { type: 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', payload?: never }
     | { type: 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', payload?: never }

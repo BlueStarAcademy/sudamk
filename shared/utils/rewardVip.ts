@@ -34,3 +34,16 @@ export function isRewardVipActive(user: User, nowMs: number = Date.now()): boole
     if (rewardActive && functionActive) return true;
     return rewardActive;
 }
+
+/** 기능 VIP 또는 VVIP(기능 포함) 유효기간이 남았는지 */
+export function isFunctionVipActive(user: User, nowMs: number = Date.now()): boolean {
+    const typed = readText(user, ['vipType', 'activeVipType', 'vipTier']);
+    if (typed.includes('vvip')) return true;
+    if (typed.includes('function')) return true;
+
+    const vvipExpiresAt = readExpiry(user, ['vvipExpiresAt', 'vvipEndAt', 'vvipUntil']);
+    if (vvipExpiresAt > nowMs) return true;
+
+    const functionVipExpiresAt = readExpiry(user, ['functionVipExpiresAt', 'functionVipEndAt', 'functionVipUntil']);
+    return functionVipExpiresAt > nowMs;
+}

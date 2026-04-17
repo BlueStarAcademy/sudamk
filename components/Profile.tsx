@@ -26,6 +26,7 @@ import {
     ARENA_ENTRANCE_CLOSED_MESSAGE,
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
+import { USER_PROGRESSION_ARENA_BLOCK_MESSAGE } from '../shared/utils/contentProgressionGates.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { isOnboardingTutorialActive, ONBOARDING_PHASE_COMPLETE } from '../shared/constants/onboardingTutorial.js';
@@ -520,7 +521,18 @@ const ArenaMobilePvpStatStrip: React.FC = () => (
 
 
 const Profile: React.FC<ProfileProps> = () => {
-    const { currentUserWithStatus, allUsers, handlers, hasClaimableQuest, presets, guilds, currentRoute, arenaEntranceAvailability } = useAppContext();
+    const {
+        currentUserWithStatus,
+        allUsers,
+        handlers,
+        hasClaimableQuest,
+        presets,
+        guilds,
+        currentRoute,
+        arenaEntranceAvailability,
+        arenaEntranceFromServer,
+    } = useAppContext();
+    const beginOnboardingFirstHomeRef = useRef(false);
     const adventureCodexDonutGradId = useId().replace(/:/g, '');
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
@@ -569,7 +581,7 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const sendAdminVipTestFlags = useCallback(
         async (flags: { rewardVip: boolean; functionVip: boolean; vvip: boolean }) => {
-            if (!handlers?.handleAction || !currentUserWithStatus?.isAdmin) return;
+            if (!handlers?.handleAction || !isClientAdmin(currentUserWithStatus)) return;
             setVipTestBusy(true);
             try {
                 await handlers.handleAction({ type: 'ADMIN_SET_VIP_TEST_FLAGS', payload: flags });
@@ -577,7 +589,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 setVipTestBusy(false);
             }
         },
-        [handlers, currentUserWithStatus?.isAdmin],
+        [handlers, currentUserWithStatus],
     );
 
     useEffect(() => {
@@ -596,6 +608,19 @@ const Profile: React.FC<ProfileProps> = () => {
     useEffect(() => {
         if (profileTab !== 'home') setNativeHomeLowerTab('baduk');
     }, [profileTab]);
+
+    useEffect(() => {
+        if (beginOnboardingFirstHomeRef.current) return;
+        if (!handlers?.handleAction || !currentUserWithStatus) return;
+        if (currentRoute.view !== 'profile' || profileTab !== 'home') return;
+        const pending = (currentUserWithStatus as User & { onboardingTutorialPendingFirstHome?: boolean })
+            .onboardingTutorialPendingFirstHome;
+        if (!pending) return;
+        beginOnboardingFirstHomeRef.current = true;
+        void handlers.handleAction({ type: 'BEGIN_ONBOARDING_ON_FIRST_HOME' }).catch(() => {
+            beginOnboardingFirstHomeRef.current = false;
+        });
+    }, [handlers, currentUserWithStatus, currentRoute.view, profileTab]);
 
     useEffect(() => {
         const calculateTime = () => {
@@ -617,11 +642,19 @@ const Profile: React.FC<ProfileProps> = () => {
     // Get guild info: context(guilds+user.guildId) 또는 GET_GUILD_INFO 성공 시 저장한 길드 (새로고침 시 guildId가 늦게 올 수 있음)
     const [checkedGuildFromApi, setCheckedGuildFromApi] = useState<Guild | null>(null);
     const guildInfo = useMemo(() => {
-        if (currentUserWithStatus?.guildId && guilds[currentUserWithStatus.guildId]) {
-            return guilds[currentUserWithStatus.guildId];
-        }
-        return checkedGuildFromApi;
+        const gid = currentUserWithStatus?.guildId;
+        if (!gid) return null;
+        const fromState = guilds[gid];
+        if (fromState) return fromState;
+        if (checkedGuildFromApi?.id === gid) return checkedGuildFromApi;
+        return null;
     }, [currentUserWithStatus?.guildId, guilds, checkedGuildFromApi]);
+
+    useEffect(() => {
+        if (currentUserWithStatus && !currentUserWithStatus.guildId) {
+            setCheckedGuildFromApi(null);
+        }
+    }, [currentUserWithStatus?.guildId, currentUserWithStatus?.id]);
     
     // 길드 로딩 상태: 확인이 끝나기 전에는 항상 빈칸만 표시(버튼 노출 방지)
     const [guildLoadingFailed, setGuildLoadingFailed] = useState(false);
@@ -836,13 +869,15 @@ const Profile: React.FC<ProfileProps> = () => {
     const availablePoints = totalPoints - spentPoints;
 
     const mergedArena = useMemo(() => mergeArenaEntranceAvailability(arenaEntranceAvailability), [arenaEntranceAvailability]);
+    const serverArena = arenaEntranceFromServer;
     const arenaAdminBypass = isClientAdmin(currentUserWithStatus);
     const tryArenaEnter = useCallback(
         (key: ArenaEntranceKey, fn: () => void) => {
             if (arenaAdminBypass || mergedArena[key]) fn();
-            else window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+            else if (!serverArena[key]) window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+            else window.alert(USER_PROGRESSION_ARENA_BLOCK_MESSAGE[key] ?? ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
         },
-        [arenaAdminBypass, mergedArena],
+        [arenaAdminBypass, mergedArena, serverArena],
     );
     
     const onSelectLobby = (type: 'strategic' | 'playful') => {
@@ -1327,7 +1362,8 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                 )}
                             </div>
-                    ) : guildLoadingFailed ? (
+                    ) : guildLoadingFailed ||
+                      (meetsGuildLevelForFeatures && !currentUserWithStatus.guildId) ? (
                         meetsGuildLevelForFeatures ? (
                             <div className="flex min-w-0 items-center gap-2">
                                 <div className="flex min-w-0 flex-1 flex-nowrap gap-2">
@@ -1591,6 +1627,14 @@ const Profile: React.FC<ProfileProps> = () => {
                 )}
             </div>
 
+            <div
+                className={
+                    isNativeMobile && profileTab === 'home'
+                        ? 'flex min-h-0 min-w-0 flex-col gap-1.5'
+                        : 'col-span-2 grid h-full min-h-0 min-w-0 grid-cols-2 gap-2.5 lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0'
+                }
+                data-onboarding-target="onboarding-home-pvp-arenas"
+            >
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
                     <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={true} />
@@ -1648,6 +1692,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     </div>
                 )}
             </div>
+            </div>
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
                 {isNativeMobile && profileTab !== 'home' ? (
@@ -1658,7 +1703,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         <div className="flex min-h-0 w-full flex-1 rounded-md" />
                     </div>
                 ) : (
-                    <div className={mergedCardClass}>
+                    <div className={mergedCardClass} data-onboarding-target="onboarding-home-championship-card">
                         <div className={imagePaneClass}>
                             <div onClick={onSelectTournamentLobby} className="group flex h-full min-h-0 w-full flex-col text-center transition-all transform hover:-translate-y-1 hover:shadow-purple-500/30 cursor-pointer text-on-panel relative overflow-hidden rounded-xl">
                                 <img src={TOURNAMENT_LOBBY_IMG} alt="챔피언십" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
@@ -1690,7 +1735,7 @@ const Profile: React.FC<ProfileProps> = () => {
                         compact={true}
                     />
                 ) : (
-                    <div className={mergedCardClass}>
+                    <div className={mergedCardClass} data-onboarding-target="onboarding-home-adventure-card">
                         <div className={imagePaneClass}>
                             <PveCard
                                 title="모험"
@@ -1756,7 +1801,7 @@ const Profile: React.FC<ProfileProps> = () => {
         </div>
     );
     const adminVipCorner =
-        currentUserWithStatus.isAdmin ? (
+        isClientAdmin(currentUserWithStatus) ? (
             <div
                 ref={vipMenuRef}
                 className="pointer-events-auto absolute left-1 top-1 z-[4] max-[680px]:left-0.5 max-[680px]:top-0.5 sm:left-2 sm:top-1.5"

@@ -26,8 +26,8 @@ export const ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT = 'sudamr-onboarding-in
 /** 튜토리얼 완료(또는 스킵) 시 이 값 이상 */
 export const ONBOARDING_PHASE_COMPLETE = 100;
 
-/** 마지막 튜토리얼 단계 인덱스(0-based). `다음`으로 ONBOARDING_PHASE_COMPLETE로 가려면 이 단계에 도달해야 함 */
-export const ONBOARDING_LAST_TUTORIAL_PHASE = 15;
+/** 마지막 튜토리얼 단계 인덱스(0-based). `튜토리얼 종료` 후 완료 보상 처리 */
+export const ONBOARDING_LAST_TUTORIAL_PHASE = 14;
 
 export function isOnboardingTutorialActive(user: User | null | undefined): boolean {
     if (!user) return false;
@@ -59,11 +59,24 @@ export type OnboardingSpotlightTargetId =
     | 'onboarding-sp-summary-footer'
     | 'onboarding-sp-summary-rewards'
     | 'onboarding-sp-summary-lobby'
-    | 'onboarding-sp-training-quest-1'
+    | 'onboarding-sp-training-quest-1-card'
+    | 'onboarding-sp-training-quest-1-start'
+    | 'onboarding-sp-training-quest-2-card'
+    | 'onboarding-sp-lobby-back'
+    | 'onboarding-dock-home'
     | 'onboarding-quick-bag'
     | 'onboarding-quick-forge'
     | 'onboarding-tower-card'
-    | 'onboarding-dock-tower';
+    | 'onboarding-dock-tower'
+    | 'onboarding-inv-fan-slot'
+    | 'onboarding-inv-equip-button'
+    | 'onboarding-inv-equipped-stats-preset'
+    | 'onboarding-inv-modal-close'
+    /** 가방 튜토리얼: 닫기 안내 시 모달 전체를 밝게(마스크 구멍) */
+    | 'onboarding-inv-equipment-modal-shell'
+    | 'onboarding-home-championship-card'
+    | 'onboarding-home-pvp-arenas'
+    | 'onboarding-home-adventure-card';
 
 /** 경기 설명 모달(phase 5) 튜토리얼 — 모달이 `detail`을 구독 */
 export const ONBOARDING_PREGAME_DESC_STEP_EVENT = 'sudamr-onboarding-pregame-desc-step';
@@ -143,7 +156,65 @@ export function shouldRestrictIntro1OnboardingFirstMove(args: {
  * 튜토리얼 단계별로 강조할 DOM 타깃.
  * - 네이티브 모바일: 하단 독(바둑학원·탑) 등 셸 전용 타깃
  * - 그 외: 프로필 카드·스테이지 그리드 등
+ *
+ * phase 8(수련과제) 서브: 0=출석 카드 설명, 1=시작 버튼, 2=다음 과제 카드, 3=홈 이동(뒤로/홈)
  */
+export const ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY = [
+    {
+        title: '수련과제',
+        bodyPc:
+            '대기실에서 수련과제를 눌러 「시작하기」를 하면 시간이 지남에 따라 골드가 생산됩니다.',
+        bodyMobile:
+            '대기실에서 수련과제를 눌러 「시작하기」를 하면 시간이 지남에 따라 골드가 생산됩니다.',
+    },
+    {
+        title: '수련과제',
+        bodyPc: '「시작하기」 버튼을 눌러보세요.',
+        bodyMobile: '「시작하기」 버튼을 눌러보세요.',
+    },
+    {
+        title: '수련과제',
+        bodyPc: '다음 과제는 입문 스테이지 20 클리어 후 열립니다.',
+        bodyMobile: '다음 과제는 입문 스테이지 20 클리어 후 열립니다.',
+    },
+    {
+        title: '수련과제',
+        bodyPc: '홈 화면으로 이동해보세요. 상단의 뒤로가기를 누르면 됩니다.',
+        bodyMobile: '홈 화면으로 이동해보세요. 하단의 「홈」을 누르면 됩니다.',
+    },
+] as const;
+
+/** phase 9(가방): 0=퀵 가방, 1=부채 칸, 2=장착, 3=능력치·프리셋, 4=닫기 */
+export const ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY = [
+    {
+        title: '가방',
+        bodyPc: '가방이 열렸습니다. 가방 아이콘을 눌러보세요.',
+        bodyMobile: '가방이 열렸습니다. 가방 아이콘을 눌러보세요.',
+    },
+    {
+        title: '가방',
+        bodyPc: '가방에 들어와 있는 부채 장비를 클릭하세요.',
+        bodyMobile: '가방에 들어와 있는 부채 장비를 클릭하세요.',
+    },
+    {
+        title: '가방',
+        bodyPc: '장비를 장착해 보세요.',
+        bodyMobile: '장비를 장착해 보세요.',
+    },
+    {
+        title: '가방',
+        bodyPc:
+            '능력치가 올라간 것을 확인해 보세요. 바둑에 필요한 이 여섯 가지 능력치는 챔피언십 경기장에서 자동 시뮬레이션 경기를 진행할 때 능력을 발휘합니다.',
+        bodyMobile:
+            '능력치가 올라간 것을 확인해 보세요. 이 여섯 가지 능력치는 챔피언십 경기장의 자동 시뮬레이션에서 발휘됩니다.',
+    },
+    {
+        title: '가방',
+        bodyPc: '닫기 버튼으로 가방을 닫아 보세요.',
+        bodyMobile: '닫기 버튼으로 가방을 닫아 보세요.',
+    },
+] as const;
+
 export function resolveOnboardingSpotlightTarget(
     phase: number,
     opts: {
@@ -152,9 +223,20 @@ export function resolveOnboardingSpotlightTarget(
         phase6IngameSubStep?: number;
         /** phase 7 + 싱글 결과 모달 튜토리얼 (0~2) */
         spResultTutorialStep?: number;
+        /** phase 8 수련과제 튜토리얼 서브스텝 (0~3) */
+        phase8TrainingSubStep?: number;
+        /** phase 9 가방 튜토리얼 서브스텝 (0~4) */
+        phase9BagSubStep?: number;
     },
 ): OnboardingSpotlightTargetId | null {
-    const { isNativeMobile, phase5GameDescSubStep = 0, phase6IngameSubStep = 0, spResultTutorialStep } = opts;
+    const {
+        isNativeMobile,
+        phase5GameDescSubStep = 0,
+        phase6IngameSubStep = 0,
+        spResultTutorialStep,
+        phase8TrainingSubStep = 0,
+        phase9BagSubStep = 0,
+    } = opts;
     switch (phase) {
         case 0:
             return 'onboarding-home-profile';
@@ -182,21 +264,40 @@ export function resolveOnboardingSpotlightTarget(
             if (s === 1) return 'onboarding-sp-summary-lobby';
             return null;
         }
-        case 8:
-            return 'onboarding-sp-summary-lobby';
-        case 9:
-            return 'onboarding-sp-training-quest-1';
+        case 8: {
+            if (phase8TrainingSubStep <= 1) {
+                return phase8TrainingSubStep === 0
+                    ? 'onboarding-sp-training-quest-1-card'
+                    : 'onboarding-sp-training-quest-1-start';
+            }
+            if (phase8TrainingSubStep === 2) return 'onboarding-sp-training-quest-2-card';
+            return isNativeMobile ? 'onboarding-dock-home' : 'onboarding-sp-lobby-back';
+        }
+        case 9: {
+            switch (phase9BagSubStep) {
+                case 0:
+                    return 'onboarding-quick-bag';
+                case 1:
+                    return 'onboarding-inv-fan-slot';
+                case 2:
+                    return 'onboarding-inv-equip-button';
+                case 3:
+                    return 'onboarding-inv-equipped-stats-preset';
+                case 4:
+                    return 'onboarding-inv-equipment-modal-shell';
+                default:
+                    return 'onboarding-quick-bag';
+            }
+        }
         case 10:
-            return 'onboarding-quick-bag';
+            return 'onboarding-home-championship-card';
         case 11:
-            return null;
-        case 12:
-            return 'onboarding-quick-forge';
-        case 13:
-            return null;
-        case 14:
             return isNativeMobile ? 'onboarding-dock-tower' : 'onboarding-tower-card';
-        case 15:
+        case 12:
+            return 'onboarding-home-pvp-arenas';
+        case 13:
+            return 'onboarding-home-adventure-card';
+        case 14:
             return null;
         default:
             return null;
@@ -210,10 +311,9 @@ export function canAdvanceOnboardingTutorialPhase(user: User, target: number): b
     if (!isOnboardingTutorialActive(user)) return false;
     const cur = user.onboardingTutorialPhase ?? 0;
     if (target === ONBOARDING_PHASE_COMPLETE) {
-        return cur >= ONBOARDING_LAST_TUTORIAL_PHASE;
-    }
-    if (cur === 12 && target === 13) {
-        return getOnboardingCombinedLevel(user) >= 3;
+        if (user.isAdmin) return cur >= ONBOARDING_LAST_TUTORIAL_PHASE;
+        /** 일반 유저는 `FINISH_ONBOARDING_TUTORIAL_WITH_REWARD`로만 완료 처리 */
+        return false;
     }
     if (cur === 7 && target === 8) {
         return (user.onboardingSpResultTutorialStep ?? -1) === 1;
@@ -233,7 +333,6 @@ export function applyOnboardingArenaEntranceTutorialLocks(
 ): Record<ArenaEntranceKey, boolean> {
     if (!isOnboardingTutorialActive(user)) return merged;
     const p = user.onboardingTutorialPhase ?? 0;
-    const combined = getOnboardingCombinedLevel(user);
     const out: Record<ArenaEntranceKey, boolean> = { ...merged };
 
     const lockTowerStrategicPlayfulAdventure = () => {
@@ -246,20 +345,9 @@ export function applyOnboardingArenaEntranceTutorialLocks(
     if (p < 9) {
         lockTowerStrategicPlayfulAdventure();
         out.championship = false;
-    } else if (p <= 11) {
+    } else if (p < 14) {
         lockTowerStrategicPlayfulAdventure();
         out.championship = merged.championship;
-    } else if (p === 12) {
-        lockTowerStrategicPlayfulAdventure();
-        out.championship = merged.championship;
-    } else if (p === 13) {
-        lockTowerStrategicPlayfulAdventure();
-        out.championship = merged.championship;
-        out.tower = merged.tower && combined >= 3;
-    } else if (p === 14) {
-        lockTowerStrategicPlayfulAdventure();
-        out.championship = merged.championship;
-        out.tower = merged.tower;
     } else {
         return { ...merged };
     }
@@ -346,43 +434,45 @@ export const ONBOARDING_TUTORIAL_STEP_COPY: Record<number, OnboardingTutorialSte
         bodyMobile: '「나가기」로 대기실로 돌아가세요.',
     },
     8: {
-        title: '수련과제',
-        bodyPc: '대기실에서 수련과제를 눌러 「시작하기」로 골드 생산을 시작하세요. 다음 과제는 입문 스테이지 20 클리어 후 진행됩니다. 안내를 마친 뒤 뒤로가기로 홈으로 나가세요.',
-        bodyMobile: '수련과제를 시작한 뒤, 안내를 읽고 홈으로 돌아가세요.',
+        title: ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY[0].title,
+        bodyPc: ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY[0].bodyPc,
+        bodyMobile: ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY[0].bodyMobile,
     },
     9: {
-        title: '가방',
-        bodyPc: '가방이 열렸습니다. 점멸하는 가방 아이콘을 눌러 장비를 확인하고, 방금 받은 부채를 장착해 보세요.',
-        bodyMobile: '가방을 열어 부채를 장착하세요.',
+        title: ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY[0].title,
+        bodyPc: ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY[0].bodyPc,
+        bodyMobile: ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY[0].bodyMobile,
     },
     10: {
-        title: '능력치 변화',
-        bodyPc: '장착 패널에서 코어 능력치가 올라갔는지 확인하세요. 장비는 능력치에 직접 영향을 줍니다.',
-        bodyMobile: '장착 후 능력치 변화를 확인하세요.',
+        title: '챔피언십',
+        bodyPc:
+            '챔피언십 경기장에서 바둑 능력치를 이용한 대회에 참가하여 골드 및 강화 재료, 장비 등을 얻을 수 있습니다. (3개의 경기장, 하루에 각각 1회 참여 가능)',
+        bodyMobile:
+            '챔피언십에서 능력치 기반 대회에 참가해 보상을 얻으세요. 3개 경기장, 하루 각 1회 참여 가능합니다.',
     },
     11: {
-        title: '챔피언십·대장간',
-        bodyPc: '챔피언십 경기장이 열렸습니다. 능력치를 올려 매일 한 번 도전하고 보상을 받으세요. 장비 강화·재련은 대장간(점멸 아이콘)에서 할 수 있습니다. 이제 퀵 메뉴가 모두 사용 가능합니다.',
-        bodyMobile: '챔피언십에 매일 도전하고, 대장간에서 강화·재련을 할 수 있습니다.',
+        title: '도전의 탑',
+        bodyPc: '매월 1일 초기화되는 도전의 탑에 도전하여 보상을 획득하세요.',
+        bodyMobile: '매월 1일 초기화되는 도전의 탑에 도전하여 보상을 획득하세요.',
     },
     12: {
-        title: '1차 튜토리얼 완료',
-        bodyPc: '앞으로는 홈에서 다른 경기장도 이용할 수 있습니다. 전략·놀이 레벨 합이 3이 되면 도전의 탑 안내가 이어집니다.',
-        bodyMobile: '레벨 합 3에서 도전의 탑이 안내됩니다.',
+        title: '전략·놀이 바둑',
+        bodyPc:
+            'PVP 경기장으로 친선전 및 랭킹전을 할 수 있고 AI와 대결도 할 수 있습니다. 전략 바둑에는 클래식 바둑뿐만 아니라 각종 아이템을 활용하는 아이템전이 있습니다. 놀이 바둑에서는 알까기, 바둑 컬링, 오목, 따목, 주사위를 이용한 게임 등 바둑으로 할 수 있는 놀이 게임을 즐기실 수 있습니다.',
+        bodyMobile:
+            'PVP·랭킹·AI 대국, 전략(클래식·아이템전), 놀이(알까기·컬링·오목·따목·주사위 등)를 즐기실 수 있습니다.',
     },
     13: {
-        title: '도전의 탑',
-        bodyPc: '매월 한 번씩 도전해 최고 층을 올리고, 매월 초기화 후 다시 도전하며 보상을 받을 수 있습니다. 「도전의 탑」카드를 눌러 들어가 보세요.',
-        bodyMobile: '도전의 탑에 들어가 월간 도전을 확인하세요.',
+        title: '모험',
+        bodyPc:
+            '모험을 통해 각종 맵에서 몬스터와 바둑 시합을 하며 골드 및 장비, 재료를 얻고, 이해도에 따라 추가 능력치 성장을 할 수 있습니다.',
+        bodyMobile: '맵에서 몬스터와 바둑 시합으로 재화·장비·재료와 이해도 기반 능력치 성장을 노리세요.',
     },
     14: {
-        title: '탑에서 나오기',
-        bodyPc: '뒤로가기로 홈으로 돌아오면 전략바둑·놀이바둑·모험 입장이 열립니다.',
-        bodyMobile: '홈으로 돌아오면 나머지 카드가 열립니다.',
-    },
-    15: {
-        title: '전략·놀이·모험',
-        bodyPc: '전략·놀이 바둑: PVP와 AI 대국을 즐길 수 있습니다. 전략 바둑은 클래식 외 아이템전도 준비되어 있습니다. 놀이 바둑에서는 알까기·바둑컬링·오목·주사위 바둑 등을 즐길 수 있습니다. 모험에서는 다양한 전략 모드로 몬스터를 물리치고 이해도를 쌓아 능력치를 올릴 수 있습니다.',
-        bodyMobile: '전략/놀이는 PVP·AI, 모험은 몬스터·이해도 성장에 집중하세요.',
+        title: 'SUDAM을 즐겨 주세요',
+        bodyPc:
+            '다양한 게임을 AI와 즐기거나 PVP를 즐기며 SUDAM에서 행복한 시간 보내세요!',
+        bodyMobile:
+            '다양한 게임을 AI와 즐기거나 PVP를 즐기며 SUDAM에서 행복한 시간 보내세요!',
     },
 };

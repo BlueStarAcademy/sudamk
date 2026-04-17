@@ -443,6 +443,8 @@ export type User = {
   singlePlayerProgress?: number;
   /** 신규 온보딩 튜토리얼 진행 단계(0~). 미설정·100 이상이면 튜토리얼 비활성(기존 유저). */
   onboardingTutorialPhase?: number;
+  onboardingTutorialPendingFirstHome?: boolean;
+  onboardingCompletionRewardClaimed?: boolean;
   /** 입문-1 온보딩 첫 클리어 후 부채를 튜토리얼 「수령하기」로만 지급할 때 true */
   onboardingIntro1FanPendingClaim?: boolean;
   /**

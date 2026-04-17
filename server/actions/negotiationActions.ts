@@ -455,7 +455,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                       ? 'playfulLobby'
                       : null;
                 if (aiLobbyKey) {
-                    const aiGate = await requireArenaEntranceOpen(user.isAdmin, aiLobbyKey);
+                    const aiGate = await requireArenaEntranceOpen(user.isAdmin, aiLobbyKey, user);
                     if (!aiGate.ok) {
                         if (!user.isAdmin) {
                             user.actionPoints.current += cost;

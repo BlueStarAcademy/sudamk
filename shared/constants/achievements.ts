@@ -11,7 +11,8 @@ export type AchievementStageDefinition = {
         | { type: 'strategy_tier'; tier: '루키' | '브론즈' | '실버' | '골드' | '플래티넘' | '다이아' | '마스터' | '챌린저' }
         | { type: 'playful_tier'; tier: '루키' | '브론즈' | '실버' | '골드' | '플래티넘' | '다이아' | '마스터' | '챌린저' }
         | { type: 'adventure_understanding_tier'; stageId: 'neighborhood_hill' | 'lake_park' | 'aquarium' | 'zoo' | 'amusement_park'; tier: '편함' | '익숙함' | '친숙함' | '정복' }
-        | { type: 'adventure_codex_score'; score: number };
+        | { type: 'adventure_codex_score'; score: number }
+        | { type: 'blacksmith_level'; level: number };
     rewardDiamonds: number;
 };
 
@@ -34,6 +35,7 @@ export const AQUARIUM_EXPLORATION_TRACK_ID = 'adventure_aquarium_conquest';
 export const ZOO_EXPLORATION_TRACK_ID = 'adventure_zoo_conquest';
 export const AMUSEMENT_PARK_EXPLORATION_TRACK_ID = 'adventure_amusement_park_conquest';
 export const MONSTER_CODEX_HUNTER_TRACK_ID = 'adventure_monster_codex_hunter';
+export const BLACKSMITH_LEVEL_TRACK_ID = 'blacksmith_level_milestones';
 
 export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     {
@@ -220,6 +222,17 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
             { id: 'monster-codex-score-200', title: '몬스터 도감 200점', description: '몬스터 도감 점수 200점을 달성하세요.', requirement: { type: 'adventure_codex_score', score: 200 }, rewardDiamonds: 50 },
             { id: 'monster-codex-score-350', title: '몬스터 도감 350점', description: '몬스터 도감 점수 350점을 달성하세요.', requirement: { type: 'adventure_codex_score', score: 350 }, rewardDiamonds: 100 },
             { id: 'monster-codex-score-540', title: '몬스터 도감 540점', description: '몬스터 도감 점수 540점을 달성하세요.', requirement: { type: 'adventure_codex_score', score: 540 }, rewardDiamonds: 200 },
+        ],
+    },
+    {
+        id: BLACKSMITH_LEVEL_TRACK_ID,
+        title: '대장장이 업적',
+        stages: [
+            { id: 'blacksmith-level-2', title: '대장간 레벨 2 달성', description: '대장간 레벨 2에 도달하세요.', requirement: { type: 'blacksmith_level', level: 2 }, rewardDiamonds: 10 },
+            { id: 'blacksmith-level-5', title: '대장간 레벨 5 달성', description: '대장간 레벨 5에 도달하세요.', requirement: { type: 'blacksmith_level', level: 5 }, rewardDiamonds: 50 },
+            { id: 'blacksmith-level-10', title: '대장간 레벨 10 달성', description: '대장간 레벨 10에 도달하세요.', requirement: { type: 'blacksmith_level', level: 10 }, rewardDiamonds: 100 },
+            { id: 'blacksmith-level-15', title: '대장간 레벨 15 달성', description: '대장간 레벨 15에 도달하세요.', requirement: { type: 'blacksmith_level', level: 15 }, rewardDiamonds: 100 },
+            { id: 'blacksmith-level-20', title: '대장간 레벨 20 달성', description: '대장간 레벨 20에 도달하세요.', requirement: { type: 'blacksmith_level', level: 20 }, rewardDiamonds: 100 },
         ],
     },
 ];

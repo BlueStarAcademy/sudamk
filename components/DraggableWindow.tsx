@@ -135,6 +135,9 @@ interface DraggableWindowProps {
      */
     pcViewportMaxHeightCss?: string;
 
+    /** 온보딩 스포트라이트: 닫기 버튼에 `data-onboarding-target` 부여 */
+    closeButtonDataOnboardingTarget?: string;
+
 }
 
 
@@ -336,6 +339,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     containerExtraClassName,
     footerClassName,
     pcViewportMaxHeightCss,
+    closeButtonDataOnboardingTarget,
 }) => {
     // isTopmost가 true일 때는 전역 카운터를 사용하여 항상 최상위에 표시
     const [effectiveZIndex, setEffectiveZIndex] = useState(() => {
@@ -1075,12 +1079,14 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const useStickyMobileFooter = isMobileModalShell && stickyFooter !== null;
     const scrollRegionAllowsVerticalScroll = useStickyMobileFooter || bodyAllowsVerticalScroll;
 
+    /** iOS·WebKit: 중첩 스크롤보다 단일 본문 스크롤이 안정적 — 모멘텀·세로 팬 명시 */
+    const bodyScrollTouchClass = 'touch-pan-y [-webkit-overflow-scrolling:touch]';
     /** mobileViewportFit: 스크롤은 유지하되 트랙을 숨김(좁은 브라우저·스케일 캔버스에서도 동일) */
     const bodyScrollOverflowClass =
         scrollRegionAllowsVerticalScroll && useMobileViewportFitLayout
-            ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0'
+            ? `overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:h-0 ${bodyScrollTouchClass}`
             : scrollRegionAllowsVerticalScroll
-              ? 'overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto]'
+              ? `overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] ${bodyScrollTouchClass}`
               : 'overflow-hidden';
 
     const modalContent = (
@@ -1211,6 +1217,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                                 className={`z-30 shrink-0 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
                                 style={{ pointerEvents: 'auto', cursor: 'pointer' }}
                                 aria-label={`${title} 닫기`}
+                                {...(closeButtonDataOnboardingTarget
+                                    ? { 'data-onboarding-target': closeButtonDataOnboardingTarget }
+                                    : {})}
                             >
                                 닫기
                             </button>

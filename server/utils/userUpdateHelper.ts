@@ -41,6 +41,13 @@ export function getSelectiveUserUpdate(
         'UPDATE_AVATAR': ['avatarId'],
         'UPDATE_BORDER': ['borderId'],
         'ADVANCE_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingSpResultTutorialStep'],
+        'BEGIN_ONBOARDING_ON_FIRST_HOME': ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome'],
+        'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD': [
+            'onboardingTutorialPhase',
+            'onboardingCompletionRewardClaimed',
+            'gold',
+            'diamonds',
+        ],
         'CLAIM_ONBOARDING_INTRO1_FAN': [
             'inventory',
             'onboardingTutorialPhase',
@@ -151,7 +158,7 @@ export function getUserDelta(oldUser: User | null, newUser: User): Partial<User>
         'spentStatPoints', 'equipmentPresets', 'mail', 'quests',
         'inventorySlots', 'blacksmithLevel', 'blacksmithXp',
         'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament',
-        'singlePlayerProgress', 'clearedSinglePlayerStages', 'onboardingTutorialPhase', 'onboardingIntro1FanPendingClaim',
+        'singlePlayerProgress', 'clearedSinglePlayerStages', 'onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome', 'onboardingCompletionRewardClaimed', 'onboardingIntro1FanPendingClaim',
         'rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt',
     ];
     

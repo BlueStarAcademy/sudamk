@@ -39,6 +39,7 @@ import {
     calculateRefinementGoldCost,
 } from '../../constants/rules.js';
 import * as effectService from '../effectService.js';
+import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { SHOP_ITEMS, createItemFromTemplate } from '../shop.js';
 import { updateQuestProgress } from '../questService.js';
 import { addItemsToInventory as addItemsToInventoryUtil } from '../../utils/inventoryUtils.js';
@@ -202,7 +203,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // 2. Determine outcome grade
             const greatSuccessRate = BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES[blacksmithLevel - 1]?.[grade] ?? 0;
-            const isGreatSuccess = Math.random() * 100 < greatSuccessRate;
+            const vipGreatBonus = isFunctionVipActive(user) ? 10 : 0;
+            const effectiveGreatRate = Math.min(100, greatSuccessRate + vipGreatBonus);
+            const isGreatSuccess = Math.random() * 100 < effectiveGreatRate;
             
             // 신화 합성: 대성공 시 초월, 아니면 신화
             let outcomeGrade: ItemGrade;
@@ -247,7 +250,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // 6. Add blacksmith XP
             const xpGainRange = BLACKSMITH_COMBINATION_XP_GAIN[grade];
-            const xpGained = getRandomInt(xpGainRange[0], xpGainRange[1]);
+            let xpGained = getRandomInt(xpGainRange[0], xpGainRange[1]);
+            if (isFunctionVipActive(user)) {
+                xpGained = Math.floor(xpGained * 1.5);
+            }
             user.blacksmithXp += xpGained;
 
             while (user.blacksmithLevel < BLACKSMITH_MAX_LEVEL && user.blacksmithXp >= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel)) {
@@ -1051,7 +1057,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const baseSuccessRate = ENHANCEMENT_SUCCESS_RATES[item.stars];
             const failBonusRate = ENHANCEMENT_FAIL_BONUS_RATES[item.grade] || 0.5;
             const failBonus = (item.enhancementFails || 0) * failBonusRate;
-            const successRate = Math.min(100, baseSuccessRate + failBonus);
+            const vipEnhanceBonus = isFunctionVipActive(user) ? 10 : 0;
+            const successRate = Math.min(100, baseSuccessRate + failBonus + vipEnhanceBonus);
 
             const isSuccess = Math.random() * 100 < successRate;
             let resultMessage = '';
@@ -1108,6 +1115,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const xpGainRange = BLACKSMITH_ENHANCEMENT_XP_GAIN[item.grade];
             if (xpGainRange) {
                 xpGained = getRandomInt(xpGainRange[0], xpGainRange[1]);
+                if (isFunctionVipActive(user)) {
+                    xpGained = Math.floor(xpGained * 1.5);
+                }
                 user.blacksmithXp = (user.blacksmithXp || 0) + xpGained;
 
                 while (user.blacksmithLevel < BLACKSMITH_MAX_LEVEL && user.blacksmithXp >= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel)) {
@@ -1508,7 +1518,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             const baseJackpotRate = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[user.blacksmithLevel - 1] ?? 0;
             const mannerEffects = effectService.getMannerEffects(user);
-            const jackpotRate = Math.min(100, baseJackpotRate + (mannerEffects.disassemblyJackpotBonusPercent ?? 0));
+            const vipJackpotBonus = isFunctionVipActive(user) ? 10 : 0;
+            const jackpotRate = Math.min(
+                100,
+                baseJackpotRate + (mannerEffects.disassemblyJackpotBonusPercent ?? 0) + vipJackpotBonus,
+            );
             const isJackpot = Math.random() * 100 < jackpotRate;
             if (isJackpot) {
                 for (const key in gainedMaterials) {
@@ -1527,7 +1541,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             user.inventory = updatedInventory;
 
             // Update blacksmith XP
-            user.blacksmithXp = (user.blacksmithXp || 0) + totalXpGained;
+            let disasmXp = totalXpGained;
+            if (isFunctionVipActive(user)) {
+                disasmXp = Math.floor(disasmXp * 1.5);
+            }
+            user.blacksmithXp = (user.blacksmithXp || 0) + disasmXp;
             while (user.blacksmithLevel < BLACKSMITH_MAX_LEVEL && user.blacksmithXp >= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel)) {
                 user.blacksmithXp -= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel);
                 user.blacksmithLevel++;
@@ -1556,7 +1574,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     disassemblyResult: { 
                         gained: Object.entries(gainedMaterials).map(([name, amount]) => ({ name, amount })), 
                         jackpot: isJackpot,
-                        xpGained: totalXpGained
+                        xpGained: disasmXp
                     }
                 }
             };
@@ -1573,7 +1591,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const blacksmithLevel = user.blacksmithLevel ?? 1;
             const baseJackpotRate = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[blacksmithLevel - 1] ?? 0;
             const mannerEffects = effectService.getMannerEffects(user);
-            const jackpotRate = Math.min(100, baseJackpotRate + (mannerEffects.disassemblyJackpotBonusPercent ?? 0));
+            const vipJackpotBonus = isFunctionVipActive(user) ? 10 : 0;
+            const jackpotRate = Math.min(
+                100,
+                baseJackpotRate + (mannerEffects.disassemblyJackpotBonusPercent ?? 0) + vipJackpotBonus,
+            );
             const isJackpot = Math.random() * 100 < jackpotRate;
             
             if (craftType === 'upgrade') {

@@ -1,8 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { mergeArenaEntranceAvailability, ARENA_ENTRANCE_CLOSED_MESSAGE, type ArenaEntranceKey } from '../../constants/arenaEntrance.js';
+import { USER_PROGRESSION_ARENA_BLOCK_MESSAGE } from '../../shared/utils/contentProgressionGates.js';
 import { isClientAdmin } from '../../utils/clientAdmin.js';
+import { isOnboardingTutorialActive } from '../../shared/constants/onboardingTutorial.js';
+import { getPhase8TrainingTutorialStep, subscribePhase8TrainingTutorialStep } from '../../utils/phase8TrainingTutorialStep.js';
 type DockTab = 'home' | 'arena' | 'tournament' | 'singleplayer' | 'tower' | 'adventure';
 
 type DockItemDef = { tab: DockTab; label: string; labelLines?: readonly [string, string] };
@@ -28,11 +31,22 @@ const TAB_ARENA_KEY: Record<Exclude<DockTab, 'home'>, ArenaEntranceKey | null> =
 };
 
 const NativeMobileDock: React.FC = () => {
-    const { currentRoute, arenaEntranceAvailability, currentUser } = useAppContext();
+    const { currentRoute, arenaEntranceAvailability, arenaEntranceFromServer, currentUser } = useAppContext();
+    const [phase8DockTick, setPhase8DockTick] = useState(0);
+    useEffect(() => subscribePhase8TrainingTutorialStep(() => setPhase8DockTick((t) => t + 1)), []);
+    const phase8HomeSpotlight = useMemo(
+        () =>
+            !!currentUser &&
+            isOnboardingTutorialActive(currentUser) &&
+            (currentUser.onboardingTutorialPhase ?? 0) === 8 &&
+            getPhase8TrainingTutorialStep() === 3,
+        [currentUser, phase8DockTick],
+    );
     const mergedArena = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
         [arenaEntranceAvailability],
     );
+    const serverArena = arenaEntranceFromServer;
     const adminBypass = isClientAdmin(currentUser);
 
     const isTabBlocked = (tab: DockTab): boolean => {
@@ -60,11 +74,21 @@ const NativeMobileDock: React.FC = () => {
     const go = (tab: DockTab) => {
         if (isTabBlocked(tab)) {
             if (tab === 'arena') {
-                window.alert('전략·놀이 경기장 입장이 모두 닫혀 있습니다.');
+                if (!serverArena.strategicLobby && !serverArena.playfulLobby) {
+                    window.alert('전략·놀이 경기장 입장이 모두 닫혀 있습니다.');
+                } else {
+                    window.alert(
+                        USER_PROGRESSION_ARENA_BLOCK_MESSAGE.strategicLobby ??
+                            '통합 레벨 조건을 충족하면 경기장 탭을 이용할 수 있습니다.',
+                    );
+                }
                 return;
             }
             const key = TAB_ARENA_KEY[tab];
-            if (key) window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+            if (key) {
+                if (!serverArena[key]) window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+                else window.alert(USER_PROGRESSION_ARENA_BLOCK_MESSAGE[key] ?? ARENA_ENTRANCE_CLOSED_MESSAGE[key]);
+            }
             return;
         }
         switch (tab) {
@@ -113,7 +137,9 @@ const NativeMobileDock: React.FC = () => {
                                     ? { 'data-onboarding-target': 'onboarding-dock-sp' }
                                     : tab === 'tower'
                                       ? { 'data-onboarding-target': 'onboarding-dock-tower' }
-                                      : {})}
+                                      : tab === 'home' && phase8HomeSpotlight
+                                        ? { 'data-onboarding-target': 'onboarding-dock-home' }
+                                        : {})}
                                 className={[
                                     'group relative flex h-11 min-h-0 w-full min-w-0 flex-row items-center justify-center overflow-hidden rounded-md border px-px py-0 text-center transition-all duration-200 active:scale-[0.98] sm:h-12 sm:px-0.5',
                                     blocked ? 'opacity-45 cursor-not-allowed' : '',

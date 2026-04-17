@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { UserWithStatus } from '../../types.js';
 import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
@@ -7,6 +7,10 @@ import TrainingQuestLevelUpModal from './TrainingQuestLevelUpModal.js';
 import ClaimAllTrainingQuestRewardsModal from './ClaimAllTrainingQuestRewardsModal.js';
 import { audioService } from '../../services/audioService.js';
 import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
+import {
+    getPhase8TrainingTutorialStep,
+    subscribePhase8TrainingTutorialStep,
+} from '../../utils/phase8TrainingTutorialStep.js';
 
 interface TrainingQuestPanelProps {
     currentUser: UserWithStatus;
@@ -41,6 +45,16 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
         totalDiamonds: number;
     } | null>(null);
     const [isClaimingAll, setIsClaimingAll] = useState(false);
+    const [phase8TutorialTick, setPhase8TutorialTick] = useState(0);
+    const onboardingPhase8 = (currentUser as { onboardingTutorialPhase?: number }).onboardingTutorialPhase ?? 0;
+    const phase8OnboardingStep = useMemo(
+        () => (onboardingPhase8 === 8 ? getPhase8TrainingTutorialStep() : -1),
+        [onboardingPhase8, phase8TutorialTick],
+    );
+
+    const bumpPhase8Tutorial = useCallback(() => setPhase8TutorialTick((t) => t + 1), []);
+
+    useEffect(() => subscribePhase8TrainingTutorialStep(bumpPhase8Tutorial), [bumpPhase8Tutorial]);
 
     // 실시간 타이머 업데이트 (1초마다)
     useEffect(() => {
@@ -54,6 +68,10 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     useEffect(() => {
         setCurrentTime(Date.now());
     }, [currentUser]);
+
+    useEffect(() => {
+        bumpPhase8Tutorial();
+    }, [onboardingPhase8, bumpPhase8Tutorial]);
 
     // 미션 언락 확인
     const isMissionUnlocked = (unlockStageId: string, clearedStages: string[]): boolean => {
@@ -292,6 +310,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
     const embeddedQuestBtnTight = embeddedTabNarrow
         ? ' !text-[9px] !leading-tight !px-0.5 !py-0.5 [&_img]:!h-2.5 [&_img]:!w-2.5'
         : '';
+    const phase8BlockQuestClicks = phase8OnboardingStep >= 0 && phase8OnboardingStep <= 2;
 
     return (
         <>
@@ -343,10 +362,16 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                             return (
                                 <div
                                     key={quest.id}
+                                    {...(quest.id === 'mission_attendance'
+                                        ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1-card' }
+                                        : quest.id === 'mission_complete_game'
+                                          ? { 'data-onboarding-target': 'onboarding-sp-training-quest-2-card' }
+                                          : {})}
                                     className={`
                                         relative bg-tertiary rounded-lg border-2 flex flex-col min-h-0 overflow-hidden
                                         ${useCompactQuestCard ? `h-full min-h-0 ${embeddedTabNarrow ? 'p-1' : 'p-1.5'}` : 'p-1 sm:p-1.5'}
                                         ${quest.isUnlocked ? 'border-primary' : 'border-gray-600'}
+                                        ${phase8BlockQuestClicks ? 'pointer-events-none' : ''}
                                     `}
                                 >
                                     {!quest.isUnlocked && (
@@ -568,13 +593,17 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                 ) : !quest.isStarted ? (
                                                     <Button
                                                         {...(quest.id === 'mission_attendance'
-                                                            ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1' }
+                                                            ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1-start' }
                                                             : {})}
                                                         onClick={() => handleStartMission(quest.id)}
                                                         colorScheme="none"
-                                                        className={`${PREMIUM_QUEST_BTN.start}${embeddedQuestBtnTight}`}
+                                                        className={`${PREMIUM_QUEST_BTN.start}${embeddedQuestBtnTight}${
+                                                            phase8OnboardingStep === 1 && quest.id === 'mission_attendance'
+                                                                ? ' relative z-[70] !pointer-events-auto'
+                                                                : ''
+                                                        }`}
                                                     >
-                                                        시작
+                                                        시작하기
                                                     </Button>
                                                 ) : (
                                                     <>
@@ -763,13 +792,17 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                 ) : !quest.isStarted ? (
                                                     <Button
                                                         {...(quest.id === 'mission_attendance'
-                                                            ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1' }
+                                                            ? { 'data-onboarding-target': 'onboarding-sp-training-quest-1-start' }
                                                             : {})}
                                                         onClick={() => handleStartMission(quest.id)}
                                                         colorScheme="none"
-                                                        className={PREMIUM_QUEST_BTN.start}
+                                                        className={`${PREMIUM_QUEST_BTN.start}${
+                                                            phase8OnboardingStep === 1 && quest.id === 'mission_attendance'
+                                                                ? ' relative z-[70] !pointer-events-auto'
+                                                                : ''
+                                                        }`}
                                                     >
-                                                        시작
+                                                        시작하기
                                                     </Button>
                                                 ) : (
                                                     <>

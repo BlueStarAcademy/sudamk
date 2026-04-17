@@ -55,12 +55,27 @@ const ActivityVitalityIcon: React.FC<{ className?: string; size?: number }> = ({
 /** 퀘스트 목록 제목 옆 아이콘 (퀵메뉴·에셋과 동일 계열) */
 const QUEST_LIST_ICON_SRC = '/images/quest.png';
 
+/** 상점 소모품 탭과 동일: 행동력 회복제 카드는 ⚡ + 수치 배지 */
+const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null => {
+    if (!reward.items?.length) return null;
+    const ref = reward.items[0];
+    const id = 'itemId' in ref ? ref.itemId : (ref as { name?: string }).name;
+    if (!id || typeof id !== 'string') return null;
+    if (id === 'action_point_10' || id === '행동력 회복제(+10)') return '+10';
+    if (id === 'action_point_20' || id === '행동력 회복제(+20)') return '+20';
+    if (id === 'action_point_30' || id === '행동력 회복제(+30)') return '+30';
+    return null;
+};
+
 const getQuestDisplayTitle = (title: string): string => {
-    if (title === '자동대국 토너먼트 참여하기' || title === '챔피언십 경기 진행하기') {
-        return '챔피언십 경기 완료하기';
+    if (title === '자동대국 토너먼트 참여하기' || title === '챔피언십 경기 진행하기' || title === '챔피언십 경기 완료하기') {
+        return '챔피언십 경기 완료';
     }
-    if (title === '일일퀘스트 활약도100보상 받기(3/3)') {
-        return '일일퀘스트 활약도100보상 받기 3회';
+    if (title === '일일퀘스트 활약도100보상 받기(3/3)' || title === '일일퀘스트 활약도100보상 받기 3회') {
+        return '일일 퀘스트 활약도 100보상 받기 (3회)';
+    }
+    if (title === '주간퀘스트 활약도100보상 받기(2/2)') {
+        return '주간 퀘스트 활약도 100보상 받기 (2회)';
     }
     return title;
 };
@@ -127,6 +142,9 @@ const AchievementTrackPanel: React.FC<{
         if (stage.requirement.type === 'adventure_codex_score') {
             const { totalSum } = getAdventureCodexCompletionBreakdown(currentUser.adventureProfile);
             return totalSum >= stage.requirement.score;
+        }
+        if (stage.requirement.type === 'blacksmith_level') {
+            return (currentUser.blacksmithLevel ?? 1) >= stage.requirement.level;
         }
         return false;
     };
@@ -520,8 +538,16 @@ const ActivityPanel: React.FC<{
     const getItemImage = (reward: QuestReward): string => {
         if (!reward.items || reward.items.length === 0) return '/images/Box/box.png';
         const firstItem = reward.items[0];
-        const itemName = 'itemId' in firstItem ? firstItem.itemId : firstItem.name;
-        const itemTemplate = CONSUMABLE_ITEMS.find(item => item.name === itemName);
+        const raw = 'itemId' in firstItem ? firstItem.itemId : firstItem.name;
+        const fromShopId =
+            raw === 'action_point_10'
+                ? '행동력 회복제(+10)'
+                : raw === 'action_point_20'
+                  ? '행동력 회복제(+20)'
+                  : raw === 'action_point_30'
+                    ? '행동력 회복제(+30)'
+                    : raw;
+        const itemTemplate = CONSUMABLE_ITEMS.find((item) => item.name === fromShopId);
         return itemTemplate?.image ?? '/images/Box/box.png';
     };
 
@@ -612,6 +638,7 @@ const ActivityPanel: React.FC<{
                     const canClaim = progressMet && !isClaimed;
                     const reward = rewards[index];
                     const itemImage = getItemImage(reward);
+                    const apBadge = getShopActionPointBadgeFromReward(reward);
                     const leftPct = rewardCenterLeftPct(index, milestone);
                     const iconClass = milestoneIcon;
 
@@ -632,11 +659,25 @@ const ActivityPanel: React.FC<{
                                 className={`relative ${iconClass} rounded-lg border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed ${canClaim ? 'ring-1 ring-amber-400/40 shadow-[0_0_16px_-6px_rgba(251,191,36,0.55)]' : ''}`}
                                 title={isClaimed ? '수령 완료' : progressMet ? '보상 수령' : `${milestone} 활약도 필요`}
                             >
-                                <img
-                                    src={itemImage}
-                                    alt={`${milestone} 활약도 보상`}
-                                    className={`h-full w-full object-contain ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
-                                />
+                                {apBadge ? (
+                                    <div
+                                        className={`relative flex h-full w-full flex-col items-center justify-center rounded-md bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
+                                        aria-label={`${milestone} 활약도 보상 행동력 회복제`}
+                                    >
+                                        <span className="text-2xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-hidden>
+                                            ⚡
+                                        </span>
+                                        <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
+                                            {apBadge}
+                                        </span>
+                                    </div>
+                                ) : (
+                                    <img
+                                        src={itemImage}
+                                        alt={`${milestone} 활약도 보상`}
+                                        className={`h-full w-full object-contain ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
+                                    />
+                                )}
                                 {isClaimed && (
                                     <div className="absolute inset-0 flex items-center justify-center rounded-md bg-black/65 text-sm text-emerald-400">
                                         ✓
@@ -757,6 +798,8 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                 met = getAdventureUnderstandingTierFromXp(xp) >= (tierMap[requirement.tier] ?? Number.MAX_SAFE_INTEGER);
             } else if (requirement.type === 'adventure_codex_score') {
                 met = getAdventureCodexCompletionBreakdown(currentUser.adventureProfile).totalSum >= requirement.score;
+            } else if (requirement.type === 'blacksmith_level') {
+                met = (currentUser.blacksmithLevel ?? 1) >= requirement.level;
             }
 
             if (met) return true;
@@ -818,13 +861,15 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
             variant="store"
             mobileViewportFit={isMobile}
             mobileViewportMaxHeightVh={NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}
-            bodyPaddingClassName={isMobile ? '!p-2' : undefined}
-            bodyNoScroll={isMobile}
-            bodyScrollable={!isMobile}
+            bodyPaddingClassName={
+                isMobile ? '!p-2 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]' : undefined
+            }
+            bodyNoScroll={false}
+            bodyScrollable
         >
-            <div className="flex h-full min-h-0 flex-col">
+            <div className={`flex min-h-0 flex-col ${isMobile ? 'w-full' : 'h-full'}`}>
                 <div
-                    className={`mb-3 grid shrink-0 grid-cols-4 gap-0.5 rounded-xl border border-slate-600/35 bg-slate-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] sm:gap-1 ${isMobile ? 'mb-2' : 'mb-4'}`}
+                    className={`mb-3 grid shrink-0 grid-cols-4 gap-0.5 rounded-xl border border-slate-600/35 bg-slate-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] sm:gap-1 ${isMobile ? 'sticky top-0 z-20 mb-2 backdrop-blur-sm' : 'mb-4'}`}
                 >
                     <button
                         type="button"
@@ -876,7 +921,11 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                 </div>
 
                 <div
-                    className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent] ${isMobile ? 'pb-1' : 'pr-2'}`}
+                    className={
+                        isMobile
+                            ? 'w-full min-w-0 overflow-x-hidden pb-1 pr-1'
+                            : 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
+                    }
                 >
                     {activeTab !== 'achievements' ? renderActivityPanel() : null}
                     {activeTab === 'achievements' ? (

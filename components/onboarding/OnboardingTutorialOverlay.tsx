@@ -10,6 +10,8 @@ import {
     ONBOARDING_PHASE_0_PROFILE_SUBSTEPS,
     ONBOARDING_PHASE_5_PREGAME_SUBSTEP_COPY,
     ONBOARDING_PHASE_6_INGAME_SUBSTEP_COPY,
+    ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY,
+    ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY,
     ONBOARDING_PREGAME_DESC_STEP_EVENT,
     ONBOARDING_INGAME_SP_STEP_EVENT,
     ONBOARDING_INGAME_SP_INTRO1_DEMO_DONE_EVENT,
@@ -23,6 +25,18 @@ import {
     ONBOARDING_PHASE_7_SP_RESULT_MODAL_SUBSTEP_COPY,
     type OnboardingSpotlightTargetId,
 } from '../../shared/constants/onboardingTutorial.js';
+import {
+    getOnboardingBagTutorialStep,
+    setOnboardingBagTutorialStep,
+    subscribeOnboardingBagTutorialStep,
+} from '../../utils/onboardingBagTutorialStep.js';
+import OnboardingTutorialCompleteModal from './OnboardingTutorialCompleteModal.js';
+import {
+    clearPhase8TrainingTutorialStep,
+    getPhase8TrainingTutorialStep,
+    setPhase8TrainingTutorialStep,
+    subscribePhase8TrainingTutorialStep,
+} from '../../utils/phase8TrainingTutorialStep.js';
 
 const ONBOARDING_RING_CLASS = 'onboarding-spotlight-ring';
 
@@ -64,6 +78,13 @@ const OnboardingTutorialOverlay: React.FC = () => {
     const [phase6IngameSubStep, setPhase6IngameSubStep] = useState(0);
     const [phase6Intro1ResultReadAck, setPhase6Intro1ResultReadAck] = useState(false);
     const [intro1DemoArrow, setIntro1DemoArrow] = useState<{ leftPct: number; topPct: number; rotation: number } | null>(null);
+    const [phase8TrainingSubStep, setPhase8TrainingSubStep] = useState(0);
+    const [phase9BagSubStep, setPhase9BagSubStep] = useState(0);
+    const [tutorialCompleteRewards, setTutorialCompleteRewards] = useState<{ gold: number; diamonds: number } | null>(
+        null,
+    );
+    const prevOnboardingPhaseRef = useRef<number | null>(null);
+    const phase8HomeAdvanceLock = useRef(false);
 
     const active = isOnboardingTutorialActive(currentUserWithStatus);
     const phase = currentUserWithStatus?.onboardingTutorialPhase ?? 0;
@@ -73,6 +94,10 @@ const OnboardingTutorialOverlay: React.FC = () => {
         phase6IngameSubStep >= 3 &&
         currentRoute.view === 'game';
     const spResultTutorialStep = currentUserWithStatus?.onboardingSpResultTutorialStep;
+    const trainingMission1Started = Boolean(
+        (currentUserWithStatus as { singlePlayerMissions?: Record<string, { isStarted?: boolean }> } | null)
+            ?.singlePlayerMissions?.mission_attendance?.isStarted,
+    );
 
     const copy = useMemo(() => ONBOARDING_TUTORIAL_STEP_COPY[phase], [phase]);
 
@@ -117,6 +142,66 @@ const OnboardingTutorialOverlay: React.FC = () => {
         if (!intro1WinTutorialContext) setPhase6Intro1ResultReadAck(false);
     }, [intro1WinTutorialContext]);
 
+    useEffect(() => subscribePhase8TrainingTutorialStep(() => setPhase8TrainingSubStep(getPhase8TrainingTutorialStep())), []);
+
+    useEffect(() => subscribeOnboardingBagTutorialStep(() => setPhase9BagSubStep(getOnboardingBagTutorialStep())), []);
+
+    useEffect(() => {
+        if (phase === 8) {
+            setPhase8TrainingSubStep(getPhase8TrainingTutorialStep());
+        }
+        if (phase === 9) {
+            setPhase9BagSubStep(getOnboardingBagTutorialStep());
+        }
+    }, [phase]);
+
+    useEffect(() => {
+        const prev = prevOnboardingPhaseRef.current;
+        prevOnboardingPhaseRef.current = phase;
+        if (phase === 8 && prev !== null && prev !== 8) {
+            setPhase8TrainingTutorialStep(0);
+            setPhase8TrainingSubStep(0);
+        }
+        if (phase === 9 && prev !== null && prev !== 9) {
+            setOnboardingBagTutorialStep(0);
+            setPhase9BagSubStep(0);
+        }
+    }, [phase]);
+
+    useEffect(() => {
+        if (phase !== 8 || !active) return;
+        if (!trainingMission1Started) return;
+        const s = getPhase8TrainingTutorialStep();
+        if (s < 2) {
+            setPhase8TrainingTutorialStep(2);
+            setPhase8TrainingSubStep(2);
+        }
+    }, [phase, active, trainingMission1Started]);
+
+    useEffect(() => {
+        if (phase === 9) {
+            clearPhase8TrainingTutorialStep();
+        }
+    }, [phase]);
+
+    useEffect(() => {
+        if (!active || !handlers?.handleAction || !currentUserWithStatus) return;
+        if (phase !== 8) return;
+        if (getPhase8TrainingTutorialStep() !== 3) return;
+        if (currentRoute.view !== 'profile') return;
+        if (phase8HomeAdvanceLock.current) return;
+        phase8HomeAdvanceLock.current = true;
+        void (async () => {
+            try {
+                if (!canAdvanceOnboardingTutorialPhase(currentUserWithStatus, 9)) return;
+                await handlers.handleAction({ type: 'ADVANCE_ONBOARDING_TUTORIAL', payload: { phase: 9 } });
+                clearPhase8TrainingTutorialStep();
+            } finally {
+                phase8HomeAdvanceLock.current = false;
+            }
+        })();
+    }, [active, phase, currentRoute.view, currentUserWithStatus, handlers]);
+
     const spotlightId = useMemo(() => {
         if (!active || !copy) return null;
         if (intro1WinTutorialContext) return 'onboarding-sp-summary-modal' as OnboardingSpotlightTargetId;
@@ -130,6 +215,8 @@ const OnboardingTutorialOverlay: React.FC = () => {
             isNativeMobile,
             phase5GameDescSubStep,
             phase6IngameSubStep,
+            phase8TrainingSubStep: phase === 8 ? phase8TrainingSubStep : 0,
+            phase9BagSubStep: phase === 9 ? phase9BagSubStep : 0,
         });
     }, [
         active,
@@ -138,6 +225,8 @@ const OnboardingTutorialOverlay: React.FC = () => {
         isNativeMobile,
         phase5GameDescSubStep,
         phase6IngameSubStep,
+        phase8TrainingSubStep,
+        phase9BagSubStep,
         currentRoute.view,
         intro1WinTutorialContext,
         spResultTutorialStep,
@@ -148,7 +237,8 @@ const OnboardingTutorialOverlay: React.FC = () => {
 
     const onAdvanceClamped = useCallback(async () => {
         if (!currentUserWithStatus || !handlers?.handleAction) return;
-        const target = phase >= ONBOARDING_LAST_TUTORIAL_PHASE ? ONBOARDING_PHASE_COMPLETE : phase + 1;
+        if (phase >= ONBOARDING_LAST_TUTORIAL_PHASE) return;
+        const target = phase + 1;
         if (phase < ONBOARDING_LAST_TUTORIAL_PHASE && !canAdvanceOnboardingTutorialPhase(currentUserWithStatus, target)) {
             return;
         }
@@ -161,6 +251,27 @@ const OnboardingTutorialOverlay: React.FC = () => {
     }, [currentUserWithStatus, handlers, phase]);
 
     const onPrimaryTutorial = useCallback(async () => {
+        if (phase === 14 && handlers?.handleAction) {
+            setBusy(true);
+            try {
+                const res = (await handlers.handleAction({ type: 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD' })) as
+                    | { clientResponse?: { onboardingTutorialCompletionRewards?: { gold?: number; diamonds?: number } } }
+                    | undefined;
+                const rw = res?.clientResponse?.onboardingTutorialCompletionRewards;
+                setTutorialCompleteRewards({
+                    gold: typeof rw?.gold === 'number' ? rw.gold : 0,
+                    diamonds: typeof rw?.diamonds === 'number' ? rw.diamonds : 0,
+                });
+            } finally {
+                setBusy(false);
+            }
+            return;
+        }
+        if (phase === 9 && phase9BagSubStep === 3) {
+            setOnboardingBagTutorialStep(4);
+            setPhase9BagSubStep(4);
+            return;
+        }
         if (phase === 0 && phase0ProfileSubIndex === 0) {
             setPhase0ProfileSubIndex(1);
             return;
@@ -186,9 +297,24 @@ const OnboardingTutorialOverlay: React.FC = () => {
             }
             return;
         }
+        if (phase === 8) {
+            const s = getPhase8TrainingTutorialStep();
+            if (s === 0) {
+                setPhase8TrainingTutorialStep(1);
+                setPhase8TrainingSubStep(1);
+                return;
+            }
+            if (s === 2) {
+                setPhase8TrainingTutorialStep(3);
+                setPhase8TrainingSubStep(3);
+                return;
+            }
+            return;
+        }
         await onAdvanceClamped();
     }, [
         phase,
+        phase9BagSubStep,
         phase0ProfileSubIndex,
         phase5GameDescSubStep,
         phase6IngameSubStep,
@@ -275,15 +401,22 @@ const OnboardingTutorialOverlay: React.FC = () => {
         currentRoute.view,
         intro1WinTutorialContext,
         spResultTutorialStep,
+        phase8TrainingSubStep,
+        phase9BagSubStep,
     ]);
 
     useEffect(() => {
-        if (!active || passThroughLayer || !spotlightId) return;
-        const el = document.querySelector(`[data-onboarding-target="${spotlightId}"]`);
-        if (!el || !(el instanceof HTMLElement)) return;
-        el.classList.add(ONBOARDING_RING_CLASS);
+        if (!active || passThroughLayer) return;
+        const ids: string[] = [];
+        if (spotlightId) ids.push(spotlightId);
+        if (phase === 9 && phase9BagSubStep === 4) ids.push('onboarding-inv-modal-close');
+        const els = ids
+            .map((id) => document.querySelector(`[data-onboarding-target="${id}"]`))
+            .filter((n): n is HTMLElement => n instanceof HTMLElement);
+        if (els.length === 0) return;
+        els.forEach((el) => el.classList.add(ONBOARDING_RING_CLASS));
         return () => {
-            el.classList.remove(ONBOARDING_RING_CLASS);
+            els.forEach((el) => el.classList.remove(ONBOARDING_RING_CLASS));
         };
     }, [
         active,
@@ -295,6 +428,8 @@ const OnboardingTutorialOverlay: React.FC = () => {
         phase6Intro1ResultReadAck,
         spResultTutorialStep,
         intro1WinTutorialContext,
+        phase8TrainingSubStep,
+        phase9BagSubStep,
     ]);
 
     useLayoutEffect(() => {
@@ -346,6 +481,10 @@ const OnboardingTutorialOverlay: React.FC = () => {
 
     if (!active || !copy) return null;
 
+    if (phase >= 9 && phase <= 14 && currentRoute.view !== 'profile') {
+        return null;
+    }
+
     if (phase === 5 && currentRoute.view !== 'game') {
         return null;
     }
@@ -359,6 +498,9 @@ const OnboardingTutorialOverlay: React.FC = () => {
         return null;
     }
     if (phase === 4 && currentRoute.view !== 'singleplayer') {
+        return null;
+    }
+    if (phase === 8 && currentRoute.view !== 'singleplayer') {
         return null;
     }
 
@@ -380,6 +522,18 @@ const OnboardingTutorialOverlay: React.FC = () => {
         spResultTutorialStep >= 0
             ? ONBOARDING_PHASE_7_SP_RESULT_MODAL_SUBSTEP_COPY[spResultTutorialStep]
             : null;
+    const phase8Slice =
+        phase === 8
+            ? ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY[
+                  Math.min(phase8TrainingSubStep, ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY.length - 1)
+              ] ?? ONBOARDING_PHASE_8_TRAINING_SUBSTEP_COPY[0]
+            : null;
+    const phase9Slice =
+        phase === 9
+            ? ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY[
+                  Math.min(phase9BagSubStep, ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY.length - 1)
+              ] ?? ONBOARDING_PHASE_9_BAG_SUBSTEP_COPY[0]
+            : null;
 
     const body =
         phase === 0 && phase0Slice
@@ -398,15 +552,27 @@ const OnboardingTutorialOverlay: React.FC = () => {
                   ? isHandheld
                       ? phase7ResultSlice.bodyMobile
                       : phase7ResultSlice.bodyPc
-                  : isHandheld
-                    ? copy.bodyMobile
-                    : copy.bodyPc;
+                  : phase === 8 && phase8Slice
+                    ? isHandheld
+                        ? phase8Slice.bodyMobile
+                        : phase8Slice.bodyPc
+                    : phase === 9 && phase9Slice
+                      ? isHandheld
+                          ? phase9Slice.bodyMobile
+                          : phase9Slice.bodyPc
+                      : isHandheld
+                        ? copy.bodyMobile
+                        : copy.bodyPc;
     const tutorialTitle =
         phase === 0
             ? ONBOARDING_TUTORIAL_PROFILE_INTRO_TITLE
             : phase === 7 && phase7ResultSlice
               ? phase7ResultSlice.title
-              : copy.title;
+              : phase === 8 && phase8Slice
+                ? phase8Slice.title
+                : phase === 9 && phase9Slice
+                  ? phase9Slice.title
+                  : copy.title;
     const showPrimary =
         (phase === 6 && phase6IngameSubStep < 2) ||
         (phase === 6 && intro1WinTutorialContext && !phase6Intro1ResultReadAck) ||
@@ -415,7 +581,14 @@ const OnboardingTutorialOverlay: React.FC = () => {
             typeof spResultTutorialStep === 'number' &&
             spResultTutorialStep === 0) ||
         (phase === 7 && currentRoute.view !== 'game' && !copy.omitPrimary) ||
-        (phase !== 6 && phase !== 7 && !copy.omitPrimary && !(phase === 5 && phase5GameDescSubStep >= 2));
+        (phase === 8 && (phase8TrainingSubStep === 0 || phase8TrainingSubStep === 2)) ||
+        (phase === 9 && phase9BagSubStep === 3) ||
+        (phase !== 6 &&
+            phase !== 7 &&
+            phase !== 8 &&
+            phase !== 9 &&
+            !copy.omitPrimary &&
+            !(phase === 5 && phase5GameDescSubStep >= 2));
 
     const mount = typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') : null;
     if (!mount) return null;
@@ -519,19 +692,10 @@ const OnboardingTutorialOverlay: React.FC = () => {
                                 type="button"
                                 colorScheme="accent"
                                 className="min-h-10 px-5 text-sm font-semibold"
-                                disabled={
-                                    busy ||
-                                    (phase === 12 &&
-                                        !!currentUserWithStatus &&
-                                        !canAdvanceOnboardingTutorialPhase(currentUserWithStatus, 13))
-                                }
+                                disabled={busy}
                                 onClick={() => void onPrimaryTutorial()}
                             >
-                                {phase >= ONBOARDING_LAST_TUTORIAL_PHASE
-                                    ? '튜토리얼 종료'
-                                    : phase === 12
-                                      ? '도전의 탑 안내로'
-                                      : '다음'}
+                                {phase >= ONBOARDING_LAST_TUTORIAL_PHASE ? '튜토리얼 종료' : '다음'}
                             </Button>
                         </div>
                     )}
@@ -540,7 +704,18 @@ const OnboardingTutorialOverlay: React.FC = () => {
         </div>
     );
 
-    return createPortal(layer, mount);
+    return (
+        <>
+            {createPortal(layer, mount)}
+            {tutorialCompleteRewards && (
+                <OnboardingTutorialCompleteModal
+                    gold={tutorialCompleteRewards.gold}
+                    diamonds={tutorialCompleteRewards.diamonds}
+                    onClose={() => setTutorialCompleteRewards(null)}
+                />
+            )}
+        </>
+    );
 };
 
 export default OnboardingTutorialOverlay;

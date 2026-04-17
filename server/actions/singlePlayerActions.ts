@@ -13,6 +13,7 @@ import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { ONBOARDING_PHASE_COMPLETE } from '../../shared/constants/onboardingTutorial.js';
+import { updateQuestProgress } from '../questService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -123,7 +124,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
     switch(type) {
         case 'START_SINGLE_PLAYER_GAME': {
-            const spGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer');
+            const spGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer', user);
             if (!spGate.ok) return { error: spGate.error };
             const { stageId } = payload;
             const stage = SINGLE_PLAYER_STAGES.find(s => s.id === stageId);
@@ -498,7 +499,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             return { clientResponse: { updatedUser: user, game } };
         }
         case 'START_SINGLE_PLAYER_MISSION': {
-            const spMissionGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer');
+            const spMissionGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer', user);
             if (!spMissionGate.ok) return { error: spMissionGate.error };
             const { missionId } = payload;
             const missionInfo = SINGLE_PLAYER_MISSIONS.find(m => m.id === missionId);
@@ -627,6 +628,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {
                 missionState.lastCollectionTime = now;
             }
+
+            updateQuestProgress(user, 'training_quest_claim', undefined, 1);
         
             // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
             db.updateUser(user).catch(err => {
@@ -753,6 +756,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SINGLE_PLAYER_MISSION_REWARD');
             
             if (rewards.length > 0) {
+                updateQuestProgress(user, 'training_quest_claim', undefined, rewards.length);
                 db.updateUser(user).catch(err => {
                     console.error(`[CLAIM_ALL_TRAINING_QUEST_REWARDS] Failed to save user ${user.id}:`, err);
                 });

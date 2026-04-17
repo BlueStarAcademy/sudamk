@@ -82,6 +82,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                                 <button
                                     type="button"
                                     onClick={lobbyChrome.onBack}
+                                    data-onboarding-target="onboarding-sp-lobby-back"
                                     className="relative z-[1] flex h-9 w-9 shrink-0 items-center justify-center transition-transform active:scale-90 hover:drop-shadow-lg"
                                     aria-label="뒤로가기"
                                 >
@@ -98,6 +99,7 @@ const ClassNavigationPanel: React.FC<ClassNavigationPanelProps> = ({
                             <button
                                 type="button"
                                 onClick={lobbyChrome.onBack}
+                                data-onboarding-target="onboarding-sp-lobby-back"
                                 className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
                                 aria-label="뒤로가기"
                             >

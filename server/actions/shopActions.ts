@@ -606,7 +606,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const obtainedItems: InventoryItem[] = [];
             if (tab === 'diamonds') {
-                const gainedDiamonds = addRewardBonus(10, rewardConfig.shopAdDiamondBonus);
+                const gainedDiamonds = addRewardBonus(5, rewardConfig.shopAdDiamondBonus);
                 user.diamonds = (user.diamonds || 0) + gainedDiamonds;
             } else {
                 let rewards: InventoryItem[] = [];
@@ -614,12 +614,10 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                     const reward = SHOP_ITEMS['equipment_box_2']?.onPurchase?.();
                     rewards = Array.isArray(reward) ? reward : (reward ? [reward] : []);
                 } else if (tab === 'materials') {
-                    const reward = SHOP_ITEMS['material_box_3']?.onPurchase?.();
+                    const reward = SHOP_ITEMS['material_box_2']?.onPurchase?.();
                     rewards = Array.isArray(reward) ? reward : (reward ? [reward] : []);
                 } else if (tab === 'consumables') {
-                    const consumableRewardNameByOrder = ['행동력 회복제(+10)', '행동력 회복제(+20)', '행동력 회복제(+30)'] as const;
-                    const rewardName =
-                        consumableRewardNameByOrder[Math.max(0, Math.min(claimsToday, consumableRewardNameByOrder.length - 1))];
+                    const rewardName = '행동력 회복제(+10)' as const;
                     const template = CONSUMABLE_ITEMS.find((item) => item.name === rewardName);
                     if (!template) return { error: '행동력 회복제 템플릿을 찾을 수 없습니다.' };
                     rewards = [{

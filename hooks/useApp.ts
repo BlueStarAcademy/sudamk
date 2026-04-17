@@ -35,6 +35,8 @@ import {
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
 import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
+import { applyUserProgressionArenaLocks, getBadukAbilitySnapshotFromStats } from '../shared/utils/contentProgressionGates.js';
+import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { processMoveClient } from '../client/goLogicClient.js';
@@ -796,18 +798,22 @@ export const useApp = () => {
         return { ...currentUser, actionPoints: updatedActionPoints, ...statusData };
     }, [currentUser, onlineUsers, updateTrigger, actionPointUpdateTrigger, activeGameFromLogin]);
 
+    const arenaEntranceFromServer = useMemo(
+        () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
+        [arenaEntranceAvailability],
+    );
+
     const arenaEntranceAvailabilityResolved = useMemo(() => {
-        const base = mergeArenaEntranceAvailability(arenaEntranceAvailability);
+        const base = arenaEntranceFromServer;
         const u = currentUserWithStatus;
         if (!u || isClientAdmin(u)) return base;
-        return applyOnboardingArenaEntranceTutorialLocks(base, u);
+        const snap = getBadukAbilitySnapshotFromStats(u, calculateTotalStats(u));
+        const prog = applyUserProgressionArenaLocks(base, snap);
+        return applyOnboardingArenaEntranceTutorialLocks(prog, u);
     }, [
-        arenaEntranceAvailability,
-        currentUserWithStatus?.id,
-        currentUserWithStatus?.isAdmin,
-        currentUserWithStatus?.onboardingTutorialPhase,
-        currentUserWithStatus?.strategyLevel,
-        currentUserWithStatus?.playfulLevel,
+        arenaEntranceFromServer,
+        currentUserWithStatus,
+        updateTrigger,
     ]);
 
     useEffect(() => {
@@ -6450,6 +6456,7 @@ export const useApp = () => {
         adminLogs,
         gameModeAvailability,
         arenaEntranceAvailability: arenaEntranceAvailabilityResolved,
+        arenaEntranceFromServer,
         announcements,
         globalOverrideAnnouncement,
         announcementInterval,

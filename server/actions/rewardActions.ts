@@ -27,6 +27,7 @@ import { clampQuestProgressToTarget } from '../../utils/questProgressCap.js';
 import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
 import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../../shared/constants/rewardConfig.js';
+import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -308,9 +309,17 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             
             const { reward, activityPoints } = foundQuest;
             const rewardConfig = await getRewardConfig();
+            const rewardVipMult = isRewardVipActive(user) ? 2 : 1;
+            const scaledItemDefs =
+                reward.items && rewardVipMult > 1
+                    ? (reward.items as { itemId: string; quantity: number }[]).map((e) => ({
+                          ...e,
+                          quantity: Math.max(1, Math.floor((e.quantity || 1) * rewardVipMult)),
+                      }))
+                    : reward.items;
             const itemsToCreate: InventoryItem[] = [];
-            if (reward.items) {
-                const createdItems = createItemInstancesFromReward(reward.items as { itemId: string; quantity: number }[]);
+            if (scaledItemDefs) {
+                const createdItems = createItemInstancesFromReward(scaledItemDefs as { itemId: string; quantity: number }[]);
                 itemsToCreate.push(...createdItems);
             }
 
@@ -327,6 +336,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 diamonds: addRewardBonus(reward.diamonds, rewardConfig.questDiamondBonus),
                 actionPoints: addRewardBonus(reward.actionPoints, rewardConfig.questActionPointBonus),
             };
+            if (rewardVipMult > 1) {
+                adjustedReward.gold = Math.floor((adjustedReward.gold || 0) * rewardVipMult);
+                adjustedReward.diamonds = Math.floor((adjustedReward.diamonds || 0) * rewardVipMult);
+                adjustedReward.actionPoints = Math.floor((adjustedReward.actionPoints || 0) * rewardVipMult);
+            }
             if (adjustedReward.gold) user.gold += adjustedReward.gold;
             if (adjustedReward.diamonds) user.diamonds += adjustedReward.diamonds;
             if (adjustedReward.actionPoints) user.actionPoints.current += adjustedReward.actionPoints;
@@ -430,6 +444,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             } else if (stage.requirement.type === 'adventure_codex_score') {
                 const { totalSum } = getAdventureCodexCompletionBreakdown(user.adventureProfile);
                 requirementMet = totalSum >= stage.requirement.score;
+            } else if (stage.requirement.type === 'blacksmith_level') {
+                requirementMet = (user.blacksmithLevel ?? 1) >= stage.requirement.level;
             }
             if (!requirementMet) {
                 return { error: '아직 업적 조건을 달성하지 않았습니다.' };
@@ -482,16 +498,29 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (data.activityProgress < requiredProgress) return { error: "활약도 점수가 부족합니다." };
 
             const reward = rewards[milestoneIndex];
+            const rewardVipMult = isRewardVipActive(user) ? 2 : 1;
             const adjustedReward: QuestReward = {
                 ...reward,
                 gold: addRewardBonus(reward.gold, rewardConfig.activityGoldBonus),
                 diamonds: addRewardBonus(reward.diamonds, rewardConfig.activityDiamondBonus),
                 actionPoints: addRewardBonus(reward.actionPoints, rewardConfig.activityActionPointBonus),
             };
+            if (rewardVipMult > 1) {
+                adjustedReward.gold = Math.floor((adjustedReward.gold || 0) * rewardVipMult);
+                adjustedReward.diamonds = Math.floor((adjustedReward.diamonds || 0) * rewardVipMult);
+                adjustedReward.actionPoints = Math.floor((adjustedReward.actionPoints || 0) * rewardVipMult);
+            }
             
             const itemsToCreate: InventoryItem[] = [];
             if (reward.items) {
-                 const createdItems = createItemInstancesFromReward(reward.items as {itemId: string, quantity: number}[]);
+                 const scaled =
+                     rewardVipMult > 1
+                         ? (reward.items as { itemId: string; quantity: number }[]).map((e) => ({
+                               ...e,
+                               quantity: Math.max(1, Math.floor((e.quantity || 1) * rewardVipMult)),
+                           }))
+                         : reward.items;
+                 const createdItems = createItemInstancesFromReward(scaled as { itemId: string; quantity: number }[]);
                  itemsToCreate.push(...createdItems);
             }
 

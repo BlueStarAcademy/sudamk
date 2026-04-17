@@ -361,6 +361,8 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const newUser = createDefaultUser(`user-${randomUUID()}`, trimmedUsername, nickname, false);
             (newUser as { email?: string | null }).email = emailTrimmed ? emailTrimmed.toLowerCase() : null;
             newUser.staffNicknameDisplayEligibility = nicknameContainsReservedStaffTerms(nickname.trim());
+            (newUser as { onboardingTutorialPendingFirstHome?: boolean }).onboardingTutorialPendingFirstHome = true;
+            delete (newUser as { onboardingTutorialPhase?: number }).onboardingTutorialPhase;
 
             await db.createUser(newUser);
             const passwordHash = await hashPassword(trimmedPassword);

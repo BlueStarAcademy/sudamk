@@ -37,6 +37,9 @@ import { handleTowerAction } from './actions/towerActions.js';
 import { handleGuildAction } from './actions/guildActions.js';
 import { broadcast } from './socket.js';
 import { applyPveItemActionClientSync } from './pveItemSync.js';
+import { updateQuestProgress } from './questService.js';
+
+export { updateQuestProgress } from './questService.js';
 
 export type HandleActionResult = { 
     clientResponse?: any;
@@ -48,17 +51,57 @@ const normalizeLegacyQuestTexts = (user: User): boolean => {
     if (!user.quests) return false;
 
     let changed = false;
-    const questGroups = [user.quests.daily?.quests, user.quests.weekly?.quests, user.quests.monthly?.quests];
+    const groups: Array<{ quests: Quest[] | undefined; period: 'daily' | 'weekly' | 'monthly' }> = [
+        { quests: user.quests.daily?.quests, period: 'daily' },
+        { quests: user.quests.weekly?.quests, period: 'weekly' },
+        { quests: user.quests.monthly?.quests, period: 'monthly' },
+    ];
 
-    for (const quests of questGroups) {
+    for (const { quests, period } of groups) {
         if (!Array.isArray(quests)) continue;
         for (const quest of quests) {
-            if (quest.title === '자동대국 토너먼트 참여하기' || quest.title === '챔피언십 경기 진행하기') {
-                quest.title = '챔피언십 경기 완료하기';
+            if (quest.title === '자동대국 토너먼트 참여하기' || quest.title === '챔피언십 경기 진행하기' || quest.title === '챔피언십 경기 완료하기') {
+                quest.title = '챔피언십 경기 완료';
                 changed = true;
             }
             if (quest.title === '일일퀘스트 활약도100보상 받기(3/3)') {
-                quest.title = '일일퀘스트 활약도100보상 받기 3회';
+                quest.title = period === 'weekly' ? '일일 퀘스트 활약도 100보상 받기 (3회)' : '일일퀘스트 활약도100보상 받기 3회';
+                changed = true;
+            }
+            if (quest.title === '일일퀘스트 활약도100보상 받기 3회' && period === 'weekly') {
+                quest.title = '일일 퀘스트 활약도 100보상 받기 (3회)';
+                changed = true;
+            }
+            if (quest.title === '주간퀘스트 활약도100보상 받기(2/2)' && period === 'monthly') {
+                quest.title = '주간 퀘스트 활약도 100보상 받기 (2회)';
+                changed = true;
+            }
+            if (quest.title === '전략바둑 경기하기') {
+                quest.title = '전략바둑 경기하기(PVP)';
+                changed = true;
+            }
+            if (quest.title === '놀이바둑 경기하기') {
+                quest.title = '놀이바둑 경기하기(PVP)';
+                changed = true;
+            }
+            if (quest.title === '재료 합성/분해 시도') {
+                quest.title = '재료 합성/분해';
+                changed = true;
+            }
+            if (quest.title === '장비 강화시도') {
+                quest.title = '장비 강화';
+                changed = true;
+            }
+            if (quest.title === '장비 합성시도') {
+                quest.title = '장비 합성';
+                changed = true;
+            }
+            if (quest.title === '장비 제련시도') {
+                quest.title = '장비 제련';
+                changed = true;
+            }
+            if (quest.title === '장비 분해시도') {
+                quest.title = '장비 분해';
                 changed = true;
             }
         }
@@ -230,57 +273,6 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
     }
 
     return modified ? updatedUser : user;
-};
-
-export const updateQuestProgress = (user: User, type: 'win' | 'participate' | 'action_button' | 'tournament_participate' | 'enhancement_attempt' | 'equipment_combine_attempt' | 'equipment_refine_attempt' | 'equipment_disassemble_attempt' | 'craft_attempt' | 'chat_greeting' | 'championship_play' | 'adventure_win' | 'login' | 'claim_daily_milestone_100' | 'claim_weekly_milestone_100', mode?: GameMode, amount: number = 1) => {
-    if (!user.quests) return;
-    const isStrategic = mode ? SPECIAL_GAME_MODES.some(m => m.mode === mode) : false;
-    const isPlayful = mode ? PLAYFUL_GAME_MODES.some(m => m.mode === mode) : false;
-
-    const questsToUpdate: Quest[] = [
-        ...(user.quests.daily?.quests || []),
-        ...(user.quests.weekly?.quests || []),
-        ...(user.quests.monthly?.quests || [])
-    ];
-
-    for (const quest of questsToUpdate) {
-        if (quest.isClaimed) continue;
-
-        let shouldUpdate = false;
-        switch (quest.title) {
-            case '출석하기': if (type === 'login') shouldUpdate = true; break;
-            case '채팅창에 인사하기': if (type === 'chat_greeting') shouldUpdate = true; break;
-            case '전략바둑 플레이하기': if (type === 'participate' && isStrategic) shouldUpdate = true; break;
-            case '놀이바둑 플레이하기': if (type === 'participate' && isPlayful) shouldUpdate = true; break;
-            case '전략바둑 승리하기': if (type === 'win' && isStrategic) shouldUpdate = true; break;
-            case '놀이바둑 승리하기': if (type === 'win' && isPlayful) shouldUpdate = true; break;
-            case '모험에서 승리하기': if (type === 'adventure_win') shouldUpdate = true; break;
-            case '액션버튼 사용하기':
-            case '매너액션 버튼 사용하기':
-                if (type === 'action_button') shouldUpdate = true;
-                break;
-            case '챔피언십 경기 완료하기':
-            case '챔피언십 경기 진행하기':
-            case '자동대국 토너먼트 참여하기':
-                if (type === 'championship_play' || type === 'tournament_participate') shouldUpdate = true;
-                break;
-            case '장비 강화시도': if (type === 'enhancement_attempt') shouldUpdate = true; break;
-            case '장비 합성시도': if (type === 'equipment_combine_attempt') shouldUpdate = true; break;
-            case '장비 제련시도': if (type === 'equipment_refine_attempt') shouldUpdate = true; break;
-            case '장비 분해시도': if (type === 'equipment_disassemble_attempt') shouldUpdate = true; break;
-            case '재료 합성시도': if (type === 'craft_attempt') shouldUpdate = true; break;
-            case '일일퀘스트 활약도100보상 받기 3회':
-            case '일일퀘스트 활약도100보상 받기(3/3)':
-                if (type === 'claim_daily_milestone_100') shouldUpdate = true;
-                break;
-            case '일일 퀘스트 활약도100 보상받기 10회': if (type === 'claim_daily_milestone_100') shouldUpdate = true; break;
-            case '주간퀘스트 활약도100보상 받기(2/2)': if (type === 'claim_weekly_milestone_100') shouldUpdate = true; break;
-        }
-
-        if (shouldUpdate) {
-            quest.progress = Math.min(quest.target, quest.progress + amount);
-        }
-    }
 };
 
 export const handleAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user?: User): Promise<HandleActionResult> => {
@@ -1069,7 +1061,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         return handleTournamentAction(volatileState, action, userData);
     }
     if (['TOGGLE_EQUIP_ITEM', 'SELL_ITEM', 'ENHANCE_ITEM', 'DISASSEMBLE_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'CRAFT_MATERIAL', 'COMBINE_ITEMS', 'REFINE_EQUIPMENT'].includes(type)) return handleInventoryAction(volatileState, action, userData);
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, userData);
     if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, userData);
     // Guild actions are now handled above (before game actions)

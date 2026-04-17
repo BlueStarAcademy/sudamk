@@ -8,6 +8,12 @@ import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_S
 import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { ONBOARDING_INTRO1_FAN_ITEM_ID } from '../shared/constants/onboardingTutorial.js';
+import {
+    getOnboardingBagTutorialStep,
+    setOnboardingBagTutorialStep,
+    subscribeOnboardingBagTutorialStep,
+} from '../utils/onboardingBagTutorialStep.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import SellItemConfirmModal from './SellItemConfirmModal.js';
 import SellMaterialBulkModal from './SellMaterialBulkModal.js';
@@ -977,6 +983,48 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
     /** 실제 창 너비 기준. 스케일 캔버스 안 모바일에서도 좁은 레이아웃(50/50·8열)에 사용 */
     const narrowInventoryLayout = isCompactViewport;
+    const onboardingPhase = currentUser.onboardingTutorialPhase ?? -1;
+    const onboardingPhase9 = onboardingPhase === 9;
+    const [bagTutorialStep, setBagTutorialStepState] = useState(() =>
+        typeof window === 'undefined' ? 0 : getOnboardingBagTutorialStep(),
+    );
+    useEffect(() => subscribeOnboardingBagTutorialStep(() => setBagTutorialStepState(getOnboardingBagTutorialStep())), []);
+    useEffect(() => {
+        setBagTutorialStepState(getOnboardingBagTutorialStep());
+    }, [onboardingPhase, updateTrigger]);
+    useEffect(() => {
+        if (!onboardingPhase9) return;
+        if (getOnboardingBagTutorialStep() !== 0) return;
+        setOnboardingBagTutorialStep(1);
+        setBagTutorialStepState(1);
+    }, [onboardingPhase9]);
+    useEffect(() => {
+        if (!onboardingPhase9) return;
+        if (getOnboardingBagTutorialStep() !== 2) return;
+        const fan = currentUser.inventory.find((i) => i.name === ONBOARDING_INTRO1_FAN_ITEM_ID);
+        if (fan?.isEquipped) {
+            setOnboardingBagTutorialStep(3);
+            setBagTutorialStepState(3);
+        }
+    }, [onboardingPhase9, currentUser.inventory, updateTrigger]);
+    useEffect(() => {
+        if (bagTutorialStep !== 4) return;
+        setIsMobileItemDetailOpen(false);
+        setIsMobileEquippedModalOpen(false);
+    }, [bagTutorialStep]);
+    const openedMobileEquipForObRef = useRef(false);
+    useEffect(() => {
+        if (!onboardingPhase9 || bagTutorialStep !== 3) {
+            openedMobileEquipForObRef.current = false;
+            return;
+        }
+        if (!narrowInventoryLayout || openedMobileEquipForObRef.current) return;
+        openedMobileEquipForObRef.current = true;
+        setIsMobileEquippedModalOpen(true);
+    }, [onboardingPhase9, bagTutorialStep, narrowInventoryLayout]);
+    const inventoryOnboardingShell = onboardingPhase9 && bagTutorialStep === 4;
+    const inventoryOnboardingCloseTarget = inventoryOnboardingShell ? 'onboarding-inv-modal-close' : undefined;
+    const showObEquippedStatsPreset = onboardingPhase9 && bagTutorialStep === 3;
     const mobileInventoryColumns = useMemo(() => {
         if (!narrowInventoryLayout) return 12;
         if (windowWidth < 390) return 5;
@@ -1332,10 +1380,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             mobileViewportMaxHeightVh={92}
             bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
             pcViewportMaxHeightCss="min(98vh, 1240px)"
+            closeButtonDataOnboardingTarget={inventoryOnboardingCloseTarget}
         >
             <div 
                 className="flex min-h-0 h-full w-full flex-col overflow-hidden"
                 style={{ margin: 0, padding: 0 }}
+                {...(inventoryOnboardingShell ? { 'data-onboarding-target': 'onboarding-inv-equipment-modal-shell' } : {})}
             >
                 {narrowInventoryLayout ? (
                     <div className="mb-2 shrink-0 rounded-md bg-gray-800 px-2 py-2 shadow-inner">
@@ -1358,7 +1408,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     >
                         <>
                             {/* 데스크톱: 좌 1/3 장착+스탯, 우측 상세 */}
-                            <div className="w-1/3 flex-shrink-0 border-r border-gray-700" style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}>
+                            <div
+                                className="w-1/3 flex-shrink-0 border-r border-gray-700"
+                                style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
+                                {...(showObEquippedStatsPreset && !narrowInventoryLayout
+                                    ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
+                                    : {})}
+                            >
                                 <>
                                     <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px`, marginBottom: `${Math.max(6, Math.round(8 * scaleFactor))}px` }}>장착 장비</h3>
                                     <div
@@ -1486,6 +1542,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             className={`flex-1 !py-1 ${viewerActionButtonClass.success}`}
                                             disabled={!canEquip}
                                             style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                            {...(onboardingPhase9 && bagTutorialStep === 2
+                                                ? { 'data-onboarding-target': 'onboarding-inv-equip-button' }
+                                                : {})}
                                         >
                                             장착
                                         </Button>
@@ -1712,13 +1771,30 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         {Array.from({ length: currentSlots }).map((_, index) => {
                             const item = filteredAndSortedInventory[index];
                             if (item) {
+                                const fanObSlot =
+                                    onboardingPhase9 &&
+                                    bagTutorialStep === 1 &&
+                                    item.name === ONBOARDING_INTRO1_FAN_ITEM_ID;
                                 return (
-                                    <div key={item.id} className="aspect-square" style={{ width: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%' }}>
+                                    <div
+                                        key={item.id}
+                                        className="aspect-square"
+                                        style={{ width: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%' }}
+                                        {...(fanObSlot ? { 'data-onboarding-target': 'onboarding-inv-fan-slot' } : {})}
+                                    >
                                         <InventoryItemCard
                                             item={item}
                                             onClick={() => {
                                                 setSelectedItemId(item.id);
                                                 if (narrowInventoryLayout) setIsMobileItemDetailOpen(true);
+                                                if (
+                                                    onboardingPhase9 &&
+                                                    getOnboardingBagTutorialStep() === 1 &&
+                                                    item.name === ONBOARDING_INTRO1_FAN_ITEM_ID
+                                                ) {
+                                                    setOnboardingBagTutorialStep(2);
+                                                    setBagTutorialStepState(2);
+                                                }
                                             }}
                                             isSelected={selectedItemId === item.id}
                                             isEquipped={item.isEquipped || false}
@@ -1764,7 +1840,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     mobileViewportMaxHeightVh={92}
                     bodyPaddingClassName="p-2 sm:p-3"
                 >
-                    <div className="flex max-h-[min(78dvh,720px)] min-h-0 flex-col gap-2 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    <div
+                        className="flex max-h-[min(78dvh,720px)] min-h-0 flex-col gap-2 overflow-y-auto"
+                        style={{ WebkitOverflowScrolling: 'touch' }}
+                        {...(showObEquippedStatsPreset && narrowInventoryLayout
+                            ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
+                            : {})}
+                    >
                         <h3
                             className="font-bold text-on-panel"
                             style={{
@@ -1879,7 +1961,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     {selectedItem.id === correspondingEquippedItem?.id ? (
                                         <Button onClick={() => handleEquipToggle(selectedItem.id)} colorScheme="red" className={viewerActionButtonClass.danger}>해제</Button>
                                     ) : (
-                                        <Button onClick={() => handleEquipToggle(selectedItem.id)} colorScheme="green" className={viewerActionButtonClass.success} disabled={!canEquip}>장착</Button>
+                                        <Button
+                                            onClick={() => handleEquipToggle(selectedItem.id)}
+                                            colorScheme="green"
+                                            className={viewerActionButtonClass.success}
+                                            disabled={!canEquip}
+                                            {...(onboardingPhase9 && bagTutorialStep === 2
+                                                ? { 'data-onboarding-target': 'onboarding-inv-equip-button' }
+                                                : {})}
+                                        >
+                                            장착
+                                        </Button>
                                     )}
                                     {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
                                         <Button

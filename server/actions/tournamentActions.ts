@@ -383,7 +383,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
         switch (type) {
         case 'START_TOURNAMENT_SESSION': {
             const { type } = payload as { type: TournamentType };
-            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship');
+            const champGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
             if (!champGate.ok) return { error: champGate.error };
             const definition = TOURNAMENT_DEFINITIONS[type];
             if (!definition) return { error: '유효하지 않은 토너먼트 타입입니다.' };
@@ -1601,7 +1601,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             
             console.log('[START_DUNGEON_STAGE] Validation passed, proceeding with dungeon stage creation');
 
-            const dungeonGate = await requireArenaEntranceOpen(user.isAdmin, 'championship');
+            const dungeonGate = await requireArenaEntranceOpen(user.isAdmin, 'championship', user);
             if (!dungeonGate.ok) return { error: dungeonGate.error };
             
             // 던전 진행 상태 확인

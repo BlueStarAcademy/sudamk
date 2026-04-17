@@ -33,7 +33,8 @@ function stageTier(user: User, stageId: string): number {
 }
 
 /**
- * 단일 슬롯 효과 변경(리롤). 1000 골드.
+ * 단일 슬롯 효과 변경(리롤).
+ * 빈(사용 가능) 슬롯에 첫 효과를 넣을 때는 무료이며, 이미 효과가 있는 슬롯을 바꿀 때는 골드를 소모한다.
  * 강화가 있었던 경우(stacks>1) 1단계로 초기화하고 사용했던 강화 포인트를 환급한다.
  */
 export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
@@ -48,9 +49,6 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
     const n = list.length;
     if (n <= 0) return '해당 지역에 교체할 효과가 없습니다.';
     if (slotIndex < 0 || slotIndex >= n) return '잘못된 슬롯입니다.';
-    if ((user.gold ?? 0) < ADVENTURE_REGIONAL_BUFF_ACTION_GOLD) {
-        return `골드가 부족합니다. (필요: ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()})`;
-    }
 
     const tier = stageTier(user, stageId);
     const grant = enhancementPointsGrantedTotalForTier(tier);
@@ -66,7 +64,6 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
     if (isEmptySlot) {
         const next = list.slice();
         next[slotIndex] = rollRandomRegionalBuffEntryExcluding(usedKindsExceptSlot(next, slotIndex));
-        user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
         user.adventureProfile = {
             ...p,
             regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: next },
@@ -74,6 +71,10 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
         };
         user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile);
         return null;
+    }
+
+    if ((user.gold ?? 0) < ADVENTURE_REGIONAL_BUFF_ACTION_GOLD) {
+        return `골드가 부족합니다. (필요: ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()})`;
     }
 
     const ent = migrateRegionalBuffEntry(rawAtSlot as any);

@@ -404,7 +404,17 @@ const applyDefaults = (
     savedGameRecords,
     dungeonProgress: user.dungeonProgress ?? (status?.serializedUser as User | undefined)?.dungeonProgress ?? undefined,
     dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined,
-    lastLoginAt: user.lastLoginAt ?? (status?.leagueMetadata?.lastLoginAt != null ? safeNumber(status.leagueMetadata.lastLoginAt, 0) : undefined) ?? (status?.serializedUser as User | undefined)?.lastLoginAt ?? undefined
+    lastLoginAt: user.lastLoginAt ?? (status?.leagueMetadata?.lastLoginAt != null ? safeNumber(status.leagueMetadata.lastLoginAt, 0) : undefined) ?? (status?.serializedUser as User | undefined)?.lastLoginAt ?? undefined,
+    rewardVipExpiresAt:
+        user.rewardVipExpiresAt ??
+        (status?.serializedUser as User | undefined)?.rewardVipExpiresAt ??
+        0,
+    functionVipExpiresAt:
+        user.functionVipExpiresAt ??
+        (status?.serializedUser as User | undefined)?.functionVipExpiresAt ??
+        0,
+    vvipExpiresAt:
+        user.vvipExpiresAt ?? (status?.serializedUser as User | undefined)?.vvipExpiresAt ?? 0,
   };
 };
 

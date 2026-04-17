@@ -19,6 +19,9 @@ const MATERIAL_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id' | 'createdA
 };
 
 const SHOP_ITEM_ID_TO_DISPLAY_NAME: Record<string, string> = {
+    action_point_10: '행동력 회복제(+10)',
+    action_point_20: '행동력 회복제(+20)',
+    action_point_30: '행동력 회복제(+30)',
     equipment_box_1: '장비 상자 I',
     equipment_box_2: '장비 상자 II',
     equipment_box_3: '장비 상자 III',

@@ -1200,10 +1200,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     return { error: '사용자를 찾을 수 없습니다.' };
                 }
 
-                const gainedGuildCoins = addRewardBonus(
+                let gainedGuildCoins = addRewardBonus(
                     milestone.reward.guildCoins,
                     rewardConfig.guildCheckInCoinBonus
                 );
+                if (isRewardVipActive(freshUser)) {
+                    gainedGuildCoins *= 2;
+                }
                 freshUser.guildCoins = (freshUser.guildCoins || 0) + gainedGuildCoins;
                 user.guildCoins = freshUser.guildCoins;
 
@@ -1251,10 +1254,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const freshUser = await db.getUser(user.id);
             if (!freshUser) return { error: '사용자를 찾을 수 없습니다.' };
             
-            const gainedGuildCoins = addRewardBonus(
+            let gainedGuildCoins = addRewardBonus(
                 mission.personalReward.guildCoins,
                 rewardConfig.guildMissionCoinBonus
             );
+            if (isRewardVipActive(freshUser)) {
+                gainedGuildCoins *= 2;
+            }
             freshUser.guildCoins = (freshUser.guildCoins || 0) + gainedGuildCoins;
             user.guildCoins = freshUser.guildCoins; // user 객체도 동기화
         
@@ -1351,6 +1357,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
 
             await guildService.updateGuildMissionProgress(user.guildId, 'guildDonations', actualCount, guilds);
+
+            if (isRewardVipActive(user) && gainedGuildCoins > 0) {
+                user.guildCoins = (user.guildCoins || 0) + gainedGuildCoins;
+                gainedGuildCoins *= 2;
+            }
 
             if (!guild.donationLog) guild.donationLog = [];
             guild.donationLog.push({
