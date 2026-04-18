@@ -9,7 +9,7 @@ import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DA
 interface ActionPointModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
-    onAction: (action: ServerAction) => Promise<void> | void;
+    onAction: (action: ServerAction) => Promise<unknown> | void;
     isTopmost?: boolean;
 }
 

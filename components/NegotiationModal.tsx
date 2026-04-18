@@ -68,6 +68,7 @@ const CountdownDisplay: React.FC<{ deadline: number }> = ({ deadline }) => {
 
 const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
   const { negotiation, currentUser, onAction, onlineUsers, isTopmost } = props;
+  const { handlers } = useAppContext();
   const [settings, setSettings] = useState<GameSettings>(negotiation.settings);
   const notificationPlayedRef = useRef(false);
 

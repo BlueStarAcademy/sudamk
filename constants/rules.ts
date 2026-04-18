@@ -8,6 +8,7 @@ type CombinationGreatSuccessRates = {
     'epic'?: number;
     'legendary'?: number;
     'mythic'?: number;
+    'transcendent'?: number;
 };
 
 // --- User Profile Rules ---

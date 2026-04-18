@@ -1,4 +1,5 @@
 import prisma from '../prismaClient.js';
+import type { InputJsonValue } from '@prisma/client/runtime/library';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -71,7 +72,7 @@ async function run() {
 
     await prisma.user.update({
       where: { id: row.id },
-      data: { status: next },
+      data: { status: next as InputJsonValue },
     });
     updated += 1;
   }

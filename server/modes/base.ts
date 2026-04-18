@@ -445,7 +445,7 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
 };
 
 export const handleBaseAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): types.HandleActionResult | null => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
 
     switch (type) {

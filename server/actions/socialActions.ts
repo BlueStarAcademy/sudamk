@@ -62,7 +62,8 @@ export async function applyPvpInGameDisconnect(volatileState: VolatileState, dis
 }
 
 export const handleSocialAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type } = action;
+    const payload = (action as { payload?: unknown }).payload as any;
     const now = Date.now();
 
     switch (type) {
@@ -587,7 +588,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         }
 
         case 'START_RANKED_MATCHING': {
-            const { lobbyType, selectedModes } = payload;
+            const { lobbyType, selectedModes } = payload as {
+                lobbyType: 'strategic' | 'playful';
+                selectedModes: GameMode[];
+            };
             const gateKey = lobbyType === 'strategic' ? 'strategicLobby' : 'playfulLobby';
             const rankedGate = await requireArenaEntranceOpen(user.isAdmin, gateKey, user);
             if (!rankedGate.ok) return { error: rankedGate.error };

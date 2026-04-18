@@ -7,6 +7,8 @@ import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import {
   isWaitingRoomAiGame,
   strategicLobbyAiWinXp,
+  aiLobbyRewardMultiplierFromProfileStep,
+  resolveAiLobbyProfileStepFromSettings,
 } from '../shared/utils/strategicAiDifficulty.js';
 import { getAdventureChapterRewardPreview, getAdventureChapterRewardVisual } from '../shared/utils/adventureChapterRewardPreview.js';
 import type { AdventureStageId } from '../constants/adventureConstants.js';

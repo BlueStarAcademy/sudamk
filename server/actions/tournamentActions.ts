@@ -375,7 +375,7 @@ export const startTournamentSessionForUser = async (user: User, tournamentType: 
 };
 
 export const handleTournamentAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
 
     console.log(`[handleTournamentAction] Processing action: ${type}, userId: ${user.id}`);

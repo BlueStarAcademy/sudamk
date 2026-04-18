@@ -55,6 +55,48 @@ export const TOWER_LOBBY_SCAN_NAMES = ['스캔', 'scan', 'Scan', 'SCAN', '스캔
 export const TOWER_LOBBY_HIDDEN_NAMES = ['히든', 'hidden', 'Hidden'] as const;
 export const TOWER_LOBBY_MISSILE_NAMES = ['미사일', 'missile', 'Missile'] as const;
 
+/**
+ * 로비(인벤) 보유에 맞춰 P1 세션 잔여를 스테이지 상한까지 올린다.
+ * 경기 중 구매 직후 세션 필드가 늦게 반영될 때 START_* 가 막히지 않도록 한다.
+ */
+export function syncTowerP1ConsumableSessionFromInventory(
+    game: types.LiveGameSession,
+    user: types.User,
+    kind: 'missile' | 'hidden' | 'scan'
+): boolean {
+    if (game.gameCategory !== 'tower' || game.player1?.id !== user.id) return false;
+    const floor = (game as any).towerFloor ?? 0;
+    if (floor < 21) return false;
+    const s = (game.settings || {}) as any;
+    let names: string[];
+    let key: 'missiles_p1' | 'hidden_stones_p1' | 'scans_p1';
+    let cap: number;
+    if (kind === 'missile') {
+        names = [...TOWER_LOBBY_MISSILE_NAMES];
+        key = 'missiles_p1';
+        cap = typeof s.missileCount === 'number' && s.missileCount > 0 ? s.missileCount : 2;
+    } else if (kind === 'hidden') {
+        names = [...TOWER_LOBBY_HIDDEN_NAMES];
+        key = 'hidden_stones_p1';
+        cap = typeof s.hiddenStoneCount === 'number' && s.hiddenStoneCount > 0 ? s.hiddenStoneCount : 2;
+    } else {
+        names = [...TOWER_LOBBY_SCAN_NAMES];
+        key = 'scans_p1';
+        cap = typeof s.scanCount === 'number' && s.scanCount > 0 ? s.scanCount : 2;
+    }
+    const inv = countTowerLobbyInventoryQty(user.inventory, names);
+    const allowance = towerP1ConsumableAllowance(inv, cap);
+    const cur = typeof (game as any)[key] === 'number' ? (game as any)[key] : 0;
+    // 인벤만 먼저 깎인 경우 등: 세션이 인벤 상한보다 크면 내려 맞춤(스캔이 '다시 생김' 방지)
+    if (allowance < cur) {
+        (game as any)[key] = allowance;
+        return true;
+    }
+    if (allowance <= cur) return false;
+    (game as any)[key] = allowance;
+    return true;
+}
+
 /** 경기 중 1회 사용에 맞춰 타워 로비 인벤 스택 1 감소 (in-place). 성공 시 true */
 export function consumeOneTowerLobbyInventoryItem(user: types.User, namesOrIds: readonly string[]): boolean {
     const inventory = user.inventory || [];
@@ -163,6 +205,20 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
 
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
 
+    if (game.gameStatus === 'scanning_animating' && game.itemUseDeadline && now > game.itemUseDeadline) {
+        game.animation = null;
+        game.gameStatus = 'playing';
+        game.itemUseDeadline = undefined;
+        game.pausedTurnTimeLeft = undefined;
+        const timerResumed = resumeGameTimer(game, now, game.currentPlayer);
+        if (!timerResumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+        }
+        (game as any)._itemTimeoutStateChanged = true;
+        return;
+    }
+
     if (isItemMode && game.itemUseDeadline && now > game.itemUseDeadline) {
         const timedOutPlayerEnum = game.currentPlayer;
         const timedOutPlayerId = timedOutPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
@@ -174,6 +230,7 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
         game.gameStatus = 'playing';
         game.currentPlayer = timedOutPlayerEnum;
 
+        let towerScanTimeoutConsumedSession = false;
         if (currentItemMode === 'hidden_placing') {
             const hiddenKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
             const currentHidden = (game as any)[hiddenKey] ?? 0;
@@ -185,7 +242,10 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
         } else if (currentItemMode === 'scanning') {
             const scanKey = timedOutPlayerId === game.player1.id ? 'scans_p1' : 'scans_p2';
             const currentScans = (game as any)[scanKey] ?? 0;
-            if (currentScans > 0) (game as any)[scanKey] = currentScans - 1;
+            if (currentScans > 0) {
+                (game as any)[scanKey] = currentScans - 1;
+                towerScanTimeoutConsumedSession = true;
+            }
         }
 
         const timerResumed = resumeGameTimer(game, now, timedOutPlayerEnum);
@@ -196,7 +256,9 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
         (game as any)._itemTimeoutStateChanged = true;
         if (timedOutPlayerId === game.player1.id) {
             if (currentItemMode === 'hidden_placing') void persistTowerP1ConsumableDecrement(game.player1.id, 'hidden');
-            else if (currentItemMode === 'scanning') void persistTowerP1ConsumableDecrement(game.player1.id, 'scan');
+            else if (currentItemMode === 'scanning' && towerScanTimeoutConsumedSession) {
+                void persistTowerP1ConsumableDecrement(game.player1.id, 'scan');
+            }
         }
         return;
     }
@@ -218,17 +280,19 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                               ? types.Player.White
                               : game.currentPlayer;
                     game.currentPlayer = scanPlayerEnum;
-                    const scanAnim = anim as { type: 'scan'; success?: boolean; towerResumeScanning?: boolean };
-                    if (game.gameCategory === 'tower' && scanAnim.success && scanAnim.towerResumeScanning) {
-                        game.animation = null;
-                        game.gameStatus = 'scanning';
-                        pauseGameTimer(game, now, 30000);
-                        (game as any)._itemTimeoutStateChanged = true;
-                        break;
-                    }
                 }
                 game.animation = null;
                 game.gameStatus = 'playing';
+                game.itemUseDeadline = undefined;
+                game.pausedTurnTimeLeft = undefined;
+                const cur = game.currentPlayer;
+                if (cur !== types.Player.None) {
+                    const resumed = resumeGameTimer(game, now, cur);
+                    if (!resumed) {
+                        game.itemUseDeadline = undefined;
+                        game.pausedTurnTimeLeft = undefined;
+                    }
+                }
                 (game as any)._itemTimeoutStateChanged = true;
             }
             break;
@@ -275,7 +339,7 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
 export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
     if (game.gameCategory !== 'tower') return null;
 
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
     let myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     if (myPlayerEnum === types.Player.None && game.player1?.id === user.id) {
@@ -292,6 +356,9 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             if (!isMyTurn) return { error: "Not your turn to use an item." };
             if (game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             const hiddenKey = user.id === game.blackPlayerId ? 'hidden_stones_p1' : 'hidden_stones_p2';
+            if (hiddenKey === 'hidden_stones_p1' && game.player1?.id === user.id) {
+                syncTowerP1ConsumableSessionFromInventory(game, user, 'hidden');
+            }
             const currentHidden = (game as any)[hiddenKey] ?? 0;
             if (currentHidden <= 0) return { error: "No hidden stones left." };
             game.gameStatus = 'hidden_placing';
@@ -300,6 +367,9 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
         case 'START_SCANNING': {
             if (!isMyTurn) return { error: "Not your turn to use an item." };
             const scanKeyStart = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
+            if (scanKeyStart === 'scans_p1' && game.player1?.id === user.id) {
+                syncTowerP1ConsumableSessionFromInventory(game, user, 'scan');
+            }
             if (((game as any)[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
             const isMixWithHidden =
@@ -330,6 +400,9 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
             const scanKey = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
+            if (scanKey === 'scans_p1' && game.player1?.id === user.id) {
+                syncTowerP1ConsumableSessionFromInventory(game, user, 'scan');
+            }
             if (((game as any)[scanKey] ?? 0) <= 0) return { error: "No scans left." };
 
             const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);
@@ -338,9 +411,7 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             }
             (game as any)[scanKey] = Math.max(0, ((game as any)[scanKey] ?? 0) - 1);
             const success = evalResult.success;
-            game.animation = buildHiddenScanAnimation(now, user.id, x, y, success, {
-                resumeScanSessionOnSuccess: true,
-            });
+            game.animation = buildHiddenScanAnimation(now, user.id, x, y, success);
             game.gameStatus = 'scanning_animating';
             game.currentPlayer = myPlayerEnum;
             const scanResumeOk = resumeGameTimer(game, now, myPlayerEnum);

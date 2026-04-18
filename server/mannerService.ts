@@ -77,7 +77,7 @@ export const applyMannerRankChange = async (user: types.User, oldMannerScore: nu
 };
 
 export const handleMannerAction = async (volatileState: types.VolatileState, action: types.ServerAction & { userId: string }, user: types.User): Promise<types.HandleActionResult> => {
-    const { payload } = action;
+    const payload = (action as { payload?: unknown }).payload as any;
     const { type: mannerType } = payload as { type: 'manner' | 'unmannerly' }; // Assuming payload has a 'type' field
 
     const oldMannerScore = user.mannerScore ?? 200;

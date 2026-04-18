@@ -72,7 +72,7 @@ type HandleActionResult = {
 };
 
 export const handleUserAction = async (volatileState: types.VolatileState, action: types.ServerAction & { userId: string }, user: types.User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
 
     switch (type) {
         case 'UPDATE_AVATAR': {
@@ -697,7 +697,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 // analysisResult가 없으면 기본 정보로 생성
                 // finalizeAnalysisResult에서 계산된 보너스 정보는 게임 객체에서 추출
                 analysisResult = {
-                    scoreDetails: {
+                    scoreDetails: ({
                         black: {
                             territory: 0,
                             captures: game.captures?.[types.Player.Black] ?? 0,
@@ -719,7 +719,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                             itemBonus: 0,
                             total: game.finalScores?.white ?? 0
                         }
-                    }
+                    }) as any,
                 };
             }
             
@@ -897,15 +897,18 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             // 1. 이메일을 1주일간 가입 제한 목록에 추가
             const kvRepository = await import('../repositories/kvRepository.js');
             const withdrawnEmails = await kvRepository.getKV<Record<string, number>>('withdrawnEmails') || {};
-            withdrawnEmails[userEmail.toLowerCase()] = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7일 후
-            await kvRepository.setKV('withdrawnEmails', withdrawnEmails);
+            const emailKey = ((user as { email?: string }).email ?? '').trim().toLowerCase();
+            if (emailKey) {
+                withdrawnEmails[emailKey] = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7일 후
+                await kvRepository.setKV('withdrawnEmails', withdrawnEmails);
+            }
             
             // 2. 활성 게임 종료 처리
             const { getAllActiveGames } = await import('../db.js');
             const activeGames = await getAllActiveGames();
             for (const game of activeGames) {
                 if (game.player1.id === user.id || game.player2.id === user.id) {
-                    if (game.gameStatus === 'playing' || game.gameStatus === 'paused') {
+                    if (game.gameStatus === 'playing') {
                         // 게임 종료 처리
                         game.gameStatus = 'ended';
                         game.winner = game.player1.id === user.id ? types.Player.White : types.Player.Black;
@@ -955,8 +958,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 user.onboardingSpResultTutorialStep = 0;
             }
             if (phase === 8) {
-                (user as types.User & { onboardingSpResultTutorialStep?: number | null }).onboardingSpResultTutorialStep =
-                    null;
+                (user as types.User & { onboardingSpResultTutorialStep?: number }).onboardingSpResultTutorialStep =
+                    undefined;
             }
             // await 필수: 다음 /api/action(CONFIRM 등)이 getCachedUser로 옛 사본을 쓰면 인게임 온보딩(5→6)이 건너뛰어짐
             try {
@@ -1002,10 +1005,10 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             user.onboardingTutorialPhase = ONBOARDING_PHASE_COMPLETE;
             const uSkip = user as types.User & {
                 onboardingTutorialPendingFirstHome?: boolean;
-                onboardingSpResultTutorialStep?: number | null;
+                onboardingSpResultTutorialStep?: number;
             };
             uSkip.onboardingTutorialPendingFirstHome = false;
-            uSkip.onboardingSpResultTutorialStep = null;
+            uSkip.onboardingSpResultTutorialStep = undefined;
             try {
                 await db.updateUser(user);
             } catch (err) {

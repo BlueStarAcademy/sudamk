@@ -37,7 +37,8 @@ import {
 import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSituationList.js';
 import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
-import { labelRegionalSpecialtyBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import { labelRegionalSpecialtyBuffEntry, migrateRegionalBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
+import type { AdventureRegionalSpecialtyBuffEntry } from '../../types/entities.js';
 import { formatAdventureUnderstandingTierLabel } from '../../utils/adventureUnderstanding.js';
 import {
     getAdventureCodexComprehensionBarProgress,
@@ -182,13 +183,15 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         [currentUserWithStatus?.adventureProfile, stage?.id],
     );
 
-    const stageRegionalBuffEntries = stage
-        ? (currentUserWithStatus?.adventureProfile?.regionalSpecialtyBuffsByStageId?.[stage.id] ?? []).filter(
-            (entry): entry is { kind: string; stacks?: number } =>
-                entry != null &&
-                typeof entry === 'object' &&
-                String((entry as { kind?: unknown }).kind ?? '').trim() !== '',
-        )
+    const stageRegionalBuffEntries: AdventureRegionalSpecialtyBuffEntry[] = stage
+        ? (currentUserWithStatus?.adventureProfile?.regionalSpecialtyBuffsByStageId?.[stage.id] ?? [])
+              .filter(
+                  (entry): entry is NonNullable<typeof entry> =>
+                      entry != null &&
+                      typeof entry === 'object' &&
+                      String((entry as { kind?: unknown }).kind ?? '').trim() !== '',
+              )
+              .map((entry) => migrateRegionalBuffEntry(entry as Partial<AdventureRegionalSpecialtyBuffEntry>))
         : [];
     const stageUnderstandingXp = stage
         ? Math.max(0, Math.floor(currentUserWithStatus?.adventureProfile?.understandingXpByStage?.[stage.id] ?? 0))

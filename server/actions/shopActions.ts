@@ -31,7 +31,7 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
 };
 
 export const handleShopAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
 
     switch (type) {
         case 'BUY_SHOP_ITEM': {
@@ -283,7 +283,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             return { clientResponse: { updatedUser } };
         }
         case 'EXPAND_INVENTORY': {
-            const { category } = payload;
+            const { category } = payload as { category: keyof User['inventorySlots'] };
             const EXPANSION_COST_DIAMONDS = 100;
             const EXPANSION_AMOUNT = 10;
             const MAX_INVENTORY_SIZE = 100;

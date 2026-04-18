@@ -1184,7 +1184,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 const END_GAME_DEADLINE_MS = 1000;
                 const endGameTimeout = new Promise<void>((resolve) => setTimeout(resolve, END_GAME_DEADLINE_MS));
                 await Promise.race([
-                    summaryService.endGame(game, game.winner, 'timeout'),
+                    endGame(game, game.winner, 'timeout'),
                     endGameTimeout
                 ]).catch((error: any) => {
                     console.error(`[processGame] Error ending game ${game.id}:`, error?.message || error);
@@ -1359,7 +1359,16 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             // 놀이바둑 모드별로 AI가 행동할 수 있는 gameStatus 모두 허용
             const playfulPlacementStatuses = ['alkkagi_placement', 'alkkagi_simultaneous_placement', 'thief_rolling', 'thief_placing'];
             const playfulPlayingStatuses = ['alkkagi_playing', 'curling_playing', 'dice_rolling', 'dice_placing', 'dice_turn_rolling', 'dice_turn_choice', 'dice_start_confirmation'];
-            const animatingStatuses = ['missile_animating', 'hidden_reveal_animating', 'alkkagi_animating', 'curling_animating', 'thief_rolling_animating', 'dice_rolling_animating', 'dice_turn_rolling_animating'];
+            const animatingStatuses = [
+                'missile_animating',
+                'hidden_reveal_animating',
+                'scanning_animating',
+                'alkkagi_animating',
+                'curling_animating',
+                'thief_rolling_animating',
+                'dice_rolling_animating',
+                'dice_turn_rolling_animating',
+            ];
             const canProcessAiTurn = isAiTurn && game.gameStatus !== 'ended' && 
                 !animatingStatuses.includes(game.gameStatus) &&
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || playfulPlayingStatuses.includes(game.gameStatus));

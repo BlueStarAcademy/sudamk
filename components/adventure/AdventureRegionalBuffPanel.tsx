@@ -32,6 +32,10 @@ export type AdventureStageUnderstandingRow = {
     xp: number;
     /** 표시용 분모 — 다음 티어까지 필요한 누적 XP(정복 등급은 최종 구간 기준 1000) */
     xpGoal: number;
+    /** 현재 티어 구간 내 XP(있으면 XP 표기에 사용) */
+    xpInTier?: number;
+    /** 현재 티어 구간 목표 XP(있으면 분모에 사용) */
+    xpNeedInTier?: number;
     tier: number;
     prog: number;
     tierLabel: string;

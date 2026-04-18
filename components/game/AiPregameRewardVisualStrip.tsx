@@ -223,7 +223,17 @@ export const AiPregameRewardVisualStrip: React.FC<{
   }
 
   if (placement === 'titlePanel') {
-    const uniformSlots = visual.slots.map((slot, idx) => {
+    type TitlePanelUniformSlot = {
+      key: string;
+      image: string | null;
+      line: string;
+      isExp: boolean;
+      expTopLabel?: string;
+      isVipText?: boolean;
+    };
+
+    const uniformSlots: TitlePanelUniformSlot[] = visual.slots
+      .map((slot, idx): TitlePanelUniformSlot | null => {
       switch (slot.kind) {
         case 'xp_win_loss':
           return {
@@ -287,16 +297,8 @@ export const AiPregameRewardVisualStrip: React.FC<{
         default:
           return null;
       }
-    }).filter(
-      (slot): slot is {
-        key: string;
-        image: string | null;
-        line: string;
-        isExp: boolean;
-        expTopLabel?: string;
-        isVipText?: boolean;
-      } => slot !== null,
-    );
+    })
+      .filter((s): s is TitlePanelUniformSlot => s !== null);
 
     if (uniformSlots.length === 0) return null;
 

@@ -192,6 +192,7 @@ const GuildWar = () => {
     // 길드전 데이터 가져오기
     useEffect(() => {
         lastFetchTimeRef.current = 0;
+        let remainingTimeInterval: ReturnType<typeof setInterval> | null = null;
 
         const fetchWarData = async (force = false) => {
             if (!currentUserWithStatus?.guildId) return;
@@ -413,6 +414,10 @@ const GuildWar = () => {
                 
                 // 남은 시간 계산
                 if (war.endTime) {
+                    if (remainingTimeInterval) {
+                        clearInterval(remainingTimeInterval);
+                        remainingTimeInterval = null;
+                    }
                     const updateRemainingTime = () => {
                         const now = Date.now();
                         const remaining = war.endTime! - now;
@@ -425,8 +430,10 @@ const GuildWar = () => {
                         setRemainingTime(`${days}일 ${hours}시간`);
                     };
                     updateRemainingTime();
-                    const interval = setInterval(updateRemainingTime, 60000); // 1분마다 업데이트
-                    return () => clearInterval(interval);
+                    remainingTimeInterval = setInterval(updateRemainingTime, 60000); // 1분마다 업데이트
+                } else if (remainingTimeInterval) {
+                    clearInterval(remainingTimeInterval);
+                    remainingTimeInterval = null;
                 }
             } catch (error) {
                 console.error('[GuildWar] Error fetching war data:', error);
@@ -454,6 +461,10 @@ const GuildWar = () => {
         
         return () => {
             clearInterval(interval);
+            if (remainingTimeInterval) {
+                clearInterval(remainingTimeInterval);
+                remainingTimeInterval = null;
+            }
             hasInitializedRef.current = false;
             isFetchingRef.current = false;
             pendingForceRef.current = false;

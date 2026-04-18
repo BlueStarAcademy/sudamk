@@ -51,7 +51,7 @@ const RankingRow = ({
         }
     };
 
-    const accent = rankRowAccent(rank, isCurrentUser, Boolean(dense), mobileWide);
+    const accent = rankRowAccent(rank, isCurrentUser, Boolean(dense), Boolean(mobileWide));
 
     if (mobileWide) {
         return (

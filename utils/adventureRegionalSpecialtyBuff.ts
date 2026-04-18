@@ -61,6 +61,11 @@ const KIND_META: Record<AdventureRegionalSpecialtyBuffKind, KindMeta> = {
     regional_base_start_score_plus1: { maxStacks: 5, enhanceable: true, stepFlat: 1 },
     regional_classic_start_score_plus1: { maxStacks: 5, enhanceable: true, stepFlat: 1 },
     regional_missile_plus1: { maxStacks: 1, enhanceable: false, stepFlat: 1 },
+    adv_gold_pct: { maxStacks: 5, enhanceable: true, stepPct: 10 },
+    map_monster_dwell_pct: { maxStacks: 5, enhanceable: true, stepPct: 10 },
+    capture_opponent_target_plus1: { maxStacks: 5, enhanceable: true, stepFlat: 1 },
+    hidden_scan_plus1: { maxStacks: 3, enhanceable: true, stepFlat: 1 },
+    missile_plus1: { maxStacks: 1, enhanceable: false, stepFlat: 1 },
 };
 
 export function getRegionalBuffMaxStacks(kind: AdventureRegionalSpecialtyBuffKind): number {

@@ -48,7 +48,7 @@ function useUnlockedAvatars(user: UserWithStatus | null): AvatarInfo[] {
 const SetNickname: React.FC = () => {
     const { currentUser, setCurrentUserAndRoute } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
-    const unlockedAvatars = useUnlockedAvatars(currentUser);
+    const unlockedAvatars = useUnlockedAvatars(currentUser as UserWithStatus | null);
     const avatarScrollRef = useRef<HTMLDivElement>(null);
 
     const [nickname, setNickname] = useState('');

@@ -50,7 +50,8 @@ export const getKakaoAccessToken = async (code: string): Promise<string> => {
         throw new Error(`Failed to get Kakao access token: ${error}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { access_token?: string };
+    if (!data.access_token) throw new Error('Kakao token response missing access_token');
     return data.access_token;
 };
 
@@ -74,9 +75,15 @@ export const getKakaoUserInfo = async (accessToken: string): Promise<{
         throw new Error(`Failed to get Kakao user info: ${error}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+        id?: unknown;
+        kakao_account?: {
+            email?: string;
+            profile?: { nickname?: string; profile_image_url?: string };
+        };
+    };
     return {
-        id: String(data.id),
+        id: String(data.id ?? ''),
         email: data.kakao_account?.email,
         nickname: data.kakao_account?.profile?.nickname,
         profileImage: data.kakao_account?.profile?.profile_image_url,

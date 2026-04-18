@@ -269,12 +269,12 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
     /** 도감 소모품 탭: 종류별 구분 */
     const consumableItemsByCategory = useMemo(() => {
-        const all = [...CONSUMABLE_ITEMS];
+        const all = [...CONSUMABLE_ITEMS] as InventoryItem[];
         const byGrade = (a: InventoryItem, b: InventoryItem) => gradeOrder[a.grade] - gradeOrder[b.grade];
         const byName = (a: InventoryItem, b: InventoryItem) => a.name.localeCompare(b.name, 'ko');
         const pick = (pred: (i: InventoryItem) => boolean): EncyclopediaItem[] => {
             const filtered = all.filter(pred);
-            return (filtered as InventoryItem[]).sort(byGrade) as EncyclopediaItem[];
+            return filtered.sort(byGrade) as EncyclopediaItem[];
         };
 
         const towerNames = new Set(['턴 추가', '미사일', '히든', '스캔', '배치변경']);
@@ -675,7 +675,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                                 </h3>
                                 <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] sm:gap-1.5 sm:text-xs">
                                     <span className="rounded-full border border-white/15 bg-black/35 px-2 py-0.5 text-slate-100">
-                                        {slotNames[item.slot]}
+                                        {item.slot ? slotNames[item.slot] : '—'}
                                     </span>
                                     <span
                                         className={`rounded-full border px-2 py-0.5 ${

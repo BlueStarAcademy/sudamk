@@ -145,8 +145,10 @@ const AnimatedMissileStone: React.FC<{
     );
 };
 
+type MissileFlightAnimation = Extract<AnimationData, { type: 'missile' }> | Extract<AnimationData, { type: 'hidden_missile' }>;
+
 const AnimatedHiddenMissile: React.FC<{
-    animation: Extract<AnimationData, { type: 'hidden_missile' }>;
+    animation: MissileFlightAnimation;
     stone_radius: number;
     toSvgCoords: (p: Point) => { cx: number; cy: number };
 }> = ({ animation, stone_radius, toSvgCoords }) => {
@@ -272,10 +274,10 @@ const AnimatedScanMarker: React.FC<{
     const gradFailId = `scan-sweep-fail-${uid}`;
     const gradOkId = `scan-sweep-ok-${uid}`;
 
-    const sweepStyle: React.CSSProperties & { '--scan-travel': string } = {
-        ['--scan-travel' as string]: `${gridW + beamW}px`,
+    const sweepStyle = {
+        '--scan-travel': `${gridW + beamW}px`,
         animationDuration: `${sweepMs}ms`,
-    };
+    } as React.CSSProperties & { '--scan-travel': string };
 
     const resultPhaseStyle: React.CSSProperties = {
         animationDuration: `${resultMs}ms`,
@@ -564,11 +566,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     /** captures 기반: 이미 플로트 처리한 수(moveHistory 인덱스·좌표·플레이어) */
     const lastFloatedMoveKeyRef = useRef<string>('');
     const prevCapturesForFloatRef = useRef<Partial<Record<Player, number>> | null>(null);
+    /** 미사일 연출 중 매 프레임 착지점 (애니 종료 후 null이 되어도 여기 남음) */
+    const lastMissileAnimationToRef = useRef<Point | null>(null);
+    /** missile_animating → playing 직후: 따내기 점수 플로트를 이동한 내 돌 위치에서 띄우기 위한 앵커 */
+    const missileCaptureScoreAnchorRef = useRef<Point | null>(null);
+    const prevGameStatusForMissileFloatRef = useRef<GameStatus | undefined>(undefined);
 
     useEffect(() => {
         processedJustCapturedCountRef.current = 0;
         lastFloatedMoveKeyRef.current = '';
         prevCapturesForFloatRef.current = null;
+        lastMissileAnimationToRef.current = null;
+        missileCaptureScoreAnchorRef.current = null;
+        prevGameStatusForMissileFloatRef.current = undefined;
         if (captures) {
             prevCapturesForFloatRef.current = { ...captures };
             const mh = moveHistory;
@@ -578,6 +588,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             }
         }
     }, [gameId]);
+
+    useEffect(() => {
+        if (gameStatus === 'missile_animating' && animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {
+            lastMissileAnimationToRef.current = animation.to;
+        }
+        if (gameStatus === 'missile_selecting') {
+            missileCaptureScoreAnchorRef.current = null;
+        }
+        const prev = prevGameStatusForMissileFloatRef.current;
+        if (prev === 'missile_animating' && gameStatus === 'playing') {
+            missileCaptureScoreAnchorRef.current = lastMissileAnimationToRef.current;
+        }
+        prevGameStatusForMissileFloatRef.current = gameStatus;
+    }, [gameStatus, animation]);
 
     useEffect(() => {
         return () => {
@@ -611,20 +635,40 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 captureFloatTimeoutsRef.current.push(clearT);
             };
 
+            /** 미사일로 이동한 돌(착지) 위치 — 해당 칸에 따낸 쪽 돌이 있을 때만 */
+            const missileMovedStoneAnchorFor = (capturer: Player): Point | null => {
+                const p = missileCaptureScoreAnchorRef.current;
+                if (!p || p.x < 0 || p.y < 0) return null;
+                const cell = boardState?.[p.y]?.[p.x];
+                if (cell !== capturer) return null;
+                return { x: p.x, y: p.y };
+            };
+
             if (captures && moveHistory?.length) {
                 const last = moveHistory[moveHistory.length - 1];
                 if (!last) return;
 
                 const moveKey = `${moveHistory.length}-${last.player}-${last.x}-${last.y}`;
-                if (moveKey === lastFloatedMoveKeyRef.current) {
-                    return;
+                const prevSnap = prevCapturesForFloatRef.current;
+                const dBlack =
+                    Number(captures[Player.Black] ?? 0) - (prevSnap ? Number(prevSnap[Player.Black] ?? 0) : 0);
+                const dWhite =
+                    Number(captures[Player.White] ?? 0) - (prevSnap ? Number(prevSnap[Player.White] ?? 0) : 0);
+                // 마지막 수를 둔 색의 증가분(일반 착점). 미사일 등 moveHistory 불변·점수만 오르는 경우는 다른 색 증가분을 사용
+                let floatPlayer = last.player;
+                let delta = floatPlayer === Player.Black ? dBlack : dWhite;
+                if (delta < minPts && dBlack >= minPts) {
+                    floatPlayer = Player.Black;
+                    delta = dBlack;
+                } else if (delta < minPts && dWhite >= minPts) {
+                    floatPlayer = Player.White;
+                    delta = dWhite;
                 }
 
-                const mover = last.player;
-                const prevSnap = prevCapturesForFloatRef.current;
-                const nowM = Number(captures[mover] ?? 0);
-                const prevM = prevSnap ? Number(prevSnap[mover] ?? 0) : 0;
-                const delta = nowM - prevM;
+                // 수순 키가 같아도(미사일 착지로 따냄) 포획 점수가 늘었으면 플로트 허용
+                if (moveKey === lastFloatedMoveKeyRef.current && delta < minPts) {
+                    return;
+                }
 
                 const commitMoveFloatState = () => {
                     lastFloatedMoveKeyRef.current = moveKey;
@@ -635,13 +679,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 const isPass = last.x < 0 || last.y < 0;
 
                 if (delta >= minPts) {
+                    const missileAnchor = missileMovedStoneAnchorFor(floatPlayer);
                     const anchor =
-                        !isPass ? { x: last.x, y: last.y } : (lastMoveForFloatRef.current ?? { x: last.x, y: last.y });
+                        missileAnchor ??
+                        (!isPass ? { x: last.x, y: last.y } : (lastMoveForFloatRef.current ?? { x: last.x, y: last.y }));
                     if (anchor.x < 0 || anchor.y < 0) {
                         commitMoveFloatState();
                         return;
                     }
                     commitMoveFloatState();
+                    if (missileAnchor) missileCaptureScoreAnchorRef.current = null;
                     pushFloat(delta, anchor);
                     return;
                 }
@@ -670,12 +717,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const totalPts = newEntries.reduce((sum, e) => sum + (e.capturePoints ?? (e.wasHidden ? 5 : 1)), 0);
             if (totalPts < minPts) return;
 
+            const capturer =
+                newEntries[0].player === Player.Black ? Player.White : Player.Black;
+            const missileAnchor = missileMovedStoneAnchorFor(capturer);
             const lm = lastMoveForFloatRef.current;
-            const anchor = lm ? { x: lm.x, y: lm.y } : newEntries[0].point;
+            const anchor = missileAnchor ?? (lm ? { x: lm.x, y: lm.y } : newEntries[0].point);
+            if (missileAnchor) missileCaptureScoreAnchorRef.current = null;
             pushFloat(totalPts, anchor);
         }, DEBOUNCE_MS);
         return () => clearTimeout(t);
-    }, [justCaptured, captures, moveHistory, captureScoreFloatMinPoints, gameId]);
+    }, [justCaptured, captures, moveHistory, boardState, captureScoreFloatMinPoints, gameId]);
 
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);

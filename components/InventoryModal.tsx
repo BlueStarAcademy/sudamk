@@ -1105,6 +1105,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             epic: [],
             legendary: [],
             mythic: [],
+            transcendent: [],
         };
 
         for (const grade in ENHANCEMENT_COSTS) {

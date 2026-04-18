@@ -95,7 +95,7 @@ app.post('/api/gnugo/move', async (req, res) => {
             boardSize,
             player: player || 'black',
             moveHistory: moveHistory || [],
-            level: (levelNum >= 1 && levelNum <= 10) ? levelNum : undefined
+            level: levelNum !== undefined && levelNum >= 1 && levelNum <= 10 ? levelNum : undefined,
         });
         console.log(`[GnuGo Server] Move generated: (${move.x}, ${move.y})`);
         res.json({ move });

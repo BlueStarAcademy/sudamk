@@ -219,7 +219,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
   /** 상대가 먼저 보낸 대국 신청이 도착하면 작성 창은 닫고 수신 모달로 넘김 */
   useEffect(() => {
     if (!currentUser?.id || !negotiations?.length) return;
-    const list = Array.isArray(negotiations) ? negotiations : Object.values(negotiations);
+    const list = (Array.isArray(negotiations) ? negotiations : Object.values(negotiations)) as Negotiation[];
     const incoming = list.find(
       (n) =>
         n.status === 'pending' &&

@@ -8,7 +8,9 @@ import {
     TOWER_LOBBY_MISSILE_NAMES,
     scheduleTowerP1InventorySave,
     persistTowerP1ConsumableDecrement,
+    syncTowerP1ConsumableSessionFromInventory,
 } from './towerPlayerHidden.js';
+import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -25,19 +27,7 @@ function applyMissileLandingCaptures(game: types.LiveGameSession, to: types.Poin
         game.moveHistory.length,
         { opponentPlayer: opponentEnum }
     );
-    if (captureResult.isValid && captureResult.capturedStones.length > 0) {
-        game.boardState = captureResult.newBoardState;
-        if (!game.captures) game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
-        game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + captureResult.capturedStones.length;
-        if (!game.justCaptured) game.justCaptured = [];
-        for (const pt of captureResult.capturedStones) {
-            game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false, capturePoints: 1 });
-        }
-        game.koInfo = captureResult.newKoInfo ?? undefined;
-    } else if (captureResult.isValid) {
-        game.boardState = captureResult.newBoardState;
-        game.koInfo = captureResult.newKoInfo ?? undefined;
-    }
+    applyMissileCaptureProcessResult(game, myPlayerEnum, opponentEnum, captureResult);
 }
 
 export const initializeMissile = (game: types.LiveGameSession) => {
@@ -511,7 +501,7 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
 };
 
 export const handleMissileAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;
@@ -544,16 +534,16 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             // 미사일 아이템 개수 확인 (게임별 missiles_p1/p2 또는 설정 상한)
             const missileKey = user.id === game.player1.id ? 'missiles_p1' : 'missiles_p2';
             let myMissilesLeft = game[missileKey];
-            if (myMissilesLeft == null) {
-                if (game.gameCategory === 'tower') {
-                    myMissilesLeft = 0;
-                    (game as any)[missileKey] = 0;
-                } else {
-                    myMissilesLeft = game.settings.missileCount ?? 0;
-                    (game as any)[missileKey] = myMissilesLeft;
+            if (game.gameCategory === 'tower' && user.id === game.player1?.id) {
+                if (myMissilesLeft == null || myMissilesLeft <= 0) {
+                    syncTowerP1ConsumableSessionFromInventory(game, user, 'missile');
+                    myMissilesLeft = (game as any)[missileKey] ?? 0;
                 }
+            } else if (myMissilesLeft == null) {
+                myMissilesLeft = game.settings.missileCount ?? 0;
+                (game as any)[missileKey] = myMissilesLeft;
             }
-            if (myMissilesLeft <= 0) {
+            if ((myMissilesLeft ?? 0) <= 0) {
                 console.warn(`[Missile Go] START_MISSILE_SELECTION failed: no missiles left, gameId=${game.id}`);
                 return { error: "No missiles left." };
             }

@@ -60,7 +60,11 @@ const PointsInfoPanel: React.FC<{
         if (!currentUserWithStatus || !embedded || !arenaTabs) return null;
         const t = TOURNAMENT_ARENA_META[arenaTab]?.type;
         if (!t) return null;
-        const p = normalizeDungeonProgress(currentUserWithStatus.dungeonProgress?.[t] || emptyDungeonProgress);
+        const p = normalizeDungeonProgress(
+            (currentUserWithStatus.dungeonProgress?.[t] || emptyDungeonProgress) as Parameters<
+                typeof normalizeDungeonProgress
+            >[0],
+        );
         return Math.min(10, Math.max(1, p.currentStage || 1));
     }, [currentUserWithStatus, arenaTab, embedded, arenaTabs]);
 

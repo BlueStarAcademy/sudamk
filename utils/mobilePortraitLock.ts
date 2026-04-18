@@ -14,11 +14,13 @@ export function tryLockPortraitForPhoneHandheld(minIntervalMs = 400): void {
     if (now - lastLockAttempt < minIntervalMs) return;
     lastLockAttempt = now;
 
-    const orient = (screen as Screen & { orientation?: ScreenOrientation }).orientation;
-    if (!orient?.lock) return;
+    const orient = (screen as Screen & { orientation?: ScreenOrientation & { lock?: (o: string) => Promise<void> } })
+        .orientation;
+    const lockFn = orient?.lock;
+    if (!lockFn) return;
 
-    orient.lock('portrait').catch(() => {
-        orient.lock('portrait-primary').catch(() => {});
+    lockFn.call(orient, 'portrait').catch(() => {
+        lockFn.call(orient, 'portrait-primary').catch(() => {});
     });
 }
 

@@ -192,6 +192,8 @@ interface SinglePlayerPanelProps {
     adventureMatchTotalSec?: number | null;
     /** 싱글 인게임 온보딩: 스포트라이트·링 타깃(실제 패널 카드) */
     spIngameOnboardingUserTarget?: boolean;
+    /** 모험 AI 상대: 도감 초상·이름·레벨 표시 */
+    opponentMonsterDisplay?: { portraitUrl: string; displayName: string; level: number };
 }
 
 const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
@@ -379,6 +381,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
             panelType={panelType}
             mode={mode}
             isMobile={isMobile}
+            fillStretchHeight={!fluidTextLayout || isCurling}
             curlingMeta={
                 isCurling
                     ? {
@@ -392,15 +395,17 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         />
     );
 
+    const compactMainColClass = fluidTextLayout ? 'justify-center gap-0.5' : 'justify-between';
+
     return (
         <div
-            className={`relative flex h-full min-h-0 min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}
+            className={`relative flex h-full min-h-0 min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses} ${fluidTextLayout ? 'max-h-full overflow-hidden' : ''}`}
             {...ingameOnboardingUserAttrs}
         >
             {showActiveBorderPulse && (
                 <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
             )}
-            <div className={`flex min-w-0 flex-1 basis-0 flex-col justify-between ${textAlignClass}`}>
+            <div className={`flex min-w-0 flex-1 basis-0 flex-col ${compactMainColClass} ${textAlignClass}`}>
                 <div
                     className={`flex min-w-0 shrink-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
                 >
@@ -462,14 +467,14 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             )}
                         </div>
                         <p
-                            className={`mt-0.5 max-w-full truncate leading-snug [writing-mode:horizontal-tb] break-words break-keep ${levelTextSize} ${levelTextClasses}`}
+                            className={`${fluidTextLayout ? 'mt-0' : 'mt-0.5'} max-w-full truncate leading-snug [writing-mode:horizontal-tb] break-words break-keep ${levelTextSize} ${levelTextClasses}`}
                             title={levelText}
                         >
                             {levelText}
                         </p>
                     </div>
                 </div>
-                <div className={`shrink-0 min-w-0 w-full ${isMobile ? 'mt-0.5' : 'mt-1'}`}>
+                <div className={`shrink-0 min-w-0 w-full ${fluidTextLayout ? 'mt-0' : isMobile ? 'mt-0.5' : 'mt-1'}`}>
                     {useAdventureMatchCountdown && !isGameEnded && (
                         <>
                             <TimeBar
@@ -893,18 +898,29 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const playfulStonesBoxSize =
         mode === GameMode.Thief
             ? compactPlayerBar
-                ? 'min-h-[5.75rem] w-[5rem]'
+                ? 'h-full min-h-0 w-[5rem]'
                 : 'w-[5.25rem] sm:w-[5.5rem] md:w-24 min-h-[5rem]'
             : compactPlayerBar
-              ? 'min-h-[5rem] w-[4.25rem]'
+              ? 'h-full min-h-0 w-[4.25rem]'
               : 'w-[4.5rem] sm:w-[4.75rem] md:w-[5.25rem] min-h-[4.25rem]';
 
-    /** 컴팩트 바(모바일·좁은 창): 한 행에서 수순 박스·대국자 패널 높이 동일하게 스트레치 */
+    /** 컴팩트 바 행 높이: 중앙 수순·남은 돌 박스와 동일하게 고정해 양쪽 대국자 패널이 세로로 늘어나지 않게 함 */
+    const compactBarFixedHeightClass = !compactPlayerBar
+        ? ''
+        : showPlayfulStonesBox
+          ? mode === GameMode.Thief
+              ? 'h-[5.75rem] min-h-[5.75rem] max-h-[5.75rem]'
+              : 'h-[5rem] min-h-[5rem] max-h-[5rem]'
+          : mode === GameMode.Curling && isMobile
+            ? 'min-h-[5.5rem] max-h-[7rem]'
+            : 'h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]';
+
+    /** 컴팩트 바(모바일·좁은 창): 한 행에서 수순 박스·대국자 패널 높이 동일 */
     const playerColClass = compactPlayerBar
         ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
         : 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
     const compactBarRowClass = compactPlayerBar
-        ? 'min-h-[4.5rem] items-stretch justify-between gap-1.5'
+        ? `${compactBarFixedHeightClass} items-stretch justify-between gap-1.5 overflow-hidden`
         : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';
 
     const adventurePregameColorReveal =

@@ -38,7 +38,7 @@ const emergencyRestoreAll = async () => {
     
     try {
         // 모든 사용자의 장비 및 인벤토리 정보 확인
-        const users: UserRow[] = await db.all<UserRow>('SELECT id, username, nickname, equipment, inventory FROM users');
+        const users = (await db.all('SELECT id, username, nickname, equipment, inventory FROM users')) as UserRow[];
         console.log(`[Emergency Restore] Found ${users.length} users in database\n`);
         
         let restoredEquipmentCount = 0;

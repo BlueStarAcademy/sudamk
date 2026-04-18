@@ -1379,7 +1379,9 @@ const Profile: React.FC<ProfileProps> = () => {
                                 </div>
                                 {meetsGuildLevelForFeatures ? (
                                     <Button
-                                        onClick={() => (window.location.hash = '#/guild')}
+                                        onClick={() => {
+                                            window.location.hash = '#/guild';
+                                        }}
                                         colorScheme="none"
                                         className={`!shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white ${
                                             usePcHomePanelStyle

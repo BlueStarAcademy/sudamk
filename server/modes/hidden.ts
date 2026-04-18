@@ -38,6 +38,23 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
         (game as any).gameCategory !== 'guildwar';
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
 
+    // 스캔 연출 중인데 아이템 마감만 남은 경우(AI 대국 등 resumeGameTimer 실패로 deadline 잔존): 본경기로 복구
+    if (game.gameStatus === 'scanning_animating' && game.itemUseDeadline && now > game.itemUseDeadline) {
+        game.animation = null;
+        game.gameStatus = 'playing';
+        game.itemUseDeadline = undefined;
+        game.pausedTurnTimeLeft = undefined;
+        const cur = game.currentPlayer;
+        if (cur !== types.Player.None) {
+            const resumed = resumeGameTimer(game, now, cur);
+            if (!resumed) {
+                game.itemUseDeadline = undefined;
+                game.pausedTurnTimeLeft = undefined;
+            }
+        }
+        return;
+    }
+
     // 방어 로직: 아이템 모드인데 deadline이 없으면 상태가 영구 고착될 수 있다.
     // (스캔 비활성/일반 착수 히든 오인 등의 연쇄 버그 방지)
     if (isItemMode && !game.itemUseDeadline) {
@@ -105,6 +122,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 }
                 game.animation = null;
                 game.gameStatus = 'playing';
+                game.itemUseDeadline = undefined;
+                game.pausedTurnTimeLeft = undefined;
             }
             break;
         }
@@ -177,10 +196,12 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.boardState[stone.y][stone.x] = types.Player.None; // Remove stone from board
         
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
+                        // 같은 좌표에 공격자 착수가 이어지면(히든 따내기) 마지막 수만 보면 hiddenMoves가 없다.
+                        // 제거되는 돌의 주인(상대)이 둔 수순을 찾아야 히든 여부를 맞출 수 있다.
                         let moveIndex = -1;
                         for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
                             const m = game.moveHistory![i];
-                            if (m.x === stone.x && m.y === stone.y) {
+                            if (m.x === stone.x && m.y === stone.y && m.player === opponentPlayerEnum) {
                                 moveIndex = i;
                                 break;
                             }
@@ -278,7 +299,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
 };
 
 export const handleHiddenAction = (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;
@@ -351,8 +372,12 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             game.currentPlayer = myPlayerEnum;
 
             // After using the item, restore my time, reset timers and KEEP THE TURN
-            resumeGameTimer(game, now, myPlayerEnum);
-            
+            const scanResumeOk = resumeGameTimer(game, now, myPlayerEnum);
+            if (!scanResumeOk) {
+                game.itemUseDeadline = undefined;
+                game.pausedTurnTimeLeft = undefined;
+            }
+
             // The `updateHiddenState` will transition from 'scanning_animating' to 'playing'
             // after the animation, but the timer is already correctly running for the current player.
             return {};

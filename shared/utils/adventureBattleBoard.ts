@@ -177,7 +177,7 @@ export function applyAdventureStrategicGameSettings(settings: GameSettings, boar
     if (!r) {
         return;
     }
-    settings.boardSize = boardSize;
+    settings.boardSize = bs;
     settings.timeLimit = getAdventureEncounterCountdownMinutes(boardSize);
     settings.byoyomiCount = 0;
     settings.byoyomiTime = 0;

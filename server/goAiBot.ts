@@ -1174,7 +1174,12 @@ export async function makeGoAiBotMove(
     }
     
     // 아이템 사용 모드에서는 AI 수를 두지 않음 (사용자가 아이템을 사용 중)
-    if (game.gameStatus === 'hidden_placing' || game.gameStatus === 'scanning' || game.gameStatus === 'missile_selecting') {
+    if (
+        game.gameStatus === 'hidden_placing' ||
+        game.gameStatus === 'scanning' ||
+        game.gameStatus === 'scanning_animating' ||
+        game.gameStatus === 'missile_selecting'
+    ) {
         return;
     }
     

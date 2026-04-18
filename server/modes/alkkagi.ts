@@ -597,7 +597,7 @@ export const isPlacementValid = (game: types.LiveGameSession, point: types.Point
 };
 
 export const handleAlkkagiAction = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): Promise<types.HandleActionResult | undefined> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;
@@ -653,7 +653,7 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
                         game.alkkagiPlacementDeadline = now + ALKKAGI_PLACEMENT_TIME_LIMIT * 1000;
                     }
                     // 교대 배치: 다음 턴이 AI면 aiTurnStartTime 설정 → 메인 루프가 makeAlkkagiAiMove 호출
-                    if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                    if (game.isAiGame) {
                         const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                         if (nextPlayerId === aiUserId) {
                             game.aiTurnStartTime = now;

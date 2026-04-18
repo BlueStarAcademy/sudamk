@@ -1,5 +1,5 @@
 import prisma, { prismaErrorImpliesEngineNotConnected } from "../prismaClient.js";
-import type { Prisma } from "@prisma/client";
+import type { InputJsonValue } from "@prisma/client/runtime/library";
 import type { User } from "../../types/index.js";
 import { deserializeUser, serializeUser, PrismaUserWithStatus } from "./userAdapter.js";
 import { ensurePrismaEngineReady } from "./gameService.js";
@@ -14,7 +14,7 @@ const toBigInt = (value: number | undefined): bigint => {
 const buildPersistentFields = (user: User) => {
   const status = serializeUser(user);
   // Convert status to Prisma-compatible JSON type
-  const statusJson = JSON.parse(JSON.stringify(status)) as Prisma.JsonValue;
+  const statusJson = JSON.parse(JSON.stringify(status)) as InputJsonValue;
 
   return {
     nickname: user.nickname,
@@ -210,8 +210,8 @@ export async function searchUsersForAdmin(
   const where = q
     ? {
         OR: [
-          { nickname: { contains: q, mode: "insensitive" } },
-          { username: { contains: q, mode: "insensitive" } },
+          { nickname: { contains: q, mode: 'insensitive' as const } },
+          { username: { contains: q, mode: 'insensitive' as const } },
         ],
       }
     : {};

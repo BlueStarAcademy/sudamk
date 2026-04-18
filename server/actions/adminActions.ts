@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type Equipment, type VolatileState, AdminLog, Announcement, OverrideAnnouncement, GameMode, LiveGameSession, UserStatusInfo, InventoryItem, InventoryItemType, UserStatus, TournamentType, CoreStat, type EquipmentSlot } from '../../types/index.js';
+import { type ServerAction, type User, type Equipment, type VolatileState, AdminLog, Announcement, OverrideAnnouncement, GameMode, LiveGameSession, UserStatusInfo, InventoryItem, InventoryItemType, UserStatus, TournamentType, CoreStat, type EquipmentSlot, LeagueTier } from '../../types/index.js';
 import * as types from '../../types/index.js';
 import { defaultStats, createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultInventory, createDefaultQuests, createDefaultUser } from '../initialData.js';
 import * as summaryService from '../summaryService.js';
@@ -124,7 +124,9 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
     if (!user.isAdmin) {
         return { error: 'Permission denied.' };
     }
-    const { type, payload } = action;
+    const { type } = action;
+    /** LOGOUT 등 payload?: never 분기와 호환 */
+    const payload = (action as { payload?: unknown }).payload as any;
 
     switch (type) {
         case 'ADMIN_APPLY_SANCTION': {
@@ -879,7 +881,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const myLeague = freshUser.league;
             const neededOpponents = definition.players - 1;
             // 챔피언십은 봇 전용: 유저 vs 유저 매칭 금지
-            const selectedOpponents: Array<{ id: string; nickname: string; avatarId: string; borderId: string; league: string }> = [];
+            const selectedOpponents: Array<{ id: string; nickname: string; avatarId: string; borderId: string; league: LeagueTier }> = [];
             const botsToCreate = neededOpponents;
             const botNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
             
@@ -1046,7 +1048,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 const myLeague = freshUser.league;
                 const neededOpponents = definition.players - 1;
                 // 챔피언십은 봇 전용: 유저 vs 유저 매칭 금지
-                const selectedOpponents: Array<{ id: string; nickname: string; avatarId: string; borderId: string; league: string }> = [];
+                const selectedOpponents: Array<{ id: string; nickname: string; avatarId: string; borderId: string; league: LeagueTier }> = [];
                 const botsToCreate = neededOpponents;
                 const botNames = [...BOT_NAMES].sort(() => 0.5 - Math.random());
                 const { createBotUser } = await import('./tournamentActions.js');

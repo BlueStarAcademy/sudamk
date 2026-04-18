@@ -276,7 +276,7 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
 };
 
 export const handleAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user?: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const gameId = payload?.gameId;
     
     // 프로덕션에서는 상세 로깅 제거 (성능 향상)
@@ -442,6 +442,18 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         const actionTypeStr = type as string;
         if (actionTypeStr === 'START_HIDDEN_PLACEMENT' || actionTypeStr === 'START_SCANNING' || actionTypeStr === 'SCAN_BOARD') {
             const { getCachedGame, updateGameCache } = await import('./gameCache.js');
+            /** 타워 SCAN_BOARD: 핸들러는 세션을 먼저 깎는데 인벤 소비가 실패하면 sync가 세션을 다시 올려 '스캔이 돌아오는' 현상이 난다 → 소비 실패 시 롤백 */
+            let towerScanBoardRevert: {
+                scans_p1?: number;
+                scans_p2?: number;
+                gameStatus: string;
+                animation: types.LiveGameSession['animation'];
+                currentPlayer: types.Player;
+                itemUseDeadline?: number;
+                pausedTurnTimeLeft?: number;
+                revealedHiddenMoves?: types.LiveGameSession['revealedHiddenMoves'];
+                scannedAiInitialHiddenByUser?: Record<string, boolean>;
+            } | null = null;
             // 탑: 메모리 캐시에 항목이 있으면 우선 사용 (CONFIRM 직후 DB가 pending일 수 있음)
             let game: types.LiveGameSession | null = null;
             const cacheForTower = volatileState.gameCache;
@@ -508,6 +520,26 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     await updateSinglePlayerHiddenState(game, nowSync);
                 }
                 applyPveItemActionClientSync(game, payload);
+                if (game.gameCategory === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
+                    towerScanBoardRevert = {
+                        scans_p1: game.scans_p1,
+                        scans_p2: game.scans_p2,
+                        gameStatus: String(game.gameStatus),
+                        animation: game.animation,
+                        currentPlayer: game.currentPlayer,
+                        itemUseDeadline: game.itemUseDeadline,
+                        pausedTurnTimeLeft: game.pausedTurnTimeLeft,
+                        revealedHiddenMoves: game.revealedHiddenMoves
+                            ? (JSON.parse(JSON.stringify(game.revealedHiddenMoves)) as types.LiveGameSession['revealedHiddenMoves'])
+                            : undefined,
+                        scannedAiInitialHiddenByUser: (game as { scannedAiInitialHiddenByUser?: Record<string, boolean> })
+                            .scannedAiInitialHiddenByUser
+                            ? (JSON.parse(
+                                  JSON.stringify((game as { scannedAiInitialHiddenByUser?: Record<string, boolean> }).scannedAiInitialHiddenByUser)
+                              ) as Record<string, boolean>)
+                            : undefined,
+                    };
+                }
             }
             // 도전의 탑: PVE 히든/스캔은 towerPlayerHidden으로 처리 (싱글플레이와 동일 규칙)
             if (game.gameCategory === 'tower' && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
@@ -518,7 +550,34 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     if (towerResult !== null) {
                         if (!(towerResult as any).error) {
                             const skipTowerScanInv = !!(towerResult as any).skipTowerScanInventoryConsume;
-                            if (type === 'SCAN_BOARD' && !skipTowerScanInv && consumeOneTowerLobbyInventoryItem(userData, TOWER_LOBBY_SCAN_NAMES)) {
+                            if (type === 'SCAN_BOARD' && !skipTowerScanInv) {
+                                if (!consumeOneTowerLobbyInventoryItem(userData, TOWER_LOBBY_SCAN_NAMES)) {
+                                    if (towerScanBoardRevert) {
+                                        (game as any).scans_p1 = towerScanBoardRevert.scans_p1;
+                                        (game as any).scans_p2 = towerScanBoardRevert.scans_p2;
+                                        game.gameStatus = towerScanBoardRevert.gameStatus as types.LiveGameSession['gameStatus'];
+                                        game.animation = towerScanBoardRevert.animation;
+                                        game.currentPlayer = towerScanBoardRevert.currentPlayer;
+                                        game.itemUseDeadline = towerScanBoardRevert.itemUseDeadline;
+                                        game.pausedTurnTimeLeft = towerScanBoardRevert.pausedTurnTimeLeft;
+                                        if (towerScanBoardRevert.revealedHiddenMoves !== undefined) {
+                                            game.revealedHiddenMoves = towerScanBoardRevert.revealedHiddenMoves;
+                                        } else {
+                                            delete (game as { revealedHiddenMoves?: unknown }).revealedHiddenMoves;
+                                        }
+                                        if (towerScanBoardRevert.scannedAiInitialHiddenByUser !== undefined) {
+                                            (game as { scannedAiInitialHiddenByUser?: Record<string, boolean> }).scannedAiInitialHiddenByUser =
+                                                towerScanBoardRevert.scannedAiInitialHiddenByUser;
+                                        } else {
+                                            delete (game as { scannedAiInitialHiddenByUser?: unknown }).scannedAiInitialHiddenByUser;
+                                        }
+                                    }
+                                    updateGameCache(game);
+                                    await db.saveGame(game);
+                                    const { broadcastToGameParticipants } = await import('./socket.js');
+                                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                                    return { error: '스캔 아이템이 없습니다.' };
+                                }
                                 await db.updateUser(userData).catch((err) =>
                                     console.error('[handleAction] tower SCAN_BOARD inventory save failed:', err)
                                 );
@@ -869,7 +928,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             // 착수 액션(PLACE_STONE 등)은 일반적으로 클라이언트에서만 처리하므로 무시
             // 단, 히든바둑 등 전략 모드는 서버에서 착수 검증 및 히든 공개(따냄 관여 시 애니메이션·permanentlyRevealedStones) 처리 필요
             const isStrategicPVE = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
-            const shouldHandlePlaceStoneOnServer = type === 'PLACE_STONE' && isStrategicPVE;
+            const pvePlace = payload as any;
+            const towerScoringOrSyncPlaceStone =
+                game.gameCategory === 'tower' &&
+                type === 'PLACE_STONE' &&
+                (pvePlace?.triggerAutoScoring === true || pvePlace?.syncTimeAndStateForScoring === true);
+            const shouldHandlePlaceStoneOnServer =
+                type === 'PLACE_STONE' && (isStrategicPVE || towerScoringOrSyncPlaceStone);
             if (type !== 'RESIGN_GAME' && !shouldHandlePlaceStoneOnServer) {
                 return {};
             }
@@ -899,10 +964,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             result = { clientResponse: { game: { ...game, boardState: game.boardState.map((row: number[]) => [...row]) } } };
         }
         
-        if (result == null && SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-            result = await handleStrategicGameAction(volatileState, game, action, userData);
-        } else if (result == null && PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
-            result = await handlePlayfulGameAction(volatileState, game, action, userData);
+        if (result == null) {
+            const placePayload = payload as any;
+            const towerPlaceStoneScoringOrSync =
+                type === 'PLACE_STONE' &&
+                game.gameCategory === 'tower' &&
+                (placePayload?.triggerAutoScoring === true || placePayload?.syncTimeAndStateForScoring === true);
+            if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode) || towerPlaceStoneScoringOrSync) {
+                result = await handleStrategicGameAction(volatileState, game, action, userData);
+            } else if (PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
+                result = await handlePlayfulGameAction(volatileState, game, action, userData);
+            }
         }
 
         if (result !== null && result !== undefined) {
@@ -965,7 +1037,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
                 const now = Date.now();
                 await updatePlayfulGameState(game, now);
-                if (game.gameStatus === 'alkkagi_playing') {
+                if ((game.gameStatus as string) === 'alkkagi_playing') {
                     updateGameCache(game);
                     await db.saveGame(game);
                     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
@@ -1016,7 +1088,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         await db.saveGame(g);
                         broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: g } }, g);
                         const currentPlayerId = g.currentPlayer === types.Player.Black ? g.blackPlayerId : g.whitePlayerId;
-                        if (g.gameStatus === 'alkkagi_playing' && g.currentPlayer !== types.Player.None && currentPlayerId === aiUserId) {
+                        if ((g.gameStatus as string) === 'alkkagi_playing' && currentPlayerId === aiUserId) {
                             await makeAiMove(g);
                             updateGameCache(g);
                             await db.saveGame(g);

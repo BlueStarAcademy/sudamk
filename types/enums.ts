@@ -207,6 +207,7 @@ export enum GameCategory {
     SinglePlayer = 'singleplayer',  // 싱글플레이
     Tower = 'tower',        // 도전의 탑
     Adventure = 'adventure', // 모험 (스테이지별 map webp 배경)
+    GuildWar = 'guildwar',  // 길드전
 }
 
 // --- Guild Enums ---

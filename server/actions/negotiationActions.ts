@@ -46,7 +46,7 @@ const getActionPointCost = (mode: GameMode): number => {
 };
 
 export const handleNegotiationAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
 
     switch (type) {

@@ -1,4 +1,5 @@
 import prisma, { prismaErrorImpliesEngineNotConnected } from "../prismaClient.js";
+import type { InputJsonValue } from "@prisma/client/runtime/library";
 import type { LiveGameSession, GameStatus } from "../../types/index.js";
 
 const ENDED_STATUSES: GameStatus[] = ["ended", "no_contest"];
@@ -169,18 +170,19 @@ let liveGameAiHiddenDedicatedColumnDisabled = false;
 
 async function upsertLiveGameRow(game: LiveGameSession, includeAiHiddenColumn: boolean): Promise<void> {
   const { status, category, isEnded } = deriveMeta(game);
+  const dataJson = JSON.parse(JSON.stringify(game)) as InputJsonValue;
   const baseCreate = {
     id: game.id,
     status,
     category,
     isEnded,
-    data: game,
+    data: dataJson,
   };
   const baseUpdate = {
     status,
     category,
     isEnded,
-    data: game,
+    data: dataJson,
     updatedAt: new Date(),
   };
   if (includeAiHiddenColumn) {

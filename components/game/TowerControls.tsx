@@ -103,9 +103,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     const getItemCount = (namesOrIds: readonly string[]): number => countTowerLobbyInventoryQty(inventory, namesOrIds);
     const scanInventoryCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_SCAN_NAMES) : 0;
     const sessionScansLeft = (session as any).scans_p1 as number | undefined;
-    const outOfSessionScans = sessionScansLeft !== undefined && sessionScansLeft <= 0;
+    /** 인벤 또는 세션 중 하나라도 있으면 스캔 시도 가능(경기 중 구매 직후 세션만 늦게 오는 경우) */
+    const hasScanStock = scanInventoryCount > 0 || (sessionScansLeft ?? 0) > 0;
     const canScan = React.useMemo(() => {
-        if (!showMissileAndHiddenForHook || scanInventoryCount <= 0 || outOfSessionScans) return false;
+        if (!showMissileAndHiddenForHook || !hasScanStock) return false;
         const board = session.boardState;
         if (!Array.isArray(board) || board.length === 0) return false;
         /** 백(봇) 히든: 수순·hiddenMoves로 확정된 칸은 클라 병합/연출 타이밍에 board가 빈칸(None)으로만 올 수 있어 White만 허용하면 스캔 버튼이 꺼진다. 흑이 있는 칸은 제외. */
@@ -142,8 +143,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         });
     }, [
         showMissileAndHiddenForHook,
-        scanInventoryCount,
-        outOfSessionScans,
+        hasScanStock,
         session.boardState,
         session.hiddenMoves,
         session.moveHistory,
@@ -322,15 +322,14 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         onAction({ type: 'TOWER_ADD_TURNS', payload: { gameId: session.id } });
     };
 
-    // 미사일 (21층+): 배지는 대기실과 동일하게 인벤 수, 사용은 세션 잔여도 확인
+    // 미사일 (21층+): 배지는 인벤 수; 사용 가능은 인벤 또는 세션 잔여(경기 중 구매 직후 동기 지연 대비)
     const missileCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_MISSILE_NAMES) : 0;
     const missileMaxCount = (stage as { missileCount?: number } | undefined)?.missileCount ?? (session.settings as { missileCount?: number })?.missileCount ?? 2;
-    const outOfSessionMissiles = session.missiles_p1 !== undefined && session.missiles_p1 <= 0;
+    const hasMissileStock = missileCount > 0 || (session.missiles_p1 ?? 0) > 0;
     /** 재고 0이면 경기 중에는 버튼을 막지 않고 탭 시 상점 (턴 추가와 동일) */
     const missileButtonDisabled =
         gameStatus !== 'playing' ||
-        (missileCount > 0 &&
-            (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionMissiles));
+        (hasMissileStock && (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn));
     
     const handleUseMissile = () => {
         if (gameStatus !== 'playing') return;
@@ -338,7 +337,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             openTowerItemShop('미사일');
             return;
         }
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionMissiles) return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn) return;
         onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
     };
     
@@ -347,11 +346,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         (stage as { hiddenStoneCount?: number } | undefined)?.hiddenStoneCount ??
         (session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ??
         2;
-    const outOfSessionHidden = session.hidden_stones_p1 !== undefined && session.hidden_stones_p1 <= 0;
+    const hasHiddenStock = hiddenCount > 0 || ((session as any).hidden_stones_p1 ?? 0) > 0;
     const hiddenButtonDisabled =
         gameStatus !== 'playing' ||
-        (hiddenCount > 0 &&
-            (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionHidden));
+        (hasHiddenStock && (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn));
     
     const handleUseHidden = () => {
         if (gameStatus !== 'playing') return;
@@ -359,7 +357,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             openTowerItemShop('히든');
             return;
         }
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || outOfSessionHidden) return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn) return;
         const clientSync = buildPveItemActionClientSync(session);
         onAction({
             type: 'START_HIDDEN_PLACEMENT',
@@ -369,12 +367,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
     const scanButtonDisabled =
         gameStatus !== 'playing' ||
-        (scanInventoryCount > 0 &&
+        (hasScanStock &&
             (isMoveInFlight ||
                 isBoardLocked ||
                 hasPendingRevealResolution ||
                 !canStartScanTurn ||
-                outOfSessionScans ||
                 !canScan));
 
     const handleUseScan = () => {
@@ -383,7 +380,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             openTowerItemShop('스캔');
             return;
         }
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canStartScanTurn || outOfSessionScans || !canScan) return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canStartScanTurn || !canScan) return;
         const clientSync = buildPveItemActionClientSync(session);
         onAction({
             type: 'START_SCANNING',

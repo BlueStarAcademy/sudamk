@@ -1,4 +1,5 @@
 import type { InventoryItem, ItemOption, ItemOptions } from '../types/entities.js';
+import { ItemGrade } from '../types/enums.js';
 import { repairEquipmentStatBounds } from './equipmentStatBoundsRepair.js';
 
 const n = (x: unknown): number => {
@@ -82,7 +83,7 @@ export function normalizeLegacyDivineMythicInventoryItem(item: InventoryItem): I
     const wasDivineFlag = anyItem.isDivineMythic === true;
     let grade = item.grade;
     if (grade === 'mythic' && (wasDivineFlag || twoMythicLines)) {
-        grade = 'transcendent';
+        grade = ItemGrade.Transcendent;
     }
     const hadDivineField = anyItem.isDivineMythic !== undefined;
     const { isDivineMythic: _strip, ...rest } = anyItem;

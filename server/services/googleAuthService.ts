@@ -53,7 +53,8 @@ export const getGoogleAccessToken = async (code: string): Promise<string> => {
         throw new Error(`Failed to get Google access token: ${error}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as { access_token?: string };
+    if (!data.access_token) throw new Error('Google token response missing access_token');
     return data.access_token;
 };
 
@@ -77,9 +78,14 @@ export const getGoogleUserInfo = async (accessToken: string): Promise<{
         throw new Error(`Failed to get Google user info: ${error}`);
     }
 
-    const data = await response.json();
+    const data = (await response.json()) as {
+        id?: unknown;
+        email?: string;
+        name?: string;
+        picture?: string;
+    };
     return {
-        id: String(data.id),
+        id: String(data.id ?? ''),
         email: data.email,
         name: data.name,
         picture: data.picture,

@@ -13,6 +13,8 @@ interface ButtonProps {
   disabledWithoutDim?: boolean;
   className?: string;
   type?: 'button' | 'submit' | 'reset';
+  /** 네이티브 `form` 속성(폼 외부 submit 버튼 등) */
+  form?: string;
   title?: string;
   style?: React.CSSProperties;
   cooldownMs?: number;
@@ -30,6 +32,7 @@ const Button: React.FC<ButtonProps> = ({
   disabledWithoutDim = false,
   className = '',
   type = 'button',
+  form,
   title,
   style,
   cooldownMs = 1000,
@@ -172,6 +175,7 @@ const Button: React.FC<ButtonProps> = ({
     <button
       ref={buttonRef}
       type={type}
+      form={form}
       onClick={handleClick}
       disabled={disabled || isCoolingDown}
       className={mergedClassName}

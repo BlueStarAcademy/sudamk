@@ -3,6 +3,7 @@ import { MISSILE_FLIGHT_DURATION_MS } from '../../shared/constants/gameSettings.
 import * as db from '../db.js';
 import { processMove } from '../goLogic.js';
 import { resumeGameTimer, pauseGameTimer } from './shared.js';
+import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -19,19 +20,7 @@ function applyMissileLandingCapturesSinglePlayer(game: types.LiveGameSession, to
         game.moveHistory.length,
         { isSinglePlayer: true, opponentPlayer: opponentEnum }
     );
-    if (captureResult.isValid && captureResult.capturedStones.length > 0) {
-        game.boardState = captureResult.newBoardState;
-        if (!game.captures) game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
-        game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + captureResult.capturedStones.length;
-        if (!game.justCaptured) game.justCaptured = [];
-        for (const pt of captureResult.capturedStones) {
-            game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false, capturePoints: 1 });
-        }
-        game.koInfo = captureResult.newKoInfo ?? undefined;
-    } else if (captureResult.isValid) {
-        game.boardState = captureResult.newBoardState;
-        game.koInfo = captureResult.newKoInfo ?? undefined;
-    }
+    applyMissileCaptureProcessResult(game, myPlayerEnum, opponentEnum, captureResult);
 }
 
 export const initializeSinglePlayerMissile = (game: types.LiveGameSession) => {
@@ -684,7 +673,7 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
         return null;
     }
 
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     const isMyTurn = myPlayerEnum === game.currentPlayer;

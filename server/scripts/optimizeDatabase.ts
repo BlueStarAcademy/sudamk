@@ -6,7 +6,6 @@
  */
 
 import prisma from '../prismaClient.js';
-import { Prisma } from '@prisma/client';
 
 const DAYS_TO_KEEP_GAMES = 30; // 30일 이상 된 게임 데이터 삭제
 const DAYS_TO_KEEP_MAIL = 90; // 90일 이상 된 읽은 메일 삭제
@@ -152,13 +151,10 @@ async function optimizeUserStatus() {
     // status가 null이거나 빈 객체인 경우 정리
     const users = await prisma.user.findMany({
         where: {
-            OR: [
-                { status: null },
-                { status: Prisma.JsonNull }
-            ]
+            status: null,
         },
-        select: { id: true }
-    });
+        select: { id: true },
+    } as any);
     
     let optimized = 0;
     for (const user of users) {

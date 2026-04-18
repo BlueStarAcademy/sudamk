@@ -19,7 +19,8 @@ type HandleActionResult = {
 const GREETINGS = ['안녕', '하이', '헬로', 'hi', 'hello', '반가', '잘 부탁', '잘부탁'];
 
 export const handleSocialAction = async (volatileState: types.VolatileState, action: types.ServerAction & { userId: string }, user: types.User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type } = action;
+    const payload = (action as { payload?: unknown }).payload as any;
     const now = Date.now();
 
     switch (type) {

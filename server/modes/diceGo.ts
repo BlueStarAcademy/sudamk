@@ -853,7 +853,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
 };
 
 export const handleDiceGoAction = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): Promise<types.HandleActionResult | undefined> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
     
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);

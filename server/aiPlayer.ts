@@ -736,7 +736,7 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
                 game.alkkagiPlacementDeadline = now + 30000;
                 
                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                if (game.isAiGame) {
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
                         game.aiTurnStartTime = now;
@@ -819,7 +819,7 @@ const makeAlkkagiAiMove = async (game: types.LiveGameSession) => {
             game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
             game.alkkagiPlacementDeadline = now + 30000;
             // 교대 배치: 다음 턴이 사용자면 aiTurnStartTime 해제, AI면 설정
-            if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+            if (game.isAiGame) {
                 const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (nextPlayerId === aiUserId) {
                     game.aiTurnStartTime = now;

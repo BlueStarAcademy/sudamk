@@ -734,7 +734,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     (game as any).aiInitialHiddenStoneIsPrePlaced = false;
                 }
 
-                const tempBoardState = (game.boardState || []).map((row: Player[]) => [...row]);
+                const tempBoardState = (game.boardState || []).map((row: types.Player[]) => [...row]);
                 if (tempBoardState[y] && tempBoardState[y][x] !== undefined) {
                     tempBoardState[y][x] = types.Player.None;
                 }

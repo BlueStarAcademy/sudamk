@@ -111,12 +111,13 @@ async function fixOrphanedGuildReferences() {
                     }
                     
                     // KV store 사용자의 status JSON에서 guildId 확인
-                    if (kvUser.status && typeof kvUser.status === 'object') {
-                        const kvStatus = { ...(kvUser.status as any) };
+                    const kvAny = kvUser as any;
+                    if (kvAny.status && typeof kvAny.status === 'object') {
+                        const kvStatus = { ...(kvAny.status as any) };
                         if (kvStatus.guildId && !validGuildIds.has(kvStatus.guildId)) {
                             console.log(`  → KV 사용자 ${kvUser.nickname || user.id}: status에서 존재하지 않는 길드 ID ${kvStatus.guildId} 제거`);
                             delete kvStatus.guildId;
-                            kvUser.status = kvStatus;
+                            kvAny.status = kvStatus;
                             needsKvUpdate = true;
                         }
                         if (kvStatus.guildApplications) {
@@ -132,7 +133,7 @@ async function fixOrphanedGuildReferences() {
                             });
                             if (validApplications.length !== (kvStatus.guildApplications || []).length) {
                                 kvStatus.guildApplications = validApplications;
-                                kvUser.status = kvStatus;
+                                kvAny.status = kvStatus;
                                 needsKvUpdate = true;
                             }
                         }
@@ -197,11 +198,9 @@ async function fixOrphanedGuildReferences() {
         console.log('[6/6] 최종 확인 중...');
         const remainingIssues = await prisma.user.findMany({
             where: {
-                OR: [
-                    { status: { path: ['guildId'], not: null } }
-                ]
-            },
-            select: { id: true, nickname: true, status: true }
+                OR: [{ status: { path: ['guildId'], not: null } }],
+            } as any,
+            select: { id: true, nickname: true, status: true },
         });
         
         const remainingGuildIds = new Set<string>();

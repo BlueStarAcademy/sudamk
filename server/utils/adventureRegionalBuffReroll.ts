@@ -1,4 +1,5 @@
 import type {
+    AdventureProfile,
     AdventureRegionalSpecialtyBuffEntry,
     AdventureRegionalSpecialtyBuffKind,
     User,
@@ -66,10 +67,13 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
         next[slotIndex] = rollRandomRegionalBuffEntryExcluding(usedKindsExceptSlot(next, slotIndex));
         user.adventureProfile = {
             ...p,
-            regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: next },
+            regionalSpecialtyBuffsByStageId: {
+                ...p.regionalSpecialtyBuffsByStageId,
+                [stageId]: next as AdventureRegionalSpecialtyBuffEntry[],
+            },
             regionalBuffEnhancePointsByStageId: { ...p.regionalBuffEnhancePointsByStageId, [stageId]: curPts },
         };
-        user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile);
+        user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile as AdventureProfile);
         return null;
     }
 
@@ -87,10 +91,13 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
     user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
     user.adventureProfile = {
         ...p,
-        regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: next },
+        regionalSpecialtyBuffsByStageId: {
+            ...p.regionalSpecialtyBuffsByStageId,
+            [stageId]: next as AdventureRegionalSpecialtyBuffEntry[],
+        },
         regionalBuffEnhancePointsByStageId: { ...p.regionalBuffEnhancePointsByStageId, [stageId]: nextPts },
     };
-    user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile);
+    user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile as AdventureProfile);
     return null;
 }
 
@@ -132,12 +139,15 @@ export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotI
     user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
     user.adventureProfile = {
         ...p,
-        regionalSpecialtyBuffsByStageId: { ...p.regionalSpecialtyBuffsByStageId, [stageId]: next },
+        regionalSpecialtyBuffsByStageId: {
+            ...p.regionalSpecialtyBuffsByStageId,
+            [stageId]: next as AdventureRegionalSpecialtyBuffEntry[],
+        },
         regionalBuffEnhancePointsByStageId: {
             ...p.regionalBuffEnhancePointsByStageId,
             [stageId]: curPts - 1,
         },
     };
-    user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile);
+    user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile as AdventureProfile);
     return null;
 }

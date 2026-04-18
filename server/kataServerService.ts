@@ -144,7 +144,12 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
             throw new Error(`KataServer API error: ${response.status} - ${text}`);
         }
 
-        const data = await response.json();
+        const data = (await response.json()) as {
+            move?: string;
+            strategy?: string;
+            winrate?: number;
+            bestMove?: string;
+        };
 
         console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
 

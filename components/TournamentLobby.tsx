@@ -950,12 +950,13 @@ const TournamentLobby: React.FC = () => {
     const championshipScore = currentUserWithStatus.cumulativeTournamentScore || currentUserWithStatus.tournamentScore || 0;
     const championshipRank = useMemo(() => {
         if (championshipScore <= 0) return null;
-        const rankedByServer = currentUserWithStatus.dailyRankings?.championship?.rank;
+        const rankedByServer = (currentUserWithStatus.dailyRankings?.championship as { rank?: number } | undefined)
+            ?.rank;
         if (typeof rankedByServer === 'number' && rankedByServer > 0) return rankedByServer;
 
         const participantsMap = new Map<string, UserWithStatus>();
         for (const user of allUsers || []) {
-            participantsMap.set(user.id, user);
+            participantsMap.set(user.id, user as UserWithStatus);
         }
         participantsMap.set(currentUserWithStatus.id, currentUserWithStatus);
 

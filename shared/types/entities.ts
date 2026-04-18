@@ -47,6 +47,10 @@ export type InventoryItem = {
   mailPreEnhanced?: boolean;
   /** 도전의 탑 상점에서 구매한 소모품만 'tower'. 해당 아이템은 도전의 탑에서만 사용·합산됨 */
   source?: 'tower';
+  /** 장비 템플릿·우편 지급 등 서버 내부 참조용 */
+  templateId?: string;
+  /** 장비 세련(제련) 누적 횟수 등 */
+  refinementCount?: number;
 };
 
 // --- User & Associated Data ---
@@ -685,6 +689,8 @@ export type GameSettings = {
   kataServerLevel?: number;
   /** 전략바둑 대국 시 계가까지 턴 제한 (해당 턴 수가 되면 자동으로 KataGo 계가 진행). 0/미설정 시 제한 없음 */
   scoringTurnLimit?: number;
+  /** 클라이언트 GnuGo 등으로 착수만 처리하는 AI 대국 */
+  useClientSideAi?: boolean;
 };
 
 // --- Round Summaries ---
@@ -1089,7 +1095,7 @@ export type AdminLog = {
   adminNickname: string;
   targetUserId: string;
   targetNickname: string;
-  action: 'reset_stats' | 'reset_full' | 'delete_user' | 'force_logout' | 'force_delete_game' | 'send_mail' | 'set_game_description' | 'update_user_details' | 'apply_sanction' | 'lift_sanction' | 'force_win' | 'reset_tournament_session' | 'reset_dungeon_progress' | 'reset_championship_all' | 'clear_user_guild' | 'create_home_board_post' | 'update_home_board_post' | 'delete_home_board_post' | 'update_user_inventory' | 'append_inventory_items' | 'update_reward_config';
+  action: 'reset_stats' | 'reset_full' | 'delete_user' | 'force_logout' | 'force_delete_game' | 'send_mail' | 'set_game_description' | 'update_user_details' | 'apply_sanction' | 'lift_sanction' | 'force_win' | 'reset_tournament_session' | 'reset_dungeon_progress' | 'reset_championship_all' | 'clear_user_guild' | 'guild_war_recharge_daily_attempts' | 'create_home_board_post' | 'update_home_board_post' | 'delete_home_board_post' | 'update_user_inventory' | 'append_inventory_items' | 'update_reward_config';
   backupData: Partial<User> | { status: UserStatusInfo } | LiveGameSession | { mailTitle: string } | SanctionLogData | { gameId: string, winnerId: string } | { postId: string, title: string } | { oldGuildId: string | undefined } | { before: Record<string, number>; after: Record<string, number> };
 };
 
@@ -1162,6 +1168,8 @@ export type Guild = {
   } | null;
   weeklyMissions?: GuildMission[];
   lastMissionReset?: number;
+  /** 주간 기부·미션 등 주간 리셋 기준 시각 */
+  lastWeeklyContributionReset?: number;
   applicants?: Array<{ userId: string; appliedAt: number }>;
   recruitmentBanUntil?: number;
   createdAt: number;
@@ -1199,6 +1207,8 @@ export type GuildMission = {
   guildId: string;
   missionType: string;
   status: 'active' | 'completed' | 'expired';
+  /** 미션 목표 달성 여부(레거시). 없으면 `status === 'completed'`로 판별 */
+  isCompleted?: boolean;
   title?: string;
   description?: string;
   target?: number;
@@ -1246,6 +1256,9 @@ export type GuildWar = {
   };
   createdAt: number;
   updatedAt: number;
+  /** 9칸 보드별 진행 상태 (서버/KV) */
+  boards?: Record<string, unknown>;
+  userAttempts?: Record<string, number>;
 };
 
 // --- Guild Research & Boss Types ---

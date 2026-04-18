@@ -39,7 +39,7 @@ export const applyPreserveDiscovererTurnIfPending = async (
     }
     const prev = mh.length > 0 ? mh[mh.length - 1] : null;
     game.lastMove =
-        prev && prev.x != null && prev.y != null && prev.x >= 0 && prev.y >= 0 ? { x: prev.x, y: prev.y } : undefined;
+        prev && prev.x != null && prev.y != null && prev.x >= 0 && prev.y >= 0 ? { x: prev.x, y: prev.y } : null;
     for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
         const m = game.moveHistory![i];
         if (m && m.x === cap.move.x && m.y === cap.move.y && m.player === opponentPlayerEnum) {

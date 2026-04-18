@@ -110,7 +110,7 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
 };
 
 export const handleRewardAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
 
     switch (type) {
         case 'CLAIM_MAIL_ATTACHMENTS': {

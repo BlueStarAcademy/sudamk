@@ -47,6 +47,7 @@ describe('negotiation flow', () => {
             waitingRoomChats: { global: [], strategic: [], playful: [] },
             gameChats: {},
             userLastChatMessage: {},
+            activeTournamentViewers: new Set<string>(),
         };
         const db = await import('../../db.js');
         vi.mocked(db.getUser).mockImplementation((id: string) => {
@@ -81,7 +82,7 @@ describe('negotiation flow', () => {
 
         const r3 = await handleNegotiationAction(volatileState, {
             type: 'ACCEPT_NEGOTIATION',
-            payload: { negotiationId: negId },
+            payload: { negotiationId: negId, settings: {} },
             userId: 'opponent',
         }, opponent);
         expect(r3.error).toBeUndefined();

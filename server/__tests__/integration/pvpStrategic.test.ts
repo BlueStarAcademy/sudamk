@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { LiveGameSession, User, VolatileState } from '../../../shared/types/index.js';
-import { GameMode, Player } from '../../../shared/types/index.js';
+import { GameMode, Player, GameCategory } from '../../../shared/types/index.js';
 import { createDefaultUser } from '../../initialData.js';
 
 vi.mock('../../db.js', () => ({
@@ -34,6 +34,7 @@ function makePvpStrategicGame(overrides: Partial<LiveGameSession> = {}): LiveGam
         mode: GameMode.Mix,
         settings: {
             boardSize: 9,
+            komi: 0.5,
             timeLimit: 1,
             byoyomiCount: 3,
             byoyomiTime: 30,
@@ -58,6 +59,8 @@ function makePvpStrategicGame(overrides: Partial<LiveGameSession> = {}): LiveGam
         createdAt: now,
         lastMove: null,
         passCount: 0,
+        round: 0,
+        turnInRound: 0,
         koInfo: null,
         blackTimeLeft: 60,
         whiteTimeLeft: 60,
@@ -67,10 +70,11 @@ function makePvpStrategicGame(overrides: Partial<LiveGameSession> = {}): LiveGam
         turnStartTime: now,
         disconnectionCounts: {},
         currentActionButtons: {},
-        gameCategory: 'normal',
+        scores: {},
+        gameCategory: GameCategory.Normal,
         ...overrides,
     };
-    return game;
+    return game as LiveGameSession;
 }
 
 describe('PVP Strategic mode', () => {
@@ -89,6 +93,7 @@ describe('PVP Strategic mode', () => {
             waitingRoomChats: { global: [], strategic: [], playful: [] },
             gameChats: {},
             userLastChatMessage: {},
+            activeTournamentViewers: new Set<string>(),
         };
     });
 

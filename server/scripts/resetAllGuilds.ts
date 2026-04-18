@@ -193,16 +193,17 @@ async function resetAllGuilds() {
                     let needsKvUpdate = false;
                     
                     // KV store 사용자의 status JSON에서 guildId 제거
-                    if (kvUser.status && typeof kvUser.status === 'object') {
-                        const kvStatus = { ...(kvUser.status as any) };
+                    const kvAny = kvUser as any;
+                    if (kvAny.status && typeof kvAny.status === 'object') {
+                        const kvStatus = { ...(kvAny.status as any) };
                         if (kvStatus.guildId) {
                             delete kvStatus.guildId;
-                            kvUser.status = kvStatus;
+                            kvAny.status = kvStatus;
                             needsKvUpdate = true;
                         }
                         if (kvStatus.guildApplications) {
                             delete kvStatus.guildApplications;
-                            kvUser.status = kvStatus;
+                            kvAny.status = kvStatus;
                             needsKvUpdate = true;
                         }
                     }
@@ -225,10 +226,10 @@ async function resetAllGuilds() {
                 OR: [
                     { guild: { isNot: null } },
                     { guildMember: { isNot: null } },
-                    { status: { path: ['guildId'], not: null } }
-                ]
-            },
-            select: { id: true, nickname: true }
+                    { status: { path: ['guildId'], not: null } },
+                ],
+            } as any,
+            select: { id: true, nickname: true },
         });
         
         if (remainingGuildUsers.length > 0) {

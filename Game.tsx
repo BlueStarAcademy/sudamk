@@ -1029,12 +1029,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => {
         if (!(isSinglePlayer || isTower || isGuildWarHiddenClientEffects)) return;
+        const revealEndTime = session.revealAnimationEndTime;
         const hasRevealToFinalize =
-            !!session.revealAnimationEndTime &&
+            typeof revealEndTime === 'number' &&
+            revealEndTime > 0 &&
             (session.gameStatus === 'hidden_reveal_animating' || !!session.pendingCapture);
         if (!hasRevealToFinalize) return;
 
-        const remaining = Math.max(0, session.revealAnimationEndTime - Date.now());
+        const remaining = Math.max(0, revealEndTime - Date.now());
         const id = window.setTimeout(() => {
             handlers.handleAction({
                 type: 'LOCAL_HIDDEN_REVEAL_COMPLETE',

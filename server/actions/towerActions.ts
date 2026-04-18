@@ -89,7 +89,7 @@ const generateTowerBoard = (
 };
 
 export const handleTowerAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
 
     switch(type) {
@@ -185,7 +185,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 mixedModes.push(GameMode.Missile, GameMode.Hidden);
             }
 
-            const game: LiveGameSession = {
+            const game = {
                 id: gameId,
                 mode: gameMode,
                 isSinglePlayer: false, // 도전의 탑은 별도 카테고리
@@ -233,7 +233,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 endTime: undefined,
                 serverRevision: 0,
                 totalTurns: 0,
-            };
+            } as unknown as LiveGameSession;
 
             (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
             (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);

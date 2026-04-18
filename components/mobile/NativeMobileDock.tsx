@@ -84,6 +84,7 @@ const NativeMobileDock: React.FC = () => {
                 }
                 return;
             }
+            if (tab === 'home') return;
             const key = TAB_ARENA_KEY[tab];
             if (key) {
                 if (!serverArena[key]) window.alert(ARENA_ENTRANCE_CLOSED_MESSAGE[key]);

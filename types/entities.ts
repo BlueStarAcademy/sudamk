@@ -687,6 +687,8 @@ export type GameSettings = {
   kataServerLevel?: number;
   /** 전략바둑 대국 시 계가까지 턴 제한 (해당 턴 수가 되면 자동으로 KataGo 계가 진행). 0/미설정 시 제한 없음 */
   scoringTurnLimit?: number;
+  /** 클라이언트 GnuGo 등으로 착수만 처리하는 AI 대국 */
+  useClientSideAi?: boolean;
 };
 
 // --- Round Summaries ---
@@ -1276,6 +1278,9 @@ export type GuildWar = {
   };
   createdAt: number;
   updatedAt: number;
+  /** 9칸 보드별 진행 상태 (서버/KV) */
+  boards?: Record<string, unknown>;
+  userAttempts?: Record<string, number>;
 };
 
 // --- Guild Research & Boss Types ---

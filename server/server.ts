@@ -3990,7 +3990,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
             if (!user.isAdmin && hadTemporaryNickname) {
                 // 최초 가입 닉네임 확정 직후 홈 진입 시 튜토리얼을 바로 시작한다.
-                (user as User & { onboardingTutorialPendingFirstHome?: boolean }).onboardingTutorialPendingFirstHome = true;
+                (user as types.User & { onboardingTutorialPendingFirstHome?: boolean }).onboardingTutorialPendingFirstHome = true;
             }
 
             if (bodyAvatarId != null && String(bodyAvatarId).trim() !== '') {

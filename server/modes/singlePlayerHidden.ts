@@ -35,6 +35,20 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
 
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
 
+    if (game.gameStatus === 'scanning_animating' && game.itemUseDeadline && now > game.itemUseDeadline) {
+        game.animation = null;
+        game.gameStatus = 'playing';
+        game.itemUseDeadline = undefined;
+        game.pausedTurnTimeLeft = undefined;
+        const timerResumed = resumeGameTimer(game, now, game.currentPlayer);
+        if (!timerResumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+        }
+        (game as any)._itemTimeoutStateChanged = true;
+        return;
+    }
+
     if (isItemMode && game.itemUseDeadline && now > game.itemUseDeadline) {
         // Item use timed out. 아이템만 1개 소모하고 턴 유지한 채 본경기(playing)로 복귀
         const timedOutPlayerEnum = game.currentPlayer;
@@ -110,6 +124,8 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 }
                 game.animation = null;
                 game.gameStatus = 'playing';
+                game.itemUseDeadline = undefined;
+                game.pausedTurnTimeLeft = undefined;
                 (game as any)._itemTimeoutStateChanged = true;
             }
             break;
@@ -157,7 +173,7 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
         return null;
     }
 
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
     let myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
     if (myPlayerEnum === types.Player.None && game.player1?.id === user.id) {
@@ -223,7 +239,9 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
                 hiddenStoneCountOrMix: stageAllowsHiddenStones,
             });
             if (!opponentHasUnrevealedHidden) {
-                console.log(`[handleSinglePlayerHiddenAction] START_SCANNING rejected: No unrevealed opponent hidden stones (moveHistory=${!!game.moveHistory?.length}, hiddenMoves=${!!game.hiddenMoves}, aiInitial=${!!aiHidden}, anyOpp=${!!hasAnyUnrevealedOpponentStone})`);
+                console.log(
+                    `[handleSinglePlayerHiddenAction] START_SCANNING rejected: No unrevealed opponent hidden stones (moveHistory=${!!game.moveHistory?.length}, hiddenMoves=${!!game.hiddenMoves})`,
+                );
                 return { error: "No hidden stones to scan." };
             }
             console.log(`[handleSinglePlayerHiddenAction] START_SCANNING: Changing gameStatus from ${game.gameStatus} to scanning`);

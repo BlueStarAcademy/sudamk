@@ -2345,12 +2345,14 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                         <div className="flex-shrink-0">
                             <div className="flex bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 rounded-xl w-full max-w-md border border-stone-600/40 shadow-md">
                                 {tabs.map(tab => {
-                                    const tabColors = {
+                                    const tabColors: Record<GuildTab, { active: string; inactive: string }> = {
                                         home: { active: 'from-amber-600 to-amber-500', inactive: 'text-amber-300/70 hover:text-amber-300' },
                                         members: { active: 'from-blue-600 to-blue-500', inactive: 'text-blue-300/70 hover:text-blue-300' },
                                         management: { active: 'from-purple-600 to-purple-500', inactive: 'text-purple-300/70 hover:text-purple-300' },
+                                        boss: { active: 'from-red-600 to-red-500', inactive: 'text-red-300/70 hover:text-red-300' },
+                                        war: { active: 'from-orange-600 to-orange-500', inactive: 'text-orange-300/70 hover:text-orange-300' },
                                     };
-                                    const colors = tabColors[tab.id] || { active: 'from-accent to-accent/80', inactive: 'text-tertiary hover:text-highlight' };
+                                    const colors = tabColors[tab.id];
                                     return (
                                         <button
                                             key={tab.id}
@@ -2477,12 +2479,14 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 <div className="w-full max-w-full flex-shrink-0">
                     <div className="flex w-full rounded-xl border border-stone-600/40 bg-gradient-to-r from-stone-800/80 to-stone-700/60 p-1 shadow-md">
                         {tabs.map(tab => {
-                            const tabColors = {
+                            const tabColors: Record<GuildTab, { active: string; inactive: string }> = {
                                 home: { active: 'from-amber-600 to-amber-500', inactive: 'text-amber-300/70 hover:text-amber-300' },
                                 members: { active: 'from-blue-600 to-blue-500', inactive: 'text-blue-300/70 hover:text-blue-300' },
                                 management: { active: 'from-purple-600 to-purple-500', inactive: 'text-purple-300/70 hover:text-purple-300' },
+                                boss: { active: 'from-red-600 to-red-500', inactive: 'text-red-300/70 hover:text-red-300' },
+                                war: { active: 'from-orange-600 to-orange-500', inactive: 'text-orange-300/70 hover:text-orange-300' },
                             };
-                            const colors = tabColors[tab.id] || { active: 'from-accent to-accent/80', inactive: 'text-tertiary hover:text-highlight' };
+                            const colors = tabColors[tab.id];
                             return (
                                 <button
                                     key={tab.id}

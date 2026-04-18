@@ -1,4 +1,4 @@
-import type { User } from '../../types/index.js';
+import type { User, AdventureProfile } from '../../types/index.js';
 import { getAdventureStageById } from '../../constants/adventureConstants.js';
 import { isAdventureChapterBossCodexId } from '../../constants/adventureMonstersCodex.js';
 import {
@@ -88,7 +88,7 @@ export function applyAdventureMonsterDefeatToProfile(
     const adventureMapSuppressUntilByKey = { ...(prev.adventureMapSuppressUntilByKey ?? {}) };
     adventureMapSuppressUntilByKey[suppressKey] = suppressUntil;
 
-    let nextProfile = {
+    let nextProfile: AdventureProfile = {
         ...prev,
         codexDefeatCounts: counts,
         monstersDefeatedByMode: byMode,
@@ -97,8 +97,13 @@ export function applyAdventureMonsterDefeatToProfile(
         understandingXpByStage: uxp,
         lastPlayedStageId: stageId,
         adventureMapSuppressUntilByKey,
-    };
-    nextProfile = applyRegionalSpecialtyBuffTierGrants(nextProfile, stageId, understandingXpBefore, understandingXpAfter);
+    } as AdventureProfile;
+    nextProfile = applyRegionalSpecialtyBuffTierGrants(
+        nextProfile,
+        stageId,
+        understandingXpBefore,
+        understandingXpAfter,
+    );
     user.adventureProfile = nextProfile;
 
     try {

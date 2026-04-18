@@ -34,7 +34,7 @@ type ChapterComprehensionBuffSummary = {
 
 function buildChapterMonsterComprehensionSummary(
     stage: (typeof ADVENTURE_STAGES)[number],
-    counts: Record<string, number>,
+    counts: Partial<Record<string, number>>,
 ): ChapterComprehensionBuffSummary {
     const sum: ChapterComprehensionBuffSummary = {
         goldBonusPercent: 0,

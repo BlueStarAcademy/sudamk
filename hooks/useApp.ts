@@ -40,6 +40,7 @@ import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { processMoveClient } from '../client/goLogicClient.js';
+import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
 import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
 import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
@@ -89,6 +90,10 @@ function mergeTowerServerGameWithClientBoardIfStale(
             (clientGame as any).consumedPatternIntersections ?? (serverGame as any).consumedPatternIntersections,
         revealedHiddenMoves: clientGame.revealedHiddenMoves ?? serverGame.revealedHiddenMoves,
         serverRevision: Math.max(clientGame.serverRevision ?? 0, serverGame.serverRevision ?? 0),
+        // 경기 중 상점 구매 등: 응답의 세션 잔여(미사일·히든·스캔)는 판·수순 병합 후에도 서버 값을 유지
+        missiles_p1: (serverGame as any).missiles_p1 ?? (clientGame as any).missiles_p1,
+        hidden_stones_p1: (serverGame as any).hidden_stones_p1 ?? (clientGame as any).hidden_stones_p1,
+        scans_p1: (serverGame as any).scans_p1 ?? (clientGame as any).scans_p1,
     };
 }
 
@@ -1067,7 +1072,8 @@ export const useApp = () => {
         // 디바운싱: 같은 액션이 짧은 시간 내에 여러 번 호출되면 무시
         // 챔피언싱 시뮬 완료는 5회차 종료 직후 보상 UI·DB 동기화에 필수이므로 디바운스하지 않음
         if (action.type !== 'COMPLETE_TOURNAMENT_SIMULATION') {
-            const actionKey = `${action.type}_${JSON.stringify(action.payload || {})}`;
+            const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
+            const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;
             const now = Date.now();
             const lastCallTime = actionDebounceRef.current.get(actionKey);
             if (lastCallTime && (now - lastCallTime) < ACTION_DEBOUNCE_MS) {
@@ -1400,6 +1406,34 @@ export const useApp = () => {
                             p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p
                         );
                     }
+
+                    // 미사일 착지 따내기: 서버와 동일하게 문양돌 소모·consumedPatternIntersections 반영 (미사일로 따낸 뒤 같은 자리에 두면 일반돌로 보이게)
+                    const workingBoard = updatedGame.boardState ?? boardState;
+                    if (Array.isArray(workingBoard) && workingBoard.length > 0) {
+                        const opponentEnum =
+                            playerWhoMoved === Player.Black ? Player.White : Player.Black;
+                        const boardForCapture = workingBoard.map((row: Player[]) => [...row]);
+                        if (boardForCapture[animationTo.y]?.[animationTo.x] === playerWhoMoved) {
+                            boardForCapture[animationTo.y][animationTo.x] = Player.None;
+                            const moveHistLen = (updatedGame.moveHistory ?? g.moveHistory)?.length ?? 0;
+                            const ko = updatedGame.koInfo ?? g.koInfo ?? null;
+                            const captureResult = processMoveClient(
+                                boardForCapture,
+                                { x: animationTo.x, y: animationTo.y, player: playerWhoMoved },
+                                ko,
+                                moveHistLen,
+                                g.isSinglePlayer
+                                    ? { isSinglePlayer: true, opponentPlayer: opponentEnum }
+                                    : { opponentPlayer: opponentEnum }
+                            );
+                            applyMissileCaptureProcessResult(
+                                updatedGame,
+                                playerWhoMoved,
+                                opponentEnum,
+                                captureResult
+                            );
+                        }
+                    }
                 }
                 
                 // sessionStorage에 저장 (restoredBoardState가 최신 상태를 읽을 수 있도록)
@@ -1418,6 +1452,7 @@ export const useApp = () => {
                             permanentlyRevealedStones: updatedGame.permanentlyRevealedStones || [],
                             blackPatternStones: updatedGame.blackPatternStones,
                             whitePatternStones: updatedGame.whitePatternStones,
+                            consumedPatternIntersections: (updatedGame as any).consumedPatternIntersections,
                             hiddenMoves: updatedGame.hiddenMoves || {},
                             hidden_stones_p1: (updatedGame as any).hidden_stones_p1,
                             hidden_stones_p2: (updatedGame as any).hidden_stones_p2,
@@ -1475,7 +1510,7 @@ export const useApp = () => {
                 const game = currentGames[gameId];
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
 
-                const movePlayer = payloadMovePlayer ?? game.currentPlayer;
+                const movePlayer: Player = (payloadMovePlayer ?? game.currentPlayer) as Player;
                 const newCaptures = {
                     ...game.captures,
                     [movePlayer]: (game.captures[movePlayer] || 0) + (capturedStones?.length || 0),
@@ -1622,15 +1657,17 @@ export const useApp = () => {
                       ? setTowerGames
                       : setSinglePlayerGames;
             const now = Date.now();
-            let postRevealAutoScoringState: {
-                boardState: any[][];
-                moveHistory: any[];
-                totalTurns: number;
-                blackTimeLeft: number | undefined;
-                whiteTimeLeft: number | undefined;
-                captures: any;
-                isHiddenMode: boolean;
-            } | null = null;
+            const postRevealAutoScoringRef: {
+                current: {
+                    boardState: any[][];
+                    moveHistory: any[];
+                    totalTurns: number;
+                    blackTimeLeft: number | undefined;
+                    whiteTimeLeft: number | undefined;
+                    captures: any;
+                    isHiddenMode: boolean;
+                } | null;
+            } = { current: null };
 
             const queueAutoScoringAfterReveal = (nextGame: LiveGameSession) => {
                 const autoScoringTurns = gameType === 'singleplayer' && nextGame.stageId
@@ -1643,7 +1680,7 @@ export const useApp = () => {
                 const isHiddenMode = nextGame.mode === GameMode.Hidden ||
                     (nextGame.mode === GameMode.Mix && (nextGame.settings as any)?.mixedModes?.includes?.(GameMode.Hidden)) ||
                     (((nextGame.settings as any)?.hiddenStoneCount ?? 0) > 0);
-                postRevealAutoScoringState = {
+                postRevealAutoScoringRef.current = {
                     boardState: nextGame.boardState,
                     moveHistory: nextGame.moveHistory || [],
                     totalTurns,
@@ -1805,19 +1842,20 @@ export const useApp = () => {
                 };
             });
 
-            if (postRevealAutoScoringState) {
+            if (postRevealAutoScoringRef.current) {
+                const st = postRevealAutoScoringRef.current;
                 const autoScoringAction = {
                     type: 'PLACE_STONE',
                     payload: {
                         gameId,
                         x: -1,
                         y: -1,
-                        totalTurns: postRevealAutoScoringState.totalTurns,
-                        moveHistory: postRevealAutoScoringState.moveHistory,
-                        boardState: postRevealAutoScoringState.boardState,
-                        blackTimeLeft: postRevealAutoScoringState.blackTimeLeft,
-                        whiteTimeLeft: postRevealAutoScoringState.whiteTimeLeft,
-                        captures: postRevealAutoScoringState.captures,
+                        totalTurns: st.totalTurns,
+                        moveHistory: st.moveHistory,
+                        boardState: st.boardState,
+                        blackTimeLeft: st.blackTimeLeft,
+                        whiteTimeLeft: st.whiteTimeLeft,
+                        captures: st.captures,
                         triggerAutoScoring: true
                     }
                 } as any;
@@ -1826,7 +1864,7 @@ export const useApp = () => {
                     clearTimeout(scoringDelayRef.current[gameId]);
                 }
                 scoringDelayRef.current[gameId] = setTimeout(() => {
-                    if (!postRevealAutoScoringState?.isHiddenMode) {
+                    if (!postRevealAutoScoringRef.current?.isHiddenMode) {
                         updateGameState(prev => {
                             const g = prev[gameId];
                             if (!g) return prev;
@@ -1951,7 +1989,7 @@ export const useApp = () => {
                                                     hiddenMoves: g.hiddenMoves ?? undefined,
                                                     permanentlyRevealedStones: Array.isArray(g.permanentlyRevealedStones) ? g.permanentlyRevealedStones : undefined,
                                                 }
-                                            } as ServerAction);
+                                            } as unknown as ServerAction);
                                         } else {
                                             // 마지막 착수가 화면에 보이도록, scoring 전환/서버 요청은 짧게 지연시켜 1프레임 이상 렌더를 보장
                                             shouldTriggerAutoScoring = true;
@@ -2323,11 +2361,12 @@ export const useApp = () => {
             }
 
             const revertPvpDicePlaceSnapshot = () => {
-                if (!dicePlaceGameId) return;
-                const snap = pvpDicePlaceRevertRef.current[dicePlaceGameId];
+                const gid = dicePlaceGameId;
+                if (!gid) return;
+                const snap = pvpDicePlaceRevertRef.current[gid];
                 if (!snap) return;
-                setLiveGames((c) => (c[dicePlaceGameId] ? { ...c, [dicePlaceGameId]: snap } : c));
-                delete pvpDicePlaceRevertRef.current[dicePlaceGameId];
+                setLiveGames((c) => (c[gid] ? { ...c, [gid]: snap } : c));
+                delete pvpDicePlaceRevertRef.current[gid];
             };
 
             if (dicePlaceGameId) {
@@ -2338,7 +2377,7 @@ export const useApp = () => {
                     beforePlaceGame.isAiGame &&
                     beforePlaceGame.mode === GameMode.Dice &&
                     beforePlaceGame.gameStatus === 'dice_placing' &&
-                    !(action.payload as any)?.__forceSingle
+                    !((action as { payload?: { __forceSingle?: boolean } }).payload?.__forceSingle)
                 );
                 // 같은 턴에 여러 번 착수할 때도 매 클릭마다 낙관적 반영 (이전에는 inFlight>0이면 스킵되어 두 번째 돌부터 화면이 멈춤)
                 let optimisticDiceGameAfterPlace: LiveGameSession | null = null;
@@ -2349,7 +2388,7 @@ export const useApp = () => {
                             return currentGames;
                         }
                         if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
-                        const { x, y } = action.payload as { x: number; y: number };
+                        const { x, y } = (action as { payload: { x: number; y: number } }).payload;
                         if (!isDiceGoLibertyPlacement(g, x, y)) return currentGames;
                         const snap = JSON.parse(JSON.stringify(g)) as LiveGameSession;
                         // 주사위 턴 내 착수는 서버 moveHistory에 수마다 push되지만, 클라 낙관은 moveHistory를 늘리지 않아
@@ -2413,7 +2452,7 @@ export const useApp = () => {
                 });
 
                 if (isAiDiceBatchMode) {
-                    const { x, y } = action.payload as { x: number; y: number };
+                    const { x, y } = (action as { payload: { x: number; y: number } }).payload;
                     if (!aiDicePlaceBatchRef.current[gid]) aiDicePlaceBatchRef.current[gid] = [];
                     if (!aiDicePlaceBatchRef.current[gid].length) {
                         aiDiceTurnPlaceQuotaRef.current[gid] = Math.max(1, beforePlaceGame?.stonesToPlace ?? 1);
@@ -3140,18 +3179,27 @@ export const useApp = () => {
                     console.log(`[handleAction] ${action.type} - using payload/game gameId:`, effectiveGameId);
                 }
                 if (!effectiveGameId && action.type === 'TOWER_ADD_TURNS') {
-                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                    effectiveGameId =
+                        ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
+                        (game as any)?.id;
                 }
                 if (!effectiveGameId && (action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
-                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                    effectiveGameId =
+                        ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
+                        (game as any)?.id;
                 }
                 if (!effectiveGameId && action.type === 'BUY_TOWER_ITEM') {
-                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                    effectiveGameId =
+                        ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
+                        (game as any)?.id;
                 }
                 
                 // END_TOWER_GAME / END_SINGLE_PLAYER_GAME / RESIGN_GAME 액션 처리 (서버 응답 병합 시 클라이언트 바둑판 상태 유지)
                 if (action.type === 'END_TOWER_GAME' || (action as ServerAction).type === 'END_SINGLE_PLAYER_GAME' || action.type === 'RESIGN_GAME') {
-                    const endGameId = (action.payload as any)?.gameId || gameId || (game as any)?.id;
+                    const endGameId =
+                        ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
+                        gameId ||
+                        (game as any)?.id;
                     const endGame = game || (result.clientResponse?.game);
                     
                     if (endGameId && endGame) {
@@ -6758,7 +6806,10 @@ export const useApp = () => {
                     handleAction({ type: 'PASS_TURN', payload: { gameId } } as any).catch((err) => { console.error('[useApp] PASS_TURN (client-side AI) failed:', err); requestServerFallback(err); });
                 } else {
                     try { console.log('[useApp] Client-side AI: sending move for gameId=', gameId); } catch (_) {}
-                    handleAction({ type: 'PLACE_STONE', payload: { gameId, x: move.x, y: move.y, clientSideAiMove: true } }).catch((err) => { console.error('[useApp] Client-side AI PLACE_STONE failed:', err); requestServerFallback(err); });
+                    handleAction({
+                        type: 'PLACE_STONE',
+                        payload: { gameId, x: move.x, y: move.y, clientSideAiMove: true },
+                    }).catch((err) => { console.error('[useApp] Client-side AI PLACE_STONE failed:', err); requestServerFallback(err); });
                 }
             };
 

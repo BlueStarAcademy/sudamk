@@ -40,7 +40,7 @@ const SinglePlayerLobby: React.FC = () => {
     const [mobileLobbySubTab, setMobileLobbySubTab] = useState<'quests' | 'stages'>('stages');
 
     useEffect(() => {
-        if (!isOnboardingTutorialActive(currentUserWithStatus)) return;
+        if (!currentUserWithStatus || !isOnboardingTutorialActive(currentUserWithStatus)) return;
         const p = currentUserWithStatus.onboardingTutorialPhase ?? 0;
         if (p === 2 || p === 4) {
             setOverrideClass(SinglePlayerLevel.입문);

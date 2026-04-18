@@ -61,7 +61,7 @@ export function recordSoftHiddenScanDiscovery(
     }
 }
 
-/** 타워 PVE만 true: 스캔 적중 후에도 같은 스캔 세션을 이어감. 온라인 히든·싱글은 false(한 번 지정 후 본경기 복귀). */
+/** `resumeScanSessionOnSuccess`: 온라인 히든 등에서만 사용. 도전의 탑은 매 SCAN_BOARD 후 무조건 playing이므로 사용하지 않음. */
 export function buildHiddenScanAnimation(
     now: number,
     playerId: string,

@@ -123,7 +123,7 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
 
 
 export const handleSinglePlayerAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
     const now = Date.now();
 
     switch(type) {

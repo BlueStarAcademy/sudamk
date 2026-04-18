@@ -42,6 +42,7 @@ describe('ranked matching', () => {
             waitingRoomChats: { global: [], strategic: [], playful: [] },
             gameChats: {},
             userLastChatMessage: {},
+            activeTournamentViewers: new Set<string>(),
             rankedMatchingQueue: { strategic: {}, playful: {} },
         };
         const db = await import('../../db.js');

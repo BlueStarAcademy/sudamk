@@ -175,7 +175,7 @@ const removeUserItems = (user: User, itemsToRemove: { name: string; amount: numb
 };
 
 export const handleInventoryAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    const { type, payload } = action;
+    const { type, payload } = action as any;
 
     switch (type) {
         case 'COMBINE_ITEMS': {

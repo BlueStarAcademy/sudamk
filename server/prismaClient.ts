@@ -175,8 +175,8 @@ const prisma: InstanceType<typeof PrismaClient> =
   new PrismaClient({
     // error는 이벤트로만 받아 "Engine is not yet connected" 스팸 억제
     log: [
-      { level: 'error', emit: 'event' },
-      ...(process.env.NODE_ENV === 'development' ? [{ level: 'warn', emit: 'stdout' }] : []),
+      { level: 'error' as const, emit: 'event' as const },
+      ...(process.env.NODE_ENV === 'development' ? [{ level: 'warn' as const, emit: 'stdout' as const }] : []),
     ],
     datasources: {
       db: {

@@ -156,7 +156,7 @@ export type ServerAction =
     | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic' | 'playful'; selectedModes: GameMode[] } }
     | { type: 'CANCEL_RANKED_MATCHING', payload?: never }
     // Game
-    | { type: 'PLACE_STONE', payload: { gameId: string; x: number; y: number, isHidden?: boolean, isClientAiMove?: boolean } }
+    | { type: 'PLACE_STONE', payload: { gameId: string; x: number; y: number, isHidden?: boolean, isClientAiMove?: boolean, clientSideAiMove?: boolean } }
     | { type: 'PASS_TURN', payload: { gameId: string } }
     | { type: 'RESIGN_GAME', payload: { gameId: string, andLeave?: boolean } }
     | { type: 'LEAVE_AI_GAME', payload: { gameId: string } }
@@ -395,6 +395,7 @@ export type ServerAction =
     | { type: 'GUILD_DONATE_DIAMOND', payload?: { count?: number } }
     | { type: 'PURCHASE_GUILD_SHOP_ITEM', payload: { shopItemId: string } }
     | { type: 'GUILD_BUY_SHOP_ITEM', payload: { shopItemId: string; itemId?: string; quantity?: number } }
+    | { type: 'BUY_GUILD_SHOP_ITEM', payload: { itemId: string; quantity?: number } }
     | { type: 'GUILD_CHECK_IN', payload?: never }
     | { type: 'GUILD_CLAIM_CHECK_IN_REWARD', payload: { userId?: string; milestoneIndex: number } }
     | { type: 'SET_GUILD_WAR_PARTICIPATION', payload: { enabled: boolean } }
