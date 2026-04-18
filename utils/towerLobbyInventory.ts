@@ -24,3 +24,21 @@ export function countTowerLobbyInventoryQty(
             return sum + (typeof q === 'number' && Number.isFinite(q) ? Math.max(0, q) : 1);
         }, 0);
 }
+
+/** 상점 `itemId`(턴 추가·미사일·…)와 동일하게 대기실·하단 버튼에서 쓰는 이름/id 목록 — 보유 수 집계 시 별칭 누락 방지 */
+export function towerShopInventoryNameOrIdsForItem(itemId: string): readonly string[] {
+    switch (itemId) {
+        case '턴 추가':
+            return TOWER_ITEM_TURN_ADD_NAMES;
+        case '미사일':
+            return TOWER_ITEM_MISSILE_NAMES;
+        case '히든':
+            return TOWER_ITEM_HIDDEN_NAMES;
+        case '스캔':
+            return TOWER_ITEM_SCAN_NAMES;
+        case '배치변경':
+            return TOWER_ITEM_REFRESH_NAMES;
+        default:
+            return [itemId];
+    }
+}

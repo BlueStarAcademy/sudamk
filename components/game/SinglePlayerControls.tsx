@@ -100,6 +100,7 @@ const ItemImageButton: React.FC<ItemImageButtonProps> = ({ src, alt, onClick, di
 };
 
 const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, onAction, currentUser, setShowResultModal, isMoveInFlight = false, isBoardLocked = false, isMobile = false }) => {
+    const myUserId = currentUser?.id;
     const [alertModal, setAlertModal] = useState<{ title?: string; message: string } | null>(null);
     const [confirmModal, setConfirmModal] = useState<{ title?: string; message: string; onConfirm: () => void } | null>(null);
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
@@ -144,6 +145,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
         const board = session.boardState;
         if (!Array.isArray(board) || board.length === 0) return false;
 
+        const scannedAiInitialByMe = !!myUserId && !!(session as any).scannedAiInitialHiddenByUser?.[myUserId];
         // AI가 히든 아이템으로 둔 돌만 스캔 대상 (미리 배치된 돌은 제외)
         const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
         const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
@@ -152,15 +154,17 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
             if (inBounds && board[y][x] === Player.White) {
                 const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-                if (!isPermanentlyRevealed) return true;
+                if (!isPermanentlyRevealed && !scannedAiInitialByMe) return true;
             }
         }
 
         // moveHistory 상의 백(봇) 히든 스톤이 하나라도 있어야 스캔 가능
         if (!session.hiddenMoves || typeof session.hiddenMoves !== 'object' || !session.moveHistory?.length) return false;
+        const myRevealed = myUserId ? session.revealedHiddenMoves?.[myUserId] : undefined;
         const hasOpponentUnrevealedHidden = Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
             if (!isHidden) return false;
             const idx = parseInt(moveIndexStr, 10);
+            if (myRevealed?.includes(idx)) return false;
             const move = session.moveHistory![idx];
             if (!move || move.player !== Player.White) return false;
             const { x, y } = move;
@@ -170,7 +174,17 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             return !isPermanentlyRevealed;
         });
         return hasOpponentUnrevealedHidden;
-    }, [session.hiddenMoves, session.moveHistory, session.boardState, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
+    }, [
+        myUserId,
+        session.hiddenMoves,
+        session.moveHistory,
+        session.boardState,
+        session.permanentlyRevealedStones,
+        session.revealedHiddenMoves,
+        (session as any).aiInitialHiddenStone,
+        (session as any).aiInitialHiddenStoneIsPrePlaced,
+        (session as any).scannedAiInitialHiddenByUser,
+    ]);
     
     // 상대 미공개 히든이 없으면 비활성 (착수로 발각된 경우 등은 canScan이 false)
     const scanDisabled =

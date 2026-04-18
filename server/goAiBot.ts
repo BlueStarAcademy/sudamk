@@ -17,6 +17,7 @@ import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patternStoneConsume.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
+import { encodeBoardStateAsKataSetupMovesFromEmpty } from './kataCaptureSetupEncoding.js';
 
 /** AI 히든 연출 직전에 확정한 Kata 좌표(DB/브로드캐스트에 넣지 않음 — 유저 유출 방지) */
 const pendingAiHiddenKataMoveByGameId = new Map<string, Point>();
@@ -677,6 +678,26 @@ function getMoveHistoryForAi(
 }
 
 /**
+ * KataServer 입력용 수순: 미공개 유저 히든이 남아 있을 때만 통로(-1,-1) 마스킹.
+ * 전체 공개 후에는 실제 좌표 전체 + 현재 턴(생성 파라미터 player)으로 국면을 맞춰 재질의한다.
+ */
+function getMoveHistoryForKataServer(
+    game: types.LiveGameSession,
+    aiPlayerEnum: Player
+): Array<{ x: number; y: number; player: number }> {
+    const isHiddenMode =
+        game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && !!game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.moveHistory?.length) {
+        return (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+    }
+    if (getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length === 0) {
+        return (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+    }
+    return getMoveHistoryForAi(game, aiPlayerEnum);
+}
+
+/**
  * 베이스 바둑은 시작 시 초기 베이스 돌이 moveHistory에 없어서
  * KataServer가 빈판으로 오인할 수 있다. 카타 입력용으로만 선행 수로 합쳐 전달한다.
  */
@@ -687,32 +708,56 @@ function buildKataMoveHistory(
     const isBaseMode =
         game.mode === types.GameMode.Base ||
         (game.mode === types.GameMode.Mix && Boolean(game.settings.mixedModes?.includes(types.GameMode.Base)));
-    if (!isBaseMode) return moveHistory;
+    if (isBaseMode) {
+        const baseStones = (game.baseStones ?? []).filter(
+            (s): s is { x: number; y: number; player: Player } =>
+                !!s &&
+                Number.isInteger(s.x) &&
+                Number.isInteger(s.y) &&
+                (s.player === Player.Black || s.player === Player.White)
+        );
+        if (baseStones.length === 0) return moveHistory;
 
-    const baseStones = (game.baseStones ?? []).filter(
-        (s): s is { x: number; y: number; player: Player } =>
-            !!s &&
-            Number.isInteger(s.x) &&
-            Number.isInteger(s.y) &&
-            (s.player === Player.Black || s.player === Player.White)
-    );
-    if (baseStones.length === 0) return moveHistory;
+        const occupied = new Set<string>();
+        for (const m of moveHistory) {
+            if (m.x >= 0 && m.y >= 0) occupied.add(`${m.x},${m.y}`);
+        }
 
-    const occupied = new Set<string>();
-    for (const m of moveHistory) {
-        if (m.x >= 0 && m.y >= 0) occupied.add(`${m.x},${m.y}`);
+        const baseSetupMoves: Array<{ x: number; y: number; player: number }> = [];
+        for (const s of baseStones) {
+            const key = `${s.x},${s.y}`;
+            if (occupied.has(key)) continue;
+            baseSetupMoves.push({ x: s.x, y: s.y, player: s.player });
+            occupied.add(key);
+        }
+
+        if (baseSetupMoves.length === 0) return moveHistory;
+        return [...baseSetupMoves, ...moveHistory];
     }
 
-    const baseSetupMoves: Array<{ x: number; y: number; player: number }> = [];
-    for (const s of baseStones) {
-        const key = `${s.x},${s.y}`;
-        if (occupied.has(key)) continue;
-        baseSetupMoves.push({ x: s.x, y: s.y, player: s.player });
-        occupied.add(key);
-    }
+    // 따내기·고정 포석 등: 선배치가 moveHistory에 없어 Kata가 빈 판으로만 재생하는 문제 방지
+    // (도전의 탑·싱글·길드전·모험 등 moveHistory 없이 board만 깔리는 형태)
+    const cat = (game as any).gameCategory;
+    const needsKataBoardSetupPrefix =
+        game.isSinglePlayer ||
+        cat === 'tower' ||
+        cat === 'guildwar' ||
+        cat === 'adventure';
+    if (!needsKataBoardSetupPrefix) return moveHistory;
 
-    if (baseSetupMoves.length === 0) return moveHistory;
-    return [...baseSetupMoves, ...moveHistory];
+    let setupMoves = (game as any).kataCaptureSetupMoves as
+        | Array<{ x: number; y: number; player: number }>
+        | undefined;
+    if (!Array.isArray(setupMoves) || setupMoves.length === 0) {
+        if (moveHistory.length === 0 && game.boardState?.length) {
+            setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState);
+            if (setupMoves.length > 0) {
+                (game as any).kataCaptureSetupMoves = setupMoves;
+            }
+        }
+    }
+    if (!setupMoves?.length) return moveHistory;
+    return [...setupMoves, ...moveHistory];
 }
 
 /**
@@ -1029,18 +1074,12 @@ async function preSelectKataMoveForAiHiddenItem(
     opponentPlayerEnum: Player,
     now: number
 ): Promise<PreSelectKataForAiHiddenItemResult> {
-    const isHiddenMode =
-        game.mode === types.GameMode.Hidden ||
-        (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
-    const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
     const userPlayerEnumForHidden =
         aiPlayerEnum === types.Player.White ? types.Player.Black : types.Player.White;
     const maxKataHiddenRetries = 8;
     let kataHiddenRevealCacheTag: string | undefined;
     for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
-        const rawMoveHistory = useHiddenMask
-            ? getMoveHistoryForAi(game, aiPlayerEnum)
-            : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+        const rawMoveHistory = getMoveHistoryForKataServer(game, aiPlayerEnum);
         const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
 
         const kataMove = await generateKataServerMove({
@@ -1056,9 +1095,7 @@ async function preSelectKataMoveForAiHiddenItem(
 
         if (kataMove.x === -1 && kataMove.y === -1) {
             const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-            const aiMoveHistoryForValid = useHiddenMask
-                ? getMoveHistoryForAi(game, aiPlayerEnum)
-                : (game.moveHistory || []);
+            const aiMoveHistoryForValid = getMoveHistoryForKataServer(game, aiPlayerEnum);
             const aiGameForValid: types.LiveGameSession = {
                 ...game,
                 boardState: aiBoardState,
@@ -1066,7 +1103,10 @@ async function preSelectKataMoveForAiHiddenItem(
             };
             const logicForValid = getGoLogic(aiGameForValid);
             let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
-            if (useHiddenMask && validAfterKataPass.length > 0) {
+            if (
+                getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
+                validAfterKataPass.length > 0
+            ) {
                 validAfterKataPass = validAfterKataPass.filter(
                     m => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum)
                 );
@@ -1082,7 +1122,7 @@ async function preSelectKataMoveForAiHiddenItem(
 
         const candidate = { x: kataMove.x, y: kataMove.y };
         if (
-            useHiddenMask &&
+            getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
             isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, candidate.x, candidate.y, aiPlayerEnum)
         ) {
             if (startUserHiddenFullRevealAnimationForAi(game, userPlayerEnumForHidden, now)) {
@@ -1349,13 +1389,10 @@ export async function makeGoAiBotMove(
     const userPlayerEnumForHidden = aiPlayerEnum === types.Player.White ? types.Player.Black : types.Player.White;
     if (!selectedMove) {
         const kataLevel = resolvedKataLevel;
-        const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
         const maxKataHiddenRetries = 8;
         let kataHiddenRevealCacheTag: string | undefined;
         for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
-            const rawMoveHistory = useHiddenMask
-                ? getMoveHistoryForAi(game, aiPlayerEnum)
-                : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+            const rawMoveHistory = getMoveHistoryForKataServer(game, aiPlayerEnum);
             const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
 
             const kataMove = await generateKataServerMove({
@@ -1371,9 +1408,7 @@ export async function makeGoAiBotMove(
 
             if (kataMove.x === -1 && kataMove.y === -1) {
                 const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-                const aiMoveHistoryForValid = useHiddenMask
-                    ? getMoveHistoryForAi(game, aiPlayerEnum)
-                    : (game.moveHistory || []);
+                const aiMoveHistoryForValid = getMoveHistoryForKataServer(game, aiPlayerEnum);
                 const aiGameForValid: types.LiveGameSession = {
                     ...game,
                     boardState: aiBoardState,
@@ -1381,7 +1416,10 @@ export async function makeGoAiBotMove(
                 };
                 const logicForValid = getGoLogic(aiGameForValid);
                 let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
-                if (useHiddenMask && validAfterKataPass.length > 0) {
+                if (
+                    getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
+                    validAfterKataPass.length > 0
+                ) {
                     validAfterKataPass = validAfterKataPass.filter(
                         m => !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, m.x, m.y, aiPlayerEnum)
                     );
@@ -1400,7 +1438,7 @@ export async function makeGoAiBotMove(
 
             const candidate = { x: kataMove.x, y: kataMove.y };
             if (
-                useHiddenMask &&
+                getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
                 isInvalidAiHiddenNeighborhoodForKataAndHeuristic(game, candidate.x, candidate.y, aiPlayerEnum)
             ) {
                 console.warn(
@@ -1510,10 +1548,7 @@ export async function makeGoAiBotMove(
             const maxKataHiddenRetries = 8;
             let innerKataHiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
             for (let attempt = 0; attempt < maxKataHiddenRetries; attempt++) {
-                const useHiddenMask = isHiddenMode && shouldMaskUserHiddenFromAi(game);
-                const rawMoveHistory = useHiddenMask
-                    ? getMoveHistoryForAi(game, aiPlayerEnum)
-                    : (game.moveHistory || []).map(m => ({ x: m.x, y: m.y, player: m.player }));
+                const rawMoveHistory = getMoveHistoryForKataServer(game, aiPlayerEnum);
                 const moveHistory = buildKataMoveHistory(game, rawMoveHistory);
 
                 const kataMove = await generateKataServerMove({
@@ -1529,9 +1564,7 @@ export async function makeGoAiBotMove(
 
                 if (kataMove.x === -1 && kataMove.y === -1) {
                     const aiBoardState = getBoardStateForAi(game, aiPlayerEnum);
-                    const aiMoveHistoryForValid = useHiddenMask
-                        ? getMoveHistoryForAi(game, aiPlayerEnum)
-                        : (game.moveHistory || []);
+                    const aiMoveHistoryForValid = getMoveHistoryForKataServer(game, aiPlayerEnum);
                     const aiGameForValid: types.LiveGameSession = {
                         ...game,
                         boardState: aiBoardState,
@@ -1539,7 +1572,10 @@ export async function makeGoAiBotMove(
                     };
                     const logicForValid = getGoLogic(aiGameForValid);
                     let validAfterKataPass = findAllValidMoves(aiGameForValid, logicForValid, aiPlayerEnum);
-                    if (useHiddenMask && validAfterKataPass.length > 0) {
+                    if (
+                        getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
+                        validAfterKataPass.length > 0
+                    ) {
                         validAfterKataPass = validAfterKataPass.filter(
                             m =>
                                 !isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
@@ -1564,7 +1600,7 @@ export async function makeGoAiBotMove(
 
                 const candidate = { x: kataMove.x, y: kataMove.y };
                 if (
-                    useHiddenMask &&
+                    getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
                     isInvalidAiHiddenNeighborhoodForKataAndHeuristic(
                         game,
                         candidate.x,

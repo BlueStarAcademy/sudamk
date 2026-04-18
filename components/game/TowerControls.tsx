@@ -108,6 +108,9 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         if (!showMissileAndHiddenForHook || scanInventoryCount <= 0 || outOfSessionScans) return false;
         const board = session.boardState;
         if (!Array.isArray(board) || board.length === 0) return false;
+        const uid = currentUser?.id;
+        const scannedAiInitialByMe =
+            !!uid && !!(session as any).scannedAiInitialHiddenByUser?.[uid as string];
         const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
         const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
         if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
@@ -115,13 +118,16 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
             if (inBounds && board[y][x] === Player.White) {
                 const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-                if (!isPermanentlyRevealed) return true;
+                if (!isPermanentlyRevealed && !scannedAiInitialByMe) return true;
             }
         }
         if (!session.hiddenMoves || !session.moveHistory) return false;
+        const myRevealed = uid ? session.revealedHiddenMoves?.[uid] : undefined;
         return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
             if (!isHidden) return false;
-            const move = session.moveHistory![parseInt(moveIndexStr, 10)];
+            const moveIndex = parseInt(moveIndexStr, 10);
+            if (myRevealed?.includes(moveIndex)) return false;
+            const move = session.moveHistory![moveIndex];
             if (!move || move.player !== Player.White) return false;
             const { x, y } = move;
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
@@ -129,7 +135,20 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
-    }, [showMissileAndHiddenForHook, scanInventoryCount, outOfSessionScans, session.boardState, session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced]);
+    }, [
+        showMissileAndHiddenForHook,
+        scanInventoryCount,
+        outOfSessionScans,
+        session.boardState,
+        session.hiddenMoves,
+        session.moveHistory,
+        session.permanentlyRevealedStones,
+        session.revealedHiddenMoves,
+        currentUser?.id,
+        (session as any).aiInitialHiddenStone,
+        (session as any).aiInitialHiddenStoneIsPrePlaced,
+        (session as any).scannedAiInitialHiddenByUser,
+    ]);
 
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
         const isWinner = session.winner === Player.Black;
@@ -509,7 +528,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 						setTowerShopInitialItemId(undefined);
 					}}
 					onBuy={async (itemId, quantity) => {
-						await onAction({ type: 'BUY_TOWER_ITEM', payload: { itemId, quantity } } as any);
+						await onAction({
+							type: 'BUY_TOWER_ITEM',
+							payload: { itemId, quantity, gameId: session.id },
+						} as any);
 					}}
 				/>
 			</div>,

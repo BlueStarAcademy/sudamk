@@ -972,7 +972,12 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
         const multiPlayerGames: LiveGameSession[] = [];
         for (const game of games) {
             if (!game || !game.id) continue;
-            const isPVEGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
+            const isPVEGame =
+                game.isSinglePlayer ||
+                game.gameCategory === 'tower' ||
+                game.gameCategory === 'singleplayer' ||
+                game.gameCategory === 'guildwar' ||
+                game.gameCategory === 'adventure';
             const needsRevealTransition = isPVEGame && (game.gameStatus === 'hidden_final_reveal' || game.gameStatus === 'hidden_reveal_animating');
             const needsMissileOrScanTransition = isPVEGame && (game.gameStatus === 'missile_animating' || game.gameStatus === 'scanning_animating');
             if (!isPVEGame || needsRevealTransition || needsMissileOrScanTransition) {

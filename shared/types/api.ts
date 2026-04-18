@@ -51,6 +51,7 @@ export type HandleActionResult = {
     claimAllTrainingQuestRewards?: any;
     gameId?: string;
     donationResult?: any;
+    skipTowerScanInventoryConsume?: boolean;
 };
 
 export interface AppState {
@@ -282,7 +283,7 @@ export type ServerAction =
     // Shop
     | { type: 'BUY_SHOP_ITEM', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_MATERIAL_BOX', payload: { itemId: string, quantity: number } }
-    | { type: 'BUY_TOWER_ITEM', payload: { itemId: string, quantity: number } }
+    | { type: 'BUY_TOWER_ITEM', payload: { itemId: string; quantity: number; gameId?: string } }
     | { type: 'BUY_CONSUMABLE', payload: { itemId: string; quantity?: number } }
     | { type: 'CLAIM_SHOP_AD_REWARD', payload: { tab: 'equipment' | 'materials' | 'consumables' | 'diamonds' } }
     | { type: 'PURCHASE_ACTION_POINTS', payload?: never }

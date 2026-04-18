@@ -107,6 +107,115 @@ function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boole
     return Array.isArray(row0) && row0.length > 0;
 }
 
+/**
+ * INITIAL_STATE가 pending·무수순으로 올 때 sessionStorage에 진행 중 대국이 있으면(새로고침)
+ * 경기 시작 모달·따낸 돌·시간·턴이 초기화되는 것을 막는다.
+ */
+function augmentPveFromSessionStorageSnapshot(
+    incoming: LiveGameSession,
+    parsed: Record<string, unknown> | null | undefined
+): LiveGameSession {
+    if (!parsed || (parsed as { gameId?: string }).gameId !== incoming.id) return incoming;
+
+    const stMoves = Array.isArray((parsed as { moveHistory?: unknown }).moveHistory)
+        ? ((parsed as { moveHistory: unknown[] }).moveHistory?.length ?? 0)
+        : 0;
+    const incMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const stTotalRaw = (parsed as { totalTurns?: unknown }).totalTurns;
+    const stTotal = typeof stTotalRaw === 'number' && Number.isFinite(stTotalRaw) ? stTotalRaw : 0;
+    const incTotal = incoming.totalTurns ?? 0;
+    const cap = (parsed as { captures?: Record<number, number> }).captures;
+    const hasStoredCaptures =
+        cap &&
+        typeof cap === 'object' &&
+        ((cap[Player.Black] ?? 0) > 0 || (cap[Player.White] ?? 0) > 0);
+
+    const midGame =
+        stMoves > 0 ||
+        stTotal > incTotal ||
+        (stTotal > 0 && incMoves === 0) ||
+        !!hasStoredCaptures;
+
+    if (!midGame) return incoming;
+
+    const incPending = (incoming.gameStatus || '') === 'pending';
+    const storedStatus = String((parsed as { gameStatus?: string }).gameStatus || '');
+    const playingish = [
+        'playing',
+        'hidden_placing',
+        'scanning',
+        'missile_selecting',
+        'missile_animating',
+        'scanning_animating',
+        'hidden_reveal_animating',
+        'scoring',
+        'hidden_final_reveal',
+    ].includes(storedStatus);
+
+    const out: LiveGameSession = { ...incoming };
+    const pm = (parsed as { moveHistory?: LiveGameSession['moveHistory'] }).moveHistory;
+    if (stMoves > incMoves && Array.isArray(pm)) {
+        out.moveHistory = pm;
+    }
+    const pb = (parsed as { boardState?: LiveGameSession['boardState'] }).boardState;
+    if (Array.isArray(pb) && pb.length > 0 && Array.isArray(pb[0]) && (pb[0] as unknown[]).length > 0) {
+        const pbOk = pb.some(
+            (row: unknown) =>
+                Array.isArray(row) && row.some((c: unknown) => c !== 0 && c !== null && c !== undefined)
+        );
+        if (pbOk) out.boardState = pb;
+    }
+    if (typeof stTotalRaw === 'number' && Number.isFinite(stTotalRaw) && stTotalRaw > (out.totalTurns ?? 0)) {
+        (out as { totalTurns?: number }).totalTurns = stTotalRaw;
+    }
+    if (cap && typeof cap === 'object') out.captures = cap as LiveGameSession['captures'];
+    const bsc = (parsed as { baseStoneCaptures?: unknown }).baseStoneCaptures;
+    if (bsc && typeof bsc === 'object') (out as { baseStoneCaptures?: unknown }).baseStoneCaptures = bsc;
+    const hsc = (parsed as { hiddenStoneCaptures?: unknown }).hiddenStoneCaptures;
+    if (hsc && typeof hsc === 'object') (out as { hiddenStoneCaptures?: unknown }).hiddenStoneCaptures = hsc;
+
+    if (incPending && (playingish || stMoves > 0)) {
+        if (playingish && storedStatus) (out as { gameStatus?: string }).gameStatus = storedStatus as LiveGameSession['gameStatus'];
+        else out.gameStatus = 'playing';
+        const st = (parsed as { startTime?: unknown }).startTime;
+        if (typeof st === 'number') (out as { startTime?: number }).startTime = st;
+        const cp = (parsed as { currentPlayer?: unknown }).currentPlayer;
+        if (typeof cp === 'number') out.currentPlayer = cp as Player;
+    }
+
+    const btl = (parsed as { blackTimeLeft?: unknown }).blackTimeLeft;
+    if (typeof btl === 'number') out.blackTimeLeft = btl;
+    const wtl = (parsed as { whiteTimeLeft?: unknown }).whiteTimeLeft;
+    if (typeof wtl === 'number') out.whiteTimeLeft = wtl;
+    if ((parsed as { turnDeadline?: unknown }).turnDeadline != null)
+        out.turnDeadline = (parsed as { turnDeadline: number | undefined }).turnDeadline;
+    if ((parsed as { turnStartTime?: unknown }).turnStartTime != null)
+        out.turnStartTime = (parsed as { turnStartTime: number | undefined }).turnStartTime;
+    const gst = (parsed as { gameStartTime?: unknown }).gameStartTime;
+    if (typeof gst === 'number') (out as { gameStartTime?: number }).gameStartTime = gst;
+    const btb = (parsed as { blackTurnLimitBonus?: unknown }).blackTurnLimitBonus;
+    if (btb != null) (out as { blackTurnLimitBonus?: number }).blackTurnLimitBonus = Number(btb) || 0;
+
+    const sbp = (parsed as { blackPatternStones?: unknown }).blackPatternStones;
+    if (Array.isArray(sbp)) out.blackPatternStones = sbp as LiveGameSession['blackPatternStones'];
+    const swp = (parsed as { whitePatternStones?: unknown }).whitePatternStones;
+    if (Array.isArray(swp)) out.whitePatternStones = swp as LiveGameSession['whitePatternStones'];
+    if ((parsed as { lastMove?: unknown }).lastMove != null)
+        out.lastMove = (parsed as { lastMove: LiveGameSession['lastMove'] }).lastMove;
+    if ((parsed as { koInfo?: unknown }).koInfo !== undefined)
+        out.koInfo = (parsed as { koInfo: LiveGameSession['koInfo'] }).koInfo;
+    const hm = (parsed as { hiddenMoves?: unknown }).hiddenMoves;
+    if (hm && typeof hm === 'object') out.hiddenMoves = hm as LiveGameSession['hiddenMoves'];
+    const pr = (parsed as { permanentlyRevealedStones?: unknown }).permanentlyRevealedStones;
+    if (Array.isArray(pr)) out.permanentlyRevealedStones = pr as LiveGameSession['permanentlyRevealedStones'];
+    const h1 = (parsed as { hidden_stones_p1?: unknown }).hidden_stones_p1;
+    if (typeof h1 === 'number') (out as { hidden_stones_p1?: number }).hidden_stones_p1 = h1;
+    const h2 = (parsed as { hidden_stones_p2?: unknown }).hidden_stones_p2;
+    if (typeof h2 === 'number') (out as { hidden_stones_p2?: number }).hidden_stones_p2 = h2;
+
+    return out;
+}
+
 /** PLACE_STONE 패(코) 불가 — Game 전광판으로 안내하므로 전역 에러 모달은 생략 */
 function shouldSuppressModalForKoPlaceStone(action: ServerAction, errorMessage: string): boolean {
     if (action.type !== 'PLACE_STONE') return false;
@@ -2787,7 +2896,8 @@ export const useApp = () => {
                         'CLAIM_SINGLE_PLAYER_MISSION_REWARD', 'CLAIM_ALL_TRAINING_QUEST_REWARDS', 'LEVEL_UP_TRAINING_QUEST',
                         'SINGLE_PLAYER_REFRESH_PLACEMENT', 'TOWER_REFRESH_PLACEMENT',
                         'MANNER_ACTION',
-                        'START_GUILD_BOSS_BATTLE'
+                        'START_GUILD_BOSS_BATTLE',
+                        'BUY_TOWER_ITEM',
                     ];
                     if (actionsThatShouldHaveUpdatedUser.includes(action.type)) {
                         console.warn(`[handleAction] ${action.type} - No updatedUser in response! Waiting for WebSocket update...`, {
@@ -3033,6 +3143,9 @@ export const useApp = () => {
                     effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
                 }
                 if (!effectiveGameId && (action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD')) {
+                    effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
+                }
+                if (!effectiveGameId && action.type === 'BUY_TOWER_ITEM') {
                     effectiveGameId = (action.payload as any)?.gameId || (game as any)?.id;
                 }
                 
@@ -3798,8 +3911,10 @@ export const useApp = () => {
                                                         : {}),
                                                     ...(typeof parsed.totalTurns === 'number' &&
                                                     parsed.totalTurns > 0 &&
-                                                    (cur.totalTurns == null || cur.totalTurns === 0)
-                                                        ? { totalTurns: parsed.totalTurns }
+                                                    (cur.totalTurns == null ||
+                                                        cur.totalTurns === 0 ||
+                                                        parsed.totalTurns > (cur.totalTurns ?? 0))
+                                                        ? { totalTurns: Math.max(cur.totalTurns ?? 0, parsed.totalTurns) }
                                                         : {}),
                                                     ...(parsed.turnDeadline != null
                                                         ? {
@@ -3807,14 +3922,104 @@ export const useApp = () => {
                                                               turnStartTime: parsed.turnStartTime,
                                                           }
                                                         : {}),
+                                                    ...(typeof parsed.gameStartTime === 'number' &&
+                                                    parsed.gameStartTime > 0 &&
+                                                    (!(cur as any).gameStartTime || (cur as any).gameStartTime <= 0)
+                                                        ? { gameStartTime: parsed.gameStartTime }
+                                                        : {}),
                                                     ...(parsed.captures && typeof parsed.captures === 'object'
                                                         ? { captures: parsed.captures }
                                                         : {}),
+                                                    ...((() => {
+                                                        const pa = (parsed as any).adventureEncounterDeadlineMs;
+                                                        const ca = (cur as any).adventureEncounterDeadlineMs;
+                                                        if (
+                                                            cur.gameCategory === 'adventure' &&
+                                                            typeof pa === 'number' &&
+                                                            pa > Date.now() &&
+                                                            (typeof ca !== 'number' || ca < Date.now())
+                                                        ) {
+                                                            return { adventureEncounterDeadlineMs: pa } as any;
+                                                        }
+                                                        return {};
+                                                    })()),
+                                                    ...((() => {
+                                                        const pf = (parsed as any).adventureEncounterFrozenHumanMsRemaining;
+                                                        const cf = (cur as any).adventureEncounterFrozenHumanMsRemaining;
+                                                        if (
+                                                            cur.gameCategory === 'adventure' &&
+                                                            typeof pf === 'number' &&
+                                                            pf > 0 &&
+                                                            (cf == null || cf <= 0)
+                                                        ) {
+                                                            return { adventureEncounterFrozenHumanMsRemaining: pf } as any;
+                                                        }
+                                                        return {};
+                                                    })()),
                                                 };
                                             }
                                         }
                                     } catch {
                                         /* ignore */
+                                    }
+                                }
+                                const curMerged = next[id];
+                                if (curMerged && curMerged.isAiGame) {
+                                    const lim =
+                                        (curMerged.settings as any)?.scoringTurnLimit ??
+                                        (curMerged.settings as any)?.autoScoringTurns;
+                                    const tl = lim != null && Number(lim) > 0;
+                                    if (tl || curMerged.gameCategory === 'adventure') {
+                                        try {
+                                            const st2 =
+                                                typeof sessionStorage !== 'undefined'
+                                                    ? sessionStorage.getItem(`gameState_${id}`)
+                                                    : null;
+                                            if (st2) {
+                                                const p2 = JSON.parse(st2);
+                                                if (p2.gameId === id) {
+                                                    let m = next[id]!;
+                                                    const stT = typeof p2.totalTurns === 'number' ? p2.totalTurns : 0;
+                                                    if (stT > (m.totalTurns ?? 0)) m = { ...m, totalTurns: stT };
+                                                    const sm2 = p2.moveHistory;
+                                                    const cm2 = m.moveHistory;
+                                                    if (
+                                                        Array.isArray(sm2) &&
+                                                        sm2.length > (Array.isArray(cm2) ? cm2.length : 0)
+                                                    ) {
+                                                        m = { ...m, moveHistory: sm2 };
+                                                    }
+                                                    if (
+                                                        typeof p2.gameStartTime === 'number' &&
+                                                        p2.gameStartTime > 0 &&
+                                                        (!(m as any).gameStartTime || (m as any).gameStartTime <= 0)
+                                                    ) {
+                                                        m = { ...m, gameStartTime: p2.gameStartTime } as any;
+                                                    }
+                                                    if (m.gameCategory === 'adventure') {
+                                                        const pa2 = (p2 as any).adventureEncounterDeadlineMs;
+                                                        if (typeof pa2 === 'number' && pa2 > Date.now()) {
+                                                            const ca2 = (m as any).adventureEncounterDeadlineMs;
+                                                            if (typeof ca2 !== 'number' || ca2 < Date.now()) {
+                                                                (m as any).adventureEncounterDeadlineMs = pa2;
+                                                            }
+                                                        }
+                                                        const pf2 = (p2 as any).adventureEncounterFrozenHumanMsRemaining;
+                                                        if (
+                                                            typeof pf2 === 'number' &&
+                                                            pf2 > 0 &&
+                                                            ((m as any).adventureEncounterFrozenHumanMsRemaining == null ||
+                                                                (m as any).adventureEncounterFrozenHumanMsRemaining <= 0)
+                                                        ) {
+                                                            (m as any).adventureEncounterFrozenHumanMsRemaining = pf2;
+                                                        }
+                                                    }
+                                                    next[id] = m;
+                                                }
+                                            }
+                                        } catch {
+                                            /* ignore */
+                                        }
                                     }
                                 }
                             }
@@ -3836,31 +4041,57 @@ export const useApp = () => {
                                 next[id] = { ...fromPayload, ...prev[id] };
                                 fromPayload = next[id];
                             }
-                            const isSingleOrTowerStage = (fromPayload.isSinglePlayer || fromPayload.gameCategory === 'tower') && (fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
-                            const needsRestore = isSingleOrTowerStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
-                            const needsCurrentPlayerRestore = isSingleOrTowerStage;
-                            if (needsRestore || needsCurrentPlayerRestore) {
-                                try {
-                                    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${id}`) : null;
-                                    if (stored) {
-                                        const parsed = JSON.parse(stored);
-                                        if (parsed.gameId === id) {
-                                            const storedTotal = needsRestore && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0 ? parsed.totalTurns : null;
-                                            const storedMoves = Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0 ? parsed.moveHistory : null;
-                                            const inferredCurrentPlayer = needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
-                                                ? ((last: { player?: number }) => last && (last.player === Player.Black ? Player.White : Player.Black))(storedMoves[storedMoves.length - 1])
-                                                : null;
+                            const isSpStage =
+                                fromPayload.isSinglePlayer &&
+                                !!(fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
+                            const needsRestore = isSpStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
+                            const needsCurrentPlayerRestore = isSpStage;
+                            try {
+                                const stored =
+                                    typeof sessionStorage !== 'undefined'
+                                        ? sessionStorage.getItem(`gameState_${id}`)
+                                        : null;
+                                if (stored) {
+                                    const parsed = JSON.parse(stored) as Record<string, unknown>;
+                                    if (parsed.gameId === id) {
+                                        let merged: LiveGameSession = next[id] || fromPayload;
+                                        if (needsRestore || needsCurrentPlayerRestore) {
+                                            const storedTotal =
+                                                needsRestore &&
+                                                typeof parsed.totalTurns === 'number' &&
+                                                parsed.totalTurns > 0
+                                                    ? parsed.totalTurns
+                                                    : null;
+                                            const storedMoves =
+                                                Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0
+                                                    ? (parsed.moveHistory as LiveGameSession['moveHistory'])
+                                                    : null;
+                                            const inferredCurrentPlayer =
+                                                needsCurrentPlayerRestore &&
+                                                storedMoves &&
+                                                storedMoves.length > 0
+                                                    ? ((last: { player?: number }) =>
+                                                          last &&
+                                                          (last.player === Player.Black ? Player.White : Player.Black))(
+                                                          storedMoves[storedMoves.length - 1] as { player?: number }
+                                                      )
+                                                    : null;
                                             if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
-                                                next[id] = {
-                                                    ...fromPayload,
+                                                merged = {
+                                                    ...merged,
                                                     ...(storedTotal != null ? { totalTurns: storedTotal } : {}),
                                                     ...(storedMoves != null ? { moveHistory: storedMoves } : {}),
-                                                    ...(inferredCurrentPlayer != null ? { currentPlayer: inferredCurrentPlayer } : {}),
+                                                    ...(inferredCurrentPlayer != null
+                                                        ? { currentPlayer: inferredCurrentPlayer }
+                                                        : {}),
                                                 };
                                             }
                                         }
+                                        next[id] = augmentPveFromSessionStorageSnapshot(merged, parsed);
                                     }
-                                } catch { /* ignore */ }
+                                }
+                            } catch {
+                                /* ignore */
                             }
                             const existing = prev[id];
                             if (existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
@@ -3897,31 +4128,57 @@ export const useApp = () => {
                                 next[id] = { ...fromPayload, ...prev[id] };
                                 fromPayload = next[id];
                             }
-                            const isTowerStage = fromPayload.gameCategory === 'tower' && (fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
+                            const isTowerStage =
+                                fromPayload.gameCategory === 'tower' &&
+                                !!(fromPayload.stageId || (fromPayload.settings as any)?.autoScoringTurns);
                             const needsRestore = isTowerStage && (fromPayload.totalTurns == null || fromPayload.totalTurns === 0);
                             const needsCurrentPlayerRestore = isTowerStage;
-                            if (needsRestore || needsCurrentPlayerRestore) {
-                                try {
-                                    const stored = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(`gameState_${id}`) : null;
-                                    if (stored) {
-                                        const parsed = JSON.parse(stored);
-                                        if (parsed.gameId === id) {
-                                            const storedTotal = needsRestore && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0 ? parsed.totalTurns : null;
-                                            const storedMoves = Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0 ? parsed.moveHistory : null;
-                                            const inferredCurrentPlayer = needsCurrentPlayerRestore && storedMoves && storedMoves.length > 0
-                                                ? ((last: { player?: number }) => last && (last.player === Player.Black ? Player.White : Player.Black))(storedMoves[storedMoves.length - 1])
-                                                : null;
+                            try {
+                                const stored =
+                                    typeof sessionStorage !== 'undefined'
+                                        ? sessionStorage.getItem(`gameState_${id}`)
+                                        : null;
+                                if (stored) {
+                                    const parsed = JSON.parse(stored) as Record<string, unknown>;
+                                    if (parsed.gameId === id) {
+                                        let merged: LiveGameSession = next[id] || fromPayload;
+                                        if (needsRestore || needsCurrentPlayerRestore) {
+                                            const storedTotal =
+                                                needsRestore &&
+                                                typeof parsed.totalTurns === 'number' &&
+                                                parsed.totalTurns > 0
+                                                    ? parsed.totalTurns
+                                                    : null;
+                                            const storedMoves =
+                                                Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0
+                                                    ? (parsed.moveHistory as LiveGameSession['moveHistory'])
+                                                    : null;
+                                            const inferredCurrentPlayer =
+                                                needsCurrentPlayerRestore &&
+                                                storedMoves &&
+                                                storedMoves.length > 0
+                                                    ? ((last: { player?: number }) =>
+                                                          last &&
+                                                          (last.player === Player.Black ? Player.White : Player.Black))(
+                                                          storedMoves[storedMoves.length - 1] as { player?: number }
+                                                      )
+                                                    : null;
                                             if (storedTotal != null || storedMoves != null || inferredCurrentPlayer != null) {
-                                                next[id] = {
-                                                    ...fromPayload,
+                                                merged = {
+                                                    ...merged,
                                                     ...(storedTotal != null ? { totalTurns: storedTotal } : {}),
                                                     ...(storedMoves != null ? { moveHistory: storedMoves } : {}),
-                                                    ...(inferredCurrentPlayer != null ? { currentPlayer: inferredCurrentPlayer } : {}),
+                                                    ...(inferredCurrentPlayer != null
+                                                        ? { currentPlayer: inferredCurrentPlayer }
+                                                        : {}),
                                                 };
                                             }
                                         }
+                                        next[id] = augmentPveFromSessionStorageSnapshot(merged, parsed);
                                     }
-                                } catch { /* ignore */ }
+                                }
+                            } catch {
+                                /* ignore */
                             }
                             const existing = prev[id];
                             if (existing?.boardState != null && Array.isArray(existing.boardState) && existing.boardState.length > 0) {
@@ -4610,6 +4867,18 @@ export const useApp = () => {
                                         
                                         // 중요한 필드만 비교하여 빠른 early return (stableStringify 호출 전에)
                                         if (existingGame) {
+                                            const localMidGamePlayingSp =
+                                                existingGame.gameStatus === 'playing' &&
+                                                (existingGame.moveHistory?.length ?? 0) > 0;
+                                            if (localMidGamePlayingSp && game.gameStatus === 'pending') {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] SinglePlayer: ignoring stale pending GAME_UPDATE while local is playing with moves',
+                                                        { gameId }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
                                             const keyFieldsChanged = 
                                                 existingGame.gameStatus !== game.gameStatus ||
                                                 existingGame.currentPlayer !== game.currentPlayer ||
@@ -4996,6 +5265,45 @@ export const useApp = () => {
                                         // 타워 게임은 클라이언트에서만 실행되므로, 
                                         // 클라이언트의 로컬 상태가 더 최신이면 서버 상태를 무시
                                         if (existingGame) {
+                                            const localMidGamePlaying =
+                                                existingGame.gameStatus === 'playing' &&
+                                                (existingGame.moveHistory?.length ?? 0) > 0;
+                                            if (localMidGamePlaying && game.gameStatus === 'pending') {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] Tower: ignoring stale pending GAME_UPDATE while local is playing with moves',
+                                                        { gameId }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
+                                            const localAdvanced =
+                                                existingGame.gameStatus === 'scoring' ||
+                                                existingGame.gameStatus === 'hidden_final_reveal' ||
+                                                existingGame.gameStatus === 'ended' ||
+                                                existingGame.gameStatus === 'no_contest';
+                                            if (localAdvanced && game.gameStatus === 'pending') {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] Tower: ignoring stale pending GAME_UPDATE while local is scoring/terminal',
+                                                        { gameId }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
+                                            if (
+                                                existingGame.gameStatus === 'scoring' &&
+                                                game.gameStatus === 'playing' &&
+                                                (game.moveHistory?.length ?? 0) <= (existingGame.moveHistory?.length ?? 0)
+                                            ) {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] Tower: ignoring stale playing GAME_UPDATE during local scoring',
+                                                        { gameId }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
                                             const localMoveHistoryLength = existingGame.moveHistory?.length || 0;
                                             const serverMoveHistoryLength = game.moveHistory?.length || 0;
                                             const localServerRevision = existingGame.serverRevision || 0;
@@ -5142,13 +5450,30 @@ export const useApp = () => {
                                                 mergedGame = { ...mergedGame, moveHistory: existingGame.moveHistory };
                                             }
                                         }
+                                        if (
+                                            (mergedGame.gameStatus === 'scoring' ||
+                                                mergedGame.gameStatus === 'hidden_final_reveal' ||
+                                                mergedGame.gameStatus === 'ended' ||
+                                                mergedGame.gameStatus === 'no_contest') &&
+                                            towerGnugoDelayTimeoutRef.current[gameId] != null
+                                        ) {
+                                            clearTimeout(towerGnugoDelayTimeoutRef.current[gameId]!);
+                                            delete towerGnugoDelayTimeoutRef.current[gameId];
+                                        }
                                         updatedGames[gameId] = mergedGame;
 
                                         // 그누고(AI) 수: 1초 지연 후 표시 (유저 수는 클라이언트에서 즉시 반영됨)
                                         const isNewAiMove = hasNewMoves && game.moveHistory?.length > 0 &&
                                             game.whitePlayerId === aiUserId &&
                                             (game.moveHistory[game.moveHistory.length - 1] as any)?.player === Player.White;
-                                        if (isNewAiMove) {
+                                        const mergedAdvancesToTerminal =
+                                            mergedGame.gameStatus === 'scoring' ||
+                                            mergedGame.gameStatus === 'hidden_final_reveal' ||
+                                            mergedGame.gameStatus === 'ended' ||
+                                            mergedGame.gameStatus === 'no_contest';
+                                        // 계가·종료 전환은 지연 없이 즉시 반영해야 함. return currentGames만 하면 mergedGame이 버려져
+                                        // 계가 연출 중 gameStatus가 pending으로 되돌아가 경기 시작 모달이 다시 뜨는 버그가 난다.
+                                        if (isNewAiMove && !mergedAdvancesToTerminal) {
                                             if (towerGnugoDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(towerGnugoDelayTimeoutRef.current[gameId]);
                                             }

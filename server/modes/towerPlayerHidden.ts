@@ -2,6 +2,12 @@ import * as types from '../../types/index.js';
 import * as db from '../db.js';
 import { pauseGameTimer, resumeGameTimer } from './shared.js';
 import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
+import {
+    buildHiddenScanAnimation,
+    evaluateHiddenScanBoard,
+    hasOpponentHiddenScanTargets,
+    recordSoftHiddenScanDiscovery,
+} from './hiddenScanShared.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -195,6 +201,14 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
                               ? types.Player.White
                               : game.currentPlayer;
                     game.currentPlayer = scanPlayerEnum;
+                    const scanAnim = anim as { type: 'scan'; success?: boolean; towerResumeScanning?: boolean };
+                    if (game.gameCategory === 'tower' && scanAnim.success && scanAnim.towerResumeScanning) {
+                        game.animation = null;
+                        game.gameStatus = 'scanning';
+                        pauseGameTimer(game, now, 30000);
+                        (game as any)._itemTimeoutStateChanged = true;
+                        break;
+                    }
                 }
                 game.animation = null;
                 game.gameStatus = 'playing';
@@ -252,12 +266,6 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
     }
     const isMyTurn = myPlayerEnum === game.currentPlayer;
 
-    const isHiddenMoveAtIndex = (idx: number): boolean => {
-        const hm = game.hiddenMoves as Record<string, boolean> | undefined;
-        if (!hm) return false;
-        return !!(hm[idx] ?? hm[String(idx)]);
-    };
-
     switch (type) {
         case 'START_HIDDEN_PLACEMENT':
             if (!isMyTurn) return { error: "Not your turn to use an item." };
@@ -278,31 +286,15 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             const scanKeyStart = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
             if (((game as any)[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-            const hasUnrevealedInMoveHistory = !!(game.hiddenMoves && game.moveHistory && game.moveHistory.some((m: types.Move, idx: number) => {
-                if (m.x === -1 || m.y === -1) return false;
-                const isOpponent = m.player === opponentPlayerEnum;
-                const isHidden = isHiddenMoveAtIndex(idx);
-                const isRevealed = game.permanentlyRevealedStones?.some((p: types.Point) => p.x === m.x && p.y === m.y);
-                const stillOnBoard = game.boardState?.[m.y]?.[m.x] === opponentPlayerEnum;
-                return isOpponent && isHidden && !isRevealed && stillOnBoard;
-            }));
-            const aiHidden = (game as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
-            const hasUnrevealedAiInitial = !!aiHidden &&
-                !game.permanentlyRevealedStones?.some((p: types.Point) => p.x === aiHidden.x && p.y === aiHidden.y) &&
-                game.boardState?.[aiHidden.y]?.[aiHidden.x] === opponentPlayerEnum;
             const isMixWithHidden =
                 game.mode === types.GameMode.Mix &&
                 Array.isArray((game.settings as any)?.mixedModes) &&
                 (game.settings as any).mixedModes.includes(types.GameMode.Hidden);
             const stageAllowsHiddenStones = ((game.settings as any)?.hiddenStoneCount ?? 0) > 0 || isMixWithHidden;
-            const hasAnyUnrevealedOpponentStone = stageAllowsHiddenStones && !!game.boardState && !!game.moveHistory && game.moveHistory.some((m: types.Move) => {
-                if (m.x < 0 || m.y < 0) return false;
-                if (m.player !== opponentPlayerEnum) return false;
-                const isRevealed = game.permanentlyRevealedStones?.some((p: types.Point) => p.x === m.x && p.y === m.y);
-                const stillOnBoard = game.boardState?.[m.y]?.[m.x] === opponentPlayerEnum;
-                return !isRevealed && stillOnBoard;
+            const opponentHasUnrevealedHidden = hasOpponentHiddenScanTargets(game, user.id, opponentPlayerEnum, {
+                includeLooseOpponentStones: true,
+                hiddenStoneCountOrMix: stageAllowsHiddenStones,
             });
-            const opponentHasUnrevealedHidden = hasUnrevealedInMoveHistory || hasUnrevealedAiInitial || hasAnyUnrevealedOpponentStone;
             if (!opponentHasUnrevealedHidden) return { error: "No hidden stones to scan." };
             game.gameStatus = 'scanning';
             pauseGameTimer(game, now, 30000);
@@ -313,34 +305,19 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             const { x, y } = payload;
             const scanKey = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
             if (((game as any)[scanKey] ?? 0) <= 0) return { error: "No scans left." };
-            (game as any)[scanKey] = ((game as any)[scanKey] ?? 0) - 1;
 
-            const isAiInitialHiddenStone = (game as any).aiInitialHiddenStone &&
-                (game as any).aiInitialHiddenStone.x === x &&
-                (game as any).aiInitialHiddenStone.y === y;
-            const moveIndex = game.moveHistory.findIndex(m => m.x === x && m.y === y);
-            const success = (moveIndex !== -1 && isHiddenMoveAtIndex(moveIndex)) || isAiInitialHiddenStone;
-
-            if (success) {
-                if (!game.revealedHiddenMoves) game.revealedHiddenMoves = {};
-                if (!game.revealedHiddenMoves[user.id]) game.revealedHiddenMoves[user.id] = [];
-                if (moveIndex !== -1 && !game.revealedHiddenMoves[user.id].includes(moveIndex)) {
-                    game.revealedHiddenMoves[user.id].push(moveIndex);
-                }
-                if (isAiInitialHiddenStone) {
-                    if (!(game as any).scannedAiInitialHiddenByUser) (game as any).scannedAiInitialHiddenByUser = {};
-                    (game as any).scannedAiInitialHiddenByUser[user.id] = true;
-                }
-                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                if (!game.permanentlyRevealedStones.some(p => p.x === x && p.y === y)) {
-                    game.permanentlyRevealedStones.push({ x, y });
-                }
+            const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);
+            if (!evalResult.success) {
+                (game as any)[scanKey] = ((game as any)[scanKey] ?? 0) - 1;
+            } else {
+                recordSoftHiddenScanDiscovery(game, user.id, evalResult);
             }
-            game.animation = { type: 'scan', point: { x, y }, success, startTime: now, duration: 2000, playerId: user.id };
+            const success = evalResult.success;
+            game.animation = buildHiddenScanAnimation(now, user.id, x, y, success);
             game.gameStatus = 'scanning_animating';
             game.currentPlayer = myPlayerEnum;
             resumeGameTimer(game, now, myPlayerEnum);
-            return {};
+            return success ? { skipTowerScanInventoryConsume: true } : {};
     }
 
     return null;

@@ -331,7 +331,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
     // Game Actions (require gameId)
     // 도전의 탑은 클라이언트에서만 실행되므로 서버에서 착수 액션을 처리하지 않음
-    if (gameId && type !== 'LEAVE_AI_GAME') {
+    // BUY_TOWER_ITEM은 payload에 gameId가 있어도 상점(handleShopAction)에서만 처리 (여기서 PVE 분기에 들어가면 빈 {}로 종료되어 구매가 실행되지 않음)
+    if (gameId && type !== 'LEAVE_AI_GAME' && type !== 'BUY_TOWER_ITEM') {
         // 싱글플레이·도전의 탑 미사일 액션 처리 (게임이 캐시에 없을 수 있음)
         if (type === 'START_MISSILE_SELECTION' || type === 'LAUNCH_MISSILE' || type === 'CANCEL_MISSILE_SELECTION' || type === 'MISSILE_INVALID_SELECTION' || type === 'MISSILE_ANIMATION_COMPLETE') {
             if (gameId.startsWith('sp-game-')) {
@@ -500,7 +501,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     const towerResult = handleTowerPlayerHiddenAction(volatileState, game, action, userData);
                     if (towerResult !== null) {
                         if (!(towerResult as any).error) {
-                            if (type === 'SCAN_BOARD' && consumeOneTowerLobbyInventoryItem(userData, TOWER_LOBBY_SCAN_NAMES)) {
+                            const skipTowerScanInv = !!(towerResult as any).skipTowerScanInventoryConsume;
+                            if (type === 'SCAN_BOARD' && !skipTowerScanInv && consumeOneTowerLobbyInventoryItem(userData, TOWER_LOBBY_SCAN_NAMES)) {
                                 await db.updateUser(userData).catch((err) =>
                                     console.error('[handleAction] tower SCAN_BOARD inventory save failed:', err)
                                 );
@@ -625,9 +627,14 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
         }
         
-        console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, isSinglePlayer=${game.isSinglePlayer}, gameStatus=${game.gameStatus}`);
+        if (process.env.NODE_ENV === 'development') {
+            const gcat = (game as any).gameCategory ?? 'n/a';
+            const tf = (game as any).towerFloor;
+            const tfPart = tf != null && tf !== '' ? `, towerFloor=${tf}` : '';
+            console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, gameCategory=${gcat}, isSinglePlayer=${!!game.isSinglePlayer}, gameStatus=${game.gameStatus}${tfPart}`);
+        }
 
-        // 클라이언트 측 AI(WASM/Electron) 실패 시 서버 GnuGo로 해당 국면 수 계산 폴백 (예: 패 포함 수순)
+        // 클라이언트 측 AI(WASM/Electron) 실패 시 서버에서 makeAiMove(goAiBot → Kata 서버)로 해당 국면 수 계산 폴백 (예: 패 포함 수순)
         if (type === 'REQUEST_SERVER_AI_MOVE') {
             const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
             if (!useClientSideAi) {

@@ -742,7 +742,7 @@ export type ThiefRoundSummary = {
 };
 
 export type AnimationData =
-  | { type: 'scan'; point: Point; success: boolean; startTime: number; duration: number; playerId: string }
+  | { type: 'scan'; point: Point; success: boolean; startTime: number; duration: number; playerId: string; towerResumeScanning?: boolean }
   | { type: 'missile'; from: Point; to: Point; player: Player; startTime: number; duration: number }
   | { type: 'dice_roll_turn'; p1Roll: number; p2Roll: number; startTime: number; duration: number }
   | { type: 'dice_roll_main'; dice: { dice1: number, dice2: number, dice3: number }; startTime: number; duration: number }

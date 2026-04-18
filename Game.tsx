@@ -349,7 +349,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const hasStrategicTurnLimit =
         mode !== GameMode.Capture &&
         ((session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0);
-    
+    /** 모험 포함: 새로고침 시 sessionStorage와 병합해 남은 턴·경과 시간이 초기화되지 않게 함 */
+    const useRefreshSessionStorageMerge =
+        isAdventureGame || isSinglePlayer || isTower || hasStrategicTurnLimit;
+
     // 클라이언트에서 게임 상태 저장/복원 (새로고침 시 바둑판 복원)
     const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
     
@@ -507,7 +510,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             try {
                 // totalTurns: 서버가 비워 보낸 경우(새로고침 직후) 기존 sessionStorage 값 유지 (자동계가까지 남은 턴이 Max로 초기화되는 버그 방지)
                 let totalTurnsToSave = session.totalTurns;
-                if ((totalTurnsToSave == null || totalTurnsToSave === 0) && (isSinglePlayer || session.gameCategory === 'tower' || hasStrategicTurnLimit)) {
+                if ((totalTurnsToSave == null || totalTurnsToSave === 0) && useRefreshSessionStorageMerge) {
                     try {
                         const stored = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
                         if (stored) {
@@ -552,6 +555,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     aiInitialHiddenStone: (session as any).aiInitialHiddenStone,
                     aiInitialHiddenStoneIsPrePlaced: (session as any).aiInitialHiddenStoneIsPrePlaced,
                     totalTurns: totalTurnsToSave,
+                    gameStartTime: session.gameStartTime,
+                    blackTimeLeft: session.blackTimeLeft,
+                    whiteTimeLeft: session.whiteTimeLeft,
+                    adventureEncounterDeadlineMs: (session as any).adventureEncounterDeadlineMs,
+                    adventureEncounterFrozenHumanMsRemaining: (session as any).adventureEncounterFrozenHumanMsRemaining,
                     ...(session.gameCategory === 'tower' && (session as any).blackTurnLimitBonus != null
                         ? { blackTurnLimitBonus: Number((session as any).blackTurnLimitBonus) || 0 }
                         : {}),
@@ -562,11 +570,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, hasStrategicTurnLimit, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
-        if (!isSinglePlayer && !isTower && !hasStrategicTurnLimit) return session;
+        if (!useRefreshSessionStorageMerge) return session;
         let next = session;
         try {
             const stored = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
@@ -637,6 +645,34 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if ((serverTotalTurns === undefined || serverTotalTurns === null || serverTotalTurns === 0) && typeof parsed.totalTurns === 'number' && parsed.totalTurns > 0) {
                         next = { ...next, totalTurns: parsed.totalTurns };
                     }
+                    const storedTurns = typeof parsed.totalTurns === 'number' ? parsed.totalTurns : 0;
+                    const srvTurns = Number(serverTotalTurns ?? 0);
+                    if (storedTurns > srvTurns && storedTurns > 0) {
+                        next = { ...next, totalTurns: storedTurns };
+                    }
+                    if (isAdventureGame || hasStrategicTurnLimit) {
+                        if (
+                            typeof parsed.gameStartTime === 'number' &&
+                            parsed.gameStartTime > 0 &&
+                            (!(next as any).gameStartTime || (next as any).gameStartTime <= 0)
+                        ) {
+                            next = { ...next, gameStartTime: parsed.gameStartTime } as any;
+                        }
+                        const pAdv = (parsed as any).adventureEncounterDeadlineMs;
+                        const nAdv = (next as any).adventureEncounterDeadlineMs;
+                        if (typeof pAdv === 'number' && pAdv > Date.now() && (typeof nAdv !== 'number' || nAdv < Date.now())) {
+                            (next as any).adventureEncounterDeadlineMs = pAdv;
+                        }
+                        const pFr = (parsed as any).adventureEncounterFrozenHumanMsRemaining;
+                        if (
+                            typeof pFr === 'number' &&
+                            pFr > 0 &&
+                            ((next as any).adventureEncounterFrozenHumanMsRemaining == null ||
+                                (next as any).adventureEncounterFrozenHumanMsRemaining <= 0)
+                        ) {
+                            (next as any).adventureEncounterFrozenHumanMsRemaining = pFr;
+                        }
+                    }
                     // INITIAL_STATE 등에서 moveHistory가 생략된 경우 복원 (남은 턴 계산에 사용)
                     const restoredServerMoveCount = next.moveHistory?.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length ?? 0;
                     if (restoredServerMoveCount === 0 && Array.isArray(parsed.moveHistory) && parsed.moveHistory.length > 0) {
@@ -703,7 +739,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } catch {
             return session;
         }
-    }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, gameId, (session as any).blackTurnLimitBonus]);
+    }, [session, isSinglePlayer, isTower, hasStrategicTurnLimit, isAdventureGame, useRefreshSessionStorageMerge, gameId, (session as any).blackTurnLimitBonus]);
 
     /** 온라인 AI 대국: 전광판은 WS 세션의 턴·연출 필드를 그대로 써야 저장소 복원분과 어긋나지 않음 */
     const turnDisplaySession = useMemo(() => {
@@ -2672,7 +2708,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     // 싱글플레이어/도전의 탑/전략바둑 수순 제한: restoredBoardState + totalTurns/moveHistory 복원을 포함한 표시용 session (PlayerPanel 남은 턴 등에 사용)
     const sessionWithRestoredBoard = useMemo(() => {
-        if (!isSinglePlayer && !isTower && !hasStrategicTurnLimit) {
+        if (!useRefreshSessionStorageMerge) {
             return session;
         }
         // totalTurns·moveHistory·문양돌이 복원된 세션을 베이스로 사용 (새로고침 후 남은 턴이 Max로 초기화되는 버그 방지)
@@ -2682,7 +2718,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return { ...base, boardState: restoredBoardState };
         }
         return base;
-    }, [isSinglePlayer, isTower, hasStrategicTurnLimit, sessionWithRestoredPatternStones, restoredBoardState]);
+    }, [useRefreshSessionStorageMerge, sessionWithRestoredPatternStones, restoredBoardState]);
 
     const serverAiHiddenAnimationEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
     const isServerAiHiddenPresentationActive =
@@ -2942,9 +2978,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         onStart={handleStartGame}
                         currentUser={currentUserWithStatus}
                         onTowerItemPurchase={async (itemId, quantity) => {
+                            const gid = sessionWithRestoredPatternStones?.id;
                             await handlers.handleAction({
                                 type: 'BUY_TOWER_ITEM',
-                                payload: { itemId, quantity },
+                                payload: {
+                                    itemId,
+                                    quantity,
+                                    ...(typeof gid === 'string' && gid.startsWith('tower-game-') ? { gameId: gid } : {}),
+                                },
                             } as ServerAction);
                         }}
                     />

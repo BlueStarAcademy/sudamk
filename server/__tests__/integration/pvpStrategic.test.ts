@@ -309,7 +309,8 @@ describe('PVP Strategic mode', () => {
                 userId: p1.id,
             } as any, p1);
             expect(res?.error).toBeUndefined();
-            expect(game.scans_p1).toBe(1);
+            // 첫 히든 적중은 몰래공개만 — 스캔 소모 없음(스캔 모드 유지)
+            expect(game.scans_p1).toBe(2);
             expect(game.animation?.type).toBe('scan');
             expect(game.gameStatus).toBe('scanning_animating');
         });

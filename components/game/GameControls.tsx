@@ -1332,12 +1332,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     // 서버 START_SCANNING과 동일: 상대 히든 수가 수순에 있고 아직 영구 공개되지 않았으면 스캔 가능.
     // (온라인 브로드캐스트에 boardState가 없을 때 로컬 보드가 비어 있어 스캔이 막히는 문제 방지)
     const canScan = useMemo(() => {
+        const myRevealed = session.revealedHiddenMoves?.[currentUser.id];
         const fromHistory =
             session.hiddenMoves &&
             session.moveHistory &&
             Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
                 if (!isHidden) return false;
-                const move = session.moveHistory![parseInt(moveIndexStr, 10)];
+                const idx = parseInt(moveIndexStr, 10);
+                if (myRevealed?.includes(idx)) return false;
+                const move = session.moveHistory![idx];
                 if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) {
                     return false;
                 }
@@ -1348,6 +1351,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         if (fromHistory) return true;
 
         const aiPt = (session as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone;
+        const scannedAiInitialByMe = !!(session as any).scannedAiInitialHiddenByUser?.[currentUser.id];
         if (
             aiPt &&
             typeof aiPt.x === 'number' &&
@@ -1357,7 +1361,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             (session.isAiGame || session.gameCategory === 'adventure' || session.isSinglePlayer || session.gameCategory === 'tower')
         ) {
             const revealed = session.permanentlyRevealedStones?.some((p) => p.x === aiPt.x && p.y === aiPt.y);
-            if (revealed) return false;
+            if (revealed || scannedAiInitialByMe) return false;
             return true;
         }
         const aiHiddenUsed = !!(session as any).aiHiddenItemUsed;
@@ -1368,6 +1372,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         session.hiddenMoves,
         session.moveHistory,
         session.permanentlyRevealedStones,
+        session.revealedHiddenMoves,
         session.gameCategory,
         session.isSinglePlayer,
         session.blackPlayerId,

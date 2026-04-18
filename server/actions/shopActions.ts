@@ -664,7 +664,11 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             };
         }
         case 'BUY_TOWER_ITEM': {
-            const { itemId, quantity } = payload;
+            const { itemId, quantity, gameId: payloadTowerGameId } = payload as {
+                itemId: string;
+                quantity: number;
+                gameId?: string;
+            };
             
             if (!itemId || typeof quantity !== 'number' || quantity <= 0) {
                 return { error: '유효하지 않은 요청입니다.' };
@@ -785,15 +789,21 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             let towerGameAfterPurchase: LiveGameSession | null = null;
             const st = volatileState.userStatuses[user.id];
-            if (st?.gameCategory === 'tower' && st.gameId?.startsWith('tower-game-')) {
+            const resolvedTowerGameId =
+                typeof payloadTowerGameId === 'string' && payloadTowerGameId.startsWith('tower-game-')
+                    ? payloadTowerGameId
+                    : st?.gameCategory === 'tower' && st.gameId?.startsWith('tower-game-')
+                      ? st.gameId
+                      : undefined;
+            if (resolvedTowerGameId) {
                 const { getCachedGame, updateGameCache } = await import('../gameCache.js');
                 const { bumpTowerSessionConsumablesAfterShopPurchase } = await import('../modes/towerPlayerHidden.js');
-                let g: LiveGameSession | null = await getCachedGame(st.gameId);
-                if (!g && volatileState.gameCache?.get(st.gameId)) {
-                    g = volatileState.gameCache.get(st.gameId)!.game as LiveGameSession;
+                let g: LiveGameSession | null = await getCachedGame(resolvedTowerGameId);
+                if (!g && volatileState.gameCache?.get(resolvedTowerGameId)) {
+                    g = volatileState.gameCache.get(resolvedTowerGameId)!.game as LiveGameSession;
                 }
                 if (!g) {
-                    g = await db.getLiveGame(st.gameId);
+                    g = await db.getLiveGame(resolvedTowerGameId);
                 }
                 if (
                     g &&

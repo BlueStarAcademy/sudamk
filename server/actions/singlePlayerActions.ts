@@ -4,6 +4,7 @@ import { type ServerAction, type User, type VolatileState, LiveGameSession, Play
 import { SINGLE_PLAYER_STAGES, SINGLE_PLAYER_MISSIONS } from '../../shared/constants/singlePlayerConstants';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
+import { encodeBoardStateAsKataSetupMovesFromEmpty } from '../kataCaptureSetupEncoding.js';
 import {
     generateStrategicRandomBoard,
     isInvalidStrategicInitialStonePlacement,
@@ -298,6 +299,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 totalTurns: 0, // 턴 카운팅 초기화
             } as LiveGameSession;
 
+            (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
+
             // 히든바둑 초기화 (싱글플레이용). AI 히든돌은 미리 배치하지 않음 — 봇이 턴에 히든 아이템 연출 후 실제로 둠.
             if (gameMode === GameMode.Hidden) {
                 const { initializeSinglePlayerHidden } = await import('../modes/singlePlayerHidden.js');
@@ -484,6 +487,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             game.boardState = board;
             game.blackPatternStones = blackPattern;
             game.whitePatternStones = whitePattern;
+            (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
 
             // 캐시 업데이트
             updateGameCache(game);

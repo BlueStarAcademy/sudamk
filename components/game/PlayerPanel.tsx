@@ -788,8 +788,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         const moveHistory = session.moveHistory ?? [];
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCountFromHistory = moveHistory.length;
+        const validMovesOnly = moveHistory.filter((m) => m.x !== -1 && m.y !== -1).length;
         // 새로고침 직후 moveHistory가 비어 있을 수 있으므로 totalTurns로 대체 (수순 0/N 되는 버그 방지)
-        const current = turnCountFromHistory > 0 ? turnCountFromHistory : (session.totalTurns ?? 0);
+        const current =
+            session.gameCategory === 'adventure'
+                ? (validMovesOnly > 0 ? validMovesOnly : (session.totalTurns ?? 0))
+                : turnCountFromHistory > 0
+                  ? turnCountFromHistory
+                  : (session.totalTurns ?? 0);
         const blackMoves = moveHistory.filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
         const blackTurnLimit = (session.settings as any)?.blackTurnLimit as number | undefined;
         if (session.gameCategory === 'guildwar' && mode === GameMode.Capture && blackTurnLimit != null && blackTurnLimit > 0) {

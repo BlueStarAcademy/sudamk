@@ -10,6 +10,12 @@ import {
 import { useAiInitialHiddenCellTracking, useTowerStyleHiddenRevealAnimatingResolution } from './hiddenRevealPolicy.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
+import {
+    buildHiddenScanAnimation,
+    evaluateHiddenScanBoard,
+    hasOpponentHiddenScanTargets,
+    recordSoftHiddenScanDiscovery,
+} from './hiddenScanShared.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -73,15 +79,35 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
     }
 
     switch (game.gameStatus) {
-        case 'scanning_animating':
-            // 애니메이션이 없거나 시간이 지났으면 playing으로 전환
-            if (!game.animation || (game.animation && now > game.animation.startTime + game.animation.duration)) {
+        case 'scanning_animating': {
+            const anim = game.animation;
+            const scanEnded =
+                !anim ||
+                anim.type !== 'scan' ||
+                now >= anim.startTime + anim.duration;
+            if (scanEnded) {
+                if (anim && anim.type === 'scan') {
+                    const scanUserId = (anim as { type: 'scan'; playerId: string }).playerId;
+                    const scanPlayerEnum =
+                        scanUserId === game.blackPlayerId
+                            ? types.Player.Black
+                            : scanUserId === game.whitePlayerId
+                              ? types.Player.White
+                              : game.currentPlayer;
+                    game.currentPlayer = scanPlayerEnum;
+                    const scanAnim = anim as { type: 'scan'; success?: boolean; towerResumeScanning?: boolean };
+                    if (scanAnim.success && scanAnim.towerResumeScanning) {
+                        game.animation = null;
+                        game.gameStatus = 'scanning';
+                        pauseGameTimer(game, now, 30000);
+                        break;
+                    }
+                }
                 game.animation = null;
-                // After animation, the game is already in 'playing' state with timer running for the correct player.
-                // We just need to ensure the status is clean.
                 game.gameStatus = 'playing';
             }
             break;
+        }
         case 'hidden_reveal_animating':
             if (useTowerStyleHiddenRevealAnimatingResolution(game)) {
                 await runTowerStyleHiddenRevealAnimatingIfDue(game, now, {
@@ -294,12 +320,14 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             const scanKeyStart = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
             if ((game[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-            const opponentHasUnrevealedHidden = game.hiddenMoves && game.moveHistory && game.moveHistory.some((m, idx) => {
-                if (m.x === -1 && m.y === -1) return false;
-                const isOpponent = m.player === opponentPlayerEnum;
-                const isHidden = !!game.hiddenMoves?.[idx];
-                const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === m.x && p.y === m.y);
-                return isOpponent && isHidden && !isRevealed;
+            const isMixWithHidden =
+                game.mode === types.GameMode.Mix &&
+                Array.isArray((game.settings as any)?.mixedModes) &&
+                (game.settings as any).mixedModes.includes(types.GameMode.Hidden);
+            const stageAllowsHiddenStones = ((game.settings as any)?.hiddenStoneCount ?? 0) > 0 || isMixWithHidden;
+            const opponentHasUnrevealedHidden = hasOpponentHiddenScanTargets(game, user.id, opponentPlayerEnum, {
+                includeLooseOpponentStones: true,
+                hiddenStoneCountOrMix: stageAllowsHiddenStones,
             });
             if (!opponentHasUnrevealedHidden) return { error: "No hidden stones to scan." };
             game.gameStatus = 'scanning';
@@ -311,37 +339,14 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             const { x, y } = payload;
             const scanKey = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
             if ((game[scanKey] ?? 0) <= 0) return { error: "No scans left." };
-            game[scanKey] = (game[scanKey] ?? 0) - 1;
 
-            const isAiInitialHiddenStone = (game as any).aiInitialHiddenStone &&
-                (game as any).aiInitialHiddenStone.x === x &&
-                (game as any).aiInitialHiddenStone.y === y;
-            let moveIndex = -1;
-            for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
-                const m = game.moveHistory![i];
-                if (m.x === x && m.y === y) {
-                    moveIndex = i;
-                    break;
-                }
+            const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);
+            if (!evalResult.success) {
+                game[scanKey] = (game[scanKey] ?? 0) - 1;
+            } else {
+                recordSoftHiddenScanDiscovery(game, user.id, evalResult);
             }
-            const success = (moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex]) || !!isAiInitialHiddenStone;
-
-            if (success) {
-                if (!game.revealedHiddenMoves) game.revealedHiddenMoves = {};
-                if (!game.revealedHiddenMoves[user.id]) game.revealedHiddenMoves[user.id] = [];
-                if (!game.revealedHiddenMoves[user.id].includes(moveIndex)) {
-                    game.revealedHiddenMoves[user.id].push(moveIndex);
-                }
-                if (isAiInitialHiddenStone) {
-                    if (!(game as any).scannedAiInitialHiddenByUser) (game as any).scannedAiInitialHiddenByUser = {};
-                    (game as any).scannedAiInitialHiddenByUser[user.id] = true;
-                }
-                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                if (!game.permanentlyRevealedStones.some((p) => p.x === x && p.y === y)) {
-                    game.permanentlyRevealedStones.push({ x, y });
-                }
-            }
-            game.animation = { type: 'scan', point: { x, y }, success, startTime: now, duration: 2000, playerId: user.id };
+            game.animation = buildHiddenScanAnimation(now, user.id, x, y, evalResult.success);
             game.gameStatus = 'scanning_animating';
             // 아이템 사용 직후에는 현재 플레이어를 사용한 유저로 고정하여 턴 정지 버그를 방지한다.
             game.currentPlayer = myPlayerEnum;

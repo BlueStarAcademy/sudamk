@@ -9,7 +9,7 @@ import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 const SILENT_WAV_DATA_URI =
     'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
 
-/** `public/sound`에 있는 파일명과 일치 (첫 사용자 제스처 직후 백그라운드 프리로드) */
+/** `public/sounds`에 있는 파일명과 일치 (첫 사용자 제스처 직후 백그라운드 프리로드) */
 const SOUND_BASE_NAMES = [
     'move', 'dice', 'failure', 'hidden', 'scanbgm', 'find', 'hit', 'rocket', 'lose', 'win',
     'levelup', 'jackpot2', 'jackpot', 'gamestart', 'myturn', 'scanfail', 'timer10', 'bip',
@@ -31,7 +31,7 @@ class AudioService {
     private bufferLoads = new Map<string, Promise<AudioBuffer | null>>();
     private preloadStarted = false;
     /**
-     * 브라우저가 요청할 공개 사운드 경로 (`public/sound` → 서버·프록시는 URL `/sounds/*`로 제공).
+     * 브라우저가 요청할 공개 사운드 경로 (`public/sounds` → 빌드 후 `/sounds/*`, Express 동일 마운트).
      * `import.meta.env.BASE_URL` 반영: 서브경로 배포·모바일 웹뷰에서 `/sounds`만 쓰면 로컬/404로 잡히는 문제 방지.
      */
     private getBrowserSoundPath(soundName: string): string {

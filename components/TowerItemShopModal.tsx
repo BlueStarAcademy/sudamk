@@ -3,8 +3,9 @@ import { UserWithStatus } from '../types.js';
 import Button from './Button.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from './DraggableWindow.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
-import { countTowerLobbyInventoryQty } from '../utils/towerLobbyInventory.js';
+import { countTowerLobbyInventoryQty, towerShopInventoryNameOrIdsForItem } from '../utils/towerLobbyInventory.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 
 interface TowerItem {
     itemId: string;
@@ -106,6 +107,7 @@ export function towerShopItemIdFromSlotKey(slotKey: string): string | undefined 
 
 const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, onClose, onBuy, initialSelectedItemId }) => {
     const { isNativeMobile } = useNativeMobileShell();
+    const { updateTrigger } = useAppContext();
     const [selectedItem, setSelectedItem] = useState<TowerItem | null>(() => resolveTowerShopItem(initialSelectedItemId));
     const [cart, setCart] = useState<Record<string, number>>({});
 
@@ -113,8 +115,16 @@ const TowerItemShopModal: React.FC<TowerItemShopModalProps> = ({ currentUser, on
         setSelectedItem(resolveTowerShopItem(initialSelectedItemId));
     }, [initialSelectedItemId]);
 
-    const getCurrentOwned = (itemId: string): number =>
-        countTowerLobbyInventoryQty(currentUser.inventory, [itemId]);
+    const ownedQtyByItemId = useMemo(() => {
+        const inv = currentUser.inventory;
+        const map: Record<string, number> = {};
+        for (const it of TOWER_ITEMS) {
+            map[it.itemId] = countTowerLobbyInventoryQty(inv, towerShopInventoryNameOrIdsForItem(it.itemId));
+        }
+        return map;
+    }, [currentUser.inventory, currentUser.id, updateTrigger]);
+
+    const getCurrentOwned = (itemId: string): number => ownedQtyByItemId[itemId] ?? 0;
 
     // 오늘(KST) 구매한 개수 계산 — 서버와 동일 키(itemId)·날짜 기준
     const getTodayPurchased = (itemId: string): number => {

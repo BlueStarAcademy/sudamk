@@ -285,7 +285,15 @@ export const GameInfoPanel: React.FC<{
                         onTowerItemPurchase={
                             session.gameCategory === 'tower' && onAction
                                 ? async (itemId, quantity) => {
-                                      await onAction({ type: 'BUY_TOWER_ITEM', payload: { itemId, quantity } } as ServerAction);
+                                      const gid = session.id;
+                                      await onAction({
+                                          type: 'BUY_TOWER_ITEM',
+                                          payload: {
+                                              itemId,
+                                              quantity,
+                                              ...(typeof gid === 'string' && gid.startsWith('tower-game-') ? { gameId: gid } : {}),
+                                          },
+                                      } as ServerAction);
                                   }
                                 : undefined
                         }

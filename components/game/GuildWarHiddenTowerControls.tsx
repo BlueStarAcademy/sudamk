@@ -83,17 +83,45 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
     const canStartScanTurn = isMyTurn || allowScanAfterMyMove;
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
 
+    const uid = currentUser?.id;
     const canScan = useMemo(() => {
+        const board = session.boardState;
+        if (!Array.isArray(board) || board.length === 0) return false;
+        const scannedAiInitialByMe = !!uid && !!(session as any).scannedAiInitialHiddenByUser?.[uid];
+        const aiInitial = (session as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
+        const aiPre = (session as any).aiInitialHiddenStoneIsPrePlaced;
+        if (aiInitial && !aiPre) {
+            const { x, y } = aiInitial;
+            if (y >= 0 && y < board.length && x >= 0 && x < board[y].length && board[y][x] === opponentPlayerEnum) {
+                const perm = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
+                if (!perm && !scannedAiInitialByMe) return true;
+            }
+        }
         if (!session.hiddenMoves || !session.moveHistory) return false;
+        const myRevealed = uid ? session.revealedHiddenMoves?.[uid] : undefined;
         return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
             if (!isHidden) return false;
-            const move = session.moveHistory![parseInt(moveIndexStr, 10)];
+            const idx = parseInt(moveIndexStr, 10);
+            if (myRevealed?.includes(idx)) return false;
+            const move = session.moveHistory![idx];
             if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) return false;
             const { x, y } = move;
+            if (y < 0 || y >= board.length || x < 0 || x >= board[y].length || board[y][x] !== opponentPlayerEnum) return false;
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });
-    }, [session.hiddenMoves, session.moveHistory, session.permanentlyRevealedStones, opponentPlayerEnum]);
+    }, [
+        session.hiddenMoves,
+        session.moveHistory,
+        session.permanentlyRevealedStones,
+        session.boardState,
+        session.revealedHiddenMoves,
+        (session as any).aiInitialHiddenStone,
+        (session as any).aiInitialHiddenStoneIsPrePlaced,
+        (session as any).scannedAiInitialHiddenByUser,
+        opponentPlayerEnum,
+        uid,
+    ]);
 
     const hiddenMaxCount = (session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ?? 3;
     const scanMaxCount = (session.settings as { scanCount?: number })?.scanCount ?? 2;

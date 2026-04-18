@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { UserWithStatus, CoreStat, ServerAction } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
@@ -12,6 +13,9 @@ interface StatAllocationModalProps {
     onAction: (action: ServerAction) => void;
     isTopmost?: boolean;
 }
+
+/** `DraggableWindow`의 `windowId`와 동일 — `createPortal(document.body)` UI가 바깥 클릭으로 본 창을 닫지 않게 함 */
+const STAT_ALLOCATION_WINDOW_ID = 'stat-allocation';
 
 const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
     const { isNativeMobile, isNarrowViewport } = useNativeMobileShell();
@@ -222,13 +226,85 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
     const shellClass =
         'rounded-2xl border border-amber-900/25 bg-gradient-to-b from-[#12141c] via-[#0f1118] to-[#090a10] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_24px_60px_-30px_rgba(0,0,0,0.9)]';
     const statCardClass =
-        'rounded-xl border border-white/[0.1] bg-gradient-to-br from-slate-900/90 via-slate-950/90 to-black/85 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 hover:border-amber-400/35';
+        'rounded-xl border border-white/[0.1] bg-gradient-to-br from-slate-900/90 via-slate-950/90 to-black/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] backdrop-blur-sm transition-all duration-200 hover:border-amber-400/35 active:border-amber-300/50';
+
+    const statEditorInner =
+        selectedStat &&
+        (() => {
+            const b = getStatBounds(selectedStat, tempPoints);
+            const nextMinus = Math.max(b.min, b.current - 1);
+            const nextPlus = Math.min(b.max, b.current + 1);
+            return (
+                <>
+                    <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                        <h3 className="text-sm font-black text-amber-100 sm:text-base">{CORE_STATS_DATA[selectedStat].name} 분배</h3>
+                        <span className="text-xs font-bold text-emerald-300 sm:text-sm">남은 보너스 {availablePoints}</span>
+                    </div>
+                    <div className="mt-3 space-y-3">
+                        <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/25 px-3 py-2">
+                            <span className="text-xs text-zinc-400">현재 분배</span>
+                            <span className="font-mono text-lg font-black text-amber-100">{b.current}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                onClick={() => handlePointChange(selectedStat, String(nextMinus))}
+                                disabled={b.current <= b.min || !isEditing}
+                                colorScheme="none"
+                                className="!min-h-[2.75rem] !w-16 rounded-lg border border-white/20 bg-zinc-800/80 !text-xl !font-black text-white disabled:opacity-40"
+                            >
+                                -
+                            </Button>
+                            <input
+                                type="range"
+                                min={b.min}
+                                max={b.max}
+                                value={b.current}
+                                onChange={(e) => handlePointChange(selectedStat, e.target.value)}
+                                className="h-2 flex-1 cursor-pointer appearance-none rounded-full"
+                                disabled={!isEditing}
+                            />
+                            <Button
+                                onClick={() => handlePointChange(selectedStat, String(nextPlus))}
+                                disabled={b.current >= b.max || !isEditing}
+                                colorScheme="none"
+                                className="!min-h-[2.75rem] !w-16 rounded-lg border border-cyan-300/35 bg-cyan-900/60 !text-xl !font-black text-cyan-50 disabled:opacity-40"
+                            >
+                                +
+                            </Button>
+                        </div>
+                        <p className="text-center text-xs text-zinc-500">
+                            최소 {b.min} / 최대 {b.max}
+                        </p>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => setSelectedStat(null)}
+                                colorScheme="none"
+                                className="!mt-1 !min-h-[2.75rem] flex-1 rounded-lg border border-white/20 bg-zinc-800/70 !text-sm !font-bold text-zinc-100"
+                            >
+                                닫기
+                            </Button>
+                            <Button
+                                onClick={() => {
+                                    handleConfirm();
+                                    setSelectedStat(null);
+                                }}
+                                colorScheme="none"
+                                disabled={!hasChanges}
+                                className="!mt-1 !min-h-[2.75rem] flex-1 rounded-lg border border-emerald-300/40 bg-gradient-to-r from-emerald-600/90 via-emerald-500/90 to-teal-500/85 !text-sm !font-bold text-white disabled:opacity-50"
+                            >
+                                분배 저장
+                            </Button>
+                        </div>
+                    </div>
+                </>
+            );
+        })();
 
     return (
         <DraggableWindow
             title="능력치 포인트 분배"
             onClose={onClose}
-            windowId="stat-allocation"
+            windowId={STAT_ALLOCATION_WINDOW_ID}
             initialWidth={isMobile ? 420 : 1000}
             isTopmost={isTopmost}
             shrinkHeightToContent={!isMobile}
@@ -236,64 +312,71 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
             <div
                 className={`${shellClass} flex min-h-0 flex-col ${isMobile ? 'h-[min(74vh,560px)] gap-2 p-2 sm:p-2.5' : 'gap-2.5 p-3'}`}
             >
-                {isMobile ? (
-                    <div className="flex shrink-0 items-center gap-2 rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
-                        <div className="flex h-[140px] w-[60%] shrink-0 items-center justify-center rounded-lg border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-0.5">
-                            <RadarChart datasets={radarDatasets} maxStatValue={300} size={172} />
+                {/* 좌·우 각각 가로의 약 50%: 레이더+보너스(세로) / 능력치 6개(세로) */}
+                <div className="grid min-h-0 w-full flex-1 grid-cols-2 grid-rows-[minmax(0,1fr)] items-stretch gap-2 sm:gap-3">
+                    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-visible rounded-xl border border-amber-300/25 bg-gradient-to-b from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm sm:p-2">
+                        <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-visible rounded-lg border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-1 sm:p-1.5">
+                            {/* 열 너비(그리드의 절반)에 맞춰 정사각형으로 최대 확대 — 라벨은 SVG viewBox 패딩으로 잘리지 않게 */}
+                            <div className="aspect-square w-full max-w-full min-w-0 overflow-visible">
+                                <RadarChart
+                                    datasets={radarDatasets}
+                                    maxStatValue={300}
+                                    size={640}
+                                />
+                            </div>
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-center">
-                            <p className="whitespace-nowrap text-[10px] font-semibold tracking-wide text-amber-200/90">보너스</p>
-                            <p className="text-base font-black bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent">
+                        <div className="shrink-0 rounded-lg border border-white/10 bg-black/25 px-1.5 py-2 text-center sm:px-2 sm:py-2.5">
+                            <p className="text-[10px] font-semibold leading-tight tracking-wide text-amber-200/90 sm:text-xs">
+                                보너스 포인트
+                            </p>
+                            <p
+                                className={`mt-0.5 font-black leading-none bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent ${
+                                    isMobile ? 'text-xl tabular-nums' : 'text-3xl tabular-nums sm:text-4xl'
+                                }`}
+                            >
                                 {availablePoints}
                             </p>
                         </div>
                     </div>
-                ) : (
-                    <div className="flex shrink-0 flex-row items-stretch gap-3 rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm">
-                        <div className="flex h-[176px] w-[200px] shrink-0 items-center justify-center rounded-lg border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-0.5">
-                            <RadarChart datasets={radarDatasets} maxStatValue={300} size={168} />
+                    <div className="flex h-full min-h-0 min-w-0 flex-col pr-0.5">
+                        <div className="flex min-h-0 flex-1 flex-col gap-1 sm:gap-1.5">
+                            {statGridOrder.map((stat) => {
+                                const colorClass = statColors[stat];
+                                return (
+                                    <button
+                                        key={stat}
+                                        type="button"
+                                        onClick={() => setSelectedStat(stat)}
+                                        className={`${statCardClass} flex min-h-0 flex-1 basis-0 items-center px-2.5 py-0 text-left sm:px-3`}
+                                    >
+                                        <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                                            <span
+                                                className={`min-w-0 truncate font-bold leading-tight ${isMobile ? 'text-[16px] sm:text-[18px]' : 'text-lg sm:text-xl'} text-slate-100`}
+                                            >
+                                                {CORE_STATS_DATA[stat].name}
+                                            </span>
+                                            <span
+                                                className={`shrink-0 font-mono font-black leading-none tabular-nums ${isMobile ? 'text-[18px] sm:text-[22px]' : 'text-2xl sm:text-3xl'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}
+                                            >
+                                                {chartStats[stat]}
+                                            </span>
+                                        </div>
+                                    </button>
+                                );
+                            })}
                         </div>
-                        <div className="flex min-w-0 flex-1 flex-col items-center justify-center rounded-lg border border-white/10 bg-black/25 px-3 py-2 text-center">
-                            <p className="text-xs font-semibold tracking-wide text-amber-200/90 sm:text-sm">사용 가능한 보너스 포인트</p>
-                            <p className="text-3xl font-black leading-tight bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent sm:text-4xl">
-                                {availablePoints}
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                <div className={isMobile ? 'min-h-0 flex-1 overflow-y-auto pb-1' : ''}>
-                    <div className={`grid ${isMobile ? 'grid-cols-2 gap-2' : 'grid-cols-3 gap-2'}`}>
-                        {statGridOrder.map((stat) => {
-                            const colorClass = statColors[stat];
-                            return (
-                                <button
-                                    key={stat}
-                                    type="button"
-                                    onClick={() => setSelectedStat(stat)}
-                                    className={`${statCardClass} ${isMobile ? 'p-1.5 min-h-[62px]' : 'p-2 min-h-0'} text-left`}
-                                >
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className={`font-bold ${isMobile ? 'text-[11px] sm:text-[12px]' : 'text-[13px]'} text-slate-100 whitespace-nowrap`}>{CORE_STATS_DATA[stat].name}</span>
-                                        <span className={`font-mono font-black ${isMobile ? 'text-[12px] sm:text-[13px]' : 'text-sm'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent whitespace-nowrap`}>
-                                            {chartStats[stat]}
-                                        </span>
-                                    </div>
-                                </button>
-                            );
-                        })}
                     </div>
                 </div>
 
                 {/* 하단: 버튼들 */}
                 <div className={`bg-[#0b0d13] rounded-xl p-1.5 ${isMobile ? '' : 'border-t border-white/10 pt-2'} flex-shrink-0`}>
                     <div className="flex w-full items-start justify-center">
-                        <div className="flex min-w-0 w-full max-w-md flex-col items-center sm:max-w-lg">
+                        <div className="flex min-w-0 flex-col items-center">
                             <Button
                                 onClick={handleReset}
                                 colorScheme="red"
                                 disabled={!canReset}
-                                className={`${isMobile ? '!text-[10px] sm:!text-[11px] !leading-none !py-1.5 !px-1.5 w-full min-h-[36px] !whitespace-nowrap' : '!text-xs sm:!text-sm !py-1.5 !px-3 w-full'} rounded-lg border border-rose-300/35 bg-gradient-to-r from-rose-600/90 via-rose-500/90 to-orange-500/85 shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:from-rose-500 hover:via-rose-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed`}
+                                className={`${isMobile ? '!text-[10px] sm:!text-[11px] !leading-none !py-1.5 !px-3 !whitespace-nowrap !w-auto min-h-[36px] max-w-[min(100%,16rem)]' : '!text-xs sm:!text-sm !py-1.5 !px-4 !whitespace-nowrap !w-auto'} rounded-lg border border-rose-300/35 bg-gradient-to-r from-rose-600/90 via-rose-500/90 to-orange-500/85 shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:from-rose-500 hover:via-rose-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed`}
                             >
                                 초기화 (<img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3 inline-block" />{resetCost.toLocaleString()})
                             </Button>
@@ -302,89 +385,27 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
                     </div>
                 </div>
             </div>
-            {isMobile && selectedStat && (
-                <div
-                    className="fixed inset-0 z-[120] flex items-end bg-black/60"
-                    role="presentation"
-                    onClick={() => setSelectedStat(null)}
-                >
+            {typeof document !== 'undefined' &&
+                selectedStat &&
+                createPortal(
                     <div
-                        className="w-full rounded-t-2xl border-x border-t border-amber-400/45 bg-zinc-950 p-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))]"
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label={`${CORE_STATS_DATA[selectedStat].name} 분배`}
-                        onClick={(e) => e.stopPropagation()}
+                        className="fixed inset-0 z-[220] flex items-center justify-center bg-black/60 p-3 sm:p-6"
+                        role="presentation"
+                        data-draggable-satellite={STAT_ALLOCATION_WINDOW_ID}
+                        onClick={() => setSelectedStat(null)}
                     >
-                        <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                            <h3 className="text-sm font-black text-amber-100">{CORE_STATS_DATA[selectedStat].name} 분배</h3>
-                            <span className="text-xs font-bold text-emerald-300">남은 보너스 {availablePoints}</span>
+                        <div
+                            className="max-h-[min(90dvh,640px)] w-full max-w-md overflow-y-auto rounded-2xl border border-amber-400/50 bg-zinc-950 p-4 shadow-[0_24px_80px_-20px_rgba(0,0,0,0.85)] sm:p-5"
+                            role="dialog"
+                            aria-modal="true"
+                            aria-label={`${CORE_STATS_DATA[selectedStat].name} 분배`}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            {statEditorInner}
                         </div>
-                        {(() => {
-                            const b = getStatBounds(selectedStat, tempPoints);
-                            const nextMinus = Math.max(b.min, b.current - 1);
-                            const nextPlus = Math.min(b.max, b.current + 1);
-                            return (
-                                <div className="mt-3 space-y-3">
-                                    <div className="flex items-center justify-between rounded-lg border border-white/10 bg-black/25 px-3 py-2">
-                                        <span className="text-xs text-zinc-400">현재 분배</span>
-                                        <span className="font-mono text-lg font-black text-amber-100">{b.current}</span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            onClick={() => handlePointChange(selectedStat, String(nextMinus))}
-                                            disabled={b.current <= b.min || !isEditing}
-                                            colorScheme="none"
-                                            className="!min-h-[2.75rem] !w-16 rounded-lg border border-white/20 bg-zinc-800/80 !text-xl !font-black text-white disabled:opacity-40"
-                                        >
-                                            -
-                                        </Button>
-                                        <input
-                                            type="range"
-                                            min={b.min}
-                                            max={b.max}
-                                            value={b.current}
-                                            onChange={(e) => handlePointChange(selectedStat, e.target.value)}
-                                            className="h-2 flex-1 cursor-pointer appearance-none rounded-full"
-                                            disabled={!isEditing}
-                                        />
-                                        <Button
-                                            onClick={() => handlePointChange(selectedStat, String(nextPlus))}
-                                            disabled={b.current >= b.max || !isEditing}
-                                            colorScheme="none"
-                                            className="!min-h-[2.75rem] !w-16 rounded-lg border border-cyan-300/35 bg-cyan-900/60 !text-xl !font-black text-cyan-50 disabled:opacity-40"
-                                        >
-                                            +
-                                        </Button>
-                                    </div>
-                                    <p className="text-center text-xs text-zinc-500">
-                                        최소 {b.min} / 최대 {b.max}
-                                    </p>
-                                    <div className="flex gap-2">
-                                        <Button
-                                            onClick={() => setSelectedStat(null)}
-                                            colorScheme="none"
-                                            className="!mt-1 !min-h-[2.75rem] flex-1 rounded-lg border border-white/20 bg-zinc-800/70 !text-sm !font-bold text-zinc-100"
-                                        >
-                                            닫기
-                                        </Button>
-                                        <Button
-                                            onClick={() => {
-                                                handleConfirm();
-                                                setSelectedStat(null);
-                                            }}
-                                            colorScheme="none"
-                                            disabled={!hasChanges}
-                                            className="!mt-1 !min-h-[2.75rem] flex-1 rounded-lg border border-emerald-300/40 bg-gradient-to-r from-emerald-600/90 via-emerald-500/90 to-teal-500/85 !text-sm !font-bold text-white disabled:opacity-50"
-                                        >
-                                            분배 저장
-                                        </Button>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-                    </div>
-                </div>
-            )}
+                    </div>,
+                    document.body
+                )}
         </DraggableWindow>
     );
 };

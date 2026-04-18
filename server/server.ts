@@ -998,9 +998,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     }));
     
     // 사운드 파일 서빙 (1년 캐싱)
-    // NOTE: 실제 사운드 파일 디렉토리는 public/sound 로 존재한다.
-    // audioService는 /sounds/{name}.mp3 로 요청하므로 라우트는 /sounds를 유지한다.
-    app.use('/sounds', express.static(path.join(publicPath, 'sound'), {
+    // NOTE: 디렉토리명은 `public/sounds` — Vite가 public을 dist 루트로 복사할 때 URL이 /sounds/*와 일치해야
+    // 정적 프론트(serve -s, nginx try_files)에서 SPA 폴백 HTML이 아닌 실제 mp3가 나간다.
+    app.use('/sounds', express.static(path.join(publicPath, 'sounds'), {
         maxAge: '1y',
         etag: true,
         lastModified: true,
