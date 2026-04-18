@@ -29,7 +29,10 @@ import { calculateGuildMissionXp } from '../../utils/guildUtils.js';
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
-import { encodeBoardStateAsKataSetupMovesFromEmpty } from '../kataCaptureSetupEncoding.js';
+import {
+    cloneBoardStateForKataOpeningSnapshot,
+    encodeBoardStateAsKataSetupMovesFromEmpty,
+} from '../kataCaptureSetupEncoding.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../../shared/constants/vipPlayReward.js';
@@ -2346,6 +2349,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 game.whitePatternStones = whiteMarkedPoints.map((p) => ({ ...p }));
                 game.baseStones = undefined;
                 (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(gwBoard);
+                (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(gwBoard);
             }
             
             // 게임 저장

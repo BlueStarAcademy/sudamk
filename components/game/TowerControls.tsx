@@ -108,6 +108,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         if (!showMissileAndHiddenForHook || scanInventoryCount <= 0 || outOfSessionScans) return false;
         const board = session.boardState;
         if (!Array.isArray(board) || board.length === 0) return false;
+        /** 백(봇) 히든: 수순·hiddenMoves로 확정된 칸은 클라 병합/연출 타이밍에 board가 빈칸(None)으로만 올 수 있어 White만 허용하면 스캔 버튼이 꺼진다. 흑이 있는 칸은 제외. */
+        const cellIsTowerOpponentHiddenSurface = (x: number, y: number): boolean => {
+            const c = board[y]?.[x];
+            return c === Player.White || c === Player.None;
+        };
         const uid = currentUser?.id;
         const scannedAiInitialByMe =
             !!uid && !!(session as any).scannedAiInitialHiddenByUser?.[uid as string];
@@ -116,7 +121,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
             const { x, y } = aiInitialHiddenStone;
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (inBounds && board[y][x] === Player.White) {
+            if (inBounds && cellIsTowerOpponentHiddenSurface(x, y)) {
                 const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
                 if (!isPermanentlyRevealed && !scannedAiInitialByMe) return true;
             }
@@ -131,7 +136,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             if (!move || move.player !== Player.White) return false;
             const { x, y } = move;
             const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (!inBounds || board[y][x] !== Player.White) return false;
+            if (!inBounds || !cellIsTowerOpponentHiddenSurface(x, y)) return false;
             const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
             return !isPermanentlyRevealed;
         });

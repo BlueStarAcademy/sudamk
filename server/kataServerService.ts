@@ -94,7 +94,7 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
         throw new Error('KATA_SERVER_URL is not set');
     }
 
-    const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, allowPass } = params;
+    const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, allowPass, player } = params;
     const moves = toKataServerMoves(moveHistory, boardSize);
     const isFirstMove = moves.length < 2;
 
@@ -106,6 +106,7 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
         komi: komi ?? 6.5,
         moves,
         firstMove: isFirstMove,
+        player,
     };
     if (allowPass === false) {
         body.allowPass = false;
@@ -127,7 +128,9 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
     const timeoutId = setTimeout(() => controller.abort(), KATA_SERVER_TIMEOUT_MS);
 
     try {
-        console.log(`[KataServer] Requesting move: level=${level} boardSize=${boardSize} moves=${moves.length} firstMove=${isFirstMove}`);
+        console.log(
+            `[KataServer] Requesting move: level=${level} boardSize=${boardSize} moves=${moves.length} firstMove=${isFirstMove} player=${player}`
+        );
 
         const response = await fetch(url, {
             method: 'POST',

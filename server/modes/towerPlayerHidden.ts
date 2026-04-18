@@ -127,6 +127,19 @@ export const countTowerLobbyInventoryQty = (
         }, 0);
 };
 
+/**
+ * 스캔 연속 모드(`scanning`)·스캔 애니(`scanning_animating`) 중 히든/미사일 등 다른 아이템을 쓰려 할 때
+ * 본경기로 되돌려 400(Not playing)을 막는다.
+ */
+export function cancelTowerScanningSessionForOtherItemUse(game: types.LiveGameSession): void {
+    if (game.gameCategory !== 'tower') return;
+    if (game.gameStatus === 'scanning' || game.gameStatus === 'scanning_animating') {
+        game.gameStatus = 'playing';
+        game.animation = null;
+        game.itemUseDeadline = undefined;
+    }
+}
+
 /** 도전의 탑 PVE 히든/스캔 모드 초기화 (21층 이상, 히든 스테이지). 싱글플레이와 동일 규칙. */
 export const initializeTowerPlayerHidden = (game: types.LiveGameSession) => {
     if (game.gameCategory !== 'tower') return;
@@ -266,6 +279,10 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
     }
     const isMyTurn = myPlayerEnum === game.currentPlayer;
 
+    if (type === 'START_HIDDEN_PLACEMENT') {
+        cancelTowerScanningSessionForOtherItemUse(game);
+    }
+
     switch (type) {
         case 'START_HIDDEN_PLACEMENT':
             if (!isMyTurn) return { error: "Not your turn to use an item." };
@@ -282,7 +299,6 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             const allowScanAfterMyMove = game.gameCategory === 'tower' && game.gameStatus === 'playing' && lastMoveWasMine && !isMyTurn;
             const canUseScan = isMyTurn || allowScanAfterMyMove;
             if (!canUseScan) return { error: "Not your turn to use an item." };
-            if (game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             const scanKeyStart = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
             if (((game as any)[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
@@ -296,6 +312,12 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
                 hiddenStoneCountOrMix: stageAllowsHiddenStones,
             });
             if (!opponentHasUnrevealedHidden) return { error: "No hidden stones to scan." };
+            // 이미 스캔 연속 모드(scanning)면 재진입만(타이머 갱신). playing만 허용하면 연속 스캔 후 400이 난다.
+            if (game.gameStatus === 'scanning') {
+                pauseGameTimer(game, now, 30000);
+                return {};
+            }
+            if (game.gameStatus !== 'playing') return { error: "Not your turn to use an item." };
             game.gameStatus = 'scanning';
             pauseGameTimer(game, now, 30000);
             return {};

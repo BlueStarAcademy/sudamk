@@ -2,6 +2,17 @@ import { Player } from '../types/index.js';
 import type { BoardState } from '../types/index.js';
 
 /**
+ * 선포석 게임에서 `kataCaptureSetupMoves`가 유실돼도 Kata 수순 접두를 다시 만들 수 있도록
+ * 게임 생성·배치 새로고침 시점의 `boardState` 깊은 복사를 JSON에 함께 둔다.
+ */
+export function cloneBoardStateForKataOpeningSnapshot(
+    boardState: BoardState | null | undefined
+): BoardState | undefined {
+    if (!boardState?.length) return undefined;
+    return boardState.map((row) => (Array.isArray(row) ? [...row] : row)) as BoardState;
+}
+
+/**
  * 빈 판에서 재생하면 현재 `boardState`와 같아지도록 하는 Kata 입력용 선행 수.
  * KataServer는 boardState를 받지 않고 moves만으로 국면을 복원하므로,
  * 따내기·고정 포석 등 moveHistory에 없는 선배치 돌을 이 배열로 앞에 붙인다.

@@ -17,7 +17,10 @@ import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patternStoneConsume.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
-import { encodeBoardStateAsKataSetupMovesFromEmpty } from './kataCaptureSetupEncoding.js';
+import {
+    cloneBoardStateForKataOpeningSnapshot,
+    encodeBoardStateAsKataSetupMovesFromEmpty,
+} from './kataCaptureSetupEncoding.js';
 
 /** AI 히든 연출 직전에 확정한 Kata 좌표(DB/브로드캐스트에 넣지 않음 — 유저 유출 방지) */
 const pendingAiHiddenKataMoveByGameId = new Map<string, Point>();
@@ -749,10 +752,20 @@ function buildKataMoveHistory(
         | Array<{ x: number; y: number; player: number }>
         | undefined;
     if (!Array.isArray(setupMoves) || setupMoves.length === 0) {
-        if (moveHistory.length === 0 && game.boardState?.length) {
+        const snap = (game as any).kataStrategicOpeningBoardState as types.BoardState | undefined;
+        if (snap?.length) {
+            setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(snap);
+            if (setupMoves.length > 0) {
+                (game as any).kataCaptureSetupMoves = setupMoves;
+            }
+        } else if (moveHistory.length === 0 && game.boardState?.length) {
             setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState);
             if (setupMoves.length > 0) {
                 (game as any).kataCaptureSetupMoves = setupMoves;
+                if (!(game as any).kataStrategicOpeningBoardState?.length) {
+                    (game as any).kataStrategicOpeningBoardState =
+                        cloneBoardStateForKataOpeningSnapshot(game.boardState);
+                }
             }
         }
     }

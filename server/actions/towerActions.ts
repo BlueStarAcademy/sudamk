@@ -5,7 +5,10 @@ import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
-import { encodeBoardStateAsKataSetupMovesFromEmpty } from '../kataCaptureSetupEncoding.js';
+import {
+    cloneBoardStateForKataOpeningSnapshot,
+    encodeBoardStateAsKataSetupMovesFromEmpty,
+} from '../kataCaptureSetupEncoding.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 import {
     resolveTowerCaptureBlackTarget,
@@ -233,6 +236,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             };
 
             (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
+            (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
 
             // 1~20층: 따내기 목표점수 직접 설정(입찰 생략, 흑은 사용자 고정). 6~10층·11~20층은 서버 규칙으로 목표 덮어씀.
             if (gameMode === GameMode.Capture) {
@@ -447,6 +451,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.blackPatternStones = blackPattern;
             game.whitePatternStones = whitePattern;
             (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
+            (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
 
             // 도전의 탑은 시간 제한 미적용이므로 turnDeadline 복구하지 않음
             game.turnDeadline = undefined;

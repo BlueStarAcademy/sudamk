@@ -386,6 +386,13 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     );
                 }
                 if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                    const { updateTowerPlayerHiddenState, cancelTowerScanningSessionForOtherItemUse } = await import(
+                        './modes/towerPlayerHidden.js'
+                    );
+                    await updateTowerPlayerHiddenState(game, Date.now());
+                    if (type === 'START_MISSILE_SELECTION') {
+                        cancelTowerScanningSessionForOtherItemUse(game);
+                    }
                     const { handleStrategicGameAction } = await import('./modes/standard.js');
                     const result = await handleStrategicGameAction(volatileState, game, action, userData);
                     if (result && (result as any).error && process.env.NODE_ENV === 'development') {
@@ -491,6 +498,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     actionTypeStr === 'SCAN_BOARD') &&
                 (game.gameCategory === 'tower' || game.isSinglePlayer)
             ) {
+                // HTTP 액션은 타이머 루프 없이 들어올 수 있어 scanning_animating이 남으면 playing이 아니라 400이 난다.
+                const nowSync = Date.now();
+                if (game.gameCategory === 'tower') {
+                    const { updateTowerPlayerHiddenState } = await import('./modes/towerPlayerHidden.js');
+                    await updateTowerPlayerHiddenState(game, nowSync);
+                } else if (game.isSinglePlayer) {
+                    const { updateSinglePlayerHiddenState } = await import('./modes/singlePlayerHidden.js');
+                    await updateSinglePlayerHiddenState(game, nowSync);
+                }
                 applyPveItemActionClientSync(game, payload);
             }
             // 도전의 탑: PVE 히든/스캔은 towerPlayerHidden으로 처리 (싱글플레이와 동일 규칙)
