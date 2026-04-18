@@ -1,7 +1,7 @@
 
 import * as types from '../../types/index.js';
 import { MISSILE_FLIGHT_DURATION_MS } from '../../shared/constants/gameSettings.js';
-import { getGoLogic } from '../goLogic.js';
+import { processMove } from '../goLogic.js';
 import { pauseGameTimer, resumeGameTimer, shouldEnforceTimeControl } from './shared.js';
 import {
     consumeOneTowerLobbyInventoryItem,
@@ -11,6 +11,34 @@ import {
 } from './towerPlayerHidden.js';
 
 type HandleActionResult = types.HandleActionResult;
+
+/** 미사일 착지 후(이동 연출 종료 시점에 호출) 착점과 동일 규칙으로 따내기·점수 반영 */
+function applyMissileLandingCaptures(game: types.LiveGameSession, to: types.Point, myPlayerEnum: types.Player) {
+    const opponentEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+    const boardForCapture = game.boardState.map((row) => [...row]);
+    if (boardForCapture[to.y]?.[to.x] !== myPlayerEnum) return;
+    boardForCapture[to.y][to.x] = types.Player.None;
+    const captureResult = processMove(
+        boardForCapture,
+        { x: to.x, y: to.y, player: myPlayerEnum },
+        game.koInfo ?? null,
+        game.moveHistory.length,
+        { opponentPlayer: opponentEnum }
+    );
+    if (captureResult.isValid && captureResult.capturedStones.length > 0) {
+        game.boardState = captureResult.newBoardState;
+        if (!game.captures) game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
+        game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + captureResult.capturedStones.length;
+        if (!game.justCaptured) game.justCaptured = [];
+        for (const pt of captureResult.capturedStones) {
+            game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false, capturePoints: 1 });
+        }
+        game.koInfo = captureResult.newKoInfo ?? undefined;
+    } else if (captureResult.isValid) {
+        game.boardState = captureResult.newBoardState;
+        game.koInfo = captureResult.newKoInfo ?? undefined;
+    }
+}
 
 export const initializeMissile = (game: types.LiveGameSession) => {
     const isMissileMode = game.mode === types.GameMode.Missile || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Missile));
@@ -315,7 +343,11 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
                         game.moveHistory[moveIndexToUpdate].y = at.y;
                     }
                 }
-                
+
+                if (animationTo) {
+                    applyMissileLandingCaptures(game, animationTo, playerWhoMoved);
+                }
+
                 // 타이머 복원 및 재개 (턴 유지)
                 resumeGameTimer(game, now, playerWhoMoved);
                 
@@ -354,6 +386,10 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
                         game.boardState[af.y][af.x] = types.Player.None;
                     }
                     game.boardState[at.y][at.x] = playerWhoMoved;
+                }
+
+                if (animationTo) {
+                    applyMissileLandingCaptures(game, animationTo, playerWhoMoved);
                 }
                 
                 game.animation = null;
@@ -420,6 +456,10 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
                         game.boardState[af.y][af.x] = types.Player.None;
                     }
                     game.boardState[at.y][at.x] = playerWhoMoved;
+                }
+
+                if (animationTo) {
+                    applyMissileLandingCaptures(game, animationTo, playerWhoMoved);
                 }
                 
                 game.animation = null;
@@ -634,7 +674,8 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             // 보드 상태 변경: 미사일은 돌을 "이동"시킴 (복사 아님) — 원래 자리 제거, 목적지에 배치
             game.boardState[from.y][from.x] = types.Player.None;
             game.boardState[to.y][to.x] = myPlayerEnum;
-            
+            // 따내기는 이동 애니메이션 종료 시점에 적용(updateMissileState / MISSILE_ANIMATION_COMPLETE) — 점수 연출 순서
+
             // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동
             if (game.baseStones) {
                 const baseStoneIndex = game.baseStones.findIndex(bs => bs.x === from.x && bs.y === from.y);
@@ -798,13 +839,21 @@ export const handleMissileAction = (game: types.LiveGameSession, action: types.S
             
             // 애니메이션 정보 저장 (null 설정 전에) — 타이머 복원에 사용
             const playerWhoMoved = game.currentPlayer;
-            
+            const missileLandingTo =
+                game.animation && (game.animation.type === 'missile' || game.animation.type === 'hidden_missile')
+                    ? ((game.animation as any).to as types.Point | undefined)
+                    : undefined;
+
             // 애니메이션 제거
             game.animation = null;
             
             // 게임 상태를 playing으로 변경
             // (보드/배치돌/moveHistory는 이미 LAUNCH_MISSILE에서 이동 처리되었으므로 여기서 변경하지 않음)
             game.gameStatus = 'playing';
+
+            if (missileLandingTo) {
+                applyMissileLandingCaptures(game, missileLandingTo, playerWhoMoved);
+            }
             
             // 타이머 복원 (아이템 사용 시간이 마감되고 원래 턴 시간으로 복귀)
             if (game.pausedTurnTimeLeft !== undefined) {

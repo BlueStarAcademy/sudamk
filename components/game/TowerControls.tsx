@@ -296,10 +296,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
     const gameStatus = session.gameStatus;
     const isMyTurn = session.currentPlayer === Player.Black;
-    const lastMove = session.moveHistory?.length ? session.moveHistory[session.moveHistory.length - 1] : null;
-    const lastMoveWasBlack = !!(lastMove && lastMove.player === Player.Black);
-    const allowScanAfterMyMove = gameStatus === 'playing' && lastMoveWasBlack && !isMyTurn;
-    const canStartScanTurn = isMyTurn || allowScanAfterMyMove;
+    /** 스캔은 흑(유저) 차례에만 — 백(AI) 차례에는 비활성 (이전: 착수 직후 AI 턴에도 스캔 허용) */
+    const canStartScanTurn = isMyTurn;
     const showTurnAdd = floor <= 20; // 1~20층에서만 턴 추가 아이템 표시
     // 도전의 탑 전체(1~100층)에서 통과 비활성: 1~20층 따내기 턴 제한, 21층+ 자동 계가
     const passAllowed = false;

@@ -6,6 +6,34 @@ import { resumeGameTimer, pauseGameTimer } from './shared.js';
 
 type HandleActionResult = types.HandleActionResult;
 
+/** 미사일 착지 후(이동 연출 종료 시점) 착점과 동일 규칙으로 따내기 — 점수 연출과 순서 맞춤 */
+function applyMissileLandingCapturesSinglePlayer(game: types.LiveGameSession, to: types.Point, myPlayerEnum: types.Player) {
+    const opponentEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+    const boardForCapture = game.boardState.map((row) => [...row]);
+    if (boardForCapture[to.y]?.[to.x] !== myPlayerEnum) return;
+    boardForCapture[to.y][to.x] = types.Player.None;
+    const captureResult = processMove(
+        boardForCapture,
+        { x: to.x, y: to.y, player: myPlayerEnum },
+        game.koInfo ?? null,
+        game.moveHistory.length,
+        { isSinglePlayer: true, opponentPlayer: opponentEnum }
+    );
+    if (captureResult.isValid && captureResult.capturedStones.length > 0) {
+        game.boardState = captureResult.newBoardState;
+        if (!game.captures) game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
+        game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + captureResult.capturedStones.length;
+        if (!game.justCaptured) game.justCaptured = [];
+        for (const pt of captureResult.capturedStones) {
+            game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false, capturePoints: 1 });
+        }
+        game.koInfo = captureResult.newKoInfo ?? undefined;
+    } else if (captureResult.isValid) {
+        game.boardState = captureResult.newBoardState;
+        game.koInfo = captureResult.newKoInfo ?? undefined;
+    }
+}
+
 export const initializeSinglePlayerMissile = (game: types.LiveGameSession) => {
     const isMissileMode = game.mode === types.GameMode.Missile || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Missile));
     if (isMissileMode && game.isSinglePlayer) {
@@ -271,6 +299,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                     }
                     game.boardState[at.y][at.x] = playerWhoMoved;
                 }
+
+                if (animationTo) {
+                    applyMissileLandingCapturesSinglePlayer(game, animationTo, playerWhoMoved);
+                }
                 
                 game.animation = null;
                 game.gameStatus = 'playing';
@@ -412,6 +444,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                         game.boardState[animationFrom.y][animationFrom.x] = types.Player.None;
                     }
                 }
+
+                if (animationTo) {
+                    applyMissileLandingCapturesSinglePlayer(game, animationTo, playerWhoMoved);
+                }
                 
                 // 타이머 복원 (LAUNCH_MISSILE에서 이미 복원했으므로, 애니메이션 중 경과한 시간을 반영)
                 if (game.settings.timeLimit > 0 && game.turnDeadline) {
@@ -450,10 +486,6 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                 if (game.totalTurns !== preservedTotalTurns) {
                     console.warn(`[SinglePlayer Missile] updateSinglePlayerMissileState: totalTurns changed from ${preservedTotalTurns} to ${game.totalTurns}, restoring...`);
                     game.totalTurns = preservedTotalTurns;
-                }
-                if (JSON.stringify(game.captures) !== JSON.stringify(preservedCaptures)) {
-                    console.warn(`[SinglePlayer Missile] updateSinglePlayerMissileState: captures changed, restoring...`);
-                    game.captures = preservedCaptures;
                 }
                 if (preservedBaseStoneCaptures && JSON.stringify(game.baseStoneCaptures) !== JSON.stringify(preservedBaseStoneCaptures)) {
                     console.warn(`[SinglePlayer Missile] updateSinglePlayerMissileState: baseStoneCaptures changed, restoring...`);
@@ -520,6 +552,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                         return false;
                     }
                     game.boardState[at.y][at.x] = playerWhoMoved;
+                }
+
+                if (animationTo) {
+                    applyMissileLandingCapturesSinglePlayer(game, animationTo, playerWhoMoved);
                 }
                 
                 game.animation = null;
@@ -593,6 +629,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                         return false;
                     }
                     game.boardState[at.y][at.x] = playerWhoMoved;
+                }
+
+                if (animationTo) {
+                    applyMissileLandingCapturesSinglePlayer(game, animationTo, playerWhoMoved);
                 }
                 
                 game.animation = null;
@@ -896,32 +936,8 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             // 보드 상태 변경: 원래 자리의 돌 제거, 목적지(빈 칸)에 돌 배치
             game.boardState[from.y][from.x] = types.Player.None;
             game.boardState[to.y][to.x] = myPlayerEnum;
-            
-            // 미사일 이동 후 바둑 규칙 따내기: 목적지에 돌을 둔 뒤 숨이 0인 상대 돌을 즉시 제거
-            const boardForCapture = game.boardState.map(row => [...row]);
-            boardForCapture[to.y][to.x] = types.Player.None;
-            const captureResult = processMove(
-                boardForCapture,
-                { x: to.x, y: to.y, player: myPlayerEnum },
-                game.koInfo ?? null,
-                game.moveHistory.length,
-                { isSinglePlayer: true, opponentPlayer: opponentEnum }
-            );
-            if (captureResult.isValid && captureResult.capturedStones.length > 0) {
-                game.boardState = captureResult.newBoardState;
-                if (!game.captures) game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
-                game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + captureResult.capturedStones.length;
-                if (!game.justCaptured) game.justCaptured = [];
-                for (const pt of captureResult.capturedStones) {
-                    game.justCaptured.push({ point: pt, player: opponentEnum, wasHidden: false, capturePoints: 1 });
-                }
-                game.koInfo = captureResult.newKoInfo ?? undefined;
-                console.log(`[SinglePlayer Missile] LAUNCH_MISSILE: Captured ${captureResult.capturedStones.length} stone(s) by liberty rule at (${to.x}, ${to.y}), gameId=${game.id}`);
-            } else if (captureResult.isValid) {
-                game.boardState = captureResult.newBoardState;
-                game.koInfo = captureResult.newKoInfo ?? undefined;
-            }
-            
+            // 따내기는 이동 애니메이션 종료 시점에 적용(updateSinglePlayerMissileState / MISSILE_ANIMATION_COMPLETE)
+
             // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동
             if (game.baseStones) {
                 const baseStoneIndex = game.baseStones.findIndex(bs => bs.x === from.x && bs.y === from.y);
@@ -1152,6 +1168,10 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                     }
                 }
             }
+
+            if (animationTo) {
+                applyMissileLandingCapturesSinglePlayer(game, animationTo, playerWhoMoved);
+            }
             
             // 타이머 복원 (LAUNCH_MISSILE에서 이미 복원했으므로, 애니메이션 중 경과한 시간을 반영)
             if (game.settings.timeLimit > 0 && game.turnDeadline) {
@@ -1175,10 +1195,6 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             if (game.totalTurns !== preservedTotalTurns) {
                 console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: totalTurns changed from ${preservedTotalTurns} to ${game.totalTurns}, restoring...`);
                 game.totalTurns = preservedTotalTurns;
-            }
-            if (JSON.stringify(game.captures) !== JSON.stringify(preservedCaptures)) {
-                console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: captures changed, restoring...`);
-                game.captures = preservedCaptures;
             }
             if (preservedBaseStoneCaptures && JSON.stringify(game.baseStoneCaptures) !== JSON.stringify(preservedBaseStoneCaptures)) {
                 console.warn(`[SinglePlayer Missile] MISSILE_ANIMATION_COMPLETE: baseStoneCaptures changed, restoring...`);

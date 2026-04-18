@@ -749,7 +749,14 @@ export type AnimationData =
   | { type: 'hidden_missile'; from: Point; to: Point; player: Player; startTime: number; duration: number }
   | { type: 'bonus_text'; text: string; point: Point; player: Player; startTime: number; duration: number }
   | { type: 'bonus_score'; playerId: string; bonus: number; startTime: number; duration: number }
-  | { type: 'ai_thinking'; startTime: number; duration: number; playerId: string };
+  | {
+        type: 'ai_thinking';
+        startTime: number;
+        duration: number;
+        playerId: string;
+        /** AI 히든 아이템 연출 중 새로고침 시 Kata 좌표 복원용(서버가 makeGoAiBotMove에서 사용) */
+        pendingHiddenMove?: Point;
+    };
 
 // --- Analysis & Summary ---
 export type RecommendedMove = {

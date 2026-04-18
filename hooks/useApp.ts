@@ -4787,8 +4787,14 @@ export const useApp = () => {
                                     singlePlayerGamesRef.current[gameId] ??
                                     towerGamesRef.current[gameId] ??
                                     liveGamesRef.current[gameId];
+                                // 스캔 연속 모드(scanning)에서 30초 타임아웃으로 playing 전환 시 moveHistory가 그대로라
+                                // 쓰로틀에 걸리면 클라이언트가 scanning·0초에 고착될 수 있음 (scanning_animating과 동일하게 반드시 반영)
                                 const isScanAnimExitToPlaying =
-                                    existingForThrottle?.gameStatus === 'scanning_animating' &&
+                                    (existingForThrottle?.gameStatus === 'scanning_animating' ||
+                                        existingForThrottle?.gameStatus === 'scanning') &&
+                                    game.gameStatus === 'playing';
+                                const isHiddenPlacingExitToPlaying =
+                                    existingForThrottle?.gameStatus === 'hidden_placing' &&
                                     game.gameStatus === 'playing';
                                 // 미사일: moveHistory 길이는 그대로라 쓰로틀에 걸리면 LAUNCH_MISSILE 보드 반영 또는 애니 종료(playing) 전환이 누락되어
                                 // 애니메이션만 재생되고 돌이 원래 칸에 남아 보이는 현상이 난다.
@@ -4842,6 +4848,7 @@ export const useApp = () => {
                                     !isDiceThiefAnimExitToRolling &&
                                     !isDiceThiefTurnOwnerChanged &&
                                     !isScanAnimExitToPlaying &&
+                                    !isHiddenPlacingExitToPlaying &&
                                     !isMissileSelectToAnimating &&
                                     !isMissileAnimExitToPlaying &&
                                     !disconnectStateChanged &&

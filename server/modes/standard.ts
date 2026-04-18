@@ -1150,7 +1150,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     let points = 1;
                     let wasHiddenForJustCaptured = false; // default for justCaptured
 
-                    if (game.isSinglePlayer || (game as any).gameCategory === 'guildwar') {
+                    if (game.isSinglePlayer || (game as any).gameCategory === 'guildwar' || (game as any).gameCategory === 'tower') {
                         const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;

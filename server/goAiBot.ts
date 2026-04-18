@@ -14,7 +14,11 @@ import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMove, isKataServerAvailable } from './kataServerService.js';
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
-import { isPatternIntersectionPermanentlyConsumed } from '../shared/utils/patternStoneConsume.js';
+import {
+    consumeOpponentPatternStoneIfAny,
+    isPatternIntersectionPermanentlyConsumed,
+    stripPatternStonesAtConsumedIntersections,
+} from '../shared/utils/patternStoneConsume.js';
 import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
 import {
@@ -22,10 +26,21 @@ import {
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from './kataCaptureSetupEncoding.js';
 
-/** AI 히든 연출 직전에 확정한 Kata 좌표(DB/브로드캐스트에 넣지 않음 — 유저 유출 방지) */
+/** AI 히든 연출 직전에 확정한 Kata 좌표(프로세스 메모리; DB의 animation.pendingHiddenMove로 재주입) */
 const pendingAiHiddenKataMoveByGameId = new Map<string, Point>();
 
 const hiddenKataCacheKey = (gameId: string | number | undefined): string => String(gameId ?? '');
+
+function rehydratePendingAiHiddenKataFromStoredAnimation(game: types.LiveGameSession) {
+    const anim = game.animation as { type?: string; pendingHiddenMove?: Point } | null | undefined;
+    if (anim?.type !== 'ai_thinking' || !anim.pendingHiddenMove) return;
+    const p = anim.pendingHiddenMove;
+    if (!Number.isInteger(p.x) || !Number.isInteger(p.y)) return;
+    const key = hiddenKataCacheKey(game.id);
+    if (!pendingAiHiddenKataMoveByGameId.has(key)) {
+        pendingAiHiddenKataMoveByGameId.set(key, { x: p.x, y: p.y });
+    }
+}
 
 /** 모험·로비 AI 대국: 계가 전 마지막 착수가 화면에 반영되도록 */
 function isLobbyAiStrategicGoGame(game: types.LiveGameSession): boolean {
@@ -322,10 +337,6 @@ const applyAiCaptureOutcome = (
     const aiInitialHiddenStone = (game as any).aiInitialHiddenStone as Point | undefined;
 
     for (const stone of result.capturedStones) {
-        const wasPatternStone =
-            (opponentPlayerEnum === Player.Black && game.blackPatternStones?.some(point => point.x === stone.x && point.y === stone.y)) ||
-            (opponentPlayerEnum === Player.White && game.whitePatternStones?.some(point => point.x === stone.x && point.y === stone.y));
-
         let moveIndex = -1;
         for (let i = game.moveHistory.length - 1; i >= 0; i--) {
             const historyMove = game.moveHistory[i];
@@ -352,7 +363,7 @@ const applyAiCaptureOutcome = (
             if (isBaseStone) {
                 game.baseStoneCaptures[aiPlayerEnum]++;
                 points = 5;
-            } else if (wasPatternStone) {
+            } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentPlayerEnum)) {
                 points = 2;
             }
         }
@@ -360,6 +371,8 @@ const applyAiCaptureOutcome = (
         game.captures[aiPlayerEnum] += points;
         game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden, capturePoints: points });
     }
+
+    stripPatternStonesAtConsumedIntersections(game);
 
     if (clearAiInitialHiddenStone) {
         (game as any).aiInitialHiddenStone = undefined;
@@ -1176,6 +1189,8 @@ export async function makeGoAiBotMove(
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
 
+    rehydratePendingAiHiddenKataFromStoredAnimation(game);
+
     const isHiddenMode = game.mode === types.GameMode.Hidden ||
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
     const totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
@@ -1319,11 +1334,15 @@ export async function makeGoAiBotMove(
                     ? '몬스터가 히든 아이템을 사용했습니다!'
                     : 'AI봇이 히든 아이템을 사용했습니다!';
             game.foulInfo = { message: hiddenNoticeMsg, expiry: now + 6000 };
+            const cachedForAnim = pendingAiHiddenKataMoveByGameId.get(hiddenKataCacheKey(game.id));
             game.animation = {
                 type: 'ai_thinking',
                 startTime: now,
                 duration: 6000,
-                playerId: aiPlayerId
+                playerId: aiPlayerId,
+                ...(cachedForAnim && Number.isInteger(cachedForAnim.x) && Number.isInteger(cachedForAnim.y)
+                    ? { pendingHiddenMove: { x: cachedForAnim.x, y: cachedForAnim.y } }
+                    : {}),
             };
             game.aiHiddenItemAnimationEndTime = now + 6000;
             await db.saveGame(game);

@@ -540,6 +540,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     turnStartTime: session.turnStartTime,
                     revealAnimationEndTime: session.revealAnimationEndTime,
                     animation: session.animation,
+                    ...((session as any).aiHiddenItemAnimationEndTime != null
+                        ? { aiHiddenItemAnimationEndTime: (session as any).aiHiddenItemAnimationEndTime }
+                        : {}),
                     pendingCapture: session.pendingCapture,
                     newlyRevealed: session.newlyRevealed || [],
                     revealedHiddenMoves: session.revealedHiddenMoves || {},
@@ -570,7 +573,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -696,6 +699,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                     if ((canPreferStoredVisualState || !next.revealedHiddenMoves) && parsed.revealedHiddenMoves && typeof parsed.revealedHiddenMoves === 'object') {
                         next = { ...next, revealedHiddenMoves: parsed.revealedHiddenMoves };
+                    }
+                    // AI 히든 아이템 연출 중 새로고침: 서버 페이로드에 연출 필드가 빠진 첫 틱에 sessionStorage로 복원
+                    const storedAiHiddenEnd = (parsed as any).aiHiddenItemAnimationEndTime as number | undefined;
+                    const serverAiHiddenEnd = (next as any).aiHiddenItemAnimationEndTime as number | undefined;
+                    if (
+                        typeof storedAiHiddenEnd === 'number' &&
+                        storedAiHiddenEnd > Date.now() &&
+                        (parsed as any).animation?.type === 'ai_thinking' &&
+                        (next.animation?.type !== 'ai_thinking' ||
+                            typeof serverAiHiddenEnd !== 'number' ||
+                            serverAiHiddenEnd <= Date.now())
+                    ) {
+                        next = {
+                            ...next,
+                            animation: (parsed as any).animation,
+                            aiHiddenItemAnimationEndTime: storedAiHiddenEnd,
+                        } as any;
                     }
                     if (canPreferStoredVisualState) {
                         next = {
@@ -855,8 +875,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             case 'scanning': {
                 if (myPlayerEnum === Player.None) return false;
                 if (myPlayerEnum === currentPlayer) return true;
-                // 서버(towerPlayerHidden / singlePlayerHidden): 내 착수 직후 턴은 AI로 넘어갔지만 START_SCANNING 허용 — 스캔 좌표 클릭도 동일하게 허용
-                if ((session.isSinglePlayer || isTower) && session.moveHistory?.length) {
+                // 싱글플레이: 내 착수 직후 턴은 AI로 넘어갔지만 START_SCANNING 허용 — 스캔 좌표 클릭도 동일하게 허용 (도전의 탑은 AI 턴에 스캔 불가)
+                if (session.isSinglePlayer && !isTower && session.moveHistory?.length) {
                     const last = session.moveHistory[session.moveHistory.length - 1];
                     if (last && last.player === myPlayerEnum) return true;
                 }

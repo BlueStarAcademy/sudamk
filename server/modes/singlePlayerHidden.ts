@@ -69,7 +69,11 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
         }
         
         // 원래 경기 시간 복원 (턴 유지)
-        resumeGameTimer(game, now, timedOutPlayerEnum);
+        const timerResumed = resumeGameTimer(game, now, timedOutPlayerEnum);
+        if (!timerResumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+        }
         console.log(`[updateSinglePlayerHiddenState] Turn maintained: player=${timedOutPlayerEnum}, gameId=${game.id}`);
         
         // 상태 변경을 표시하여 상위 함수에서 브로드캐스트하도록 함
@@ -229,6 +233,9 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             return {};
         }
         case 'SCAN_BOARD':
+            if (game.gameStatus === 'playing' || game.gameStatus === 'scanning_animating') {
+                return {};
+            }
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
             const scanKey = user.id === game.player1.id ? 'scans_p1' : 'scans_p2';
@@ -246,7 +253,11 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             game.currentPlayer = myPlayerEnum;
 
             // After using the item, restore my time, reset timers and KEEP THE TURN
-            resumeGameTimer(game, now, myPlayerEnum);
+            const scanResumeOk = resumeGameTimer(game, now, myPlayerEnum);
+            if (!scanResumeOk) {
+                game.itemUseDeadline = undefined;
+                game.pausedTurnTimeLeft = undefined;
+            }
 
             // The `updateSinglePlayerHiddenState` will transition from 'scanning_animating' to 'playing'
             // after the animation, without switching the turn.

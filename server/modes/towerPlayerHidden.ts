@@ -188,7 +188,11 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
             if (currentScans > 0) (game as any)[scanKey] = currentScans - 1;
         }
 
-        resumeGameTimer(game, now, timedOutPlayerEnum);
+        const timerResumed = resumeGameTimer(game, now, timedOutPlayerEnum);
+        if (!timerResumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+        }
         (game as any)._itemTimeoutStateChanged = true;
         if (timedOutPlayerId === game.player1.id) {
             if (currentItemMode === 'hidden_placing') void persistTowerP1ConsumableDecrement(game.player1.id, 'hidden');
@@ -294,11 +298,7 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             pauseGameTimer(game, now, 30000);
             return {};
         case 'START_SCANNING': {
-            const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;
-            const lastMoveWasMine = lastMove && (lastMove as { player?: number }).player === myPlayerEnum;
-            const allowScanAfterMyMove = game.gameCategory === 'tower' && game.gameStatus === 'playing' && lastMoveWasMine && !isMyTurn;
-            const canUseScan = isMyTurn || allowScanAfterMyMove;
-            if (!canUseScan) return { error: "Not your turn to use an item." };
+            if (!isMyTurn) return { error: "Not your turn to use an item." };
             const scanKeyStart = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
             if (((game as any)[scanKeyStart] ?? 0) <= 0) return { error: "No scans left." };
             const opponentPlayerEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
@@ -323,6 +323,10 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             return {};
         }
         case 'SCAN_BOARD':
+            // 타임아웃 직후·애니 중 중복 요청: 400 대신 무해 처리 (인벤/세션 스캔 이중 차감 방지)
+            if (game.gameStatus === 'playing' || game.gameStatus === 'scanning_animating') {
+                return { skipTowerScanInventoryConsume: true };
+            }
             if (game.gameStatus !== 'scanning') return { error: "Not in scanning mode." };
             const { x, y } = payload;
             const scanKey = user.id === game.blackPlayerId ? 'scans_p1' : 'scans_p2';
@@ -338,7 +342,11 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             game.animation = buildHiddenScanAnimation(now, user.id, x, y, success);
             game.gameStatus = 'scanning_animating';
             game.currentPlayer = myPlayerEnum;
-            resumeGameTimer(game, now, myPlayerEnum);
+            const scanResumeOk = resumeGameTimer(game, now, myPlayerEnum);
+            if (!scanResumeOk) {
+                game.itemUseDeadline = undefined;
+                game.pausedTurnTimeLeft = undefined;
+            }
             return success ? { skipTowerScanInventoryConsume: true } : {};
     }
 
