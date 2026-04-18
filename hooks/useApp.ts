@@ -44,6 +44,9 @@ import { applyMissileCaptureProcessResult } from '../shared/utils/missileLanding
 import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
 import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
+import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
+import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
+import { getMannerRank, MANNER_RANKS } from '../services/manner.js';
 
 /** 도전의 탑 PVE: 일반 수는 클라이언트만 반영되어 서버 game의 판·수순이 뒤처질 수 있음. 히든/스캔/미사일 선택 진입 시 응답으로 덮어쓰면 판이 초기화되는 버그 방지. */
 function mergeTowerServerGameWithClientBoardIfStale(
@@ -365,6 +368,8 @@ export const useApp = () => {
                 prevUser.monthlyTowerFloor !== mergedUser.monthlyTowerFloor ||
                 prevUser.strategyXp !== mergedUser.strategyXp ||
                 prevUser.playfulXp !== mergedUser.playfulXp ||
+                prevUser.strategyLevel !== mergedUser.strategyLevel ||
+                prevUser.playfulLevel !== mergedUser.playfulLevel ||
                 prevUser.avatarId !== mergedUser.avatarId ||
                 prevUser.borderId !== mergedUser.borderId ||
                 prevUser.nickname !== mergedUser.nickname ||
@@ -436,6 +441,79 @@ export const useApp = () => {
             gold: mergedUser.gold,
             diamonds: mergedUser.diamonds
         });
+
+        if (prevUser && source !== 'INITIAL_STATE') {
+            const prevS = prevUser.strategyLevel ?? 1;
+            const nextS = mergedUser.strategyLevel ?? 1;
+            const prevP = prevUser.playfulLevel ?? 1;
+            const nextP = mergedUser.playfulLevel ?? 1;
+            const stratUp = nextS > prevS;
+            const playUp = nextP > prevP;
+            if (stratUp || playUp) {
+                const levelPayload: LevelUpCelebrationPayload = {
+                    strategy: stratUp ? { from: prevS, to: nextS } : undefined,
+                    playful: playUp ? { from: prevP, to: nextP } : undefined,
+                };
+                const uid = mergedUser.id;
+                const blockCelebration =
+                    !!uid &&
+                    Object.values(liveGamesRef.current).some((g) => {
+                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower') return false;
+                        if (g.gameStatus !== 'ended') return false;
+                        if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
+                        return true;
+                    });
+                queueMicrotask(() => {
+                    if (blockCelebration) {
+                        deferredLevelUpCelebrationRef.current = levelPayload;
+                    } else {
+                        deferredLevelUpCelebrationRef.current = null;
+                        setLevelUpCelebration(levelPayload);
+                    }
+                });
+            }
+
+            const prevScore = prevUser.mannerScore ?? 200;
+            const nextScore = mergedUser.mannerScore ?? 200;
+            const prevRankName = getMannerRank(prevScore).rank;
+            const nextRankName = getMannerRank(nextScore).rank;
+            if (prevRankName !== nextRankName) {
+                const prevIdx = MANNER_RANKS.findIndex((r) => r.name === prevRankName);
+                const nextIdx = MANNER_RANKS.findIndex((r) => r.name === nextRankName);
+                const direction: 'up' | 'down' =
+                    prevIdx >= 0 && nextIdx >= 0
+                        ? nextIdx > prevIdx
+                            ? 'up'
+                            : 'down'
+                        : nextScore > prevScore
+                          ? 'up'
+                          : 'down';
+                const mannerPayload: MannerGradeChangePayload = {
+                    direction,
+                    previousRank: prevRankName,
+                    newRank: nextRankName,
+                    previousScore: prevScore,
+                    newScore: nextScore,
+                };
+                const uid = mergedUser.id;
+                const blockManner =
+                    !!uid &&
+                    Object.values(liveGamesRef.current).some((g) => {
+                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower') return false;
+                        if (g.gameStatus !== 'ended') return false;
+                        if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
+                        return true;
+                    });
+                queueMicrotask(() => {
+                    if (blockManner) {
+                        deferredMannerGradeChangeRef.current = mannerPayload;
+                    } else {
+                        deferredMannerGradeChangeRef.current = null;
+                        setMannerGradeChange(mannerPayload);
+                    }
+                });
+            }
+        }
         
         // HTTP 업데이트인 경우 타임스탬프 및 액션 타입 기록
         // (HTTP 응답에 updatedUser가 있었을 때만 타임스탬프 업데이트 - handleAction에서 처리)
@@ -621,6 +699,10 @@ export const useApp = () => {
     const [disassemblyResult, setDisassemblyResult] = useState<{ gained: { name: string, amount: number }[], jackpot: boolean } | null>(null);
     const [craftResult, setCraftResult] = useState<{ gained: { name: string; amount: number }[]; used: { name: string; amount: number }[]; craftType: 'upgrade' | 'downgrade'; jackpot?: boolean } | null>(null);
     const [rewardSummary, setRewardSummary] = useState<{ reward: QuestReward; items: InventoryItem[]; title: string } | null>(null);
+    const [levelUpCelebration, setLevelUpCelebration] = useState<LevelUpCelebrationPayload | null>(null);
+    const deferredLevelUpCelebrationRef = useRef<LevelUpCelebrationPayload | null>(null);
+    const [mannerGradeChange, setMannerGradeChange] = useState<MannerGradeChangePayload | null>(null);
+    const deferredMannerGradeChangeRef = useRef<MannerGradeChangePayload | null>(null);
     const [isClaimAllSummaryOpen, setIsClaimAllSummaryOpen] = useState(false);
     const [claimAllSummary, setClaimAllSummary] = useState<{ gold: number; diamonds: number; actionPoints: number } | null>(null);
     const [viewingUser, setViewingUser] = useState<UserWithStatus | null>(null);
@@ -939,6 +1021,73 @@ export const useApp = () => {
         singlePlayerGamesRef.current = singlePlayerGames;
         towerGamesRef.current = towerGames;
     }, [liveGames, singlePlayerGames, towerGames]);
+
+    /** PvP 대국 결과(종료) 화면 중에는 안내 모달을 늦추고, 퇴장 등으로 liveGames에서 사라진 뒤 표시 */
+    useEffect(() => {
+        const uid = currentUserRef.current?.id;
+        if (!uid) return;
+        const block = Object.values(liveGamesRef.current).some((g) => {
+            if (!g || g.isSinglePlayer || g.gameCategory === 'tower') return false;
+            if (g.gameStatus !== 'ended') return false;
+            if (g.player1?.id !== uid && g.player2?.id !== uid) return false;
+            return true;
+        });
+        if (block) return;
+        const pendingLevel = deferredLevelUpCelebrationRef.current;
+        const pendingManner = deferredMannerGradeChangeRef.current;
+        if (pendingLevel) {
+            deferredLevelUpCelebrationRef.current = null;
+            setLevelUpCelebration(pendingLevel);
+        }
+        if (pendingManner) {
+            deferredMannerGradeChangeRef.current = null;
+            setMannerGradeChange(pendingManner);
+        }
+    }, [liveGames]);
+
+    /** 관리자 홈: 레벨업 축하 모달 미리보기(실제 데이터 반영, 서버/레벨은 변경하지 않음) */
+    const previewAdminLevelUpCelebrationModal = useCallback(() => {
+        const u = currentUserRef.current;
+        if (!u?.isAdmin) return;
+        deferredLevelUpCelebrationRef.current = null;
+        const s = Math.max(1, u.strategyLevel ?? 1);
+        const p = Math.max(1, u.playfulLevel ?? 1);
+        setLevelUpCelebration({
+            strategy: s > 1 ? { from: s - 1, to: s } : { from: 1, to: 2 },
+            playful: p > 1 ? { from: p - 1, to: p } : { from: 1, to: 2 },
+        });
+    }, []);
+
+    /** 관리자 홈: 매너 등급 상승 모달 미리보기(직전 구간 → 현재 등급) */
+    const previewAdminMannerGradeUpModal = useCallback(() => {
+        const u = currentUserRef.current;
+        if (!u?.isAdmin) return;
+        deferredMannerGradeChangeRef.current = null;
+        const score = u.mannerScore ?? 200;
+        const currentRankName = getMannerRank(score).rank;
+        const idx = MANNER_RANKS.findIndex((r) => r.name === currentRankName);
+        if (idx <= 0) {
+            setMannerGradeChange({
+                direction: 'up',
+                previousRank: MANNER_RANKS[0].name,
+                newRank: MANNER_RANKS[1].name,
+                previousScore: 0,
+                newScore: MANNER_RANKS[1].min,
+            });
+            return;
+        }
+        const prevTier = MANNER_RANKS[idx - 1];
+        const curTier = MANNER_RANKS[idx];
+        const prevUpper = prevTier.max === Infinity ? curTier.min - 1 : prevTier.max;
+        const previousScore = Math.max(prevTier.min, Math.min(prevUpper, score - 1));
+        setMannerGradeChange({
+            direction: 'up',
+            previousRank: prevTier.name,
+            newRank: currentRankName,
+            previousScore,
+            newScore: score,
+        });
+    }, []);
 
     const activeGame = useMemo(() => {
         if (!currentUserWithStatus) return null;
@@ -3768,6 +3917,10 @@ export const useApp = () => {
             setOnlineUsers([]);
             setLiveGames({});
             setNegotiations({});
+            deferredLevelUpCelebrationRef.current = null;
+            setLevelUpCelebration(null);
+            deferredMannerGradeChangeRef.current = null;
+            setMannerGradeChange(null);
             return;
         }
 
@@ -6916,6 +7069,8 @@ export const useApp = () => {
             isInsufficientActionPointsModalOpen,
             isOpponentInsufficientActionPointsModalOpen,
             isActionPointModalOpen,
+            levelUpCelebration,
+            mannerGradeChange,
         },
         handlers: {
             handleAction,
@@ -6951,6 +7106,10 @@ export const useApp = () => {
             closeCraftResult: () => setCraftResult(null),
             closeCombinationResult: () => setCombinationResult(null),
             closeRewardSummary: () => setRewardSummary(null),
+            closeLevelUpCelebration: () => setLevelUpCelebration(null),
+            closeMannerGradeChange: () => setMannerGradeChange(null),
+            previewAdminLevelUpCelebrationModal,
+            previewAdminMannerGradeUpModal,
             closeClaimAllSummary,
             openViewingUser: handleViewUser,
             closeViewingUser: () => setViewingUser(null),

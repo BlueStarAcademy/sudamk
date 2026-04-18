@@ -79,11 +79,18 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     const whitePlayer = players.find(p => p.id === whitePlayerId) || null;
 
     const myRevealedStones = useMemo(() => {
+        const opp = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+        const board = session.boardState;
         return (myRevealedMoves || [])
-            .map(index => session.moveHistory?.[index])
+            .map((index) => session.moveHistory?.[index])
             .filter((move): move is Move => !!move)
-            .map(move => ({ x: move.x, y: move.y }));
-    }, [myRevealedMoves, session.moveHistory]);
+            .filter((move) => {
+                const row = board?.[move.y];
+                const cell = row?.[move.x];
+                return cell === move.player && move.player === opp;
+            })
+            .map((move) => ({ x: move.x, y: move.y }));
+    }, [myRevealedMoves, session.moveHistory, session.boardState, myPlayerEnum]);
 
     const allRevealedStones = useMemo(() => {
         if (!session.moveHistory || !session.revealedHiddenMoves) {
@@ -241,6 +248,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 currentPlayer={session.currentPlayer}
                 highlightedPoints={[]}
                 myRevealedStones={myRevealedStones}
+                myRevealedMoveIndices={myRevealedMoves}
                 allRevealedStones={allRevealedStones}
                 newlyRevealed={session.newlyRevealed}
                 justCaptured={session.justCaptured}

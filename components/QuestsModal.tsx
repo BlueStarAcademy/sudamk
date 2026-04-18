@@ -55,16 +55,33 @@ const ActivityVitalityIcon: React.FC<{ className?: string; size?: number }> = ({
 /** 퀘스트 목록 제목 옆 아이콘 (퀵메뉴·에셋과 동일 계열) */
 const QUEST_LIST_ICON_SRC = '/images/quest.png';
 
-/** 상점 소모품 탭과 동일: 행동력 회복제 카드는 ⚡ + 수치 배지 */
+/** 상점 소모품 탭과 동일: 행동력 회복제 표시는 ⚡ + 수치(applus.png는 헤더 충전 전용으로 쓰이므로 퀘스트·상점 카드에서는 이미지 대신 이 배지 사용) */
 const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null => {
     if (!reward.items?.length) return null;
     const ref = reward.items[0];
-    const id = 'itemId' in ref ? ref.itemId : (ref as { name?: string }).name;
-    if (!id || typeof id !== 'string') return null;
+    const raw = 'itemId' in ref ? ref.itemId : (ref as { name?: string }).name;
+    const id = typeof raw === 'string' ? raw.trim() : '';
+    if (!id) return null;
     if (id === 'action_point_10' || id === '행동력 회복제(+10)') return '+10';
     if (id === 'action_point_20' || id === '행동력 회복제(+20)') return '+20';
     if (id === 'action_point_30' || id === '행동력 회복제(+30)') return '+30';
+    const ko = id.match(/행동력\s*회복제\s*\(\+(\d+)\)/);
+    if (ko) return `+${ko[1]}`;
+    const apId = id.match(/^action_point_(\d+)$/i);
+    if (apId) return `+${apId[1]}`;
     return null;
+};
+
+const resolveConsumableDisplayName = (ref: NonNullable<QuestReward['items']>[0]): string => {
+    const raw = 'itemId' in ref ? ref.itemId : (ref as { name?: string }).name;
+    const id = typeof raw === 'string' ? raw.trim() : '';
+    if (!id) return '';
+    if (id === 'action_point_10') return '행동력 회복제(+10)';
+    if (id === 'action_point_20') return '행동력 회복제(+20)';
+    if (id === 'action_point_30') return '행동력 회복제(+30)';
+    const apId = id.match(/^action_point_(\d+)$/i);
+    if (apId) return `행동력 회복제(+${apId[1]})`;
+    return id;
 };
 
 const getQuestDisplayTitle = (title: string): string => {
@@ -296,9 +313,13 @@ const QuestClaimStripButton: React.FC<{
 const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest, isMobile }) => {
     const hasGold = Boolean(quest.reward?.gold && quest.reward.gold > 0);
     const firstItem = quest.reward?.items?.[0];
-    const itemName = firstItem ? ('itemId' in firstItem ? firstItem.itemId : firstItem.name) : null;
+    const resolvedItemName = firstItem ? resolveConsumableDisplayName(firstItem) : '';
     const itemQty = firstItem?.quantity ?? 0;
-    const itemImage = itemName ? (CONSUMABLE_ITEMS.find((item) => item.name === itemName)?.image ?? null) : null;
+    const actionPointBadge = quest.reward ? getShopActionPointBadgeFromReward(quest.reward) : null;
+    const itemImage =
+        resolvedItemName && !actionPointBadge
+            ? (CONSUMABLE_ITEMS.find((item) => item.name === resolvedItemName)?.image ?? null)
+            : null;
     const ap = quest.activityPoints ?? 0;
     const hasActivity = ap > 0;
 
@@ -327,11 +348,21 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean }> = ({ quest,
                 </span>
             ) : null}
             {firstItem ? (
-                <span className="inline-flex min-w-0 items-center gap-0.5 font-semibold text-slate-100">
-                    {itemImage ? <img src={itemImage} alt="" className="h-3 w-3 object-contain" /> : null}
-                    <span className="truncate">{itemName}</span>
-                    <span className="tabular-nums text-amber-200">x{itemQty}</span>
-                </span>
+                actionPointBadge ? (
+                    <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-slate-100">
+                        <span className="shrink-0 text-sm leading-none" aria-hidden>
+                            ⚡
+                        </span>
+                        <span className="shrink-0 font-bold tabular-nums text-cyan-300">{actionPointBadge}</span>
+                        <span className="tabular-nums text-amber-200">×{itemQty}</span>
+                    </span>
+                ) : (
+                    <span className="inline-flex min-w-0 items-center gap-0.5 font-semibold text-slate-100">
+                        {itemImage ? <img src={itemImage} alt="" className="h-3 w-3 object-contain" /> : null}
+                        <span className="truncate">{resolvedItemName}</span>
+                        <span className="tabular-nums text-amber-200">x{itemQty}</span>
+                    </span>
+                )
             ) : null}
         </div>
     );
@@ -637,8 +668,8 @@ const ActivityPanel: React.FC<{
                     const isClaimed = claimedMilestones[index];
                     const canClaim = progressMet && !isClaimed;
                     const reward = rewards[index];
-                    const itemImage = getItemImage(reward);
                     const apBadge = getShopActionPointBadgeFromReward(reward);
+                    const itemImage = apBadge ? null : getItemImage(reward);
                     const leftPct = rewardCenterLeftPct(index, milestone);
                     const iconClass = milestoneIcon;
 
@@ -665,11 +696,20 @@ const ActivityPanel: React.FC<{
                                         apBadge ? `${milestone} 활약도 보상 행동력 회복제` : `${milestone} 활약도 보상`
                                     }
                                 >
-                                    <img
-                                        src={itemImage}
-                                        alt=""
-                                        className="h-full w-full object-contain p-0.5"
-                                    />
+                                    {apBadge ? (
+                                        <span
+                                            className="flex h-full w-full items-center justify-center text-[1.65rem] leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]"
+                                            aria-hidden
+                                        >
+                                            ⚡
+                                        </span>
+                                    ) : (
+                                        <img
+                                            src={itemImage ?? '/images/Box/box.png'}
+                                            alt=""
+                                            className="h-full w-full object-contain p-0.5"
+                                        />
+                                    )}
                                     {apBadge ? (
                                         <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
                                             {apBadge}

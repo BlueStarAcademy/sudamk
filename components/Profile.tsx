@@ -1996,7 +1996,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
                                         {adminVipCorner}
                                         {currentUserWithStatus.isAdmin && (
-                                            <div className="pointer-events-auto absolute right-1 top-1 z-[4] max-[680px]:right-0.5 max-[680px]:top-0.5 sm:right-2 sm:top-1.5">
+                                            <div className="pointer-events-auto absolute right-1 top-1 z-[4] flex max-w-[min(100%,12rem)] flex-col items-end gap-0.5 max-[680px]:right-0.5 max-[680px]:top-0.5 sm:right-2 sm:top-1.5 sm:max-w-none sm:flex-row sm:items-center sm:gap-1">
                                                 <Button
                                                     type="button"
                                                     colorScheme="none"
@@ -2011,6 +2011,26 @@ const Profile: React.FC<ProfileProps> = () => {
                                                     }
                                                 >
                                                     {tutorialPreviewActive ? '튜토리얼 끝' : '튜토리얼'}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    colorScheme="none"
+                                                    bare
+                                                    onClick={() => handlers.previewAdminLevelUpCelebrationModal()}
+                                                    className="touch-manipulation !rounded-md !border !border-emerald-400/55 !bg-emerald-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
+                                                    title="레벨업 축하 모달 미리보기(전략·놀이, 실제 레벨 기준)"
+                                                >
+                                                    레벨업
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    colorScheme="none"
+                                                    bare
+                                                    onClick={() => handlers.previewAdminMannerGradeUpModal()}
+                                                    className="touch-manipulation !rounded-md !border !border-amber-400/55 !bg-amber-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-amber-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
+                                                    title="매너 등급 상승 모달 미리보기(직전 구간→현재 등급)"
+                                                >
+                                                    매너↑
                                                 </Button>
                                             </div>
                                         )}
@@ -2155,7 +2175,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
                             {profileTab === 'home' && adminVipCorner}
                             {profileTab === 'home' && currentUserWithStatus.isAdmin && (
-                                <div className="pointer-events-auto absolute right-1.5 top-1.5 z-[4] sm:right-2 sm:top-2">
+                                <div className="pointer-events-auto absolute right-1.5 top-1.5 z-[4] flex flex-col items-end gap-1 sm:right-2 sm:top-2 sm:flex-row sm:items-center sm:gap-1.5">
                                     <Button
                                         type="button"
                                         colorScheme="none"
@@ -2170,6 +2190,26 @@ const Profile: React.FC<ProfileProps> = () => {
                                         }
                                     >
                                         {tutorialPreviewActive ? '튜토리얼 끝' : '튜토리얼'}
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        colorScheme="none"
+                                        bare
+                                        onClick={() => handlers.previewAdminLevelUpCelebrationModal()}
+                                        className="!rounded-md !border !border-emerald-400/55 !bg-emerald-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
+                                        title="레벨업 축하 모달 미리보기(전략·놀이, 실제 레벨 기준)"
+                                    >
+                                        레벨업
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        colorScheme="none"
+                                        bare
+                                        onClick={() => handlers.previewAdminMannerGradeUpModal()}
+                                        className="!rounded-md !border !border-amber-400/55 !bg-amber-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-amber-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
+                                        title="매너 등급 상승 모달 미리보기(직전 구간→현재 등급)"
+                                    >
+                                        매너↑
                                     </Button>
                                 </div>
                             )}

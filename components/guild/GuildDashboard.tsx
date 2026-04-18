@@ -692,14 +692,18 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
         return GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId) || GUILD_BOSSES[0];
     }, [guild.guildBossState]);
 
+    const bossDifficultyStage = useMemo(
+        () => getCurrentGuildBossStage(guild.guildBossState, currentBoss.id),
+        [guild.guildBossState, currentBoss.id]
+    );
+
     const { currentHp, maxHp } = useMemo(() => {
-        const stage = getCurrentGuildBossStage(guild.guildBossState, currentBoss.id);
         const scaledMax =
-            guild.guildBossState?.maxHp ?? getScaledGuildBossMaxHp(currentBoss.maxHp, stage);
+            guild.guildBossState?.maxHp ?? getScaledGuildBossMaxHp(currentBoss.maxHp, bossDifficultyStage);
         const ch =
             guild.guildBossState?.currentBossHp ?? guild.guildBossState?.hp ?? scaledMax;
         return { currentHp: ch, maxHp: scaledMax };
-    }, [guild.guildBossState, currentBoss.id, currentBoss.maxHp]);
+    }, [guild.guildBossState, currentBoss.id, currentBoss.maxHp, bossDifficultyStage]);
     const hpPercent = maxHp > 0 ? (currentHp / maxHp) * 100 : 0;
     const clampedHpPercent = Math.max(0, Math.min(100, hpPercent));
     const remainingHp = Math.max(0, Math.ceil(currentHp));
@@ -820,8 +824,11 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                     <span>길드 보스전</span>
                 </h3>
                 <div className={`flex flex-col ${isMobile ? 'mb-1' : 'mb-3'} flex-shrink-0`}>
-                    {/* 보스 이름 */}
-                    <p className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-highlight ${isMobile ? 'mb-0.5' : 'mb-2'} text-center`}>{currentBoss.name}</p>
+                    {/* 보스 이름 · 난이도 단계 */}
+                    <p className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-highlight ${isMobile ? 'mb-0.5' : 'mb-2'} text-center`}>
+                        {currentBoss.name}
+                        <span className={`tabular-nums text-amber-200/95 ${isMobile ? 'text-[11px] ml-1' : 'text-sm ml-1.5'}`}>· {bossDifficultyStage}단계</span>
+                    </p>
                     
                     {/* 가로로 둘로 나눔: 왼쪽(보스+스킬) | 오른쪽(내 기록) */}
                     <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2 w-full`}>

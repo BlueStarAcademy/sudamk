@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Guild, GuildMember, GuildMemberRole, GuildResearchId, GuildResearchCategory } from '../../types/index.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
-import { GUILD_RESEARCH_PROJECTS } from '../../constants/index.js';
+import { GUILD_RESEARCH_PROJECTS, ADMIN_USER_ID } from '../../constants/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 
@@ -73,7 +73,7 @@ const ResearchItemPanel: React.FC<{
     isAnyResearchActive: boolean;
     isNativeMobile: boolean;
 }> = ({ researchId, project, guild, myMemberInfo, isResearchingThis, isAnyResearchActive, isNativeMobile }) => {
-    const { handlers } = useAppContext();
+    const { handlers, currentUserWithStatus } = useAppContext();
     const [timeLeft, setTimeLeft] = useState(0);
 
     const currentLevel = guild.research?.[researchId]?.level ?? 0;
@@ -84,7 +84,14 @@ const ResearchItemPanel: React.FC<{
     const timeMs = getResearchTimeMs(researchId, currentLevel);
 
     const canAfford = (guild.researchPoints ?? 0) >= cost;
-    const canManage = myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+    const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
+    const isLeaderById =
+        (!!effectiveUserId && guild.leaderId === effectiveUserId) ||
+        (!!currentUserWithStatus?.isAdmin &&
+            !!currentUserWithStatus?.id &&
+            guild.leaderId === currentUserWithStatus.id);
+    const canManage =
+        isLeaderById || myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
     const meetsGuildLevel = guild.level >= (project.requiredGuildLevel?.[currentLevel] ?? nextLevel);
     
     const canStartResearch = canManage && !isAnyResearchActive && !isMaxLevel && canAfford && meetsGuildLevel;

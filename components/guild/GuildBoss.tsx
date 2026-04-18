@@ -364,6 +364,8 @@ interface BossPanelProps {
     boss: GuildBossInfo;
     hp: number;
     maxHp: number;
+    /** 길드 보스 난이도 단계(1~10), 체력 게이지 아래에 이름과 함께 표시 */
+    difficultyStage: number;
     damageNumbers: { id: number; text: string; color: string; isHeal: boolean; isCrit?: boolean }[];
     compact?: boolean;
 }
@@ -426,7 +428,7 @@ const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[]; compact?: boolean }
     </button>
 );
 
-const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers, compact = false }) => {
+const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, difficultyStage, damageNumbers, compact = false }) => {
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
 
     return (
@@ -441,7 +443,7 @@ const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers, c
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/50 rounded-lg pointer-events-none"></div>
                 
-                <div className={`absolute left-2 right-2 ${compact ? 'top-1' : 'top-2'}`}>
+                <div className={`absolute left-2 right-2 flex flex-col items-stretch gap-1 ${compact ? 'top-1' : 'top-2'}`}>
                      <div className={`w-full bg-tertiary rounded-full border-2 border-black/50 relative ${compact ? 'h-4' : 'h-5'}`}>
                         <div className="bg-gradient-to-r from-red-500 to-red-700 h-full rounded-full" style={{ width: `${hpPercent}%`, transition: 'width 0.5s linear' }}></div>
                          <span className={`absolute inset-0 font-bold text-white flex items-center justify-center ${compact ? 'text-[10px]' : 'text-sm'}`} style={{textShadow: '1px 1px 2px black'}}>
@@ -459,6 +461,12 @@ const BossPanel: React.FC<BossPanelProps> = ({ boss, hp, maxHp, damageNumbers, c
                             ))}
                         </div>
                     </div>
+                    <p
+                        className={`pointer-events-none text-center font-bold tabular-nums text-white/95 ${compact ? 'text-[10px] leading-tight' : 'text-xs sm:text-sm'}`}
+                        style={{ textShadow: '1px 1px 2px black' }}
+                    >
+                        {boss.name} · {difficultyStage}단계
+                    </p>
                 </div>
                 
                 <div className={`absolute bottom-0 left-0 right-0 flex items-center justify-center ${compact ? 'gap-1.5 p-1' : 'gap-3 p-2 sm:gap-4'}`}>
@@ -937,6 +945,7 @@ const GuildBoss: React.FC = () => {
                                     boss={currentBoss}
                                     hp={simulatedBossHp}
                                     maxHp={scaledBoss.maxHp}
+                                    difficultyStage={bossDifficultyStage}
                                     damageNumbers={bossDamageNumbers}
                                     compact
                                 />
@@ -1018,7 +1027,13 @@ const GuildBoss: React.FC = () => {
             ) : (
             <main className="flex min-h-0 min-w-0 flex-1 flex-row gap-4">
                 <div className="flex w-[20%] min-w-0 shrink-0 flex-col gap-4">
-                    <BossPanel boss={currentBoss} hp={simulatedBossHp} maxHp={scaledBoss.maxHp} damageNumbers={bossDamageNumbers} />
+                    <BossPanel
+                        boss={currentBoss}
+                        hp={simulatedBossHp}
+                        maxHp={scaledBoss.maxHp}
+                        difficultyStage={bossDifficultyStage}
+                        damageNumbers={bossDamageNumbers}
+                    />
                     <DamageRankingPanel fullDamageRanking={fullDamageRanking} myRankData={myRankData} myCurrentBattleDamage={currentBattleDamage} />
                 </div>
 

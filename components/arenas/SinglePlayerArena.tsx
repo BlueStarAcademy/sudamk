@@ -83,7 +83,15 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         gameStatus === 'base_komi_result' ||
         gameStatus === 'base_game_start_confirmation';
 
+    const myRevealedMoveIndices = useMemo(() => {
+        const uid = currentUser?.id;
+        const raw = uid && revealedHiddenMoves ? revealedHiddenMoves[uid] : undefined;
+        return Array.isArray(raw) ? raw : undefined;
+    }, [revealedHiddenMoves, currentUser?.id]);
+
     const myRevealedStones = useMemo(() => {
+        const opp = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+        const board = session.boardState;
         const points: Point[] = [];
         if (moveHistory && revealedHiddenMoves && currentUser?.id) {
             const indices = revealedHiddenMoves[currentUser.id];
@@ -91,16 +99,25 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                 indices
                     .map((index: number) => moveHistory[index])
                     .filter((move: Move | undefined): move is Move => !!move)
+                    .filter((move: Move) => {
+                        const row = board?.[move.y];
+                        const cell = row?.[move.x];
+                        return cell === move.player && move.player === opp;
+                    })
                     .forEach((move: Move) => points.push({ x: move.x, y: move.y }));
             }
         }
         const aiInitial = (session as { aiInitialHiddenStone?: Point }).aiInitialHiddenStone;
         const scannedByMe = (session as { scannedAiInitialHiddenByUser?: Record<string, boolean> }).scannedAiInitialHiddenByUser?.[currentUser?.id ?? ''];
-        if (aiInitial && scannedByMe && !points.some(p => p.x === aiInitial.x && p.y === aiInitial.y)) {
-            points.push({ x: aiInitial.x, y: aiInitial.y });
+        if (aiInitial && scannedByMe) {
+            const row = board?.[aiInitial.y];
+            const cell = row?.[aiInitial.x];
+            if (cell === opp && !points.some((p) => p.x === aiInitial.x && p.y === aiInitial.y)) {
+                points.push({ x: aiInitial.x, y: aiInitial.y });
+            }
         }
         return points;
-    }, [moveHistory, revealedHiddenMoves, currentUser?.id, session]);
+    }, [moveHistory, revealedHiddenMoves, currentUser?.id, session, myPlayerEnum]);
 
     // 히든 모드: 마지막 수 표시를 '마지막 비히든 수'로 (새로고침 후 마지막 수가 히든 돌 위치로 겹치는 버그 방지)
     const displayLastMoveKey = useMemo(() => {
@@ -195,6 +212,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     permanentlyRevealedStones={permanentlyRevealedStones}
                     newlyRevealed={newlyRevealed}
                     myRevealedStones={myRevealedStones}
+                    myRevealedMoveIndices={myRevealedMoveIndices}
                     justCaptured={justCaptured}
                     captures={session.captures}
                     baseStones={baseStones}

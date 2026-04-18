@@ -41,7 +41,7 @@ import {
 const ONBOARDING_RING_CLASS = 'onboarding-spotlight-ring';
 
 type HoleFraction = { top: number; left: number; right: number; bottom: number };
-type PanelPlacement = 'top' | 'middle' | 'bottom';
+type PanelPlacement = 'top' | 'bottom';
 
 function measureHoleFraction(targetId: OnboardingSpotlightTargetId, root: HTMLElement): HoleFraction | null {
     const el = document.querySelector(`[data-onboarding-target="${targetId}"]`) as HTMLElement | null;
@@ -63,7 +63,7 @@ function measureHoleFraction(targetId: OnboardingSpotlightTargetId, root: HTMLEl
 }
 
 /**
- * 신규 온보딩: 반투명 마스크 + 타깃 구멍(스포트라이트) + 하단 설명.
+ * 신규 온보딩: 반투명 마스크 + 타깃 구멍(스포트라이트) + 설명 패널(스포트라이트 위치에 따라 상·하 배치, 높이 제한으로 겹침 방지).
  * `#sudamr-onboarding-root`는 `#sudamr-modal-root`(z-60)보다 위에 두어 경기 설명 튜토리얼이 모달 위에서 안내된다.
  */
 const OnboardingTutorialOverlay: React.FC = () => {
@@ -86,6 +86,8 @@ const OnboardingTutorialOverlay: React.FC = () => {
     );
     const [panelDragOffset, setPanelDragOffset] = useState({ x: 0, y: 0 });
     const [panelDragging, setPanelDragging] = useState(false);
+    /** 스포트라이트 구멍과 겹치지 않도록 패널 최대 높이(px). 없으면 기본 max-h만 사용 */
+    const [panelMaxHeightPx, setPanelMaxHeightPx] = useState<number | null>(null);
     const prevOnboardingPhaseRef = useRef<number | null>(null);
     const phase8HomeAdvanceLock = useRef(false);
     const panelRef = useRef<HTMLDivElement | null>(null);
@@ -509,35 +511,72 @@ const OnboardingTutorialOverlay: React.FC = () => {
 
     const dragEnabled = isHandheld || isNativeMobile;
     const spotlightCenterY = hole ? hole.top + (100 - hole.top - hole.bottom) / 2 : null;
-    const panelPlacement: PanelPlacement =
-        !dragEnabled || spotlightCenterY == null
-            ? 'bottom'
-            : spotlightCenterY <= 33
-              ? 'bottom'
-              : spotlightCenterY >= 66
-                ? 'top'
-                : 'middle';
+    /** 스포트라이트가 화면 위쪽이면 설명창은 아래, 아래쪽이면 설명창은 위 — 가운데 정렬로 구멍을 가리지 않음 */
+    const panelPlacement: PanelPlacement = spotlightCenterY == null ? 'bottom' : spotlightCenterY < 52 ? 'bottom' : 'top';
 
     const panelContainerStyle: React.CSSProperties =
-        !dragEnabled
-            ? { marginTop: 'auto', transform: `translate3d(${panelDragOffset.x}px, ${panelDragOffset.y}px, 0)` }
-            : panelPlacement === 'top'
-              ? {
-                    top: 'max(0.75rem, env(safe-area-inset-top, 0px))',
-                    left: '50%',
-                    transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), ${panelDragOffset.y}px, 0)`,
-                }
-              : panelPlacement === 'middle'
-                ? {
-                      top: '50%',
-                      left: '50%',
-                      transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), calc(-50% + ${panelDragOffset.y}px), 0)`,
-                  }
-                : {
-                      bottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
-                      left: '50%',
-                      transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), ${panelDragOffset.y}px, 0)`,
-                  };
+        panelPlacement === 'top'
+            ? {
+                  top: 'max(0.75rem, env(safe-area-inset-top, 0px))',
+                  left: '50%',
+                  transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), ${panelDragOffset.y}px, 0)`,
+              }
+            : {
+                  bottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))',
+                  left: '50%',
+                  transform: `translate3d(calc(-50% + ${panelDragOffset.x}px), ${panelDragOffset.y}px, 0)`,
+              };
+
+    /** 스포트라이트 구역과 설명 패널이 겹치지 않도록 패널 높이 상한(px) 계산 */
+    useLayoutEffect(() => {
+        if (!active || passThroughLayer || !hole) {
+            setPanelMaxHeightPx(null);
+            return;
+        }
+        const rootEl = document.getElementById('sudamr-onboarding-root');
+        if (!rootEl) {
+            setPanelMaxHeightPx(null);
+            return;
+        }
+        const run = () => {
+            const rr = rootEl.getBoundingClientRect();
+            if (rr.height < 100) {
+                setPanelMaxHeightPx(null);
+                return;
+            }
+            const gap = 12;
+            const holeTopPx = (hole.top / 100) * rr.height;
+            const holeBottomPx = ((100 - hole.bottom) / 100) * rr.height;
+            const reservedBottom = 100;
+            const reservedTop = 56;
+            const cap = Math.floor(rr.height * 0.58);
+
+            if (panelPlacement === 'bottom') {
+                const raw = rr.height - reservedBottom - holeBottomPx - gap;
+                setPanelMaxHeightPx(Math.max(120, Math.min(cap, Math.floor(raw))));
+            } else {
+                const raw = holeTopPx - gap - reservedTop;
+                setPanelMaxHeightPx(Math.max(120, Math.min(cap, Math.floor(raw))));
+            }
+        };
+        const id = requestAnimationFrame(run);
+        return () => cancelAnimationFrame(id);
+    }, [
+        active,
+        passThroughLayer,
+        hole,
+        panelPlacement,
+        phase,
+        spotlightId,
+        currentRoute.view,
+        phase0ProfileSubIndex,
+        phase5GameDescSubStep,
+        phase6IngameSubStep,
+        phase8TrainingSubStep,
+        phase9BagSubStep,
+        isHandheld,
+        isNativeMobile,
+    ]);
 
     const clampPanelOffset = useCallback((nextX: number, nextY: number) => {
         const el = panelRef.current;
@@ -786,8 +825,13 @@ const OnboardingTutorialOverlay: React.FC = () => {
             >
                 <div
                     ref={panelRef}
-                    className="pointer-events-auto absolute w-[min(100%,32rem)] rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5"
-                    style={panelContainerStyle}
+                    className={`pointer-events-auto absolute w-[min(100%,32rem)] rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5 ${
+                        hole && !passThroughLayer ? 'overflow-y-auto overscroll-y-contain' : ''
+                    }`}
+                    style={{
+                        ...panelContainerStyle,
+                        ...(panelMaxHeightPx != null ? { maxHeight: panelMaxHeightPx } : {}),
+                    }}
                     role="dialog"
                     aria-modal="false"
                     aria-labelledby="onboarding-tutorial-title"

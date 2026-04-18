@@ -1463,9 +1463,20 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const { guildId, researchId } = (payload ?? {}) as { guildId?: string; researchId?: string };
             if (!guildId || !researchId) return { error: '길드 또는 연구 정보가 없습니다.' };
             const guild = guilds[guildId];
-            const myMemberInfo = guild?.members?.find((m: GuildMember) => m.userId === effectiveUserId);
-            if (!guild || !myMemberInfo || (myMemberInfo.role !== GuildMemberRole.Master && myMemberInfo.role !== GuildMemberRole.Vice)) {
-                return { error: '권한???�습?�다.' };
+            const myMemberByEffective = guild?.members?.find((m: GuildMember) => m.userId === effectiveUserId);
+            const myMemberByActualId =
+                user.isAdmin ? guild?.members?.find((m: GuildMember) => m.userId === user.id) : undefined;
+            const myMemberInfo = myMemberByEffective ?? myMemberByActualId;
+            const isLeaderById =
+                guild?.leaderId === effectiveUserId || (user.isAdmin && guild?.leaderId === user.id);
+            const canManageResearch =
+                isLeaderById ||
+                myMemberInfo?.role === GuildMemberRole.Master ||
+                myMemberInfo?.role === GuildMemberRole.Vice ||
+                myMemberInfo?.role === 'leader' ||
+                myMemberInfo?.role === 'officer';
+            if (!guild || !canManageResearch) {
+                return { error: '권한이 없습니다.' };
             }
             if (guild.researchTask) return { error: '?��? 진행 중인 ?�구가 ?�습?�다.' };
 
