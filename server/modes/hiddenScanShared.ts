@@ -22,7 +22,7 @@ export type HiddenScanBoardEval = {
     isAiInitialHiddenStone: boolean;
     isHiddenCell: boolean;
     alreadyFoundByMyScan: boolean;
-    /** 처음 발견한 히든만 true — 스캔 소모 없음·스캔 모드 유지(몰래공개) */
+    /** 처음 발견한 히든만 true(몰래공개). 스캔 개수 차감은 SCAN_BOARD 핸들러에서 적중/빗나감 공통 처리. */
     success: boolean;
 };
 
@@ -61,7 +61,16 @@ export function recordSoftHiddenScanDiscovery(
     }
 }
 
-export function buildHiddenScanAnimation(now: number, playerId: string, x: number, y: number, success: boolean) {
+/** 타워 PVE만 true: 스캔 적중 후에도 같은 스캔 세션을 이어감. 온라인 히든·싱글은 false(한 번 지정 후 본경기 복귀). */
+export function buildHiddenScanAnimation(
+    now: number,
+    playerId: string,
+    x: number,
+    y: number,
+    success: boolean,
+    opts?: { resumeScanSessionOnSuccess?: boolean }
+) {
+    const resumeScanSessionOnSuccess = !!opts?.resumeScanSessionOnSuccess;
     return {
         type: 'scan' as const,
         point: { x, y },
@@ -69,7 +78,7 @@ export function buildHiddenScanAnimation(now: number, playerId: string, x: numbe
         startTime: now,
         duration: 2000,
         playerId,
-        ...(success ? { towerResumeScanning: true } : {}),
+        ...(success && resumeScanSessionOnSuccess ? { towerResumeScanning: true } : {}),
     };
 }
 

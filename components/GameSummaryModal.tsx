@@ -32,6 +32,7 @@ import {
 } from './game/ResultModalRewardSlot.js';
 import { ResultModalVipRewardSlot } from './game/ResultModalVipRewardSlot.js';
 import { AdventureBattleRewardRowWithReveal, AdventureResultCodexCard } from './game/adventureResultModalSections.js';
+import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../shared/constants/vipPlayReward.js';
@@ -281,8 +282,9 @@ const XpBar: React.FC<{
 const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ analysis, session, isMobile = false, mobileTextScale = 1 }) => {
     const { scoreDetails } = analysis;
     const { mode, settings } = session;
+    const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
-    if (!scoreDetails) return <p className={`text-center text-gray-400 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    if (!scoreDetails) return <p className={`text-center text-gray-400 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
     
     const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
@@ -290,35 +292,35 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     /** 모바일: 프로필이 가로(2열)일 때 흑·백 점수 비교도 가로 2열로 맞춤 */
     const scoreGridTwoColsOnMobile = isMobile;
 
-    const rowClass = `flex min-w-0 justify-between gap-2 ${isMobile ? 'text-[10px]' : 'text-xs min-[1024px]:text-[0.8125rem]'}`;
+    const rowClass = `flex min-w-0 justify-between gap-2 ${isMobile ? 'text-sm' : 'text-xs min-[1024px]:text-[0.8125rem]'}`;
     const labelClass = 'shrink-0 whitespace-nowrap text-slate-400';
     const valClass = 'tabular-nums text-right font-medium text-slate-100';
 
     return (
-        <div className={`space-y-1.5 sm:space-y-2 ${isMobile ? 'text-[10px]' : ''}`}>
+        <div className={`space-y-1.5 sm:space-y-2 ${isMobile ? 'text-sm' : ''}`}>
             <div
                 className={`grid min-w-0 gap-1.5 sm:gap-2 ${scoreGridTwoColsOnMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}
             >
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'px-2 py-1.5'} rounded-md`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-[0.7rem] min-[1024px]:text-xs'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>흑</h3>
-                    <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>영토</span> <span className={valClass}>{scoreDetails.black.territory.toFixed(0)}</span></div>
-                    <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>따낸 돌</span> <span className={valClass}>{scoreDetails.black.liveCaptures ?? 0}</span></div>
-                    <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>사석</span> <span className={valClass}>{Math.round(Number(scoreDetails.black.deadStones ?? 0))}</span></div>
-                    {isBaseMode && <div className={`${rowClass} text-blue-300`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-blue-300/90`}>베이스</span> <span className="tabular-nums text-right font-medium">{scoreDetails.black.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className={`${rowClass} text-purple-300`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-purple-300/90`}>히든</span> <span className="tabular-nums text-right font-medium">{scoreDetails.black.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className={`${rowClass} text-green-300`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-green-300/90`}>시간</span> <span className="tabular-nums text-right font-medium">{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex min-w-0 justify-between gap-2 border-t border-gray-600 pt-1 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span className="shrink-0 whitespace-nowrap">총점</span> <span className="tabular-nums text-yellow-300">{scoreDetails.black.total.toFixed(1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-sm' : 'text-[0.7rem] min-[1024px]:text-xs'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>흑</h3>
+                    <div className={rowClass} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={labelClass}>영토</span> <span className={valClass}>{scoreDetails.black.territory.toFixed(0)}</span></div>
+                    <div className={rowClass} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={labelClass}>따낸 돌</span> <span className={valClass}>{scoreDetails.black.liveCaptures ?? 0}</span></div>
+                    <div className={rowClass} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={labelClass}>사석</span> <span className={valClass}>{Math.round(Number(scoreDetails.black.deadStones ?? 0))}</span></div>
+                    {isBaseMode && <div className={`${rowClass} text-blue-300`} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-blue-300/90`}>베이스</span> <span className="tabular-nums text-right font-medium">{scoreDetails.black.baseStoneBonus}</span></div>}
+                    {isHiddenMode && <div className={`${rowClass} text-purple-300`} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-purple-300/90`}>히든</span> <span className="tabular-nums text-right font-medium">{scoreDetails.black.hiddenStoneBonus}</span></div>}
+                    {isSpeedMode && <div className={`${rowClass} text-green-300`} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-green-300/90`}>시간</span> <span className="tabular-nums text-right font-medium">{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
+                    <div className="flex min-w-0 justify-between gap-2 border-t border-gray-600 pt-1 mt-0.5 text-sm font-bold" style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span className="shrink-0 whitespace-nowrap">총점</span> <span className="tabular-nums text-yellow-300">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'px-2 py-1.5'} rounded-md`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-xs' : 'text-[0.7rem] min-[1024px]:text-xs'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>백</h3>
-                    <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>영토</span> <span className={valClass}>{scoreDetails.white.territory.toFixed(0)}</span></div>
-                    <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>따낸 돌</span> <span className={valClass}>{scoreDetails.white.liveCaptures ?? 0}</span></div>
-                    <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>사석</span> <span className={valClass}>{Math.round(Number(scoreDetails.white.deadStones ?? 0))}</span></div>
-                    <div className={rowClass} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={labelClass}>덤</span> <span className={valClass}>{scoreDetails.white.komi}</span></div>
-                    {isBaseMode && <div className={`${rowClass} text-blue-300`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-blue-300/90`}>베이스</span> <span className="tabular-nums text-right font-medium">{scoreDetails.white.baseStoneBonus}</span></div>}
-                    {isHiddenMode && <div className={`${rowClass} text-purple-300`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-purple-300/90`}>히든</span> <span className="tabular-nums text-right font-medium">{scoreDetails.white.hiddenStoneBonus}</span></div>}
-                    {isSpeedMode && <div className={`${rowClass} text-green-300`} style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-green-300/90`}>시간</span> <span className="tabular-nums text-right font-medium">{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex min-w-0 justify-between gap-2 border-t border-gray-600 pt-1 mt-0.5 font-bold ${isMobile ? 'text-xs' : 'text-sm'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}><span className="shrink-0 whitespace-nowrap">총점</span> <span className="tabular-nums text-yellow-300">{scoreDetails.white.total.toFixed(1)}</span></div>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-sm' : 'text-[0.7rem] min-[1024px]:text-xs'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>백</h3>
+                    <div className={rowClass} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={labelClass}>영토</span> <span className={valClass}>{scoreDetails.white.territory.toFixed(0)}</span></div>
+                    <div className={rowClass} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={labelClass}>따낸 돌</span> <span className={valClass}>{scoreDetails.white.liveCaptures ?? 0}</span></div>
+                    <div className={rowClass} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={labelClass}>사석</span> <span className={valClass}>{Math.round(Number(scoreDetails.white.deadStones ?? 0))}</span></div>
+                    <div className={rowClass} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={labelClass}>덤</span> <span className={valClass}>{scoreDetails.white.komi}</span></div>
+                    {isBaseMode && <div className={`${rowClass} text-blue-300`} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-blue-300/90`}>베이스</span> <span className="tabular-nums text-right font-medium">{scoreDetails.white.baseStoneBonus}</span></div>}
+                    {isHiddenMode && <div className={`${rowClass} text-purple-300`} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-purple-300/90`}>히든</span> <span className="tabular-nums text-right font-medium">{scoreDetails.white.hiddenStoneBonus}</span></div>}
+                    {isSpeedMode && <div className={`${rowClass} text-green-300`} style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className={`${labelClass} text-green-300/90`}>시간</span> <span className="tabular-nums text-right font-medium">{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
+                    <div className="flex min-w-0 justify-between gap-2 border-t border-gray-600 pt-1 mt-0.5 text-sm font-bold" style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span className="shrink-0 whitespace-nowrap">총점</span> <span className="tabular-nums text-yellow-300">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>
         </div>
@@ -326,6 +328,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 };
 
 const PlayfulScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ gameSession, isMobile = false, mobileTextScale = 1 }) => {
+    const mx = RESULT_MODAL_SCORE_MOBILE_PX;
     const { scores, player1, player2, diceGoBonuses } = gameSession;
     const p1Id = player1.id;
     const p2Id = player2.id;
@@ -344,28 +347,28 @@ const PlayfulScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     if (!hasBonus) {
         return (
             <div className="text-center">
-                <p className={`text-gray-300 ${isMobile ? 'text-xs' : 'text-base lg:text-lg'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>최종 점수</p>
+                <p className={`text-gray-300 ${isMobile ? 'text-sm' : 'text-base lg:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>최종 점수</p>
                 <p className={`${isMobile ? 'text-3xl' : 'text-5xl lg:text-6xl xl:text-7xl'} font-mono my-2`} style={{ fontSize: isMobile ? `${28 * mobileTextScale}px` : undefined }}>{p1TotalScore} : {p2TotalScore}</p>
             </div>
         );
     }
     
     return (
-        <div className={`mx-auto w-full max-w-md space-y-2 sm:space-y-3 ${isMobile ? 'text-[10px]' : 'text-sm md:text-base lg:text-lg'}`}>
+        <div className={`mx-auto w-full max-w-md space-y-2 sm:space-y-3 ${isMobile ? 'text-sm' : 'text-sm md:text-base lg:text-lg'}`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
                 <div className={`space-y-0.5 sm:space-y-1 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-md`}>
-                    <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{player1.nickname}</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span>포획 점수:</span> <span>{p1CaptureScore}</span></div>
-                    {p1Bonus > 0 && <div className="flex justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span>마지막 더미 보너스:</span> <span className="text-green-400">+{p1Bonus}</span></div>}
-                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 sm:pt-1 mt-0.5 sm:mt-1 font-bold ${isMobile ? 'text-xs' : 'text-base'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
+                    <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>{player1.nickname}</h3>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>포획 점수:</span> <span>{p1CaptureScore}</span></div>
+                    {p1Bonus > 0 && <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>마지막 더미 보너스:</span> <span className="text-green-400">+{p1Bonus}</span></div>}
+                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 sm:pt-1 mt-0.5 sm:mt-1 font-bold ${isMobile ? 'text-sm' : 'text-base'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}>
                         <span>총점:</span> <span className="text-yellow-300">{p1TotalScore}</span>
                     </div>
                 </div>
                 <div className={`space-y-0.5 sm:space-y-1 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'p-2'} rounded-md`}>
-                    <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>{player2.nickname}</h3>
-                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span>포획 점수:</span> <span>{p2CaptureScore}</span></div>
-                    {p2Bonus > 0 && <div className="flex justify-between" style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}><span>마지막 더미 보너스:</span> <span className="text-green-400">+{p2Bonus}</span></div>}
-                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 sm:pt-1 mt-0.5 sm:mt-1 font-bold ${isMobile ? 'text-xs' : 'text-base'}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>
+                    <h3 className={`font-bold text-center mb-0.5 sm:mb-1 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>{player2.nickname}</h3>
+                    <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>포획 점수:</span> <span>{p2CaptureScore}</span></div>
+                    {p2Bonus > 0 && <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>마지막 더미 보너스:</span> <span className="text-green-400">+{p2Bonus}</span></div>}
+                    <div className={`flex justify-between border-t border-gray-600 pt-0.5 sm:pt-1 mt-0.5 sm:mt-1 font-bold ${isMobile ? 'text-sm' : 'text-base'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}>
                         <span>총점:</span> <span className="text-yellow-300">{p2TotalScore}</span>
                     </div>
                 </div>
@@ -375,6 +378,7 @@ const PlayfulScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
 };
 
 const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ session, isMobile = false, mobileTextScale = 1 }) => {
+    const mx = RESULT_MODAL_SCORE_MOBILE_PX;
     const { captures, blackPlayerId, whitePlayerId, player1, player2, winner } = session;
     const blackCaptures = captures[Player.Black] || 0;
     const whiteCaptures = captures[Player.White] || 0;
@@ -396,8 +400,8 @@ const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobil
             <div className="flex flex-wrap items-end justify-center gap-x-2 gap-y-1 sm:gap-x-4">
                 <div className="flex flex-col items-center gap-0.5">
                     <span
-                        className={`font-bold uppercase tracking-wider text-stone-400 ${isMobile ? 'text-[9px]' : 'text-xs'}`}
-                        style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}
+                        className="font-bold uppercase tracking-wider text-stone-400 text-xs"
+                        style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}
                     >
                         흑
                     </span>
@@ -418,8 +422,8 @@ const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobil
                 </span>
                 <div className="flex flex-col items-center gap-0.5">
                     <span
-                        className={`font-bold uppercase tracking-wider text-stone-400 ${isMobile ? 'text-[9px]' : 'text-xs'}`}
-                        style={{ fontSize: isMobile ? `${8 * mobileTextScale}px` : undefined }}
+                        className="font-bold uppercase tracking-wider text-stone-400 text-xs"
+                        style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}
                     >
                         백
                     </span>
@@ -454,8 +458,9 @@ const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobil
 };
 
 const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isMobile?: boolean, mobileTextScale?: number, mobileImageScale?: number }> = ({ gameSession, isMobile = false, mobileTextScale = 1, mobileImageScale = 1 }) => {
+    const mx = RESULT_MODAL_SCORE_MOBILE_PX;
     const { curlingScores, player1, player2, blackPlayerId, whitePlayerId } = gameSession;
-    if (!curlingScores) return <p className={`text-center text-gray-400 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    if (!curlingScores) return <p className={`text-center text-gray-400 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
 
     const blackPlayer = blackPlayerId === player1.id ? player1 : player2;
     const whitePlayer = whitePlayerId === player1.id ? player1 : player2;
@@ -613,7 +618,7 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                                             <div className="flex flex-col items-center">
                                                 <span className="font-semibold">{blackKnockout}</span>
                                                 {blackPreviousKnockout > 0 && (
-                                                    <span className={`text-gray-400 ${isMobile ? 'text-[7px]' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
+                                                    <span className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>
                                                         (이전: {blackPreviousKnockout})
                                                     </span>
                                                 )}
@@ -624,7 +629,7 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                                             <div className="flex flex-col items-center">
                                                 <span className="font-semibold">{whiteKnockout}</span>
                                                 {whitePreviousKnockout > 0 && (
-                                                    <span className={`text-gray-400 ${isMobile ? 'text-[7px]' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${7 * mobileTextScale}px` : undefined }}>
+                                                    <span className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>
                                                         (이전: {whitePreviousKnockout})
                                                     </span>
                                                 )}
@@ -852,6 +857,7 @@ const MatchPlayersRoster: React.FC<{
     mobileCompactRoster = false,
     session,
 }) => {
+    const mx = RESULT_MODAL_SCORE_MOBILE_PX;
     const adventureMonster = useMemo(() => {
         if (!session || session.gameCategory !== 'adventure' || !session.adventureMonsterCodexId) return null;
         const e = getAdventureCodexMonsterById(session.adventureMonsterCodexId);
@@ -887,11 +893,11 @@ const MatchPlayersRoster: React.FC<{
                     className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
                     title={nickname}
                 >
-                    <span className="inline-block min-w-0 pr-1 text-[10px] font-bold leading-none text-white" style={{ fontSize: `${10 * mobileTextScale}px` }}>
+                    <span className="inline-block min-w-0 pr-1 text-sm font-bold leading-none text-white" style={{ fontSize: `${mx.columnHead * mobileTextScale}px` }}>
                         {nickname}
                     </span>
                 </div>
-                <span className="mt-0.5 inline-block text-[8px] font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${8 * mobileTextScale}px` }}>
+                <span className="mt-0.5 inline-block text-xs font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${mx.emptyState * mobileTextScale}px` }}>
                     {stone} · {modeTag} Lv.{lv}
                 </span>
             </div>
@@ -903,11 +909,11 @@ const MatchPlayersRoster: React.FC<{
                         className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
                         title={adventureMonster.name}
                     >
-                        <span className="inline-block min-w-0 pr-1 text-[10px] font-bold leading-none text-white" style={{ fontSize: `${10 * mobileTextScale}px` }}>
+                        <span className="inline-block min-w-0 pr-1 text-sm font-bold leading-none text-white" style={{ fontSize: `${mx.columnHead * mobileTextScale}px` }}>
                             {adventureMonster.name}
                         </span>
                     </div>
-                    <span className="mt-0.5 inline-block text-[8px] font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${8 * mobileTextScale}px` }}>
+                    <span className="mt-0.5 inline-block text-xs font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${mx.emptyState * mobileTextScale}px` }}>
                         {stone} · Lv.{adventureMonster.level}
                     </span>
                 </div>
@@ -1009,7 +1015,7 @@ const MatchPlayersRoster: React.FC<{
                         <p
                             className={`mt-1 min-w-0 font-bold leading-snug text-white ${isMobile ? 'truncate' : 'break-words'} ${!isMobile ? 'text-sm min-[1024px]:text-base' : ''}`}
                             style={{
-                                fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined,
+                                fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined,
                                 wordBreak: isMobile ? undefined : 'break-word',
                             }}
                             title={blackIsMonster && adventureMonster ? adventureMonster.name : blackPlayer.nickname}
@@ -1017,8 +1023,8 @@ const MatchPlayersRoster: React.FC<{
                             {blackIsMonster && adventureMonster ? adventureMonster.name : blackPlayer.nickname}
                         </p>
                         <p
-                            className={`font-medium text-stone-400 ${!isMobile ? 'text-sm lg:text-base' : 'text-[0.7rem] sm:text-xs'}`}
-                            style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
+                            className={`font-medium text-stone-400 ${!isMobile ? 'text-sm lg:text-base' : 'text-sm'}`}
+                            style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}
                         >
                             {blackIsMonster && adventureMonster ? `Lv.${adventureMonster.level}` : `${modeTag} Lv.${blackLv}`}
                         </p>
@@ -1059,7 +1065,7 @@ const MatchPlayersRoster: React.FC<{
                         <p
                             className={`mt-1 min-w-0 font-bold leading-snug text-white ${isMobile ? 'truncate' : 'break-words'} ${!isMobile ? 'text-sm min-[1024px]:text-base' : ''}`}
                             style={{
-                                fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined,
+                                fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined,
                                 wordBreak: isMobile ? undefined : 'break-word',
                             }}
                             title={whiteIsMonster && adventureMonster ? adventureMonster.name : whitePlayer.nickname}
@@ -1067,8 +1073,8 @@ const MatchPlayersRoster: React.FC<{
                             {whiteIsMonster && adventureMonster ? adventureMonster.name : whitePlayer.nickname}
                         </p>
                         <p
-                            className={`font-medium text-slate-300/90 ${!isMobile ? 'text-sm lg:text-base' : 'text-[0.7rem] sm:text-xs'}`}
-                            style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : undefined }}
+                            className={`font-medium text-slate-300/90 ${!isMobile ? 'text-sm lg:text-base' : 'text-sm'}`}
+                            style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}
                         >
                             {whiteIsMonster && adventureMonster ? `Lv.${adventureMonster.level}` : `${modeTag} Lv.${whiteLv}`}
                         </p>

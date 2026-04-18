@@ -369,12 +369,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         ? ({ 'data-onboarding-target': 'onboarding-sp-ingame-user-panel' } as const)
         : {};
 
-    /** 네이티브 모바일만: 따낸 돌을 아래 줄로 (PC·좁은 창은 가로 패널 형태 유지) */
-    const stackScoreUnderPlayerInfo = fluidTextLayout && isMobile;
-    const rootLayoutClass = stackScoreUnderPlayerInfo
-        ? 'flex-col gap-1.5'
-        : `items-stretch ${gap} ${orderClass}`;
-    const scoreRowAlignClass = stackScoreUnderPlayerInfo ? (isLeft ? 'justify-end' : 'justify-start') : '';
+    /** 모바일·PC 동일: 따낸 돌 패널을 대국자 블록 옆(가로)에 배치 */
+    const rootLayoutClass = `items-stretch ${gap} ${orderClass}`;
 
     const capturedStonesEl = (
         <CapturedStones
@@ -383,7 +379,6 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
             panelType={panelType}
             mode={mode}
             isMobile={isMobile}
-            fillStretchHeight={!stackScoreUnderPlayerInfo}
             curlingMeta={
                 isCurling
                     ? {
@@ -399,19 +394,13 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
 
     return (
         <div
-            className={`relative flex min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}
+            className={`relative flex h-full min-h-0 min-w-0 flex-1 ${rootLayoutClass} ${padding} rounded-lg transition-all duration-300 border ${panelColorClasses}`}
             {...ingameOnboardingUserAttrs}
         >
             {showActiveBorderPulse && (
                 <div className={`pointer-events-none absolute inset-0 rounded-lg border-2 animate-pulse ${activeBorderPulseClass}`} />
             )}
-            <div
-                className={
-                    stackScoreUnderPlayerInfo
-                        ? `flex w-full shrink-0 min-h-0 flex-col gap-1.5 justify-start ${textAlignClass}`
-                        : `flex min-w-0 flex-1 basis-0 flex-col justify-between ${textAlignClass}`
-                }
-            >
+            <div className={`flex min-w-0 flex-1 basis-0 flex-col justify-between ${textAlignClass}`}>
                 <div
                     className={`flex min-w-0 shrink-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
                 >
@@ -441,11 +430,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
                             )}
                             <h2
-                                className={`min-w-0 max-w-full font-bold leading-snug [writing-mode:horizontal-tb] break-words break-keep ${nameTextSize} ${finalNameClass} ${
-                                    stackScoreUnderPlayerInfo
-                                        ? 'line-clamp-2 block w-full overflow-hidden'
-                                        : 'flex-1 truncate'
-                                }`}
+                                className={`min-w-0 max-w-full flex-1 truncate font-bold leading-snug [writing-mode:horizontal-tb] break-words break-keep ${nameTextSize} ${finalNameClass}`}
                                 title={nameTitle}
                             >
                                 {opponentMonsterDisplay ? (
@@ -477,16 +462,14 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             )}
                         </div>
                         <p
-                            className={`mt-0.5 max-w-full leading-snug [writing-mode:horizontal-tb] break-words break-keep ${levelTextSize} ${levelTextClasses} ${
-                                stackScoreUnderPlayerInfo ? 'line-clamp-2 overflow-hidden' : 'truncate'
-                            }`}
-                            title={stackScoreUnderPlayerInfo ? undefined : levelText}
+                            className={`mt-0.5 max-w-full truncate leading-snug [writing-mode:horizontal-tb] break-words break-keep ${levelTextSize} ${levelTextClasses}`}
+                            title={levelText}
                         >
                             {levelText}
                         </p>
                     </div>
                 </div>
-                <div className={`shrink-0 min-w-0 w-full ${stackScoreUnderPlayerInfo ? '' : isMobile ? 'mt-0.5' : 'mt-1'}`}>
+                <div className={`shrink-0 min-w-0 w-full ${isMobile ? 'mt-0.5' : 'mt-1'}`}>
                     {useAdventureMatchCountdown && !isGameEnded && (
                         <>
                             <TimeBar
@@ -566,11 +549,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     )}
                 </div>
             </div>
-            {stackScoreUnderPlayerInfo ? (
-                <div className={`flex w-full shrink-0 ${scoreRowAlignClass}`}>{capturedStonesEl}</div>
-            ) : (
-                capturedStonesEl
-            )}
+            {capturedStonesEl}
         </div>
     );
 };
@@ -892,7 +871,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         (session as any).blackTurnLimitBonus,
     ]);
     
-    const turnInfoSize = compactPlayerBar ? 'h-[5.25rem] w-[5.25rem]' : 'w-[5.25rem] h-[5.25rem] md:w-24 md:h-24';
+    /** 컴팩트 바: 행(stretch) 높이에 맞춤 — 대국자 패널과 동일 높이 */
+    const turnInfoShellClass = compactPlayerBar
+        ? 'flex w-[5.25rem] shrink-0 self-stretch min-h-0 flex-col'
+        : 'flex h-[5.25rem] w-[5.25rem] shrink-0 flex-col items-center justify-center md:h-24 md:w-24';
     const turnInfoLabelSize = compactPlayerBar ? 'text-xs' : 'text-[11px] md:text-xs';
     const turnInfoValueSize = compactPlayerBar ? 'text-2xl' : 'text-2xl md:text-3xl';
     const turnInfoTotalSize = compactPlayerBar ? 'text-sm' : 'text-sm md:text-base';
@@ -917,17 +899,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
               ? 'min-h-[5rem] w-[4.25rem]'
               : 'w-[4.5rem] sm:w-[4.75rem] md:w-[5.25rem] min-h-[4.25rem]';
 
-    /** 좁은 PC: 대국자 패널은 가로형·스트레치 유지 / 모바일만 상단 바 높이 자동 */
-    const compactBarMobileLayout = compactPlayerBar && isMobile;
+    /** 컴팩트 바(모바일·좁은 창): 한 행에서 수순 박스·대국자 패널 높이 동일하게 스트레치 */
     const playerColClass = compactPlayerBar
-        ? compactBarMobileLayout
-            ? 'flex min-h-0 min-w-0 flex-1 items-start'
-            : 'flex min-h-0 min-w-0 flex-1 items-stretch'
+        ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
         : 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
     const compactBarRowClass = compactPlayerBar
-        ? compactBarMobileLayout
-            ? 'min-h-0 items-start justify-between gap-1.5'
-            : 'min-h-[4.5rem] items-stretch justify-between gap-1.5'
+        ? 'min-h-[4.5rem] items-stretch justify-between gap-1.5'
         : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';
 
     const adventurePregameColorReveal =
@@ -986,8 +963,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 />
             </div>
             {((isSinglePlayer || session.gameCategory === 'tower') && turnInfo) && (
-                <div className={`flex items-center justify-center ${turnInfoSize} flex-shrink-0 bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
-                    <div className="flex flex-col items-center justify-center text-center px-1">
+                <div className={`${turnInfoShellClass} bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
+                    <div
+                        className={`flex w-full flex-col items-center justify-center px-1 text-center ${
+                            compactPlayerBar ? 'min-h-0 flex-1' : ''
+                        }`}
+                    >
                         <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{turnInfo.label}</span>
                         <div className="flex items-baseline justify-center gap-0.5">
                             <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{turnInfo.remaining}</span>
@@ -997,8 +978,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 </div>
             )}
             {showStrategicTurnBox && strategicLobbyTurnInfo && (
-                <div className={`flex items-center justify-center ${turnInfoSize} flex-shrink-0 bg-gray-800/95 rounded-lg border-2 border-gray-500 shadow-xl`}>
-                    <div className="flex flex-col items-center justify-center text-center px-1">
+                <div className={`${turnInfoShellClass} bg-gray-800/95 rounded-lg border-2 border-gray-500 shadow-xl`}>
+                    <div
+                        className={`flex w-full flex-col items-center justify-center px-1 text-center ${
+                            compactPlayerBar ? 'min-h-0 flex-1' : ''
+                        }`}
+                    >
                         <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>{strategicLobbyTurnInfo.label}</span>
                         {strategicLobbyTurnInfo.type === 'moves_only' ? (
                             <span className={`${turnInfoValueSize} font-bold text-amber-300`}>{strategicLobbyTurnInfo.current}수</span>

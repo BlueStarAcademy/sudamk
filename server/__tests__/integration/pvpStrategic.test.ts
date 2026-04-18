@@ -309,10 +309,14 @@ describe('PVP Strategic mode', () => {
                 userId: p1.id,
             } as any, p1);
             expect(res?.error).toBeUndefined();
-            // 첫 히든 적중은 몰래공개만 — 스캔 소모 없음(스캔 모드 유지)
-            expect(game.scans_p1).toBe(2);
+            // 첫 히든 적중: 몰래공개 + 스캔 1회 소모, 연출 후 본경기(playing)로 복귀
+            expect(game.scans_p1).toBe(1);
             expect(game.animation?.type).toBe('scan');
             expect(game.gameStatus).toBe('scanning_animating');
+            const anim = game.animation as { startTime: number; duration: number };
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            await updateHiddenState(game, anim.startTime + anim.duration + 1);
+            expect(game.gameStatus).toBe('playing');
         });
     });
 

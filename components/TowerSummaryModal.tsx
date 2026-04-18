@@ -28,6 +28,7 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
+import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -108,17 +109,18 @@ const ScoreDetailsComponent: React.FC<{
 }> = ({ analysis, session, isMobile = false, mobileTextScale = 1, compactSideBySideMobile = false }) => {
     const { scoreDetails } = analysis;
     const { mode, settings } = session;
+    const mx = RESULT_MODAL_SCORE_MOBILE_PX;
 
-    if (!scoreDetails) return <p className={`text-center text-zinc-500 ${isMobile ? 'text-xs' : ''}`} style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
+    if (!scoreDetails) return <p className={`text-center text-zinc-500 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
     
     const isSpeedMode = mode === GameMode.Speed || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Speed));
     const isBaseMode = mode === GameMode.Base || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Base));
     const isHiddenMode = mode === GameMode.Hidden || (mode === GameMode.Mix && settings.mixedModes?.includes(GameMode.Hidden));
 
     const narrow2col = Boolean(isMobile && compactSideBySideMobile);
-    const rowFs = narrow2col ? `${8 * mobileTextScale}px` : isMobile ? `${10 * mobileTextScale}px` : undefined;
-    const headFs = narrow2col ? `${9 * mobileTextScale}px` : isMobile ? `${11 * mobileTextScale}px` : undefined;
-    const totalFs = narrow2col ? `${9 * mobileTextScale}px` : isMobile ? `${11 * mobileTextScale}px` : undefined;
+    const rowFs = isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined;
+    const headFs = isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined;
+    const totalFs = isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined;
     const outerPad = narrow2col ? 'p-1 space-y-1' : isMobile ? 'p-1.5 space-y-1.5' : 'p-2 space-y-1.5';
     const innerPad = narrow2col ? 'p-0.5' : isMobile ? 'p-1' : 'p-1.5';
     const gridGap = narrow2col ? 'gap-1' : 'gap-1.5 sm:gap-2';
@@ -127,17 +129,17 @@ const ScoreDetailsComponent: React.FC<{
         <div className={`${outerPad} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`}>
             <div className={`grid ${narrow2col ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} ${gridGap}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>흑</h3>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>흑</h3>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.black.territory.toFixed(0)}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.black.deadStones ?? 0}</span></div>
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.black.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.black.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.black.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.black.total.toFixed(1)}</span></div>
+                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>백</h3>
+                    <h3 className={`font-bold text-center mb-0.5 ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: headFs }}>백</h3>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">영토</span> <span className="tabular-nums">{scoreDetails.white.territory.toFixed(0)}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">따낸</span> <span className="tabular-nums">{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">사석</span> <span className="tabular-nums">{scoreDetails.white.deadStones ?? 0}</span></div>
@@ -145,7 +147,7 @@ const ScoreDetailsComponent: React.FC<{
                     {isBaseMode && <div className="flex justify-between gap-0.5 text-blue-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">베이스</span> <span className="tabular-nums">{scoreDetails.white.baseStoneBonus}</span></div>}
                     {isHiddenMode && <div className="flex justify-between gap-0.5 text-purple-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">히든</span> <span className="tabular-nums">{scoreDetails.white.hiddenStoneBonus}</span></div>}
                     {isSpeedMode && <div className="flex justify-between gap-0.5 text-green-300" style={{ fontSize: rowFs }}><span className="min-w-0 shrink">시간</span> <span className="tabular-nums">{Math.trunc(Number(scoreDetails.white.timeBonus ?? 0))}</span></div>}
-                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-xs' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.white.total.toFixed(1)}</span></div>
+                    <div className={`flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold ${isMobile && !narrow2col ? 'text-sm' : ''} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`} style={{ fontSize: totalFs }}><span>총점</span> <span className="text-amber-200 tabular-nums">{scoreDetails.white.total.toFixed(1)}</span></div>
                 </div>
             </div>
         </div>
@@ -543,24 +545,24 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     >
                                         <h2
                                             className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                            style={{ fontSize: `${11 * mobileTextScale}px` }}
+                                            style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
                                         >
                                             경기 결과
                                         </h2>
                                         <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-visible">
                                             {(analysisResult || (isEnded && session.winner !== null)) && (
                                                 <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 space-y-0.5`}>
-                                                    <div className="flex items-center justify-between" style={{ fontSize: `${10 * mobileTextScale}px` }}>
+                                                    <div className="flex items-center justify-between" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}>
                                                         <span className="text-amber-200/65">총 걸린 시간:</span>
                                                         <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                                     </div>
                                                     {(winReasonText || failureReason) && (
-                                                        <div className="flex flex-col gap-0.5" style={{ fontSize: `${10 * mobileTextScale}px` }}>
-                                                            <span className="text-amber-200/65">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
-                                                            <span className={`font-semibold ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
-                                                                {winReasonText || failureReason}
-                                                            </span>
-                                                        </div>
+                                                        <p
+                                                            className={`leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`}
+                                                            style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
+                                                        >
+                                                            {winReasonText || failureReason}
+                                                        </p>
                                                     )}
                                                 </div>
                                             )}
@@ -587,7 +589,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                     <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} p-2`}>
                                         <h2
                                             className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                            style={{ fontSize: `${11 * mobileTextScale}px` }}
+                                            style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
                                         >
                                             내 정보
                                         </h2>
@@ -603,7 +605,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                                 <p className="font-bold text-zinc-100" style={{ fontSize: `${11 * mobileTextScale}px` }}>
                                                     {currentUser.nickname}
                                                 </p>
-                                                <p className="text-amber-200/60" style={{ fontSize: `${9 * mobileTextScale}px` }}>
+                                                <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
                                                     전략 Lv.{currentUser.strategyLevel}
                                                 </p>
                                             </div>
@@ -635,12 +637,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                             <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                         </div>
                                         {(winReasonText || failureReason) && (
-                                            <div className="flex flex-col gap-0.5" style={{ fontSize: '15px' }}>
-                                                <span className="text-amber-200/65">{isWinner ? '승리 이유:' : '패배 이유:'}</span>
-                                                <span className={`font-semibold ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
-                                                    {winReasonText || failureReason}
-                                                </span>
-                                            </div>
+                                            <p className={`text-[15px] font-semibold leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`}>
+                                                {winReasonText || failureReason}
+                                            </p>
                                         )}
                                     </div>
                                 )}

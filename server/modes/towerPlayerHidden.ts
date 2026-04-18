@@ -333,13 +333,14 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
             if (((game as any)[scanKey] ?? 0) <= 0) return { error: "No scans left." };
 
             const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);
-            if (!evalResult.success) {
-                (game as any)[scanKey] = ((game as any)[scanKey] ?? 0) - 1;
-            } else {
+            if (evalResult.success) {
                 recordSoftHiddenScanDiscovery(game, user.id, evalResult);
             }
+            (game as any)[scanKey] = Math.max(0, ((game as any)[scanKey] ?? 0) - 1);
             const success = evalResult.success;
-            game.animation = buildHiddenScanAnimation(now, user.id, x, y, success);
+            game.animation = buildHiddenScanAnimation(now, user.id, x, y, success, {
+                resumeScanSessionOnSuccess: true,
+            });
             game.gameStatus = 'scanning_animating';
             game.currentPlayer = myPlayerEnum;
             const scanResumeOk = resumeGameTimer(game, now, myPlayerEnum);
@@ -347,7 +348,7 @@ export const handleTowerPlayerHiddenAction = (volatileState: types.VolatileState
                 game.itemUseDeadline = undefined;
                 game.pausedTurnTimeLeft = undefined;
             }
-            return success ? { skipTowerScanInventoryConsume: true } : {};
+            return {};
     }
 
     return null;

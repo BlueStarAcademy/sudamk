@@ -341,11 +341,10 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             if ((game[scanKey] ?? 0) <= 0) return { error: "No scans left." };
 
             const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);
-            if (!evalResult.success) {
-                game[scanKey] = (game[scanKey] ?? 0) - 1;
-            } else {
+            if (evalResult.success) {
                 recordSoftHiddenScanDiscovery(game, user.id, evalResult);
             }
+            game[scanKey] = Math.max(0, (game[scanKey] ?? 0) - 1);
             game.animation = buildHiddenScanAnimation(now, user.id, x, y, evalResult.success);
             game.gameStatus = 'scanning_animating';
             // 아이템 사용 직후에는 현재 플레이어를 사용한 유저로 고정하여 턴 정지 버그를 방지한다.

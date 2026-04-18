@@ -242,11 +242,10 @@ export const handleSinglePlayerHiddenAction = (volatileState: types.VolatileStat
             if ((game[scanKey] ?? 0) <= 0) return { error: "No scans left." };
 
             const evalResult = evaluateHiddenScanBoard(game, user.id, x, y);
-            if (!evalResult.success) {
-                game[scanKey] = (game[scanKey] ?? 0) - 1;
-            } else {
+            if (evalResult.success) {
                 recordSoftHiddenScanDiscovery(game, user.id, evalResult);
             }
+            game[scanKey] = Math.max(0, (game[scanKey] ?? 0) - 1);
             game.animation = buildHiddenScanAnimation(now, user.id, x, y, evalResult.success);
             game.gameStatus = 'scanning_animating';
             // 스캔 아이템 사용 후 턴이 넘어가지 않도록 현재 플레이어 유지
