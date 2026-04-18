@@ -252,7 +252,8 @@ export function buildAdventureMapMonstersFromSchedule(
         if (!pos) continue;
         placed.push(pos);
 
-        const level = lvMin + Math.floor(rng() * (lvMax - lvMin + 1));
+        // 일반: 챕터 레벨 구간 내 랜덤. 챕터 보스는 항상 해당 맵 최대 레벨만 사용.
+        const level = isBoss ? lvMax : lvMin + Math.floor(rng() * (lvMax - lvMin + 1));
         const id = `adv-abs-${stage.id}-${row.codexId}-${windowStart}`;
         const boardSize = resolveAdventureBoardSize(stage.id, row.codexId, id, {
             monsterLevel: level,

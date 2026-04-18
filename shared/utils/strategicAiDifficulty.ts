@@ -46,21 +46,33 @@ export function strategicAiDisplayLevelFromProfileStep(profileStep: number): num
 }
 
 /**
- * 모험 몬스터 레벨(1~50) → 전략 AI Kata 프로필 단계(1~10).
- * `KATA_SERVER_LEVEL_BY_PROFILE_STEP`·`resolveAiLobbyProfileStepFromSettings`와 동일 체계.
+ * 모험 몬스터 레벨(1~50) → KataServer levelbot (전략 로비 1~10단계 테이블과 별도 밸런스).
+ */
+export function adventureMonsterLevelToKataServerLevel(monsterLevel: number): number {
+  const lv = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
+  if (lv === 1) return -31;
+  if (lv <= 3) return -30;
+  if (lv <= 5) return -29;
+  if (lv <= 9) return -27;
+  if (lv === 10) return -25;
+  if (lv <= 15) return -20;
+  if (lv <= 19) return -15;
+  if (lv === 20) return -12;
+  if (lv <= 25) return -10;
+  if (lv <= 29) return -7;
+  if (lv === 30) return -5;
+  if (lv <= 35) return -3;
+  if (lv <= 40) return -2;
+  if (lv <= 45) return -1;
+  return 1;
+}
+
+/**
+ * @deprecated 모험은 `adventureMonsterLevelToKataServerLevel` 사용. 보상/UI용 근사 단계만 필요할 때.
  */
 export function adventureMonsterLevelToKataProfileStep(monsterLevel: number): number {
-  const lv = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
-  if (lv <= 3) return 1;
-  if (lv <= 7) return 2;
-  if (lv <= 10) return 3;
-  if (lv <= 15) return 4;
-  if (lv <= 20) return 5;
-  if (lv <= 25) return 6;
-  if (lv <= 30) return 7;
-  if (lv <= 35) return 8;
-  if (lv <= 45) return 9;
-  return 10;
+  const ks = adventureMonsterLevelToKataServerLevel(monsterLevel);
+  return profileStepFromKataServerLevel(ks) ?? Math.max(1, Math.min(10, Math.ceil(monsterLevel / 5)));
 }
 
 /** 대기실 AI 대국 설정에서 1~10 프로필 단계 (summary·보상용, 서버 makeAiMove 분기와 동일 규칙) */

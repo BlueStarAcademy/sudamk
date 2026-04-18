@@ -9,15 +9,17 @@ import {
     NICKNAME_MIN_LENGTH,
     DEFAULT_GAME_SETTINGS,
 } from '../../constants';
-import { getAdventureMonsterAttackActionPointCost } from '../../constants/adventureMonstersCodex.js';
+import {
+    getAdventureMonsterAttackActionPointCost,
+    isAdventureChapterBossCodexId,
+} from '../../constants/adventureMonstersCodex.js';
 import { containsProfanity } from '../../profanity.js';
 import {
     nicknameContainsReservedStaffTerms,
     RESERVED_STAFF_NICKNAME_USER_MESSAGE,
 } from '../../shared/utils/staffNicknameDisplay.js';
 import {
-    adventureMonsterLevelToKataProfileStep,
-    KATA_SERVER_LEVEL_BY_PROFILE_STEP,
+    adventureMonsterLevelToKataServerLevel,
 } from '../../shared/utils/strategicAiDifficulty.js';
 import type { AdventureMonsterBattleModeKey } from '../../shared/utils/adventureBattleBoard.js';
 import {
@@ -167,8 +169,11 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 const { min: chapterLevelMin, max: chapterLevelMax } = getAdventureStageLevelRange(
                     advStage?.stageIndex ?? 1,
                 );
+                const effectiveMonsterLevel = isAdventureChapterBossCodexId(codexId!)
+                    ? chapterLevelMax
+                    : Math.max(chapterLevelMin, Math.min(chapterLevelMax, monsterLevel));
                 const boardSize = resolveAdventureBoardSize(stageId!, codexId!, mapMonsterId, {
-                    monsterLevel,
+                    monsterLevel: effectiveMonsterLevel,
                     chapterLevelMin,
                     chapterLevelMax,
                 });
@@ -191,10 +196,9 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 }
 
                 const settings = { ...DEFAULT_GAME_SETTINGS };
-                const lv = monsterLevel;
-                const kataStep = adventureMonsterLevelToKataProfileStep(lv);
-                settings.kataServerLevel = KATA_SERVER_LEVEL_BY_PROFILE_STEP[kataStep];
-                settings.goAiBotLevel = kataStep;
+                const lv = effectiveMonsterLevel;
+                settings.kataServerLevel = adventureMonsterLevelToKataServerLevel(lv);
+                settings.goAiBotLevel = Math.max(1, Math.min(10, Math.ceil(lv / 5)));
                 applyAdventureStrategicGameSettings(settings, boardSize, mode);
                 const scanExtra = getRegionalHiddenScanBonus(user.adventureProfile, stageId!);
                 if (mode === GameMode.Hidden && scanExtra > 0) {
@@ -218,7 +222,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                     adventureBattle: {
                         stageId: stageId!,
                         codexId: codexId!,
-                        level: lv,
+                        level: effectiveMonsterLevel,
                         battleMode: battleMode!,
                         boardSize,
                     },

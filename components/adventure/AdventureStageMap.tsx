@@ -384,15 +384,16 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         if (!rosterModalRow || !stage || rosterModalInstance) return null;
         const { min, max } = getAdventureStageLevelRange(stage.stageIndex);
         const mid = Math.floor((min + max) / 2);
+        const isBoss = isAdventureChapterBossCodexId(rosterModalRow.codexId);
+        const levelPreview = isBoss ? max : mid;
         const boardSize = resolveAdventureBoardSize(stage.id, rosterModalRow.codexId, `static-${rosterModalRow.codexId}`, {
-            monsterLevel: mid,
+            monsterLevel: levelPreview,
             chapterLevelMin: min,
             chapterLevelMax: max,
         });
         const quickLinesClassic = formatAdventureBattleQuickLines(boardSize, GameMode.Standard);
         const apCost = getAdventureMonsterAttackActionPointCost(stage.stageIndex, rosterModalRow.codexId);
         const chapterUi = ADVENTURE_CODEX_CHAPTER_UI[stage.id as AdventureStageId];
-        const isBoss = isAdventureChapterBossCodexId(rosterModalRow.codexId);
         const modes = getAdventureAllowedBattleModes(boardSize)
             .map((mode) => ADVENTURE_MONSTER_MODE_LABELS[mode])
             .join(' · ');

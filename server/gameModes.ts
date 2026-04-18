@@ -969,6 +969,8 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
         // PVE 게임은 일반적으로 제외. 단, 다음 경우 서버 루프에서 처리 필요:
         // - hidden_final_reveal / hidden_reveal_animating: 애니메이션 종료 후 scoring 전환
         // - missile_animating / scanning_animating: 애니메이션 종료 후 playing 전환 (도전의 탑 등)
+        // - 모험/길드전 AI 대국: PLACE_STONE 직후 aiTurnStartTime만 세팅되고 makeAiMove는 processGame에서만
+        //   스케줄됨. 여기서 제외하면 몬스터가 영구적으로 수를 두지 않음 (싱글/탑은 클라·전용 경로가 많음).
         const multiPlayerGames: LiveGameSession[] = [];
         for (const game of games) {
             if (!game || !game.id) continue;
@@ -980,7 +982,14 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 game.gameCategory === 'adventure';
             const needsRevealTransition = isPVEGame && (game.gameStatus === 'hidden_final_reveal' || game.gameStatus === 'hidden_reveal_animating');
             const needsMissileOrScanTransition = isPVEGame && (game.gameStatus === 'missile_animating' || game.gameStatus === 'scanning_animating');
-            if (!isPVEGame || needsRevealTransition || needsMissileOrScanTransition) {
+            const needsPveServerGoAiTick =
+                game.isAiGame &&
+                (game.gameCategory === 'adventure' || game.gameCategory === 'guildwar') &&
+                (game.gameStatus === 'playing' ||
+                    game.gameStatus === 'hidden_placing' ||
+                    game.gameStatus === 'scanning' ||
+                    game.gameStatus === 'missile_selecting');
+            if (!isPVEGame || needsRevealTransition || needsMissileOrScanTransition || needsPveServerGoAiTick) {
                 multiPlayerGames.push(game);
             }
         }
@@ -1117,7 +1126,13 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             const pveGames = games.filter(game => {
                 if (!game || !game.id) return false;
                 if (mergedIds.has(game.id)) return false;
-                return game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer';
+                return (
+                    game.isSinglePlayer ||
+                    game.gameCategory === 'tower' ||
+                    game.gameCategory === 'singleplayer' ||
+                    game.gameCategory === 'adventure' ||
+                    game.gameCategory === 'guildwar'
+                );
             });
             return [...mergedMultiPlayer, ...pveGames];
         })();
