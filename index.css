@@ -468,7 +468,7 @@ html, body {
 }
 
 /*
-  터치 폰(소형) 물리 가로: App.tsx 가 html 에 붙여 세로 레이아웃만 쓰게 함. 8인치+ 태블릿 가로는 미적용(PC 셸).
+  레거시 CSS 회전 락(sudamr-handheld-portrait-lock). 현재는 App 전면 안내 오버레이로 가로 사용을 막음 — 필요 시 참고용으로 유지.
 */
 html.sudamr-handheld-portrait-lock,
 html.sudamr-handheld-portrait-lock body {

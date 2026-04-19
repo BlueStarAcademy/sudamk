@@ -7,7 +7,8 @@ import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
-import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT, computeTouchLayoutProfile } from './hooks/useIsMobileLayout.js';
+import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js';
+import { tryLockPortraitForPhoneHandheld } from './utils/mobilePortraitLock.js';
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
@@ -70,6 +71,7 @@ const AppContent: React.FC = () => {
         settings,
         isNativeMobile,
         isLargeTouchTablet,
+        isPhoneHandheldTouch,
         usePortraitFirstShell,
         isNarrowViewport,
     } = useAppContext();
@@ -169,75 +171,50 @@ const AppContent: React.FC = () => {
         }
     }, [currentUser]);
 
-    /**
-     * 터치 폰(8인치 미만·가로에서도 PC 셸 아님): 물리 가로일 때 html에 portrait-lock을 걸어 세로 UI만 쓰게 함.
-     * OS orientation.lock은 iOS·일부 WebView에서 실패하므로 CSS가 최종 방어. 8인치+ 태블릿 가로는 PC 셸 유지.
-     */
+    /** 이전 배포의 html 회전 클래스가 남았을 수 있어 1회 정리 */
     useEffect(() => {
-        const clearClasses = () => {
-            const el = document.documentElement;
-            el.classList.remove(
-                'sudamr-handheld-portrait-lock',
-                'sudamr-handheld-portrait-secondary',
-                'sudamr-handheld-real-landscape',
-            );
-            el.style.removeProperty('--sudamr-landscape-ui-rotate');
-        };
+        const el = document.documentElement;
+        el.classList.remove(
+            'sudamr-handheld-portrait-lock',
+            'sudamr-handheld-portrait-secondary',
+            'sudamr-handheld-real-landscape',
+        );
+        el.style.removeProperty('--sudamr-landscape-ui-rotate');
+    }, []);
 
-        const sync = () => {
-            const el = document.documentElement;
-            const { isPhoneHandheldTouch, isLargeTouchTablet } = computeTouchLayoutProfile();
-            if (!isPhoneHandheldTouch || isLargeTouchTablet) {
-                clearClasses();
-                return;
-            }
-            const w = window.innerWidth;
-            const h = window.innerHeight;
-            if (w <= h) {
-                clearClasses();
-                return;
-            }
-            el.classList.add('sudamr-handheld-portrait-lock');
-            el.classList.remove('sudamr-handheld-portrait-secondary');
-            const so = screen.orientation as ScreenOrientation | undefined;
-            const type = so?.type ?? '';
-            const angle = typeof so?.angle === 'number' ? so.angle : NaN;
-            if (type.includes('landscape-secondary') || angle === 270 || angle === -90) {
-                el.classList.add('sudamr-handheld-portrait-secondary');
-            }
-        };
-
-        const syncSoon = () => {
-            sync();
-            requestAnimationFrame(sync);
-            [16, 50, 120, 280].forEach((ms) => window.setTimeout(sync, ms));
-        };
-
-        const mqCoarse = window.matchMedia?.('(pointer: coarse)');
-        const mqHover = window.matchMedia?.('(hover: none)');
-        mqCoarse?.addEventListener('change', syncSoon);
-        mqHover?.addEventListener('change', syncSoon);
-
-        sync();
-        window.addEventListener('resize', sync);
-        window.addEventListener('orientationchange', syncSoon);
-        const mq = window.matchMedia?.('(orientation: portrait)');
-        mq?.addEventListener('change', syncSoon);
-        const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: EventTarget }).orientation : undefined;
-        so?.addEventListener?.('change', syncSoon as EventListener);
+    /** 소형 터치 폰: 웹뷰·브라우저는 OS 세로 고정을 못 하는 경우가 많아 가로 뷰포트일 때 전면 안내(회전 유도) */
+    const [viewportLandscape, setViewportLandscape] = useState(() => {
+        if (typeof window === 'undefined') return false;
         const vv = window.visualViewport;
-        vv?.addEventListener('resize', sync);
+        const w = vv?.width ?? window.innerWidth;
+        const h = vv?.height ?? window.innerHeight;
+        return w > h;
+    });
+    useEffect(() => {
+        const read = () => {
+            const vv = window.visualViewport;
+            const w = vv?.width ?? window.innerWidth;
+            const h = vv?.height ?? window.innerHeight;
+            setViewportLandscape(w > h);
+        };
+        read();
+        const raf = () => requestAnimationFrame(read);
+        window.addEventListener('resize', read);
+        window.addEventListener('orientationchange', read);
+        window.visualViewport?.addEventListener('resize', read);
+        window.visualViewport?.addEventListener('scroll', raf);
+        const mq = window.matchMedia?.('(orientation: landscape)');
+        mq?.addEventListener?.('change', read);
         return () => {
-            mqCoarse?.removeEventListener('change', syncSoon);
-            mqHover?.removeEventListener('change', syncSoon);
-            window.removeEventListener('resize', sync);
-            window.removeEventListener('orientationchange', syncSoon);
-            mq?.removeEventListener('change', syncSoon);
-            so?.removeEventListener?.('change', syncSoon as EventListener);
-            vv?.removeEventListener('resize', sync);
-            clearClasses();
+            window.removeEventListener('resize', read);
+            window.removeEventListener('orientationchange', read);
+            window.visualViewport?.removeEventListener('resize', read);
+            window.visualViewport?.removeEventListener('scroll', raf);
+            mq?.removeEventListener?.('change', read);
         };
     }, []);
+
+    const showPortraitOnlyGuard = isPhoneHandheldTouch && !isLargeTouchTablet && viewportLandscape;
 
     const isGameView = currentRoute.view === 'game';
     const hideAppHeader = Boolean(currentUser && currentRoute.view === 'set-nickname');
@@ -334,6 +311,32 @@ const AppContent: React.FC = () => {
             overflow: 'hidden',
                                     paddingBottom: isNarrowViewport ? 'env(safe-area-inset-bottom, 0px)' : '0px'
         }}>
+            {showPortraitOnlyGuard && (
+                <div
+                    role="dialog"
+                    aria-modal="true"
+                    aria-labelledby="sudamr-portrait-only-title"
+                    className="fixed inset-0 z-[100000] flex flex-col items-center justify-center gap-3 bg-zinc-950 px-6 text-center text-white"
+                    style={{
+                        paddingTop: 'max(1.5rem, env(safe-area-inset-top, 0px))',
+                        paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))',
+                        paddingLeft: 'max(1rem, env(safe-area-inset-left, 0px))',
+                        paddingRight: 'max(1rem, env(safe-area-inset-right, 0px))',
+                    }}
+                    onClick={() => tryLockPortraitForPhoneHandheld(0)}
+                >
+                    <div className="text-5xl" aria-hidden>
+                        ↻
+                    </div>
+                    <h1 id="sudamr-portrait-only-title" className="text-lg font-bold leading-snug">
+                        세로 모드로 이용해 주세요
+                    </h1>
+                    <p className="max-w-sm text-sm leading-relaxed text-stone-300">
+                        휴대폰을 세로로 돌리면 그대로 이용할 수 있습니다. (가로 화면은 지원하지 않습니다.)
+                    </p>
+                    <p className="text-xs text-stone-500">화면을 탭하면 세로 고정을 다시 시도합니다.</p>
+                </div>
+            )}
             {isPreloading && (
                 <div className="fixed bottom-4 right-4 z-[100] bg-panel border border-color text-on-panel rounded-lg shadow-xl px-3 py-2 flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary"></div>
