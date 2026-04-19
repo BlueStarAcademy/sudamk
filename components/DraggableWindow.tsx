@@ -1,7 +1,11 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, ReactNode } from 'react';
 import { createPortal } from 'react-dom';
-import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import {
+    getLayoutViewportSize,
+    isHandheldPortraitLockActive,
+    useIsHandheldDevice,
+} from '../hooks/useIsMobileLayout.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useViewportUniformScale } from '../hooks/useViewportUniformScale.js';
@@ -177,15 +181,29 @@ function getScaledCanvasDragMetrics(): {
     ratioY: number;
 } | null {
     if (typeof document === 'undefined') return null;
+    /** 회전 셸: rect는 뷰포트 축 AABB·offset은 로컬 박스라 비율이 비정상 → 클램프·드래그 보정이 폭주할 수 있음 */
+    if (isHandheldPortraitLockActive()) return null;
     const root = document.getElementById('sudamr-modal-root');
     if (!root) return null;
     const r = root.getBoundingClientRect();
     if (r.width <= 0 || r.height <= 0) return null;
+    const ratioX = root.offsetWidth / r.width;
+    const ratioY = root.offsetHeight / r.height;
+    if (
+        !Number.isFinite(ratioX) ||
+        !Number.isFinite(ratioY) ||
+        ratioX < 0.05 ||
+        ratioX > 20 ||
+        ratioY < 0.05 ||
+        ratioY > 20
+    ) {
+        return null;
+    }
     return {
         boundsW: root.offsetWidth,
         boundsH: root.offsetHeight,
-        ratioX: root.offsetWidth / r.width,
-        ratioY: root.offsetHeight / r.height,
+        ratioX,
+        ratioY,
     };
 }
 
@@ -478,12 +496,19 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     useEffect(() => {
         const handleResize = () => {
-            setWindowWidth(window.innerWidth);
-            setWindowHeight(window.innerHeight);
+            const { width, height } = getLayoutViewportSize();
+            setWindowWidth(width);
+            setWindowHeight(height);
         };
         handleResize();
         window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        window.addEventListener('orientationchange', handleResize);
+        window.addEventListener('sudamr-portrait-lock-change', handleResize);
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('orientationchange', handleResize);
+            window.removeEventListener('sudamr-portrait-lock-change', handleResize);
+        };
     }, []);
 
     // 브라우저 크기에 따라 창 크기를 비례적으로 조정
@@ -537,15 +562,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (!isNativeMobile) return undefined;
         const base = calculatedWidth ?? designInitialWidth;
         if (base === undefined) return undefined;
-        const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
-        const vwCap = (vv?.width ?? windowWidth) * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100);
+        const { width: layoutW } = getLayoutViewportSize();
+        const vwCap = layoutW * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100);
         return Math.min(base, vwCap);
-    }, [isNativeMobile, calculatedWidth, designInitialWidth, windowWidth]);
+    }, [isNativeMobile, calculatedWidth, designInitialWidth, windowWidth, windowHeight]);
 
     const nativeMaxHeightPx = useMemo(() => {
         if (!isNativeMobile) return undefined;
-        return windowHeight * (NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH / 100);
-    }, [isNativeMobile, windowHeight]);
+        const { height: layoutH } = getLayoutViewportSize();
+        return layoutH * (NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH / 100);
+    }, [isNativeMobile, windowWidth, windowHeight]);
     
     const calculatedHeight = useMemo(() => {
         if (!resolvedInitialHeight) return undefined;
@@ -658,11 +684,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const mobileViewportFitWidthPx = useMemo(() => {
         if (!useMobileViewportFitLayout) return undefined;
         const iw = designInitialWidth;
-        const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
-        const vw = vv?.width ?? windowWidth;
-        const capW = isNativeMobile ? vw * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100) : vw - 8;
+        const { width: layoutW } = getLayoutViewportSize();
+        const capW = isNativeMobile ? layoutW * (NATIVE_MOBILE_MODAL_MAX_WIDTH_VW / 100) : layoutW - 8;
         return Math.max(300, Math.min(iw, capW));
-    }, [useMobileViewportFitLayout, designInitialWidth, windowWidth, isNativeMobile]);
+    }, [useMobileViewportFitLayout, designInitialWidth, windowWidth, windowHeight, isNativeMobile]);
 
     /**
      * 뷰포트 맞춤(네이티브·좁은 화면): 고정 height를 주면 initialHeight(예: 600~780)만큼 항상 잡혀 짧은 모달도
@@ -682,9 +707,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             return undefined;
         }
         const ih = resolvedInitialHeight ?? 600;
+        const layoutH = getLayoutViewportSize().height;
         const capH = isNativeMobile
-            ? windowHeight * (effectiveMobileMaxHeightVh / 100)
-            : Math.max(280, windowHeight - 28);
+            ? layoutH * (effectiveMobileMaxHeightVh / 100)
+            : Math.max(280, layoutH - 28);
         return Math.max(240, Math.min(ih, capH));
     }, [
         useMobileViewportFitLayout,
@@ -693,6 +719,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         isNativeMobile,
         effectiveIsCompactViewport,
         resolvedInitialHeight,
+        windowWidth,
         windowHeight,
         effectiveMobileMaxHeightVh,
         shrinkHeightToContent,
@@ -834,6 +861,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     }, [handleDragStart, isTopmost]);
 
     const applyBoundsClamp = useCallback(() => {
+        /** 회전 셸: visualViewport ∩ getBoundingClientRect 클램프가 매 프레임 미세히 달라져 setPosition → effect 무한 루프가 난다 */
+        if (isHandheldPortraitLockActive()) return;
         setPosition((prev) => {
             const el = windowRef.current;
             if (!el) return prev;
@@ -845,7 +874,10 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             const { dcx, dcy } = computeModalScreenCorrection(er, clamp);
             if (Math.abs(dcx) < 0.25 && Math.abs(dcy) < 0.25) return prev;
             const { dx, dy } = screenDeltaToPositionDelta(dcx, dcy);
-            return { x: prev.x + dx, y: prev.y + dy };
+            const nx = prev.x + dx;
+            const ny = prev.y + dy;
+            if (Math.abs(nx - prev.x) < 0.5 && Math.abs(ny - prev.y) < 0.5) return prev;
+            return { x: nx, y: ny };
         });
     }, []);
 
@@ -900,32 +932,24 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
 
     const handleDragEnd = useCallback(() => {
-
         if (isDragging) {
-
             setIsDragging(false);
 
             if (rememberPosition && !skipSavedPosition && !ingameBoardFrame) {
-
                 try {
-
                     const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
 
                     savedPositions[windowId] = positionRef.current;
 
                     localStorage.setItem('draggableWindowPositions', JSON.stringify(savedPositions));
-
                 } catch (e) {
-
                     console.error("Failed to save window position to localStorage", e);
-
                 }
-
             }
 
+            queueMicrotask(() => applyBoundsClamp());
         }
-
-    }, [isDragging, windowId, rememberPosition, skipSavedPosition, ingameBoardFrame]);
+    }, [isDragging, windowId, rememberPosition, skipSavedPosition, ingameBoardFrame, applyBoundsClamp]);
 
 
 
@@ -950,16 +974,20 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         };
     }, [isDragging, handleMouseMove, handleTouchMove, handleDragEnd]);
 
-    /** 실제 화면 박스 기준으로 영역 밖이면 보정 (transform scale·max-width·스케일 캔버스 모두 반영) */
+    /**
+     * 뷰포트·스케일 변화 시에만 클램프. position을 deps에 넣으면 applyBoundsClamp → setPosition → 무한 루프가 된다.
+     * 드래그 종료 시 보정은 handleDragEnd에서 queueMicrotask로 호출한다.
+     */
     useLayoutEffect(() => {
         if (!isInitialized) return;
         applyBoundsClamp();
     }, [
         isInitialized,
-        position.x,
-        position.y,
         windowWidth,
         windowHeight,
+        effectiveDefaultPosition.x,
+        effectiveDefaultPosition.y,
+        ingameBoardFrame,
         applyBoundsClamp,
         compactFitScale,
         pcUniformScale,
@@ -970,9 +998,19 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (!isInitialized || typeof ResizeObserver === 'undefined') return;
         const el = windowRef.current;
         if (!el) return;
-        const ro = new ResizeObserver(() => applyBoundsClamp());
+        let roRaf = 0;
+        const ro = new ResizeObserver(() => {
+            if (roRaf) cancelAnimationFrame(roRaf);
+            roRaf = requestAnimationFrame(() => {
+                roRaf = 0;
+                applyBoundsClamp();
+            });
+        });
         ro.observe(el);
-        return () => ro.disconnect();
+        return () => {
+            if (roRaf) cancelAnimationFrame(roRaf);
+            ro.disconnect();
+        };
     }, [isInitialized, applyBoundsClamp]);
 
     useEffect(() => {

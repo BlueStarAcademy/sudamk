@@ -22,6 +22,7 @@ import {
     VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT,
     useTouchLayoutProfile,
     useIsPortrait,
+    useHandheldPortraitLockActive,
 } from './useIsMobileLayout.js';
 import { syncDocumentViewportHeightVar } from '../utils/layoutViewportCss.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
@@ -587,6 +588,7 @@ export const useApp = () => {
     const isShortViewportHeight = useViewportHeightBelow(VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT);
     const { isPhoneHandheldTouch, isLargeTouchTablet } = useTouchLayoutProfile();
     const isPortrait = useIsPortrait();
+    const handheldPortraitLockActive = useHandheldPortraitLockActive();
 
     /**
      * 터치 폰: 항상 세로형 네이티브 셸(pcLike 무시).
@@ -609,10 +611,16 @@ export const useApp = () => {
         settings.graphics.pcLikeMobileLayout,
     ]);
 
-    /** App.tsx와 동일: 세로형 풀뷰포트 셸(모달 루트가 화면 픽셀 기준). PC 16:9 캔버스에서는 false */
+    /**
+     * 세로형 풀뷰포트 셸(모달 루트가 화면 픽셀 기준, modalLayerUsesDesignPixels=false).
+     * 폰 물리 가로+portrait-lock 시 App이 html에 락을 걸면 isNativeMobile과 순간 불일치해도 PC 모달 레이어로 가지 않게 한다.
+     */
     const usePortraitFirstShell = useMemo(
-        () => isNativeMobile || (!currentUser && isNarrowViewport && !isLargeTouchTablet),
-        [isNativeMobile, currentUser, isNarrowViewport, isLargeTouchTablet],
+        () =>
+            isNativeMobile ||
+            handheldPortraitLockActive ||
+            (!currentUser && isNarrowViewport && !isLargeTouchTablet),
+        [isNativeMobile, handheldPortraitLockActive, currentUser, isNarrowViewport, isLargeTouchTablet],
     );
 
     /** `#sudamr-modal-root`가 1920×1080 설계 좌표계 안에 있을 때 true (변환 scale 적용) */

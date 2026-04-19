@@ -525,6 +525,21 @@ html.sudamr-handheld-portrait-lock.sudamr-handheld-portrait-secondary #root > .a
     animation: none !important;
 }
 
+/*
+  폰 물리 가로 + portrait-lock: App.tsx·DraggableWindow가 쓰는 vw/dvh는 “짧은 변”에 걸려
+  모달이 세로 화면과 다르게 잘리고, Chrome 에뮬과 실기기(주소창·dvh) 차도 커진다.
+  논리 가로=vmin, 논리 세로=vmax 로 상한을 맞춘다(상수는 constants/ads.ts 와 동일).
+*/
+html.sudamr-handheld-portrait-lock #sudamr-modal-root [data-draggable-window]:not([data-uniform-pc-scale="1"]) {
+    max-width: min(95vmin, calc(100vmin - max(8px, env(safe-area-inset-left, 0px) + env(safe-area-inset-right, 0px) + 8px))) !important;
+    max-height: min(80vmax, calc(100vmax - 32px)) !important;
+    box-sizing: border-box;
+}
+
+html.sudamr-handheld-portrait-lock #sudamr-modal-root [data-draggable-window="chat-quick-modal"]:not([data-uniform-pc-scale="1"]) {
+    max-height: min(92vmax, calc(100vmax - 32px)) !important;
+}
+
 /* 실제 가로: portrait-lock 과 동시에 쓰지 않음 */
 html.sudamr-handheld-real-landscape:not(.sudamr-handheld-portrait-lock) #root {
     position: relative;

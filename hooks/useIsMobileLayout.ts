@@ -124,6 +124,26 @@ export function isHandheldPortraitLockActive(): boolean {
     return document.documentElement.classList.contains('sudamr-handheld-portrait-lock');
 }
 
+/** React에서 portrait-lock 전환을 구독할 때 사용(App 셸·모달 레이어와 동기화). */
+export function useHandheldPortraitLockActive(): boolean {
+    const [active, setActive] = useState(() => isHandheldPortraitLockActive());
+
+    useEffect(() => {
+        const tick = () => setActive(isHandheldPortraitLockActive());
+        tick();
+        window.addEventListener('resize', tick);
+        window.addEventListener('orientationchange', tick);
+        window.addEventListener('sudamr-portrait-lock-change', tick);
+        return () => {
+            window.removeEventListener('resize', tick);
+            window.removeEventListener('orientationchange', tick);
+            window.removeEventListener('sudamr-portrait-lock-change', tick);
+        };
+    }, []);
+
+    return active;
+}
+
 /**
  * 레이아웃·훅용 뷰포트 크기. `sudamr-handheld-portrait-lock` 일 때는 물리 가로여도 세로로 들고 있을 때와 같은 w/h로 본다.
  */

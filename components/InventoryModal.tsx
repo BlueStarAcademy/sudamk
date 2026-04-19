@@ -9,6 +9,7 @@ import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { getLayoutViewportSize } from '../hooks/useIsMobileLayout.js';
 import { ONBOARDING_INTRO1_FAN_ITEM_ID } from '../shared/constants/onboardingTutorial.js';
 import {
     getOnboardingBagTutorialStep,
@@ -952,18 +953,29 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const [isMobileItemDetailOpen, setIsMobileItemDetailOpen] = useState(false);
     const [isMobileEquippedModalOpen, setIsMobileEquippedModalOpen] = useState(false);
 
-    // 브라우저 크기 감지
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-    const [windowHeight, setWindowHeight] = useState(window.innerHeight);
-    
+    /** 논리 뷰포트(폰 가로+portrait-lock 시 세로와 동일). innerWidth만 쓰면 가로 667 등으로 PC 가방 UI가 열린다 */
+    const [windowWidth, setWindowWidth] = useState(() =>
+        typeof window !== 'undefined' ? getLayoutViewportSize().width : 1024,
+    );
+    const [windowHeight, setWindowHeight] = useState(() =>
+        typeof window !== 'undefined' ? getLayoutViewportSize().height : 768,
+    );
+
     useEffect(() => {
-        const handleResize = () => {
-            setWindowWidth(window.innerWidth);
-            setWindowHeight(window.innerHeight);
+        const sync = () => {
+            const { width, height } = getLayoutViewportSize();
+            setWindowWidth(width);
+            setWindowHeight(height);
         };
-        
-        window.addEventListener('resize', handleResize);
-        return () => window.removeEventListener('resize', handleResize);
+        sync();
+        window.addEventListener('resize', sync);
+        window.addEventListener('orientationchange', sync);
+        window.addEventListener('sudamr-portrait-lock-change', sync);
+        return () => {
+            window.removeEventListener('resize', sync);
+            window.removeEventListener('orientationchange', sync);
+            window.removeEventListener('sudamr-portrait-lock-change', sync);
+        };
     }, []);
     
     // PC 가방: 12열 그리드 기준 최소 3줄 슬롯이 안정적으로 보이도록 설계 높이·상한 확대
