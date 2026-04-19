@@ -767,10 +767,19 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
             Object.assign(game, JSON.parse(JSON.stringify(fresh)) as types.LiveGameSession);
             syncAiSession(game, aiUserId);
+            try {
+                const { updateHiddenState } = await import('./modes/hidden.js');
+                await updateHiddenState(game, Date.now());
+            } catch (e: any) {
+                console.error('[GameActions] REQUEST_GAME_STATE_SYNC updateHiddenState failed:', e?.message);
+            }
             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             /** 클라이언트 AI(WASM)만 쓰는 판도 동기화 직후 막히면 서버 makeAiMove로 복구 — 히든 초기 배치 단계 포함 */
             const aiRecoverableStatus =
-                game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing';
+                game.gameStatus === 'playing' ||
+                game.gameStatus === 'hidden_placing' ||
+                game.gameStatus === 'hidden_reveal_animating' ||
+                game.gameStatus === 'scanning_animating';
             const isAiTurnNow =
                 aiRecoverableStatus &&
                 game.currentPlayer !== types.Player.None &&
@@ -1034,6 +1043,25 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 result = await handleStrategicGameAction(volatileState, game, action, userData);
             } else if (PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
                 result = await handlePlayfulGameAction(volatileState, game, action, userData);
+            }
+        }
+
+        // 모험/길드전 AI 전략국: 메인 루프에서 PVE로 제외되는 동안 processGame이 안 돌면
+        // updateBaseState 등이 호출되지 않아 베이스 배치 완료 후 진행이 멈출 수 있음 → 액션 직후 한 틱 적용.
+        if (
+            result != null &&
+            result !== undefined &&
+            !(result as any).error &&
+            game.isAiGame &&
+            !game.isSinglePlayer &&
+            ((game as any).gameCategory === 'adventure' || (game as any).gameCategory === 'guildwar') &&
+            SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)
+        ) {
+            const { updateStrategicGameState } = await import('./modes/standard.js');
+            try {
+                await updateStrategicGameState(game, Date.now());
+            } catch (e: any) {
+                console.warn(`[handleAction] updateStrategicGameState (adventure/guildwar pre-play tick) failed game=${game.id}:`, e?.message);
             }
         }
 

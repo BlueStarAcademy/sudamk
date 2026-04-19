@@ -69,8 +69,13 @@ const KATA_STYLE_AI_GO_MODES = new Set<GameMode>([
     GameMode.Mix,
 ]);
 
-/** 서버 전략바둑 AI / 클라이언트 AI 공통: AI 턴 멈춤 복구 타이머 (히든 초기 배치 포함) */
-const STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES = new Set<GameStatus>(['playing', 'hidden_placing']);
+/** 서버 전략바둑 AI / 클라이언트 AI 공통: AI 턴 멈춤 복구 타이머 (히든 초기 배치·공개/스캔 연출 포함) */
+const STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES = new Set<GameStatus>([
+    'playing',
+    'hidden_placing',
+    'hidden_reveal_animating',
+    'scanning_animating',
+]);
 
 /** 모바일 우측 패널: 100vh 대신 dvh + 노치/홈바로 하단 잘림 방지 */
 const mobileGameSidebarDrawerStyle: React.CSSProperties = {

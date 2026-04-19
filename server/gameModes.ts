@@ -1000,7 +1000,20 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 (game.gameStatus === 'playing' ||
                     game.gameStatus === 'hidden_placing' ||
                     game.gameStatus === 'scanning' ||
-                    game.gameStatus === 'missile_selecting');
+                    game.gameStatus === 'missile_selecting' ||
+                    // 베이스/니기리/따내기 등 사전 단계: 모험·길드전은 isPVEGame 때문에 루프에서 빠지면
+                    // updateStrategicGameState가 호출되지 않아 배치 완료 후 멈춤(komi_bidding 미진입 등)이 난다.
+                    game.gameStatus === 'base_placement' ||
+                    game.gameStatus === 'komi_bidding' ||
+                    game.gameStatus === 'komi_bid_reveal' ||
+                    game.gameStatus === 'base_color_roulette' ||
+                    game.gameStatus === 'base_game_start_confirmation' ||
+                    game.gameStatus === 'nigiri_choosing' ||
+                    game.gameStatus === 'nigiri_guessing' ||
+                    game.gameStatus === 'nigiri_reveal' ||
+                    game.gameStatus === 'capture_bidding' ||
+                    game.gameStatus === 'capture_reveal' ||
+                    game.gameStatus === 'capture_tiebreaker');
             if (!isPVEGame || needsRevealTransition || needsMissileOrScanTransition || needsPveServerGoAiTick) {
                 multiPlayerGames.push(game);
             }

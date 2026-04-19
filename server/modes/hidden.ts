@@ -128,6 +128,10 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
             break;
         }
         case 'hidden_reveal_animating':
+            // 손상·직렬화 누락 등으로 종료 시각이 없으면 연출 분기가 영구 대기 → AI/턴 고착
+            if (!game.revealAnimationEndTime) {
+                game.revealAnimationEndTime = now;
+            }
             if (useTowerStyleHiddenRevealAnimatingResolution(game)) {
                 await runTowerStyleHiddenRevealAnimatingIfDue(game, now, {
                     logPrefix: 'updateHiddenState',
