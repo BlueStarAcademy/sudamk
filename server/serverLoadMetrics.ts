@@ -314,10 +314,25 @@ export type AdminServerMetricsPayload = {
         wsSoftWarn: number;
         wsSoftCrit: number;
     };
+    /** KataServer Move API 설정·선택적 연결 프로브(`probeKata=1`) */
+    kataServer?: {
+        moveApiConfigured: boolean;
+        host: string | null;
+        timeoutMs: number;
+        authKeyConfigured: boolean;
+        probe?: {
+            ok: boolean;
+            latencyMs?: number;
+            httpStatus?: number;
+            error?: string;
+            sampleMove?: string;
+        };
+    };
 };
 
 export async function buildAdminServerMetricsPayload(
     volatileOnlineUsers: number,
+    options?: { probeKataServer?: boolean },
 ): Promise<AdminServerMetricsPayload> {
     const p = await loadPersisted();
     let stats: WebSocketConnStats = {
@@ -349,6 +364,17 @@ export async function buildAdminServerMetricsPayload(
         return { key, maxUsers: b.maxUsers, maxTotalWs: b.maxTotalWs, lastAt: b.lastAt };
     });
 
+    let kataServer: AdminServerMetricsPayload['kataServer'];
+    try {
+        const { getKataServerConfigSummary, probeKataServerConnection } = await import('./kataServerService.js');
+        kataServer = { ...getKataServerConfigSummary() };
+        if (options?.probeKataServer) {
+            kataServer.probe = await probeKataServerConnection();
+        }
+    } catch {
+        kataServer = undefined;
+    }
+
     return {
         serverTime: new Date().toISOString(),
         uptimeSec: Math.round(process.uptime()),
@@ -376,5 +402,6 @@ export async function buildAdminServerMetricsPayload(
             wsSoftWarn: WS_SOFT_WARN,
             wsSoftCrit: WS_SOFT_CRIT,
         },
+        kataServer,
     };
 }

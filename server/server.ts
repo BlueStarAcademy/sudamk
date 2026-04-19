@@ -723,7 +723,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     // Railway 헬스체크는 서버가 시작되면 즉시 통과해야 함
     // 초기 헬스체크 엔드포인트 (서버 시작 전에도 응답)
     // Railway health check를 위해 매우 빠르고 안정적으로 응답
-    app.get('/api/health', (req, res) => {
+    app.get('/api/health', async (req, res) => {
         // 타임아웃 설정 (1초 내에 응답 보장)
         const healthTimeout = setTimeout(() => {
             if (!res.headersSent) {
@@ -740,6 +740,18 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         try {
             // 서버 객체가 있으면 실제 리스닝 상태 확인, 없으면 false
             const isListening = serverRef.serverInstance ? serverRef.serverInstance.listening : false;
+            let kataMoveApi: { configured: boolean; host: string | null; timeoutMs: number } | undefined;
+            try {
+                const { getKataServerConfigSummary } = await import('./kataServerService.js');
+                const k = getKataServerConfigSummary();
+                kataMoveApi = {
+                    configured: k.moveApiConfigured,
+                    host: k.host,
+                    timeoutMs: k.timeoutMs,
+                };
+            } catch {
+                kataMoveApi = undefined;
+            }
             const response = {
                 status: 'ok',
                 timestamp: new Date().toISOString(),
@@ -747,7 +759,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 listening: isListening,
                 ready: serverRef.isServerReady,
                 pid: process.pid,
-                message: isListening ? 'Server is running' : 'Server starting up'
+                message: isListening ? 'Server is running' : 'Server starting up',
+                ...(kataMoveApi ? { kataMoveApi } : {}),
             };
             clearTimeout(healthTimeout);
             res.status(200).json(response);
@@ -779,7 +792,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(403).json({ error: 'Forbidden: Admin access required' });
             }
             const volatileOnline = Object.keys(volatileState.userConnections).length;
-            const payload = await buildAdminServerMetricsPayload(volatileOnline);
+            const probeKata = String(req.query.probeKata || '') === '1';
+            const payload = await buildAdminServerMetricsPayload(volatileOnline, { probeKataServer: probeKata });
             res.json(payload);
         } catch (error: any) {
             console.error('[Admin] server-metrics:', error);

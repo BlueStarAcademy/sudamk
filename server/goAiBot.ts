@@ -992,8 +992,14 @@ function getBoardStateForAi(
     return aiBoardState;
 }
 
+/** 싱글/탑/모험 등 로비가 아닌 PvE 전략바둑(따내기·계가 가중 등에 공통 사용) */
 function isSinglePlayerOrTowerPve(game: types.LiveGameSession): boolean {
-    return !!game.isSinglePlayer || (game as any).gameCategory === 'tower';
+    const cat = (game as any).gameCategory as string | undefined;
+    return (
+        !!game.isSinglePlayer ||
+        cat === 'tower' ||
+        cat === types.GameCategory.Adventure
+    );
 }
 
 /** 싱글/도전의 탑: 승패가 따내기 점수 기준 */
