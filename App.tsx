@@ -170,8 +170,8 @@ const AppContent: React.FC = () => {
     }, [currentUser]);
 
     /**
-     * 터치 폰: 예전엔 세로 보일 때 html에 portrait-lock(-90°)을 걸어 “가로폭 UI”를 긴 변에 맞췄음.
-     * 네이티브 셸(홈·독)은 이미 세로 레이아웃이므로 로그인 후에도 쓰면 홈만 가로로 돌아간 것처럼 보임 → 폰+로그인에서는 전역 회전 비활성.
+     * 터치 폰(8인치 미만·가로에서도 PC 셸 아님): 물리 가로일 때 html에 portrait-lock을 걸어 세로 UI만 쓰게 함.
+     * OS orientation.lock은 iOS·일부 WebView에서 실패하므로 CSS가 최종 방어. 8인치+ 태블릿 가로는 PC 셸 유지.
      */
     useEffect(() => {
         const clearClasses = () => {
@@ -185,16 +185,26 @@ const AppContent: React.FC = () => {
         };
 
         const sync = () => {
-            const { isPhoneHandheldTouch } = computeTouchLayoutProfile();
-            if (!isPhoneHandheldTouch) {
+            const el = document.documentElement;
+            const { isPhoneHandheldTouch, isLargeTouchTablet } = computeTouchLayoutProfile();
+            if (!isPhoneHandheldTouch || isLargeTouchTablet) {
                 clearClasses();
                 return;
             }
-            if (!currentUser) {
+            const w = window.innerWidth;
+            const h = window.innerHeight;
+            if (w <= h) {
                 clearClasses();
                 return;
             }
-            clearClasses();
+            el.classList.add('sudamr-handheld-portrait-lock');
+            el.classList.remove('sudamr-handheld-portrait-secondary');
+            const so = screen.orientation as ScreenOrientation | undefined;
+            const type = so?.type ?? '';
+            const angle = typeof so?.angle === 'number' ? so.angle : NaN;
+            if (type.includes('landscape-secondary') || angle === 270 || angle === -90) {
+                el.classList.add('sudamr-handheld-portrait-secondary');
+            }
         };
 
         const syncSoon = () => {
@@ -227,7 +237,7 @@ const AppContent: React.FC = () => {
             vv?.removeEventListener('resize', sync);
             clearClasses();
         };
-    }, [currentUser]);
+    }, []);
 
     const isGameView = currentRoute.view === 'game';
     const hideAppHeader = Boolean(currentUser && currentRoute.view === 'set-nickname');

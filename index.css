@@ -468,7 +468,7 @@ html, body {
 }
 
 /*
-  레거시: 터치 폰 세로 시 전체 셸 -90° 회전. 네이티브 세로 UI 도입 후 App.tsx 에서 로그인한 폰에는 더 이상 붙이지 않음(홈이 가로로 보이는 문제 방지).
+  터치 폰(소형) 물리 가로: App.tsx 가 html 에 붙여 세로 레이아웃만 쓰게 함. 8인치+ 태블릿 가로는 미적용(PC 셸).
 */
 html.sudamr-handheld-portrait-lock,
 html.sudamr-handheld-portrait-lock body {
