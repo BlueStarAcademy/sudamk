@@ -3,7 +3,6 @@ import * as db from '../db.js';
 import { getGoLogic, processMove } from '../goLogic.js';
 import { handleSharedAction, updateSharedGameState, shouldEnforceTimeControl } from './shared.js';
 import { DICE_GO_INITIAL_WHITE_STONES_BY_ROUND, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_MIN_WHITE_GROUPS, DICE_GO_TURN_CHOICE_TIME, DICE_GO_TURN_ROLL_TIME, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
-import * as effectService from '../effectService.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 
@@ -413,10 +412,8 @@ export const initializeDiceGo = (game: types.LiveGameSession, neg: types.Negotia
     const { boardSize } = game.settings;
     placeDiceGoInitialWhiteStones(game.boardState, boardSize, initialStoneCount);
 
-    const p1Effects = effectService.calculateUserEffects(p1);
-    const p2Effects = effectService.calculateUserEffects(p2);
-    const p1MythicBonus = p1Effects.mythicStatBonuses[types.MythicStat.DiceGoOddBonus]?.flat || 0;
-    const p2MythicBonus = p2Effects.mythicStatBonuses[types.MythicStat.DiceGoOddBonus]?.flat || 0;
+    const p1MythicBonus = 0;
+    const p2MythicBonus = 0;
 
     const baseOdd = (game.settings.oddDiceCount || 0) + p1MythicBonus;
     const baseEven = (game.settings.evenDiceCount || 0) + p1MythicBonus;

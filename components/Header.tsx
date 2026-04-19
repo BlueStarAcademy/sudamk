@@ -220,16 +220,17 @@ function useGuildWarTicketsRemaining(
 }
 
 export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean }> = ({ user, mobile = false }) => {
+    const { guilds } = useAppContext();
     const { actionPoints, lastActionPointUpdate } = user;
     const [timeLeft, setTimeLeft] = useState('');
-    
-    // actionPoints가 없으면 타이머 표시 안 함
-    if (!actionPoints) return null;
-    
+
+    const guildForAp = user.guildId ? guilds[user.guildId] ?? null : null;
+
     const regenInterval = useMemo(() => {
-        const e = calculateUserEffects(user);
+        if (!actionPoints) return ACTION_POINT_REGEN_INTERVAL_MS;
+        const e = calculateUserEffects(user, guildForAp);
         return e.actionPointRegenInterval > 0 ? e.actionPointRegenInterval : ACTION_POINT_REGEN_INTERVAL_MS;
-    }, [user]);
+    }, [user, guildForAp, actionPoints]);
 
     useEffect(() => {
         if (!actionPoints || actionPoints.current >= actionPoints.max) {
@@ -249,7 +250,10 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean
         updateTimer();
         const intervalId = setInterval(updateTimer, 1000);
         return () => clearInterval(intervalId);
-    }, [actionPoints.current, actionPoints.max, lastActionPointUpdate, regenInterval]);
+    }, [actionPoints?.current, actionPoints?.max, lastActionPointUpdate, regenInterval]);
+
+    // actionPoints가 없으면 타이머 표시 안 함 (훅 이후에만 early return)
+    if (!actionPoints) return null;
 
     if (!timeLeft) return null;
 

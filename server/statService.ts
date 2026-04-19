@@ -1,14 +1,19 @@
 
 
 // FIX: Import missing types from the centralized types file.
-import { User, CoreStat, InventoryItem, SpecialStat, MythicStat } from '../types/index.js';
+import { User, CoreStat } from '../types/index.js';
 import { calculateUserEffects } from './effectService.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
+import type { StatTotalsContext } from '../shared/utils/totalStatsContext.js';
+import { extraCorePercentAllStatsFromSpecials } from '../shared/utils/totalStatsContext.js';
 
 const CORE_STAT_CAP = 1500;
 
 // This function is moved from the client to the server.
-export const calculateTotalStats = (user: User | null | undefined): Record<CoreStat, number> => {
+export const calculateTotalStats = (
+    user: User | null | undefined,
+    context: StatTotalsContext = 'default'
+): Record<CoreStat, number> => {
     const finalStats: Record<CoreStat, number> = {} as any;
     
     if (!user) {
@@ -28,13 +33,14 @@ export const calculateTotalStats = (user: User | null | undefined): Record<CoreS
     // 2. Get equipment bonuses from effect service
     const effects = calculateUserEffects(user);
     const bonuses = effects.coreStatBonuses;
+    const contextualAllCorePct = extraCorePercentAllStatsFromSpecials(effects.specialStatBonuses, context);
 
     // 3. Calculate final stats
     for (const key of Object.values(CoreStat)) {
         const baseValue = baseWithSpent[key];
         const bonus = bonuses[key] || { flat: 0, percent: 0 };
         const flatBonus = Number(bonus.flat) || 0;
-        const percentBonus = Number(bonus.percent) || 0;
+        const percentBonus = (Number(bonus.percent) || 0) + contextualAllCorePct;
         const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
         finalStats[key] = Math.min(CORE_STAT_CAP, Math.max(0, finalValue));
     }

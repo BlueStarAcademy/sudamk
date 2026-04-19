@@ -50,10 +50,10 @@ export function parseAdventureMonsterLevel(raw: unknown): number | null {
     return Math.min(50, lv);
 }
 
-export function applyAdventureMonsterDefeatToProfile(
+export async function applyAdventureMonsterDefeatToProfile(
     user: User,
     params: { codexId: string; stageId: string; battleMode: string },
-): void {
+): Promise<void> {
     const { codexId, stageId, battleMode } = params;
     const prev = normalizeAdventureProfile(user.adventureProfile);
     const counts = { ...(prev.codexDefeatCounts ?? {}) };
@@ -107,7 +107,7 @@ export function applyAdventureMonsterDefeatToProfile(
     user.adventureProfile = nextProfile;
 
     try {
-        effectService.syncActionPointsStateAfterEquipmentChange(user);
+        await effectService.syncActionPointsStateAfterEquipmentChange(user);
     } catch {
         /* ignore */
     }

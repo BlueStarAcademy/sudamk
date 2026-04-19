@@ -194,10 +194,18 @@ function rollMythicForHighTier(tier: number, stage: number, current: ItemGrade):
     return current;
 }
 
+export type GuildBossRewardCalcOptions = {
+    /** 보상 등급 인덱스(1~12)를 이 값만큼 올림 (최대 12) */
+    rewardTierShift?: number;
+    /** 지급된 보상 줄 중 하나를 동일 수량만큼 추가로 받는 횟수(초월 「보상추가」 장비 줄 수만큼) */
+    duplicateRewardCount?: number;
+};
+
 /** 시뮬레이터·서버 공통: 단계 반영 보상 계산 */
 export function calculateGuildBossBattleRewards(
     damage: number,
-    stage: number
+    stage: number,
+    opts?: GuildBossRewardCalcOptions
 ): {
     tier: number;
     guildXp: number;
@@ -212,7 +220,9 @@ export function calculateGuildBossBattleRewards(
 } {
     const st = clampGuildBossStage(stage);
     const rewardMult = guildBossRewardMultiplier(st);
-    const grade = calculateGuildBossGrade(damage, st);
+    const rawGrade = calculateGuildBossGrade(damage, st);
+    const shift = Math.max(0, Math.floor(opts?.rewardTierShift ?? 0));
+    const grade = Math.min(12, Math.max(1, rawGrade + shift));
     const cfg = GUILD_BOSS_REWARDS_BY_GRADE[grade]!;
 
     const scaleReward = (v: number) => Math.max(0, Math.round(v * rewardMult));
@@ -327,5 +337,45 @@ export function calculateGuildBossBattleRewards(
     if (materialsBonus?.name === '신비의 강화석') out.materialsBonus = materialsBonus;
     if (lottoMaterialBox) out.materialBox = lottoMaterialBox;
     else if (materialBox) out.materialBox = materialBox;
+
+    const dupN = Math.max(0, Math.floor(opts?.duplicateRewardCount ?? 0));
+    for (let dupIter = 0; dupIter < dupN; dupIter++) {
+        const dupPick: Array<{ w: number; apply: () => void }> = [];
+        const g0 = out.gold;
+        if (g0 > 0) dupPick.push({ w: 1, apply: () => { out.gold += g0; } });
+        const gc0 = out.guildCoins;
+        if (gc0 > 0) dupPick.push({ w: 1, apply: () => { out.guildCoins += gc0; } });
+        const rp0 = out.researchPoints;
+        if (rp0 > 0) dupPick.push({ w: 1, apply: () => { out.researchPoints += rp0; } });
+        const gx0 = out.guildXp;
+        if (gx0 > 0) dupPick.push({ w: 1, apply: () => { out.guildXp += gx0; } });
+        const mq0 = out.materials.quantity;
+        if (mq0 > 0) dupPick.push({ w: 1, apply: () => { out.materials = { ...out.materials, quantity: out.materials.quantity + mq0 }; } });
+        if (out.materialsBonus && out.materialsBonus.quantity > 0) {
+            const b = out.materialsBonus;
+            dupPick.push({ w: 1, apply: () => { out.materialsBonus = { ...b, quantity: b.quantity + b.quantity }; } });
+        }
+        for (let ti = 0; ti < out.tickets.length; ti++) {
+            const t = out.tickets[ti]!;
+            if (t.quantity > 0) {
+                const q0 = t.quantity;
+                dupPick.push({
+                    w: 1,
+                    apply: () => {
+                        out.tickets = out.tickets.map((x, i) => (i === ti ? { ...x, quantity: x.quantity + q0 } : x));
+                    },
+                });
+            }
+        }
+        if (out.materialBox && out.materialBox.quantity > 0) {
+            const mb = out.materialBox;
+            dupPick.push({ w: 1, apply: () => { out.materialBox = { ...mb, quantity: mb.quantity + mb.quantity }; } });
+        }
+        if (dupPick.length > 0) {
+            const r = Math.floor(Math.random() * dupPick.length);
+            dupPick[r]!.apply();
+        }
+    }
+
     return out;
 }

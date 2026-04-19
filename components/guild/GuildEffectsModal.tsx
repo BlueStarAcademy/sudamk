@@ -26,13 +26,20 @@ const GuildEffectsModal: React.FC<GuildEffectsModalProps> = ({ guild, onClose, i
                     const project = GUILD_RESEARCH_PROJECTS[id];
                     if (project) {
                         const totalEffect = project.baseEffect * data.level;
-                        const effectValue = `${totalEffect.toFixed(project.effectUnit === '%' ? 1 : 0).replace('.0', '')}${project.effectUnit}`;
-                        
-                        categories[project.category].push({
-                            name: project.name,
-                            description: project.description.replace(/(\d+(\.\d+)?)/, `+${effectValue}`),
-                            value: `+${effectValue}`
-                        });
+                        if (id === GuildResearchId.ap_regen_boost) {
+                            categories[project.category].push({
+                                name: project.name,
+                                description: `자연 회복 시 1AP당 간격이 총 ${totalEffect}초 줄어듭니다.`,
+                                value: `−${totalEffect}초`,
+                            });
+                        } else {
+                            const effectValue = `${totalEffect.toFixed(project.effectUnit === '%' ? 1 : 0).replace('.0', '')}${project.effectUnit}`;
+                            categories[project.category].push({
+                                name: project.name,
+                                description: project.description.replace(/(\d+(\.\d+)?)/, `+${effectValue}`),
+                                value: `+${effectValue}`,
+                            });
+                        }
                     }
                 }
             }

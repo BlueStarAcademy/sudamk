@@ -120,7 +120,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
-    transcendent: '/images/equipments/transcendentbgi.png',
+    transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
 const getStarDisplayInfo = (stars: number) => {
@@ -409,31 +409,10 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
     );
 };
 
-const formatMythicStat = (stat: MythicStat, data: { count: number, totalValue: number }): React.ReactNode => {
-    const baseDescription = MYTHIC_STATS_DATA[stat].description;
-
-    switch (stat) {
-        case MythicStat.StrategicGoldBonus:
-        case MythicStat.PlayfulGoldBonus: {
-            const newPercentage = 20 * data.count;
-            return <span className="w-full">{baseDescription.replace(/20%/, `${newPercentage}%`)}</span>;
-        }
-        case MythicStat.MannerActionCooldown: {
-             return (
-                <div className="flex justify-between items-center w-full">
-                    <span>{baseDescription}</span>
-                    <span className="font-mono font-semibold">+{data.totalValue}</span>
-                </div>
-            );
-        }
-        case MythicStat.DiceGoOddBonus:
-        case MythicStat.AlkkagiSlowBonus:
-        case MythicStat.AlkkagiAimingBonus: {
-            return <span className="w-full">{baseDescription.replace(/1개/g, `${data.totalValue}개`)}</span>;
-        }
-        default:
-            return <span className="w-full">{baseDescription}</span>;
-    }
+const formatMythicStat = (stat: MythicStat, _data: { count: number, totalValue: number }): React.ReactNode => {
+    const row = MYTHIC_STATS_DATA[stat];
+    if (!row) return <span className="w-full">알 수 없는 스페셜 옵션</span>;
+    return <span className="w-full">{row.description}</span>;
 };
 
 const getTier = (score: number, rank: number, totalGames: number) => {
@@ -1000,12 +979,10 @@ const Profile: React.FC<ProfileProps> = () => {
     
     const specialStatAbbreviations: Record<SpecialStat, string> = {
         [SpecialStat.ActionPointMax]: '최대 AP',
-        [SpecialStat.ActionPointRegen]: 'AP 회복',
         [SpecialStat.StrategyXpBonus]: '전략 XP',
         [SpecialStat.PlayfulXpBonus]: '놀이 XP',
-        [SpecialStat.GoldBonus]: '골드 보상',
-        [SpecialStat.ItemDropRate]: '장비 드랍',
-        [SpecialStat.MaterialDropRate]: '재료 드랍',
+        [SpecialStat.ChampionshipVenueAllStats]: '챔피언십',
+        [SpecialStat.GuildBossBattleAllStats]: '길드보스',
     };
     
     const bonusNum = (v: unknown): number => {

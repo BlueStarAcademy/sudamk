@@ -60,6 +60,10 @@ const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { 
             const increasePercent = level * 10; // baseEffect is 10
             return { chance, description: `고정피해, 피해량 +${increasePercent}%` };
         }
+        case GuildResearchId.ap_regen_boost: {
+            const sec = project.baseEffect * level;
+            return { description: `1AP 회복 간격 ${sec}초 감소` };
+        }
         default:
             return null;
     }

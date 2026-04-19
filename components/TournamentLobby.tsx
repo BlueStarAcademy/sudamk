@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState, useEffect } from 'react';
-import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade } from '../types.js';
+import { UserWithStatus, TournamentState, TournamentType, User, LeagueTier, EquipmentSlot, InventoryItem, CoreStat, ItemGrade, SpecialStat } from '../types.js';
 import { TOURNAMENT_DEFINITIONS, AVATAR_POOL, LEAGUE_DATA, BORDER_POOL, GRADE_LEVEL_REQUIREMENTS, emptySlotImages, getDungeonStageScore, getHighestDungeonStageWhereUserAvgExceedsBot } from '../constants';
 import Avatar from './Avatar.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
@@ -744,7 +744,7 @@ const gradeBackgrounds: Record<string, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
-    transcendent: '/images/equipments/transcendentbgi.png',
+    transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
 const getStarDisplayInfo = (stars: number) => {
@@ -911,7 +911,10 @@ const TournamentLobby: React.FC = () => {
         }
     };
 
-    const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUserWithStatus), [currentUserWithStatus]);
+    const equipmentEffects = useMemo(() => calculateUserEffects(currentUserWithStatus), [currentUserWithStatus]);
+    const { coreStatBonuses } = equipmentEffects;
+    const championshipVenueAllCorePct =
+        equipmentEffects.specialStatBonuses[SpecialStat.ChampionshipVenueAllStats]?.percent ?? 0;
     const baseByStat = useMemo(() => {
         const out = {} as Record<CoreStat, number>;
         for (const stat of Object.values(CoreStat)) {
@@ -924,11 +927,11 @@ const TournamentLobby: React.FC = () => {
         for (const stat of Object.values(CoreStat)) {
             const baseValue = baseByStat[stat] || 0;
             const flatBonus = Number(coreStatBonuses[stat].flat) || 0;
-            const percentBonus = Number(coreStatBonuses[stat].percent) || 0;
+            const percentBonus = (Number(coreStatBonuses[stat].percent) || 0) + championshipVenueAllCorePct;
             out[stat] = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
         }
         return out;
-    }, [baseByStat, coreStatBonuses]);
+    }, [baseByStat, coreStatBonuses, championshipVenueAllCorePct]);
     const badukAbilityTotal = useMemo(
         () =>
             Object.values(finalByStat).reduce((sum, v) => {

@@ -191,6 +191,31 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         if (!game.permanentlyRevealedStones) {
             game.permanentlyRevealedStones = [];
         }
+
+        // 따내져 보드에 돌이 없는데 남아 있던 히든 메타를 제거한다(계가·최종 공개 연출에서 빈 칸에 히든이 부활하는 버그 방지).
+        if (game.permanentlyRevealedStones.length > 0) {
+            game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter(
+                (p) => game.boardState[p.y]?.[p.x] !== types.Player.None
+            );
+        }
+        if (game.hiddenMoves && game.moveHistory) {
+            for (const key of Object.keys(game.hiddenMoves)) {
+                const idx = parseInt(key, 10);
+                if (!Number.isFinite(idx) || idx < 0 || idx >= game.moveHistory.length) continue;
+                const m = game.moveHistory[idx];
+                if (!m || m.x < 0 || m.y < 0) continue;
+                if (game.boardState[m.y]?.[m.x] === types.Player.None) {
+                    delete game.hiddenMoves[idx];
+                }
+            }
+        }
+        const aiHiddenPre = (game as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
+        if (
+            aiHiddenPre &&
+            game.boardState[aiHiddenPre.y]?.[aiHiddenPre.x] === types.Player.None
+        ) {
+            (game as any).aiInitialHiddenStone = undefined;
+        }
         
         // 실제 비공개 상태였던 히든 돌만 공개 대상: hiddenMoves에 true로 등록되고, 아직 permanentlyRevealed에 없는 수만
         const stonesToReveal: types.Point[] = [];
@@ -1248,7 +1273,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                         game.currentActionButtons[player.id] = getNewActionButtons(game);
 
                         const effects = effectService.calculateUserEffects(player);
-                        const cooldown = (5 * 60 - (effects.mythicStatBonuses[types.MythicStat.MannerActionCooldown]?.flat || 0)) * 1000;
+                        const cooldown = 5 * 60 * 1000;
 
                         game.actionButtonCooldownDeadline[player.id] = now + cooldown;
                         game.actionButtonUsedThisCycle[player.id] = false;

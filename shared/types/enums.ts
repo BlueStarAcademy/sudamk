@@ -150,6 +150,7 @@ export enum ItemGrade {
     Epic = 'epic',
     Legendary = 'legendary',
     Mythic = 'mythic',
+    /** 초월 — 신화 장비 합성 대성공 등으로 획득 */
     Transcendent = 'transcendent',
 }
 export enum CoreStat {
@@ -162,20 +163,41 @@ export enum CoreStat {
 }
 export enum SpecialStat {
     ActionPointMax = '행동력 최대치',
-    ActionPointRegen = '행동력 회복속도',
     StrategyXpBonus = '전략 경험치 추가획득',
-    PlayfulXpBonus = '놀이 경험치 추가획득',
-    GoldBonus = '경기 승리시 골드보상 추가',
-    ItemDropRate = '장비상자 획득확률 증가',
-    MaterialDropRate = '재료상자 획득확률 증가',
+    PlayfulXpBonus = '놀이 경험치 추가',
+    ChampionshipVenueAllStats = '챔피언십 능력치',
+    GuildBossBattleAllStats = '길드보스전 능력치',
 }
+/** 장비 스페셜 옵션(구 신화 옵션). `ItemOption.mythicSubs` 필드명은 레거시 호환으로 유지. */
 export enum MythicStat {
-    MannerActionCooldown = '매너 액션 버튼 생성시간 감소',
-    StrategicGoldBonus = '전략 바둑 경기중 착수시 20%확률로 골드획득(10~50골드) 최대5회',
-    PlayfulGoldBonus = '놀이 바둑 경기중 60초마다 20%확률로 골드획득(10~50골드) 최대5회',
-    DiceGoOddBonus = '주사위 홀/짝 보너스',
-    AlkkagiSlowBonus = '알까기 및 바둑컬링에서 슬로우 아이템 1개추가',
-    AlkkagiAimingBonus = '알까기 및 바둑컬링에서 조준선 아이템 1개추가',
+    /** 신화 — 길드 보스전 결과 보상 등급 +1 (최대 SSS) */
+    GuildBossRewardGradeUp = '길드 보스전 보상업',
+    /** 신화 — 길드 보스 공격 시 피해 +5% */
+    GuildBossExtraDamage5 = '길드 보스전 추가피해 5%',
+    /** 신화 — 도전의 탑 1~35층 입장 행동력 -1 */
+    TowerApMinus1Floors1to35 = '도전의 탑(1~35층) 필요행동력 -1',
+    /** 신화 — 행동력 자연 회복 간격 -30초 */
+    ApRegenMinus30s = '행동력 회복시간 -30초',
+    /** 신화 — 모험(몬스터 대전) 시작 시 스캔 +1 */
+    AdventureScanPlus1 = '모험 스캔 +1',
+    /** 신화 — 모험 시작 시 미사일 +1 */
+    AdventureMissilePlus1 = '모험 미사일 +1',
+    /** 신화 — 모험 승리 골드 +15% */
+    AdventureGoldBonus15 = '모험 골드 보상 +15%',
+    /** 초월 — 받은 보상 풀에서 하나를 한 번 더 (다른 스페셜과 중복 적용 가능) */
+    GuildBossExtraRewardDuplicate = '길드 보스전 보상추가',
+    /** 초월 — 길드 보스 공격 시 피해 +10% */
+    GuildBossExtraDamage10 = '길드 보스전 추가피해 10%',
+    /** 초월 — 모든 도전의 탑 입장 행동력 -1 */
+    TowerApMinus1AllFloors = '도전의 탑 필요행동력 -1',
+    /** 초월 — 행동력 자연 회복 간격 -60초 */
+    ApRegenMinus60s = '행동력 회복시간 -60초',
+    /** 초월 — 모험 스캔 아이템 +2 (표기명은 「모험 스캔 +1」, MYTHIC_STATS_DATA에서 설명) */
+    AdventureScanTranscendent = '모험 스캔 (스캔 2개)',
+    /** 초월 — 모험 시작 시 미사일 +2 */
+    AdventureMissilePlus2 = '모험 미사일 +2',
+    /** 초월 — 모험 승리 골드 +20% */
+    AdventureGoldBonus20 = '모험 골드 보상 +20%',
 }
 export type ItemOptionType = CoreStat | SpecialStat | MythicStat;
 

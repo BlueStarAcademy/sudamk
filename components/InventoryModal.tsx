@@ -21,6 +21,7 @@ import SellItemConfirmModal from './SellItemConfirmModal.js';
 import SellMaterialBulkModal from './SellMaterialBulkModal.js';
 import UseQuantityModal from './UseQuantityModal.js';
 import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
+import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 
 interface InventoryModalProps {
     currentUser: UserWithStatus;
@@ -437,7 +438,7 @@ const LocalItemDetailDisplay: React.FC<{
 
     const getOptionCategoryOrder = (type: ItemOptionType): number => {
         if (Object.values(CoreStat).includes(type as CoreStat)) return 0;      // 부옵션 (전투 스탯)
-        if (Object.values(SpecialStat).includes(type as SpecialStat)) return 1; // 특수옵션
+        if (coerceSpecialStatType(type)) return 1; // 특수옵션
         if (Object.values(MythicStat).includes(type as MythicStat)) return 2;  // 신화/초월 부옵션
         return 3;
     };
@@ -460,7 +461,7 @@ const LocalItemDetailDisplay: React.FC<{
             const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
             const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
             let colorClass = 'text-blue-300';
-            if (Object.values(SpecialStat).includes(current.type as SpecialStat)) colorClass = 'text-green-300';
+            if (coerceSpecialStatType(current.type)) colorClass = 'text-green-300';
             if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
             const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
             const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
@@ -488,7 +489,7 @@ const LocalItemDetailDisplay: React.FC<{
             const differenceText = difference > 0 ? ` (+${difference})` : (difference < 0 ? ` (${difference})` : '');
             const differenceColorClass = difference > 0 ? 'text-green-400' : (difference < 0 ? 'text-red-400' : '');
             let colorClass = 'text-blue-300';
-            if (Object.values(SpecialStat).includes(current.type as SpecialStat)) colorClass = 'text-green-300';
+            if (coerceSpecialStatType(current.type)) colorClass = 'text-green-300';
             if (Object.values(MythicStat).includes(current.type as MythicStat)) colorClass = 'text-orange-400';
             const rangeText = current.range && !current.display.includes('[') ? ` [${current.range[0]}~${current.range[1]}]` : '';
             const isMythicOpt = Object.values(MythicStat).includes(current.type as MythicStat);
@@ -513,7 +514,7 @@ const LocalItemDetailDisplay: React.FC<{
             );
         } else if (!current && comparison) {
             let colorClass = 'text-red-400';
-            if (Object.values(SpecialStat).includes(comparison.type as SpecialStat)) colorClass = 'text-green-300';
+            if (coerceSpecialStatType(comparison.type)) colorClass = 'text-green-300';
             if (Object.values(MythicStat).includes(comparison.type as MythicStat)) colorClass = 'text-orange-400';
             const rangeText = comparison.range && !comparison.display.includes('[') ? ` [${comparison.range[0]}~${comparison.range[1]}]` : '';
             const isMythicRm = Object.values(MythicStat).includes(comparison.type as MythicStat);
@@ -559,7 +560,7 @@ const LocalItemDetailDisplay: React.FC<{
     const mainAndCombatTypes = collectTypesByFilter(
         (opt) => !!(compareCurrent?.options?.main?.type === opt.type || compareSelected?.options?.main?.type === opt.type || Object.values(CoreStat).includes(opt.type as CoreStat)),
     );
-    const specialTypes = collectTypesByFilter((opt) => Object.values(SpecialStat).includes(opt.type as SpecialStat));
+    const specialTypes = collectTypesByFilter((opt) => coerceSpecialStatType(opt.type) !== undefined);
     const mythicTypes = collectTypesByFilter((opt) => Object.values(MythicStat).includes(opt.type as MythicStat));
 
     const renderCompareOptionRow = (type: ItemOptionType) => {
@@ -2147,7 +2148,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                             ...uniqueMainPriorityTypes.filter((t) => mainSubTypesRaw.includes(t)),
                                                             ...mainSubTypesRaw.filter((t) => !uniqueMainPriorityTypes.includes(t)),
                                                         ];
-                                                        const specialTypes = collectBy((o) => Object.values(SpecialStat).includes(o.type as SpecialStat));
+                                                        const specialTypes = collectBy((o) => coerceSpecialStatType(o.type) !== undefined);
                                                         const mythicTypes = collectBy((o) => Object.values(MythicStat).includes(o.type as MythicStat));
                                                         const renderOptRowsForItem = (
                                                             types: ItemOptionType[],
@@ -2166,7 +2167,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                         type === (_compareItem?.options?.main?.type ?? null);
                                                                     const labelClass = isMainOptionType
                                                                         ? 'text-yellow-300'
-                                                                        : Object.values(SpecialStat).includes(type as SpecialStat)
+                                                                        : coerceSpecialStatType(type)
                                                                           ? 'text-green-300'
                                                                           : Object.values(MythicStat).includes(type as MythicStat)
                                                                             ? 'text-orange-400'

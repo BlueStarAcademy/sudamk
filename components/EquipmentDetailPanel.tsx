@@ -3,7 +3,8 @@ import { InventoryItem, ItemGrade } from '../types.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { GRADE_LEVEL_REQUIREMENTS } from '../constants';
 import { isActionPointConsumable } from '../constants/items';
-import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
+import { MythicSubsPartitioned } from './MythicSubsPartitioned.js';
+import { formatSpecialSubLineForPanel } from '../shared/utils/specialStatMilestones.js';
 
 /** ItemDetailModal과 동일 — 등급별 프레임·배경 */
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; frame: string }> = {
@@ -16,7 +17,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     transcendent: {
         name: '초월',
         color: 'text-cyan-300',
-        background: '/images/equipments/transcendentbgi.png',
+        background: '/images/equipments/transcendentbgi.webp',
         frame: 'from-cyan-500/30 via-teal-600/20 to-cyan-950/25 ring-cyan-400/50',
     },
 };
@@ -137,20 +138,14 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({ item
                         <div className="space-y-0.5">
                             {item.options.specialSubs.map((opt, i) => (
                                 <p key={i} className="text-green-300">
-                                    {opt.display}
+                                    {formatSpecialSubLineForPanel(opt, item.stars ?? 0)}
                                 </p>
                             ))}
                         </div>
                     )}
-                    {item.options?.mythicSubs && item.options.mythicSubs.length > 0 && (
-                        <div className="space-y-0.5">
-                            {item.options.mythicSubs.map((opt, i) => (
-                                <p key={i} className="text-red-400">
-                                    <MythicOptionAbbrev option={opt} textClassName="text-red-400" />
-                                </p>
-                            ))}
-                        </div>
-                    )}
+                    {item.options?.mythicSubs && item.options.mythicSubs.length > 0 ? (
+                        <MythicSubsPartitioned subs={item.options.mythicSubs} />
+                    ) : null}
                 </div>
             </div>
         </div>

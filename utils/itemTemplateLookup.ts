@@ -69,7 +69,10 @@ export const getItemTemplateByName = (itemName: string) => {
     const trimmedName = itemName?.trim()?.replace(/\s+/g, ' ').trim();
     if (!trimmedName) return null;
 
-    const lookupKey = SHOP_ITEM_ID_TO_DISPLAY_NAME[trimmedName] ?? trimmedName;
+    const lookupKey =
+        trimmedName === '신화 옵션 변경권'
+            ? '스페셜 옵션 변경권'
+            : (SHOP_ITEM_ID_TO_DISPLAY_NAME[trimmedName] ?? trimmedName);
 
     let template = CONSUMABLE_TEMPLATE_MAP[lookupKey] || MATERIAL_TEMPLATE_MAP[lookupKey];
     if (template) return template;

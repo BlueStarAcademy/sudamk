@@ -2,8 +2,8 @@
  * 비정상 신화옵션 일괄 정리 스크립트
  *
  * 대상:
- * - 등급별 허용 개수를 초과한 mythicSubs
- *   normal~legendary: 0줄, mythic: 1줄, transcendent: 2줄
+ * - 등급별 허용 개수를 초과한 mythicSubs(스페셜 옵션)
+ *   normal~legendary: 0줄, mythic: 1줄, transcendent: 1줄
  *
  * 실행:
  * - 점검만: npx tsx --tsconfig server/tsconfig.json server/scripts/fixInvalidMythicOptions.ts --dry-run

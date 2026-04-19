@@ -3,7 +3,7 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { PortalHoverBubble } from './PortalHoverBubble.js';
 import { TournamentType, UserWithStatus, TournamentState } from '../types.js';
-import { CoreStat, ItemGrade } from '../types/enums.js';
+import { CoreStat, ItemGrade, SpecialStat } from '../types/enums.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 const CORE_STAT_CAP = 1500;
@@ -734,7 +734,10 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     /** 6개 핵심 능력치 각각이 위 범위·평균을 따를 때의 기대 합(참고) */
     const botBadukAbilityAvg = useMemo(() => botAvgStat * 6, [botAvgStat]);
 
-    const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUser), [currentUser]);
+    const equipmentEffects = useMemo(() => calculateUserEffects(currentUser), [currentUser]);
+    const { coreStatBonuses } = equipmentEffects;
+    const championshipVenueAllCorePct =
+        equipmentEffects.specialStatBonuses[SpecialStat.ChampionshipVenueAllStats]?.percent ?? 0;
     const baseByStat = useMemo(() => {
         const out = {} as Record<CoreStat, number>;
         for (const stat of Object.values(CoreStat)) {
@@ -747,11 +750,11 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
         for (const stat of Object.values(CoreStat)) {
             const baseValue = baseByStat[stat] || 0;
             const flatBonus = Number(coreStatBonuses[stat].flat) || 0;
-            const percentBonus = Number(coreStatBonuses[stat].percent) || 0;
+            const percentBonus = (Number(coreStatBonuses[stat].percent) || 0) + championshipVenueAllCorePct;
             out[stat] = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
         }
         return out;
-    }, [baseByStat, coreStatBonuses]);
+    }, [baseByStat, coreStatBonuses, championshipVenueAllCorePct]);
     const myBadukAbilityTotal = useMemo(
         () =>
             Object.values(finalByStat).reduce((sum, v) => {

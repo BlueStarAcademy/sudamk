@@ -56,7 +56,13 @@ async function processFile(filePath: string) {
         }
     }
     await sharp(out, { raw: { width: w, height: h, channels: 4 } })
-        .webp({ quality: 88, effort: 4, alphaQuality: 100 })
+        .webp({
+            nearLossless: true,
+            quality: 92,
+            alphaQuality: 100,
+            effort: 6,
+            smartSubsample: false,
+        })
         .toFile(filePath + '.tmp');
     await fs.rename(filePath + '.tmp', filePath);
     console.log('OK', path.relative('public', filePath));

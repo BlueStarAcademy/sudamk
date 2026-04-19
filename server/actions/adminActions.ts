@@ -1,11 +1,11 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type Equipment, type VolatileState, AdminLog, Announcement, OverrideAnnouncement, GameMode, LiveGameSession, UserStatusInfo, InventoryItem, InventoryItemType, UserStatus, TournamentType, CoreStat, type EquipmentSlot, LeagueTier } from '../../types/index.js';
+import { type ServerAction, type User, type Equipment, type VolatileState, AdminLog, Announcement, OverrideAnnouncement, GameMode, LiveGameSession, UserStatusInfo, InventoryItem, InventoryItemType, UserStatus, TournamentType, CoreStat, type EquipmentSlot, ItemGrade, LeagueTier } from '../../types/index.js';
 import * as types from '../../types/index.js';
 import { defaultStats, createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultInventory, createDefaultQuests, createDefaultUser } from '../initialData.js';
 import * as summaryService from '../summaryService.js';
 import { createItemFromTemplate, applyEnhancementStarsToEquipmentItem, createSeededRandom } from '../shop.js';
-import { EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../../constants';
+import { EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH, resolveEquipmentTemplateLookupName } from '../../constants';
 import * as mannerService from '../mannerService.js';
 import { containsProfanity } from '../../profanity.js';
 import { broadcast } from '../socket.js';
@@ -56,15 +56,7 @@ function sanitizeAdminInventoryList(raw: unknown): InventoryItem[] {
             if (typeof it.image !== 'string') it.image = '';
             if (typeof it.description !== 'string') it.description = '';
             if (typeof it.grade !== 'string') it.grade = 'normal';
-            const anyIt = it as Record<string, unknown>;
-            if (anyIt.isDivineMythic === true && it.grade === 'mythic') {
-                it.grade = 'transcendent';
-            }
-            delete anyIt.isDivineMythic;
-            if (typeof it.name === 'string' && it.name.endsWith(' (더블신화)')) {
-                it.name = it.name.replace(/ \(더블신화\)$/, '');
-            }
-            out.push(it as unknown as InventoryItem);
+            out.push(normalizeLegacyDivineMythicInventoryItem(it as unknown as InventoryItem));
         } catch {
             /* skip malformed */
         }
@@ -467,9 +459,10 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                         const stars = parseEquipmentStarsFromPayload(rawStars);
                         if (type === 'equipment') {
                             for (let i = 0; i < quantity; i++) {
+                                const lookupName = resolveEquipmentTemplateLookupName(name, payloadGrade as ItemGrade) ?? name;
                                 const template = payloadGrade
-                                    ? EQUIPMENT_POOL.find(t => t.name === name && t.grade === payloadGrade)
-                                    : EQUIPMENT_POOL.find(t => t.name === name);
+                                    ? EQUIPMENT_POOL.find((t) => t.name === lookupName && t.grade === payloadGrade)
+                                    : EQUIPMENT_POOL.find((t) => t.name === lookupName);
                                 if (template) {
                                     let eq = createItemFromTemplate(template);
                                     eq = normalizeLegacyDivineMythicInventoryItem(eq);
@@ -918,7 +911,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     const botUser = botUsers.find(b => b.id === p.id);
                     if (botUser) {
                         // calculateTotalStats로 봇의 최종 능력치 계산
-                        initialStats = calculateTotalStats(botUser);
+                        initialStats = calculateTotalStats(botUser, 'championshipVenue');
                     } else {
                         // 폴백: 기본 능력치 생성
                         const baseStatValue = 100;
@@ -931,7 +924,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 } else {
                     // 현재 유저만 여기 도달 (챔피언십은 봇 전용)
                     if (p.id === freshUser.id) {
-                        initialStats = calculateTotalStats(freshUser);
+                        initialStats = calculateTotalStats(freshUser, 'championshipVenue');
                     } else {
                         const baseStatValue = 100;
                         const stats: Partial<Record<CoreStat, number>> = {};
@@ -1068,7 +1061,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     let initialStats: Record<CoreStat, number>;
                     if (p.id.startsWith('bot-')) {
                         const botUser = botUsers.find(b => b.id === p.id);
-                        if (botUser) initialStats = calculateTotalStats(botUser);
+                        if (botUser) initialStats = calculateTotalStats(botUser, 'championshipVenue');
                         else {
                             const baseStatValue = 100;
                             const stats: Partial<Record<CoreStat, number>> = {};
@@ -1076,7 +1069,7 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                             initialStats = stats as Record<CoreStat, number>;
                         }
                     } else {
-                        if (p.id === freshUser.id) initialStats = calculateTotalStats(freshUser);
+                        if (p.id === freshUser.id) initialStats = calculateTotalStats(freshUser, 'championshipVenue');
                         else {
                             const baseStatValue = 100;
                             const stats: Partial<Record<CoreStat, number>> = {};

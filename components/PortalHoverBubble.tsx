@@ -34,8 +34,10 @@ export const PortalHoverBubble: React.FC<{
     children: React.ReactNode;
     onBubblePointerEnter?: () => void;
     onBubblePointerLeave?: () => void;
-}> = ({ show, anchorRef, placement, className, children, onBubblePointerEnter, onBubblePointerLeave }) => {
-    const bubbleRef = useRef<HTMLDivElement>(null);
+    /** 포털에 그려진 말풍선 루트 DOM (외부 클릭 판별 등) */
+    bubbleMountRef?: React.MutableRefObject<HTMLDivElement | null>;
+}> = ({ show, anchorRef, placement, className, children, onBubblePointerEnter, onBubblePointerLeave, bubbleMountRef }) => {
+    const bubbleRef = useRef<HTMLDivElement | null>(null) as React.MutableRefObject<HTMLDivElement | null>;
     const [pos, setPos] = useState<{ top: number; left: number; transform: string } | null>(null);
 
     const computePos = useCallback(() => {
@@ -201,7 +203,10 @@ export const PortalHoverBubble: React.FC<{
 
     return createPortal(
         <div
-            ref={bubbleRef}
+            ref={(node) => {
+                bubbleRef.current = node;
+                if (bubbleMountRef) bubbleMountRef.current = node;
+            }}
             role="tooltip"
             className={className}
             style={{

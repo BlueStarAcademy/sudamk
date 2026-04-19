@@ -1,5 +1,6 @@
 import type { InventoryItem, ItemOption, ItemOptions } from '../types/entities.js';
 import { ItemGrade } from '../types/enums.js';
+import { EQUIPMENT_POOL, LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW } from '../constants/items.js';
 import { repairEquipmentStatBounds } from './equipmentStatBoundsRepair.js';
 
 const n = (x: unknown): number => {
@@ -66,34 +67,49 @@ export function normalizeEquipmentOptionNumbers(item: InventoryItem): InventoryI
 }
 
 /**
- * 레거시 더블신화 데이터를 UI·게임 규칙에 맞게 통일:
- * - 이름 접미사 ` (더블신화)` 제거
- * - `isDivineMythic` 플래그 제거
- * - 신화 등급 + 신화 부옵 2줄(또는 구 플래그) → 등급 `transcendent`
+ * 레거시 "더블신화"(별도 등급 아님) → 초월 등급으로 통일:
+ * - 신화 등급 + (`isDivineMythic` | 신화 부옵 2줄 | 이름 접미사 ` (더블신화)`) → `ItemGrade.Transcendent`
+ * - 접미사·`isDivineMythic` 필드 제거
  */
 export function normalizeLegacyDivineMythicInventoryItem(item: InventoryItem): InventoryItem {
     if (!item || typeof item !== 'object' || item.type !== 'equipment') return item;
     const anyItem = item as InventoryItem & { isDivineMythic?: boolean };
+    const hadDoubleMythicNameSuffix =
+        typeof item.name === 'string' && item.name.endsWith(' (더블신화)');
     let name = item.name;
-    if (typeof name === 'string' && name.endsWith(' (더블신화)')) {
+    if (hadDoubleMythicNameSuffix) {
         name = name.replace(/ \(더블신화\)$/, '');
     }
     const mythicSubs = item.options?.mythicSubs;
     const twoMythicLines = Array.isArray(mythicSubs) && mythicSubs.length >= 2;
     const wasDivineFlag = anyItem.isDivineMythic === true;
     let grade = item.grade;
-    if (grade === 'mythic' && (wasDivineFlag || twoMythicLines)) {
+    if (
+        grade === ItemGrade.Mythic &&
+        (wasDivineFlag || twoMythicLines || hadDoubleMythicNameSuffix)
+    ) {
         grade = ItemGrade.Transcendent;
     }
     const hadDivineField = anyItem.isDivineMythic !== undefined;
     const { isDivineMythic: _strip, ...rest } = anyItem;
     if (name === item.name && grade === item.grade && !hadDivineField) return item;
-    return { ...rest, name, grade };
+    return { ...rest, name, grade } as InventoryItem;
+}
+
+/** 구버전 초월 장비명(천룡…) → 신룡 시리즈 및 WebP 스프라이트 */
+function normalizeTranscendentSinryongRename(item: InventoryItem): InventoryItem {
+    if (item.type !== 'equipment' || item.grade !== ItemGrade.Transcendent) return item;
+    const newName = LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW[item.name];
+    if (!newName) return item;
+    const tmpl = EQUIPMENT_POOL.find((t) => t.name === newName && t.grade === ItemGrade.Transcendent);
+    if (!tmpl) return { ...item, name: newName };
+    return { ...item, name: newName, image: tmpl.image };
 }
 
 export function normalizeInventoryEquipmentItem(item: InventoryItem): InventoryItem {
     const legacy = normalizeLegacyDivineMythicInventoryItem(item);
-    const coerced = normalizeEquipmentOptionNumbers(legacy);
+    const renamed = normalizeTranscendentSinryongRename(legacy);
+    const coerced = normalizeEquipmentOptionNumbers(renamed);
     return repairEquipmentStatBounds(coerced);
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MythicStat } from '../types/enums.js';
 import { ItemOption } from '../types.js';
 import { MYTHIC_STATS_DATA } from '../constants';
@@ -10,7 +10,7 @@ export function isMythicStatType(type: string): type is MythicStat {
     return MYTHIC_SET.has(type);
 }
 
-/** 장비에 붙은 신화 옵션 한 줄: 약식 표기 + 호버/길게 누르면 말풍선 */
+/** 장비에 붙은 스페셜 옵션 한 줄: 약식 표기, 클릭 시 상세 말풍선 */
 export const MythicOptionAbbrev: React.FC<{
     option: Pick<ItemOption, 'type' | 'display'>;
     textClassName?: string;
@@ -31,50 +31,70 @@ export const MythicStatAbbrev: React.FC<{
     bubbleSide?: 'top' | 'right';
 }> = ({ stat, textClassName = '', bubbleSide = 'top' }) => {
     const data = MYTHIC_STATS_DATA[stat];
-    const [pressed, setPressed] = useState(false);
-    const [hovered, setHovered] = useState(false);
-    const [bubbleHover, setBubbleHover] = useState(false);
+    const [open, setOpen] = useState(false);
     const anchorRef = useRef<HTMLSpanElement>(null);
-    const showBubble = hovered || pressed || bubbleHover;
+    const bubbleMountRef = useRef<HTMLDivElement | null>(null);
+
+    const toggle = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen((v) => !v);
+    }, []);
 
     useEffect(() => {
-        if (!pressed) return;
-        const end = () => setPressed(false);
-        window.addEventListener('pointerup', end);
-        window.addEventListener('pointercancel', end);
-        return () => {
-            window.removeEventListener('pointerup', end);
-            window.removeEventListener('pointercancel', end);
+        if (!open) return;
+        const onDocDown = (e: MouseEvent) => {
+            const t = e.target as Node;
+            if (anchorRef.current?.contains(t)) return;
+            if (bubbleMountRef.current?.contains(t)) return;
+            setOpen(false);
         };
-    }, [pressed]);
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setOpen(false);
+        };
+        document.addEventListener('mousedown', onDocDown);
+        document.addEventListener('keydown', onKey);
+        return () => {
+            document.removeEventListener('mousedown', onDocDown);
+            document.removeEventListener('keydown', onKey);
+        };
+    }, [open]);
 
     return (
-        <span
-            ref={anchorRef}
-            className="relative inline-flex max-w-full touch-manipulation"
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-            onPointerDown={() => setPressed(true)}
-        >
-            <span className={`cursor-help select-none ${textClassName}`}>{data.abbrevLabel}</span>
+        <span ref={anchorRef} className="relative inline-flex max-w-full touch-manipulation">
+            <span
+                role="button"
+                tabIndex={0}
+                aria-expanded={open}
+                aria-label={`${data.name} 상세`}
+                className={`cursor-pointer select-none border-b border-dotted border-current/40 underline-offset-2 ${textClassName}`}
+                onClick={toggle}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setOpen((v) => !v);
+                    }
+                }}
+            >
+                {data.abbrevLabel}
+            </span>
             <PortalHoverBubble
-                show={showBubble}
+                show={open}
                 anchorRef={anchorRef}
                 placement={bubbleSide}
                 className="pointer-events-auto"
-                onBubblePointerEnter={() => setBubbleHover(true)}
-                onBubblePointerLeave={() => setBubbleHover(false)}
+                bubbleMountRef={bubbleMountRef}
             >
                 <div className={bubbleShell}>
-                    <span className="block text-[10px] font-bold text-red-200 mb-0.5">{data.name}</span>
-                    <span className="block text-[9px] text-gray-100 leading-snug">{data.description}</span>
+                    <span className="mb-0.5 block text-[10px] font-bold text-red-200">{data.name}</span>
+                    <span className="block text-[9px] leading-snug text-gray-100">{data.description}</span>
                     {data.shortDescription ? (
-                        <span className="block text-[9px] text-gray-400 mt-1 leading-snug">{data.shortDescription}</span>
+                        <span className="mt-1 block text-[9px] leading-snug text-gray-400">{data.shortDescription}</span>
                     ) : null}
                     {bubbleSide === 'top' ? (
                         <>
                             <span
-                                className="absolute left-1/2 top-full -translate-x-1/2 -mt-px block h-0 w-0 border-x-[6px] border-x-transparent border-t-[6px] border-t-red-600"
+                                className="absolute left-1/2 top-full -mt-px block h-0 w-0 border-x-[6px] border-x-transparent border-t-[6px] border-t-red-600"
                                 aria-hidden
                             />
                             <span

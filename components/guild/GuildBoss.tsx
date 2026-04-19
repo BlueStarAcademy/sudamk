@@ -16,6 +16,7 @@ import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
 import { runGuildBossBattle } from '../../utils/guildBossSimulator.js';
 import { getCurrentGuildBossStage, scaleGuildBossForStage } from '../../utils/guildBossStageUtils.js';
+import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
 import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js';
 import { calculateTotalStats, calculateUserEffects } from '../../utils/statUtils.js';
 import { computeCoreStatFinalFromBonuses } from '../../shared/utils/coreStatComposition.js';
@@ -54,6 +55,10 @@ const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { 
             const increasePercent = level * 10; // baseEffect is 10
             return { chance, description: `고정피해, 피해량 +${increasePercent}%` };
         }
+        case GuildResearchId.ap_regen_boost: {
+            const sec = project.baseEffect * level;
+            return { description: `1AP 회복 간격 ${sec}초 감소` };
+        }
         default:
             return null;
     }
@@ -67,7 +72,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: '/images/equipments/epicbgi.png',
     legendary: '/images/equipments/legendarybgi.png',
     mythic: '/images/equipments/mythicbgi.png',
-    transcendent: '/images/equipments/transcendentbgi.png',
+    transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
 const renderStarDisplay = (stars: number) => {
@@ -141,7 +146,7 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({ user, guild, hp, maxHp,
     const { handlers } = useAppContext();
     const myGuild = guild;
     
-    const totalStats = useMemo(() => calculateTotalStats(user, myGuild), [user, myGuild]);
+    const totalStats = useMemo(() => calculateTotalStats(user, myGuild, 'guildBoss'), [user, myGuild]);
     const baseWithSpent = useMemo(() => {
         const stats: Record<CoreStat, number> = {} as any;
         for (const key of Object.values(CoreStat)) {
@@ -678,7 +683,7 @@ const GuildBoss: React.FC = () => {
     // 입장 시(공격 전) 표시할 유저 최대 체력 — 시뮬레이터와 동일한 식
     const initialMaxUserHp = useMemo(() => {
         if (!currentUserWithStatus || !myGuild) return 0;
-        const totalStats = calculateTotalStats(currentUserWithStatus, myGuild);
+        const totalStats = calculateTotalStats(currentUserWithStatus, myGuild, 'guildBoss');
         let hp = 20000 + (totalStats[CoreStat.Concentration] * 10);
         const hpIncreaseLevel = myGuild.research?.boss_hp_increase?.level || 0;
         if (hpIncreaseLevel > 0) {
@@ -778,9 +783,13 @@ const GuildBoss: React.FC = () => {
                     typeof preBattleGuildHp === 'number' ? preBattleGuildHp : simulationResult.bossMaxHp;
                 const clientBossHpAfter =
                     preBattleNum <= 0 ? 0 : Math.max(0, preBattleNum - currentBattleDamage);
+                const gbGear = aggregateSpecialOptionGearFromUser(currentUserWithStatus);
+                const boostedDamage = Math.round(
+                    currentBattleDamage * (1 + (gbGear.guildBossDamagePercent || 0) / 100),
+                );
                 const finalResult = {
                     ...simulationResult,
-                    damageDealt: currentBattleDamage,
+                    damageDealt: boostedDamage,
                     bossName: currentBoss.name,
                     bossHpAfter: clientBossHpAfter,
                     bossMaxHp: simulationResult.bossMaxHp,

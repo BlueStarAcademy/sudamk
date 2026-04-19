@@ -14,7 +14,12 @@ import {
     isActionPointConsumable,
 } from '../../constants';
 import { computeEnhancedMainValueAtStars } from '../../shared/utils/equipmentEnhancementStars.js';
+import {
+    MYTHIC_GRADE_SPECIAL_OPTION_STATS,
+    TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS,
+} from '../../shared/utils/specialOptionGearEffects.js';
 import DraggableWindow from '../DraggableWindow.js';
+import { MythicStatAbbrev } from '../MythicStatAbbrev.js';
 
 interface EncyclopediaModalProps {
     onClose: () => void;
@@ -38,7 +43,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     epic: 'images/equipments/epicbgi.png',
     legendary: 'images/equipments/legendarybgi.png',
     mythic: 'images/equipments/mythicbgi.png',
-    transcendent: 'images/equipments/transcendentbgi.png',
+    transcendent: 'images/equipments/transcendentbgi.webp',
 };
 
 const gradeOrder: Record<ItemGrade, number> = {
@@ -603,40 +608,66 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                 )}
                 {hasMythic && (
                     <div className={sectionShellClass}>
-                        {sectionTitle(`신화 옵션 (랜덤 ${formatCount(rules.mythicCount)}개)`, 'text-rose-200/95')}
-                        {(item.grade === 'mythic' || item.grade === 'transcendent') ? (
+                        {sectionTitle(`스페셜 옵션 (랜덤 ${formatCount(rules.mythicCount)}개)`, 'text-rose-200/95')}
+                        {item.grade === ItemGrade.Mythic ? (
                             <div className="mt-1.5 rounded-lg border border-rose-300/30 bg-rose-500/10 px-2 py-2 text-[10px] leading-snug text-rose-100/95 sm:text-xs">
+                                <p className="mb-1 text-[9px] font-semibold text-rose-200/90">신화 스페셜 옵션 후보</p>
                                 <p className="break-words">
-                                    {Object.values(MythicStat).map((stat, index) => {
-                                        const label = MYTHIC_STATS_DATA[stat].abbrevLabel;
-                                        return (
-                                            <React.Fragment key={stat}>
-                                                <span className="font-semibold text-rose-300">{label}</span>
-                                                {index < Object.values(MythicStat).length - 1 && (
-                                                    <span className="px-1 text-rose-100/55">/</span>
-                                                )}
-                                            </React.Fragment>
-                                        );
-                                    })}
+                                    {MYTHIC_GRADE_SPECIAL_OPTION_STATS.map((stat, index) => (
+                                        <React.Fragment key={stat}>
+                                            <MythicStatAbbrev stat={stat} textClassName="font-semibold text-rose-300" />
+                                            {index < MYTHIC_GRADE_SPECIAL_OPTION_STATS.length - 1 && (
+                                                <span className="px-1 text-rose-100/55">/</span>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
+                                </p>
+                            </div>
+                        ) : item.grade === ItemGrade.Transcendent ? (
+                            <div className="mt-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-2 py-2 text-[10px] leading-snug text-cyan-50/95 sm:text-xs">
+                                <p className="mb-1 text-[9px] font-semibold text-cyan-200/90">초월 스페셜 옵션 후보</p>
+                                <p className="break-words">
+                                    {TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS.map((stat, index) => (
+                                        <React.Fragment key={stat}>
+                                            <MythicStatAbbrev stat={stat} textClassName="font-semibold text-cyan-300" />
+                                            {index < TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS.length - 1 && (
+                                                <span className="px-1 text-cyan-100/55">/</span>
+                                            )}
+                                        </React.Fragment>
+                                    ))}
                                 </p>
                             </div>
                         ) : (
-                            <ul className={optGridClass}>
-                                {Object.values(MythicStat).map((stat) => {
-                                    const data = MYTHIC_STATS_DATA[stat];
-                                    return (
-                                        <li key={stat} className="min-w-0 break-words">
-                                            <span
-                                                className="inline cursor-help border-b border-dotted border-rose-400/35 decoration-rose-400/40 underline-offset-2"
-                                                title={data.description}
-                                            >
-                                                <strong className="text-rose-300">{data.abbrevLabel}</strong>
-                                                <span className="text-rose-200/90"> · {data.shortDescription}</span>
-                                            </span>
-                                        </li>
-                                    );
-                                })}
-                            </ul>
+                            <div className="mt-1.5 space-y-2">
+                                <div>
+                                    <p className="mb-1 text-[9px] font-semibold text-rose-200/90">신화 스페셜 옵션 후보</p>
+                                    <ul className={optGridClass}>
+                                        {MYTHIC_GRADE_SPECIAL_OPTION_STATS.map((stat) => {
+                                            const data = MYTHIC_STATS_DATA[stat];
+                                            return (
+                                                <li key={stat} className="min-w-0 break-words text-rose-200/90">
+                                                    <MythicStatAbbrev stat={stat} textClassName="font-semibold text-rose-300" />
+                                                    <span className="text-rose-200/90"> · {data.shortDescription}</span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                                <div>
+                                    <p className="mb-1 text-[9px] font-semibold text-cyan-200/90">초월 스페셜 옵션 후보</p>
+                                    <ul className={optGridClass}>
+                                        {TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS.map((stat) => {
+                                            const data = MYTHIC_STATS_DATA[stat];
+                                            return (
+                                                <li key={stat} className="min-w-0 break-words text-cyan-200/90">
+                                                    <MythicStatAbbrev stat={stat} textClassName="font-semibold text-cyan-300" />
+                                                    <span className="text-cyan-200/90"> · {data.shortDescription}</span>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                </div>
+                            </div>
                         )}
                     </div>
                 )}

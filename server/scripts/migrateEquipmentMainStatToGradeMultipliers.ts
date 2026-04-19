@@ -9,6 +9,7 @@
  */
 
 import * as db from '../db.js';
+import { syncInventoryEquipmentToDatabase } from '../prisma/userService.js';
 import { ItemGrade } from '../../types/enums.js';
 import { MAIN_ENHANCEMENT_STEP_MULTIPLIER } from '../../shared/constants/items.js';
 import type { InventoryItem, User } from '../../types/index.js';
@@ -20,9 +21,13 @@ function recomputeMainOption(item: InventoryItem): boolean {
     const stars = item.stars ?? 0;
     if (stars <= 0) return false;
 
+    const anyItem = item as InventoryItem & { isDivineMythic?: boolean };
     const legacyDivineMythic =
-        item.grade === ItemGrade.Mythic && (item as InventoryItem & { isDivineMythic?: boolean }).isDivineMythic === true;
-    const gradeForMultiplier = legacyDivineMythic ? ItemGrade.Transcendent : (item.grade as ItemGrade);
+        item.grade === ItemGrade.Mythic &&
+        anyItem.isDivineMythic === true;
+    const gradeForMultiplier = (
+        legacyDivineMythic ? ItemGrade.Transcendent : item.grade
+    ) as ItemGrade;
     const multipliers = MAIN_ENHANCEMENT_STEP_MULTIPLIER[gradeForMultiplier];
     if (!multipliers || multipliers.length < 10) return false;
 
@@ -65,6 +70,7 @@ async function run() {
 
         if (userChanged) {
             await db.updateUser(user as User);
+            await syncInventoryEquipmentToDatabase(user as User);
             usersUpdated++;
         }
     }

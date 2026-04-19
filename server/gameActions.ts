@@ -767,15 +767,16 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
             Object.assign(game, JSON.parse(JSON.stringify(fresh)) as types.LiveGameSession);
             syncAiSession(game, aiUserId);
-            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
-            const effectiveUseClientSideAi = useClientSideAi && goModes.includes(game.mode);
             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            /** 클라이언트 AI(WASM)만 쓰는 판도 동기화 직후 막히면 서버 makeAiMove로 복구 — 히든 초기 배치 단계 포함 */
+            const aiRecoverableStatus =
+                game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing';
             const isAiTurnNow =
-                game.gameStatus === 'playing' &&
+                aiRecoverableStatus &&
                 game.currentPlayer !== types.Player.None &&
                 (currentPlayerId === aiUserId ||
                     (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')));
-            if (isAiTurnNow && !effectiveUseClientSideAi) {
+            if (isAiTurnNow) {
                 await waitUntilAiProcessingReleased(game.id, 3000);
                 try {
                     await makeAiMove(game);

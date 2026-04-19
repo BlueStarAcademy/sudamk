@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { MythicOptionAbbrev } from '../MythicStatAbbrev.js';
+import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
+import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
 import DraggableWindow from '../DraggableWindow';
 import { InventoryItem, ItemGrade } from '../../types';
 import ResourceActionButton from '../ui/ResourceActionButton';
@@ -13,7 +14,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const renderStarDisplay = (stars: number) => {
@@ -61,18 +62,16 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
                 )}
                 {item.options?.specialSubs && item.options.specialSubs.length > 0 && (
                      <div className="space-y-0.5">
-                        {item.options.specialSubs.map((opt, i) => <p key={`s-${i}`} className="text-green-300">{opt.display}</p>)}
-                    </div>
-                )}
-                {item.options?.mythicSubs && item.options.mythicSubs.length > 0 && (
-                     <div className="space-y-0.5">
-                        {item.options.mythicSubs.map((opt, i) => (
-                            <p key={`m-${i}`} className="text-red-400">
-                                <MythicOptionAbbrev option={opt} textClassName="text-red-400" />
+                        {item.options.specialSubs.map((opt, i) => (
+                            <p key={`s-${i}`} className="text-green-300">
+                                {formatSpecialSubLineForPanel(opt, item.stars ?? 0)}
                             </p>
                         ))}
                     </div>
                 )}
+                {item.options?.mythicSubs && item.options.mythicSubs.length > 0 ? (
+                    <MythicSubsPartitioned subs={item.options.mythicSubs} />
+                ) : null}
             </div>
         </div>
     );

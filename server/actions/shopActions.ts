@@ -473,7 +473,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             const consumableItems: Record<string, { name: string; price?: number; dailyLimit: number; prices?: number[] }> = {
                 'option_type_change_ticket': { name: '옵션 종류 변경권', price: 2000, dailyLimit: 3 },
                 'option_value_change_ticket': { name: '옵션 수치 변경권', price: 500, dailyLimit: 10 },
-                'mythic_option_change_ticket': { name: '신화 옵션 변경권', price: 500, dailyLimit: 10 },
+                'mythic_option_change_ticket': { name: '스페셜 옵션 변경권', price: 500, dailyLimit: 10 },
                 'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [180] },
                 'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [540] },
                 'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [1800] },

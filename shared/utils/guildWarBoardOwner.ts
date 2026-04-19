@@ -1,3 +1,5 @@
+import { getGuildWarBoardMode } from '../constants/guildConstants.js';
+
 /**
  * 길드전 한 칸(경기장)의 점령 길드 판정 — 양 길드의 최고 기록(`guild1BestResult` vs `guild2BestResult`) 비교.
  * 1) 획득 별 수가 많은 길드
@@ -45,6 +47,13 @@ export function getGuildWarBoardOwnerGuildId(
     return c1 <= c2 ? guild1Id : guild2Id;
 }
 
+type GuildWarSideBest = {
+    stars?: number;
+    score?: number;
+    completedAt?: number;
+    captures?: number;
+};
+
 type GuildWarBoardAttemptsLike = {
     guild1BestResult?: GuildWarSideBest | null;
     guild2BestResult?: GuildWarSideBest | null;
@@ -52,6 +61,8 @@ type GuildWarBoardAttemptsLike = {
     guild2Attempts?: number;
     guild1Stars?: number;
     guild2Stars?: number;
+    /** 없으면 `boardId`로 `getGuildWarBoardMode` 추론 */
+    gameMode?: string;
 };
 
 /**
@@ -86,11 +97,17 @@ export function getGuildWarBoardOwnerGuildIdWithBotAttemptsFallback(
     return undefined;
 }
 
-type GuildWarSideBest = {
-    stars?: number;
-    score?: number;
-    completedAt?: number;
-};
+/** 맵·대시보드 합산: 각 길드 칸의 집점수는 상대 점령과 무관하게 해당 길드 최고 기록만 반영 (구데이터는 captures 보조) */
+export function guildWarHouseScoreFromStoredBest(
+    r: GuildWarSideBest | null | undefined,
+    boardMode: string | undefined,
+): number {
+    if (!r) return 0;
+    if (typeof r.score === 'number' && !Number.isNaN(r.score)) return r.score;
+    const mode = String(boardMode ?? '');
+    if (mode === 'capture') return (Number(r.captures) || 0) * 2;
+    return Number(r.captures) || 0;
+}
 
 function guildWarClientDisplayHash(s: string): number {
     let h = 2166136261 >>> 0;
@@ -127,13 +144,12 @@ export function getGuildWarBotBoardDisplayTally(
     let outG1 = g1s;
     let outG2 = g2s;
 
-    const scoreOf = (r: GuildWarSideBest | null | undefined): number | null => {
-        if (!r || typeof r.score !== 'number' || Number.isNaN(r.score)) return null;
-        return r.score;
-    };
+    const boardMode =
+        (board?.gameMode as string | undefined) ||
+        (input.boardId ? getGuildWarBoardMode(input.boardId) : undefined);
 
-    let house1 = scoreOf(board?.guild1BestResult) ?? 0;
-    let house2 = scoreOf(board?.guild2BestResult) ?? 0;
+    let house1 = guildWarHouseScoreFromStoredBest(board?.guild1BestResult, boardMode);
+    let house2 = guildWarHouseScoreFromStoredBest(board?.guild2BestResult, boardMode);
 
     let occupierCapturesDisplay: number | undefined;
     let occupierScoreDiffDisplay: number | undefined;
@@ -147,41 +163,31 @@ export function getGuildWarBotBoardDisplayTally(
         };
     }
 
-    const owner = getGuildWarBoardOwnerGuildIdWithBotAttemptsFallback(
-        board,
-        input.guild1Id,
-        input.guild2Id,
-        input.botGuildId,
-    );
-    if (!owner || owner !== input.botGuildId) {
-        return {
-            guild1Stars: outG1,
-            guild2Stars: outG2,
-            guild1HouseTally: house1,
-            guild2HouseTally: house2,
-        };
-    }
-
     const botOnG1 = input.guild1Id === input.botGuildId;
     const botAtt = (botOnG1 ? Number(board.guild1Attempts ?? 0) : Number(board.guild2Attempts ?? 0)) || 0;
 
-    const botSlotStars = botOnG1 ? outG1 : outG2;
-    /** 실제 별이 없고 봇만 도전권으로 점령한 연출: war·칸 기준 고정(접속마다 botAtt 변화로 흔들리지 않음) */
-    if (botSlotStars === 0 && botAtt >= 1) {
-        const sh = guildWarClientDisplayHash(`${input.warId}|${input.boardId}|bot-syn-stars`);
-        const synStar = 1 + (sh % 3);
-        if (botOnG1) outG1 = synStar;
-        else outG2 = synStar;
-    }
-
     const botBest = botOnG1 ? board.guild1BestResult : board.guild2BestResult;
-    const hasBotRealHouse = botBest && typeof botBest.score === 'number' && !Number.isNaN(botBest.score);
-    if (!hasBotRealHouse) {
+    const hasBotRealScore = botBest && typeof botBest.score === 'number' && !Number.isNaN(botBest.score);
+
+    /**
+     * 봇 칸: 서버에 집점수(score) 기록이 없을 때 도전권만 있는 연출용 값.
+     * 예전에는 `점령 길드 === 봇`일 때만 넣어, 점령이 바뀌면 0 ↔ 합성으로 깜빡였음.
+     * 점령과 무관하게(해당 칸에 봇 도전이 있으면) war·칸 기준 고정값만 쓴다.
+     */
+    if (botAtt >= 1 && !hasBotRealScore) {
         const h = guildWarClientDisplayHash(`${input.warId}|${input.boardId}|bot-house`);
         const h2 = guildWarClientDisplayHash(`${input.warId}|${input.boardId}|bot-house2`);
         const synth = 18 + (h % 52) + (h2 % 28);
         if (botOnG1) house1 = synth;
         else house2 = synth;
+    }
+
+    const botSlotStars = botOnG1 ? outG1 : outG2;
+    if (botSlotStars === 0 && botAtt >= 1) {
+        const sh = guildWarClientDisplayHash(`${input.warId}|${input.boardId}|bot-syn-stars`);
+        const synStar = 1 + (sh % 3);
+        if (botOnG1) outG1 = synStar;
+        else outG2 = synStar;
     }
 
     const bothBestMissing = !board.guild1BestResult && !board.guild2BestResult;

@@ -274,6 +274,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     const TICKET_IMAGES: Record<string, string> = {
         '옵션 종류 변경권': '/images/use/change1.png',
         '옵션 수치 변경권': '/images/use/change2.png',
+        '스페셜 옵션 변경권': '/images/use/change3.png',
         '신화 옵션 변경권': '/images/use/change3.png',
     };
     

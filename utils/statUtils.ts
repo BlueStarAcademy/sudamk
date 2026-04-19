@@ -4,6 +4,14 @@ import { CoreStat, SpecialStat, MythicStat, GuildResearchId } from '../types/ind
 import { GUILD_RESEARCH_PROJECTS, ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/index.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import { getMannerEffects } from './mannerUtils.js';
+import type { StatTotalsContext } from '../shared/utils/totalStatsContext.js';
+import { extraCorePercentAllStatsFromSpecials } from '../shared/utils/totalStatsContext.js';
+import {
+    aggregateSpecialOptionGearFromUser,
+    type SpecialOptionGearBonuses,
+} from '../shared/utils/specialOptionGearEffects.js';
+import { getGuildApRegenResearchSecReduction } from '../shared/utils/guildApRegenResearchSec.js';
+import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 
 // FIX: Add createDefaultBaseStats function and export it for shared use.
 export const createDefaultBaseStats = (): Record<CoreStat, number> => ({
@@ -20,7 +28,8 @@ export interface CalculatedEffects extends MannerEffects {
     actionPointRegenInterval: number;
     coreStatBonuses: Record<CoreStat, { flat: number; percent: number }>;
     specialStatBonuses: Record<SpecialStat, { flat: number; percent: number }>;
-    mythicStatBonuses: Record<MythicStat, { flat: number; percent: number; }>,
+    mythicStatBonuses: Record<MythicStat, { flat: number; percent: number; }>;
+    specialOptionGear: SpecialOptionGearBonuses;
     strategicGoldBonusPercent: number;
     playfulGoldBonusPercent: number;
     strategicXpBonusPercent: number;
@@ -44,6 +53,7 @@ export const calculateUserEffects = (user: User, guild: Guild | null): Calculate
         coreStatBonuses: {} as Record<CoreStat, { flat: number; percent: number }>,
         specialStatBonuses: {} as Record<SpecialStat, { flat: number; percent: number }>,
         mythicStatBonuses: {} as Record<MythicStat, { flat: number; percent: number; }>,
+        specialOptionGear: aggregateSpecialOptionGearFromUser(user),
         strategicGoldBonusPercent: 0,
         playfulGoldBonusPercent: 0,
         strategicXpBonusPercent: 0,
@@ -77,14 +87,15 @@ export const calculateUserEffects = (user: User, guild: Guild | null): Calculate
                 } else {
                     calculatedEffects.coreStatBonuses[type as CoreStat].flat += num;
                 }
-            } else if (Object.values(SpecialStat).includes(type as SpecialStat)) {
-                 if (isPercentage) {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].percent += num;
-                } else {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].flat += num;
+            } else {
+                const st = coerceSpecialStatType(type);
+                if (st) {
+                    if (isPercentage) {
+                        calculatedEffects.specialStatBonuses[st].percent += num;
+                    } else {
+                        calculatedEffects.specialStatBonuses[st].flat += num;
+                    }
                 }
-            } else if (Object.values(MythicStat).includes(type as MythicStat)) {
-                calculatedEffects.mythicStatBonuses[type as MythicStat].flat += num;
             }
         }
     }
@@ -101,7 +112,6 @@ export const calculateUserEffects = (user: User, guild: Guild | null): Calculate
                     calculatedEffects.coreStatBonuses[coreStat].percent += totalEffect;
                 } else {
                     switch (id) {
-                        case GuildResearchId.ap_regen_boost: calculatedEffects.specialStatBonuses[SpecialStat.ActionPointRegen].percent += totalEffect; break;
                         case GuildResearchId.reward_strategic_gold: calculatedEffects.strategicGoldBonusPercent += totalEffect; break;
                         case GuildResearchId.reward_playful_gold: calculatedEffects.playfulGoldBonusPercent += totalEffect; break;
                         case GuildResearchId.reward_strategic_xp: calculatedEffects.strategicXpBonusPercent += totalEffect; break;
@@ -113,17 +123,33 @@ export const calculateUserEffects = (user: User, guild: Guild | null): Calculate
             }
         }
     }
+
+    const guildApRegenResearchSecReduction = getGuildApRegenResearchSecReduction(guild);
     
     calculatedEffects.maxActionPoints += calculatedEffects.specialStatBonuses[SpecialStat.ActionPointMax]?.flat ?? 0;
-    const regenBonusPercent = calculatedEffects.specialStatBonuses[SpecialStat.ActionPointRegen]?.percent ?? 0;
-    if (regenBonusPercent > 0) {
-        calculatedEffects.actionPointRegenInterval = Math.floor(calculatedEffects.actionPointRegenInterval / (1 + regenBonusPercent / 100));
+    if (guildApRegenResearchSecReduction > 0) {
+        calculatedEffects.actionPointRegenInterval = Math.max(
+            30_000,
+            calculatedEffects.actionPointRegenInterval - guildApRegenResearchSecReduction * 1000,
+        );
     }
-    
+
+    const apGearSec = calculatedEffects.specialOptionGear.apRegenExtraReductionSec;
+    if (apGearSec > 0) {
+        calculatedEffects.actionPointRegenInterval = Math.max(
+            30_000,
+            calculatedEffects.actionPointRegenInterval - apGearSec * 1000,
+        );
+    }
+
     return calculatedEffects;
 };
 
-export const calculateTotalStats = (user: User, guild: Guild | null): Record<CoreStat, number> => {
+export const calculateTotalStats = (
+    user: User,
+    guild: Guild | null,
+    context: StatTotalsContext = 'default'
+): Record<CoreStat, number> => {
     const finalStats: Record<CoreStat, number> = {} as any;
     const CORE_STAT_CAP = 1500;
     
@@ -134,11 +160,12 @@ export const calculateTotalStats = (user: User, guild: Guild | null): Record<Cor
 
     const effects = calculateUserEffects(user, guild);
     const bonuses = effects.coreStatBonuses;
+    const contextualAllCorePct = extraCorePercentAllStatsFromSpecials(effects.specialStatBonuses, context);
 
     for (const key of Object.values(CoreStat) as CoreStat[]) {
         const baseValue = baseWithSpent[key];
         const flatBonus = bonuses[key].flat;
-        const percentBonus = bonuses[key].percent;
+        const percentBonus = (Number(bonuses[key].percent) || 0) + contextualAllCorePct;
         const flat = Number(flatBonus) || 0;
         const percent = Number(percentBonus) || 0;
         const finalValue = computeCoreStatFinalFromBonuses(baseValue, flat, percent);

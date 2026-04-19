@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useRef } from 'react';
 import { ServerAction, AdminProps, InventoryItemType, User } from '../../types/index.js';
-import { ItemGrade, MythicStat, type EquipmentSlot } from '../../types/enums.js';
+import { ItemGrade, type MythicStat, type EquipmentSlot } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
@@ -22,6 +22,10 @@ import {
 } from '../../constants';
 import AdminPageHeader from './AdminPageHeader.js';
 import { adminCard, adminCardTitle, adminInput, adminPageWide, adminSectionGap } from './adminChrome.js';
+import {
+    MYTHIC_GRADE_SPECIAL_OPTION_STATS,
+    TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS,
+} from '../../shared/utils/specialOptionGearEffects.js';
 
 export type MailAttachedItemPayload = {
     name: string;
@@ -56,10 +60,21 @@ function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, descr
         lines.push(`  · ${def.name} +${def.range[0]}~${def.range[1]}${def.isPercentage ? '%' : ''}`);
     }
     if (rules.mythicCount[0] > 0) {
-        lines.push(`[신화 옵션] 랜덤 ${formatCount(rules.mythicCount)}개 — 후보:`);
-        for (const stat of Object.values(MythicStat)) {
-            const data = MYTHIC_STATS_DATA[stat];
-            lines.push(`  · ${data.name}: ${data.description}`);
+        lines.push(`[스페셜 옵션] 랜덤 ${formatCount(rules.mythicCount)}개 — 후보:`);
+        const pushPool = (label: string, pool: readonly MythicStat[]) => {
+            lines.push(`  (${label})`);
+            for (const stat of pool) {
+                const data = MYTHIC_STATS_DATA[stat];
+                lines.push(`    · ${data.name}: ${data.description}`);
+            }
+        };
+        if (grade === ItemGrade.Mythic) {
+            pushPool('신화 등급', MYTHIC_GRADE_SPECIAL_OPTION_STATS);
+        } else if (grade === ItemGrade.Transcendent) {
+            pushPool('초월 등급', TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS);
+        } else {
+            pushPool('신화 등급', MYTHIC_GRADE_SPECIAL_OPTION_STATS);
+            pushPool('초월 등급', TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS);
         }
     }
     lines.push('');

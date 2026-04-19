@@ -1,15 +1,23 @@
 import type { InventoryItem, ItemOption } from '../types/entities.js';
-import { ItemGrade, CoreStat, SpecialStat, type EquipmentSlot } from '../types/enums.js';
+import { ItemGrade, CoreStat, SpecialStat, MythicStat, type EquipmentSlot } from '../types/enums.js';
 import {
     MAIN_STAT_DEFINITIONS,
     CORE_STATS_DATA,
     GRADE_SUB_OPTION_RULES,
     SUB_OPTION_POOLS,
     SPECIAL_STATS_DATA,
+    MYTHIC_STATS_DATA,
     resolveCombatSubPoolDefinition,
 } from '../constants/index.js';
+import { mythicStatPoolForItemGrade } from './specialOptionGearEffects.js';
 import { computeEnhancedMainValueAtStars, hashStringToSeed32 } from './equipmentEnhancementStars.js';
 import { combatSubBoundsAfterEnhancements, resolveCombatSubValueRefinementRange } from './refinementValueBounds.js';
+import {
+    coerceSpecialStatType,
+    computeSpecialSubRollBoundsAfterMilestones,
+    formatSpecialSubItemDisplay,
+    milestoneTierCountFromStars,
+} from './specialStatMilestones.js';
 
 const MAIN_SLACK_RATIO = 0.12;
 
@@ -47,6 +55,23 @@ export function repairEquipmentStatBounds(item: InventoryItem): InventoryItem {
     const main = item.options.main;
     if (main && gradeDef) {
         const fallbackBase = Number(gradeDef.value);
+        // 바지·바둑통·바둑돌: 저장된 base가 등급 정의와 다르면(마이그레이션 누락·Undo 등) 로드 시 정의로 맞춤.
+        // 기존 로직은 옛 base로 천장을 잡아 '정상'으로 보고 value를 유지하는 문제가 있었다.
+        const flatMainSlots: EquipmentSlot[] = ['bottom', 'bowl', 'stones'];
+        if (
+            flatMainSlots.includes(slot) &&
+            Number.isFinite(fallbackBase) &&
+            main.isPercentage !== true
+        ) {
+            const curBase = Number(main.baseValue);
+            if (!Number.isFinite(curBase) || Math.abs(curBase - fallbackBase) > 1e-6) {
+                main.baseValue = fallbackBase;
+                const snapped = computeEnhancedMainValueAtStars(fallbackBase, grade, stars);
+                main.value = parseFloat(snapped.toFixed(2));
+                rebuildMainDisplay(main);
+            }
+        }
+
         const baseValue = Number.isFinite(Number(main.baseValue)) ? Number(main.baseValue) : fallbackBase;
         if (Number.isFinite(baseValue) && Number.isFinite(fallbackBase)) {
             if (!Number.isFinite(Number(main.baseValue))) {
@@ -106,40 +131,70 @@ export function repairEquipmentStatBounds(item: InventoryItem): InventoryItem {
         }
     }
 
+    const allSpecial = Object.values(SpecialStat);
     item.options.specialSubs = item.options.specialSubs.map((sub, sidx) => {
-        const subDef = SPECIAL_STATS_DATA[sub.type as SpecialStat];
-        if (!subDef) return sub;
-        const enh = sub.enhancements ?? 0;
-        const bl = Number(subDef.range[0]);
-        const bh = Number(subDef.range[1]);
-        const low = Math.round(bl * (1 + enh));
-        const high = Math.round(bh * (1 + enh));
-        let v = Number(sub.value);
-        const broken = !Number.isFinite(v) || v > high + 15 || v < low - 15;
-        if (broken) {
-            v = deterministicIntInclusive(low, high, `${item.id}|ss|${sidx}|${String(sub.type)}|${enh}`);
-        } else {
-            v = Math.max(low, Math.min(high, Math.round(v)));
+        let stat = coerceSpecialStatType(sub.type) ?? (sub.type as SpecialStat);
+        let subDef = SPECIAL_STATS_DATA[stat];
+        if (!subDef) {
+            const pick = allSpecial[hashStringToSeed32(`${item.id}|ssmap|${sidx}`) % allSpecial.length];
+            stat = pick;
+            subDef = SPECIAL_STATS_DATA[stat];
         }
-        return {
+        const m = milestoneTierCountFromStars(stars);
+        const baseRange = [subDef.range[0], subDef.range[1]] as [number, number];
+        const [low, high] = computeSpecialSubRollBoundsAfterMilestones(baseRange, stat, m);
+        let v = Number(sub.value);
+        const broken = !Number.isFinite(v) || v > high + 2 || v < low - 2;
+        if (broken) {
+            v = deterministicIntInclusive(low, high, `${item.id}|ss|${sidx}|${String(stat)}|${m}`);
+        } else {
+            v = Math.max(low, Math.min(high, subDef.isPercentage ? parseFloat(v.toFixed(2)) : Math.round(v)));
+        }
+        const next: ItemOption = {
             ...sub,
+            type: stat,
             value: v,
-            range: [low, high] as [number, number],
-            display: `${subDef.name} +${v}${subDef.isPercentage ? '%' : ''} [${low}~${high}]`,
+            range: baseRange,
+            enhancements: m,
+            display: formatSpecialSubItemDisplay(
+                { type: stat, value: v, range: baseRange, enhancements: m },
+                subDef
+            ),
         };
+        return next;
     });
 
-    item.options.mythicSubs = item.options.mythicSubs.map((m) => {
+    item.options.mythicSubs = item.options.mythicSubs.map((m, midx) => {
         const v = Number(m.value);
         const safe = Number.isFinite(v) ? Math.max(0, Math.min(9999, Math.floor(v))) : 0;
-        return { ...m, value: safe };
+        let t = m.type as MythicStat;
+        const pool = mythicStatPoolForItemGrade(grade);
+        const defCur = MYTHIC_STATS_DATA[t as MythicStat];
+        if (!defCur || !pool.includes(t)) {
+            const pick =
+                pool.length > 0
+                    ? pool[Math.abs(hashStringToSeed32(`${item.id}|mythicSub|${midx}`)) % pool.length]!
+                    : MythicStat.GuildBossRewardGradeUp;
+            t = pick;
+            const def = MYTHIC_STATS_DATA[t];
+            return {
+                ...m,
+                type: t,
+                value: def.value([0, 0]),
+                isPercentage: false,
+                display: def.name,
+                enhancements: 0,
+            };
+        }
+        const def = MYTHIC_STATS_DATA[t];
+        return { ...m, type: t, value: safe, display: def.name };
     });
 
-    // 등급별 허용 신화옵션 개수 강제:
+    // 등급별 허용 스페셜 옵션 줄 수:
     // - normal~legendary: 0줄
     // - mythic: 1줄
-    // - transcendent: 2줄
-    // 레거시/비정상 데이터로 에픽 이하에 신화옵션이 섞인 경우 로드 시 정리한다.
+    // - transcendent: 1줄
+    // 레거시/비정상 데이터로 에픽 이하에 스페셜 옵션이 섞인 경우 로드 시 정리한다.
     const mythicRule = GRADE_SUB_OPTION_RULES[grade]?.mythicCount ?? [0, 0];
     const maxMythicLines = Math.max(0, Math.floor(Number(mythicRule[1]) || 0));
     if (item.options.mythicSubs.length > maxMythicLines) {

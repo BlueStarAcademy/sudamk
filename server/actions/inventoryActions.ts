@@ -32,6 +32,7 @@ import {
     calculateEnhancementGoldCost,
     MAIN_ENHANCEMENT_STEP_MULTIPLIER,
 } from '../../constants/index.js';
+import { mythicStatPoolForItemGrade } from '../../shared/utils/specialOptionGearEffects.js';
 import {
     BLACKSMITH_ENHANCEMENT_XP_GAIN,
     BLACKSMITH_DISASSEMBLY_XP_GAIN,
@@ -53,6 +54,11 @@ import {
     resolveCombatSubValueRefinementRange,
     resolveSpecialSubValueRefinementRange,
 } from '../../shared/utils/refinementValueBounds.js';
+import {
+    milestoneTierCountFromStars,
+    computeSpecialSubRollBoundsAfterMilestones,
+    formatSpecialSubItemDisplay,
+} from '../../shared/utils/specialStatMilestones.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -207,12 +213,15 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const effectiveGreatRate = Math.min(100, greatSuccessRate + vipGreatBonus);
             const isGreatSuccess = Math.random() * 100 < effectiveGreatRate;
             
-            // 신화 합성: 대성공 시 초월, 아니면 신화
+            // 신화 합성: 대성공 시 초월, 아니면 신화. 그 외 등급은 대성공 시 한 단계 상승.
             let outcomeGrade: ItemGrade;
             if (grade === ItemGrade.Mythic) {
                 outcomeGrade = isGreatSuccess ? ItemGrade.Transcendent : ItemGrade.Mythic;
             } else {
-                const outcomeGradeIndex = Math.min(GRADE_ORDER.indexOf(grade) + (isGreatSuccess ? 1 : 0), GRADE_ORDER.length - 1);
+                const outcomeGradeIndex = Math.min(
+                    GRADE_ORDER.indexOf(grade) + (isGreatSuccess ? 1 : 0),
+                    GRADE_ORDER.length - 1
+                );
                 outcomeGrade = GRADE_ORDER[outcomeGradeIndex];
             }
 
@@ -276,7 +285,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             broadcastUserUpdate(user, ['inventory', 'blacksmithXp', 'blacksmithLevel']);
 
             // 시스템 메시지 전송 조건 (비동기로 처리하여 응답 지연 최소화):
-            // 1. 전설등급 3개를 합쳐서 대성공하여 신화등급이 나온 경우
+            // 전설→신화 대성공, 또는 신화→초월 대성공
             const shouldSendMessage =
                 (grade === 'legendary' && outcomeGrade === 'mythic' && finalIsGreatSuccess) ||
                 (grade === 'mythic' && outcomeGrade === 'transcendent' && isGreatSuccess);
@@ -327,7 +336,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                             }
                         });
                     } catch (error: any) {
-                        console.error(`[COMBINE_ITEMS] 신화 등급 장비 시스템 메시지 전송 중 오류:`, error);
+                        console.error(`[COMBINE_ITEMS] 합성 시스템 메시지 전송 중 오류:`, error);
                     }
                 }).catch(err => {
                     console.error(`[COMBINE_ITEMS] 시스템 메시지 전송 실패:`, err);
@@ -435,6 +444,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             // 변경권 사용 시 대장간 제련 탭으로 이동하도록 플래그 설정
             const isRefinementTicket = item.name === '옵션 종류 변경권' || 
                                       item.name === '옵션 수치 변경권' || 
+                                      item.name === '스페셜 옵션 변경권' ||
                                       item.name === '신화 옵션 변경권';
             
             if (isRefinementTicket) {
@@ -889,7 +899,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             // 장비 일관성 검증 및 수정
             validateAndFixEquipmentConsistency(user);
 
-            effectService.syncActionPointsStateAfterEquipmentChange(user);
+            await effectService.syncActionPointsStateAfterEquipmentChange(user);
 
             // 사용자 캐시 업데이트 (즉시 반영)
             const { updateUserCache } = await import('../gameCache.js');
@@ -1213,7 +1223,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             } else if (refinementType === 'value') {
                 ticketName = '옵션 수치 변경권';
             } else if (refinementType === 'mythic') {
-                ticketName = '신화 옵션 변경권';
+                ticketName = '스페셜 옵션 변경권';
             } else {
                 return { error: '유효하지 않은 제련 타입입니다.' };
             }
@@ -1338,11 +1348,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     }
                     const newStatType = availableStats[Math.floor(Math.random() * availableStats.length)];
                     const subDef = SPECIAL_STATS_DATA[newStatType];
-                    const prevEnhancements = item.options.specialSubs[optionIndex]?.enhancements ?? 0;
-                    const range0 = Number(subDef.range[0]);
-                    const range1 = Number(subDef.range[1]);
-                    const scaledMin = Math.round(range0 * (1 + prevEnhancements));
-                    const scaledMax = Math.round(range1 * (1 + prevEnhancements));
+                    const milestones = milestoneTierCountFromStars(item.stars ?? 0);
+                    const baseRange = [subDef.range[0], subDef.range[1]] as [number, number];
+                    const [scaledMin, scaledMax] = computeSpecialSubRollBoundsAfterMilestones(baseRange, newStatType, milestones);
                     const value = getRandomInt(scaledMin, scaledMax);
                     const rules = GRADE_SUB_OPTION_RULES[item.grade];
                     item.options.specialSubs[optionIndex] = {
@@ -1350,9 +1358,17 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                         value,
                         isPercentage: subDef.isPercentage,
                         tier: rules.combatTier,
-                        display: `${subDef.name} +${value}${subDef.isPercentage ? '%' : ''} [${scaledMin}~${scaledMax}]`,
-                        range: [scaledMin, scaledMax],
-                        enhancements: prevEnhancements,
+                        display: formatSpecialSubItemDisplay(
+                            {
+                                type: newStatType,
+                                value,
+                                range: baseRange,
+                                enhancements: milestones,
+                            },
+                            subDef
+                        ),
+                        range: baseRange,
+                        enhancements: milestones,
                     };
                 }
             } else if (refinementType === 'value') {
@@ -1399,31 +1415,42 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     const stored: [number, number] = subOption.range
                         ? [Number(subOption.range[0]), Number(subOption.range[1])]
                         : [subDef.range[0], subDef.range[1]];
-                    const repaired = resolveSpecialSubValueRefinementRange(stored, subDef, enh);
+                    const repaired = resolveSpecialSubValueRefinementRange(
+                        stored,
+                        subDef,
+                        enh,
+                        subOption.type as SpecialStat
+                    );
                     if (!repaired) {
                         return { error: '수치를 변경할 수 없는 옵션입니다.' };
                     }
                     const [r0, r1] = repaired;
                     const newValue = getRandomInt(r0, r1);
                     subOption.value = newValue;
-                    subOption.range = [r0, r1];
-                    subOption.display = `${subDef.name} +${newValue}${subOption.isPercentage ? '%' : ''} [${r0}~${r1}]`;
+                    subOption.range = [subDef.range[0], subDef.range[1]] as [number, number];
+                    subOption.display = formatSpecialSubItemDisplay(
+                        {
+                            type: subOption.type as SpecialStat,
+                            value: newValue,
+                            range: subOption.range,
+                            enhancements: enh,
+                        },
+                        subDef
+                    );
                 } else {
                     return { error: '수치 변경은 부옵션 또는 특수옵션에만 가능합니다.' };
                 }
             } else if (refinementType === 'mythic') {
-                // 신화 옵션 변경
                 if (optionType !== 'mythicSub') {
-                    return { error: '신화 옵션 변경은 신화 옵션에만 가능합니다.' };
+                    return { error: '스페셜 옵션 변경은 스페셜 옵션에만 가능합니다.' };
                 }
                 if (item.grade !== ItemGrade.Mythic && item.grade !== ItemGrade.Transcendent) {
-                    return { error: '신화 옵션 변경은 신화·초월 등급 장비에만 가능합니다.' };
+                    return { error: '스페셜 옵션 변경은 신화·초월 등급 장비에만 가능합니다.' };
                 }
-                const allMythicStats = Object.values(MythicStat);
-                const usedTypes = new Set(item.options!.mythicSubs.map(s => s.type));
-                const availableStats = allMythicStats.filter(stat => stat !== item.options!.mythicSubs[optionIndex].type);
+                const pool = mythicStatPoolForItemGrade(item.grade);
+                const availableStats = pool.filter((stat) => stat !== item.options!.mythicSubs[optionIndex].type);
                 if (availableStats.length === 0) {
-                    return { error: '변경 가능한 신화 옵션이 없습니다.' };
+                    return { error: '변경 가능한 스페셜 옵션이 없습니다.' };
                 }
                 const newStatType = availableStats[Math.floor(Math.random() * availableStats.length)];
                 const subDef = MYTHIC_STATS_DATA[newStatType];

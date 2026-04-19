@@ -742,10 +742,31 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 const isPass = last.x < 0 || last.y < 0;
 
                 if (floatPts >= minPts) {
-                    const missileAnchor = missileMovedStoneAnchorFor(floatPlayer);
+                    // justCaptured 기반 포획인데 마지막 수가 상대(예: AI) 착수면: 플로트는 실제 따낸 쪽의 마지막 착점에 붙인다
+                    let anchorMove = last;
+                    if (sliceEntries.length > 0) {
+                        const capturerFromSlice =
+                            sliceEntries[0].player === Player.Black ? Player.White : Player.Black;
+                        for (let i = moveHistory.length - 1; i >= 0; i--) {
+                            const m = moveHistory[i];
+                            if (m && m.player === capturerFromSlice && m.x >= 0 && m.y >= 0) {
+                                anchorMove = m;
+                                break;
+                            }
+                        }
+                    }
+                    const missileAnchor = missileMovedStoneAnchorFor(
+                        sliceEntries.length > 0
+                            ? sliceEntries[0].player === Player.Black
+                                ? Player.White
+                                : Player.Black
+                            : floatPlayer
+                    );
                     const anchor =
                         missileAnchor ??
-                        (!isPass ? { x: last.x, y: last.y } : (lastMoveForFloatRef.current ?? { x: last.x, y: last.y }));
+                        (!isPass && anchorMove.x >= 0 && anchorMove.y >= 0
+                            ? { x: anchorMove.x, y: anchorMove.y }
+                            : (lastMoveForFloatRef.current ?? { x: last.x, y: last.y }));
                     if (anchor.x < 0 || anchor.y < 0) {
                         commitMoveFloatState();
                         return;

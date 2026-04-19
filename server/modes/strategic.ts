@@ -1053,7 +1053,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (captureCountThisMove > prevMaxForPlayer) {
                     maxSingleCaptureByPlayer[myPlayerEnum] = captureCountThisMove;
                 }
-                if (!game.justCaptured) game.justCaptured = [];
+                game.justCaptured = [];
                 let guildWarCapturePointsThisMove = 0;
                 for (const stone of result.capturedStones) {
                     const capturedPlayerEnum = opponentPlayerEnum;
@@ -1114,6 +1114,20 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.captures[myPlayerEnum] += points;
                     guildWarCapturePointsThisMove += points;
                     game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
+                    for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                        const m = game.moveHistory![i];
+                        if (m.x === stone.x && m.y === stone.y && m.player === capturedPlayerEnum) {
+                            if (game.hiddenMoves?.[i]) delete game.hiddenMoves[i];
+                            break;
+                        }
+                    }
+                    if (
+                        (game as any).aiInitialHiddenStone &&
+                        (game as any).aiInitialHiddenStone.x === stone.x &&
+                        (game as any).aiInitialHiddenStone.y === stone.y
+                    ) {
+                        (game as any).aiInitialHiddenStone = undefined;
+                    }
                 }
                 bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, myPlayerEnum, guildWarCapturePointsThisMove);
                 stripPatternStonesAtConsumedIntersections(game);

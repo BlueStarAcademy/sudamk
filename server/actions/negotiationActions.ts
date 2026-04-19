@@ -153,14 +153,14 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     return { error: '상대방이 대국 협상중입니다.' };
                 }
 
-                applyPassiveActionPointRegenToUser(opponent, now);
+                await applyPassiveActionPointRegenToUser(opponent, now);
                 if (opponent.actionPoints.current < getActionPointCost(mode) && !opponent.isAdmin) {
                     return { error: OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE };
                 }
             }
             
             const cost = getActionPointCost(mode);
-            applyPassiveActionPointRegenToUser(user, now);
+            await applyPassiveActionPointRegenToUser(user, now);
             if (user.actionPoints.current < cost && !user.isAdmin) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
             }
@@ -198,7 +198,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             }
 
             const cost = getActionPointCost(negotiation.mode);
-            applyPassiveActionPointRegenToUser(user, now);
+            await applyPassiveActionPointRegenToUser(user, now);
             if (user.actionPoints.current < cost && !user.isAdmin) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
             }
@@ -224,7 +224,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                     broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
                     return { error: 'Opponent not found.' };
                 }
-                applyPassiveActionPointRegenToUser(freshOpponent, now);
+                await applyPassiveActionPointRegenToUser(freshOpponent, now);
                 if (freshOpponent.actionPoints.current < cost && !freshOpponent.isAdmin) {
                     delete volatileState.negotiations[negotiationId];
                     restoreUserToWaitingLobby(volatileState, user.id, negotiation.mode);
@@ -301,8 +301,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             if (!challenger || !opponent) return { error: "One of the players could not be found." };
 
             const cost = getActionPointCost(negotiation.mode);
-            applyPassiveActionPointRegenToUser(challenger, now);
-            applyPassiveActionPointRegenToUser(opponent, now);
+            await applyPassiveActionPointRegenToUser(challenger, now);
+            await applyPassiveActionPointRegenToUser(opponent, now);
             if ((challenger.actionPoints.current < cost && !challenger.isAdmin) || (opponent.actionPoints.current < cost && !opponent.isAdmin)) {
                 restoreUserToWaitingLobby(volatileState, challenger.id, negotiation.mode);
                 restoreUserToWaitingLobby(volatileState, opponent.id, negotiation.mode);
@@ -440,7 +440,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             try {
                 const { mode, settings } = payload;
                 const cost = getActionPointCost(mode);
-                applyPassiveActionPointRegenToUser(user, now);
+                await applyPassiveActionPointRegenToUser(user, now);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
                 }

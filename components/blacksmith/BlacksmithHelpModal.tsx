@@ -36,9 +36,23 @@ const BlacksmithHelpModal: React.FC<BlacksmithHelpModalProps> = ({ onClose, isTo
                             <p className="font-semibold">동일 등급 장비 3개를 조합하여 새 장비를 획득합니다.</p>
                             <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
                                 <li>같은 등급의 새로운 장비 획득</li>
-                                <li>대성공 시 한 등급 높은 장비 획득 (확률: 대장간 레벨에 따라 증가)</li>
+                                <li>대성공 시 한 등급 높은 장비 획득 (신화 3개 합성 대성공 시 초월; 확률은 대장간 레벨에 따라 증가)</li>
                                 <li>대장간 레벨에 따라 합성 가능 등급 제한</li>
                                 <li>장착 중인 장비는 사용 불가</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                        <h3 className="text-xl font-bold text-rose-300 mb-2 border-b border-rose-400/30 pb-2">제련 · 스페셜 옵션</h3>
+                        <div className="space-y-2 text-gray-300">
+                            <p className="font-semibold">변경권으로 옵션 종류·수치·스페셜 옵션을 바꿀 수 있습니다.</p>
+                            <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
+                                <li>신화 장비에는 스페셜 옵션이 최대 1줄, 초월에는 더 강한 효과가 1줄 붙습니다.</li>
+                                <li>신화·초월 스페셜은 각각 1~7번 줄이 같은 번호끼리 짝입니다. 1번(보스 보상등급 / 보스 보상추가)만 서로 동시 적용되고, 2~7번은 신화와 초월이 겹치면 한쪽만(강한 쪽) 적용됩니다.</li>
+                                <li>같은 스페셜을 여러 장비에 착용해도 2~7번 부류는 한 번만 적용됩니다. 초월 「길드 보스전 보상추가」는 장비마다 누적될 수 있습니다.</li>
                             </ul>
                         </div>
                     </div>

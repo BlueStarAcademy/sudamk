@@ -29,6 +29,7 @@ import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
+import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { aiUserId, OTHER_DEVICE_LOGIN_SHARED_PC_REASON } from '../constants/auth.js';
 import {
@@ -672,6 +673,8 @@ export const useApp = () => {
     const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
     /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
     const pvpDicePlaceRevertRef = useRef<Record<string, LiveGameSession>>({});
+    /** TOWER_ADD_TURNS: fetch 전 낙관 보너스(+3) 적용분 — 실패 시 롤백 */
+    const towerAddTurnOptimisticPendingByGameRef = useRef<Record<string, number>>({});
     /** AI 주사위 바둑: 턴 내 착수 배치를 모아 마지막에 1회 전송 */
     const aiDicePlaceBatchRef = useRef<Record<string, Array<{ x: number; y: number }>>>({});
     /** 같은 턴에서 stonesToPlace는 착수마다 줄어들므로, 배치 flush 기준은 턴 시작 시점의 남은 돌 수로 고정한다. */
@@ -913,11 +916,16 @@ export const useApp = () => {
     // 행동력을 실시간으로 계산하는 useEffect
     useEffect(() => {
         if (!currentUser || !currentUser.actionPoints) return;
-        
+
+        const guildForAp =
+            currentUser.guildId != null && currentUser.guildId !== ''
+                ? guilds[currentUser.guildId] ?? null
+                : null;
+
         const intervalId = setInterval(() => {
             if (!currentUser.actionPoints || currentUser.lastActionPointUpdate === undefined) return;
             
-            const effects = calculateUserEffects(currentUser);
+            const effects = calculateUserEffects(currentUser, guildForAp);
             const now = Date.now();
             const calculatedMaxAP = effects.maxActionPoints;
 
@@ -927,7 +935,9 @@ export const useApp = () => {
                 if (lu === 0 || lu === undefined || lu === null) {
                     setCurrentUser(prev => {
                         if (!prev?.actionPoints) return prev;
-                        const e2 = calculateUserEffects(prev);
+                        const g2 =
+                            prev.guildId != null && prev.guildId !== '' ? guilds[prev.guildId] ?? null : null;
+                        const e2 = calculateUserEffects(prev, g2);
                         const maxAp = e2.maxActionPoints;
                         if (prev.actionPoints.current >= maxAp) return prev;
                         const pLu = prev.lastActionPointUpdate;
@@ -971,7 +981,14 @@ export const useApp = () => {
         }, 1000); // 1초마다 체크
         
         return () => clearInterval(intervalId);
-    }, [currentUser?.actionPoints?.current, currentUser?.lastActionPointUpdate, currentUser?.id, currentUser?.equipment]);
+    }, [
+        currentUser?.actionPoints?.current,
+        currentUser?.lastActionPointUpdate,
+        currentUser?.id,
+        currentUser?.equipment,
+        currentUser?.guildId,
+        guilds,
+    ]);
     
     const currentUserWithStatus: UserWithStatus | null = useMemo(() => {
         // updateTrigger와 actionPointUpdateTrigger를 dependency에 포함시켜 강제 리렌더링 보장
@@ -991,7 +1008,11 @@ export const useApp = () => {
         }
         
         // 행동력 최대치를 실시간으로 계산하여 반영
-        const effects = calculateUserEffects(currentUser);
+        const guildForAp =
+            currentUser.guildId != null && currentUser.guildId !== ''
+                ? guilds[currentUser.guildId] ?? null
+                : null;
+        const effects = calculateUserEffects(currentUser, guildForAp);
         const calculatedMaxAP = effects.maxActionPoints;
         const updatedActionPoints = currentUser.actionPoints ? {
             ...currentUser.actionPoints,
@@ -999,7 +1020,7 @@ export const useApp = () => {
         } : currentUser.actionPoints;
         
         return { ...currentUser, actionPoints: updatedActionPoints, ...statusData };
-    }, [currentUser, onlineUsers, updateTrigger, actionPointUpdateTrigger, activeGameFromLogin]);
+    }, [currentUser, onlineUsers, updateTrigger, actionPointUpdateTrigger, activeGameFromLogin, guilds]);
 
     const arenaEntranceFromServer = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
@@ -2507,7 +2528,72 @@ export const useApp = () => {
         }
 
         let dicePlaceGameId: string | undefined;
+        const rollbackTowerAddTurnOptimistic = () => {
+            if (action.type !== 'TOWER_ADD_TURNS') return;
+            const gid = (action.payload as { gameId?: string })?.gameId;
+            if (!gid) return;
+            const pending = towerAddTurnOptimisticPendingByGameRef.current[gid] || 0;
+            delete towerAddTurnOptimisticPendingByGameRef.current[gid];
+            if (pending <= 0) return;
+            flushSync(() => {
+                setTowerGames((c) => {
+                    const g = c[gid];
+                    if (!g) return c;
+                    const bonus = Number((g as any).blackTurnLimitBonus) || 0;
+                    return { ...c, [gid]: { ...g, blackTurnLimitBonus: Math.max(0, bonus - pending) } };
+                });
+            });
+            try {
+                const key = `gameState_${gid}`;
+                const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
+                if (raw) {
+                    const parsed = JSON.parse(raw) as Record<string, unknown>;
+                    if (parsed && parsed.gameId === gid) {
+                        parsed.blackTurnLimitBonus = Math.max(0, (Number(parsed.blackTurnLimitBonus) || 0) - pending);
+                        parsed.timestamp = Date.now();
+                        sessionStorage.setItem(key, JSON.stringify(parsed));
+                    }
+                }
+            } catch {
+                /* ignore */
+            }
+        };
+
         try {
+            // 도전의 탑 턴 추가: 서버 응답 전에 클라가 턴 제한 패배를 판정하지 않도록 보너스를 즉시 반영
+            if (action.type === 'TOWER_ADD_TURNS') {
+                const gid = (action.payload as { gameId?: string })?.gameId;
+                if (gid) {
+                    const gSnap = towerGamesRef.current[gid];
+                    if (gSnap && (gSnap as any).gameCategory === 'tower') {
+                        towerAddTurnOptimisticPendingByGameRef.current[gid] =
+                            (towerAddTurnOptimisticPendingByGameRef.current[gid] || 0) + 3;
+                        flushSync(() => {
+                            setTowerGames((current) => {
+                                const g = current[gid];
+                                if (!g || (g as any).gameCategory !== 'tower') return current;
+                                const prev = Number((g as any).blackTurnLimitBonus) || 0;
+                                return { ...current, [gid]: { ...g, blackTurnLimitBonus: prev + 3 } };
+                            });
+                        });
+                        try {
+                            const key = `gameState_${gid}`;
+                            const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
+                            if (raw) {
+                                const parsed = JSON.parse(raw) as Record<string, unknown>;
+                                if (parsed && parsed.gameId === gid) {
+                                    parsed.blackTurnLimitBonus = (Number(parsed.blackTurnLimitBonus) || 0) + 3;
+                                    parsed.timestamp = Date.now();
+                                    sessionStorage.setItem(key, JSON.stringify(parsed));
+                                }
+                            }
+                        } catch {
+                            /* ignore */
+                        }
+                    }
+                }
+            }
+
             audioService.unlockFromUserGesture();
             void audioService.initialize();
 
@@ -2688,6 +2774,7 @@ export const useApp = () => {
                         showError('로그인이 필요합니다.');
                     }
                     revertPvpDicePlaceSnapshot();
+                    rollbackTowerAddTurnOptimistic();
                     return;
                 }
                 if (typeof errorMessage === 'string' && isOpponentInsufficientActionPointsError(errorMessage)) {
@@ -2701,6 +2788,7 @@ export const useApp = () => {
                     setUpdateTrigger(prev => prev + 1);
                 }
                 revertPvpDicePlaceSnapshot();
+                rollbackTowerAddTurnOptimistic();
                 // Return error object so components can handle it
                 return { error: errorMessage } as HandleActionResult;
             } else {
@@ -2717,7 +2805,16 @@ export const useApp = () => {
                         showError(errorMessage);
                     }
                     revertPvpDicePlaceSnapshot();
+                    rollbackTowerAddTurnOptimistic();
                     return { error: errorMessage } as HandleActionResult;
+                }
+                if (action.type === 'TOWER_ADD_TURNS') {
+                    const gidOk = (action.payload as { gameId?: string })?.gameId;
+                    if (gidOk) {
+                        const left = (towerAddTurnOptimisticPendingByGameRef.current[gidOk] || 0) - 3;
+                        if (left <= 0) delete towerAddTurnOptimisticPendingByGameRef.current[gidOk];
+                        else towerAddTurnOptimisticPendingByGameRef.current[gidOk] = left;
+                    }
                 }
                 // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → 전략/놀이 대기실로 이동
                 if (action.type === 'LEAVE_AI_GAME') {
@@ -3863,6 +3960,7 @@ export const useApp = () => {
                     delete pvpDicePlaceInFlightRef.current[gid];
                 }
             }
+            rollbackTowerAddTurnOptimistic();
             console.error(`[handleAction] ${action.type} - Exception:`, err);
             console.error(`[handleAction] Error stack:`, err.stack);
             showError(err.message || '요청 처리 중 오류가 발생했습니다.');
@@ -6901,7 +6999,8 @@ export const useApp = () => {
 
             // Special Sub Options
             item.options.specialSubs?.forEach(sub => {
-                const type = sub.type as SpecialStat;
+                const type = coerceSpecialStatType(sub.type);
+                if (!type) return;
                 if (!acc.specialStatBonuses[type]) {
                     acc.specialStatBonuses[type] = { flat: 0, percent: 0 };
                 }
@@ -7011,8 +7110,8 @@ export const useApp = () => {
             })();
         };
 
-        // 클라이언트가 수를 보내지 못할 경우(효과 미실행/실패) 대비: 2.5초 후 서버 AI 요청
-        const timeoutMs = 2500;
+        // 클라이언트가 수를 보내지 못할 경우(효과 미실행/실패) 대비: 서버 AI 폴백 (Game.tsx 12s+ 복구와 중첩되어도 안전)
+        const timeoutMs = 8000;
         const timeoutId = setTimeout(() => {
             if (lastClientSideAiSentRef.current[gameId] !== currentMoveCount) {
                 console.warn('[useApp] Client-side AI did not send in time; requesting server AI move');

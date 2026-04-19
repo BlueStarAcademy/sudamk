@@ -4,7 +4,6 @@ import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePla
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { CURLING_TURN_TIME_LIMIT, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
-import * as effectService from '../effectService.js';
 
 // --- Simulation & Scoring Logic ---
 const runServerSimulation = (initialStones: types.AlkkagiStone[], flickedStone: types.AlkkagiStone, velocity: types.Point): { finalStones: types.AlkkagiStone[], stonesFallen: types.AlkkagiStone[] } => {
@@ -234,12 +233,10 @@ export const initializeCurling = (game: types.LiveGameSession, neg: types.Negoti
     game.curlingStones = [];
     game.activeCurlingItems = {};
 
-    const p1Effects = effectService.calculateUserEffects(p1);
-    const p2Effects = effectService.calculateUserEffects(p2);
-    const p1SlowBonus = p1Effects.mythicStatBonuses[types.MythicStat.AlkkagiSlowBonus]?.flat || 0;
-    const p1AimBonus = p1Effects.mythicStatBonuses[types.MythicStat.AlkkagiAimingBonus]?.flat || 0;
-    const p2SlowBonus = p2Effects.mythicStatBonuses[types.MythicStat.AlkkagiSlowBonus]?.flat || 0;
-    const p2AimBonus = p2Effects.mythicStatBonuses[types.MythicStat.AlkkagiAimingBonus]?.flat || 0;
+    const p1SlowBonus = 0;
+    const p1AimBonus = 0;
+    const p2SlowBonus = 0;
+    const p2AimBonus = 0;
 
     game.curlingItemUses = {
         [p1.id]: { slow: (neg.settings.curlingSlowItemCount || 0) + p1SlowBonus, aimingLine: (neg.settings.curlingAimingLineItemCount || 0) + p1AimBonus },

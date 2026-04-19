@@ -313,7 +313,7 @@ export const startTournamentSessionForUser = async (user: User, tournamentType: 
             const botUser = botUsers.find(b => b.id === p.id);
             if (botUser) {
                 // calculateTotalStats로 봇의 최종 능력치 계산
-                initialStats = calculateTotalStats(botUser);
+                initialStats = calculateTotalStats(botUser, 'championshipVenue');
             } else {
                 // 폴백: 기본 능력치 생성
                 const baseStatValue = 100;
@@ -326,7 +326,7 @@ export const startTournamentSessionForUser = async (user: User, tournamentType: 
         } else {
             // 현재 유저만 여기 도달 (챔피언십은 봇 전용이므로 상대는 전부 봇)
             if (p.id === freshUser.id) {
-                initialStats = calculateTotalStats(freshUser);
+                initialStats = calculateTotalStats(freshUser, 'championshipVenue');
             } else {
                 const baseStatValue = 100;
                 const stats: Partial<Record<CoreStat, number>> = {};
@@ -464,7 +464,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const userPlayer = tournamentState.players.find(p => p.id === freshUser.id);
             if (userPlayer) {
                 // 유저의 최신 능력치를 계산하여 originalStats와 stats 업데이트
-                const latestStats = calculateTotalStats(freshUser);
+                const latestStats = calculateTotalStats(freshUser, 'championshipVenue');
                 userPlayer.originalStats = JSON.parse(JSON.stringify(latestStats));
                 userPlayer.stats = JSON.parse(JSON.stringify(latestStats));
             }
@@ -925,7 +925,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             const userPlayer = tournamentState.players.find(p => p.id === freshUser.id);
             if (userPlayer) {
                 // 유저의 최신 능력치를 계산하여 originalStats와 stats 업데이트
-                const latestStats = calculateTotalStats(freshUser);
+                const latestStats = calculateTotalStats(freshUser, 'championshipVenue');
                 userPlayer.originalStats = JSON.parse(JSON.stringify(latestStats));
                 userPlayer.stats = JSON.parse(JSON.stringify(latestStats));
             }
@@ -1771,7 +1771,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             
             // 유저 PlayerForTournament 생성
             // 던전 모드에서는 league를 사용하지 않음 (단계별 시스템 사용)
-            const userStats = calculateTotalStats(freshUser);
+            const userStats = calculateTotalStats(freshUser, 'championshipVenue');
             const userPlayer: PlayerForTournament = {
                 id: freshUser.id,
                 nickname: freshUser.nickname,
@@ -2152,7 +2152,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     for (let i = 0; i < ticketCount; i++) {
                         const rnd = Math.random();
                         const ticketName =
-                            rnd < 0.6 ? '옵션 수치 변경권' : rnd < 0.85 ? '옵션 종류 변경권' : '신화 옵션 변경권';
+                            rnd < 0.6 ? '옵션 수치 변경권' : rnd < 0.85 ? '옵션 종류 변경권' : '스페셜 옵션 변경권';
                         map.set(ticketName, (map.get(ticketName) || 0) + 1);
                     }
                     worldChangeTicketGrants = Array.from(map.entries()).map(([name, quantity]) => ({ name, quantity }));

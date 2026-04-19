@@ -2,7 +2,7 @@ import imagemin from 'imagemin';
 import imageminPngquant from 'imagemin-pngquant';
 import imageminMozjpeg from 'imagemin-mozjpeg';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, extname, join } from 'path';
 import { readdir, stat } from 'fs/promises';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -15,20 +15,45 @@ async function getFileSize(filePath) {
     return stats.size;
 }
 
+/** PWA/앱 아이콘 — pngquant로 과압축하면 아이콘이 흐릿해질 수 있어 제외 */
+async function collectPngPathsExcludingAppIcon(dir) {
+    const out = [];
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const e of entries) {
+        const full = join(dir, e.name);
+        if (e.isDirectory()) {
+            out.push(...(await collectPngPathsExcludingAppIcon(full)));
+        } else if (e.isFile() && extname(e.name).toLowerCase() === '.png') {
+            const lower = e.name.toLowerCase();
+            if (lower === 'icon.png' || lower === 'favicon.png') continue;
+            out.push(full);
+        }
+    }
+    return out;
+}
+
 async function optimizeImages() {
     console.log('🖼️  이미지 최적화 시작...');
     
     try {
-        // PNG 파일 최적화
-        const pngFiles = await imagemin([`${imagesDir}/**/*.png`], {
-            destination: imagesDir,
-            plugins: [
-                imageminPngquant({
-                    quality: [0.6, 0.8], // 품질 60-80% (시각적 차이 거의 없음)
-                    speed: 4, // 속도 우선
-                }),
-            ],
-        });
+        // PNG 파일 최적화 (앱 마스터 아이콘 PNG는 제외)
+        const pngInputPaths = await collectPngPathsExcludingAppIcon(imagesDir);
+        const pngPlugins = [
+            imageminPngquant({
+                quality: [0.6, 0.8], // 품질 60-80% (시각적 차이 거의 없음)
+                speed: 4, // 속도 우선
+            }),
+        ];
+        // imagemin v9는 destination에 basename만 쓰므로, 하위 폴더 PNG는 각 디렉터리에 다시 써야 함
+        const pngFiles = [];
+        for (const p of pngInputPaths) {
+            const out = await imagemin([p], {
+                glob: false,
+                destination: dirname(p),
+                plugins: pngPlugins,
+            });
+            pngFiles.push(...out);
+        }
 
         // JPEG 파일 최적화 (있는 경우)
         const jpegFiles = await imagemin([`${imagesDir}/**/*.{jpg,jpeg}`], {

@@ -909,7 +909,8 @@ const calculateGameRewards = (
     const advMonsterRewardCtx = isAdventureMonsterBattleRewardContext(game);
     if (isWinner && advMonsterRewardCtx) {
         const { codexOnlyPercent, understandingPercent } = splitAdventureGoldBonusPercents(effects, player.adventureProfile);
-        const adventureBonusPercent = codexOnlyPercent + understandingPercent;
+        const gearAdventureGoldPct = effects.specialOptionGear?.adventureGoldBonusPercentFromGear ?? 0;
+        const adventureBonusPercent = codexOnlyPercent + understandingPercent + gearAdventureGoldPct;
         goldReward = Math.max(
             0,
             baseRewardBeforeBuffs + Math.round(baseRewardBeforeBuffs * (globalGoldPercent + winGoldPercent + adventureBonusPercent) / 100),
@@ -1377,8 +1378,8 @@ const processPlayerSummary = async (
     }
     
     // Apply rewards
-    const itemDropBonus = effects.specialStatBonuses[SpecialStat.ItemDropRate].percent;
-    const materialDropBonus = effects.specialStatBonuses[SpecialStat.MaterialDropRate].percent;
+    const itemDropBonus = 0;
+    const materialDropBonus = 0;
 
     const resolvedAdventureBattleMode = resolveAdventureMonsterBattleModeForSummary(game);
     const isAdventureWin =
@@ -1422,7 +1423,7 @@ const processPlayerSummary = async (
         const winsBefore = Math.max(0, Math.floor((prevProf.codexDefeatCounts ?? {})[advCodexId] ?? 0));
         adventureCodexDelta = { codexId: advCodexId, winsBefore, winsAfter: winsBefore + 1 };
         const xpBefore = Math.max(0, Math.floor((prevProf.understandingXpByStage ?? {})[advStageId] ?? 0));
-        applyAdventureMonsterDefeatToProfile(updatedPlayer, {
+        await applyAdventureMonsterDefeatToProfile(updatedPlayer, {
             codexId: advCodexId,
             stageId: advStageId,
             battleMode: resolvedAdventureBattleMode!,
@@ -1546,7 +1547,7 @@ const processPlayerSummary = async (
                 } else if (ticketRandom < 0.85) {
                     ticketName = '옵션 종류 변경권';
                 } else {
-                    ticketName = '신화 옵션 변경권';
+                    ticketName = '스페셜 옵션 변경권';
                 }
                 
                 const ticketItem = createConsumableItemInstance(ticketName);

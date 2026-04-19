@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 let mainWindow = null;
 let gnugoLocal = null;
@@ -16,7 +17,8 @@ function loadGnuGoLocal() {
 }
 
 function createWindow() {
-    mainWindow = new BrowserWindow({
+    const iconPath = path.join(__dirname, '..', 'public', 'images', 'Icon.png');
+    const winOpts = {
         width: 1280,
         height: 800,
         webPreferences: {
@@ -24,7 +26,11 @@ function createWindow() {
             contextIsolation: true,
             nodeIntegration: false,
         },
-    });
+    };
+    if (fs.existsSync(iconPath)) {
+        winOpts.icon = iconPath;
+    }
+    mainWindow = new BrowserWindow(winOpts);
 
     const isDev = process.env.NODE_ENV === 'development' || process.env.ELECTRON_START_URL;
     if (process.env.ELECTRON_START_URL) {

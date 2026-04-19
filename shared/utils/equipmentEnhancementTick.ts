@@ -1,11 +1,13 @@
 import type { InventoryItem, ItemOption } from '../types/entities.js';
-import { CoreStat } from '../types/enums.js';
+import { CoreStat, SpecialStat } from '../types/enums.js';
 import {
     MAIN_ENHANCEMENT_STEP_MULTIPLIER,
     GRADE_SUB_OPTION_RULES,
     SUB_OPTION_POOLS,
+    SPECIAL_STATS_DATA,
     resolveCombatSubPoolDefinition,
 } from '../constants/index.js';
+import { formatSpecialSubItemDisplay, getSpecialStatMilestoneValueDelta } from './specialStatMilestones.js';
 
 export const getEnhancementStepBonusMultiplier = (targetStars: number): number =>
     targetStars === 4 || targetStars === 7 || targetStars === 10 ? 2 : 1;
@@ -25,6 +27,20 @@ export function applySuccessfulEnhancementTick(item: InventoryItem, rng: () => n
     if (!item.options?.main || !item.slot || item.stars >= 10) return;
 
     item.stars++;
+
+    const milestoneStars = item.stars;
+    if (milestoneStars === 4 || milestoneStars === 7 || milestoneStars === 10) {
+        for (const sub of item.options.specialSubs ?? []) {
+            const st = sub.type as SpecialStat;
+            const def = SPECIAL_STATS_DATA[st];
+            if (!def) continue;
+            const delta = getSpecialStatMilestoneValueDelta(st);
+            if (delta <= 0) continue;
+            sub.value = parseFloat((Number(sub.value) + delta).toFixed(2));
+            sub.enhancements = (sub.enhancements ?? 0) + 1;
+            sub.display = formatSpecialSubItemDisplay(sub, def);
+        }
+    }
 
     const main = item.options.main;
     if (main.baseValue) {

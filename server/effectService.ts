@@ -1,7 +1,9 @@
 
 
-import { User, CoreStat, SpecialStat, MythicStat } from '../types/index.js';
+import { User, CoreStat, SpecialStat, MythicStat, type Guild } from '../types/index.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants';
+import * as db from './db.js';
+import { getGuildApRegenResearchSecReduction } from '../shared/utils/guildApRegenResearchSec.js';
 import {
     accumulateAdventureCodexBossPercentBonuses,
     applyAdventureCodexComprehensionToCalculatedEffects,
@@ -12,6 +14,12 @@ import {
     sumAdventureUnderstandingGoldBonusPercent,
 } from '../utils/adventureUnderstanding.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
+import {
+    aggregateSpecialOptionGearFromUser,
+    type SpecialOptionGearBonuses,
+    DEFAULT_SPECIAL_OPTION_GEAR_BONUSES,
+} from '../shared/utils/specialOptionGearEffects.js';
+import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 
 export interface MannerEffects {
     maxActionPoints: number;
@@ -78,6 +86,8 @@ export interface CalculatedEffects extends MannerEffects {
     coreStatBonuses: Record<CoreStat, { flat: number; percent: number }>;
     specialStatBonuses: Record<SpecialStat, { flat: number; percent: number }>;
     mythicStatBonuses: Record<MythicStat, { flat: number; percent: number }>;
+    /** 착용 장비 스페셜 옵션 집계 — 신화·초월 1번만 동시 적용, 2~7번 줄은 짝별로 한쪽만(강한 쪽) */
+    specialOptionGear: SpecialOptionGearBonuses;
     /** 모험 카테고리 승리 골드에만 가산(%) — 장비 매너 `winGoldBonusPercent`와 별도 */
     adventureCodexGoldBonusPercent?: number;
     /** 지역 이해도 — 모험 승리 보상 장비 상자 드롭 +% */
@@ -90,7 +100,13 @@ export interface CalculatedEffects extends MannerEffects {
     adventureUnderstandingHighGradeMaterialBonusPercent?: number;
 }
 
-export const calculateUserEffects = (user: User | null | undefined): CalculatedEffects => {
+export async function resolveGuildForUserApEffects(user: User | null | undefined): Promise<Guild | null> {
+    if (!user?.guildId) return null;
+    const guilds = (await db.getKV<Record<string, Guild>>('guilds')) ?? {};
+    return guilds[user.guildId] ?? null;
+}
+
+export const calculateUserEffects = (user: User | null | undefined, guild?: Guild | null): CalculatedEffects => {
     // Start with manner effects
     if (!user) {
         // Return default effects if user is null/undefined
@@ -112,6 +128,7 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
             coreStatBonuses: {} as Record<CoreStat, { flat: number; percent: number }>,
             specialStatBonuses: {} as Record<SpecialStat, { flat: number; percent: number }>,
             mythicStatBonuses: {} as Record<MythicStat, { flat: number; percent: number }>,
+            specialOptionGear: { ...DEFAULT_SPECIAL_OPTION_GEAR_BONUSES },
         };
         for (const key of Object.values(CoreStat)) {
             defaultEffects.coreStatBonuses[key] = { flat: 0, percent: 0 };
@@ -132,6 +149,7 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
         coreStatBonuses: {} as Record<CoreStat, { flat: number; percent: number }>,
         specialStatBonuses: {} as Record<SpecialStat, { flat: number; percent: number }>,
         mythicStatBonuses: {} as Record<MythicStat, { flat: number; percent: number }>,
+        specialOptionGear: aggregateSpecialOptionGearFromUser(user),
     };
 
     // Initialize bonus records
@@ -165,15 +183,15 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
                 } else {
                     calculatedEffects.coreStatBonuses[type as CoreStat].flat += num;
                 }
-            } else if (Object.values(SpecialStat).includes(type as SpecialStat)) {
-                 if (isPercentage) {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].percent += num;
-                } else {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].flat += num;
+            } else {
+                const st = coerceSpecialStatType(type);
+                if (st) {
+                    if (isPercentage) {
+                        calculatedEffects.specialStatBonuses[st].percent += num;
+                    } else {
+                        calculatedEffects.specialStatBonuses[st].flat += num;
+                    }
                 }
-            } else if (Object.values(MythicStat).includes(type as MythicStat)) {
-                // Mythic stats are generally flat values (e.g., +1 item)
-                calculatedEffects.mythicStatBonuses[type as MythicStat].flat += num;
             }
         }
     }
@@ -186,9 +204,21 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
 
     // Update manner effects based on equipment bonuses
     calculatedEffects.maxActionPoints += calculatedEffects.specialStatBonuses[SpecialStat.ActionPointMax].flat;
-    const regenBonusPercent = calculatedEffects.specialStatBonuses[SpecialStat.ActionPointRegen].percent;
-    if (regenBonusPercent > 0) {
-        calculatedEffects.actionPointRegenInterval = Math.floor(calculatedEffects.actionPointRegenInterval / (1 + regenBonusPercent / 100));
+
+    const guildApRegenResearchSecReduction = getGuildApRegenResearchSecReduction(guild);
+    if (guildApRegenResearchSecReduction > 0) {
+        calculatedEffects.actionPointRegenInterval = Math.max(
+            30_000,
+            calculatedEffects.actionPointRegenInterval - guildApRegenResearchSecReduction * 1000,
+        );
+    }
+
+    const apGearSec = calculatedEffects.specialOptionGear.apRegenExtraReductionSec;
+    if (apGearSec > 0) {
+        calculatedEffects.actionPointRegenInterval = Math.max(
+            30_000,
+            calculatedEffects.actionPointRegenInterval - apGearSec * 1000,
+        );
     }
 
     calculatedEffects.adventureCodexGoldBonusPercent = 0;
@@ -242,10 +272,11 @@ export const calculateUserEffects = (user: User | null | undefined): CalculatedE
  * volatile 유저 객체에 대해 lastActionPointUpdate 경과분만큼 행동력 자연 회복을 반영한다.
  * 클라이언트 useApp의 1초 interval과 동일한 규칙. 행동력 차감·부족 검사 직전에 호출한다.
  */
-export function applyPassiveActionPointRegenToUser(user: User, nowMs: number = Date.now()): void {
+export async function applyPassiveActionPointRegenToUser(user: User, nowMs: number = Date.now()): Promise<void> {
     if (!user?.actionPoints || user.isAdmin) return;
 
-    const effects = calculateUserEffects(user);
+    const guild = await resolveGuildForUserApEffects(user);
+    const effects = calculateUserEffects(user, guild);
     const calculatedMaxAP = effects.maxActionPoints;
     const regenInterval =
         effects.actionPointRegenInterval > 0 ? effects.actionPointRegenInterval : ACTION_POINT_REGEN_INTERVAL_MS;
@@ -280,9 +311,10 @@ export function applyPassiveActionPointRegenToUser(user: User, nowMs: number = D
         user.actionPoints.current >= calculatedMaxAP ? 0 : lastUpdate + pointsToAdd * regenInterval;
 }
 
-export function syncActionPointsStateAfterEquipmentChange(user: User): void {
+export async function syncActionPointsStateAfterEquipmentChange(user: User): Promise<void> {
     if (!user.actionPoints) return;
-    const effects = calculateUserEffects(user);
+    const guild = await resolveGuildForUserApEffects(user);
+    const effects = calculateUserEffects(user, guild);
     const maxAp = effects.maxActionPoints;
     user.actionPoints.max = maxAp;
     user.actionPoints.current = Math.min(user.actionPoints.current, maxAp);
@@ -298,7 +330,8 @@ export function syncActionPointsStateAfterEquipmentChange(user: User): void {
 }
 
 export const regenerateActionPoints = async (user: User): Promise<User> => {
-    const effects = calculateUserEffects(user);
+    const guild = await resolveGuildForUserApEffects(user);
+    const effects = calculateUserEffects(user, guild);
     const now = Date.now();
     
     const calculatedMaxAP = effects.maxActionPoints;

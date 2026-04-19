@@ -241,7 +241,7 @@ const applyAiCaptureOutcome = (
         return false;
     }
 
-    if (!game.justCaptured) game.justCaptured = [];
+    game.justCaptured = [];
 
     if (isHiddenMode) {
         const contributingHiddenStones = collectContributingHiddenStones(
@@ -342,7 +342,11 @@ const applyAiCaptureOutcome = (
         let moveIndex = -1;
         for (let i = game.moveHistory.length - 1; i >= 0; i--) {
             const historyMove = game.moveHistory[i];
-            if (historyMove.x === stone.x && historyMove.y === stone.y) {
+            if (
+                historyMove.x === stone.x &&
+                historyMove.y === stone.y &&
+                historyMove.player === opponentPlayerEnum
+            ) {
                 moveIndex = i;
                 break;
             }
@@ -373,6 +377,9 @@ const applyAiCaptureOutcome = (
         game.captures[aiPlayerEnum] += points;
         guildWarCapturePointsThisMove += points;
         game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden, capturePoints: points });
+        if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
+            delete game.hiddenMoves[moveIndex];
+        }
     }
 
     bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, aiPlayerEnum, guildWarCapturePointsThisMove);
@@ -1751,7 +1758,8 @@ export async function makeGoAiBotMove(
         game.totalTurns = validMoves.length;
     }
 
-    // 6. 따낸 돌 처리 및 히든 돌 공개 처리
+    // 6. 따낸 돌 처리 및 히든 돌 공개 처리 (이전 턴 justCaptured 잔류로 클라 점수 플로트가 꼬이지 않게 비움)
+    game.justCaptured = [];
     const startedRevealAnimation = applyAiCaptureOutcome(
         game,
         result,

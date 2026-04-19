@@ -42,7 +42,7 @@ export const CODEX_COMPREHENSION_GRADE_BACKGROUNDS: Record<ItemGrade, string> = 
     [ItemGrade.Epic]: '/images/equipments/epicbgi.png',
     [ItemGrade.Legendary]: '/images/equipments/legendarybgi.png',
     [ItemGrade.Mythic]: '/images/equipments/mythicbgi.png',
-    [ItemGrade.Transcendent]: '/images/equipments/transcendentbgi.png',
+    [ItemGrade.Transcendent]: '/images/equipments/transcendentbgi.webp',
 };
 
 /**

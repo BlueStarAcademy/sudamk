@@ -11,7 +11,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const ALL_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];

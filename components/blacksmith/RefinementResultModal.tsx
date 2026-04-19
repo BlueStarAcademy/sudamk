@@ -10,7 +10,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 type RefinementDiff = {
@@ -124,13 +124,13 @@ function collectRefinementDiffs(beforeItem: InventoryItem, afterItem: InventoryI
         if (bs.type === as.type && Number(bs.value) === Number(as.value) && (bs.display || '') === (as.display || '')) continue;
         const typeChanged = bs.type !== as.type;
         const valueChanged = Number(bs.value) !== Number(as.value);
-        let hint = '신화 옵션 변경';
-        if (typeChanged && valueChanged) hint = '신화 · 종류·수치 변경';
-        else if (typeChanged) hint = '신화 · 종류 변경';
-        else if (valueChanged) hint = '신화 · 수치 변경';
+        let hint = '스페셜 옵션 변경';
+        if (typeChanged && valueChanged) hint = '스페셜 · 종류·수치 변경';
+        else if (typeChanged) hint = '스페셜 · 종류 변경';
+        else if (valueChanged) hint = '스페셜 · 수치 변경';
         out.push({
             id: `mythic-${i}`,
-            slotLabel: `신화옵션 ${i + 1}`,
+            slotLabel: `스페셜 옵션 ${i + 1}`,
             changeHint: hint,
             beforeText: bs.display,
             afterText: as.display,

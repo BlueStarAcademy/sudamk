@@ -6,6 +6,12 @@ import {
     resolveCombatSubValueRefinementRange,
     resolveSpecialSubValueRefinementRange,
 } from '../../shared/utils/refinementValueBounds.js';
+import {
+    milestoneTierCountFromStars,
+    computeSpecialSubRollBoundsAfterMilestones,
+    formatSpecialSubLineForPanel,
+} from '../../shared/utils/specialStatMilestones.js';
+import { partitionMythicSubsWithIndex } from '../../shared/utils/specialOptionGearEffects.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
 import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
@@ -15,7 +21,7 @@ import RefinementResultModal from './RefinementResultModal.js';
 const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
     { id: 'type', itemKey: '옵션 종류 변경권' },
     { id: 'value', itemKey: '옵션 수치 변경권' },
-    { id: 'mythic', itemKey: '신화 옵션 변경권' },
+    { id: 'mythic', itemKey: '스페셜 옵션 변경권' },
 ];
 
 /** 보유 변경권: 이미지 + 우하단 개수, 호버/누르고 있을 때 말풍선 */
@@ -93,7 +99,7 @@ const gradeStyles: Record<ItemGrade, { name: string; color: string; background: 
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const renderStarDisplay = (stars: number) => {
@@ -145,6 +151,7 @@ const ItemDisplay: React.FC<{
     if (!item.options) return null;
 
     const { main, combatSubs, specialSubs, mythicSubs } = item.options;
+    const { mythicGradeRows, transcendentGradeRows } = partitionMythicSubsWithIndex(mythicSubs);
 
     return (
         <div className="flex flex-col w-full h-full p-1">
@@ -202,23 +209,45 @@ const ItemDisplay: React.FC<{
                                 : 'hover:bg-gray-700/50 text-green-300'
                         }`}
                     >
-                        특{idx + 1}: {sub.display}
+                        특{idx + 1}: {formatSpecialSubLineForPanel(sub, item.stars ?? 0)}
                     </button>
                 ))}
-                {/* Mythic Subs */}
-                {mythicSubs.map((sub, idx) => (
+                {/* Mythic / Transcendent 스페셜 — 원본 mythicSubs 인덱스 유지 */}
+                {mythicGradeRows.length > 0 ? (
+                    <p className="px-1 pt-0.5 text-[9px] font-semibold text-rose-200/85">신화 스페셜 옵션</p>
+                ) : null}
+                {mythicGradeRows.map(({ sub, index: idx }) => (
                     <button
                         key={`m-${idx}`}
                         onClick={() => onOptionClick('mythicSub', idx)}
                         className={`w-full text-left p-1 rounded transition-all ${
                             selectedOption?.type === 'mythicSub' && selectedOption.index === idx
-                                ? 'bg-blue-600/70 text-white font-semibold' 
+                                ? 'bg-blue-600/70 text-white font-semibold'
                                 : 'hover:bg-gray-700/50 text-red-400'
                         }`}
                     >
-                        <span className="inline-flex items-center gap-0.5 min-w-0 flex-wrap">
+                        <span className="inline-flex min-w-0 flex-wrap items-center gap-0.5">
                             신{idx + 1}:{' '}
                             <MythicOptionAbbrev option={sub} textClassName="text-red-400" bubbleSide="right" />
+                        </span>
+                    </button>
+                ))}
+                {transcendentGradeRows.length > 0 ? (
+                    <p className="px-1 pt-1 text-[9px] font-semibold text-cyan-200/85">초월 스페셜 옵션</p>
+                ) : null}
+                {transcendentGradeRows.map(({ sub, index: idx }) => (
+                    <button
+                        key={`t-${idx}`}
+                        onClick={() => onOptionClick('mythicSub', idx)}
+                        className={`w-full text-left p-1 rounded transition-all ${
+                            selectedOption?.type === 'mythicSub' && selectedOption.index === idx
+                                ? 'bg-blue-600/70 text-white font-semibold'
+                                : 'hover:bg-gray-700/50 text-cyan-300'
+                        }`}
+                    >
+                        <span className="inline-flex min-w-0 flex-wrap items-center gap-0.5">
+                            신{idx + 1}:{' '}
+                            <MythicOptionAbbrev option={sub} textClassName="text-cyan-300" bubbleSide="right" />
                         </span>
                     </button>
                 ))}
@@ -279,7 +308,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
         return {
             type: countByName('옵션 종류 변경권'),
             value: countByName('옵션 수치 변경권'),
-            mythic: countByName('신화 옵션 변경권'),
+            mythic: countByName('스페셜 옵션 변경권') + countByName('신화 옵션 변경권'),
         };
     }, [currentUser]);
 
@@ -350,12 +379,14 @@ const RefinementView: React.FC<RefinementViewProps> = ({
             } else if (selectedOption.type === 'specialSub') {
                 const allSpecialStats = Object.values(SpecialStat);
                 const usedTypes = new Set(selectedItem.options!.specialSubs.map(s => s.type));
-                const prevEnh =
-                    selectedItem.options!.specialSubs[selectedOption.index]?.enhancements ?? 0;
+                const milestones = milestoneTierCountFromStars(selectedItem.stars ?? 0);
                 return allSpecialStats.filter(stat => !usedTypes.has(stat)).map(stat => {
                     const [r0, r1] = SPECIAL_STATS_DATA[stat].range;
-                    const scaledMin = Math.round(r0 * (1 + prevEnh));
-                    const scaledMax = Math.round(r1 * (1 + prevEnh));
+                    const [scaledMin, scaledMax] = computeSpecialSubRollBoundsAfterMilestones(
+                        [r0, r1],
+                        stat,
+                        milestones
+                    );
                     return {
                         type: stat,
                         name: SPECIAL_STATS_DATA[stat].name,
@@ -406,7 +437,8 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                     const repaired = resolveSpecialSubValueRefinementRange(
                         stored,
                         subDef,
-                        selectedOptionData.enhancements ?? 0
+                        selectedOptionData.enhancements ?? 0,
+                        selectedOptionData.type as SpecialStat
                     );
                     if (repaired) {
                         return [
@@ -488,7 +520,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                 ? '옵션 종류 변경권'
                 : refinementType === 'value'
                   ? '옵션 수치 변경권'
-                  : '신화 옵션 변경권';
+                  : '스페셜 옵션 변경권';
         return MATERIAL_ITEMS[ticketName] ?? null;
     }, [refinementType]);
 
@@ -694,7 +726,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform -skew-x-12 translate-x-[-200%] group-hover:translate-x-[200%]" />
                                         <span className="relative z-10 flex items-center justify-center gap-0.5 sm:gap-1">
                                             <span className="text-xs sm:text-sm shrink-0">✨</span>
-                                            <span className="truncate">신화 옵션 변경</span>
+                                            <span className="truncate">스페셜 옵션 변경</span>
                                         </span>
                                     </button>
                                 )}

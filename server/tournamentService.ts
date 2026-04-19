@@ -308,7 +308,7 @@ const startNextMatchAutomatically = async (
         // 유저의 최신 능력치 업데이트
         const userPlayer = state.players.find(p => p.id === user.id);
         if (userPlayer) {
-            const latestStats = calculateTotalStats(user);
+            const latestStats = calculateTotalStats(user, 'championshipVenue');
             userPlayer.originalStats = JSON.parse(JSON.stringify(latestStats));
             userPlayer.stats = JSON.parse(JSON.stringify(latestStats));
         }
@@ -723,7 +723,7 @@ export const instantSkipChampionshipDungeonMatch = async (
 
     const userPlayer = state.players.find(p => p.id === user.id);
     if (userPlayer) {
-        const latestStats = calculateTotalStats(user);
+        const latestStats = calculateTotalStats(user, 'championshipVenue');
         userPlayer.originalStats = JSON.parse(JSON.stringify(latestStats));
         userPlayer.stats = JSON.parse(JSON.stringify(latestStats));
     }

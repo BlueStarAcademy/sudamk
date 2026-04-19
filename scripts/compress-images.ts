@@ -1,6 +1,9 @@
 /**
  * 이미지 압축 스크립트
- * 
+ *
+ * PWA·파비콘·앱 스토어용 아이콘(`public/images/Icon.png` 등)은 WebP 변환 대상에서 제외합니다.
+ * (WebP는 홈 화면/독에서 가장자리가 지저분해 보이는 경우가 많아 PNG를 유지합니다.)
+ *
  * 사용법:
  *   npx tsx scripts/compress-images.ts
  * 
@@ -39,8 +42,25 @@ const stats: ImageStats[] = [];
 let totalOriginal = 0;
 let totalCompressed = 0;
 
+/** 홈 화면·브라우저 탭·설치 배너 등에 쓰이는 마스터 아이콘 — PNG 유지(이 스크립트가 WebP로 바꾸지 않음) */
+function isAppMasterIconAsset(filePath: string): boolean {
+  const base = path.basename(filePath).toLowerCase();
+  return base === 'icon.png' || base === 'favicon.png';
+}
+
+/** 모험 몬스터 스프라이트 — 손실 WebP 시 윤곽/알파 가장자리가 깨지기 쉬워 near-lossless 사용 */
+function isAdventureMonsterPng(filePath: string): boolean {
+  const norm = filePath.split(path.sep).join('/').toLowerCase();
+  return norm.includes('/public/images/monster/') && norm.endsWith('.png');
+}
+
 async function compressImage(filePath: string): Promise<void> {
   try {
+    if (isAppMasterIconAsset(filePath)) {
+      console.log(`⊘ Skip (app icon, keep PNG): ${path.relative(projectRoot, filePath)}`);
+      return;
+    }
+
     const fileStat = await fs.stat(filePath);
     const originalSize = fileStat.size;
     
@@ -73,12 +93,21 @@ async function compressImage(filePath: string): Promise<void> {
     
     if (isPng) {
       // PNG를 WebP로 변환 (더 나은 압축률)
+      const webpOpts: sharp.WebpOptions = isAdventureMonsterPng(filePath)
+        ? {
+            nearLossless: true,
+            quality: Math.max(quality, 90),
+            alphaQuality: 100,
+            effort: 6,
+            smartSubsample: false,
+          }
+        : { quality };
       compressedBuffer = await sharp(filePath)
         .resize(targetWidth, targetHeight, { 
           fit: 'inside',
           withoutEnlargement: true 
         })
-        .webp({ quality })
+        .webp(webpOpts)
         .toBuffer();
       
       // 원본보다 작으면 WebP로 교체

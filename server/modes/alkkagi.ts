@@ -4,7 +4,6 @@ import { handleSharedAction, updateSharedGameState, handleTimeoutFoul, handlePla
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, ALKKAGI_TURN_TIME_LIMIT, BATTLE_PLACEMENT_ZONES, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
-import * as effectService from '../effectService.js';
 import { findAlkkagiStoneById, nextAlkkagiStoneId } from '../../shared/utils/alkkagiStoneId.js';
 
 // --- Simulation & Scoring Logic ---
@@ -206,12 +205,10 @@ export const initializeAlkkagi = (game: types.LiveGameSession, neg: types.Negoti
     game.alkkagiRoundSummary = undefined;
     game.timeoutFouls = { [p1.id]: 0, [p2.id]: 0 };
 
-    const p1Effects = effectService.calculateUserEffects(p1);
-    const p2Effects = effectService.calculateUserEffects(p2);
-    const p1SlowBonus = p1Effects.mythicStatBonuses[types.MythicStat.AlkkagiSlowBonus]?.flat || 0;
-    const p1AimBonus = p1Effects.mythicStatBonuses[types.MythicStat.AlkkagiAimingBonus]?.flat || 0;
-    const p2SlowBonus = p2Effects.mythicStatBonuses[types.MythicStat.AlkkagiSlowBonus]?.flat || 0;
-    const p2AimBonus = p2Effects.mythicStatBonuses[types.MythicStat.AlkkagiAimingBonus]?.flat || 0;
+    const p1SlowBonus = 0;
+    const p1AimBonus = 0;
+    const p2SlowBonus = 0;
+    const p2AimBonus = 0;
 
     game.alkkagiItemUses = {
         [p1.id]: { slow: (game.settings.alkkagiSlowItemCount || 0) + p1SlowBonus, aimingLine: (game.settings.alkkagiAimingLineItemCount || 0) + p1AimBonus },

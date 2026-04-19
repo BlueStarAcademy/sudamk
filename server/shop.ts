@@ -19,6 +19,8 @@ import {
     applyEnhancementStarsToEquipmentItem as applyEnhancementStarsShared,
     createSeededRandom,
 } from '../shared/utils/equipmentEnhancementStars.js';
+import { formatSpecialSubItemDisplay } from '../shared/utils/specialStatMilestones.js';
+import { mythicStatPoolForItemGrade } from '../shared/utils/specialOptionGearEffects.js';
 
 const getRandomInt = (min: number, max: number): number => {
     const lo = Math.floor(Number(min));
@@ -91,13 +93,17 @@ export const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): Item
 
         const subDef = SPECIAL_STATS_DATA[subStatType];
         const value = getRandomInt(subDef.range[0], subDef.range[1]);
+        const range = [subDef.range[0], subDef.range[1]] as [number, number];
         specialSubs.push({
             type: subStatType,
             value,
             isPercentage: subDef.isPercentage,
             tier: combatTier,
-            display: `${subDef.name} +${value}${subDef.isPercentage ? '%' : ''} [${subDef.range[0]}~${subDef.range[1]}]`,
-            range: subDef.range,
+            display: formatSpecialSubItemDisplay(
+                { type: subStatType, value, range, enhancements: 0 },
+                subDef
+            ),
+            range,
             enhancements: 0,
         });
     }
@@ -108,7 +114,7 @@ export const generateItemOptions = (grade: ItemGrade, slot: EquipmentSlot): Item
         ? getRandomInt(mythicCountRule[0], mythicCountRule[1])
         : mythicCountRule;
     if (numMythicSubs > 0) {
-        const mythicPool = Object.values(MythicStat);
+        const mythicPool = mythicStatPoolForItemGrade(grade);
 
         for (let i = 0; i < numMythicSubs; i++) {
             if (mythicPool.length === 0) break;

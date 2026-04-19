@@ -3,15 +3,16 @@
 // FIX: Split type and value imports to resolve namespace collision errors
 // FIX: Changed imports to point to specific files to avoid namespace conflicts
 import type { User, Guild, GuildBossInfo, QuestReward, MannerEffects, GuildBossSkill, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillEffect, GuildBossSkillSubEffect, BattleLogEntry, GuildBossBattleResult } from '../types/index.js';
-import { GuildResearchId, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../types/enums.js';
+import { GuildResearchId, CoreStat, ItemGrade } from '../types/enums.js';
 import { GUILD_RESEARCH_PROJECTS } from '../constants/index.js';
 import { calculateGuildBossBattleRewards, clampGuildBossStage, guildBossStatMultiplier } from './guildBossStageUtils.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 import { CONSUMABLE_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
 import { BOSS_SKILL_ICON_MAP, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_REGEN_IMG, GUILD_ATTACK_ICON } from '../assets.js';
-import { calculateUserEffects, calculateTotalStats } from './statUtils.js';
+import { calculateTotalStats } from './statUtils.js';
 import { getMannerEffects } from './mannerUtils.js';
+import { aggregateSpecialOptionGearFromUser } from '../shared/utils/specialOptionGearEffects.js';
 
 
 // FIX: Removed local type definitions, now imported from types/index.js
@@ -24,8 +25,7 @@ const getRandom = (min: number, max: number) => Math.floor(Math.random() * (max 
 export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo, stage: number = 1): GuildBossBattleResult => {
     const st = clampGuildBossStage(stage);
     const statMult = guildBossStatMultiplier(st);
-    const totalStats = calculateTotalStats(user, guild);
-    const effects = calculateUserEffects(user, guild);
+    const totalStats = calculateTotalStats(user, guild, 'guildBoss');
     const BATTLE_TURNS = 30; // Boss will use finisher on turn 30
     
     let userHp = 20000 + (totalStats[CoreStat.Concentration] * 10);
@@ -48,9 +48,6 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
 
     const runUserTurn = (isExtra: boolean = false): boolean => {
         let userDamage = (totalStats[CoreStat.CombatPower] * 3.2) + (totalStats[CoreStat.Judgment] * 2.6) + (totalStats[CoreStat.Calculation] * 1.8);
-        // GuildBossDamage는 SpecialStat에 없으므로 임시로 처리
-        const damageBonusPercent = (effects.specialStatBonuses as any)['GuildBossDamage']?.percent || 0;
-        if (damageBonusPercent > 0) userDamage *= (1 + damageBonusPercent / 100);
         userDamage *= (1 + (Math.random() * 0.2 - 0.1));
         const critChance = 15 + (totalStats[CoreStat.Judgment] * 0.03);
         const isCrit = Math.random() * 100 < critChance;
@@ -307,8 +304,13 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         if (userHp <= 0) break;
     }
     
-    const finalDamage = Math.max(0, Math.round(totalDamageDealt));
-    const calculatedRewards = calculateGuildBossBattleRewards(finalDamage, st);
+    const rawDamage = Math.max(0, Math.round(totalDamageDealt));
+    const gear = aggregateSpecialOptionGearFromUser(user);
+    const finalDamage = Math.round(rawDamage * (1 + gear.guildBossDamagePercent / 100));
+    const calculatedRewards = calculateGuildBossBattleRewards(Math.max(0, finalDamage), st, {
+        rewardTierShift: gear.guildBossRewardTierShift,
+        duplicateRewardCount: gear.guildBossDuplicateRewardCount,
+    });
 
     const vipSimGranted = ((): { name: string; quantity: number; image?: string } | undefined => {
         if (!isRewardVipActive(user)) return undefined;

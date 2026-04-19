@@ -2,6 +2,10 @@ import React, { useMemo, useState } from 'react';
 import DraggableWindow from './DraggableWindow.js';
 import { CoreStat, SpecialStat, MythicStat } from '../types.js';
 import { CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA } from '../constants';
+import {
+    isMythicGradeSpecialOptionType,
+    isTranscendentGradeSpecialOptionType,
+} from '../shared/utils/specialOptionGearEffects.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 
@@ -22,7 +26,7 @@ const TAB_LABEL: Record<TabId, string> = {
     main: '주옵션',
     combat: '전투 부옵션',
     special: '특수',
-    mythic: '신화',
+    mythic: '스페셜',
 };
 
 function formatFlatPercent(b: { flat: number; percent: number } | undefined): { flatStr: string | null; pctStr: string | null } {
@@ -87,31 +91,10 @@ const MeterBar: React.FC<{ ratio: number; variant: 'amber' | 'violet' | 'emerald
     );
 };
 
-const formatMythicStat = (stat: MythicStat, data: { count: number; totalValue: number }): React.ReactNode => {
-    const baseDescription = MYTHIC_STATS_DATA[stat].description;
-
-    switch (stat) {
-        case MythicStat.StrategicGoldBonus:
-        case MythicStat.PlayfulGoldBonus: {
-            const newPercentage = 20 * data.count;
-            return <span className="leading-snug">{baseDescription.replace(/20%/, `${newPercentage}%`)}</span>;
-        }
-        case MythicStat.MannerActionCooldown: {
-            return (
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                    <span className="min-w-0 flex-1 leading-snug text-zinc-200/95">{baseDescription}</span>
-                    <span className="shrink-0 font-mono text-sm font-bold tabular-nums text-rose-200">+{data.totalValue}초</span>
-                </div>
-            );
-        }
-        case MythicStat.DiceGoOddBonus:
-        case MythicStat.AlkkagiSlowBonus:
-        case MythicStat.AlkkagiAimingBonus: {
-            return <span className="leading-snug">{baseDescription.replace(/1개/g, `${data.totalValue}개`)}</span>;
-        }
-        default:
-            return <span className="leading-snug">{baseDescription}</span>;
-    }
+const formatMythicStat = (stat: MythicStat, _data: { count: number; totalValue: number }): React.ReactNode => {
+    const row = MYTHIC_STATS_DATA[stat];
+    if (!row) return <span className="leading-snug">알 수 없는 스페셜 옵션</span>;
+    return <span className="leading-snug">{row.description}</span>;
 };
 
 const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
@@ -156,6 +139,15 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
     const mythicActive = useMemo(
         () => (Object.entries(aggregatedMythicStats) as [MythicStat, { count: number; totalValue: number }][]).filter(([, d]) => d.count > 0),
         [aggregatedMythicStats],
+    );
+
+    const mythicGradeSpecialActive = useMemo(
+        () => mythicActive.filter(([stat]) => isMythicGradeSpecialOptionType(stat as string)),
+        [mythicActive],
+    );
+    const transcendentGradeSpecialActive = useMemo(
+        () => mythicActive.filter(([stat]) => isTranscendentGradeSpecialOptionType(stat as string)),
+        [mythicActive],
     );
 
     const tabBadge = (id: TabId): number | null => {
@@ -383,31 +375,63 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                     {tab === 'mythic' && (
                         <div className={sectionShell}>
                             <h3 className="mb-2 border-b border-rose-500/25 pb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-rose-200/85 sm:text-xs">
-                                신화 능력치
+                                스페셜 옵션
                             </h3>
                             {mythicActive.length === 0 ? (
-                                <p className="py-6 text-center text-sm text-zinc-500">적용 중인 신화 옵션이 없습니다.</p>
+                                <p className="py-6 text-center text-sm text-zinc-500">적용 중인 스페셜 옵션이 없습니다.</p>
                             ) : (
-                                <ul className="space-y-2">
-                                    {mythicActive.map(([stat, data]) => {
-                                        const def = MYTHIC_STATS_DATA[stat];
-                                        return (
-                                            <li
-                                                key={stat}
-                                                className="rounded-xl border border-rose-500/28 bg-gradient-to-br from-rose-950/30 via-zinc-950/50 to-zinc-950/90 p-2.5 ring-1 ring-inset ring-rose-400/10 sm:p-3"
-                                            >
-                                                <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                                    <p className="text-[12px] font-bold text-rose-100 sm:text-sm">{def.name}</p>
-                                                    <span className="rounded-md border border-rose-400/35 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-200/95">
-                                                        중첩 ×{data.count}
-                                                    </span>
-                                                </div>
-                                                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-rose-200/60">{def.abbrevLabel}</p>
-                                                <div className="text-[11px] leading-snug text-zinc-200/95 sm:text-xs">{formatMythicStat(stat, data)}</div>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+                                <div className="space-y-4">
+                                    {mythicGradeSpecialActive.length > 0 ? (
+                                        <div>
+                                            <p className="mb-1.5 text-center text-[10px] font-semibold text-rose-200/90">신화 스페셜 옵션</p>
+                                            <ul className="space-y-2">
+                                                {mythicGradeSpecialActive.map(([stat, data]) => {
+                                                    const def = MYTHIC_STATS_DATA[stat];
+                                                    return (
+                                                        <li
+                                                            key={stat}
+                                                            className="rounded-xl border border-rose-500/28 bg-gradient-to-br from-rose-950/30 via-zinc-950/50 to-zinc-950/90 p-2.5 ring-1 ring-inset ring-rose-400/10 sm:p-3"
+                                                        >
+                                                            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                                                <p className="text-[12px] font-bold text-rose-100 sm:text-sm">{def.name}</p>
+                                                                <span className="rounded-md border border-rose-400/35 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-200/95">
+                                                                    중첩 ×{data.count}
+                                                                </span>
+                                                            </div>
+                                                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-rose-200/60">{def.abbrevLabel}</p>
+                                                            <div className="text-[11px] leading-snug text-zinc-200/95 sm:text-xs">{formatMythicStat(stat, data)}</div>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    ) : null}
+                                    {transcendentGradeSpecialActive.length > 0 ? (
+                                        <div>
+                                            <p className="mb-1.5 text-center text-[10px] font-semibold text-cyan-200/90">초월 스페셜 옵션</p>
+                                            <ul className="space-y-2">
+                                                {transcendentGradeSpecialActive.map(([stat, data]) => {
+                                                    const def = MYTHIC_STATS_DATA[stat];
+                                                    return (
+                                                        <li
+                                                            key={stat}
+                                                            className="rounded-xl border border-cyan-500/28 bg-gradient-to-br from-cyan-950/25 via-zinc-950/50 to-zinc-950/90 p-2.5 ring-1 ring-inset ring-cyan-400/10 sm:p-3"
+                                                        >
+                                                            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+                                                                <p className="text-[12px] font-bold text-cyan-100 sm:text-sm">{def.name}</p>
+                                                                <span className="rounded-md border border-cyan-400/35 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-200/95">
+                                                                    중첩 ×{data.count}
+                                                                </span>
+                                                            </div>
+                                                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-200/60">{def.abbrevLabel}</p>
+                                                            <div className="text-[11px] leading-snug text-zinc-200/95 sm:text-xs">{formatMythicStat(stat, data)}</div>
+                                                        </li>
+                                                    );
+                                                })}
+                                            </ul>
+                                        </div>
+                                    ) : null}
+                                </div>
                             )}
                         </div>
                     )}

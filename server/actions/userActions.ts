@@ -27,6 +27,7 @@ import {
     getAdventureAllowedBattleModes,
     resolveAdventureBoardSize,
 } from '../../shared/utils/adventureBattleBoard.js';
+import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
 import { GameMode, UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
@@ -127,7 +128,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (refErr) {
                 return { error: refErr };
             }
-            applyAdventureMonsterDefeatToProfile(user, { codexId: codexId!, stageId: stageId!, battleMode: battleMode! });
+            await applyAdventureMonsterDefeatToProfile(user, { codexId: codexId!, stageId: stageId!, battleMode: battleMode! });
 
             const updatedUser = getSelectiveUserUpdate(user, 'RECORD_ADVENTURE_MONSTER_DEFEAT');
 
@@ -184,7 +185,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
 
                 const mode = adventureBattleModeToGameMode(battleMode as AdventureMonsterBattleMode);
                 const cost = getAdventureMonsterAttackActionPointCost(advStage?.stageIndex ?? 1, codexId!);
-                effectService.applyPassiveActionPointRegenToUser(user);
+                await effectService.applyPassiveActionPointRegenToUser(user);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
                 }
@@ -207,6 +208,13 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 const missileExtra = getRegionalMissileBonus(user.adventureProfile, stageId!);
                 if (mode === GameMode.Missile && missileExtra > 0) {
                     settings.missileCount = (settings.missileCount ?? 0) + missileExtra;
+                }
+                const advGear = aggregateSpecialOptionGearFromUser(user);
+                if (mode === GameMode.Hidden && advGear.adventureScanExtra > 0) {
+                    settings.scanCount = (settings.scanCount ?? 0) + advGear.adventureScanExtra;
+                }
+                if (mode === GameMode.Missile && advGear.adventureMissileExtra > 0) {
+                    settings.missileCount = (settings.missileCount ?? 0) + advGear.adventureMissileExtra;
                 }
 
                 const negotiation: types.Negotiation = {
@@ -622,7 +630,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             // 장비 일관성 검증 및 수정
             const { validateAndFixEquipmentConsistency } = await import('./inventoryActions.js');
             validateAndFixEquipmentConsistency(user);
-            effectService.syncActionPointsStateAfterEquipmentChange(user);
+            await effectService.syncActionPointsStateAfterEquipmentChange(user);
 
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'APPLY_PRESET');

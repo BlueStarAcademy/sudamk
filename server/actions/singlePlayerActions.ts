@@ -160,7 +160,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 }
             }
 
-            applyPassiveActionPointRegenToUser(user, now);
+            await applyPassiveActionPointRegenToUser(user, now);
             
             if (user.actionPoints.current < effectiveActionPointCost) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${effectiveActionPointCost})` };

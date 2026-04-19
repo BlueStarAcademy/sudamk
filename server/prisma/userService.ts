@@ -397,10 +397,11 @@ async function syncEquipmentAndInventory(user: User): Promise<void> {
             metadata: (() => {
               const m = { ...((item as any).metadata || {}) };
               delete (m as any).isDivineMythic;
+              // ...m를 먼저 펼치면 레거시 m.options가 아래에서 덮어써져, 갱신된 item.options가 유실된다.
               return {
-                options: item.options || [],
-                enhancementFails: (item as any).enhancementFails || 0,
                 ...m,
+                options: item.options ?? (m as any).options ?? [],
+                enhancementFails: (item as any).enhancementFails ?? (m as any).enhancementFails ?? 0,
               };
             })(),
             isEquipped: item.isEquipped || false

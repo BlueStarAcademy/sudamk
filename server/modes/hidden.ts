@@ -190,7 +190,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         break;
                     }
 
-                    if (!game.justCaptured) game.justCaptured = [];
+                    game.justCaptured = [];
 
                     for (const stone of cap.stones) {
                         game.boardState[stone.y][stone.x] = types.Player.None; // Remove stone from board
@@ -235,6 +235,12 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.captures[myPlayerEnum] += points;
         
                         game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHiddenForEntry || wasAiInitialHidden, capturePoints: points });
+                        if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
+                            delete game.hiddenMoves[moveIndex];
+                        }
+                        if (wasAiInitialHidden) {
+                            (game as any).aiInitialHiddenStone = undefined;
+                        }
                     }
                     
                     // pendingCapture.stones에 “수순 좌표(히든 공개 시도 위치)”가 포함되는 경우가 있어,

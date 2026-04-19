@@ -2,7 +2,8 @@
 
 
 // FIX: Import missing types from the centralized types file.
-import { User, CoreStat, SpecialStat, MythicStat } from '../types/index.js';
+import { User, CoreStat, SpecialStat, MythicStat, type Guild } from '../types/index.js';
+import { getGuildApRegenResearchSecReduction } from '../shared/utils/guildApRegenResearchSec.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants';
 import {
     accumulateAdventureCodexBossPercentBonuses,
@@ -14,6 +15,12 @@ import {
     sumAdventureUnderstandingGoldBonusPercent,
 } from '../utils/adventureUnderstanding.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
+import {
+    aggregateSpecialOptionGearFromUser,
+    type SpecialOptionGearBonuses,
+    DEFAULT_SPECIAL_OPTION_GEAR_BONUSES,
+} from '../shared/utils/specialOptionGearEffects.js';
+import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 
 export interface MannerEffects {
     maxActionPoints: number;
@@ -80,6 +87,7 @@ export interface CalculatedEffects extends MannerEffects {
     coreStatBonuses: Record<CoreStat, { flat: number; percent: number }>;
     specialStatBonuses: Record<SpecialStat, { flat: number; percent: number }>;
     mythicStatBonuses: Record<MythicStat, { flat: number; percent: number }>;
+    specialOptionGear: SpecialOptionGearBonuses;
     adventureCodexGoldBonusPercent?: number;
     adventureUnderstandingEquipmentDropBonusPercent?: number;
     adventureUnderstandingHighGradeEquipmentBonusPercent?: number;
@@ -87,7 +95,7 @@ export interface CalculatedEffects extends MannerEffects {
     adventureUnderstandingHighGradeMaterialBonusPercent?: number;
 }
 
-export const calculateUserEffects = (user: User): CalculatedEffects => {
+export const calculateUserEffects = (user: User, guild?: Guild | null): CalculatedEffects => {
     // Start with manner effects
     const effects = getMannerEffects(user);
 
@@ -96,6 +104,7 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
         coreStatBonuses: {} as Record<CoreStat, { flat: number; percent: number }>,
         specialStatBonuses: {} as Record<SpecialStat, { flat: number; percent: number }>,
         mythicStatBonuses: {} as Record<MythicStat, { flat: number; percent: number }>,
+        specialOptionGear: user ? aggregateSpecialOptionGearFromUser(user) : { ...DEFAULT_SPECIAL_OPTION_GEAR_BONUSES },
     };
 
     // Initialize bonus records
@@ -127,15 +136,15 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
                 } else {
                     calculatedEffects.coreStatBonuses[type as CoreStat].flat += num;
                 }
-            } else if (Object.values(SpecialStat).includes(type as SpecialStat)) {
-                 if (isPercentage) {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].percent += num;
-                } else {
-                    calculatedEffects.specialStatBonuses[type as SpecialStat].flat += num;
+            } else {
+                const st = coerceSpecialStatType(type);
+                if (st) {
+                    if (isPercentage) {
+                        calculatedEffects.specialStatBonuses[st].percent += num;
+                    } else {
+                        calculatedEffects.specialStatBonuses[st].flat += num;
+                    }
                 }
-            } else if (Object.values(MythicStat).includes(type as MythicStat)) {
-                // Mythic stats are generally flat values (e.g., +1 item)
-                calculatedEffects.mythicStatBonuses[type as MythicStat].flat += num;
             }
         }
     }
@@ -148,9 +157,21 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
 
     // Update manner effects based on equipment bonuses
     calculatedEffects.maxActionPoints += calculatedEffects.specialStatBonuses[SpecialStat.ActionPointMax].flat;
-    const regenBonusPercent = calculatedEffects.specialStatBonuses[SpecialStat.ActionPointRegen].percent;
-    if (regenBonusPercent > 0) {
-        calculatedEffects.actionPointRegenInterval = Math.floor(calculatedEffects.actionPointRegenInterval / (1 + regenBonusPercent / 100));
+
+    const guildApRegenResearchSecReduction = getGuildApRegenResearchSecReduction(guild);
+    if (guildApRegenResearchSecReduction > 0) {
+        calculatedEffects.actionPointRegenInterval = Math.max(
+            30_000,
+            calculatedEffects.actionPointRegenInterval - guildApRegenResearchSecReduction * 1000,
+        );
+    }
+
+    const apGearSec = calculatedEffects.specialOptionGear.apRegenExtraReductionSec;
+    if (apGearSec > 0) {
+        calculatedEffects.actionPointRegenInterval = Math.max(
+            30_000,
+            calculatedEffects.actionPointRegenInterval - apGearSec * 1000,
+        );
     }
 
     calculatedEffects.adventureCodexGoldBonusPercent = 0;
@@ -199,10 +220,14 @@ export const calculateUserEffects = (user: User): CalculatedEffects => {
  * 서버/목록 스냅샷 시각 이후 자연 회복분을 반영한 현재 행동력(클라이언트 추정).
  * 대기실 유저 목록 등 상대 정보는 주기적으로만 갱신되므로, 신청 모달 등에서 본인과 동일한 기준으로 비교할 때 사용.
  */
-export const projectActionPointsCurrent = (user: User | null | undefined, nowMs: number = Date.now()): number => {
+export const projectActionPointsCurrent = (
+    user: User | null | undefined,
+    nowMs: number = Date.now(),
+    guild?: Guild | null,
+): number => {
     if (!user?.actionPoints) return 0;
     if (user.isAdmin) return Math.max(user.actionPoints.current ?? 0, 1);
-    const effects = calculateUserEffects(user);
+    const effects = calculateUserEffects(user, guild);
     const maxAp = effects.maxActionPoints;
     const cur = user.actionPoints.current ?? 0;
     if (cur >= maxAp) return maxAp;

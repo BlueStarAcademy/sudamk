@@ -2,9 +2,9 @@
 import type { Prisma } from "@prisma/client";
 import type { User, InventoryItem, Equipment, Mail, QuestLog, EquipmentSlot } from "../../types/index.js";
 import { createDefaultBaseStats, createDefaultSpentStatPoints, createDefaultQuests } from "../initialData.ts";
-import { LeagueTier } from "../../types/enums.js";
+import { ItemGrade, LeagueTier } from "../../types/enums.js";
 import { SINGLE_PLAYER_STAGES } from "../../shared/constants/singlePlayerConstants.js";
-import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS } from "../../shared/constants/index.js";
+import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS, resolveEquipmentTemplateLookupName } from "../../shared/constants/index.js";
 import {
   normalizeLegacyDivineMythicInventoryItem,
   mapNormalizeInventoryList,
@@ -218,7 +218,7 @@ const ensureMail = (value: unknown): Mail[] =>
 
 /**
  * 우편 첨부 items가 배열이 아닌 JSON 객체(숫자 키 등)로 저장된 경우 배열로 복원해 UI가 비지 않게 함.
- * 장비 첨부는 구 더블신화 레거시 정규화(초월 등급·이름)도 적용합니다.
+ * 장비 첨부는 인벤토리와 동일하게 `normalizeInventoryEquipmentItem` 경로를 탑니다.
  */
 function normalizeInventoryItemList(inv: unknown): InventoryItem[] {
   const raw = Array.isArray(inv) ? inv : parseJson<InventoryItem[]>(inv, []);
@@ -451,8 +451,14 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
         // templateId로 아이템 정보 찾기
         let itemInfo: any = null;
         if (inv.slot) {
-          // 장비 아이템
-          itemInfo = EQUIPMENT_POOL.find(p => p.name === inv.templateId);
+          // 장비 아이템 (구버전: 초월도 templateId가 「천룡 …」인 경우 신룡 템플릿으로 조회)
+          const rarityGrade = (inv.rarity as ItemGrade | undefined) ?? undefined;
+          const poolName = resolveEquipmentTemplateLookupName(inv.templateId, rarityGrade) ?? inv.templateId;
+          itemInfo =
+            rarityGrade !== undefined
+              ? EQUIPMENT_POOL.find((p) => p.name === poolName && p.grade === rarityGrade) ??
+                EQUIPMENT_POOL.find((p) => p.name === poolName)
+              : EQUIPMENT_POOL.find((p) => p.name === poolName);
         } else {
           // 재료 또는 소모품
           itemInfo = MATERIAL_ITEMS[inv.templateId] ||
@@ -463,11 +469,8 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
         const meta = (inv.metadata as any) || {};
         let grade = (inv.rarity as any) || itemInfo?.grade || 'normal';
         let name = itemInfo?.name || inv.templateId;
-        if (meta.isDivineMythic === true && grade === 'mythic') {
-          grade = 'transcendent';
-        }
-        if (typeof name === 'string' && name.endsWith(' (더블신화)')) {
-          name = name.replace(/ \(더블신화\)$/, '');
+        if (meta.isDivineMythic === true && grade === ItemGrade.Mythic) {
+          grade = ItemGrade.Transcendent;
         }
         const item: InventoryItem = {
           id: inv.id,

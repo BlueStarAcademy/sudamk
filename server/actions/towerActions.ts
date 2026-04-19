@@ -16,6 +16,7 @@ import {
     resolveTowerPlainWhiteCount,
 } from '../../shared/utils/towerStageRules.js';
 import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
+import { aggregateSpecialOptionGearFromUser, towerApDiscountForFloor } from '../../shared/utils/specialOptionGearEffects.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { updateQuestProgress } from '../questService.js';
@@ -114,9 +115,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             
             // 클리어한 층은 행동력 소모가 0
             const isCleared = floor <= userTowerFloor;
-            const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
+            const towerGear = aggregateSpecialOptionGearFromUser(user);
+            const apDiscount = towerApDiscountForFloor(towerGear, floor);
+            const effectiveActionPointCost = isCleared ? 0 : Math.max(0, stage.actionPointCost - apDiscount);
 
-            applyPassiveActionPointRegenToUser(user, now);
+            await applyPassiveActionPointRegenToUser(user, now);
             
             if (user.actionPoints.current < effectiveActionPointCost) {
                 return { error: `액션 포인트가 부족합니다. (필요: ${effectiveActionPointCost})` };

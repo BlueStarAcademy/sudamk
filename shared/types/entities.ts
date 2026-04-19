@@ -1278,7 +1278,7 @@ export interface GuildResearchProject {
     baseCost: number;
     costMultiplier: number;
     baseEffect: number;
-    effectUnit: '%' | '점' | '명';
+    effectUnit: '%' | '점' | '명' | '초';
     baseTimeHours: number;
     timeIncrementHours: number;
     requiredGuildLevel: number[];

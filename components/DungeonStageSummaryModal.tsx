@@ -160,7 +160,7 @@ const DungeonStageSummaryModal: React.FC<DungeonStageSummaryModalProps> = ({
                 epic: '/images/equipments/epicbgi.png',
                 legendary: '/images/equipments/legendarybgi.png',
                 mythic: '/images/equipments/mythicbgi.png',
-                transcendent: '/images/equipments/transcendentbgi.png',
+                transcendent: '/images/equipments/transcendentbgi.webp',
             };
             (tournamentState.accumulatedEquipmentDrops as string[]).forEach((gradeKey: string, idx: number) => {
                 const label = EQUIPMENT_GRADE_LABEL_KO[gradeKey] ?? gradeKey;

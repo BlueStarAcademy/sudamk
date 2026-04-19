@@ -69,6 +69,9 @@ const KATA_STYLE_AI_GO_MODES = new Set<GameMode>([
     GameMode.Mix,
 ]);
 
+/** 서버 전략바둑 AI / 클라이언트 AI 공통: AI 턴 멈춤 복구 타이머 (히든 초기 배치 포함) */
+const STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES = new Set<GameStatus>(['playing', 'hidden_placing']);
+
 /** 모바일 우측 패널: 100vh 대신 dvh + 노치/홈바로 하단 잘림 방지 */
 const mobileGameSidebarDrawerStyle: React.CSSProperties = {
     paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -828,10 +831,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
         const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
-        // 싱글/탑: 종료 직후 전면 결과 모달을 자동으로 띄우지 않는다. 모달 백드롭이 인게임 하단(다음 층·재도전 등)을 가려 버튼이 먹히지 않는 문제 방지.
-        // 상세 결과는 하단 「결과 보기」로 연다. 계가·기권 등은 기존처럼 자동 오픈.
+        // 싱글: 계가 분석 전에는 전면 모달을 늦추는 등 기존 동작 유지.
+        // 도전의 탑: 따내기 승·패 등 analysisResult 없이 ended 되는 경우가 많아 종료 직후 바로 결과 모달을 연다.
         const pveAutoResultModal =
             isImmediateEnd ||
+            (isTower && gameHasJustEnded) ||
             (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
             (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
         const shouldShowModal = (isSinglePlayer || isTower)
@@ -2189,13 +2193,41 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [session.serverRevision, session.isSinglePlayer, isTower, lastReceivedServerRevision, isBoardLocked]);
 
     const aiStuckGameStateSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const lastGameStateSyncSentAtRef = useRef(0);
+    const aiStuckPostSyncFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastStuckRecoverySyncAtRef = useRef(0);
+    const aiStuckWatchRef = useRef({
+        id: '',
+        gameStatus: '' as GameStatus,
+        currentPlayer: Player.None,
+        moveHistoryLength: 0,
+        useClientSideAi: false,
+        isAiGame: false,
+        blackPlayerId: '' as string | undefined,
+        whitePlayerId: '' as string | undefined,
+    });
+    const handleActionRef = useRef(handlers.handleAction);
+    handleActionRef.current = handlers.handleAction;
 
-    // Kata 계열 AI 대국: AI(봇) 차례인데 10초간 착수가 없으면 서버와 다시 맞추고 AI 세션 복구를 시도
+    aiStuckWatchRef.current = {
+        id: session.id,
+        gameStatus,
+        currentPlayer,
+        moveHistoryLength: session.moveHistory?.length ?? 0,
+        useClientSideAi: !!(session.settings as any)?.useClientSideAi,
+        isAiGame: !!session.isAiGame,
+        blackPlayerId: session.blackPlayerId ?? undefined,
+        whitePlayerId: session.whitePlayerId ?? undefined,
+    };
+
+    // 모험·길드전 등 Kata 계열 AI 대국: AI(봇) 차례에 일정 시간 착수가 없으면 동기화 → 필요 시 서버 직접 수(클라 AI 폴백)
     useEffect(() => {
         if (aiStuckGameStateSyncTimeoutRef.current) {
             clearTimeout(aiStuckGameStateSyncTimeoutRef.current);
             aiStuckGameStateSyncTimeoutRef.current = null;
+        }
+        if (aiStuckPostSyncFallbackRef.current) {
+            clearTimeout(aiStuckPostSyncFallbackRef.current);
+            aiStuckPostSyncFallbackRef.current = null;
         }
         const eligibleKataContext =
             session.isAiGame &&
@@ -2203,7 +2235,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             KATA_STYLE_AI_GO_MODES.has(mode) &&
             session.gameCategory !== 'tower' &&
             session.gameCategory !== 'singleplayer';
-        if (!eligibleKataContext || gameStatus !== 'playing') return;
+        if (!eligibleKataContext || !STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES.has(gameStatus)) return;
 
         const manuallyPausedAi =
             session.isAiGame &&
@@ -2225,22 +2257,62 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             (!!currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'));
         if (!isAiBotTurn) return;
 
-        const AI_STUCK_NO_MOVE_RESYNC_MS = 10_000;
-        const MIN_BETWEEN_RESYNC_MS = 12_000;
+        const AI_STUCK_NO_MOVE_MS = 12_000;
+        const POST_SYNC_FALLBACK_MS = 7_000;
+        const STUCK_SYNC_COOLDOWN_MS = 8_000;
+        const gameIdForSync = session.id;
         aiStuckGameStateSyncTimeoutRef.current = setTimeout(() => {
             aiStuckGameStateSyncTimeoutRef.current = null;
             const now = Date.now();
-            if (now - lastGameStateSyncSentAtRef.current < MIN_BETWEEN_RESYNC_MS) return;
-            lastGameStateSyncSentAtRef.current = now;
-            void handlers.handleAction({
+            if (now - lastStuckRecoverySyncAtRef.current < STUCK_SYNC_COOLDOWN_MS) return;
+            lastStuckRecoverySyncAtRef.current = now;
+            const w = aiStuckWatchRef.current;
+            if (w.id !== gameIdForSync) return;
+            const moveLenBeforeSync = w.moveHistoryLength;
+            void handleActionRef.current({
                 type: 'REQUEST_GAME_STATE_SYNC',
-                payload: { gameId: session.id },
+                payload: { gameId: gameIdForSync },
             } as ServerAction);
-        }, AI_STUCK_NO_MOVE_RESYNC_MS);
+
+            if (aiStuckPostSyncFallbackRef.current) {
+                clearTimeout(aiStuckPostSyncFallbackRef.current);
+                aiStuckPostSyncFallbackRef.current = null;
+            }
+            aiStuckPostSyncFallbackRef.current = setTimeout(() => {
+                aiStuckPostSyncFallbackRef.current = null;
+                const w2 = aiStuckWatchRef.current;
+                if (w2.id !== gameIdForSync) return;
+                if (w2.moveHistoryLength !== moveLenBeforeSync) return;
+                if (!STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES.has(w2.gameStatus)) return;
+                const pid =
+                    w2.currentPlayer === Player.Black ? w2.blackPlayerId : w2.whitePlayerId;
+                const stillAi =
+                    w2.isAiGame &&
+                    (pid === AI_USER_ID ||
+                        pid === 'ai-player-01' ||
+                        (!!pid && String(pid).startsWith('dungeon-bot-')));
+                if (!stillAi) return;
+                if (w2.useClientSideAi) {
+                    void handleActionRef.current({
+                        type: 'REQUEST_SERVER_AI_MOVE',
+                        payload: { gameId: gameIdForSync },
+                    } as ServerAction);
+                } else {
+                    void handleActionRef.current({
+                        type: 'REQUEST_GAME_STATE_SYNC',
+                        payload: { gameId: gameIdForSync },
+                    } as ServerAction);
+                }
+            }, POST_SYNC_FALLBACK_MS);
+        }, AI_STUCK_NO_MOVE_MS);
         return () => {
             if (aiStuckGameStateSyncTimeoutRef.current) {
                 clearTimeout(aiStuckGameStateSyncTimeoutRef.current);
                 aiStuckGameStateSyncTimeoutRef.current = null;
+            }
+            if (aiStuckPostSyncFallbackRef.current) {
+                clearTimeout(aiStuckPostSyncFallbackRef.current);
+                aiStuckPostSyncFallbackRef.current = null;
             }
         };
     }, [
@@ -2252,12 +2324,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.turnDeadline,
         session.itemUseDeadline,
         session.moveHistory?.length,
+        (session.settings as any)?.useClientSideAi,
         mode,
         gameStatus,
         currentPlayer,
         session.blackPlayerId,
         session.whitePlayerId,
-        handlers.handleAction,
     ]);
 
     // 싱글플레이: 클라이언트 측 AI 자동 처리 (서버 부하 최소화)

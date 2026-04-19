@@ -64,7 +64,7 @@ export const GUILD_RESEARCH_PROJECTS: Record<GuildResearchId, GuildResearchProje
     [GuildResearchId.boss_skill_heal_block]: { image: '/images/guild/lab/bosslab2.png', category: GuildResearchCategory.boss, name: '길드보스전 [회복 불가]', description: '일정 확률로 보스의 회복을 막거나 회복량을 감소시킵니다.', maxLevel: 7, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(7) },
     [GuildResearchId.boss_skill_regen]: { image: '/images/guild/skill/userskill3.png', category: GuildResearchCategory.boss, name: '길드보스전 [회복]', description: '일정 확률로 자신의 체력을 지속적으로 회복합니다.', maxLevel: 7, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(7) },
     [GuildResearchId.boss_skill_ignite]: { image: '/images/guild/lab/bosslab4.png', category: GuildResearchCategory.boss, name: '길드보스전 [점화]', description: '일정 확률로 보스에게 지속적인 점화 피해를 입힙니다.', maxLevel: 7, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(7) },
-    [GuildResearchId.ap_regen_boost]: { image: '/images/guild/lab/statlab7.png', category: GuildResearchCategory.stats, name: '행동력 회복속도 증가', description: '모든 길드원의 행동력 회복 속도를 증가시킵니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
+    [GuildResearchId.ap_regen_boost]: { image: '/images/guild/lab/statlab7.png', category: GuildResearchCategory.stats, name: '행동력 회복속도 증가', description: '모든 길드원의 행동력 1회복당 간격이 고정 초만큼 줄어듭니다. (1레벨당 5초, 레벨이 오를 때마다 5초씩 추가 감소)', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '초', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
     [GuildResearchId.stat_concentration]: { image: '/images/guild/lab/statlab1.png', category: GuildResearchCategory.stats, name: '집중력 증가', description: '모든 길드원의 집중력 능력치를 증가시킵니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
     [GuildResearchId.stat_thinking_speed]: { image: '/images/guild/lab/statlab2.png', category: GuildResearchCategory.stats, name: '사고속도 증가', description: '모든 길드원의 사고속도 능력치를 증가시킵니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
     [GuildResearchId.stat_judgment]: { image: '/images/guild/lab/statlab3.png', category: GuildResearchCategory.stats, name: '판단력 증가', description: '모든 길드원의 판단력 능력치를 증가시킵니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
@@ -258,7 +258,7 @@ export const GUILD_BOSS_EQUIPMENT_LOOT_TABLE: { grade: ItemGrade; weight: number
 export const GUILD_BOSS_TICKET_TYPES = [
     '옵션 종류 변경권',
     '옵션 수치 변경권',
-    '신화 옵션 변경권',
+    '스페셜 옵션 변경권',
 ] as const;
 
 export const GUILD_BOSS_PERSONAL_REWARDS_TIERS = [

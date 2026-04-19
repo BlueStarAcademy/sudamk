@@ -31,7 +31,16 @@ async function main() {
         await fs.mkdir(outDir, { recursive: true });
         const inPath = path.join(ROOT, e.name);
         const outPath = path.join(outDir, `${base}.webp`);
-        await sharp(inPath).webp({ quality: 88, effort: 4 }).toFile(outPath);
+        await sharp(inPath)
+            .ensureAlpha()
+            .webp({
+                nearLossless: true,
+                quality: 92,
+                alphaQuality: 100,
+                effort: 6,
+                smartSubsample: false,
+            })
+            .toFile(outPath);
         await fs.unlink(inPath);
         console.log('OK', e.name, '→', path.relative('public', outPath));
     }

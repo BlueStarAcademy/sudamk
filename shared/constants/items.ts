@@ -72,14 +72,33 @@ export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipp
     { name: '백옥 바둑돌', slot: 'stones', image: 'images/equipments/Stone4.png', grade: ItemGrade.Epic, stars: 0, type: 'equipment', description: '영롱한 빛을 내는 청옥과 백옥으로 만들어진 바둑돌입니다.' },
     { name: '용안 바둑돌', slot: 'stones', image: 'images/equipments/Stone5.png', grade: ItemGrade.Legendary, stars: 0, type: 'equipment', description: '해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다.' },
     { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', description: '밤하늘의 은하수를 담아놓은 듯한 신화 속 바둑돌입니다.' },
-    // --- 초월: 신화 부옵션 2개 — 우편·관리 지급 전용(상자 루트에서는 제외)
-    { name: '천룡 바람 부채', slot: 'fan', image: 'images/equipments/Fan6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '하늘을 가르는 천룡의 숨결을 담아, 전장의 흐름마저 뒤집는 초월의 부채입니다.' },
-    { name: '천룡 바둑판', slot: 'board', image: 'images/equipments/Board6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '별자리의 궤적이 새겨져, 한 수마다 승리의 길을 열어 주는 초월의 바둑판입니다.' },
-    { name: '천룡 도복 상의', slot: 'top', image: 'images/equipments/Top6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '천룡의 비늘빛으로 직조되어, 흔들림 없는 집중을 부여하는 초월의 도복 상의입니다.' },
-    { name: '천룡 도복 하의', slot: 'bottom', image: 'images/equipments/Bottom6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '폭풍 속에서도 균형을 잃지 않게 하는, 천룡의 의지가 깃든 초월의 도복 하의입니다.' },
-    { name: '천룡 바둑통', slot: 'bowl', image: 'images/equipments/StoneBox6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '고대 전장의 기운을 봉인해, 꺼내는 돌마다 위압을 더하는 초월의 바둑통입니다.' },
-    { name: '천룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone6.png', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '새벽별의 파편을 벼려 만들어, 단 한 수로도 판세를 지배하는 초월의 바둑돌입니다.' },
+    // --- 초월: 신룡 시리즈 — 신화 3개 합성 대성공 또는 우편·관리 지급 등
+    { name: '신룡 바람 부채', slot: 'fan', image: 'images/equipments/Fan7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '하늘을 가르는 신룡의 숨결을 담아, 전장의 흐름마저 뒤집는 초월의 부채입니다.' },
+    { name: '신룡 바둑판', slot: 'board', image: 'images/equipments/Board7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '별자리의 궤적이 새겨져, 한 수마다 승리의 길을 열어 주는 초월의 바둑판입니다.' },
+    { name: '신룡 도복 상의', slot: 'top', image: 'images/equipments/Top7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신룡의 비늘빛으로 직조되어, 흔들림 없는 집중을 부여하는 초월의 도복 상의입니다.' },
+    { name: '신룡 도복 하의', slot: 'bottom', image: 'images/equipments/Bottom7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '폭풍 속에서도 균형을 잃지 않게 하는, 신룡의 의지가 깃든 초월의 도복 하의입니다.' },
+    { name: '신룡 바둑통', slot: 'bowl', image: 'images/equipments/StoneBox7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '고대 전장의 기운을 봉인해, 꺼내는 돌마다 위압을 더하는 초월의 바둑통입니다.' },
+    { name: '신룡 바둑돌', slot: 'stones', image: 'images/equipments/Stone7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '새벽별의 파편을 벼려 만들어, 단 한 수로도 판세를 지배하는 초월의 바둑돌입니다.' },
 ];
+
+/** 구 풀: 초월 장비도 신화와 동일한 「천룡 …」 이름이었음 — DB·우편 호환 */
+export const LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW: Readonly<Record<string, string>> = {
+    '천룡 바람 부채': '신룡 바람 부채',
+    '천룡 바둑판': '신룡 바둑판',
+    '천룡 도복 상의': '신룡 도복 상의',
+    '천룡 도복 하의': '신룡 도복 하의',
+    '천룡 바둑통': '신룡 바둑통',
+    '천룡 바둑돌': '신룡 바둑돌',
+};
+
+/** 우편·인벤토리 등 템플릿 조회용 표시 이름 */
+export function resolveEquipmentTemplateLookupName(name: string | undefined, grade?: ItemGrade): string | undefined {
+    if (!name) return name;
+    if (grade === ItemGrade.Transcendent && LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW[name]) {
+        return LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW[name];
+    }
+    return name;
+}
 
 export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails' | 'slot'> & {slot: null, usable?: boolean, sellable?: boolean})[] = [
     { name: '장비 상자 I', description: '일반~희귀 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox1.png', grade: ItemGrade.Normal },
@@ -118,7 +137,7 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
 export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = {
     '옵션 종류 변경권': { name: '옵션 종류 변경권', description: '장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change1.png', grade: ItemGrade.Normal },
     '옵션 수치 변경권': { name: '옵션 수치 변경권', description: '장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change2.png', grade: ItemGrade.Normal },
-    '신화 옵션 변경권': { name: '신화 옵션 변경권', description: '신화 또는 초월 장비의 신화 옵션을 다른 신화 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal },
+    '스페셜 옵션 변경권': { name: '스페셜 옵션 변경권', description: '신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal },
     '하급 강화석': { name: '하급 강화석', description: '장비 강화에 사용되는 기본 재료.', type: 'material', slot: null, image: '/images/materials/materials1.png', grade: ItemGrade.Normal },
     '중급 강화석': { name: '중급 강화석', description: '장비 강화에 사용되는 상급 재료.', type: 'material', slot: null, image: '/images/materials/materials2.png', grade: ItemGrade.Uncommon },
     '상급 강화석': { name: '상급 강화석', description: '장비 강화에 사용되는 최상급 재료.', type: 'material', slot: null, image: '/images/materials/materials3.png', grade: ItemGrade.Rare },
@@ -131,7 +150,12 @@ const TOWER_ONLY_CONSUMABLE_NAMES = new Set([
     'turn_add', 'turn_add_item', 'addturn', 'missile', 'hidden', 'scan', 'reflesh', 'refresh',
 ]);
 
-const REFINEMENT_TICKET_NAMES = new Set(['옵션 종류 변경권', '옵션 수치 변경권', '신화 옵션 변경권']);
+const REFINEMENT_TICKET_NAMES = new Set([
+    '옵션 종류 변경권',
+    '옵션 수치 변경권',
+    '스페셜 옵션 변경권',
+    '신화 옵션 변경권', // 레거시 인벤·우편 호환
+]);
 
 export function isActionPointConsumable(name: string | undefined): boolean {
     if (!name) return false;
@@ -155,7 +179,7 @@ export const gradeBackgrounds: Record<ItemGrade, string> = {
     [ItemGrade.Epic]: '/images/equipments/epicbgi.png',
     [ItemGrade.Legendary]: '/images/equipments/legendarybgi.png',
     [ItemGrade.Mythic]: '/images/equipments/mythicbgi.png',
-    [ItemGrade.Transcendent]: '/images/equipments/transcendentbgi.png',
+    [ItemGrade.Transcendent]: '/images/equipments/transcendentbgi.webp',
 };
 
 export const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
@@ -165,7 +189,7 @@ export const gradeStyles: Record<ItemGrade, { name: string; color: string; backg
     epic: { name: '에픽', color: 'text-purple-400', background: '/images/equipments/epicbgi.png' },
     legendary: { name: '전설', color: 'text-red-500', background: '/images/equipments/legendarybgi.png' },
     mythic: { name: '신화', color: 'text-orange-400', background: '/images/equipments/mythicbgi.png' },
-    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.png' },
+    transcendent: { name: '초월', color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 /** 장비 `grade` 문자열 → UI 한글 (챔피언십·토너먼트 등 표시 통일용) */
@@ -203,7 +227,7 @@ export const MAIN_ENHANCEMENT_STEP_MULTIPLIER: Record<ItemGrade, number[]> = {
     transcendent: [1.2, 1.2, 1.2, 1.4, 1.3, 1.3, 1.1, 1.1, 0.9, 0.9],
 };
 
-/** 마이그레이션 스크립트용 — 초월 등급과 동일 배율 */
+/** (레거시) 구 더블신화 강화 배율 — 데이터는 초월로 통일되며 실제 계산은 `MAIN_ENHANCEMENT_STEP_MULTIPLIER.transcendent`와 동일 */
 export const DIVINE_MYTHIC_ENHANCEMENT_STEP_MULTIPLIER: number[] = [
     1.2, 1.2, 1.2, 1.4, 1.3, 1.3, 1.1, 1.1, 0.9, 0.9,
 ];
@@ -355,7 +379,8 @@ export const CONSUMABLE_SELL_PRICES: Record<string, number> = {
     '배치변경': 20, // 100 * 0.2
     '옵션 종류 변경권': 100, // 500 * 0.2
     '옵션 수치 변경권': 100, // 500 * 0.2
-    '신화 옵션 변경권': 0, // 판매 불가
+    '스페셜 옵션 변경권': 0, // 판매 불가
+    '신화 옵션 변경권': 0, // 레거시 이름
 };
 
 export const BASE_SLOTS_PER_CATEGORY = 30;
@@ -433,84 +458,167 @@ export const MAIN_STAT_DEFINITIONS: Record<EquipmentSlot, {
     stones: {
         isPercentage: false,
         options: {
-            normal:   { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 8 },
-            uncommon: { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 12 },
-            rare:     { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 16 },
-            epic:     { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 20 },
-            legendary:{ stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 24 },
-            mythic:   { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 30 },
-            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 33 },
+            normal:   { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 5 },
+            uncommon: { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 7 },
+            rare:     { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 9 },
+            epic:     { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 12 },
+            legendary:{ stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 14 },
+            mythic:   { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 17 },
+            transcendent: { stats: [CoreStat.CombatPower, CoreStat.Calculation], value: 19 },
         }
     },
     bowl: {
         isPercentage: false,
         options: {
-            normal:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 8 },
-            uncommon: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 12 },
-            rare:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 16 },
-            epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 20 },
-            legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 24 },
-            mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 30 },
-            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 33 },
+            normal:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 5 },
+            uncommon: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 7 },
+            rare:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 9 },
+            epic:     { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 12 },
+            legendary:{ stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 14 },
+            mythic:   { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 17 },
+            transcendent: { stats: [CoreStat.Concentration, CoreStat.Stability, CoreStat.ThinkingSpeed], value: 19 },
         }
     }
 };
 export const SPECIAL_STATS_DATA: Record<SpecialStat, { name: string; description: string; isPercentage: boolean; range: [number, number]; }> = {
-    [SpecialStat.ActionPointMax]: { name: '행동력 최대치', description: '행동력의 최대치를 증가시킵니다.', isPercentage: false, range: [2, 5] },
-    [SpecialStat.ActionPointRegen]: { name: '행동력 회복속도', description: '행동력이 회복되는 속도를 증가시킵니다.', isPercentage: true, range: [1, 3] },
-    [SpecialStat.StrategyXpBonus]: { name: '전략 경험치 추가획득', description: '전략 바둑 승리 시 획득하는 경험치를 증가시킵니다.', isPercentage: true, range: [1, 3] },
-    [SpecialStat.PlayfulXpBonus]: { name: '놀이 경험치 추가획득', description: '놀이 바둑 승리 시 획득하는 경험치를 증가시킵니다.', isPercentage: true, range: [1, 3] },
-    [SpecialStat.GoldBonus]: { name: '골드보상 추가', description: '경기 승리 시 골드 보상을 추가로 획득합니다.', isPercentage: true, range: [1, 3] },
-    [SpecialStat.ItemDropRate]: { name: '장비상자 획득확률 증가', description: '경기 승리 시 장비상자 획득 확률을 증가시킵니다.', isPercentage: true, range: [1, 2] },
-    [SpecialStat.MaterialDropRate]: { name: '재료상자 획득확률 증가', description: '경기 승리 시 재료상자 획득 확률을 증가시킵니다.', isPercentage: true, range: [1, 3] },
+    [SpecialStat.ActionPointMax]: {
+        name: '행동력 최대치',
+        description: '행동력의 최대치를 증가시킵니다. (+4·+7·+10 강화마다 +1)',
+        isPercentage: false,
+        range: [2, 4],
+    },
+    [SpecialStat.StrategyXpBonus]: {
+        name: '전략 경험치 추가획득',
+        description: '전략 바둑 승리 시 획득하는 경험치를 증가시킵니다. (+4·+7·+10 강화마다 +3%)',
+        isPercentage: true,
+        range: [10, 15],
+    },
+    [SpecialStat.PlayfulXpBonus]: {
+        name: '놀이 경험치 추가',
+        description: '놀이 바둑 승리 시 획득하는 경험치를 증가시킵니다. (+4·+7·+10 강화마다 +3%)',
+        isPercentage: true,
+        range: [10, 15],
+    },
+    [SpecialStat.ChampionshipVenueAllStats]: {
+        name: '챔피언십 능력치',
+        description: '챔피언십 경기장(토너먼트)에서만 6가지 바둑 능력치에 퍼센트 보너스가 적용됩니다. (+4·+7·+10 강화마다 +1%)',
+        isPercentage: true,
+        range: [2, 4],
+    },
+    [SpecialStat.GuildBossBattleAllStats]: {
+        name: '길드보스전 능력치',
+        description: '길드 보스전에서만 6가지 바둑 능력치에 퍼센트 보너스가 적용됩니다. (+4·+7·+10 강화마다 +1%)',
+        isPercentage: true,
+        range: [2, 4],
+    },
 };
 
 export const MYTHIC_STATS_DATA: Record<MythicStat, { name: string; description: string; shortDescription: string; abbrevLabel: string; value: (range: [number, number]) => number; }> = {
-    [MythicStat.MannerActionCooldown]: { 
-        name: '매너 액션 버튼 생성시간 감소', 
-        description: '매너 액션 버튼 생성시간을 감소시킵니다.', 
-        shortDescription: '매너액션 쿨타임 -30초', 
-        abbrevLabel: '매너액션 쿨감',
-        value: () => 30 
-    }, // Fixed 30s reduction
-    [MythicStat.StrategicGoldBonus]: { 
-        name: '전략 골드 보너스', 
-        description: '전략 바둑 경기중 착수시 20%확률로 골드획득(10~50골드) 최대5회', 
-        shortDescription: '전략바둑중 골드(10~50)획득 5회(20%)', 
-        abbrevLabel: '전략 골드',
-        value: () => 1 
+    [MythicStat.GuildBossRewardGradeUp]: {
+        name: '길드 보스전 보상업',
+        description:
+            '길드 보스전 결과에서 보상 등급이 한 단계 올라갑니다. (최대 SSS) 신화 스페셜 옵션 1번이며, 초월 1번 「보스 보상추가」와는 동시에 적용될 수 있습니다.',
+        shortDescription: '길드보스 보상등급 +1',
+        abbrevLabel: '보스 보상등급',
+        value: () => 1,
     },
-    [MythicStat.PlayfulGoldBonus]: { 
-        name: '놀이 골드 보너스', 
-        description: '놀이 바둑 경기중 60초마다 20%확률로 골드획득(10~50골드) 최대5회', 
-        shortDescription: '놀이바둑중 골드(10~50)획득 5회(20%)', 
-        abbrevLabel: '놀이 골드',
-        value: () => 1 
+    [MythicStat.GuildBossExtraDamage5]: {
+        name: '길드 보스전 추가피해 5%',
+        description: '길드 보스를 공격할 때 최종 피해가 5% 추가로 적용됩니다. (초월 스페셜 옵션과 중복불가)',
+        shortDescription: '길드보스 피해 +5%',
+        abbrevLabel: '보스 피해5%',
+        value: () => 5,
     },
-    [MythicStat.DiceGoOddBonus]: { 
-        name: '주사위 홀/짝 보너스', 
-        description: '주사위 바둑에서 홀·짝·낮은수·높은수 아이템 각 1개씩 추가', 
-        shortDescription: '주사위바둑 아이템 추가+1', 
-        abbrevLabel: '주사위 보너스',
-        value: () => 1 
+    [MythicStat.TowerApMinus1Floors1to35]: {
+        name: '도전의 탑(1~35층) 필요행동력 -1',
+        description: '도전의 탑 1~35층 입장에 필요한 행동력이 1 감소합니다. (초월 스페셜 옵션과 중복불가)',
+        shortDescription: '탑 1~35층 AP -1',
+        abbrevLabel: '탑 AP(1~35)',
+        value: () => 1,
     },
-    [MythicStat.AlkkagiSlowBonus]: { 
-        name: '알까기 슬로우 보너스', 
-        description: '알까기 및 바둑컬링에서 슬로우 아이템 1개추가', 
-        shortDescription: '알까기/컬링 슬로우 +1개', 
-        abbrevLabel: '슬로우 보너스',
-        value: () => 1 
+    [MythicStat.ApRegenMinus30s]: {
+        name: '행동력 회복시간 -30초',
+        description: '행동력이 1 회복되기까지 걸리는 시간이 30초 줄어듭니다. (초월 스페셜 옵션과 중복불가)',
+        shortDescription: '행동력 회복 -30초',
+        abbrevLabel: 'AP회복 -30s',
+        value: () => 30,
     },
-    [MythicStat.AlkkagiAimingBonus]: { 
-        name: '알까기 조준선 보너스', 
-        description: '알까기 및 바둑컬링에서 조준선 아이템 1개추가', 
-        shortDescription: '알까기/컬링 조준선 +1개', 
-        abbrevLabel: '조준선 보너스',
-        value: () => 1 
+    [MythicStat.AdventureScanPlus1]: {
+        name: '모험 스캔 +1',
+        description: '모험(몬스터 대전) 시작 시 스캔 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)',
+        shortDescription: '모험 스캔 +1',
+        abbrevLabel: '모험 스캔+1',
+        value: () => 1,
+    },
+    [MythicStat.AdventureMissilePlus1]: {
+        name: '모험 미사일 +1',
+        description: '모험 시작 시 미사일 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)',
+        shortDescription: '모험 미사일 +1',
+        abbrevLabel: '모험 미사일+1',
+        value: () => 1,
+    },
+    [MythicStat.AdventureGoldBonus15]: {
+        name: '모험 골드 보상 +15%',
+        description:
+            '모험 승리 시 획득 골드가 15% 증가합니다. (도감·이해도 보너스와 별도 합산) (초월 스페셜 옵션과 중복불가)',
+        shortDescription: '모험 골드 +15%',
+        abbrevLabel: '모험 골드15%',
+        value: () => 15,
+    },
+    [MythicStat.GuildBossExtraRewardDuplicate]: {
+        name: '길드 보스전 보상추가',
+        description:
+            '길드 보스전 결과 보상 중 하나를 한 번 더 받습니다. 초월 장비에 이 옵션이 여러 줄(여러 장비)로 있으면 그만큼 반복 적용됩니다. 다른 스페셜 옵션과 함께 적용될 수 있습니다. 초월 스페셜 옵션 1번이며, 신화 1번 「보스 보상등급」과는 동시에 적용될 수 있습니다.',
+        shortDescription: '길드보스 보상 1종 복제(누적 가능)',
+        abbrevLabel: '보스 보상추가',
+        value: () => 1,
+    },
+    [MythicStat.GuildBossExtraDamage10]: {
+        name: '길드 보스전 추가피해 10%',
+        description: '길드 보스를 공격할 때 최종 피해가 10% 추가로 적용됩니다. (신화 스페셜 옵션과 중복불가)',
+        shortDescription: '길드보스 피해 +10%',
+        abbrevLabel: '보스 피해10%',
+        value: () => 10,
+    },
+    [MythicStat.TowerApMinus1AllFloors]: {
+        name: '도전의 탑 필요행동력 -1',
+        description: '모든 도전의 탑 층 입장에 필요한 행동력이 1 감소합니다. (신화 스페셜 옵션과 중복불가)',
+        shortDescription: '탑 전층 AP -1',
+        abbrevLabel: '탑 AP 전층',
+        value: () => 1,
+    },
+    [MythicStat.ApRegenMinus60s]: {
+        name: '행동력 회복시간 -60초',
+        description: '행동력이 1 회복되기까지 걸리는 시간이 60초 줄어듭니다. (신화 스페셜 옵션과 중복불가)',
+        shortDescription: '행동력 회복 -60초',
+        abbrevLabel: 'AP회복 -60s',
+        value: () => 60,
+    },
+    [MythicStat.AdventureScanTranscendent]: {
+        name: '모험 스캔 +1',
+        description:
+            '모험(몬스터 대전)에서 스캔 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)',
+        shortDescription: '모험 스캔 +2(초월)',
+        abbrevLabel: '모험 스캔+1',
+        value: () => 2,
+    },
+    [MythicStat.AdventureMissilePlus2]: {
+        name: '모험 미사일 +2',
+        description: '모험 시작 시 미사일 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)',
+        shortDescription: '모험 미사일 +2',
+        abbrevLabel: '모험 미사일+2',
+        value: () => 2,
+    },
+    [MythicStat.AdventureGoldBonus20]: {
+        name: '모험 골드 보상 +20%',
+        description: '모험 승리 시 획득 골드가 20% 증가합니다. (신화 스페셜 옵션과 중복불가)',
+        shortDescription: '모험 골드 +20%',
+        abbrevLabel: '모험 골드20%',
+        value: () => 20,
     },
 };
 
-/** 생성 시 전투·특수 개수는 등급별; 강화는 전투 부옵 최대 4줄까지 추가 후 줄 수치만 강화. mythicCount만 신화 줄 수(0/1/2). */
+/** 생성 시 전투·특수 개수는 등급별; 강화는 전투 부옵 최대 4줄까지 추가 후 줄 수치만 강화. mythicCount는 스페셜 옵션 줄 수(신화 0~1, 초월 1). */
 export const GRADE_SUB_OPTION_RULES: Record<ItemGrade, { combatCount: [number, number]; specialCount: [number, number]; mythicCount: [number, number]; combatTier: number; }> = {
     normal:   { combatCount: [1, 2], specialCount: [0, 0], mythicCount: [0, 0], combatTier: 1 },
     uncommon: { combatCount: [2, 3], specialCount: [1, 1], mythicCount: [0, 0], combatTier: 2 },
@@ -518,7 +626,7 @@ export const GRADE_SUB_OPTION_RULES: Record<ItemGrade, { combatCount: [number, n
     epic:     { combatCount: [3, 4], specialCount: [1, 1], mythicCount: [0, 0], combatTier: 4 },
     legendary:{ combatCount: [4, 4], specialCount: [1, 2], mythicCount: [0, 0], combatTier: 5 },
     mythic:   { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [1, 1], combatTier: 6 },
-    transcendent: { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [2, 2], combatTier: 7 },
+    transcendent: { combatCount: [4, 4], specialCount: [1, 2], mythicCount: [1, 1], combatTier: 7 },
 };
 
 export type SubOptionDefinition = { type: CoreStat; isPercentage: boolean; range: [number, number] };

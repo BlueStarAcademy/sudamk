@@ -587,7 +587,7 @@ const PlayerProfilePanel: React.FC<{
         if (fullUserData) {
             // 유저 정보가 있으면 최신 능력치 계산
             try {
-                return calculateTotalStats(fullUserData);
+                return calculateTotalStats(fullUserData, 'championshipVenue');
             } catch (error) {
                 if (import.meta.env.DEV) {
                     console.error('[PlayerProfilePanel] Error calculating total stats:', error);
@@ -2779,7 +2779,7 @@ const FinalRewardPanel: React.FC<{
                     epic: '/images/equipments/epicbgi.png',
                     legendary: '/images/equipments/legendarybgi.png',
                     mythic: '/images/equipments/mythicbgi.png',
-                    transcendent: '/images/equipments/transcendentbgi.png',
+                    transcendent: '/images/equipments/transcendentbgi.webp',
                 };
                 const EQUIP_GRADE_BORDER: Record<string, string> = {
                     normal: 'border-2 border-gray-500/80',
@@ -5342,7 +5342,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
             const p1User = allUsersForRanking.find(u => u.id === p1?.id);
             if (p1User) {
-                return calculateTotalStats(p1User);
+                return calculateTotalStats(p1User, 'championshipVenue');
             }
             return p1?.stats || {};
     }, [p1?.stats, p1?.originalStats, p1?.id, displayTournament?.status, allUsersForRanking]);
@@ -5357,7 +5357,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
             const p2User = allUsersForRanking.find(u => u.id === p2?.id);
             if (p2User) {
-                return calculateTotalStats(p2User);
+                return calculateTotalStats(p2User, 'championshipVenue');
             }
             return p2?.stats || {};
     }, [p2?.stats, p2?.originalStats, p2?.id, displayTournament?.status, allUsersForRanking]);

@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto';
 import type { InventoryItem } from '../types/index.js';
-import { EQUIPMENT_POOL, GRADE_LEVEL_REQUIREMENTS } from '../shared/constants/index.js';
+import { EQUIPMENT_POOL, GRADE_LEVEL_REQUIREMENTS, resolveEquipmentTemplateLookupName } from '../shared/constants/index.js';
+import { ItemGrade } from '../shared/types/enums.js';
 import { createItemFromTemplate } from './shop.js';
 import {
     applyEnhancementStarsToEquipmentItem,
@@ -25,9 +26,10 @@ function tryRehydratePreEnhancedMailEquipment(
     const stars = getMailEquipmentDisplayStars(inv);
     if (stars <= 0) return null;
 
+    const lookupName = resolveEquipmentTemplateLookupName(inv.name, inv.grade as ItemGrade) ?? inv.name;
     const template =
-        EQUIPMENT_POOL.find((t) => t.name === inv.name && t.grade === inv.grade) ??
-        EQUIPMENT_POOL.find((t) => t.name === inv.name);
+        EQUIPMENT_POOL.find((t) => t.name === lookupName && t.grade === inv.grade) ??
+        EQUIPMENT_POOL.find((t) => t.name === lookupName);
     if (!template?.slot) return null;
 
     const eq = createItemFromTemplate(template);
