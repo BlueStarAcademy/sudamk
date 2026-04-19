@@ -15,6 +15,11 @@ type Props = {
     /** 로비 카드 등 좁은 영역 */
     compact?: boolean;
     className?: string;
+    /**
+     * scroll: 가로 스크롤(기본)
+     * wrap: 가로 스크롤 없이 줄바꿈(맵 좌측 도킹 등 — 패널 너비에 맞춤)
+     */
+    iconLayout?: 'scroll' | 'wrap';
 };
 
 type BubbleState = { id: string; x: number; y: number; text: string; placeAbove: boolean };
@@ -45,7 +50,7 @@ const RewardIconBox: React.FC<{
 const BUBBLE_MAX_H = 120;
 const BUBBLE_PAD = 8;
 
-const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, className }) => {
+const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, className, iconLayout = 'scroll' }) => {
     const p = useMemo(() => getAdventureChapterRewardPreview(stageId), [stageId]);
     const v = useMemo(() => getAdventureChapterRewardVisual(stageId), [stageId]);
     const [bubble, setBubble] = useState<BubbleState | null>(null);
@@ -148,16 +153,24 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
             </h2>
             <div
                 className={
-                    compact
-                        ? 'overflow-x-auto overflow-y-visible px-1.5 pb-0.5 [-webkit-overflow-scrolling:touch] scroll-pl-2 scroll-pr-2 [scrollbar-gutter:stable]'
-                        : 'overflow-x-auto overflow-y-visible px-2 pb-0.5 sm:px-2.5 scroll-pl-2 scroll-pr-2 sm:scroll-pl-2.5 sm:scroll-pr-2.5 [scrollbar-gutter:stable]'
+                    iconLayout === 'wrap'
+                        ? compact
+                            ? 'overflow-x-visible overflow-y-visible px-2 pb-1 pt-0.5'
+                            : 'overflow-x-visible overflow-y-visible px-2.5 pb-1.5 pt-0.5 sm:px-3 sm:pb-2'
+                        : compact
+                          ? 'overflow-x-auto overflow-y-visible px-1.5 pb-0.5 [-webkit-overflow-scrolling:touch] scroll-pl-2 scroll-pr-2 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:rgba(245,158,11,0.45)_rgba(24,24,27,0.35)] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/70 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-500/40'
+                          : 'overflow-x-auto overflow-y-visible px-2 pb-0.5 sm:px-2.5 scroll-pl-2 scroll-pr-2 sm:scroll-pl-2.5 sm:scroll-pr-2.5 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:rgba(245,158,11,0.5)_rgba(24,24,27,0.45)] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/75 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-500/45 hover:[&::-webkit-scrollbar-thumb]:bg-amber-400/55'
                 }
             >
                 <div
                     className={
-                        compact
-                            ? 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-0.5'
-                            : 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-1 sm:gap-1.5'
+                        iconLayout === 'wrap'
+                            ? compact
+                                ? 'mx-auto flex max-w-[10.5rem] flex-wrap items-stretch justify-center gap-0.5'
+                                : 'mx-auto flex max-w-[12.5rem] flex-wrap items-stretch justify-center gap-1.5 sm:max-w-[14rem] sm:gap-2'
+                            : compact
+                              ? 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-0.5'
+                              : 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-1 sm:gap-1.5'
                     }
                 >
                 {goldSlots.map((slot) => (

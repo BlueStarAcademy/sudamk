@@ -122,6 +122,8 @@ export type AdventureMonsterCodexMapSituationProps = {
     suppressRecord: Record<string, number>;
     mapDwellMultiplier?: number;
     mapRespawnOffMultiplier?: number;
+    treasureHandledForCurrentWindow?: boolean;
+    treasureHandledKind?: 'dismissed' | 'claimed' | null;
     onPickRow: (codexId: string) => void;
 };
 
@@ -242,6 +244,8 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                             onPickRow={mapSituation.onPickRow}
                             mapDwellMultiplier={mapSituation.mapDwellMultiplier}
                             mapRespawnOffMultiplier={mapSituation.mapRespawnOffMultiplier}
+                            treasureHandledForCurrentWindow={mapSituation.treasureHandledForCurrentWindow}
+                            treasureHandledKind={mapSituation.treasureHandledKind}
                         />
                     </div>
                 ) : isNativeMobile && mainTab === 'comprehension' ? (

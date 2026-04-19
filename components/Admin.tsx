@@ -8,6 +8,7 @@ import HomeBoardPanel from './admin/HomeBoardPanel.js';
 import AdminOperationsPanel from './admin/AdminOperationsPanel.js';
 import ServerMonitoringPanel from './admin/ServerMonitoringPanel.js';
 import DropRateReferencePanel from './admin/DropRateReferencePanel.js';
+import AdminVipGrantPanel from './admin/AdminVipGrantPanel.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
@@ -45,6 +46,15 @@ const Admin: React.FC = () => {
                 return <UserManagementPanel {...adminProps} />;
             case 'mailSystem':
                 return <MailSystemPanel {...adminProps} />;
+            case 'vipGrants':
+                return (
+                    <AdminVipGrantPanel
+                        currentUser={adminProps.currentUser}
+                        allUsers={adminProps.allUsers}
+                        onAction={adminProps.onAction}
+                        onBack={handleBack}
+                    />
+                );
             case 'serverSettings':
                 return <ServerSettingsPanel {...adminProps} />;
             case 'rewardSystem':

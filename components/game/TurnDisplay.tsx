@@ -979,8 +979,16 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     const advEncLine = null;
 
+    const isAdventureCategory = session.gameCategory === 'adventure';
+    /** 모험: 전광판 줄 수·문구 길이에 따라 높이가 변하면 flex 안 바둑판 영역이 매 수 흔들리므로 상한 고정 */
+    const adventureTurnDisplayLockClass = isAdventureCategory
+        ? isMobile
+            ? ' max-h-[4rem] overflow-hidden sm:max-h-[4.25rem]'
+            : ' max-h-[4.5rem] overflow-hidden min-[1025px]:max-h-[4.75rem]'
+        : '';
+
     return wrapContent(
-        `${baseClasses} ${themeClasses}`,
+        `${baseClasses} ${themeClasses}${adventureTurnDisplayLockClass}`,
         <>
             {advEncLine && (
                 <p
@@ -999,7 +1007,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                     isMobile
                         ? 'px-0.5 text-[0.6875rem] leading-tight sm:text-sm sm:leading-snug'
                         : 'px-2 text-[clamp(0.88rem,2.7vmin,1.08rem)] min-[1025px]:text-[clamp(0.95rem,2.2vmin,1.15rem)]'
-                }`}
+                } ${isAdventureCategory ? 'line-clamp-2 [overflow-wrap:anywhere]' : ''}`}
                 style={statusTextShadow}
             >
                 {statusText}

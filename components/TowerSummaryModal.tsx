@@ -196,10 +196,16 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     // (재도전에서 실패해도 한 번 클리어한 층이면 다음 층으로 진행 가능)
     const canTryNext = !!nextStage && (isWinner || isCleared);
     
-    // 서버 START_TOWER_GAME과 동일: 이미 클리어한 층(floor <= userTowerFloor)은 행동력 0
+    // 입장 시 차감이 0이었으면(이미 클리어한 층 재도전 등) 패배 후에도 재도전 ⚡0 — towerFloor 반영 지연 시 보정. 할인 반영값은 세션 우선
     const baseRetryApCost = currentStage?.actionPointCost ?? 0;
     const baseNextFloorApCost = nextStage?.actionPointCost ?? 0;
-    const effectiveRetryActionPointCost = isCleared ? 0 : baseRetryApCost;
+    const inferredRetryApCost = isCleared ? 0 : baseRetryApCost;
+    const effectiveRetryActionPointCost =
+        session.towerStartActionPointCost === 0
+            ? 0
+            : typeof session.towerStartActionPointCost === 'number'
+              ? session.towerStartActionPointCost
+              : inferredRetryApCost;
     const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
     const effectiveNextFloorActionPointCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 

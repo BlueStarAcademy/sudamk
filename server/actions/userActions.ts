@@ -50,6 +50,11 @@ import {
     parseAdventureMonsterLevel,
 } from '../utils/adventureMonsterDefeat.js';
 import {
+    abandonAdventureMapTreasurePick,
+    confirmAdventureMapTreasureChest,
+    prepareAdventureMapTreasureChest,
+} from '../utils/adventureMapKeysAndTreasure.js';
+import {
     canAdvanceOnboardingTutorialPhase,
     isOnboardingTutorialActive,
     ONBOARDING_INTRO1_FAN_ITEM_ID,
@@ -66,6 +71,7 @@ import {
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { changeSingleRegionalSlotBuff, enhanceSingleRegionalSlotBuff } from '../utils/adventureRegionalBuffReroll.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
+import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
 
 type HandleActionResult = {
     clientResponse?: any;
@@ -116,6 +122,89 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['borderId']);
             
+            return { clientResponse: { updatedUser } };
+        }
+        case 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST': {
+            const { stageId } = (payload || {}) as { stageId?: string };
+            if (!stageId || typeof stageId !== 'string') {
+                return { error: '스테이지가 필요합니다.' };
+            }
+            const advStage = getAdventureStageById(stageId);
+            if (!advStage) {
+                return { error: '스테이지를 찾을 수 없습니다.' };
+            }
+            const prepared = prepareAdventureMapTreasureChest(user, stageId);
+            if (!prepared.ok) {
+                return { error: prepared.error };
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after PREPARE_ADVENTURE_MAP_TREASURE_CHEST:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['adventureProfile']);
+            return {
+                clientResponse: {
+                    updatedUser,
+                    adventureTreasurePick: {
+                        rolls: prepared.rolls,
+                        nonce: prepared.nonce,
+                        pickSlots: prepared.pickSlots,
+                        equipmentBoxImage: prepared.equipmentBoxImage,
+                    },
+                },
+            };
+        }
+        case 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST': {
+            const { stageId, nonce, selectedSlots } = (payload || {}) as {
+                stageId?: string;
+                nonce?: string;
+                selectedSlots?: number[];
+            };
+            if (!stageId || typeof stageId !== 'string') {
+                return { error: '스테이지가 필요합니다.' };
+            }
+            if (!nonce || typeof nonce !== 'string') {
+                return { error: '세션 정보가 없습니다.' };
+            }
+            if (!Array.isArray(selectedSlots)) {
+                return { error: '선택 정보가 올바르지 않습니다.' };
+            }
+            const advStage = getAdventureStageById(stageId);
+            if (!advStage) {
+                return { error: '스테이지를 찾을 수 없습니다.' };
+            }
+            const confirmed = await confirmAdventureMapTreasureChest(user, stageId, { nonce, selectedSlots });
+            if (!confirmed.ok) {
+                return { error: confirmed.error };
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after CONFIRM_ADVENTURE_MAP_TREASURE_CHEST:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['adventureProfile', 'gold', 'inventory', 'actionPoints', 'lastActionPointUpdate']);
+            return { clientResponse: { updatedUser, grantedTreasureRolls: confirmed.grantedRolls } };
+        }
+        case 'ABANDON_ADVENTURE_MAP_TREASURE_PICK': {
+            const { stageId } = (payload || {}) as { stageId?: string };
+            if (!stageId || typeof stageId !== 'string') {
+                return { error: '스테이지가 필요합니다.' };
+            }
+            const advStage = getAdventureStageById(stageId);
+            if (!advStage) {
+                return { error: '스테이지를 찾을 수 없습니다.' };
+            }
+            const abandoned = abandonAdventureMapTreasurePick(user, stageId);
+            if (!abandoned.ok) {
+                return { error: abandoned.error };
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'ABANDON_ADVENTURE_MAP_TREASURE_PICK');
+            db.updateUser(user).catch((err) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after ABANDON_ADVENTURE_MAP_TREASURE_PICK:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['adventureProfile']);
             return { clientResponse: { updatedUser } };
         }
         case 'RECORD_ADVENTURE_MONSTER_DEFEAT': {
@@ -1134,7 +1223,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             return { clientResponse: { updatedUser } };
         }
         case 'ADMIN_SET_VIP_TEST_FLAGS': {
-            if (!user.isAdmin) {
+            if (!isRecognizedAdminUser(user)) {
                 return { error: '권한이 없습니다.' };
             }
             const p = payload as { rewardVip?: unknown; functionVip?: unknown; vvip?: unknown };

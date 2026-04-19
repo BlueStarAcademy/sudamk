@@ -583,7 +583,7 @@ const Profile: React.FC<ProfileProps> = () => {
     );
 
     const handleAdminTutorialToggle = useCallback(async () => {
-        if (!currentUserWithStatus?.isAdmin || !handlers?.handleAction) return;
+        if (!isClientAdmin(currentUserWithStatus) || !handlers?.handleAction) return;
         setTutorialAdminBusy(true);
         try {
             await handlers.handleAction({
@@ -1972,7 +1972,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                                         <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
                                         {adminVipCorner}
-                                        {currentUserWithStatus.isAdmin && (
+                                        {isClientAdmin(currentUserWithStatus) && (
                                             <div className="pointer-events-auto absolute right-1 top-1 z-[4] flex max-w-[min(100%,12rem)] flex-col items-end gap-0.5 max-[680px]:right-0.5 max-[680px]:top-0.5 sm:right-2 sm:top-1.5 sm:max-w-none sm:flex-row sm:items-center sm:gap-1">
                                                 <Button
                                                     type="button"
@@ -2151,7 +2151,7 @@ const Profile: React.FC<ProfileProps> = () => {
                             <div className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-amber-300/35 to-transparent" aria-hidden />
                             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
                             {profileTab === 'home' && adminVipCorner}
-                            {profileTab === 'home' && currentUserWithStatus.isAdmin && (
+                            {profileTab === 'home' && isClientAdmin(currentUserWithStatus) && (
                                 <div className="pointer-events-auto absolute right-1.5 top-1.5 z-[4] flex flex-col items-end gap-1 sm:right-2 sm:top-2 sm:flex-row sm:items-center sm:gap-1.5">
                                     <Button
                                         type="button"

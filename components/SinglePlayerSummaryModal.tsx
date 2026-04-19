@@ -223,9 +223,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         !!sid &&
         (clearedStagesForNext.includes(sid) || singlePlayerProgressForNext > currentStageIndex);
     const canTryNext = !!nextStage && (isWinner || isCurrentStageAlreadyCleared);
-    // 서버 START_SINGLE_PLAYER_GAME과 동일: 클리어 이력 있으면 재도전 AP 0. 최초 클리어 직후 USER_UPDATE 지연 시 isWinner로 표시 보정
-    const retryActionPointCost =
+    // 입장 시 차감이 0이었으면(재도전 입장 등) 패배 후에도 재도전 라벨 0 — currentUser 지연 시 inferred만 쓰면 비용이 잘못 붙는 경우 방지
+    const inferredRetryAp =
         isCurrentStageAlreadyCleared || isWinner ? 0 : (currentStage?.actionPointCost ?? 0);
+    const retryActionPointCost =
+        session.singlePlayerStartActionPointCost === 0 ? 0 : inferredRetryAp;
     const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
 
     const failureReason = useMemo(() => {

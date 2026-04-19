@@ -7,6 +7,7 @@ export type AdminView =
     | 'dashboard'
     | 'userManagement'
     | 'mailSystem'
+    | 'vipGrants'
     | 'rewardSystem'
     | 'serverSettings'
     | 'serverMonitoring'
@@ -47,6 +48,14 @@ const TILES: TileDef[] = [
         ringHover: 'hover:ring-emerald-400/40',
     },
     {
+        view: 'vipGrants',
+        title: 'VIP 기간 부여',
+        description: '보상·기능·VVIP 중 선택해 특정 유저 또는 전체 유저에게 기간 연장',
+        icon: '💎',
+        accent: 'from-fuchsia-500/20 to-violet-600/5',
+        ringHover: 'hover:ring-fuchsia-400/40',
+    },
+    {
         view: 'rewardSystem',
         title: '보상 체계',
         description: '퀘스트/활약도/챔피언십 보상 배율 조회 및 운영 조정',
@@ -73,7 +82,7 @@ const TILES: TileDef[] = [
     {
         view: 'dropRateReference',
         title: '확률 정보',
-        description: '상점 상자, 챔피언십 보상, 대장간 확률 테이블 조회',
+        description: '상점 상자, 챔피언십 보상, 대장간, 모험 보물상자·열쇠 확률 테이블 조회',
         icon: '🎯',
         accent: 'from-teal-500/20 to-teal-600/5',
         ringHover: 'hover:ring-teal-400/40',

@@ -157,8 +157,8 @@ const GuildTicketPill = memo<{
                 isMobile
                     ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] gap-[clamp(0.08rem,0.7vw,0.2rem)] pl-[clamp(0.3rem,1.5vw,0.45rem)] pr-[clamp(0.2rem,1vw,0.35rem)]'
                     : dense
-                      ? 'gap-0.5 py-1 pl-1.5 pr-1 sm:gap-1'
-                      : 'gap-0.5 py-1 pl-2 pr-1 sm:gap-1'
+                      ? 'gap-0.5 py-1 pl-1.5 pr-1.5 sm:gap-1'
+                      : 'gap-0.5 py-1 pl-2 pr-2 sm:gap-1 sm:pr-2.5'
             }`}
         >
             <div className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${iconWrap}`}>

@@ -189,6 +189,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 gameCategory: 'tower' as GameCategory,
                 stageId: stage.id,
                 towerFloor: floor,
+                towerStartActionPointCost: effectiveActionPointCost,
                 isAiGame: true,
                 settings: {
                     boardSize: stage.boardSize,

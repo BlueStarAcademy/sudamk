@@ -96,11 +96,6 @@ export const arenaGameRoomSmallCtaClass =
     'border border-sky-500/32 bg-gradient-to-b from-sky-900/72 to-sky-950/92 text-sky-50 ' +
     'shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] hover:border-sky-400/42 hover:from-sky-800/78 transition-all';
 
-/** 설정(톱니) 아이콘 버튼 */
-export const arenaGameRoomSettingsIconBtnClass =
-    'text-lg p-1.5 rounded-lg border border-transparent text-slate-300 ' +
-    'hover:bg-white/[0.06] hover:border-slate-600/35 hover:text-amber-100 transition-all';
-
 /** 길드전 별 조건 패널 (강조 테두리) */
 export const arenaGameRoomGuildStarPanelClass =
     'rounded-xl border border-amber-600/35 bg-gradient-to-b from-slate-900/90 via-amber-950/15 to-slate-950/95 ' +

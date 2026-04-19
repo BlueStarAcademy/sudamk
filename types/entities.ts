@@ -323,6 +323,21 @@ export type AdventureProfile = {
   regionalBuffRerollUtcDate?: string;
   /** 당일 지역 효과 골드 리롤 사용 횟수 */
   regionalBuffRerollCountToday?: number;
+  /** 스테이지별 모험 맵 열쇠 보유 */
+  adventureMapKeysHeldByStageId?: Partial<Record<string, number>>;
+  /** 스테이지별 다음 열쇠까지 몬스터 처치 누적(0~9) */
+  /** 스테이지별 다음 열쇠까지 열쇠 경험치 누적 */
+  adventureMapKeyKillProgressByStageId?: Partial<Record<string, number>>;
+  /** KST YYYY-MM-DD — 당일 열쇠 획득 한도 기준일 */
+  adventureMapKeyEarnedKstDate?: string;
+  /** 스테이지별 당일 열쇠 획득 수 */
+  adventureMapKeysEarnedTodayByStageId?: Partial<Record<string, number>>;
+  /** 스테이지별 보물상자 수령한 출현 창 시작 시각(ms) */
+  adventureMapTreasureClaimedWindowStartByStageId?: Partial<Record<string, number>>;
+  /** 스테이지별 보물상자를 건너뛴 출현 창 시작 시각(ms) — 열쇠 유지, 해당 창 동안 맵에 미표시 */
+  adventureMapTreasureDismissedWindowStartByStageId?: Partial<Record<string, number>>;
+  /** 보물상자 3연 선택 세션(열쇠 확정 전) */
+  adventureMapTreasurePickSession?: import('../shared/utils/adventureMapTreasureRewards.js').AdventureMapTreasurePickSession;
 };
 
 export type SinglePlayerMissionLevelInfo = {
@@ -1054,12 +1069,16 @@ export type LiveGameSession = {
   adventureRegionalHumanFlatScoreBonus?: number;
   stageId?: string;
   towerFloor?: number;  // 도전의 탑 층수
+  /** 이번 탑 대국 입장 시 차감된 행동력(재도전 라벨·장비 할인 반영·클라 towerFloor stale 보정) */
+  towerStartActionPointCost?: number;
   blackPatternStones?: Point[];
   whitePatternStones?: Point[];
   /** 문양돌이 따인 교차점(1회 소모). 같은 대국에서 해당 좌표는 다시 문양이 되지 않음 */
   consumedPatternIntersections?: Point[];
   whiteTurnsPlayed?: number; // 살리기 바둑 모드: 백(AI)이 둔 턴 수
   singlePlayerPlacementRefreshesUsed?: number;
+  /** 이번 대국 입장 시 차감된 행동력(재도전 라벨·클라 stale 보정용). 0이면 재도전도 무료로 표시 */
+  singlePlayerStartActionPointCost?: number;
   totalTurns?: number; // 총 턴 수 (유저 + AI 합산), 자동 계가 트리거용
 };
 
@@ -1122,8 +1141,29 @@ export type AdminLog = {
     | 'delete_home_board_post'
     | 'update_user_inventory'
     | 'append_inventory_items'
-    | 'update_reward_config';
-  backupData: Partial<User> | { status: UserStatusInfo } | LiveGameSession | { mailTitle: string } | SanctionLogData | { gameId: string, winnerId: string } | { postId: string, title: string } | { oldGuildId: string | undefined } | { before: Record<string, number>; after: Record<string, number> };
+    | 'update_reward_config'
+    | 'grant_vip_duration';
+  backupData:
+    | Partial<User>
+    | { status: UserStatusInfo }
+    | LiveGameSession
+    | { mailTitle: string }
+    | SanctionLogData
+    | { gameId: string; winnerId: string }
+    | { postId: string; title: string }
+    | { oldGuildId: string | undefined }
+    | { before: Record<string, number>; after: Record<string, number> }
+    | {
+          scope: 'single' | 'all';
+          durationDays: number;
+          grantRewardVip: boolean;
+          grantFunctionVip: boolean;
+          grantVvip: boolean;
+          before?: { rewardVipExpiresAt: number; functionVipExpiresAt: number; vvipExpiresAt: number };
+          affectedCount?: number;
+          failureCount?: number;
+          totalUsers?: number;
+      };
 };
 
 export type Announcement = {

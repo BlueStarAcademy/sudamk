@@ -3408,7 +3408,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             <div className="absolute inset-0 flex min-h-0 flex-col">
                                 <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden">
                                     <div
-                                        className={`flex min-h-0 w-full flex-1 items-center justify-center overflow-auto ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-500`}
+                                        className={`flex min-h-0 w-full flex-1 items-center justify-center ${
+                                            isAdventureGame ? 'overflow-hidden' : 'overflow-auto'
+                                        } ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-500`}
                                     >
                                         <GameArena 
                                             {...gameProps}
@@ -3538,7 +3540,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             {...gameProps}
                                             onLeaveOrResign={handleLeaveOrResignClick}
                                             isNoContestLeaveAvailable={isNoContestLeaveAvailable}
-                                            onOpenSettings={handlers.openSettingsModal}
                                             onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
                                             isPaused={effectivePaused}
                                             resumeCountdown={resumeCountdown}
@@ -3588,7 +3589,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         onLeaveOrResign={handleLeaveOrResignClick}
                                         isNoContestLeaveAvailable={isNoContestLeaveAvailable}
                                         onClose={() => setIsMobileSidebarOpen(false)}
-                                        onOpenSettings={handlers.openSettingsModal}
                                         onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
                                         isPaused={effectivePaused}
                                         resumeCountdown={resumeCountdown}

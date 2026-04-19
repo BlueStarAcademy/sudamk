@@ -16,6 +16,8 @@ import { clearAiSession } from '../aiSessionManager.js';
 import { getCachedUser, updateUserCache, removeUserFromCache } from '../gameCache.js';
 import { invalidateUserCache } from '../db.js';
 import { ADMIN_USER_ID } from '../../shared/constants/auth.js';
+import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
+import { applyVipDurationExtensionToUser } from '../../shared/utils/vipDurationGrant.js';
 import { mergeArenaEntranceAvailability, type ArenaEntranceKey, ARENA_ENTRANCE_KEYS } from '../../constants/arenaEntrance.js';
 import { GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../../shared/constants/guildConstants.js';
 import { parseEquipmentStarsFromPayload } from '../../shared/utils/equipmentEnhancementStars.js';
@@ -113,7 +115,7 @@ const broadcastAnnouncementUpdate = async () => {
 };
 
 export const handleAdminAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
-    if (!user.isAdmin) {
+    if (!isRecognizedAdminUser(user)) {
         return { error: 'Permission denied.' };
     }
     const { type } = action;
@@ -1523,6 +1525,115 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                     targetUserId: targetUser.id,
                 },
             };
+        }
+
+        case 'ADMIN_GRANT_VIP_DURATION': {
+            const {
+                scope,
+                targetUserId,
+                grantRewardVip,
+                grantFunctionVip,
+                grantVvip,
+                durationDays,
+            } = payload as {
+                scope?: unknown;
+                targetUserId?: unknown;
+                grantRewardVip?: unknown;
+                grantFunctionVip?: unknown;
+                grantVvip?: unknown;
+                durationDays?: unknown;
+            };
+            const flags = {
+                grantRewardVip: grantRewardVip === true,
+                grantFunctionVip: grantFunctionVip === true,
+                grantVvip: grantVvip === true,
+            };
+            if (!flags.grantRewardVip && !flags.grantFunctionVip && !flags.grantVvip) {
+                return { error: '부여할 VIP 종류를 하나 이상 선택해 주세요.' };
+            }
+            const days = Math.floor(Number(durationDays));
+            if (!Number.isFinite(days) || days < 1 || days > 3650) {
+                return { error: '기간은 1일 이상 3650일 이하의 정수로 입력해 주세요.' };
+            }
+            const durationMs = days * 24 * 60 * 60 * 1000;
+            const nowMs = Date.now();
+            const { broadcastUserUpdate } = await import('../socket.js');
+
+            if (scope === 'single') {
+                const tid = typeof targetUserId === 'string' ? targetUserId.trim() : '';
+                if (!tid) {
+                    return { error: '대상 사용자 ID를 입력해 주세요.' };
+                }
+                const targetUser = await db.getUser(tid);
+                if (!targetUser) {
+                    return { error: '대상 사용자를 찾을 수 없습니다.' };
+                }
+                const before = {
+                    rewardVipExpiresAt: targetUser.rewardVipExpiresAt ?? 0,
+                    functionVipExpiresAt: targetUser.functionVipExpiresAt ?? 0,
+                    vvipExpiresAt: targetUser.vvipExpiresAt ?? 0,
+                };
+                applyVipDurationExtensionToUser(targetUser, flags, durationMs, nowMs);
+                try {
+                    await db.updateUser(targetUser);
+                } catch (err) {
+                    console.error(`[ADMIN_GRANT_VIP_DURATION] Failed to save user ${tid}:`, err);
+                    return { error: 'VIP 부여 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+                }
+                broadcastUserUpdate(targetUser, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
+                await createAdminLog(user, 'grant_vip_duration', targetUser, {
+                    scope: 'single',
+                    durationDays: days,
+                    grantRewardVip: flags.grantRewardVip,
+                    grantFunctionVip: flags.grantFunctionVip,
+                    grantVvip: flags.grantVvip,
+                    before,
+                });
+                return {
+                    clientResponse: {
+                        affectedCount: 1,
+                        failureCount: 0,
+                        targetUserId: targetUser.id,
+                        targetNickname: targetUser.nickname,
+                    },
+                };
+            }
+
+            if (scope === 'all') {
+                const all = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
+                let ok = 0;
+                let fail = 0;
+                for (const u of all) {
+                    applyVipDurationExtensionToUser(u, flags, durationMs, nowMs);
+                    try {
+                        await db.updateUser(u);
+                        broadcastUserUpdate(u, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
+                        ok++;
+                    } catch (err) {
+                        fail++;
+                        console.error(`[ADMIN_GRANT_VIP_DURATION] Failed for user ${u.id}:`, err);
+                    }
+                }
+                await createAdminLog(user, 'grant_vip_duration', { id: '__all_users__', nickname: '(전체 사용자)' }, {
+                    scope: 'all',
+                    durationDays: days,
+                    grantRewardVip: flags.grantRewardVip,
+                    grantFunctionVip: flags.grantFunctionVip,
+                    grantVvip: flags.grantVvip,
+                    affectedCount: ok,
+                    failureCount: fail,
+                    totalUsers: all.length,
+                });
+                return {
+                    clientResponse: {
+                        affectedCount: ok,
+                        failureCount: fail,
+                        totalUsers: all.length,
+                    },
+                };
+            }
+
+            return { error: '부여 범위는 «특정 사용자» 또는 «전체»만 선택할 수 있습니다.' };
         }
         
         default:

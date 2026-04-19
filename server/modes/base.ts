@@ -165,34 +165,52 @@ const placeRemainingStonesRandomly = (game: types.LiveGameSession, playerKey: 'b
     
     // Determine player color based on playerKey
     const playerColor = playerKey === 'baseStones_p1' ? types.Player.Black : types.Player.White;
-    const opponentColor = playerColor === types.Player.Black ? types.Player.White : types.Player.Black;
-    
+
     // Create a temporary board state with currently placed stones
     const tempBoard: types.BoardState = Array(boardSize).fill(0).map(() => Array(boardSize).fill(types.Player.None));
     (game.baseStones_p1 ?? []).forEach(p => tempBoard[p.y][p.x] = types.Player.Black);
     (game.baseStones_p2 ?? []).forEach(p => tempBoard[p.y][p.x] = types.Player.White);
 
     for (let i = 0; i < stonesToPlace; i++) {
-        let x: number, y: number, key: string;
-        let attempts = 0;
-        const maxAttempts = boardSize * boardSize * 10; // Increased attempts to account for capture checks
-        
-        do {
-            x = Math.floor(Math.random() * boardSize);
-            y = Math.floor(Math.random() * boardSize);
-            key = `${x},${y}`;
-            attempts++;
-            if (attempts > maxAttempts) {
-                console.warn(`[BaseGo] Could not find a valid random spot after ${maxAttempts} attempts. Stopping placement.`);
+        let x = 0;
+        let y = 0;
+        let key = '';
+        let picked = false;
+        const maxAttempts = boardSize * boardSize * 10;
+
+        for (let attempts = 0; attempts < maxAttempts && !picked; attempts++) {
+            const rx = Math.floor(Math.random() * boardSize);
+            const ry = Math.floor(Math.random() * boardSize);
+            const k = `${rx},${ry}`;
+            if (!occupied.has(k) && !wouldBeImmediatelyCaptured(tempBoard, rx, ry, playerColor)) {
+                x = rx;
+                y = ry;
+                key = k;
+                picked = true;
+            }
+        }
+
+        if (!picked) {
+            // 즉시 따임 검사 때문에 무작위가 계속 실패할 수 있음 — 점유만 피해 남은 칸을 채운다.
+            let foundAny = false;
+            outer: for (let ty = 0; ty < boardSize; ty++) {
+                for (let tx = 0; tx < boardSize; tx++) {
+                    const k = `${tx},${ty}`;
+                    if (!occupied.has(k)) {
+                        x = tx;
+                        y = ty;
+                        key = k;
+                        foundAny = true;
+                        break outer;
+                    }
+                }
+            }
+            if (!foundAny) {
+                console.warn(`[BaseGo] No empty cells left for base stone placement (playerKey=${playerKey}).`);
                 return;
             }
-        } while (
-            occupied.has(key) || 
-            // Check if this placement would result in immediate capture
-            wouldBeImmediatelyCaptured(tempBoard, x, y, playerColor)
-        );
-        
-        // Place the stone on temp board for next iteration
+        }
+
         tempBoard[y][x] = playerColor;
         game[playerKey]!.push({ x, y });
         occupied.add(key);
@@ -281,14 +299,16 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
             const p2StonesCount = game.baseStones_p2?.length ?? 0;
             const target = game.settings.baseStones ?? 4;
             const bothDonePlacing = p1StonesCount >= target && p2StonesCount >= target;
-            const bothConfirmedPlacement =
-                bothDonePlacing &&
-                (game.basePlacementReady?.[p1Id] ?? false) &&
-                (game.basePlacementReady?.[p2Id] ?? false);
+            const bothReady =
+                (game.basePlacementReady?.[p1Id] ?? false) && (game.basePlacementReady?.[p2Id] ?? false);
             const deadlinePassed =
                 !isAdventureBaseGame(game) && !!game.basePlacementDeadline && now > game.basePlacementDeadline;
+            // AI전: 봇은 시작 시 ready이지만 무작위 배치가 일부만 성공하면 돌 수가 부족할 수 있음.
+            // resolveBasePlacementAndTransition이 부족분을 다시 채우므로, ready만 맞으면 전환한다.
+            const canResolveBasePlacement =
+                deadlinePassed || (bothReady && (bothDonePlacing || game.isAiGame));
 
-            if (bothConfirmedPlacement || deadlinePassed) {
+            if (canResolveBasePlacement) {
                 resolveBasePlacementAndTransition(game, now);
             }
             break;
@@ -487,6 +507,10 @@ export const handleBaseAction = (game: types.LiveGameSession, action: types.Serv
             }
             if (!game.basePlacementReady) {
                 game.basePlacementReady = { [game.player1.id]: false, [game.player2.id]: false };
+                if (game.isAiGame) {
+                    const aiId = game.player1.id === aiUserId ? game.player1.id : game.player2.id;
+                    game.basePlacementReady[aiId] = true;
+                }
             }
             game.basePlacementReady[user.id] = true;
             return {};

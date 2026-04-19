@@ -172,7 +172,13 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
         const baseRetryApCost = stage?.actionPointCost ?? 0;
         const baseNextFloorApCost = nextStageForEnded?.actionPointCost ?? 0;
-        const effectiveRetryApCost = isFloorCleared ? 0 : baseRetryApCost;
+        const inferredRetryApCost = isFloorCleared ? 0 : baseRetryApCost;
+        const effectiveRetryApCost =
+            session.towerStartActionPointCost === 0
+                ? 0
+                : typeof session.towerStartActionPointCost === 'number'
+                  ? session.towerStartActionPointCost
+                  : inferredRetryApCost;
         const isNextFloorAlreadyCleared = nextFloor != null && userTowerFloor >= nextFloor;
         const effectiveNextFloorApCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
 

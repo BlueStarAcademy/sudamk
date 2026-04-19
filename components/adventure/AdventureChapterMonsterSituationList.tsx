@@ -13,6 +13,11 @@ import {
     fnv1a32,
     type AdventureMapMonsterInstance,
 } from '../../shared/utils/adventureMapSchedule.js';
+import {
+    ADVENTURE_MAP_TREASURE_UI_ROW_ID,
+    adventureTreasureChestEquipmentImageForStageIndex,
+    getAdventureTreasureChestWindowMeta,
+} from '../../shared/utils/adventureMapTreasureSchedule.js';
 import { getAdventureAllowedBattleModes, resolveAdventureBoardSize } from '../../shared/utils/adventureBattleBoard.js';
 
 function formatRemainMs(ms: number): string {
@@ -36,6 +41,10 @@ export type AdventureChapterMonsterSituationListProps = {
     listClassName?: string;
     mapDwellMultiplier?: number;
     mapRespawnOffMultiplier?: number;
+    /** 이번 출현 창에서 수령·건너뛰기로 비활성(맵과 동일) */
+    treasureHandledForCurrentWindow?: boolean;
+    /** 비활성일 때 목록 우측 문구 구분 */
+    treasureHandledKind?: 'dismissed' | 'claimed' | null;
 };
 
 /**
@@ -50,6 +59,8 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
     listClassName,
     mapDwellMultiplier = 1,
     mapRespawnOffMultiplier = 1,
+    treasureHandledForCurrentWindow = false,
+    treasureHandledKind = null,
 }) => {
     const stage = useMemo(() => getAdventureStageById(stageId), [stageId]);
 
@@ -70,8 +81,54 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
     const { min: chapterLvMin, max: chapterLvMax } = getAdventureStageLevelRange(stage.stageIndex);
     const chapterMidLevel = Math.floor((chapterLvMin + chapterLvMax) / 2);
 
+    const treasureWindowMeta = getAdventureTreasureChestWindowMeta(stage.id, nowMs);
+    const treasureListActive = Boolean(treasureWindowMeta) && !treasureHandledForCurrentWindow;
+    const treasureImg = adventureTreasureChestEquipmentImageForStageIndex(stage.stageIndex);
+
     return (
-        <ul className={listClassName ?? 'mt-2 space-y-1.5 sm:space-y-2'}>
+        <ul className={listClassName ?? 'mt-1 space-y-2 sm:space-y-2.5'}>
+            <li key="adventure-treasure-row">
+                <button
+                    type="button"
+                    disabled={!treasureListActive && !treasureWindowMeta}
+                    className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 text-left transition sm:gap-2.5 sm:px-3.5 sm:py-3 ${
+                        treasureListActive
+                            ? 'border-amber-400/35 bg-amber-950/25 hover:border-amber-400/55 hover:bg-amber-950/40 active:scale-[0.99]'
+                            : treasureWindowMeta && treasureHandledForCurrentWindow
+                              ? 'cursor-not-allowed border-zinc-600/40 bg-zinc-900/40 opacity-70'
+                              : 'cursor-not-allowed border-zinc-600/40 bg-zinc-900/40 opacity-60'
+                    }`}
+                    onClick={() => {
+                        if (treasureListActive || treasureWindowMeta) onPickRow(ADVENTURE_MAP_TREASURE_UI_ROW_ID);
+                    }}
+                >
+                    <span className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-amber-400/45 bg-black/40 sm:h-10 sm:w-10">
+                            <img src={treasureImg} alt="" className="h-full w-full object-contain p-0.5" draggable={false} />
+                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+                                <span className="rounded-full border border-white/35 bg-black/55 px-1 py-px text-[10px] font-black leading-none text-white shadow sm:text-[11px]">
+                                    ?
+                                </span>
+                            </span>
+                        </span>
+                        <span className="min-w-0 truncate text-[12px] font-bold text-amber-50 sm:text-sm">보물상자</span>
+                    </span>
+                    <span
+                        className={[
+                            'shrink-0 font-mono text-[11px] font-bold tabular-nums sm:text-xs',
+                            treasureListActive ? 'text-emerald-300' : 'text-zinc-400',
+                        ].join(' ')}
+                    >
+                        {treasureListActive
+                            ? '출현중'
+                            : treasureWindowMeta && treasureHandledForCurrentWindow
+                              ? treasureHandledKind === 'claimed'
+                                  ? '수령완료'
+                                  : '건너뜀'
+                              : '알수없음'}
+                    </span>
+                </button>
+            </li>
             {rows.map((row) => {
                 const mapMonster = mapMonsters.find((m) => m.codexId === row.codexId && m.expiresAt > nowMs);
                 const boss = isAdventureChapterBossCodexId(row.codexId);
@@ -102,7 +159,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                     <li key={row.codexId}>
                         <button
                             type="button"
-                            className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-2 py-2 text-left transition hover:border-amber-400/35 hover:bg-black/45 active:scale-[0.99] sm:gap-2.5 sm:px-2.5 sm:py-2.5"
+                            className="flex w-full items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-2.5 text-left transition hover:border-amber-400/35 hover:bg-black/45 active:scale-[0.99] sm:gap-2.5 sm:px-3.5 sm:py-3"
                             onClick={() => onPickRow(row.codexId)}
                         >
                             <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-amber-50 sm:text-sm">

@@ -48,6 +48,12 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
             adventureMapSuppressUntilByKey: {},
             regionalSpecialtyBuffsByStageId: {},
             regionalBuffEnhancePointsByStageId: {},
+            adventureMapKeysHeldByStageId: {},
+            adventureMapKeyKillProgressByStageId: {},
+            adventureMapKeysEarnedTodayByStageId: {},
+            adventureMapTreasureClaimedWindowStartByStageId: {},
+            adventureMapTreasureDismissedWindowStartByStageId: {},
+            adventureMapTreasurePickSession: undefined,
         };
     }
     return {
@@ -62,6 +68,13 @@ export function normalizeAdventureProfile(p: AdventureProfile | null | undefined
         regionalBuffEnhancePointsByStageId: { ...(p.regionalBuffEnhancePointsByStageId ?? {}) },
         regionalBuffRerollUtcDate: p.regionalBuffRerollUtcDate,
         regionalBuffRerollCountToday: p.regionalBuffRerollCountToday,
+        adventureMapKeysHeldByStageId: { ...(p.adventureMapKeysHeldByStageId ?? {}) },
+        adventureMapKeyKillProgressByStageId: { ...(p.adventureMapKeyKillProgressByStageId ?? {}) },
+        adventureMapKeyEarnedKstDate: p.adventureMapKeyEarnedKstDate,
+        adventureMapKeysEarnedTodayByStageId: { ...(p.adventureMapKeysEarnedTodayByStageId ?? {}) },
+        adventureMapTreasureClaimedWindowStartByStageId: { ...(p.adventureMapTreasureClaimedWindowStartByStageId ?? {}) },
+        adventureMapTreasureDismissedWindowStartByStageId: { ...(p.adventureMapTreasureDismissedWindowStartByStageId ?? {}) },
+        adventureMapTreasurePickSession: p.adventureMapTreasurePickSession,
     };
 }
 

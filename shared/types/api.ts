@@ -264,6 +264,12 @@ export type ServerAction =
       }
     | { type: 'REROLL_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; slotIndex: number } }
     | { type: 'ENHANCE_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; slotIndex: number } }
+    | { type: 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST'; payload: { stageId: string } }
+    | {
+          type: 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST';
+          payload: { stageId: string; nonce: string; selectedSlots: number[] };
+      }
+    | { type: 'ABANDON_ADVENTURE_MAP_TREASURE_PICK'; payload: { stageId: string } }
     // Inventory & Item Actions
     | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
@@ -326,6 +332,17 @@ export type ServerAction =
     | { type: 'ADMIN_DELETE_HOME_BOARD_POST', payload: { postId: string } }
     | { type: 'ADMIN_SAVE_USER_INVENTORY_EQUIPMENT', payload: { targetUserId: string; inventory: InventoryItem[]; equipment: Equipment } }
     | { type: 'ADMIN_APPEND_INVENTORY_ITEMS', payload: { targetUserId: string; equipmentAdds?: { name: string; quantity: number }[]; stackableAdds?: { name: string; quantity: number; type: InventoryItemType }[] } }
+    | {
+          type: 'ADMIN_GRANT_VIP_DURATION';
+          payload: {
+              scope: 'single' | 'all';
+              targetUserId?: string;
+              grantRewardVip: boolean;
+              grantFunctionVip: boolean;
+              grantVvip: boolean;
+              durationDays: number;
+          };
+      }
     // Tournament
     | { type: 'START_TOURNAMENT_SESSION', payload: { type: TournamentType } }
     | { type: 'START_TOURNAMENT_ROUND', payload: { type: TournamentType } }

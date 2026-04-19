@@ -3937,7 +3937,14 @@ export const useApp = () => {
                     result.gameId ||
                     result.donationResult ||
                     result.clientResponse?.donationResult ||
-                    result.guilds
+                    result.guilds ||
+                    /** `/api/action` 평탄화: `clientResponse` 키 없이 최상위에만 오는 필드 (예: 보물상자 PREPARE/CONFIRM) */
+                    (result as any).adventureTreasurePick ||
+                    (result as any).grantedTreasureRolls != null ||
+                    ((action as ServerAction).type === 'ABANDON_ADVENTURE_MAP_TREASURE_PICK' &&
+                        !!(result.updatedUser || (result as any).clientResponse?.updatedUser)) ||
+                    /** `/api/action` 성공 응답이 `{ success, ...clientResponse }`로 평탄화되어 `clientResponse` 키가 없는 관리자 액션 */
+                    ((action as ServerAction).type.startsWith('ADMIN_') && result.success === true)
                 )) {
                     return result;
                 }

@@ -254,8 +254,10 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             (clearedStages.includes(sid) || singlePlayerProgress > currentStageIndex);
         // 클리어 직후에는 progress가 아직 반영되지 않았을 수 있으므로 승리 시 허용. 재도전 실패 시에도 이미 클리어한 스테이지면 다음 단계 유지
         const canTryNext = !!nextStage && (isWinner || isCurrentStageAlreadyCleared);
-        const retryActionPointCost =
+        const inferredRetryAp =
             isCurrentStageAlreadyCleared || isWinner ? 0 : (currentStage?.actionPointCost ?? 0);
+        const retryActionPointCost =
+            session.singlePlayerStartActionPointCost === 0 ? 0 : inferredRetryAp;
         const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
 
         const handleRetry = async () => {

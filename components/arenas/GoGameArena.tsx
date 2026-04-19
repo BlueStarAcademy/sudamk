@@ -184,8 +184,14 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         return false;
     }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns, settings.scoringTurnLimit, mode]);
 
+    const isAdventureBoardLayout = session.gameCategory === 'adventure';
+
     return (
-        <div className={`w-full h-full flex items-center justify-center ${backgroundClass} relative`}>
+        <div
+            className={`w-full h-full flex items-center justify-center ${backgroundClass} relative ${
+                isAdventureBoardLayout ? 'min-h-0 min-w-0 overflow-hidden' : ''
+            }`}
+        >
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
             {gameStatus === 'scoring' && !session.analysisResult?.['system'] && <ScoringOverlay variant="fullscreen" />}
             {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
@@ -209,7 +215,11 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             )}
             {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
             <div className="relative w-full h-full max-w-full max-h-full flex items-center justify-center min-w-0 min-h-0">
-                <div className="w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0">
+                <div
+                    className={`w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0 ${
+                        isAdventureBoardLayout ? 'shrink-0' : ''
+                    }`}
+                >
                 <GoBoard
                 boardState={boardStateForDisplay}
                 boardSize={settings.boardSize}

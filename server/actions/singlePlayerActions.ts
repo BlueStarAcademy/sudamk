@@ -299,6 +299,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 // 살리기 바둑: 백의 턴 수 추적
                 whiteTurnsPlayed: isSurvivalMode ? 0 : undefined,
                 singlePlayerPlacementRefreshesUsed: 0,
+                singlePlayerStartActionPointCost: effectiveActionPointCost,
                 totalTurns: 0, // 턴 카운팅 초기화
             } as LiveGameSession;
 

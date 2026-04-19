@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { isClientAdmin } from '../../utils/clientAdmin.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import {
@@ -242,6 +243,10 @@ const OnboardingTutorialOverlay: React.FC = () => {
 
     /** phase 6: 0~1은 마스크+스포트라이트, 2~는 판 조작 유지(살짝만 어둡게). 승리 후 결과 모달 구간엔 결과 모달 스포트라이트라 판은 막음 */
     const passThroughLayer = phase === 6 && phase6IngameSubStep >= 2 && !intro1WinTutorialContext;
+    /** 프로필 홈에서 관리자 VIP·튜토리얼 등 좌상단 버튼이 온보딩 마스크(z-70)에 가려 클릭되지 않는 문제 방지 */
+    const adminProfileUiBypass =
+        active && isClientAdmin(currentUserWithStatus) && currentRoute.view === 'profile';
+    const tutorialOverlayNonBlocking = passThroughLayer || adminProfileUiBypass;
 
     const onAdvanceClamped = useCallback(async () => {
         if (!currentUserWithStatus || !handlers?.handleAction) return;
@@ -386,7 +391,7 @@ const OnboardingTutorialOverlay: React.FC = () => {
     }, [active, phase, currentRoute.view, currentUserWithStatus, handlers]);
 
     useLayoutEffect(() => {
-        if (!active || !copy || passThroughLayer || !spotlightId) {
+        if (!active || !copy || tutorialOverlayNonBlocking || !spotlightId) {
             setHole(null);
             return;
         }
@@ -413,7 +418,7 @@ const OnboardingTutorialOverlay: React.FC = () => {
     }, [
         active,
         copy,
-        passThroughLayer,
+        tutorialOverlayNonBlocking,
         spotlightId,
         phase,
         phase5GameDescSubStep,
@@ -529,7 +534,7 @@ const OnboardingTutorialOverlay: React.FC = () => {
 
     /** 스포트라이트 구역과 설명 패널이 겹치지 않도록 패널 높이 상한(px) 계산 */
     useLayoutEffect(() => {
-        if (!active || passThroughLayer || !hole) {
+        if (!active || tutorialOverlayNonBlocking || !hole) {
             setPanelMaxHeightPx(null);
             return;
         }
@@ -563,7 +568,7 @@ const OnboardingTutorialOverlay: React.FC = () => {
         return () => cancelAnimationFrame(id);
     }, [
         active,
-        passThroughLayer,
+        tutorialOverlayNonBlocking,
         hole,
         panelPlacement,
         phase,
@@ -755,12 +760,12 @@ const OnboardingTutorialOverlay: React.FC = () => {
             !copy.omitPrimary &&
             !(phase === 5 && phase5GameDescSubStep >= 2));
 
-        const showBlockingMask = !passThroughLayer;
+        const showBlockingMask = !tutorialOverlayNonBlocking;
         const useHole = showBlockingMask && spotlightId && hole;
 
         layer = (
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-end overflow-hidden">
-            {passThroughLayer && (
+            {tutorialOverlayNonBlocking && (
                 <div className="pointer-events-none absolute inset-0 bg-black/25" aria-hidden />
             )}
 
@@ -826,7 +831,7 @@ const OnboardingTutorialOverlay: React.FC = () => {
                 <div
                     ref={panelRef}
                     className={`pointer-events-auto absolute w-[min(100%,32rem)] rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5 ${
-                        hole && !passThroughLayer ? 'overflow-y-auto overscroll-y-contain' : ''
+                        hole && showBlockingMask ? 'overflow-y-auto overscroll-y-contain' : ''
                     }`}
                     style={{
                         ...panelContainerStyle,

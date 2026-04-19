@@ -48,7 +48,6 @@ import {
     arenaGameRoomQuickChatEmojiBtnClass,
     arenaGameRoomQuickChatPhraseBtnClass,
     arenaGameRoomQuickChatPopoverClass,
-    arenaGameRoomSettingsIconBtnClass,
     arenaGameRoomSidebarLeaveBtnClass,
     arenaGameRoomSidebarPauseBtnClass,
     arenaGameRoomSidebarShell,
@@ -60,7 +59,6 @@ interface SidebarProps extends GameProps {
     onLeaveOrResign: () => void;
     isNoContestLeaveAvailable: boolean;
     onClose?: () => void;
-    onOpenSettings?: () => void;
     onTogglePause?: () => void;
     isPaused?: boolean;
     resumeCountdown?: number;
@@ -73,9 +71,8 @@ export const GameInfoPanel: React.FC<{
     session: LiveGameSession;
     currentUser?: UserWithStatus;
     onClose?: () => void;
-    onOpenSettings?: () => void;
     onAction?: GameProps['onAction'];
-}> = ({ session, currentUser, onClose, onOpenSettings, onAction }) => {
+}> = ({ session, currentUser, onClose, onAction }) => {
     const [matchGuideOpen, setMatchGuideOpen] = useState(false);
     const { mode, settings, effectiveCaptureTargets } = session;
 
@@ -256,16 +253,6 @@ export const GameInfoPanel: React.FC<{
                         >
                             경기방법
                         </button>
-                        {onOpenSettings && (
-                            <button
-                                onClick={onOpenSettings}
-                                className={arenaGameRoomSettingsIconBtnClass}
-                                title="설정"
-                                aria-label="대국 설정 열기"
-                            >
-                                ⚙️
-                            </button>
-                        )}
                         {onClose && (
                             <button type="button" onClick={onClose} className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS} aria-label="닫기">
                                 닫기
@@ -787,7 +774,6 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                     session={session}
                     currentUser={props.currentUser}
                     onClose={props.onClose}
-                    onOpenSettings={props.onOpenSettings}
                     onAction={props.onAction}
                 />
                 <UserListPanel {...props} />

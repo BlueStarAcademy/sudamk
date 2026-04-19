@@ -387,6 +387,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 '길드 코인 획득량 2배(출석,기부,길드보스전)',
                 '일일/주간/월간 퀘스트 보상2배',
                 '퀘스트 활약도 보상2배',
+                '모험 보물상자 2개오픈',
             ],
         },
         {

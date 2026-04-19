@@ -1504,8 +1504,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             !!stageId &&
             (clearedStages.includes(stageId) || singlePlayerProgress > currentStageIndex);
         const canTryNextStage = !!nextStage && (isWinner || isCurrentStageAlreadyCleared);
-        const retryActionPointCost =
+        const inferredRetryAp =
             isCurrentStageAlreadyCleared || isWinner ? 0 : (currentStage?.actionPointCost ?? 0);
+        const retryActionPointCost =
+            session.singlePlayerStartActionPointCost === 0 ? 0 : inferredRetryAp;
         const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
 
         const refreshCosts = [0, 50, 75, 100, 200];

@@ -16,6 +16,7 @@ import {
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
 import { applyRegionalSpecialtyBuffTierGrants } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import * as effectService from '../effectService.js';
+import { bumpAdventureMapKeyProgressOnMonsterDefeat } from './adventureMapKeysAndTreasure.js';
 
 const ALLOWED_MODES = new Set(['classic', 'capture', 'base', 'hidden', 'missile']);
 
@@ -105,6 +106,7 @@ export async function applyAdventureMonsterDefeatToProfile(
         understandingXpAfter,
     );
     user.adventureProfile = nextProfile;
+    bumpAdventureMapKeyProgressOnMonsterDefeat(user, stageId, { isBoss });
 
     try {
         await effectService.syncActionPointsStateAfterEquipmentChange(user);

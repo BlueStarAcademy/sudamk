@@ -15,14 +15,18 @@ import {
     STRATEGIC_LOOT_TABLE,
     PLAYFUL_LOOT_TABLES_BY_ROUNDS,
 } from '../../shared/constants/index.js';
+import {
+    ADVENTURE_MAP_KEY_CHAPTER_CONFIG,
+    formatAdventureTreasureChestAdminLines,
+} from '../../shared/utils/adventureMapTreasureRewards.js';
 
 interface DropRateReferencePanelProps {
     onBack: () => void;
 }
 
-type RateSectionKey = 'shop' | 'pvp' | 'championship' | 'blacksmith';
+type RateSectionKey = 'shop' | 'pvp' | 'championship' | 'blacksmith' | 'adventure';
 const DROP_RATE_SECTION_STORAGE_KEY = 'admin.dropRateReference.activeSection';
-const RATE_SECTION_KEYS: readonly RateSectionKey[] = ['shop', 'pvp', 'championship', 'blacksmith'] as const;
+const RATE_SECTION_KEYS: readonly RateSectionKey[] = ['shop', 'pvp', 'championship', 'blacksmith', 'adventure'] as const;
 
 const gradeLabel = (grade: string): string =>
     EQUIPMENT_GRADE_LABEL_KO[grade as ItemGrade] ?? grade;
@@ -109,12 +113,14 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
     const showPvpSection = activeSection === 'pvp';
     const showChampionshipSection = activeSection === 'championship';
     const showBlacksmithToggleSection = activeSection === 'blacksmith';
+    const showAdventureSection = activeSection === 'adventure';
 
     const sectionTabs: { key: RateSectionKey; label: string }[] = [
         { key: 'shop', label: '상점' },
         { key: 'pvp', label: '전략·놀이' },
         { key: 'championship', label: '챔피언십' },
         { key: 'blacksmith', label: '대장간' },
+        { key: 'adventure', label: '모험' },
     ];
 
     useEffect(() => {
@@ -143,7 +149,7 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
         <div className={`${adminPageNarrow} ${adminSectionGap}`}>
             <AdminPageHeader
                 title="확률 정보"
-                subtitle="상점 상자, 챔피언십 보상, 대장간 관련 확률 테이블을 내부 운영용으로 확인합니다."
+                subtitle="상점 상자, 챔피언십 보상, 대장간, 모험 맵 보물상자·열쇠 관련 확률 테이블을 내부 운영용으로 확인합니다."
                 onBack={onBack}
             />
             <section className={adminCard}>
@@ -329,6 +335,63 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
                     </table>
                 </div>
             </section>}
+
+            {showAdventureSection && (
+                <section className={adminCard}>
+                    <h2 className={adminCardTitle}>모험 맵 — 지역 열쇠·보물상자</h2>
+                    <div className="space-y-4 text-sm text-gray-200">
+                        <div>
+                            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">열쇠 (열쇠 경험치로 획득)</h3>
+                            <p className="mb-2 text-xs text-gray-400">
+                                챕터별로 열쇠 1개까지 필요한 경험치(N)가 다릅니다. 일반 몬스터 처치 +1, 챕터 보스 몬스터 +2입니다. KST 기준 일일
+                                획득 한도 및 동시 보유 최대 개수는 아래 표와 같으며, 일일 한도는 자정(KST)에 리셋됩니다.
+                            </p>
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[480px] text-left text-xs">
+                                    <thead className="uppercase text-gray-400">
+                                        <tr>
+                                            <th className="px-2 py-2">챕터</th>
+                                            <th className="px-2 py-2">열쇠 1개까지 경험치(N)</th>
+                                            <th className="px-2 py-2">일일 획득 / 최대 보유</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {([1, 2, 3, 4, 5] as const).map((ch) => {
+                                            const c = ADVENTURE_MAP_KEY_CHAPTER_CONFIG[ch]!;
+                                            return (
+                                                <tr key={`adv-key-${ch}`} className="border-t border-color/40">
+                                                    <td className="px-2 py-2 font-semibold text-amber-300">챕터 {ch}</td>
+                                                    <td className="px-2 py-2">{c.keyXpRequired}</td>
+                                                    <td className="px-2 py-2">
+                                                        {c.dailyEarnCap}개 / {c.maxHeld}개
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">보물상자 출현·보상</h3>
+                            <p className="mb-2 text-xs text-gray-400">
+                                매 KST 정시를 기준으로 한 시간 구간 안에서 무작위 시각에 10분간 출현합니다. 보상 4종(골드·장비상자·재료상자·행동력)은
+                                각 25%로 먼저 결정된 뒤, 장비·재료는 아래 챕터별 가중치로 등급(로마 숫자)이 정해집니다.
+                            </p>
+                            {([1, 2, 3, 4, 5] as const).map((ch) => (
+                                <div key={`adv-tr-${ch}`} className="mb-4 rounded-lg border border-color/40 bg-secondary/40 p-3">
+                                    <h4 className="mb-2 text-xs font-bold text-amber-200">챕터 {ch}</h4>
+                                    <ul className="list-inside list-disc space-y-1 text-xs leading-relaxed text-gray-300">
+                                        {formatAdventureTreasureChestAdminLines(ch).map((line) => (
+                                            <li key={`${ch}-${line.slice(0, 24)}`}>{line}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+            )}
 
             {showBlacksmithToggleSection && showBlacksmithSection && <section className={adminCard}>
                 <h2 className={adminCardTitle}>대장간 확률</h2>

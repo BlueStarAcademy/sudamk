@@ -7,6 +7,7 @@ import {
     ADVENTURE_MAP_THEMES,
     ADVENTURE_MONSTER_MODE_BADGE_SHORT,
     ADVENTURE_MONSTER_MODE_LABELS,
+    ADVENTURE_STAGES,
     adventureBattleModeToGameMode,
     getAdventureUnderstandingTierFromXp,
     getAdventureStageById,
@@ -21,7 +22,11 @@ import {
 } from '../../shared/utils/adventureBattleBoard.js';
 import { AdventureMonsterSpriteFrame } from './AdventureMonsterSprite.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
-import { isAdventureStageUnlocked, type AdventureChapterUnlockContext } from '../../utils/adventureChapterUnlock.js';
+import {
+    getAdventureChapterUnlockBlockers,
+    isAdventureStageUnlocked,
+    type AdventureChapterUnlockContext,
+} from '../../utils/adventureChapterUnlock.js';
 import Button from '../Button.js';
 import { GameMode } from '../../shared/types/enums.js';
 import {
@@ -35,11 +40,26 @@ import {
     getRegionalMapMonsterRespawnOffMultiplierForStage,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import AdventureChapterMonsterSituationList from './AdventureChapterMonsterSituationList.js';
-import AdventureMonsterCodexModal from './AdventureMonsterCodexModal.js';
 import AdventureChapterRewardHints from './AdventureChapterRewardHints.js';
+import AdventureChapterKeyPanel from './AdventureChapterKeyPanel.js';
+import AdventureTreasureChestPickModal from './AdventureTreasureChestPickModal.js';
+import AdventureTreasureChestInfoPanel from './AdventureTreasureChestInfoPanel.js';
+import {
+    ADVENTURE_MAP_TREASURE_UI_ROW_ID,
+    adventureTreasureChestEquipmentImageForStageIndex,
+    adventureTreasureChestHandledForCurrentWindow,
+    buildAdventureMapTreasureChest,
+    getAdventureTreasureChestWindowMeta,
+    type AdventureMapTreasureChestInstance,
+} from '../../shared/utils/adventureMapTreasureSchedule.js';
+import {
+    getAdventureTreasureUserRewardSections,
+    type AdventureTreasureRollResult,
+} from '../../shared/utils/adventureMapTreasureRewards.js';
 import { labelRegionalSpecialtyBuffEntry, migrateRegionalBuffEntry } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import type { AdventureRegionalSpecialtyBuffEntry } from '../../types/entities.js';
 import { formatAdventureUnderstandingTierLabel } from '../../utils/adventureUnderstanding.js';
+import { isClientAdmin } from '../../utils/clientAdmin.js';
 import {
     getAdventureCodexComprehensionBarProgress,
     getAdventureCodexComprehensionLevel,
@@ -134,6 +154,90 @@ function computeAdventureMonsterBubblePosition(
     return { left, top };
 }
 
+const ChapterLockGlyph: React.FC<{ className?: string }> = ({ className }) => (
+    <svg
+        className={className}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={2}
+        aria-hidden
+    >
+        <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+        />
+    </svg>
+);
+
+type AdventureStageRow = (typeof ADVENTURE_STAGES)[number];
+
+const chapterHopDiscSize = {
+    mobile: 'h-8 w-8 min-h-8 min-w-8 sm:h-9 sm:w-9 sm:min-h-9 sm:min-w-9',
+    desktop: 'h-9 w-9 min-h-9 min-w-9 sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10',
+} as const;
+
+const chapterHopDiscShell =
+    'flex shrink-0 items-center justify-center rounded-full border shadow-[0_2px_10px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.1)] ring-1 ring-inset transition-all duration-200 ease-out';
+
+const AdventureMapChapterHopButton: React.FC<{
+    target: AdventureStageRow | null;
+    direction: 'prev' | 'next';
+    chapterUnlockCtx: AdventureChapterUnlockContext;
+    variant: 'mobile' | 'desktop';
+}> = ({ target, direction, chapterUnlockCtx, variant }) => {
+    const sizeClass = chapterHopDiscSize[variant];
+    if (!target) {
+        return <div className={`shrink-0 ${sizeClass}`} aria-hidden />;
+    }
+    const unlocked = isAdventureStageUnlocked(target.id, chapterUnlockCtx);
+    const blockers = getAdventureChapterUnlockBlockers(target.stageIndex, chapterUnlockCtx);
+    const lockTitle = blockers.length ? blockers.join(' · ') : '잠금';
+    const navLabel = direction === 'prev' ? '이전 챕터' : '다음 챕터';
+    const chevron = (
+        <svg
+            className="h-[1.05rem] w-[1.05rem] text-amber-100 drop-shadow-[0_0_6px_rgba(251,191,36,0.35)] sm:h-[1.15rem] sm:w-[1.15rem]"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            aria-hidden
+        >
+            {direction === 'prev' ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 18l-6-6 6-6" />
+            ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 18l6-6-6-6" />
+            )}
+        </svg>
+    );
+    const discBase = `${chapterHopDiscShell} ${sizeClass} active:scale-[0.94]`;
+    if (!unlocked) {
+        return (
+            <button
+                type="button"
+                disabled
+                title={lockTitle}
+                aria-label={`${navLabel} 잠금`}
+                className={`${discBase} cursor-not-allowed border-zinc-600/50 bg-gradient-to-b from-zinc-800/55 via-zinc-900/85 to-black/90 ring-zinc-500/10 opacity-90`}
+            >
+                <ChapterLockGlyph className="h-[0.95rem] w-[0.95rem] text-zinc-400 sm:h-4 sm:w-4" />
+            </button>
+        );
+    }
+    return (
+        <button
+            type="button"
+            onClick={() => replaceAppHash(`#/adventure/${target.id}`)}
+            title={`「${target.title}」로 이동`}
+            aria-label={`${navLabel}: ${target.title}`}
+            className={`${discBase} border-amber-400/35 bg-gradient-to-b from-amber-950/75 via-zinc-900/92 to-zinc-950/95 ring-amber-300/20 hover:border-amber-300/55 hover:from-amber-900/88 hover:via-zinc-800/95 hover:shadow-[0_4px_18px_rgba(251,191,36,0.18),inset_0_1px_0_rgba(255,255,255,0.14)] hover:ring-amber-200/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-400/50`}
+        >
+            {chevron}
+        </button>
+    );
+};
+
 const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus, handlers } = useAppContext();
@@ -144,13 +248,21 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     const [, setUiTick] = useState(0);
     const [panelSecondTick, setPanelSecondTick] = useState(0);
     const [rosterModalCodexId, setRosterModalCodexId] = useState<string | null>(null);
-    const [monsterHubOpen, setMonsterHubOpen] = useState(false);
-    const [monsterHubInitialTab, setMonsterHubInitialTab] = useState<'situation' | 'codex'>('situation');
     const [regionalEffectModalOpen, setRegionalEffectModalOpen] = useState(false);
+    const [treasurePickModal, setTreasurePickModal] = useState<null | {
+        rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
+        nonce: string;
+        pickSlots: 1 | 2;
+        equipmentBoxImage: string;
+    }>(null);
     const [mapBox, setMapBox] = useState({ w: 0, h: 0 });
     /** 말풍선이 잘리지 않게 클램프할 맵 카드(overflow hidden) */
     const mapViewportRef = useRef<HTMLDivElement>(null);
     const monsterBubbleRef = useRef<HTMLDivElement>(null);
+    /** 데스크톱: 지역 열쇠 패널 높이를 획득 가능 보상 패널과 동일하게 맞춤 */
+    const desktopRewardBandRef = useRef<HTMLDivElement>(null);
+    const [desktopKeyPanelHeightPx, setDesktopKeyPanelHeightPx] = useState<number | null>(null);
+    const [desktopRewardWidthPx, setDesktopRewardWidthPx] = useState<number | null>(null);
     const [monsterBubblePos, setMonsterBubblePos] = useState<{ left: number; top: number } | null>(null);
 
     const suppressJson = useMemo(
@@ -159,6 +271,27 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     );
 
     const suppressRecord = useMemo(() => JSON.parse(suppressJson) as Record<string, number>, [suppressJson]);
+
+    useLayoutEffect(() => {
+        if (isNativeMobile) {
+            setDesktopKeyPanelHeightPx(null);
+            setDesktopRewardWidthPx(null);
+            return;
+        }
+        const el = desktopRewardBandRef.current;
+        if (!el || typeof ResizeObserver === 'undefined') {
+            return;
+        }
+        const sync = () => {
+            const r = el.getBoundingClientRect();
+            setDesktopKeyPanelHeightPx(Math.round(r.height));
+            setDesktopRewardWidthPx(Math.round(r.width));
+        };
+        sync();
+        const ro = new ResizeObserver(sync);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [isNativeMobile, stage?.id]);
 
     const mapDwellMult = useMemo(
         () =>
@@ -197,6 +330,31 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         return buildAdventureMapMonstersFromSchedule(stage, Date.now(), suppressRecord, mapDwellMult, mapRespawnOffMult);
     }, [stage, suppressRecord, panelSecondTick, mapDwellMult, mapRespawnOffMult]);
 
+    const treasure = useMemo(() => {
+        if (!stage) return null;
+        const tNow = Date.now();
+        if (
+            adventureTreasureChestHandledForCurrentWindow(
+                stage.id,
+                tNow,
+                currentUserWithStatus?.adventureProfile?.adventureMapTreasureDismissedWindowStartByStageId,
+                currentUserWithStatus?.adventureProfile?.adventureMapTreasureClaimedWindowStartByStageId,
+            )
+        ) {
+            return null;
+        }
+        return buildAdventureMapTreasureChest(stage.id, stage.stageIndex, tNow, monsters, {
+            mapPositionUserId: currentUserWithStatus?.id,
+        });
+    }, [
+        stage,
+        monsters,
+        panelSecondTick,
+        currentUserWithStatus?.id,
+        currentUserWithStatus?.adventureProfile?.adventureMapTreasureDismissedWindowStartByStageId,
+        currentUserWithStatus?.adventureProfile?.adventureMapTreasureClaimedWindowStartByStageId,
+    ]);
+
     const chapterUnlockCtx: AdventureChapterUnlockContext = useMemo(
         () => ({
             strategyLevel: Number(currentUserWithStatus?.strategyLevel ?? 0) || 0,
@@ -209,6 +367,15 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             currentUserWithStatus?.adventureProfile?.understandingXpByStage,
         ],
     );
+
+    const adjacentChapters = useMemo(() => {
+        const st = getAdventureStageById(stageId);
+        if (!st) return { prev: null as AdventureStageRow | null, next: null as AdventureStageRow | null };
+        const idx = ADVENTURE_STAGES.findIndex((s) => s.id === st.id);
+        const prev = idx > 0 ? ADVENTURE_STAGES[idx - 1]! : null;
+        const next = idx >= 0 && idx < ADVENTURE_STAGES.length - 1 ? ADVENTURE_STAGES[idx + 1]! : null;
+        return { prev, next };
+    }, [stageId]);
 
     useLayoutEffect(() => {
         if (!stage || !theme) replaceAppHash('#/adventure');
@@ -224,7 +391,6 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         if (!stage) return;
         setSelectedId(null);
         setRosterModalCodexId(null);
-        setMonsterHubOpen(false);
     }, [stage?.id]);
 
     /** 해시는 #/game/인데 currentRoute가 아직 모험맵인 짧은 구간에 body 포털 시트가 남지 않도록 함 */
@@ -233,7 +399,6 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             if (!window.location.hash.startsWith('#/game/')) return;
             setSelectedId(null);
             setRosterModalCodexId(null);
-            setMonsterHubOpen(false);
         };
         window.addEventListener('hashchange', closeAdventureOverlaysForGameHash);
         return () => window.removeEventListener('hashchange', closeAdventureOverlaysForGameHash);
@@ -264,7 +429,19 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         return () => clearInterval(id);
     }, [selectedId]);
 
+    useEffect(() => {
+        if (!selectedId || !treasure || selectedId !== treasure.id) return;
+        if (Date.now() >= treasure.windowEndMs) setSelectedId(null);
+    }, [selectedId, treasure, panelSecondTick]);
+
+    useEffect(() => {
+        if (treasure) return;
+        if (selectedId?.startsWith('adv-treasure-')) setSelectedId(null);
+    }, [treasure, selectedId]);
+
     const selectedMonster = selectedId ? monsters.find((m) => m.id === selectedId) : undefined;
+    const selectedTreasure: AdventureMapTreasureChestInstance | undefined =
+        treasure && selectedId === treasure.id ? treasure : undefined;
     const selectedMonsterCodexWins = selectedMonster
         ? Math.max(0, Math.floor(currentUserWithStatus?.adventureProfile?.codexDefeatCounts?.[selectedMonster.codexId] ?? 0))
         : 0;
@@ -278,18 +455,54 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     );
 
     const now = Date.now();
+    const treasureHandledForWindow =
+        !!stage &&
+        adventureTreasureChestHandledForCurrentWindow(
+            stage.id,
+            now,
+            currentUserWithStatus?.adventureProfile?.adventureMapTreasureDismissedWindowStartByStageId,
+            currentUserWithStatus?.adventureProfile?.adventureMapTreasureClaimedWindowStartByStageId,
+        );
+    const treasureHandledKind: 'claimed' | 'dismissed' | null = (() => {
+        if (!stage) return null;
+        const wm = getAdventureTreasureChestWindowMeta(stage.id, now);
+        if (!wm) return null;
+        const ws = wm.windowStartMs;
+        if (currentUserWithStatus?.adventureProfile?.adventureMapTreasureClaimedWindowStartByStageId?.[stage.id] === ws) {
+            return 'claimed';
+        }
+        if (currentUserWithStatus?.adventureProfile?.adventureMapTreasureDismissedWindowStartByStageId?.[stage.id] === ws) {
+            return 'dismissed';
+        }
+        return null;
+    })();
 
     const selectionDetails = useMemo(() => {
         if (!selectedMonster || !stage) return null;
         return buildAdventureMapMonsterDetails(stage, selectedMonster);
     }, [selectedMonster, stage]);
 
+    const treasureRewardSections = useMemo(() => {
+        if (!stage) return null;
+        return getAdventureTreasureUserRewardSections(stage.stageIndex);
+    }, [stage]);
+
+    const bubbleAnchor = useMemo(() => {
+        if (selectedMonster) return { xPct: selectedMonster.xPct, yPct: selectedMonster.yPct };
+        if (selectedTreasure) return { xPct: selectedTreasure.xPct, yPct: selectedTreasure.yPct };
+        return null;
+    }, [selectedMonster, selectedTreasure]);
+
     const syncMonsterBubblePos = useCallback(() => {
         if (isNativeMobile) {
             setMonsterBubblePos(null);
             return;
         }
-        if (!selectedMonster || !selectionDetails || !mapViewportRef.current || !monsterBubbleRef.current) {
+        if (!bubbleAnchor || !mapViewportRef.current || !monsterBubbleRef.current) {
+            setMonsterBubblePos(null);
+            return;
+        }
+        if (selectedMonster && !selectionDetails) {
             setMonsterBubblePos(null);
             return;
         }
@@ -302,20 +515,21 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             computeAdventureMonsterBubblePosition(
                 vpW,
                 vpH,
-                selectedMonster.xPct,
-                selectedMonster.yPct,
+                bubbleAnchor.xPct,
+                bubbleAnchor.yPct,
                 br.width,
                 br.height,
             ),
         );
-    }, [isNativeMobile, selectedMonster, selectionDetails]);
+    }, [isNativeMobile, selectedMonster, selectedTreasure, selectionDetails, bubbleAnchor]);
 
     useLayoutEffect(() => {
         syncMonsterBubblePos();
     }, [syncMonsterBubblePos]);
 
     useEffect(() => {
-        if (isNativeMobile || !selectedMonster || !selectionDetails || !mapViewportRef.current) return;
+        if (isNativeMobile || (!selectedMonster && !selectedTreasure) || !mapViewportRef.current) return;
+        if (selectedMonster && !selectionDetails) return;
         const vp = mapViewportRef.current;
         const ro = new ResizeObserver(() => syncMonsterBubblePos());
         ro.observe(vp);
@@ -324,7 +538,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             ro.disconnect();
             window.removeEventListener('resize', syncMonsterBubblePos);
         };
-    }, [isNativeMobile, selectedMonster, selectionDetails, syncMonsterBubblePos]);
+    }, [isNativeMobile, selectedMonster, selectedTreasure, selectionDetails, syncMonsterBubblePos]);
 
     useEffect(() => {
         if (!isNativeMobile || !selectedId) return;
@@ -344,8 +558,10 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         return () => window.removeEventListener('keydown', onKey);
     }, [isNativeMobile, selectedId]);
 
+    const rosterModalIsTreasure = rosterModalCodexId === ADVENTURE_MAP_TREASURE_UI_ROW_ID;
+
     const rosterModalRow = useMemo(() => {
-        if (!rosterModalCodexId || !stage) return null;
+        if (!rosterModalCodexId || !stage || rosterModalCodexId === ADVENTURE_MAP_TREASURE_UI_ROW_ID) return null;
         return stage.monsters.find((e) => e.codexId === rosterModalCodexId) ?? null;
     }, [rosterModalCodexId, stage]);
 
@@ -405,10 +621,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     }, [rosterModalCodexId]);
 
     useEffect(() => {
-        if (selectedId && !monsters.some((m) => m.id === selectedId)) {
-            setSelectedId(null);
-        }
-    }, [monsters, selectedId]);
+        if (!selectedId) return;
+        if (monsters.some((m) => m.id === selectedId)) return;
+        if (treasure && treasure.id === selectedId) return;
+        setSelectedId(null);
+    }, [monsters, treasure, selectedId, panelSecondTick]);
 
     const minMsUntilAnyAppearance = useMemo(() => {
         if (!stage) return 0;
@@ -471,14 +688,71 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         flushSync(() => {
             setSelectedId(null);
             setRosterModalCodexId(null);
-            setMonsterHubOpen(false);
         });
     };
+
+    const handleOpenTreasureChest = async () => {
+        if (!stage) return;
+        const result = await handlers.handleAction({
+            type: 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST',
+            payload: { stageId: stage.id },
+        });
+        if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
+            return;
+        }
+        const r = result as {
+            adventureTreasurePick?: {
+                rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
+                nonce: string;
+                pickSlots?: 1 | 2;
+                equipmentBoxImage: string;
+            };
+            clientResponse?: {
+                adventureTreasurePick?: {
+                    rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
+                    nonce: string;
+                    pickSlots?: 1 | 2;
+                    equipmentBoxImage: string;
+                };
+            };
+        };
+        const pick = r?.clientResponse?.adventureTreasurePick ?? r?.adventureTreasurePick;
+        if (!pick?.rolls || !pick.nonce || !pick.equipmentBoxImage) return;
+        flushSync(() => {
+            setSelectedId(null);
+            setRosterModalCodexId(null);
+        });
+        setTreasurePickModal({
+            rolls: pick.rolls,
+            nonce: pick.nonce,
+            pickSlots: pick.pickSlots === 2 ? 2 : 1,
+            equipmentBoxImage: pick.equipmentBoxImage,
+        });
+    };
+
+    const mapKeysHeld = Math.max(
+        0,
+        Math.floor(currentUserWithStatus?.adventureProfile?.adventureMapKeysHeldByStageId?.[stage.id] ?? 0),
+    );
+    const treasureOpenBlockedByKeys = !isClientAdmin(currentUserWithStatus) && mapKeysHeld < 1;
+    const rosterModalTreasureWindow = rosterModalIsTreasure ? getAdventureTreasureChestWindowMeta(stage.id, now) : null;
 
     /** 모달·목록 공통: 출현 중 / 다음 절대 출현까지 */
     let rosterModalRightSlot = formatRemainMs(minMsUntilAnyAppearance);
     let rosterModalRightClass = 'font-mono font-bold tabular-nums text-amber-200';
-    if (rosterModalRow && stage) {
+    if (rosterModalIsTreasure) {
+        const wm = getAdventureTreasureChestWindowMeta(stage.id, now);
+        if (wm && !treasureHandledForWindow) {
+            rosterModalRightSlot = '출현중';
+            rosterModalRightClass = 'font-bold text-emerald-300';
+        } else if (wm && treasureHandledForWindow) {
+            rosterModalRightSlot = treasureHandledKind === 'claimed' ? '수령완료' : '건너뜀';
+            rosterModalRightClass = 'font-bold text-zinc-400';
+        } else {
+            rosterModalRightSlot = '알수없음';
+            rosterModalRightClass = 'font-bold text-zinc-400';
+        }
+    } else if (rosterModalRow && stage) {
         const boss = isAdventureChapterBossCodexId(rosterModalRow.codexId);
         const supK = adventureMapSuppressKey(stage.id, rosterModalRow.codexId);
         const until = adventureMapMsUntilNextAppearance(
@@ -516,22 +790,26 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                         >
                             <img src="/images/button/back.png" alt="" className="h-full w-full" />
                         </button>
-                        <div className="flex min-w-0 flex-1 items-center gap-2">
-                            <div className="min-w-0 flex-1 text-left">
-                                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80">모험 맵</p>
-                                <h1 className="truncate text-sm font-black leading-tight text-white drop-shadow">{stage.title}</h1>
+                        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                            <div className="flex min-w-0 shrink items-center gap-1.5 sm:gap-2">
+                                <AdventureMapChapterHopButton
+                                    target={adjacentChapters.prev}
+                                    direction="prev"
+                                    chapterUnlockCtx={chapterUnlockCtx}
+                                    variant="mobile"
+                                />
+                                <div className="min-w-0 max-w-[10.5rem] px-0.5 text-left sm:max-w-[min(18rem,42vw)] sm:px-1">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80">모험 맵</p>
+                                    <h1 className="truncate text-sm font-black leading-tight text-white drop-shadow">{stage.title}</h1>
+                                </div>
+                                <AdventureMapChapterHopButton
+                                    target={adjacentChapters.next}
+                                    direction="next"
+                                    chapterUnlockCtx={chapterUnlockCtx}
+                                    variant="mobile"
+                                />
                             </div>
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    setMonsterHubInitialTab('codex');
-                                    setMonsterHubOpen(true);
-                                }}
-                                className="shrink-0 rounded-lg border border-violet-400/45 bg-violet-950/75 px-2 py-1.5 text-[10px] font-bold leading-tight text-violet-100 shadow-sm transition hover:border-amber-400/50 hover:bg-violet-900/60 active:scale-[0.99]"
-                                aria-label="몬스터 도감 열기"
-                            >
-                                몬스터 도감
-                            </button>
+                            <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-1.5">
                             <button
                                 type="button"
                                 onClick={() => setRegionalEffectModalOpen(true)}
@@ -540,14 +818,27 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             >
                                 지역효과
                             </button>
+                            </div>
                         </div>
                     </div>
-                    <aside
-                        className="mx-1 mt-1.5 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
-                        aria-label="챕터 보상 안내"
-                    >
-                        <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} compact />
-                    </aside>
+                    <div className="mx-1 mt-1.5 flex gap-1.5">
+                        <aside
+                            className="min-w-0 flex-1 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                            aria-label="챕터 보상 안내"
+                        >
+                            <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} compact />
+                        </aside>
+                        <aside
+                            className="min-w-0 flex-1 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                            aria-label="지역 열쇠"
+                        >
+                            <AdventureChapterKeyPanel
+                                stageId={stage.id as AdventureStageId}
+                                adventureProfile={currentUserWithStatus?.adventureProfile}
+                                compact
+                            />
+                        </aside>
+                    </div>
                 </div>
             ) : (
                 <header className="relative z-50 mb-2 flex flex-shrink-0 items-center justify-between px-1 sm:mb-2 sm:px-0">
@@ -559,9 +850,25 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     >
                         <img src="/images/button/back.png" alt="" className="h-full w-full" />
                     </button>
-                    <div className="min-w-0 flex-1 px-2 text-center">
-                        <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80 sm:text-xs">모험 맵</p>
-                        <h1 className="truncate text-base font-black text-white drop-shadow sm:text-lg">{stage.title}</h1>
+                    <div className="flex min-w-0 flex-1 items-center justify-center px-0.5 sm:px-1">
+                        <div className="flex max-w-full items-center justify-center gap-1.5 sm:gap-2.5">
+                            <AdventureMapChapterHopButton
+                                target={adjacentChapters.prev}
+                                direction="prev"
+                                chapterUnlockCtx={chapterUnlockCtx}
+                                variant="desktop"
+                            />
+                            <div className="min-w-0 max-w-[11rem] px-1 text-center sm:max-w-[min(22rem,48vw)] sm:px-2">
+                                <p className="text-[10px] font-bold uppercase tracking-widest text-amber-400/80 sm:text-xs">모험 맵</p>
+                                <h1 className="truncate text-base font-black text-white drop-shadow sm:text-lg">{stage.title}</h1>
+                            </div>
+                            <AdventureMapChapterHopButton
+                                target={adjacentChapters.next}
+                                direction="next"
+                                chapterUnlockCtx={chapterUnlockCtx}
+                                variant="desktop"
+                            />
+                        </div>
                     </div>
                     <div className="h-9 w-9 shrink-0 sm:h-11 sm:w-11" aria-hidden />
                 </header>
@@ -684,13 +991,84 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         </button>
                                     );
                                 })}
+                                {treasure ? (
+                                    <button
+                                        key={treasure.id}
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setSelectedId(treasure.id);
+                                        }}
+                                        className={[
+                                            'absolute z-[21] flex touch-manipulation select-none flex-col items-center',
+                                            '-translate-x-1/2 -translate-y-full focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-0',
+                                            treasure.id === selectedId ? 'scale-[1.05]' : 'hover:scale-[1.03] active:scale-[0.98]',
+                                        ].join(' ')}
+                                        style={{ left: `${treasure.xPct}%`, top: `${treasure.yPct}%` }}
+                                        aria-label="보물상자"
+                                    >
+                                        <div
+                                            className={[
+                                                'flex flex-col items-center rounded-md px-0.5 pb-0.5 pt-0',
+                                                treasure.id === selectedId ? 'ring-2 ring-amber-400/90 ring-offset-0' : '',
+                                            ].join(' ')}
+                                        >
+                                            <div
+                                                className={[
+                                                    'relative flex items-center justify-center',
+                                                    mobileSpritePx != null
+                                                        ? ''
+                                                        : isNativeMobile
+                                                          ? 'h-[clamp(2.4rem,9vw,3.4rem)] w-[clamp(2.4rem,9vw,3.4rem)]'
+                                                          : 'h-[clamp(4.25rem,17.25vw,6.1rem)] w-[clamp(4.25rem,17.25vw,6.1rem)] sm:h-[6.75rem] sm:w-[6.75rem]',
+                                                ].join(' ')}
+                                                style={
+                                                    mobileSpritePx != null
+                                                        ? {
+                                                              width: mobileSpritePx,
+                                                              height: mobileSpritePx,
+                                                              minWidth: mobileSpritePx,
+                                                              minHeight: mobileSpritePx,
+                                                          }
+                                                        : undefined
+                                                }
+                                            >
+                                                <img
+                                                    src={treasure.equipmentBoxImage}
+                                                    alt=""
+                                                    className="h-full w-full object-contain drop-shadow"
+                                                    draggable={false}
+                                                />
+                                                {!isNativeMobile ? (
+                                                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
+                                                        <span className="rounded-full border border-white/35 bg-black/55 px-2 py-1 text-base font-black text-white shadow sm:px-2.5 sm:py-1 sm:text-lg">
+                                                            ?
+                                                        </span>
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                            <p
+                                                className={`mt-1 text-center font-bold leading-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ${
+                                                    isNativeMobile ? 'text-[9px]' : 'text-[11px] sm:text-xs'
+                                                }`}
+                                            >
+                                                보물상자
+                                            </p>
+                                        </div>
+                                    </button>
+                                ) : null}
 
-                                {selectedMonster && selectionDetails && !isNativeMobile && (
+                                {((selectedMonster && selectionDetails) || (selectedTreasure && treasureRewardSections)) &&
+                                    !isNativeMobile && (
                                     <div
                                         ref={monsterBubbleRef}
                                         role="dialog"
-                                        aria-label="몬스터 정보"
-                                        className="pointer-events-auto absolute z-40 w-[min(calc(100%-0.75rem),24rem)] max-w-[24rem]"
+                                        aria-label={selectedTreasure ? '보물상자 정보' : '몬스터 정보'}
+                                        className={`pointer-events-auto absolute z-40 ${
+                                            selectedTreasure
+                                                ? 'min-w-[min(100%,20rem)] w-[min(calc(100%-0.75rem),36rem)] max-w-[36rem]'
+                                                : 'w-[min(calc(100%-0.75rem),24rem)] max-w-[24rem]'
+                                        }`}
                                         style={
                                             monsterBubblePos
                                                 ? {
@@ -699,19 +1077,22 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                       transform: 'none',
                                                       transformOrigin: 'top left',
                                                   }
-                                                : {
-                                                      left: `calc(${selectedMonster.xPct}% + 2.65rem)`,
-                                                      top: `${selectedMonster.yPct}%`,
-                                                      transform:
-                                                          selectedMonster.yPct < 28
-                                                              ? 'translateY(0.5rem)'
-                                                              : 'translateY(calc(-100% - 0.5rem))',
-                                                      transformOrigin: 'top left',
-                                                  }
+                                                : bubbleAnchor
+                                                  ? {
+                                                        left: `calc(${bubbleAnchor.xPct}% + 2.65rem)`,
+                                                        top: `${bubbleAnchor.yPct}%`,
+                                                        transform:
+                                                            bubbleAnchor.yPct < 28
+                                                                ? 'translateY(0.5rem)'
+                                                                : 'translateY(calc(-100% - 0.5rem))',
+                                                        transformOrigin: 'top left',
+                                                    }
+                                                  : undefined
                                         }
                                         onClick={(e) => e.stopPropagation()}
                                     >
                                         <div className="relative rounded-2xl border border-amber-400/55 bg-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md">
+                                            {selectedMonster && selectionDetails ? (
                                             <div className="relative flex flex-col gap-3.5 p-3.5 sm:flex-row sm:items-start sm:gap-4 sm:p-4">
                                                 <div
                                                     className={[
@@ -815,47 +1196,90 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     </Button>
                                                 </div>
                                             </div>
+                                            ) : selectedTreasure && treasureRewardSections ? (
+                                                <div className="p-4 sm:p-5">
+                                                    <AdventureTreasureChestInfoPanel
+                                                        stageTitle={stage.title}
+                                                        showInlineTitle
+                                                        equipmentBoxImage={selectedTreasure.equipmentBoxImage}
+                                                        remainingLabel={formatRemainMs(Math.max(0, selectedTreasure.windowEndMs - now))}
+                                                        mapKeysHeld={mapKeysHeld}
+                                                        sections={treasureRewardSections}
+                                                        onOpen={handleOpenTreasureChest}
+                                                        openDisabled={
+                                                            treasureOpenBlockedByKeys ||
+                                                            treasureHandledForWindow ||
+                                                            now >= selectedTreasure.windowEndMs
+                                                        }
+                                                    />
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
                                 )}
                 </div>
 
                 {!isNativeMobile ? (
-                    <div className="pointer-events-none absolute left-1.5 top-1.5 z-30 flex w-[min(88vw,15.5rem)] max-h-[min(100%-0.5rem,calc(100dvh-4.75rem))] flex-col gap-2 sm:left-2 sm:top-2 sm:w-[16.5rem] sm:max-h-[min(100%-0.75rem,calc(100dvh-5.5rem))]">
-                        <aside
-                            className="pointer-events-auto shrink-0 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
-                            aria-label="챕터 보상 안내"
-                        >
-                            <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} />
-                        </aside>
-
-                        <aside
-                            className="pointer-events-auto relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/30 bg-zinc-950/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm"
-                            aria-label="챕터 몬스터 목록"
-                        >
-                            <button
-                                type="button"
-                                onClick={() => setMonsterHubOpen(true)}
-                                className="absolute right-2 top-2 z-10 max-w-[min(48%,8rem)] rounded-lg border border-violet-400/45 bg-violet-950/75 px-2 py-1 text-center text-[10px] font-bold leading-tight text-violet-100 shadow-sm transition hover:border-amber-400/50 hover:bg-violet-900/60 active:scale-[0.99] sm:right-2.5 sm:top-2.5 sm:max-w-none sm:px-2.5 sm:py-1.5 sm:text-xs"
-                                aria-label="몬스터 도감 열기"
-                            >
-                                몬스터 도감
-                            </button>
-                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 pt-10 sm:p-2.5 sm:pt-11">
-                                <p className="mb-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-emerald-400/90 sm:mb-2 sm:text-xs">
-                                    챕터 몬스터
-                                </p>
-                                <AdventureChapterMonsterSituationList
-                                    stageId={stage.id}
-                                    mapMonsters={monsters}
-                                    suppressRecord={suppressRecord}
-                                    nowMs={now}
-                                    onPickRow={(id) => setRosterModalCodexId(id)}
-                                    mapDwellMultiplier={mapDwellMult}
-                                    mapRespawnOffMultiplier={mapRespawnOffMult}
-                                />
+                    <div className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-30 flex w-max max-w-[min(94vw,27.5rem)] flex-col sm:bottom-2 sm:left-2 sm:top-2">
+                        <div className="pointer-events-auto flex min-h-0 flex-1 flex-col items-start gap-2">
+                            <div className="flex shrink-0 gap-2">
+                                <aside
+                                    ref={desktopRewardBandRef}
+                                    className="shrink-0 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
+                                    aria-label="챕터 보상 안내"
+                                >
+                                    <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} iconLayout="wrap" />
+                                </aside>
+                                <aside
+                                    className="flex w-[10rem] shrink-0 flex-col overflow-y-auto overflow-x-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[11.25rem] sm:p-3.5 [scrollbar-width:thin] [scrollbar-color:rgba(245,158,11,0.45)_rgba(24,24,27,0.4)] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/70 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-500/40"
+                                    style={
+                                        desktopKeyPanelHeightPx != null
+                                            ? {
+                                                  height: desktopKeyPanelHeightPx,
+                                                  minHeight: desktopKeyPanelHeightPx,
+                                                  maxHeight: desktopKeyPanelHeightPx,
+                                              }
+                                            : undefined
+                                    }
+                                    aria-label="지역 열쇠"
+                                >
+                                    <div className="flex min-h-0 flex-1 flex-col justify-center">
+                                        <AdventureChapterKeyPanel
+                                            stageId={stage.id as AdventureStageId}
+                                            adventureProfile={currentUserWithStatus?.adventureProfile}
+                                        />
+                                    </div>
+                                </aside>
                             </div>
-                        </aside>
+                            <aside
+                                className={`flex min-h-0 min-w-0 max-w-full flex-1 flex-col self-start overflow-hidden rounded-xl border border-amber-500/30 bg-zinc-950/92 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm ${
+                                    desktopRewardWidthPx == null ? 'max-w-[14rem]' : ''
+                                }`}
+                                style={desktopRewardWidthPx != null ? { width: desktopRewardWidthPx, maxWidth: '100%' } : undefined}
+                                aria-label="챕터 몬스터 목록"
+                            >
+                                <div className="flex shrink-0 items-center justify-center border-b border-white/10 px-2 py-1.5 sm:px-2.5 sm:py-2">
+                                    <p className="min-w-0 text-center text-[11px] font-bold uppercase tracking-wide text-emerald-400/90 sm:text-xs">
+                                        챕터 몬스터
+                                    </p>
+                                </div>
+                                <div
+                                    className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2.5 pb-3 pt-1 sm:px-3 sm:pb-3.5 [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:rgba(245,158,11,0.5)_rgba(24,24,27,0.5)] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/80 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-500/45 hover:[&::-webkit-scrollbar-thumb]:bg-amber-400/55"
+                                >
+                                    <AdventureChapterMonsterSituationList
+                                        stageId={stage.id}
+                                        mapMonsters={monsters}
+                                        suppressRecord={suppressRecord}
+                                        nowMs={now}
+                                        onPickRow={(id) => setRosterModalCodexId(id)}
+                                        mapDwellMultiplier={mapDwellMult}
+                                        mapRespawnOffMultiplier={mapRespawnOffMult}
+                                        treasureHandledForCurrentWindow={treasureHandledForWindow}
+                                        treasureHandledKind={treasureHandledKind}
+                                    />
+                                </div>
+                            </aside>
+                        </div>
                     </div>
                 ) : null}
                 {!isNativeMobile ? (
@@ -893,7 +1317,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     </div>
                 ) : null}
 
-                {rosterModalRow ? (
+                {rosterModalRow || rosterModalIsTreasure ? (
                     <div
                         className="fixed inset-0 z-[100] flex items-center justify-center bg-black/65 p-3 backdrop-blur-sm sm:p-5"
                         role="dialog"
@@ -902,7 +1326,9 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                         onClick={() => setRosterModalCodexId(null)}
                     >
                         <div
-                            className="max-h-[min(90dvh,720px)] w-full max-w-lg overflow-y-auto rounded-2xl border border-amber-400/45 bg-zinc-950/[0.98] shadow-[0_20px_60px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)]"
+                            className={`max-h-[min(90dvh,780px)] w-full overflow-y-auto rounded-2xl border border-amber-400/45 bg-zinc-950/[0.98] shadow-[0_20px_60px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.05)] ${
+                                rosterModalIsTreasure ? 'max-w-2xl' : 'max-w-lg'
+                            }`}
                             onClick={(e) => e.stopPropagation()}
                         >
                             <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 sm:px-5">
@@ -910,28 +1336,66 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     id="adventure-roster-modal-title"
                                     className="flex min-w-0 flex-1 items-center gap-2 truncate text-sm font-black text-amber-100 sm:text-base"
                                 >
-                                    <span className="min-w-0 truncate">{rosterModalRow.name}</span>
-                                    {isAdventureChapterBossCodexId(rosterModalRow.codexId) ? (
-                                        <span className="shrink-0 rounded border border-amber-400/45 bg-amber-500/15 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-amber-100 sm:text-[10px]">
-                                            보스
+                                    {rosterModalIsTreasure ? (
+                                        <span className="min-w-0 flex-1 truncate text-sm font-black tracking-tight text-amber-100 sm:text-base">
+                                            보물상자-{stage.title}
                                         </span>
-                                    ) : null}
+                                    ) : (
+                                        <>
+                                            <span className="min-w-0 truncate">{rosterModalRow?.name}</span>
+                                            {rosterModalRow && isAdventureChapterBossCodexId(rosterModalRow.codexId) ? (
+                                                <span className="shrink-0 rounded border border-amber-400/45 bg-amber-500/15 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-amber-100 sm:text-[10px]">
+                                                    보스
+                                                </span>
+                                            ) : null}
+                                        </>
+                                    )}
                                 </h2>
-                                <button
-                                    type="button"
-                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/15 bg-white/5 text-lg leading-none text-zinc-300 transition hover:bg-white/10"
-                                    aria-label="닫기"
-                                    onClick={() => setRosterModalCodexId(null)}
-                                >
-                                    ×
-                                </button>
+                                {rosterModalIsTreasure ? (
+                                    <button
+                                        type="button"
+                                        className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-zinc-200 transition hover:bg-white/10 active:scale-[0.98]"
+                                        onClick={() => setRosterModalCodexId(null)}
+                                    >
+                                        닫기
+                                    </button>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-zinc-200 transition hover:bg-white/10"
+                                        onClick={() => setRosterModalCodexId(null)}
+                                    >
+                                        닫기
+                                    </button>
+                                )}
                             </div>
-                            <div className="space-y-4 p-4 sm:p-5">
-                                <p className="text-center text-sm sm:text-base">
-                                    <span className={`${rosterModalRightClass}`}>{rosterModalRightSlot}</span>
-                                </p>
+                            <div className="space-y-5 p-5 sm:p-6">
+                                {!rosterModalIsTreasure ? (
+                                    <p className="text-center text-sm sm:text-base">
+                                        <span className={`${rosterModalRightClass}`}>{rosterModalRightSlot}</span>
+                                    </p>
+                                ) : null}
 
-                                {rosterModalInstance && rosterModalInstanceDetails ? (
+                                {rosterModalIsTreasure && treasureRewardSections ? (
+                                    <AdventureTreasureChestInfoPanel
+                                        stageTitle={stage.title}
+                                        equipmentBoxImage={adventureTreasureChestEquipmentImageForStageIndex(stage.stageIndex)}
+                                        remainingLabel={
+                                            rosterModalTreasureWindow && now < rosterModalTreasureWindow.windowEndMs
+                                                ? formatRemainMs(Math.max(0, rosterModalTreasureWindow.windowEndMs - now))
+                                                : '—'
+                                        }
+                                        mapKeysHeld={mapKeysHeld}
+                                        sections={treasureRewardSections}
+                                        onOpen={handleOpenTreasureChest}
+                                        openDisabled={
+                                            treasureOpenBlockedByKeys ||
+                                            treasureHandledForWindow ||
+                                            !rosterModalTreasureWindow ||
+                                            now >= rosterModalTreasureWindow.windowEndMs
+                                        }
+                                    />
+                                ) : rosterModalInstance && rosterModalInstanceDetails ? (
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                         <div
                                             className={[
@@ -1027,7 +1491,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             </Button>
                                         </div>
                                     </div>
-                                ) : rosterModalStaticPreview ? (
+                                ) : rosterModalStaticPreview && rosterModalRow ? (
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                         <div
                                             className={[
@@ -1038,7 +1502,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 className={`flex min-h-[2.25rem] shrink-0 flex-col items-center justify-center gap-0.5 bg-gradient-to-b px-1.5 py-1.5 ${rosterModalStaticPreview.chapterUi.nameBarClass}`}
                                             >
                                                 <p className="line-clamp-2 text-center text-[11px] font-black leading-tight text-amber-50 sm:text-xs">
-                                                    {rosterModalRow.name}
+                                                    {rosterModalRow!.name}
                                                 </p>
                                                 {rosterModalStaticPreview.isBoss ? (
                                                     <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[7px] font-black uppercase tracking-wider text-amber-100 sm:text-[8px]">
@@ -1048,7 +1512,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             </div>
                                             <div className="flex aspect-square w-full shrink-0 items-center justify-center bg-white p-2">
                                                 <AdventureMonsterSpriteFrame
-                                                    sheetUrl={rosterModalRow.imageWebp}
+                                                    sheetUrl={rosterModalRow!.imageWebp}
                                                     frameIndex={0}
                                                     cols={1}
                                                     rows={1}
@@ -1058,7 +1522,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             </div>
                                         </div>
                                         <div className="min-w-0 flex-1 space-y-2.5">
-                                            <p className="text-[13px] leading-relaxed text-zinc-300 sm:text-sm">{rosterModalRow.codexDescription}</p>
+                                            <p className="text-[13px] leading-relaxed text-zinc-300 sm:text-sm">{rosterModalRow!.codexDescription}</p>
                                             <p className="text-xs text-zinc-500">
                                                 출현 레벨{' '}
                                                 <span className="font-mono font-semibold text-amber-100">
@@ -1111,13 +1575,17 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 onPickRow={(id) => setRosterModalCodexId(id)}
                                 mapDwellMultiplier={mapDwellMult}
                                 mapRespawnOffMultiplier={mapRespawnOffMult}
+                                treasureHandledForCurrentWindow={treasureHandledForWindow}
+                                treasureHandledKind={treasureHandledKind}
                             />
                         </div>
                     </aside>
                 ) : null}
             </div>
 
-            {selectedMonster && selectionDetails && isNativeMobile && typeof document !== 'undefined'
+            {((selectedMonster && selectionDetails) || (selectedTreasure && treasureRewardSections)) &&
+            isNativeMobile &&
+            typeof document !== 'undefined'
                 ? createPortal(
                       <div
                           className="fixed inset-0 z-[90] flex flex-col justify-end bg-black/60 backdrop-blur-[2px]"
@@ -1127,32 +1595,44 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                           <div
                               role="dialog"
                               aria-modal="true"
-                              aria-label="몬스터 정보"
-                              className="pointer-events-auto flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] w-full min-h-0 flex-col overflow-hidden rounded-t-2xl border-x border-t border-amber-400/55 bg-zinc-950 shadow-[0_-20px_56px_rgba(0,0,0,0.82)]"
+                              aria-label={selectedTreasure ? `보물상자-${stage.title} 정보` : '몬스터 정보'}
+                              className="pointer-events-auto flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] w-full min-h-0 flex-col overflow-hidden rounded-t-[1.35rem] border-x border-t border-amber-400/50 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black shadow-[0_-24px_64px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]"
                               onClick={(e) => e.stopPropagation()}
                           >
                               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                  <div className="flex shrink-0 items-start gap-2 border-b border-white/10 px-3 py-2.5">
+                                  <div
+                                      className="flex shrink-0 justify-center pt-2"
+                                      aria-hidden
+                                  >
+                                      <span className="h-1 w-10 rounded-full bg-zinc-600/90" />
+                                  </div>
+                                  <div className="flex shrink-0 items-start gap-3 border-b border-amber-500/15 px-4 pb-3 pt-1">
                                       <div className="min-w-0 flex-1">
-                                          <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                                              <span className="min-w-0 truncate text-base font-black leading-tight text-amber-50">
-                                                  {selectionDetails.codexRow?.name ?? selectedMonster.speciesName}
-                                              </span>
-                                              <span className="shrink-0 font-mono text-sm font-bold tabular-nums text-amber-200/95">
-                                                  LV{selectedMonster.level}
-                                              </span>
-                                          </p>
+                                          {selectedTreasure ? (
+                                              <h2 className="min-w-0 flex-1 truncate text-lg font-black leading-tight tracking-tight text-white">
+                                                  보물상자-{stage.title}
+                                              </h2>
+                                          ) : (
+                                              <p className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                                  <span className="min-w-0 truncate text-base font-black leading-tight text-amber-50">
+                                                      {selectionDetails!.codexRow?.name ?? selectedMonster!.speciesName}
+                                                  </span>
+                                                  <span className="shrink-0 font-mono text-sm font-bold tabular-nums text-amber-200/95">
+                                                      LV{selectedMonster!.level}
+                                                  </span>
+                                              </p>
+                                          )}
                                       </div>
                                       <button
                                           type="button"
-                                          className="shrink-0 rounded-lg border border-white/20 bg-white/5 px-3 py-1.5 text-xs font-bold text-zinc-100 transition hover:bg-white/10 active:scale-[0.98]"
-                                          aria-label="닫기"
+                                          className="shrink-0 rounded-xl border border-white/12 bg-white/[0.06] px-3 py-2 text-xs font-bold text-zinc-200 transition active:scale-[0.98] active:bg-white/10"
                                           onClick={() => setSelectedId(null)}
                                       >
                                           닫기
                                       </button>
                                   </div>
-                                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 [-webkit-overflow-scrolling:touch]">
+                                  <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 [-webkit-overflow-scrolling:touch] sm:px-6 sm:py-6">
+                                      {selectedMonster && selectionDetails ? (
                                       <div className="flex items-start gap-3">
                                           <div
                                               className={[
@@ -1241,27 +1721,44 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                               </ul>
                                           </div>
                                       </div>
-                                  </div>
-                                  <div className="flex shrink-0 justify-center border-t border-amber-400/45 bg-zinc-950 px-3 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom,0px))]">
-                                      <Button
-                                          type="button"
-                                          bare
-                                          onClick={() => void handleStartMonsterBattle()}
-                                          title={`행동력 ${selectionDetails.apCost}`}
-                                          className="group relative w-auto min-w-[10.5rem] max-w-full overflow-hidden rounded-xl border border-amber-400/55 bg-gradient-to-b from-amber-500/[0.22] via-amber-600/[0.14] to-zinc-900/80 px-5 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)]"
-                                      >
-                                          <span
-                                              aria-hidden
-                                              className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                                      ) : selectedTreasure && treasureRewardSections ? (
+                                          <AdventureTreasureChestInfoPanel
+                                              stageTitle={stage.title}
+                                              equipmentBoxImage={selectedTreasure.equipmentBoxImage}
+                                              remainingLabel={formatRemainMs(Math.max(0, selectedTreasure.windowEndMs - now))}
+                                              mapKeysHeld={mapKeysHeld}
+                                              sections={treasureRewardSections}
+                                              onOpen={handleOpenTreasureChest}
+                                              openDisabled={
+                                                  treasureOpenBlockedByKeys ||
+                                                  treasureHandledForWindow ||
+                                                  now >= selectedTreasure.windowEndMs
+                                              }
                                           />
-                                          <span className="relative z-[1] flex items-center justify-center gap-2.5">
-                                              <span className="text-sm font-black tracking-wide text-amber-50">공격하기</span>
-                                              <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2 py-0.5 text-sm font-black tabular-nums text-amber-100 shadow-inner">
-                                                  <span aria-hidden>⚡</span>
-                                                  <span>{selectionDetails.apCost}</span>
+                                      ) : null}
+                                  </div>
+                                  <div className="flex shrink-0 justify-center border-t border-amber-500/20 bg-gradient-to-t from-black/80 to-zinc-950 px-4 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom,0px))]">
+                                      {selectedMonster && selectionDetails ? (
+                                          <Button
+                                              type="button"
+                                              bare
+                                              onClick={() => void handleStartMonsterBattle()}
+                                              title={`행동력 ${selectionDetails.apCost}`}
+                                              className="group relative w-auto min-w-[10.5rem] max-w-full overflow-hidden rounded-xl border border-amber-400/55 bg-gradient-to-b from-amber-500/[0.22] via-amber-600/[0.14] to-zinc-900/80 px-5 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)]"
+                                          >
+                                              <span
+                                                  aria-hidden
+                                                  className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                                              />
+                                              <span className="relative z-[1] flex items-center justify-center gap-2.5">
+                                                  <span className="text-sm font-black tracking-wide text-amber-50">공격하기</span>
+                                                  <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2 py-0.5 text-sm font-black tabular-nums text-amber-100 shadow-inner">
+                                                      <span aria-hidden>⚡</span>
+                                                      <span>{selectionDetails.apCost}</span>
+                                                  </span>
                                               </span>
-                                          </span>
-                                      </Button>
+                                          </Button>
+                                      ) : null}
                                   </div>
                               </div>
                           </div>
@@ -1269,29 +1766,6 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                       document.body,
                   )
                 : null}
-
-            {monsterHubOpen ? (
-                <AdventureMonsterCodexModal
-                    {...(isNativeMobile
-                        ? {
-                              mapSituation: {
-                                  stageId: stage.id,
-                                  mapMonsters: monsters,
-                                  suppressRecord,
-                                  mapDwellMultiplier: mapDwellMult,
-                                  mapRespawnOffMultiplier: mapRespawnOffMult,
-                                  onPickRow: (id: string) => {
-                                      setRosterModalCodexId(id);
-                                      setMonsterHubOpen(false);
-                                  },
-                              },
-                              initialMainTab: monsterHubInitialTab,
-                          }
-                        : { defaultCodexStageId: stage.id })}
-                    onClose={() => setMonsterHubOpen(false)}
-                    isTopmost
-                />
-            ) : null}
 
             {isNativeMobile && regionalEffectModalOpen ? (
                 <div
@@ -1344,6 +1818,64 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     </div>
                 </div>
             ) : null}
+
+            {treasurePickModal && typeof document !== 'undefined'
+                ? createPortal(
+                      <AdventureTreasureChestPickModal
+                          open
+                          isNativeMobile={isNativeMobile}
+                          onClose={() => setTreasurePickModal(null)}
+                          stageId={stage.id}
+                          stageTitle={stage.title}
+                          stageIndex={stage.stageIndex}
+                          equipmentBoxImage={treasurePickModal.equipmentBoxImage}
+                          rolls={treasurePickModal.rolls}
+                          pickSlots={treasurePickModal.pickSlots}
+                          nonce={treasurePickModal.nonce}
+                          onAbandonPick={async () => {
+                              const abandonResult = await handlers.handleAction({
+                                  type: 'ABANDON_ADVENTURE_MAP_TREASURE_PICK',
+                                  payload: { stageId: stage.id },
+                              });
+                              if (
+                                  abandonResult &&
+                                  typeof abandonResult === 'object' &&
+                                  'error' in abandonResult &&
+                                  (abandonResult as { error?: string }).error
+                              ) {
+                                  return {
+                                      ok: false,
+                                      error: String((abandonResult as { error?: string }).error),
+                                  };
+                              }
+                              return { ok: true };
+                          }}
+                          onConfirm={async (selectedSlots) => {
+                              const confirmResult = await handlers.handleAction({
+                                  type: 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST',
+                                  payload: {
+                                      stageId: stage.id,
+                                      nonce: treasurePickModal.nonce,
+                                      selectedSlots,
+                                  },
+                              });
+                              if (
+                                  confirmResult &&
+                                  typeof confirmResult === 'object' &&
+                                  'error' in confirmResult &&
+                                  (confirmResult as { error?: string }).error
+                              ) {
+                                  return {
+                                      ok: false,
+                                      error: String((confirmResult as { error?: string }).error),
+                                  };
+                              }
+                              return { ok: true };
+                          }}
+                      />,
+                      document.body,
+                  )
+                : null}
         </div>
     );
 };

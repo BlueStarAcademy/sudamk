@@ -14,6 +14,8 @@ import {
 import { consolidateRefinementTicketStacks } from "../../utils/inventoryUtils.js";
 import { normalizeQuestLogProgressCaps } from "../../utils/questProgressCap.js";
 import { normalizeAdventureProfile } from "../../utils/adventureUnderstanding.js";
+import { ADVENTURE_STAGES } from "../../constants/adventureConstants.js";
+import { isRecognizedAdminUser } from "../../shared/utils/adminRecognition.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
 
@@ -440,6 +442,28 @@ const ensureAdminSinglePlayerAccess = (user: User): User => {
   };
 };
 
+/** 모험 맵: 각 지역(스테이지) 보유 열쇠 개수를 정확히 1개로 맞춤 (`adventureMapKeyKillProgress` 등은 변경하지 않음) */
+const ensureAdminAdventureMapKeysExactlyOne = (user: User): User => {
+  if (!isRecognizedAdminUser(user)) {
+    return user;
+  }
+  const prev = normalizeAdventureProfile(user.adventureProfile);
+  const keysHeld = { ...(prev.adventureMapKeysHeldByStageId ?? {}) } as Record<string, number>;
+  for (const stage of ADVENTURE_STAGES) {
+    keysHeld[stage.id] = 1;
+  }
+  return {
+    ...user,
+    adventureProfile: {
+      ...prev,
+      adventureMapKeysHeldByStageId: keysHeld,
+    },
+  };
+};
+
+const applyAdminServerSideGrants = (user: User): User =>
+  ensureAdminAdventureMapKeysExactlyOne(ensureAdminSinglePlayerAccess(user));
+
 export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
   const status = (prismaUser.status ?? {}) as SerializedUserStatus;
   
@@ -558,7 +582,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
       : (cloned.lastTowerClearTime ?? undefined);
     cloned.monthlyTowerFloor = safeNumber((prismaUser as any).monthlyTowerFloor ?? cloned.monthlyTowerFloor ?? 0);
     const applied = applyDefaults(cloned, prismaUser, status);
-    return ensureAdminSinglePlayerAccess(applied);
+    return applyAdminServerSideGrants(applied);
   }
 
   const legacy = (status.legacyRow ?? {}) as Record<string, unknown>;
@@ -756,7 +780,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
   };
 
   const applied = applyDefaults(partial, prismaUser, status);
-  return ensureAdminSinglePlayerAccess(applied);
+  return applyAdminServerSideGrants(applied);
 }
 
 export function serializeUser(user: User): SerializedUserStatus {
