@@ -467,64 +467,14 @@ html, body {
     overflow: hidden;
 }
 
-/*
-  소형 터치 폰 물리 가로: App.tsx 가 sudamr-handheld-portrait-lock 을 붙여 세로와 같은 UI가 꽉 차게 보이게 함.
-*/
-html.sudamr-handheld-portrait-lock,
-html.sudamr-handheld-portrait-lock body {
-    overflow: hidden;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    max-width: 100vw;
-    max-height: 100dvh;
-    margin: 0;
-}
-
-html.sudamr-handheld-portrait-lock #root {
-    position: relative;
-    width: 100vw;
-    height: 100vh;
-    height: 100dvh;
-    min-height: 100dvh;
-    max-width: 100vw;
-    max-height: 100dvh;
-    overflow: hidden;
-}
-
-html.sudamr-handheld-portrait-lock #root > .app-container {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    width: 100vh;
-    height: 100vw;
-    width: 100dvh;
-    height: 100dvw;
-    max-width: none;
-    transform-origin: 0 0;
-    transform: rotate(-90deg);
-    flex: none;
-}
-
-html.sudamr-handheld-portrait-lock.sudamr-handheld-portrait-secondary #root > .app-container {
-    top: 100%;
-    left: auto;
-    right: 0;
-    width: 100vh;
-    height: 100vw;
-    width: 100dvh;
-    height: 100dvw;
-    max-width: none;
-    transform-origin: 100% 0;
-    transform: rotate(90deg);
-}
+/* sudamr-handheld-portrait-lock: 제거됨 — CSS로 화면을 돌리면 회전감·세로폭 축소가 생겨 OS orientation.lock 만 사용 */
 
 /* 실제 가로: 한쪽 방향에서만 180° (JS가 --sudamr-landscape-ui-rotate 설정) */
-html.sudamr-handheld-real-landscape:not(.sudamr-handheld-portrait-lock) #root {
+html.sudamr-handheld-real-landscape #root {
     position: relative;
 }
 
-html.sudamr-handheld-real-landscape:not(.sudamr-handheld-portrait-lock) #root > .app-container {
+html.sudamr-handheld-real-landscape #root > .app-container {
     transform: rotate(var(--sudamr-landscape-ui-rotate, 0deg));
     transform-origin: 50% 50%;
     width: 100%;

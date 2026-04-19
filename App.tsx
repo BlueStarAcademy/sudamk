@@ -7,7 +7,7 @@ import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
-import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT, computeTouchLayoutProfile } from './hooks/useIsMobileLayout.js';
+import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js';
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
@@ -169,75 +169,15 @@ const AppContent: React.FC = () => {
         }
     }, [currentUser]);
 
-    /**
-     * 소형 터치 폰: 물리 가로여도 화면은 세로와 동일하게 보이도록 전체 셸을 회전(메시지 없음).
-     * 8인치+ 태블릿 가로는 PC 셸 유지. OS orientation.lock은 보조(index.tsx·index.html).
-     */
+    /** 예전 배포의 CSS 회전 클래스가 남아 있으면 제거(회전·세로폭 축소 없이 OS 세로 고정만 사용) */
     useEffect(() => {
-        const clearClasses = () => {
-            const el = document.documentElement;
-            el.classList.remove(
-                'sudamr-handheld-portrait-lock',
-                'sudamr-handheld-portrait-secondary',
-                'sudamr-handheld-real-landscape',
-            );
-            el.style.removeProperty('--sudamr-landscape-ui-rotate');
-        };
-
-        const sync = () => {
-            const el = document.documentElement;
-            const { isPhoneHandheldTouch, isLargeTouchTablet } = computeTouchLayoutProfile();
-            if (!isPhoneHandheldTouch || isLargeTouchTablet) {
-                clearClasses();
-                return;
-            }
-            const vv = window.visualViewport;
-            const w = vv?.width ?? window.innerWidth;
-            const h = vv?.height ?? window.innerHeight;
-            if (w <= h) {
-                clearClasses();
-                return;
-            }
-            el.classList.add('sudamr-handheld-portrait-lock');
-            el.classList.remove('sudamr-handheld-portrait-secondary');
-            const so = screen.orientation as ScreenOrientation | undefined;
-            const type = so?.type ?? '';
-            const angle = typeof so?.angle === 'number' ? so.angle : NaN;
-            if (type.includes('landscape-secondary') || angle === 270 || angle === -90) {
-                el.classList.add('sudamr-handheld-portrait-secondary');
-            }
-        };
-
-        const syncSoon = () => {
-            sync();
-            requestAnimationFrame(sync);
-            [16, 50, 120, 280].forEach((ms) => window.setTimeout(sync, ms));
-        };
-
-        const mqCoarse = window.matchMedia?.('(pointer: coarse)');
-        const mqHover = window.matchMedia?.('(hover: none)');
-        mqCoarse?.addEventListener('change', syncSoon);
-        mqHover?.addEventListener('change', syncSoon);
-
-        sync();
-        window.addEventListener('resize', sync);
-        window.addEventListener('orientationchange', syncSoon);
-        const mq = window.matchMedia?.('(orientation: portrait)');
-        mq?.addEventListener('change', syncSoon);
-        const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: EventTarget }).orientation : undefined;
-        so?.addEventListener?.('change', syncSoon as EventListener);
-        const vv = window.visualViewport;
-        vv?.addEventListener('resize', sync);
-        return () => {
-            mqCoarse?.removeEventListener('change', syncSoon);
-            mqHover?.removeEventListener('change', syncSoon);
-            window.removeEventListener('resize', sync);
-            window.removeEventListener('orientationchange', syncSoon);
-            mq?.removeEventListener('change', syncSoon);
-            so?.removeEventListener?.('change', syncSoon as EventListener);
-            vv?.removeEventListener('resize', sync);
-            clearClasses();
-        };
+        const el = document.documentElement;
+        el.classList.remove(
+            'sudamr-handheld-portrait-lock',
+            'sudamr-handheld-portrait-secondary',
+            'sudamr-handheld-real-landscape',
+        );
+        el.style.removeProperty('--sudamr-landscape-ui-rotate');
     }, []);
 
     const isGameView = currentRoute.view === 'game';
