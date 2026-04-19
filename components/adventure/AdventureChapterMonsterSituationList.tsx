@@ -1,11 +1,19 @@
 import React, { useMemo } from 'react';
-import { getAdventureStageById } from '../../constants/adventureConstants.js';
+import {
+    ADVENTURE_MONSTER_MODE_BADGE_SHORT,
+    ADVENTURE_MONSTER_MODE_LABELS,
+    getAdventureStageById,
+    getAdventureStageLevelRange,
+    type AdventureMonsterBattleMode,
+} from '../../constants/adventureConstants.js';
 import { isAdventureChapterBossCodexId } from '../../constants/adventureMonstersCodex.js';
 import {
     adventureMapMsUntilNextAppearance,
     adventureMapSuppressKey,
+    fnv1a32,
     type AdventureMapMonsterInstance,
 } from '../../shared/utils/adventureMapSchedule.js';
+import { getAdventureAllowedBattleModes, resolveAdventureBoardSize } from '../../shared/utils/adventureBattleBoard.js';
 
 function formatRemainMs(ms: number): string {
     if (ms <= 0) return '0초';
@@ -59,6 +67,9 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
         return <p className="px-2 text-center text-sm text-zinc-500">스테이지 정보가 없습니다.</p>;
     }
 
+    const { min: chapterLvMin, max: chapterLvMax } = getAdventureStageLevelRange(stage.stageIndex);
+    const chapterMidLevel = Math.floor((chapterLvMin + chapterLvMax) / 2);
+
     return (
         <ul className={listClassName ?? 'mt-2 space-y-1.5 sm:space-y-2'}>
             {rows.map((row) => {
@@ -75,6 +86,18 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                     mapRespawnOffMultiplier,
                 );
                 const rightSlot = mapMonster ? '출현중' : formatRemainMs(untilAppear);
+
+                const boardSize = resolveAdventureBoardSize(stage.id, row.codexId, `chapter-situation-${row.codexId}`, {
+                    monsterLevel: chapterMidLevel,
+                    chapterLevelMin: chapterLvMin,
+                    chapterLevelMax: chapterLvMax,
+                });
+                const allowedModes = getAdventureAllowedBattleModes(boardSize) as AdventureMonsterBattleMode[];
+                const fallbackMode =
+                    allowedModes[fnv1a32(`${stage.id}|${row.codexId}|situationBadge`) % Math.max(1, allowedModes.length)] ??
+                    'classic';
+                const displayMode: AdventureMonsterBattleMode = mapMonster?.mode ?? fallbackMode;
+
                 return (
                     <li key={row.codexId}>
                         <button
@@ -93,6 +116,12 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                                         </span>
                                     ) : null}
                                     <span className="min-w-0 truncate">{row.name}</span>
+                                    <span
+                                        className="shrink-0 rounded bg-violet-950/90 px-0.5 py-px font-mono text-[10px] font-bold leading-none text-fuchsia-100 shadow-sm sm:text-[11px]"
+                                        title={ADVENTURE_MONSTER_MODE_LABELS[displayMode]}
+                                    >
+                                        {ADVENTURE_MONSTER_MODE_BADGE_SHORT[displayMode]}
+                                    </span>
                                     {boss ? (
                                         <span className="shrink-0 rounded border border-amber-400/45 bg-amber-500/15 px-1 py-px text-[8px] font-black uppercase tracking-wider text-amber-100 sm:text-[9px]">
                                             보스

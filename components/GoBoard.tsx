@@ -658,6 +658,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             /** 미공개 히든 포획(+5) 등: 공개 연출 직후 점수 플로트를 분리 */
             const hiddenRevealScoreFloatLagMs = list.some((e) => e.wasHidden || (e.capturePoints ?? 0) >= 5) ? 450 : 0;
 
+            const syncJustCapturedSliceStart = () => {
+                const prevCount = processedJustCapturedCountRef.current;
+                if (list.length < prevCount) {
+                    processedJustCapturedCountRef.current = 0;
+                }
+                return processedJustCapturedCountRef.current;
+            };
+            const newJustCapturedEntries = () => {
+                const start = syncJustCapturedSliceStart();
+                return list.slice(start);
+            };
+            const sumCapturePoints = (entries: typeof list) =>
+                entries.reduce((sum, e) => sum + (e.capturePoints ?? (e.wasHidden ? 5 : 1)), 0);
+
             const pushFloat = (totalPts: number, anchor: Point, extraDelayMs = 0) => {
                 if (totalPts < minPts) return;
                 const lag = extraDelayMs + hiddenRevealScoreFloatLagMs;
@@ -710,8 +724,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     delta = dWhite;
                 }
 
+                const sliceEntries = newJustCapturedEntries();
+                const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
+                const floatPts = slicePts > 0 ? slicePts : delta;
+
                 // 수순 키가 같아도(미사일 착지로 따냄) 포획 점수가 늘었으면 플로트 허용
-                if (moveKey === lastFloatedMoveKeyRef.current && delta < minPts) {
+                if (moveKey === lastFloatedMoveKeyRef.current && floatPts < minPts) {
                     return;
                 }
 
@@ -723,7 +741,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 const isPass = last.x < 0 || last.y < 0;
 
-                if (delta >= minPts) {
+                if (floatPts >= minPts) {
                     const missileAnchor = missileMovedStoneAnchorFor(floatPlayer);
                     const anchor =
                         missileAnchor ??
@@ -734,7 +752,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     }
                     commitMoveFloatState();
                     if (missileAnchor) missileCaptureScoreAnchorRef.current = null;
-                    pushFloat(delta, anchor, 0);
+                    pushFloat(floatPts, anchor, 0);
                     return;
                 }
 
@@ -749,17 +767,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 return;
             }
 
-            const prevCount = processedJustCapturedCountRef.current;
-
-            if (list.length < prevCount) {
-                processedJustCapturedCountRef.current = 0;
-            }
-            const start = processedJustCapturedCountRef.current;
-            const newEntries = list.slice(start);
+            const newEntries = newJustCapturedEntries();
             processedJustCapturedCountRef.current = list.length;
             if (newEntries.length === 0) return;
 
-            const totalPts = newEntries.reduce((sum, e) => sum + (e.capturePoints ?? (e.wasHidden ? 5 : 1)), 0);
+            const totalPts = sumCapturePoints(newEntries);
             if (totalPts < minPts) return;
 
             const capturer =

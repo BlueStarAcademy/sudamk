@@ -49,7 +49,9 @@ const CapturedStones: React.FC<{
     curlingMeta?: CurlingScoreBoxMeta;
     /** false: 상단 패널 세로 스택 등 — 부모 높이를 채우지 않아 겹침 방지 */
     fillStretchHeight?: boolean;
-}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta, fillStretchHeight = true }) => {
+    /** 모험 지역 이해도 시작 가산 등 — 따낸 돌 수 아래 한 줄 */
+    scoreSubline?: string;
+}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta, fillStretchHeight = true, scoreSubline }) => {
     const displayCount = typeof target === 'number' && target > 0 ? `${count}/${target}` : `${count}`;
     const isDiceGo = mode === GameMode.Dice;
     const isCurling = mode === GameMode.Curling && curlingMeta != null;
@@ -97,6 +99,13 @@ const CapturedStones: React.FC<{
             ) : (
                 <span className={`font-mono font-bold ${countSize} tabular-nums leading-none ${marginClass} ${countColor}`}>{displayCount}</span>
             )}
+            {scoreSubline ? (
+                <span
+                    className={`mt-0.5 max-w-[6.5rem] text-center font-semibold leading-tight ${panelType === 'white' ? 'text-slate-700' : 'text-amber-200/90'} ${isMobile ? 'text-[0.58rem]' : 'text-[0.62rem] sm:text-[0.68rem]'}`}
+                >
+                    {scoreSubline}
+                </span>
+            ) : null}
             {isCurling && curlingMeta && (
                 <div className={`mt-1.5 w-full border-t pt-1.5 ${metaMuted}`}>
                     <div className={`flex flex-col gap-0.5 ${labelSize} font-semibold tabular-nums leading-tight`}>
@@ -194,6 +203,8 @@ interface SinglePlayerPanelProps {
     spIngameOnboardingUserTarget?: boolean;
     /** 모험 AI 상대: 도감 초상·이름·레벨 표시 */
     opponentMonsterDisplay?: { portraitUrl: string; displayName: string; level: number };
+    /** 모험 지역 이해도 시작 가산 등 — 따낸 돌 박스 보조 한 줄 */
+    captureScoreSubline?: string;
 }
 
 const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
@@ -223,6 +234,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         adventureMatchCountdownSec = null,
         adventureMatchTotalSec = null,
         spIngameOnboardingUserTarget = false,
+        captureScoreSubline,
     } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
@@ -392,6 +404,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                       }
                     : undefined
             }
+            scoreSubline={captureScoreSubline}
         />
     );
 
@@ -886,6 +899,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
 
+    const adventureRegionalFlatBonus =
+        session.gameCategory === 'adventure' &&
+        typeof (session as { adventureRegionalHumanFlatScoreBonus?: number }).adventureRegionalHumanFlatScoreBonus ===
+            'number'
+            ? Math.max(0, Math.floor(Number((session as { adventureRegionalHumanFlatScoreBonus?: number }).adventureRegionalHumanFlatScoreBonus)))
+            : 0;
+    const humanCaptureHeadStartSubline =
+        !isScoreMode && adventureRegionalFlatBonus > 0 ? `지역 이해도 +${adventureRegionalFlatBonus}점` : undefined;
+
     const isPlayfulDiceStonesBoxPhase =
         (mode === GameMode.Dice && ['dice_rolling', 'dice_rolling_animating', 'dice_placing'].includes(session.gameStatus)) ||
         (mode === GameMode.Thief && ['thief_rolling', 'thief_rolling_animating', 'thief_placing'].includes(session.gameStatus));
@@ -975,6 +997,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     isCurrentUser={leftPlayerUser.id === currentUser?.id}
                     opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
                     spIngameOnboardingUserTarget={userPanelOnboardingTarget}
+                    captureScoreSubline={!isLeftAi ? humanCaptureHeadStartSubline : undefined}
                     {...leftAdventureCdProps}
                 />
             </div>
@@ -1069,6 +1092,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 spIngameOnboardingUserTarget={
                     singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
                 }
+                captureScoreSubline={!isRightAi ? humanCaptureHeadStartSubline : undefined}
                 {...rightAdventureCdProps}
             />
             </div>

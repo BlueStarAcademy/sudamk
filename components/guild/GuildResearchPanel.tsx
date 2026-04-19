@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Guild, GuildMember, GuildMemberRole, GuildResearchId, GuildResearchCategory } from '../../types/index.js';
+import { Guild, GuildMember, GuildResearchId, GuildResearchCategory } from '../../types/index.js';
+import { GuildMemberRole } from '../../types/enums.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
 import { GUILD_RESEARCH_PROJECTS, ADMIN_USER_ID } from '../../constants/index.js';
@@ -84,14 +85,21 @@ const ResearchItemPanel: React.FC<{
     const timeMs = getResearchTimeMs(researchId, currentLevel);
 
     const canAfford = (guild.researchPoints ?? 0) >= cost;
-    const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
+    const cu = currentUserWithStatus;
+    const effectiveUserId = cu?.isAdmin ? ADMIN_USER_ID : (cu?.id ?? '');
+    const actualUserId = cu?.id ?? '';
+    // 서버 GUILD_START_RESEARCH와 동일: 관리자는 members에 canonical id 또는 실제 id로 들어갈 수 있음
+    const memberByEffective = effectiveUserId ? guild.members?.find((m) => m.userId === effectiveUserId) : undefined;
+    const memberByActualId =
+        cu?.isAdmin && actualUserId ? guild.members?.find((m) => m.userId === actualUserId) : undefined;
+    const resolvedMyMember = memberByEffective ?? memberByActualId ?? myMemberInfo;
     const isLeaderById =
         (!!effectiveUserId && guild.leaderId === effectiveUserId) ||
-        (!!currentUserWithStatus?.isAdmin &&
-            !!currentUserWithStatus?.id &&
-            guild.leaderId === currentUserWithStatus.id);
+        (!!actualUserId && guild.leaderId === actualUserId);
     const canManage =
-        isLeaderById || myMemberInfo?.role === 'leader' || myMemberInfo?.role === 'officer';
+        isLeaderById ||
+        resolvedMyMember?.role === GuildMemberRole.Master ||
+        resolvedMyMember?.role === GuildMemberRole.Vice;
     const meetsGuildLevel = guild.level >= (project.requiredGuildLevel?.[currentLevel] ?? nextLevel);
     
     const canStartResearch = canManage && !isAnyResearchActive && !isMaxLevel && canAfford && meetsGuildLevel;
@@ -303,9 +311,6 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                 <div className="relative z-10 flex flex-col h-full">
                 <div className={`flex justify-between items-center flex-shrink-0 gap-2 ${isNativeMobile ? 'mb-2' : 'mb-4'}`}>
                     <div className={`flex items-center min-w-0 ${isNativeMobile ? 'gap-2' : 'gap-3'}`}>
-                        <div className={`bg-gradient-to-br from-emerald-600/80 to-teal-600/80 rounded-xl flex items-center justify-center border-2 border-emerald-400/50 shadow-lg shadow-emerald-500/20 flex-shrink-0 ${isNativeMobile ? 'w-9 h-9' : 'w-12 h-12'}`}>
-                            <span className={isNativeMobile ? 'text-lg' : 'text-2xl'}>🔬</span>
-                        </div>
                         <h3 className={`font-bold bg-gradient-to-r from-emerald-300 to-teal-300 bg-clip-text text-transparent truncate ${isNativeMobile ? 'text-base' : 'text-2xl'}`}>길드 연구소</h3>
                     </div>
                     <div className={`bg-gradient-to-br from-amber-900/90 via-yellow-800/80 to-amber-900/90 rounded-xl text-center border-2 border-amber-500/60 shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0 ${isNativeMobile ? 'px-2.5 py-2' : 'p-4'}`}>

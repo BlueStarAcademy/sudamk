@@ -248,19 +248,23 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
       <div
         className={
           isMobileSheet
-            ? 'flex flex-row flex-wrap items-start gap-3 sm:gap-4'
+            ? 'flex flex-row flex-wrap items-center gap-3 sm:gap-4'
             : 'flex flex-row flex-wrap items-center gap-4 sm:gap-5'
         }
       >
         <div
           className={
             isMobileSheet
-              ? 'relative h-[4.5rem] w-[4.5rem] flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20 sm:h-[8.75rem] sm:w-[8.75rem] md:h-[9.25rem] md:w-[9.25rem]'
-              : 'relative h-[8.75rem] w-[8.75rem] flex-shrink-0 overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20 sm:h-[9.25rem] sm:w-[9.25rem]'
+              ? 'relative flex h-[4.5rem] w-[4.5rem] flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20 sm:h-[8.75rem] sm:w-[8.75rem] sm:p-1.5 md:h-[9.25rem] md:w-[9.25rem]'
+              : 'relative flex h-[8.75rem] w-[8.75rem] flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-amber-400/35 bg-gradient-to-br from-black/70 via-zinc-950 to-zinc-900 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_36px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-500/20 sm:h-[9.25rem] sm:w-[9.25rem] sm:p-2'
           }
         >
           {meta?.image ? (
-            <img src={meta.image} alt="" className="h-full w-full object-contain p-1.5 drop-shadow-md sm:p-2" />
+            <img
+              src={meta.image}
+              alt=""
+              className="max-h-full max-w-full object-contain object-center drop-shadow-md"
+            />
           ) : (
             <div className="flex h-full items-center justify-center text-sm font-bold text-amber-200/50 sm:text-xl">{session.mode}</div>
           )}

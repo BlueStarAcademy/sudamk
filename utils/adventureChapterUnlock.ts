@@ -24,14 +24,32 @@ const CHAPTER_RULES: readonly {
     prerequisiteStageId: AdventureStageId | null;
 }[] = [
     { stageIndex: 1, minStrategyLevel: 2, prerequisiteStageId: null },
-    { stageIndex: 2, minStrategyLevel: 10, prerequisiteStageId: 'neighborhood_hill' },
-    { stageIndex: 3, minStrategyLevel: 15, prerequisiteStageId: 'lake_park' },
-    { stageIndex: 4, minStrategyLevel: 20, prerequisiteStageId: 'aquarium' },
-    { stageIndex: 5, minStrategyLevel: 25, prerequisiteStageId: 'zoo' },
+    { stageIndex: 2, minStrategyLevel: 5, prerequisiteStageId: 'neighborhood_hill' },
+    { stageIndex: 3, minStrategyLevel: 7, prerequisiteStageId: 'lake_park' },
+    { stageIndex: 4, minStrategyLevel: 10, prerequisiteStageId: 'aquarium' },
+    { stageIndex: 5, minStrategyLevel: 12, prerequisiteStageId: 'zoo' },
 ];
 
 function ruleForStageIndex(stageIndex: number) {
     return CHAPTER_RULES.find((r) => r.stageIndex === stageIndex);
+}
+
+/**
+ * 전략 레벨이 `fromLevel` 초과 `toLevel` 이하로 오를 때 새로 만족하는 모험 챕터(전략 LV 조건) 안내.
+ * 레벨업 모달 등에서 사용.
+ */
+export function getAdventureChapterStrategyUnlockHintsBetweenLevels(fromLevel: number, toLevel: number): string[] {
+    const from = Math.max(0, Math.floor(fromLevel));
+    const to = Math.max(0, Math.floor(toLevel));
+    if (to <= from) return [];
+    const out: string[] = [];
+    for (const rule of CHAPTER_RULES) {
+        const need = rule.minStrategyLevel;
+        if (need <= from || need > to) continue;
+        const stage = ADVENTURE_STAGES.find((s) => s.stageIndex === rule.stageIndex);
+        out.push(`모험 「${stage?.title ?? '챕터'}」 전략 레벨 조건 달성`);
+    }
+    return out;
 }
 
 export function isAdventureChapterUnlockedByStageIndex(

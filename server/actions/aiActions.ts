@@ -4,6 +4,7 @@ import * as db from '../db.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
+import { applyAdventureRegionalFlatBonusToHumanCaptures } from '../utils/adventureHeadStartCaptures.js';
 
 export async function handleAiAction(
   volatileState: VolatileState,
@@ -60,6 +61,7 @@ export async function handleAiAction(
     if (isStrategic) {
       const { initializeStrategicGame } = await import('../modes/standard.js');
       initializeStrategicGame(game as any, neg, now);
+      applyAdventureRegionalFlatBonusToHumanCaptures(game as any);
     } else if (isPlayful) {
       const { initializePlayfulGame } = await import('../modes/playful.js');
       await initializePlayfulGame(game as any, neg, now);

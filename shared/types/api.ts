@@ -391,6 +391,7 @@ export type ServerAction =
     | { type: 'GUILD_CLAIM_MISSION_REWARD', payload: { missionId: string } }
     | { type: 'CLAIM_GUILD_WAR_REWARD', payload?: never }
     | { type: 'GET_GUILD_WAR_DATA', payload?: never }
+    | { type: 'GET_MY_GUILD_WAR_ATTEMPT_LOG', payload?: never }
     | { type: 'START_GUILD_WAR_GAME', payload: { boardId: string; isDemo?: boolean; gameMode?: 'capture' | 'hidden' | 'missile' } }
     | { type: 'DONATE_TO_GUILD', payload: { amount?: number; itemId?: string } }
     | { type: 'GUILD_DONATE_GOLD', payload?: { count?: number } }

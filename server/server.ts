@@ -371,6 +371,30 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             dbInitialized = true;
             if (dbInitializedRef) dbInitializedRef.value = true;
             console.log('[Server Startup] Database initialized successfully');
+            // 길드전 1회 부트스트랩: GUILD_WAR_BOOTSTRAP_MATCH=1 이면 KV에 플래그를 올린 뒤 즉시 매칭 1회(다음 메인루프까지 기다리지 않음). 운영에서 1회만 켠 다음 env 제거 권장.
+            if (process.env.GUILD_WAR_BOOTSTRAP_MATCH === '1') {
+                try {
+                    await db.setKV('guildWarBootstrapMatchOnce', true);
+                    console.log('[Server Startup] GUILD_WAR_BOOTSTRAP_MATCH=1 → guildWarBootstrapMatchOnce=true (will be consumed by processGuildWarMatching)');
+                    const { processGuildWarMatching } = await import('./scheduledTasks.js');
+                    await processGuildWarMatching();
+                } catch (gwBootErr: any) {
+                    console.warn('[Server Startup] Guild war bootstrap (non-fatal):', gwBootErr?.message);
+                }
+            }
+            // 길드 표시 이름이 정확히 일치하는 길드(기본: 푸른별)를 봇과 즉시 전쟁 — 클라이언트 신청 버튼 없이 입장만 하면 됨. 1회 적용 후 env 제거 권장.
+            if (process.env.GUILD_WAR_AUTO_MATCH_BLUE_STAR === '1') {
+                try {
+                    const guildName = (process.env.GUILD_WAR_AUTO_MATCH_GUILD_NAME || '푸른별').trim();
+                    const { ensureNamedGuildVsBotGuildWar } = await import('./scheduledTasks.js');
+                    await ensureNamedGuildVsBotGuildWar(guildName);
+                    console.log(
+                        `[Server Startup] GUILD_WAR_AUTO_MATCH_BLUE_STAR=1 → ensureNamedGuildVsBotGuildWar("${guildName}")`,
+                    );
+                } catch (blueStarErr: any) {
+                    console.warn('[Server Startup] ensureNamedGuildVsBotGuildWar (non-fatal):', blueStarErr?.message);
+                }
+            }
             // Prisma 엔진이 모든 쿼리 경로에서 준비되도록 gameService 쪽 probe 실행 후 잠시 대기
             try {
                 const { ensurePrismaEngineReady } = await import('./prisma/gameService.js');
@@ -1783,7 +1807,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         console.error('[MainLoop] Error in tryRunDailyDatabaseBackup:', error?.message);
                     }
                     
-                    // 길드전 자동 매칭: processGuildWarMatching 내부에서 월·목 23시·화·금 0시 캐치업(KST)일 때만 처리
+                    // 길드전 자동 매칭: 정규 창(월·목 23시, 화·금 캐치업) + 큐 잔여 시 즉시 봇 매칭(processGuildWarMatching 내부)
                     try {
                         const { processGuildWarMatching } = await import('./scheduledTasks.js');
                         await processGuildWarMatching();

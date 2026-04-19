@@ -1,11 +1,31 @@
-import React, { createContext, ReactNode, Component, ErrorInfo, ReactNode as ReactNodeType } from 'react';
-import { useApp } from '../hooks/useApp';
+import React, {
+    createContext,
+    useContext,
+    ReactNode,
+    Component,
+    ErrorInfo,
+    ReactNode as ReactNodeType,
+} from 'react';
+import { useApp } from '../hooks/useApp.js';
 
 // Infer the type of the context from the hook's return value
 type AppContextType = ReturnType<typeof useApp>;
 
 // Create the context with a default undefined value
 export const AppContext = createContext<AppContextType | undefined>(undefined);
+
+export const useAppContext = (): AppContextType => {
+    const context = useContext(AppContext);
+    if (context === undefined) {
+        console.error('[useAppContext] Context is undefined. This usually means:');
+        console.error('1. AppProvider is not wrapping the component');
+        console.error('2. useApp() hook threw an error during initialization');
+        console.error('3. There is a circular dependency or import issue');
+        console.error('Stack trace:', new Error().stack);
+        throw new Error('useAppContext must be used within an AppProvider. Check console for details.');
+    }
+    return context;
+};
 
 // Error Boundary Component
 class AppErrorBoundary extends Component<{ children: ReactNodeType }, { hasError: boolean; error: Error | null }> {

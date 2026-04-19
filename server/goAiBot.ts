@@ -25,6 +25,7 @@ import {
     cloneBoardStateForKataOpeningSnapshot,
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from './kataCaptureSetupEncoding.js';
+import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/guildWarMaxSingleCapturePoints.js';
 
 /** AI 히든 연출 직전에 확정한 Kata 좌표(프로세스 메모리; DB의 animation.pendingHiddenMove로 재주입) */
 const pendingAiHiddenKataMoveByGameId = new Map<string, Point>();
@@ -335,6 +336,7 @@ const applyAiCaptureOutcome = (
 
     let clearAiInitialHiddenStone = false;
     const aiInitialHiddenStone = (game as any).aiInitialHiddenStone as Point | undefined;
+    let guildWarCapturePointsThisMove = 0;
 
     for (const stone of result.capturedStones) {
         let moveIndex = -1;
@@ -369,9 +371,11 @@ const applyAiCaptureOutcome = (
         }
 
         game.captures[aiPlayerEnum] += points;
+        guildWarCapturePointsThisMove += points;
         game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden, capturePoints: points });
     }
 
+    bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, aiPlayerEnum, guildWarCapturePointsThisMove);
     stripPatternStonesAtConsumedIntersections(game);
 
     if (clearAiInitialHiddenStone) {

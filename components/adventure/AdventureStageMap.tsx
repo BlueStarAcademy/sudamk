@@ -5,12 +5,12 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import {
     ADVENTURE_CODEX_CHAPTER_UI,
     ADVENTURE_MAP_THEMES,
+    ADVENTURE_MONSTER_MODE_BADGE_SHORT,
     ADVENTURE_MONSTER_MODE_LABELS,
     adventureBattleModeToGameMode,
     getAdventureUnderstandingTierFromXp,
     getAdventureStageById,
     getAdventureStageLevelRange,
-    type AdventureMonsterBattleMode,
     type AdventureStageId,
 } from '../../constants/adventureConstants.js';
 import { getAdventureMonsterAttackActionPointCost, isAdventureChapterBossCodexId } from '../../constants/adventureMonstersCodex.js';
@@ -76,14 +76,6 @@ function buildAdventureMapMonsterDetails(stage: AdventureStageDef, m: MapMonster
 }
 
 type MapMonster = AdventureMapMonsterInstance;
-
-const MODE_BADGE_SHORT: Record<AdventureMonsterBattleMode, string> = {
-    classic: '클',
-    capture: '따',
-    base: '베',
-    hidden: '히',
-    missile: '미',
-};
 
 function formatRemainMs(ms: number): string {
     if (ms <= 0) return '0초';
@@ -665,17 +657,17 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         cols={m.spriteCols}
                                                         rows={m.spriteRows}
                                                         softBackdrop
-                                                        className="absolute inset-0 h-full w-full bg-transparent"
+                                                        className="absolute inset-0 z-0 h-full w-full bg-transparent"
                                                     />
                                                     <span
-                                                        className={`pointer-events-none absolute right-0 top-0 rounded bg-violet-950/90 py-px font-mono font-bold leading-none text-fuchsia-100 shadow-sm ${
+                                                        className={`pointer-events-none absolute right-0 top-0 z-10 rounded bg-violet-950/90 py-px font-mono font-bold leading-none text-fuchsia-100 shadow-sm ${
                                                             isNativeMobile
                                                                 ? 'px-0.5 text-[9px] sm:px-1.5 sm:py-0.5 sm:text-sm'
                                                                 : 'px-1 text-xs sm:px-1.5 sm:py-0.5 sm:text-sm'
                                                         }`}
                                                         title={ADVENTURE_MONSTER_MODE_LABELS[m.mode]}
                                                     >
-                                                        {MODE_BADGE_SHORT[m.mode]}
+                                                        {ADVENTURE_MONSTER_MODE_BADGE_SHORT[m.mode]}
                                                     </span>
                                                 </div>
                                                 <p

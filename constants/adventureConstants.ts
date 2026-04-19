@@ -211,6 +211,15 @@ export const ADVENTURE_MONSTER_MODE_LABELS: Record<AdventureMonsterBattleMode, s
     missile: '미사일',
 };
 
+/** 맵·챕터 목록 등에서 몬스터 이름 옆 한 글자 룰 표기 */
+export const ADVENTURE_MONSTER_MODE_BADGE_SHORT: Record<AdventureMonsterBattleMode, string> = {
+    classic: '클',
+    capture: '따',
+    base: '베',
+    hidden: '히',
+    missile: '미',
+};
+
 export const ADVENTURE_MONSTER_MODES: readonly AdventureMonsterBattleMode[] = [
     'classic',
     'capture',

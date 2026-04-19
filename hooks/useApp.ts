@@ -260,6 +260,8 @@ export const useApp = () => {
     // 강제 리렌더링을 위한 카운터
     const [updateTrigger, setUpdateTrigger] = useState(0);
     const currentUserRef = useRef<User | null>(null);
+    /** useEffect보다 먼저 도는 자식 effect(GuildWar의 GET_GUILD_WAR_DATA 등)에서도 id를 쓰려면 렌더와 동기화 필요 */
+    currentUserRef.current = currentUser;
     const currentUserStatusRef = useRef<UserWithStatus | null>(null);
     // HTTP 응답 후 일정 시간 내 WebSocket 업데이트 무시 (중복 방지)
     const lastHttpUpdateTime = useRef<number>(0);
@@ -274,10 +276,6 @@ export const useApp = () => {
     // 새로고침(F5) 후 재입장: 재입장 API 실패 시에만 게임 페이지에서 나가기
     const [rejoinFailedForGameId, setRejoinFailedForGameId] = useState<string | null>(null);
     const rejoinRequestedRef = useRef<Set<string>>(new Set());
-
-    useEffect(() => {
-        currentUserRef.current = currentUser;
-    }, [currentUser]);
 
     const mergeUserState = useCallback((prev: User | null, updates: Partial<User>) => {
         if (!prev) {
@@ -1228,8 +1226,15 @@ export const useApp = () => {
         }
         
         // 디바운싱: 같은 액션이 짧은 시간 내에 여러 번 호출되면 무시
-        // 챔피언싱 시뮬 완료는 5회차 종료 직후 보상 UI·DB 동기화에 필수이므로 디바운스하지 않음
-        if (action.type !== 'COMPLETE_TOURNAMENT_SIMULATION') {
+        // - 챔피언싱 시뮬 완료: 5회차 종료 직후 보상 UI·DB 동기화에 필수
+        // - GET_GUILD_WAR_DATA / GET_GUILD_INFO: 길드홈 WarPanel + 길드전 화면이 동시에 부르면 둘째가 `undefined`만 반환되어
+        //   클라가 «전쟁 없음»으로 오인·#/guild 로 튕기는 버그가 남 (서버는 실제로는 정상 응답)
+        if (
+            action.type !== 'COMPLETE_TOURNAMENT_SIMULATION' &&
+            action.type !== 'GET_GUILD_WAR_DATA' &&
+            action.type !== 'GET_MY_GUILD_WAR_ATTEMPT_LOG' &&
+            action.type !== 'GET_GUILD_INFO'
+        ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;
             const now = Date.now();
@@ -3962,6 +3967,36 @@ export const useApp = () => {
             }
         };
 
+        /** CONNECTING 직후 close()는 브라우저가 "closed before established" 경고 — Strict Mode·빠른 unmount 완화 */
+        const softCloseWebSocket = (socket: WebSocket) => {
+            if (socket.readyState === WebSocket.CLOSED || socket.readyState === WebSocket.CLOSING) return;
+            if (socket.readyState === WebSocket.OPEN) {
+                try {
+                    socket.close();
+                } catch {
+                    /* ignore */
+                }
+                return;
+            }
+            if (socket.readyState === WebSocket.CONNECTING) {
+                let done = false;
+                const closeOnce = () => {
+                    if (done) return;
+                    done = true;
+                    try {
+                        if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+                            socket.close();
+                        }
+                    } catch {
+                        /* ignore */
+                    }
+                };
+                socket.addEventListener('open', closeOnce, { once: true });
+                socket.addEventListener('error', closeOnce, { once: true });
+                window.setTimeout(closeOnce, 400);
+            }
+        };
+
         // 초기 상태 처리 헬퍼 함수
         const processInitialState = (users: Record<string, any>, otherData: {
             onlineUsers?: any[];
@@ -4492,20 +4527,13 @@ export const useApp = () => {
                 if (ws && ws.readyState !== WebSocket.CLOSED) {
                     console.log('[WebSocket] Closing existing connection before reconnecting');
                     isIntentionalClose = true;
-                    ws.close();
+                    const oldWs = ws;
                     ws = null;
+                    softCloseWebSocket(oldWs);
                 }
                 
-                // WebSocket 연결 URL 결정
-                // 프로덕션(배포)에서는 항상 VITE_WS_URL/API 기반 URL 사용 (프론트와 백엔드가 분리된 경우 동작하도록)
-                // 개발 환경에서만 같은 호스트(Vite 프록시 /ws) 사용
-                let wsUrl: string;
-                if (import.meta.env.DEV) {
-                    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                    wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-                } else {
-                    wsUrl = getWebSocketUrlFor('/ws');
-                }
+                // WebSocket URL: apiConfig.ts와 동일 (DEV에서 VITE_* / :4000 자동 감지 시 API와 같은 호스트로 /ws)
+                const wsUrl = getWebSocketUrlFor('/ws');
                 
                 console.log('[WebSocket] Connecting to:', wsUrl);
                 console.log('[WebSocket] Current location:', {
@@ -5804,8 +5832,8 @@ export const useApp = () => {
                                         }
 
                                         // IMPORTANT: 서버가 boardState를 생략한 경우 moveHistory로 "단순 복원"하면 포획이 반영되지 않아 없던 돌이 생길 수 있음.
-                                        // 가능한 한 기존 보드(boardState)를 보존하고, 기존 보드가 없을 때만 최후 수단으로 단순 복원을 사용.
-                                        if (!hasServerBoard && existingBoardValid) {
+                                        // 가능한 한 기존 보드(boardState)를 보존하되, 서버 수순이 이미 늘어난 업데이트(AI 착수 등)에서는 기존 짧은 moveHistory로 덮어쓰면 안 됨(돌 사라짐·착수 불가).
+                                        if (!hasServerBoard && existingBoardValid && incomingMoveCount <= existingMoveCount) {
                                             mergedGame = { ...game, boardState: existingGame!.boardState, moveHistory: existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : game.moveHistory };
                                         } else if (!hasServerBoard && moveHistoryToDerive && moveHistoryToDerive.length > 0 && game.settings?.boardSize) {
                                             const boardSize = game.settings.boardSize;
@@ -5889,7 +5917,7 @@ export const useApp = () => {
                                         // 주사위/도둑: 착수 기록의 player는 항상 흑(따내는 돌)이라 moveHistory만으로 "다음 턴 색"을 추론하면 항상 백이 됨.
                                         // AI가 백일 때 오버샷 후 서버가 currentPlayer를 흑(유저)으로내도 stale로 오판해 AI 턴으로 되돌리는 버그가 난다.
                                         if (
-                                            game.isAiGame &&
+                                            (game.isAiGame || game.gameCategory === 'guildwar') &&
                                             !playfulPlacingStaleMerge &&
                                             game.mode !== GameMode.Dice &&
                                             game.mode !== GameMode.Thief &&
@@ -6270,15 +6298,7 @@ export const useApp = () => {
                     
                     // 연결이 CONNECTING 상태에서 실패한 경우
                     if (ws && ws.readyState === WebSocket.CONNECTING) {
-                        // 연결을 명시적으로 닫음
-                        try {
-                            ws.close();
-                        } catch (closeError) {
-                            // 연결 종료 중 에러는 무시
-                            if (isDevelopment) {
-                                console.debug('[WebSocket] Error closing failed connection');
-                            }
-                        }
+                        softCloseWebSocket(ws);
                     }
                     
                     // 에러 발생 시 재연결 시도 (의도적 종료가 아닌 경우)
@@ -6354,10 +6374,9 @@ export const useApp = () => {
             pendingMessages = [];
             isInitialStateReady = true;
             if (ws) {
-                if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-                    ws.close();
-                }
+                const s = ws;
                 ws = null;
+                softCloseWebSocket(s);
             }
         };
     }, [currentUser?.id]); // Only depend on currentUser.id to avoid unnecessary reconnections
@@ -6415,10 +6434,17 @@ export const useApp = () => {
         
         const isGamePage = currentHash.startsWith('#/game/');
         const isAdventurePage = currentHash.startsWith('#/adventure');
+        const hashNoQuery = currentHash.split('?')[0];
+        const isGuildShellPage =
+            hashNoQuery === '#/guild' || hashNoQuery === '#/guildboss' || hashNoQuery === '#/guildwar';
 
         if (activeGame && !isGamePage) {
             // 관리자 모험 테스트: 진행 중 대국이 있어도 #/adventure 유지 (강제 복귀 방지)
             if (isAdventurePage) {
+                return;
+            }
+            // 길드 화면: 길드전 한 판(#/game/...)과 별도 — 대기실·보스·홈은 경기 중에도 유지
+            if (isGuildShellPage) {
                 return;
             }
             // 종료·무효·재대결 대기 대국은 "대국으로 복귀"시키지 않음(나가기 직후 라우팅 레이스·전면 광고 이후 유령 복귀 방지)

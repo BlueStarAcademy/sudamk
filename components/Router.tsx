@@ -138,11 +138,17 @@ const Router: React.FC = () => {
     // 단, 라우트가 이미 게임 페이지(#/game/${gameId})로 설정되어 있으면 "재접속 중..."을 표시하지 않음
     // (새 게임을 시작한 직후 activeGame이 아직 업데이트되지 않았을 수 있음)
     // scoring 상태의 게임도 포함 (계가 진행 중)
+    // 길드전 대기 화면은 #/guildwar — 진행 중인 길드전 판(#/game/...)과 별도이므로 모험처럼 예외
+    const isGuildShellView =
+        currentRoute.view === 'guild' ||
+        currentRoute.view === 'guildboss' ||
+        currentRoute.view === 'guildwar';
     if (
         activeGame &&
         currentRoute.view !== 'game' &&
         !currentRoute.params?.id &&
-        currentRoute.view !== 'adventure'
+        currentRoute.view !== 'adventure' &&
+        !isGuildShellView
     ) {
         // The logic in useApp hook will handle the redirect, we can show a loading state here
         return <div className="flex items-center justify-center h-full">재접속 중...</div>;

@@ -29,6 +29,8 @@
     "migrate:to-railway": "npx tsx --tsconfig server/tsconfig.json scripts/migrate-to-railway.ts",
     "optimize-db": "npx tsx --tsconfig server/tsconfig.json server/scripts/optimizeDatabase.ts",
     "reset-all-guilds": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllGuilds.ts",
+    "guild-war:match-test": "cross-env GUILD_WAR_MATCH_TEST_MODE=1 npx tsx --tsconfig server/tsconfig.json server/scripts/runGuildWarMatchTest.ts",
+    "guild-war:reset-in-progress": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetGuildWarInProgress.ts",
     "fix-orphaned-guild-refs": "npx tsx --tsconfig server/tsconfig.json server/scripts/fixOrphanedGuildReferences.ts",
     "reset-championship-data": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipData.ts",
     "reset-championship-scores": "npx tsx --tsconfig server/tsconfig.json server/scripts/resetAllChampionshipScores.ts",

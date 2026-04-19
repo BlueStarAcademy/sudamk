@@ -12,20 +12,61 @@ const KATA_SERVER_URL = process.env.KATA_SERVER_URL?.trim();
 const KATA_SERVER_KEY = process.env.KATA_SERVER_KEY?.trim();
 const KATA_SERVER_TIMEOUT_MS = Math.max(5000, parseInt(process.env.KATA_SERVER_TIMEOUT_MS || '15000', 10));
 
-// GTP coordinate letters (19x19 board, skipping I)
-const LETTERS = "ABCDEFGHJKLMNOPQRST";
+// 19x19 GTP columns (letter I omitted — only used when boardSize === 19)
+const LETTERS_19_SKIP_I = 'ABCDEFGHJKLMNOPQRST';
+
+/**
+ * Column index → GTP column letter.
+ * - 19×19: A–H, J–T (no I), same as classic GTP.
+ * - 그 외(9, 13 등): 연속 A… (I 포함) — 9×9에서 마지막 열은 I이며 J가 아님. 잘못내면 Kata 수순과 서버 판이 어긋져 무효 착점이 난다.
+ */
+function columnIndexToGtpLetter(x: number, boardSize: number): string {
+    if (boardSize === 19) {
+        if (x < 0 || x >= LETTERS_19_SKIP_I.length) {
+            throw new Error(`Invalid column index ${x} for 19x19`);
+        }
+        return LETTERS_19_SKIP_I[x]!;
+    }
+    if (x < 0 || x >= boardSize) {
+        throw new Error(`Invalid column index ${x} for boardSize=${boardSize}`);
+    }
+    return String.fromCharCode('A'.charCodeAt(0) + x);
+}
+
+/**
+ * GTP column letter → x index (0-based).
+ * boardSize < 19 일 때는 연속 A… 우선; 예전 버그로 J가 9×9 마지막 열로 온 경우 19용 매핑으로 보정.
+ */
+function gtpLetterToColumnIndex(letter: string, boardSize: number): number {
+    if (boardSize === 19) {
+        const x = LETTERS_19_SKIP_I.indexOf(letter);
+        if (x === -1) {
+            throw new Error(`Invalid GTP coordinate letter for 19x19: ${letter}`);
+        }
+        return x;
+    }
+    const simple = letter.charCodeAt(0) - 'A'.charCodeAt(0);
+    if (simple >= 0 && simple < boardSize) {
+        return simple;
+    }
+    const legacy = LETTERS_19_SKIP_I.indexOf(letter);
+    if (legacy >= 0 && legacy < boardSize) {
+        return legacy;
+    }
+    throw new Error(`Invalid GTP coordinate letter: ${letter} for boardSize=${boardSize}`);
+}
 
 /**
  * Convert point to GTP coordinate format
  */
 function pointToGtpCoord(x: number, y: number, boardSize: number): string {
     if (x === -1 || y === -1) return 'pass';
-    if (x >= 0 && x < LETTERS.length && y >= 0 && y < boardSize) {
-        const letter = LETTERS[x];
-        const row = boardSize - y;
-        return `${letter}${row}`;
+    if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
+        return 'pass';
     }
-    return 'pass';
+    const letter = columnIndexToGtpLetter(x, boardSize);
+    const row = boardSize - y;
+    return `${letter}${row}`;
 }
 
 /**
@@ -37,17 +78,11 @@ function gtpCoordToPoint(coord: string, boardSize: number): Point {
         return { x: -1, y: -1 };
     }
     const letter = normalized.charAt(0);
-    const x = LETTERS.indexOf(letter);
-    if (x === -1) {
-        throw new Error(`Invalid GTP coordinate letter: ${letter}`);
-    }
+    const x = gtpLetterToColumnIndex(letter, boardSize);
     const rowStr = normalized.substring(1);
     const row = parseInt(rowStr, 10);
     if (isNaN(row) || row < 1 || row > boardSize) {
         throw new Error(`Invalid GTP coordinate row: ${rowStr} for boardSize=${boardSize}`);
-    }
-    if (x >= boardSize) {
-        throw new Error(`Invalid GTP column: ${letter} for boardSize=${boardSize}`);
     }
     const y = boardSize - row;
     return { x, y };

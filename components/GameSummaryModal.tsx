@@ -27,7 +27,7 @@ import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
-    RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { ResultModalVipRewardSlot } from './game/ResultModalVipRewardSlot.js';
@@ -35,7 +35,7 @@ import { AdventureBattleRewardRowWithReveal, AdventureResultCodexCard } from './
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
-import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../shared/constants/vipPlayReward.js';
+import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 
@@ -377,7 +377,13 @@ const PlayfulScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     );
 };
 
-const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobile?: boolean, mobileTextScale?: number }> = ({ session, isMobile = false, mobileTextScale = 1 }) => {
+const CaptureScoreDetailsComponent: React.FC<{
+    session: LiveGameSession;
+    isMobile?: boolean;
+    mobileTextScale?: number;
+    /** 길드전 따내기: 획득 집점수(집) — 최종 스코어 블록 안에 표시 */
+    guildWarHouseScore?: number;
+}> = ({ session, isMobile = false, mobileTextScale = 1, guildWarHouseScore }) => {
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
     const { captures, blackPlayerId, whitePlayerId, player1, player2, winner } = session;
     const blackCaptures = captures[Player.Black] || 0;
@@ -397,7 +403,7 @@ const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobil
             >
                 최종 스코어
             </p>
-            <div className="flex flex-wrap items-end justify-center gap-x-2 gap-y-1 sm:gap-x-4">
+                <div className="flex flex-wrap items-end justify-center gap-x-2 gap-y-1 sm:gap-x-4">
                 <div className="flex flex-col items-center gap-0.5">
                     <span
                         className="font-bold uppercase tracking-wider text-stone-400 text-xs"
@@ -437,6 +443,17 @@ const CaptureScoreDetailsComponent: React.FC<{ session: LiveGameSession, isMobil
                     </span>
                 </div>
             </div>
+            {typeof guildWarHouseScore === 'number' && !Number.isNaN(guildWarHouseScore) && (
+                <p
+                    className={`mt-1.5 text-center font-semibold text-cyan-200/95 tabular-nums ${isMobile ? 'text-sm' : 'text-base sm:text-lg'}`}
+                    style={{ fontSize: isMobile ? `${12 * mobileTextScale}px` : undefined }}
+                >
+                    획득 집점수{' '}
+                    <span className="font-black text-cyan-100/95">
+                        {Number.isInteger(guildWarHouseScore) ? guildWarHouseScore : guildWarHouseScore.toFixed(1)}집
+                    </span>
+                </p>
+            )}
             {blackWon && (
                 <p
                     className={`${isMobile ? 'text-base' : 'text-xl'} font-bold text-green-400`}
@@ -1112,7 +1129,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const sessionShowsVipPlayRewardSlot = useMemo(() => {
         if (isSpectator) return false;
         const cat = session.gameCategory as string | undefined;
-        if (cat === 'guildwar') return false;
+        if (cat === 'guildwar') return true;
         if (session.isSinglePlayer || cat === 'tower' || cat === 'singleplayer') return false;
         if (cat === 'adventure') return true;
         return SPECIAL_GAME_MODES.some((m) => m.mode === session.mode) || PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode);
@@ -1127,8 +1144,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         );
     }, [sessionShowsVipPlayRewardSlot, mySummary?.vipPlayRewardSlot, currentUser]);
     const vipRewardPreviewImage = useMemo(() => {
-        const raw = CONSUMABLE_ITEMS.find((c) => c.name === VIP_PLAY_REWARD_CONSUMABLE_NAME)?.image;
-        if (!raw) return undefined;
+        const raw = VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE;
         return raw.startsWith('/') ? raw : `/${raw}`;
     }, []);
     const [vipUnlockRouletteActive, setVipUnlockRouletteActive] = useState(false);
@@ -1170,7 +1186,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         return {
             ...vipSlotEffective,
             grantedItem: {
-                name: VIP_PLAY_REWARD_CONSUMABLE_NAME,
+                name: 'VIP 슬롯 보상',
                 quantity: 1,
                 image: vipRewardPreviewImage,
             },
@@ -1384,7 +1400,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             session.settings.mixedModes.includes(GameMode.Capture);
         
         if (isCaptureMode || isMixWithCapture) {
-            return <CaptureScoreDetailsComponent session={session} isMobile={isMobile} mobileTextScale={mobileTextScale} />;
+            return (
+                <CaptureScoreDetailsComponent
+                    session={session}
+                    isMobile={isMobile}
+                    mobileTextScale={mobileTextScale}
+                    guildWarHouseScore={isGuildWar && isCaptureMode ? guildWarHouseScore : undefined}
+                />
+            );
         }
         
         // 스피드 바둑, 베이스 바둑, 히든 바둑, 미사일 바둑, 믹스룰 바둑: 계가 결과 표시
@@ -1474,8 +1497,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             mode === 'capture'
                 ? [
                     { label: '승리', ok: humanWon },
-                    { label: `한 번에 ${GUILD_WAR_STAR_CAPTURE_TIER2_MIN}돌 따내기`, ok: humanWon && maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN },
-                    { label: `한 번에 ${GUILD_WAR_STAR_CAPTURE_TIER3_MIN}돌 따내기`, ok: humanWon && maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN },
+                    { label: `한 번에 ${GUILD_WAR_STAR_CAPTURE_TIER2_MIN}점 획득`, ok: maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN },
+                    { label: `한 번에 ${GUILD_WAR_STAR_CAPTURE_TIER3_MIN}점 획득`, ok: maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN },
                 ]
                 : [
                     { label: '승리', ok: humanWon },
@@ -1484,15 +1507,43 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 ];
 
         return (
-            <div className="mt-2 w-full max-w-sm mx-auto rounded-md border border-amber-500/35 bg-amber-900/10 p-2 text-center lg:p-3">
-                <p className="mb-1 text-sm font-semibold text-amber-200/90 lg:text-base">별 달성 조건</p>
-                <div className="space-y-1">
+            <div
+                className={
+                    isMobile
+                        ? 'mt-1 w-full rounded-md border border-amber-500/35 bg-amber-900/10 p-1 text-center'
+                        : 'mt-1.5 w-full rounded-md border border-amber-500/35 bg-amber-900/10 p-2 text-center lg:mt-2 lg:p-3'
+                }
+            >
+                <p
+                    className={
+                        isMobile
+                            ? 'mb-0.5 text-[0.65rem] font-semibold leading-tight text-amber-200/90'
+                            : 'mb-1 text-sm font-semibold text-amber-200/90 lg:text-base'
+                    }
+                >
+                    별 달성 조건
+                </p>
+                <div className={isMobile ? 'space-y-0' : 'space-y-1'}>
                     {rows.map((row) => (
-                        <div key={row.label} className="flex items-center justify-center gap-3 text-sm lg:text-base">
-                            <span className="text-gray-200">{row.label}</span>
-                            <span className={row.ok ? 'text-green-400 font-semibold' : 'text-red-400 font-semibold'}>
-                                {row.ok ? '성공' : '실패'}
-                            </span>
+                        <div
+                            key={row.label}
+                            className={
+                                isMobile
+                                    ? 'flex items-center justify-center gap-1.5 text-[0.65rem] leading-tight'
+                                    : 'flex items-center justify-center gap-2 text-sm lg:text-base'
+                            }
+                        >
+                            <span className="min-w-0 flex-1 text-right text-gray-200">{row.label}</span>
+                            <img
+                                src={row.ok ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
+                                alt=""
+                                className={
+                                    isMobile
+                                        ? 'h-4 w-4 shrink-0 object-contain opacity-95'
+                                        : 'h-6 w-6 shrink-0 object-contain opacity-95 sm:h-7 sm:w-7'
+                                }
+                                aria-hidden
+                            />
                         </div>
                     ))}
                 </div>
@@ -1538,7 +1589,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             <div
                 className={
                     isMobile
-                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS
+                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS
                         : `flex ${
                               useCompactRewardSlots ? 'min-h-[5.25rem]' : RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS
                           } flex-wrap content-center items-center justify-center gap-2 sm:gap-2.5`
@@ -1666,26 +1717,25 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             title={isGuildWar ? '길드 전쟁 결과' : '대국 결과'}
             onClose={onConfirm}
             initialWidth={1000}
-            initialHeight={isMobile ? 680 : 720}
+            initialHeight={isMobile ? 900 : 720}
             pcViewportMaxHeightCss="min(92vh, 840px)"
             uniformPcScale={false}
             mobileViewportFit
-            mobileViewportMaxHeightVh={isMobile ? 94 : 86}
+            mobileLockViewportHeight={isMobile}
+            mobileViewportMaxHeightVh={isMobile ? 96 : 86}
             windowId="game-summary"
             variant="store"
             modalBackdrop={!adventureResultChrome}
             closeOnOutsideClick={!adventureResultChrome}
             bodyPaddingClassName={
                 isMobile
-                    ? '!p-2 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-[390px]:!p-2.5'
+                    ? '!p-1.5 !pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] min-[390px]:!p-2'
                     : '!p-3 sm:!p-4'
             }
         >
             <>
             <div
-                className={`relative flex min-h-0 flex-col rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_24px_48px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                    isMobile ? 'overflow-visible' : 'overflow-hidden'
-                }`}
+                className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_24px_48px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)]${isMobile ? ' min-h-0 flex-1' : ''}`}
             >
                 <div
                     className="pointer-events-none absolute inset-0 opacity-[0.12]"
@@ -1698,7 +1748,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             <div
                 className={`relative flex min-h-0 flex-col text-on-panel antialiased ${
                     useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'w-full overflow-x-hidden overflow-y-visible'
-                } ${isMobile ? 'min-h-0 flex-1 p-2 text-xs sm:text-sm min-[390px]:p-2.5' : 'p-2.5 text-[0.9375rem] min-[1024px]:p-3 min-[1024px]:text-[1rem] min-[1280px]:text-[1.0625rem]'}`}
+                } ${isMobile ? 'min-h-0 flex-1 p-1.5 text-xs sm:text-sm min-[390px]:p-2' : 'p-2.5 text-[0.9375rem] min-[1024px]:p-3 min-[1024px]:text-[1rem] min-[1280px]:text-[1.0625rem]'}`}
             >
                 {!isMobile && (
                 <h1
@@ -1707,31 +1757,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     {title}
                 </h1>
                 )}
-                {isGuildWar && (
-                    <div className="flex flex-col items-center gap-1.5 mb-3 flex-shrink-0">
-                        <div className="flex justify-center items-center gap-1.5" aria-label={`획득 별 ${guildWarStars}개`}>
-                            <span className="mr-1 text-xs font-semibold uppercase tracking-wider text-slate-400">획득 별</span>
-                            {[0, 1, 2].map((i) => (
-                                <img
-                                    key={i}
-                                    src={i < guildWarStars ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
-                                    alt=""
-                                    className="w-9 h-9 sm:w-10 sm:h-10 object-contain drop-shadow"
-                                />
-                            ))}
-                            <span className="ml-1 text-base font-bold tabular-nums text-amber-100/95">{guildWarStars}/3</span>
-                        </div>
-                        {guildWarHouseScore !== undefined && (
-                            <div className="flex items-baseline justify-center gap-1.5 text-base">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">획득 집점수</span>
-                                <span className="font-bold text-cyan-200/95 tabular-nums">
-                                    {Number.isInteger(guildWarHouseScore) ? guildWarHouseScore : guildWarHouseScore.toFixed(1)}집
-                                </span>
-                            </div>
-                        )}
-                    </div>
-                )}
-                
                 {isMobile ? (
                     <>
                         <MobileGameResultTabBar
@@ -1739,18 +1764,52 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             onChange={setMobileResultTab}
                             recordLabel={isGuildWar ? '보상·기록' : '대국 결과'}
                         />
-                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] [scrollbar-width:thin]">
+                        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
+                            <div className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] [scrollbar-width:thin]">
                                 <MobileResultTabPanelStack
+                                    className="min-h-0"
                                     active={mobileResultTab}
                                     matchPanel={
-                                    <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
+                                    <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-1.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
                                         <h2
                                             className="mb-0 w-full flex-shrink-0 border-b border-amber-500/25 pb-1 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-200/85"
                                             style={{ fontSize: `${10 * mobileTextScale}px` }}
                                         >
                                             경기 내용
                                         </h2>
+                                        {isGuildWar ? (
+                                            <div
+                                                className="mb-1 mt-1 flex flex-shrink-0 flex-col items-center gap-0.5"
+                                                aria-label={`획득 별 ${guildWarStars}개`}
+                                            >
+                                                <div className="flex items-center justify-center gap-0.5">
+                                                    <span
+                                                        className="text-[0.58rem] font-semibold uppercase tracking-wider text-slate-400"
+                                                        style={{ fontSize: `${8 * mobileTextScale}px` }}
+                                                    >
+                                                        획득 별
+                                                    </span>
+                                                    {[0, 1, 2].map((i) => (
+                                                        <img
+                                                            key={i}
+                                                            src={
+                                                                i < guildWarStars
+                                                                    ? '/images/guild/guildwar/clearstar.png'
+                                                                    : '/images/guild/guildwar/emptystar.png'
+                                                            }
+                                                            alt=""
+                                                            className="h-5 w-5 object-contain drop-shadow sm:h-6 sm:w-6"
+                                                        />
+                                                    ))}
+                                                    <span
+                                                        className="text-xs font-bold tabular-nums text-amber-100/95"
+                                                        style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                                    >
+                                                        {guildWarStars}/3
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ) : null}
                                         <MatchPlayersRoster
                                             session={session}
                                             blackPlayer={blackPlayer}
@@ -1763,24 +1822,23 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                         />
                                         <div className="mt-1 flex w-full flex-col items-center overflow-x-hidden overflow-y-visible">
                                             {renderGameContent()}
-                                            {renderGuildWarStarConditions()}
                                         </div>
                                     </div>
                                     }
                                     recordPanel={
-                                    <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
+                                    <div className="flex min-w-0 flex-col gap-1 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
                                         <h2
-                                            className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1 text-center text-xs font-bold uppercase tracking-[0.12em] text-violet-200/85"
+                                            className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-0.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-violet-200/85"
                                             style={{ fontSize: `${10 * mobileTextScale}px` }}
                                         >
                                             {isGuildWar ? '보상·기록' : '대국 결과'}
                                         </h2>
-                                        <div className="flex-shrink-0 rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-1.5 ring-1 ring-inset ring-amber-500/10 sm:p-2">
-                                            <div className="flex items-center gap-2">
+                                        <div className="flex-shrink-0 rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-1 ring-1 ring-inset ring-amber-500/10 sm:p-2">
+                                            <div className="flex items-center gap-1.5">
                                                 <Avatar
                                                     userId={currentUser.id}
                                                     userName={currentUser.nickname}
-                                                    size={Math.round(28 * mobileImageScale)}
+                                                    size={Math.round(24 * mobileImageScale)}
                                                     avatarUrl={avatarUrl}
                                                     borderUrl={borderUrl}
                                                 />
@@ -1807,7 +1865,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                             </div>
                                         </div>
                                         {mySummary?.level ? (
-                                            <div className="flex min-h-[2.45rem] flex-shrink-0 flex-col justify-center">
+                                            <div className="flex min-h-[2rem] flex-shrink-0 flex-col justify-center">
                                                 <XpBar
                                                     initial={mySummary.level.progress.initial}
                                                     final={mySummary.level.progress.final}
@@ -1820,7 +1878,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 />
                                             </div>
                                         ) : (
-                                            <div className="flex min-h-[2.45rem] flex-shrink-0 flex-col justify-center">
+                                            <div className="flex min-h-[2rem] flex-shrink-0 flex-col justify-center">
                                                 <div className="flex items-center gap-1.5">
                                                     <span
                                                         className="w-12 text-xs font-bold text-right text-slate-400"
@@ -1854,9 +1912,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                             />
                                         ) : null}
                                         {isGuildWar ? (
-                                            <p className="px-0.5 text-center text-[0.65rem] leading-tight text-slate-400 sm:text-xs min-[1024px]:text-sm">
-                                                길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
-                                            </p>
+                                            renderGuildWarStarConditions()
                                         ) : isAdventureGame && mySummary ? null : mySummary ? (
                                             <div className="min-w-0 overflow-x-hidden overflow-y-visible">
                                                 <div className="grid grid-cols-2 gap-0.5">
@@ -1970,6 +2026,30 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             <h2 className="mb-0 w-full flex-shrink-0 border-b border-amber-500/20 pb-1 text-center text-[0.65rem] font-bold uppercase tracking-[0.12em] text-amber-200/85 sm:text-xs min-[1024px]:text-sm">
                                 경기 내용
                             </h2>
+                            {isGuildWar ? (
+                                <div className="mb-2 mt-1.5 flex flex-shrink-0 flex-col items-center gap-0.5" aria-label={`획득 별 ${guildWarStars}개`}>
+                                    <div className="flex items-center justify-center gap-1.5">
+                                        <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400 min-[1024px]:text-xs">
+                                            획득 별
+                                        </span>
+                                        {[0, 1, 2].map((i) => (
+                                            <img
+                                                key={i}
+                                                src={
+                                                    i < guildWarStars
+                                                        ? '/images/guild/guildwar/clearstar.png'
+                                                        : '/images/guild/guildwar/emptystar.png'
+                                                }
+                                                alt=""
+                                                className="h-7 w-7 object-contain drop-shadow min-[1024px]:h-8 min-[1024px]:w-8"
+                                            />
+                                        ))}
+                                        <span className="text-sm font-bold tabular-nums text-amber-100/95 min-[1024px]:text-base">
+                                            {guildWarStars}/3
+                                        </span>
+                                    </div>
+                                </div>
+                            ) : null}
                             <MatchPlayersRoster
                                 session={session}
                                 blackPlayer={blackPlayer}
@@ -1981,7 +2061,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             />
                             <div className="flex w-full flex-col items-center overflow-visible">
                                 {renderGameContent()}
-                                {renderGuildWarStarConditions()}
                             </div>
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-visible sm:gap-2">
@@ -2046,9 +2125,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     />
                                 ) : null}
                                 {isGuildWar ? (
-                                    <p className="px-0.5 text-center text-[0.65rem] leading-tight text-slate-400 sm:text-xs min-[1024px]:text-sm">
-                                        길드 전쟁 AI 대국은 랭킹·매너 변동이 없으며, 별과 모드에 따라 골드만 지급됩니다.
-                                    </p>
+                                    renderGuildWarStarConditions()
                                 ) : isAdventureGame && mySummary ? null : mySummary ? (
                                     <div className={`${isAdventureGame ? 'min-h-0' : 'min-h-[10.5rem]'} min-w-0 flex-1 overflow-x-hidden overflow-y-visible`}>
                                         <div className="grid grid-cols-2 gap-1 sm:gap-1.5">
@@ -2156,7 +2233,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             </div>
             </div>
                 <div
-                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex flex-col gap-1.5 ${isMobile ? 'mt-2' : 'mt-3'} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 pt-2 sm:px-2 sm:pb-1.5 sm:pt-2.5`}
+                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex flex-col ${isMobile ? 'mt-1 gap-1 pt-1.5' : 'mt-3 gap-1.5 pt-2.5'} flex-shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-zinc-950/95 via-zinc-900/90 to-transparent px-1 pb-1 sm:px-2 sm:pb-1.5`}
                 >
                     {isMobile ? <div className="min-w-0 w-full shrink-0">{pvpRewardsSection}</div> : null}
                     <div className={`${arenaPostGameButtonGridClass} min-w-0 shrink-0`}>

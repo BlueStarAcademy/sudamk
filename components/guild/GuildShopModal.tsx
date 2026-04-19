@@ -135,9 +135,6 @@ const GuildShopModal: React.FC<GuildShopModalProps> = ({ onClose, isTopmost }) =
             <div className={`flex flex-col relative min-h-0 ${isNativeMobile ? 'flex-1 h-full' : 'h-[calc(var(--vh,1vh)*60)]'}`}>
                 <div className={`flex justify-between items-center flex-shrink-0 gap-2 ${isNativeMobile ? 'mb-2' : 'mb-4'}`}>
                     <div className={`flex items-center min-w-0 ${isNativeMobile ? 'gap-2' : 'gap-2.5'}`}>
-                        <div className={`bg-gradient-to-br from-amber-600/80 to-orange-600/80 rounded-xl flex items-center justify-center border-2 border-amber-400/50 shadow-lg shadow-amber-500/20 flex-shrink-0 ${isNativeMobile ? 'w-8 h-8' : 'w-10 h-10'}`}>
-                            <span className={isNativeMobile ? 'text-base' : 'text-xl'}>🛒</span>
-                        </div>
                         <h3 className={`font-bold bg-gradient-to-r from-amber-300 to-orange-300 bg-clip-text text-transparent truncate ${isNativeMobile ? 'text-base' : 'text-xl'}`}>길드 상점</h3>
                     </div>
                     <div className={`bg-gradient-to-br from-amber-900/90 via-yellow-800/80 to-amber-900/90 rounded-xl text-center border-2 border-amber-500/60 shadow-2xl backdrop-blur-md relative overflow-hidden flex-shrink-0 ${isNativeMobile ? 'px-2.5 py-1.5' : 'p-3'}`}>

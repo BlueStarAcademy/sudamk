@@ -42,7 +42,7 @@ export type AdventureMapStageForSchedule = {
     monsters: readonly { codexId: string; imageWebp: string; name: string }[];
 };
 
-function fnv1a32(str: string): number {
+export function fnv1a32(str: string): number {
     let h = 2166136261;
     for (let i = 0; i < str.length; i++) {
         h ^= str.charCodeAt(i);

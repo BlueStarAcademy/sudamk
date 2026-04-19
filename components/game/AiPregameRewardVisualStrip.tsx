@@ -302,26 +302,21 @@ export const AiPregameRewardVisualStrip: React.FC<{
 
     if (uniformSlots.length === 0) return null;
 
-    /** 모험 시작 모달: 최대 6칸은 한 뷰포트 너비에 균등 배치, 7개 이상은 같은 줄 가로 스크롤 */
-    const n = uniformSlots.length;
+    /** 모험 시작 모달: 보상 칸·라벨을 한 줄(가로 스크롤)로 두고 말줄임 없이 표시 */
     const tileBoxClass =
-      'relative flex aspect-square w-full max-h-[2.35rem] max-w-[2.35rem] shrink-0 items-center justify-center rounded-lg border p-0.5 ring-1 ring-inset sm:max-h-10 sm:max-w-10';
+      'relative mx-auto flex h-[2.35rem] w-[2.35rem] shrink-0 items-center justify-center rounded-lg border p-0.5 ring-1 ring-inset sm:h-10 sm:w-10';
 
     return (
       <div className="mt-2.5 w-full rounded-lg border border-violet-400/18 bg-black/25 p-2 ring-1 ring-inset ring-white/[0.04] sm:mt-3 sm:p-2.5">
-        <h3 className="mb-1.5 flex items-center gap-2 border-b border-violet-400/18 pb-1 text-[0.7rem] font-bold text-violet-100/95 sm:mb-2 sm:pb-1.5 sm:text-xs">
+        <h3 className="mb-1.5 block shrink-0 whitespace-nowrap border-b border-violet-400/18 pb-1 text-[0.7rem] font-bold leading-none text-violet-100/95 sm:mb-2 sm:pb-1.5 sm:text-xs">
           획득 가능한 보상
         </h3>
         <div className="overflow-x-auto overflow-y-visible pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
-          <div
-            className={`flex min-w-full flex-nowrap items-stretch gap-1 sm:gap-1.5 ${n > 6 ? 'w-max pr-0.5' : ''}`}
-          >
+          <div className="flex w-max min-w-full flex-nowrap items-stretch gap-1.5 pr-0.5 sm:gap-2">
             {uniformSlots.map((slot) => (
               <div
                 key={slot.key}
-                className={`flex min-w-0 flex-col items-center gap-0.5 ${
-                  n <= 6 ? 'min-w-0 flex-[1_1_0] basis-0' : 'w-[2.65rem] shrink-0 sm:w-[2.85rem]'
-                }`}
+                className="flex w-max min-w-[3.15rem] shrink-0 flex-col items-center gap-0.5 sm:min-w-[3.35rem]"
               >
                 <div
                   className={`${tileBoxClass} ${
@@ -355,7 +350,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
                     </div>
                   )}
                 </div>
-                <span className="w-full truncate text-center text-[0.58rem] font-bold tabular-nums leading-tight text-zinc-100 sm:text-[0.62rem]">
+                <span className="max-w-none whitespace-nowrap text-center text-[0.58rem] font-bold tabular-nums leading-tight text-zinc-100 sm:text-[0.62rem]">
                   {slot.line}
                 </span>
               </div>

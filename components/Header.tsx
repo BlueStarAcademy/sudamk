@@ -2,11 +2,14 @@
 import React, { memo, useCallback, useEffect, useLayoutEffect, useMemo, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { UserWithStatus } from '../types.js';
+import type { ServerAction } from '../types/api.js';
 import Button from './Button.js';
 import ConfirmModal from './ConfirmModal.js';
 import Avatar from './Avatar.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
+import { GUILD_BOSS_MAX_ATTEMPTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } from '../shared/constants/guildConstants.js';
+import { getTodayKSTDateString } from '../utils/timeUtils.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { isInsideSudamrAdUi } from '../constants/ads.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -120,6 +123,102 @@ const ResourceDisplay = memo<{
 });
 ResourceDisplay.displayName = 'ResourceDisplay';
 
+const GUILD_BOSS_TICKET_IMG = '/images/guild/ticket.png';
+const GUILD_WAR_TICKET_IMG = '/images/guild/warticket.png';
+
+/** 길드 보스·길드전: 남은 횟수 / 일일 최대 (길드홈 패널과 동일 의미) */
+const GuildTicketPill = memo<{
+    iconSrc: string;
+    label: string;
+    remaining: number;
+    max: number;
+    dense: boolean;
+    isMobile: boolean;
+}>(({ iconSrc, label, remaining, max, dense, isMobile }) => {
+    const textClass = isMobile
+        ? 'gap-[clamp(0.05rem,0.5vw,0.2rem)] text-[clamp(0.6rem,calc(0.42rem+2.35vw),0.84rem)] sm:gap-1'
+        : dense
+          ? 'gap-0.5 text-xs sm:gap-1 sm:text-sm'
+          : 'gap-0.5 text-sm sm:gap-1 sm:text-base';
+    const iconWrap = isMobile
+        ? 'h-[clamp(1.28rem,4.6vw,1.625rem)] w-[clamp(1.28rem,4.6vw,1.625rem)]'
+        : dense
+          ? 'h-6 w-6'
+          : 'h-7 w-7 text-lg';
+    const iconImg = isMobile
+        ? 'h-[clamp(0.82rem,3.2vw,1.05rem)] w-[clamp(0.82rem,3.2vw,1.05rem)]'
+        : dense
+          ? 'h-4 w-4'
+          : 'h-5 w-5';
+    return (
+        <div
+            title={label}
+            className={`flex flex-shrink-0 items-center rounded-full border border-tertiary/40 bg-tertiary/60 shadow-inner ${
+                isMobile
+                    ? 'h-[clamp(1.45rem,4.8vw,1.85rem)] gap-[clamp(0.08rem,0.7vw,0.2rem)] pl-[clamp(0.3rem,1.5vw,0.45rem)] pr-[clamp(0.2rem,1vw,0.35rem)]'
+                    : dense
+                      ? 'gap-0.5 py-1 pl-1.5 pr-1 sm:gap-1'
+                      : 'gap-0.5 py-1 pl-2 pr-1 sm:gap-1'
+            }`}
+        >
+            <div className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${iconWrap}`}>
+                <img src={iconSrc} alt="" className={`object-contain ${iconImg}`} loading="lazy" decoding="async" />
+            </div>
+            <span className={`flex min-w-0 items-center font-bold whitespace-nowrap text-primary tabular-nums ${textClass}`}>
+                {`${remaining}/${max}`}
+            </span>
+        </div>
+    );
+});
+GuildTicketPill.displayName = 'GuildTicketPill';
+
+function useGuildWarTicketsRemaining(
+    guildId: string | undefined,
+    handleAction: (action: ServerAction) => Promise<{ error?: string; clientResponse?: Record<string, unknown> } | void>,
+): { remaining: number; max: number } {
+    const max = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
+    const [remaining, setRemaining] = useState(max);
+    useEffect(() => {
+        if (!guildId) {
+            setRemaining(max);
+            return;
+        }
+        let cancelled = false;
+        const fetchWar = async () => {
+            try {
+                const r = (await handleAction({ type: 'GET_GUILD_WAR_DATA' })) as {
+                    error?: string;
+                    clientResponse?: {
+                        activeWar?: { status?: string };
+                        myRecordInCurrentWar?: { attempts?: number };
+                    };
+                };
+                if (cancelled || r?.error) return;
+                const war = r?.clientResponse?.activeWar;
+                const rec = r?.clientResponse?.myRecordInCurrentWar;
+                if (war && war.status === 'active') {
+                    const used = Number(rec?.attempts ?? 0) || 0;
+                    setRemaining(Math.max(0, max - used));
+                } else {
+                    setRemaining(max);
+                }
+            } catch {
+                /* ignore */
+            }
+        };
+        void fetchWar();
+        const onEv = () => void fetchWar();
+        if (typeof window !== 'undefined') window.addEventListener('sudamr:guild-war-update', onEv);
+        const iv = window.setInterval(fetchWar, 60_000);
+        return () => {
+            cancelled = true;
+            if (typeof window !== 'undefined') window.removeEventListener('sudamr:guild-war-update', onEv);
+            window.clearInterval(iv);
+        };
+    }, [guildId, max, handleAction]);
+    return { remaining, max };
+}
+
 export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean }> = ({ user, mobile = false }) => {
     const { actionPoints, lastActionPointUpdate } = user;
     const [timeLeft, setTimeLeft] = useState('');
@@ -228,8 +327,15 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
 
     if (!currentUserWithStatus) return null;
 
-    const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal } = handlers;
-    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel } = currentUserWithStatus;
+    const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal, handleAction } = handlers;
+    const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel, guildId } = currentUserWithStatus;
+    const guildWarTickets = useGuildWarTicketsRemaining(guildId, handleAction);
+    const todayKstBoss = getTodayKSTDateString();
+    const guildBossUsedToday =
+        guildId && currentUserWithStatus.guildBossLastAttemptDayKST === todayKstBoss
+            ? (currentUserWithStatus.guildBossAttemptsUsedToday ?? 0)
+            : 0;
+    const guildBossRemaining = guildId ? Math.max(0, GUILD_BOSS_MAX_ATTEMPTS - guildBossUsedToday) : 0;
     const combinedUserLevel = (Number(strategyLevel) || 0) + (Number(playfulLevel) || 0);
     const vipHeaderLabel = getVipHeaderLabel(currentUserWithStatus);
 
@@ -242,10 +348,44 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === borderId)?.url, [borderId]);
 
-    const mobileAdditionalResources = [
-        { key: 'diamonds' as const, icon: resourceIcons.diamonds, label: RESOURCE_LABEL.diamonds, value: safeDiamonds },
-        { key: 'guildCoins' as const, icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 },
-    ];
+    const mobileAdditionalResources = useMemo(() => {
+        const base: {
+            key: string;
+            icon: string;
+            label: string;
+            value: number;
+            ratio?: { remaining: number; max: number };
+        }[] = [
+            { key: 'diamonds', icon: resourceIcons.diamonds, label: RESOURCE_LABEL.diamonds, value: safeDiamonds },
+            { key: 'guildCoins', icon: specialResourceIcons.guildCoins, label: SPECIAL_RESOURCE_LABEL.guildCoins, value: guildCoins ?? 0 },
+        ];
+        if (guildId) {
+            base.push(
+                {
+                    key: 'guildBossTickets',
+                    icon: GUILD_BOSS_TICKET_IMG,
+                    label: '길드 보스 입장권',
+                    value: guildBossRemaining,
+                    ratio: { remaining: guildBossRemaining, max: GUILD_BOSS_MAX_ATTEMPTS },
+                },
+                {
+                    key: 'guildWarTickets',
+                    icon: GUILD_WAR_TICKET_IMG,
+                    label: '길드전 참여권',
+                    value: guildWarTickets.remaining,
+                    ratio: { remaining: guildWarTickets.remaining, max: guildWarTickets.max },
+                },
+            );
+        }
+        return base;
+    }, [
+        guildId,
+        guildBossRemaining,
+        guildCoins,
+        guildWarTickets.max,
+        guildWarTickets.remaining,
+        safeDiamonds,
+    ]);
 
     const specialResourcesPopoverPanel = (
         <div className="w-max max-w-[min(18rem,calc(100vw-1rem))] rounded-lg border border-color bg-primary py-1.5 shadow-2xl sm:py-2">
@@ -277,7 +417,9 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             ? 'text-[clamp(0.34rem,calc(0.03rem+2.05vw),0.82rem)] leading-none tracking-tight'
                             : 'text-[clamp(0.75rem,calc(0.55rem+1.6vw),0.875rem)] sm:text-sm'
                     }`}>
-                        {resource.value.toLocaleString()}
+                        {resource.ratio != null
+                            ? `${resource.ratio.remaining}/${resource.ratio.max}`
+                            : resource.value.toLocaleString()}
                     </span>
                 </div>
             ))}
@@ -394,6 +536,26 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             />
                         </button>
                     </div>
+                    {!isMobile && guildId && (
+                        <>
+                            <GuildTicketPill
+                                iconSrc={GUILD_BOSS_TICKET_IMG}
+                                label="길드 보스 입장권"
+                                remaining={guildBossRemaining}
+                                max={GUILD_BOSS_MAX_ATTEMPTS}
+                                dense={dense}
+                                isMobile={false}
+                            />
+                            <GuildTicketPill
+                                iconSrc={GUILD_WAR_TICKET_IMG}
+                                label="길드전 참여권"
+                                remaining={guildWarTickets.remaining}
+                                max={guildWarTickets.max}
+                                dense={dense}
+                                isMobile={false}
+                            />
+                        </>
+                    )}
                     <div
                         className={`relative min-w-[4.5rem] shrink-0 ${isMobile ? 'flex-1' : 'sm:min-w-0'}`}
                         ref={specialResourcesRef}

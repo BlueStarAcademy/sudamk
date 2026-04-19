@@ -449,6 +449,61 @@ export async function getAllEndedGames(): Promise<LiveGameSession[]> {
 /**
  * 사용자 ID로 활성 게임 찾기 (로그인 최적화용)
  */
+/** 길드전 AI 플레이어 id — `guildWarBoardResult` / `aiPlayer` 와 동일 */
+const GUILD_WAR_AI_PLAYER_ID = "ai-player-01";
+
+/**
+ * 종료된 길드전 대국 중 특정 전쟁·사용자(복수 id: 관리자 canonical + 실제 id)에 해당하는 판만 최신순으로 반환.
+ */
+export async function listEndedGuildWarGamesForWar(
+  warId: string,
+  acceptedHumanIds: string[],
+  limit = 50
+): Promise<Array<{ game: LiveGameSession; rowUpdatedAtMs: number }>> {
+  const idSet = new Set(acceptedHumanIds.filter((x) => typeof x === "string" && x.length > 0));
+  if (idSet.size === 0 || !warId) return [];
+  try {
+    await ensurePrismaEngineReady();
+  } catch {
+    return [];
+  }
+  try {
+    const rows = await prisma.liveGame.findMany({
+      where: {
+        isEnded: true,
+        OR: [{ category: "guildwar" }, { category: null }],
+        status: { in: ["ended", "no_contest"] },
+      },
+      select: { id: true, data: true, status: true, category: true, aiHiddenItemAnimationEndTime: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+    });
+    const out: Array<{ game: LiveGameSession; rowUpdatedAtMs: number }> = [];
+    for (const row of rows) {
+      const game = mapRowToGame(row);
+      if (!game) continue;
+      const gw = game as any;
+      if (gw.isDemo) continue;
+      if (String(gw.guildWarId ?? "") !== String(warId)) continue;
+      if (game.gameCategory !== "guildwar" && !(typeof gw.guildWarId === "string" && gw.guildWarId.length > 0)) {
+        continue;
+      }
+      const bp = game.blackPlayerId;
+      const wp = game.whitePlayerId;
+      const humanId =
+        bp && bp !== GUILD_WAR_AI_PLAYER_ID ? bp : wp && wp !== GUILD_WAR_AI_PLAYER_ID ? wp : game.player1?.id;
+      if (!humanId || humanId === GUILD_WAR_AI_PLAYER_ID) continue;
+      if (!idSet.has(humanId)) continue;
+      out.push({ game, rowUpdatedAtMs: row.updatedAt.getTime() });
+      if (out.length >= limit) break;
+    }
+    return out;
+  } catch (e) {
+    console.warn("[gameService] listEndedGuildWarGamesForWar:", (e as { message?: string })?.message ?? e);
+    return [];
+  }
+}
+
 export async function getLiveGameByPlayerId(playerId: string): Promise<LiveGameSession | null> {
   try {
     // JSON 필드에서 player1.id 또는 player2.id로 검색

@@ -17,6 +17,7 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { broadcastPlayingSnapshotBeforeScoring } from '../utils/broadcastPlayingBeforeScoring.js';
 import { aiUserId } from '../aiPlayer.js';
 import {
@@ -491,6 +492,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.passCount = 0;
                     if (result.capturedStones.length > 0) {
                         if (!game.justCaptured) game.justCaptured = [];
+                        let guildWarCapturePointsThisMove = 0;
                         for (const stone of result.capturedStones) {
                             const capturedPlayerEnum = humanPlayerEnum;
                             let points = 1;
@@ -526,6 +528,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                                 }
                             }
                             game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + points;
+                            guildWarCapturePointsThisMove += points;
                             game.justCaptured.push({
                                 point: stone,
                                 player: capturedPlayerEnum,
@@ -533,6 +536,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                                 capturePoints: points,
                             });
                         }
+                        bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, aiPlayerEnum, guildWarCapturePointsThisMove);
                         stripPatternStonesAtConsumedIntersections(game);
                         removeCapturedBaseStoneMarkers(game, result.capturedStones);
                     }
@@ -1050,6 +1054,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     maxSingleCaptureByPlayer[myPlayerEnum] = captureCountThisMove;
                 }
                 if (!game.justCaptured) game.justCaptured = [];
+                let guildWarCapturePointsThisMove = 0;
                 for (const stone of result.capturedStones) {
                     const capturedPlayerEnum = opponentPlayerEnum;
                     
@@ -1107,8 +1112,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
 
                     game.captures[myPlayerEnum] += points;
+                    guildWarCapturePointsThisMove += points;
                     game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
                 }
+                bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, myPlayerEnum, guildWarCapturePointsThisMove);
                 stripPatternStonesAtConsumedIntersections(game);
                 removeCapturedBaseStoneMarkers(game, result.capturedStones);
             }

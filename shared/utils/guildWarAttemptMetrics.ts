@@ -21,6 +21,7 @@ function scoreModeStarsFromDiff(diff: number, boardId: string | undefined): numb
 
 /**
  * 길드전 한 판 기준 별·따내기 수 등 (서버 `guildWarBoardResult`와 동일).
+ * 따내기 모드에서 `maxSingleCapture`는 **한 수 포획 점수 합의 최대값**(문양·배치돌 가중 반영).
  */
 export function computeGuildWarAttemptMetrics(
     game: LiveGameSession,
@@ -38,10 +39,9 @@ export function computeGuildWarAttemptMetrics(
     if (game.mode === GameMode.Capture) {
         const opCap = game.captures?.[aiEnum] ?? 0;
         const margin = captures - opCap;
-        const trackedMaxSingleCapture = Number((game as any)?.maxSingleCaptureByPlayer?.[humanEnum] ?? 0) || 0;
-        const maxSingleCapture = trackedMaxSingleCapture > 0
-            ? trackedMaxSingleCapture
-            : getMaxSingleCaptureForPlayer(game, humanEnum);
+        const trackedMaxPoints = Number((game as any)?.maxSingleCapturePointsByPlayer?.[humanEnum] ?? 0) || 0;
+        const maxSingleCapture =
+            trackedMaxPoints > 0 ? trackedMaxPoints : getMaxSingleCaptureForPlayer(game, humanEnum);
         /** 길드전 집점수(따내기): 따낸 돌 총점의 2배 + 남은 시간 보너스(10초당 1집) */
         const captureHouseScore = captures * 2 + timeHouseBonus;
         if (!humanWon) {

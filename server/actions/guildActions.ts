@@ -14,13 +14,17 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId } from '../../shared/constants/index.js';
-import { MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES, userMeetsGuildFeatureLevelRequirement } from '../../shared/constants/guildConstants.js';
-import { EquipmentSlot, ItemGrade, GameMode } from '../../types/enums.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId, getGuildWarKataServerLevelByBoardId } from '../../shared/constants/index.js';
+import {
+    MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
+    userMeetsGuildFeatureLevelRequirement,
+    getGuildWarBoardDisplayName,
+} from '../../shared/constants/guildConstants.js';
+import { EquipmentSlot, ItemGrade, GameMode, Player } from '../../types/enums.js';
 import { generateNewItem } from './inventoryActions.js';
 import * as currencyService from '../currencyService.js';
 import * as guildService from '../guildService.js';
-import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, getNextGuildWarMatchDate, getTodayKSTDateString } from '../../utils/timeUtils.js';
+import { isSameDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { addItemsToInventory, getItemTemplateByName } from '../../utils/inventoryUtils.js';
 import { openGuildGradeBox } from '../shop.js';
 import { randomUUID } from 'crypto';
@@ -33,11 +37,10 @@ import {
     cloneBoardStateForKataOpeningSnapshot,
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from '../kataCaptureSetupEncoding.js';
-import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
-import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../../shared/constants/vipPlayReward.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
-import { createConsumableItemInstance } from '../summaryService.js';
+import { rollAndResolveRewardVipPlayGrant } from '../summaryService.js';
+import { computeGuildWarAttemptMetrics } from '../../shared/utils/guildWarAttemptMetrics.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -147,6 +150,123 @@ function buildGuildWarTicketSummary(
         myRoster: { used: myUsed, total: myTotal },
         opponentRoster: { used: oppUsed, total: oppTotal },
     };
+}
+
+/** START_GUILD_WAR 응답용 — 길드전 매칭 결과 연출(모달·알림) */
+export type GuildWarMatchPresentation = {
+    badge: string;
+    tone: 'rival' | 'system' | 'demo';
+    lines: string[];
+};
+
+function augmentGuildWarOpponentInGuildsMap(createdWar: any, myGuildId: string, guildsForResponse: Record<string, any>): void {
+    if (!createdWar || createdWar.status !== 'active') return;
+    const oppId = createdWar.guild1Id === myGuildId ? createdWar.guild2Id : createdWar.guild1Id;
+    if (!oppId || guildsForResponse[oppId]) return;
+    const isBot = !!(createdWar as any).isBotGuild;
+    guildsForResponse[oppId] = {
+        id: oppId,
+        name: isBot ? '[시스템] 길드전 AI' : '상대 길드',
+        level: 1,
+        members: [],
+        leaderId: oppId,
+    };
+}
+
+function buildGuildWarMatchPresentation(
+    createdWar: any,
+    guildsForResponse: Record<string, any>,
+    myGuildId: string,
+    opts?: { instantAllBotDemo?: boolean },
+): { message: string; matchPresentation?: GuildWarMatchPresentation } {
+    if (!createdWar || createdWar.status !== 'active') {
+        return { message: '' };
+    }
+    augmentGuildWarOpponentInGuildsMap(createdWar, myGuildId, guildsForResponse);
+    const oppId = createdWar.guild1Id === myGuildId ? createdWar.guild2Id : createdWar.guild1Id;
+    const oppName = (guildsForResponse[oppId]?.name as string | undefined)?.trim() || '상대 길드';
+    const vsBot = !!(createdWar as any).isBotGuild;
+
+    if (opts?.instantAllBotDemo) {
+        return {
+            message: '데모: 봇 길드와 즉시 전장이 열렸습니다.',
+            matchPresentation: {
+                badge: '데모 즉시 매칭',
+                tone: 'demo',
+                lines: [
+                    '테스트 모드에서는 신청한 길드가 곧바로 시스템 봇 길드와 붙습니다.',
+                    '실제 운영에서는 다른 길드와 짝을 이루고, 홀수일 때만 봇이 배정됩니다.',
+                ],
+            },
+        };
+    }
+
+    if (vsBot) {
+        return {
+            message: '매칭 완료! 시스템 봇 길드와 전장이 열렸습니다.',
+            matchPresentation: {
+                badge: '홀수 대기 → 시스템 매치',
+                tone: 'system',
+                lines: [
+                    '이번 길드전 신청 길드 수가 홀수여서, 짝을 이루지 못한 한 팀은 규칙에 따라 시스템 봇 길드와 매칭됩니다.',
+                    '봇 전장도 실제 길드전과 같은 룰·보상 흐름으로 진행됩니다.',
+                    '출전 명단 없이 길드원 누구나 전장에 들어가 공격할 수 있습니다. (일일 개인 출전 제한 적용)',
+                ],
+            },
+        };
+    }
+
+    return {
+        message: `매칭 완료! 이번 상대는 「${oppName}」입니다.`,
+        matchPresentation: {
+            badge: '길드 대결 확정',
+            tone: 'rival',
+            lines: [
+                `상대 길드: ${oppName}`,
+                '9개 보드에서 별과 점수로 우열을 겨룹니다.',
+                '출전 명단 없이 길드원 전원이 전장에 참여할 수 있습니다.',
+            ],
+        },
+    };
+}
+
+function appendGuildWarParticipationSystemChat(
+    guildsMap: Record<string, any>,
+    guildId: string,
+    user: User,
+    createdWar: any | null | undefined,
+): void {
+    const g = guildsMap[guildId];
+    if (!g) return;
+    const nicknameEnding =
+        user.nickname && /[가-힣]$/.test(user.nickname)
+            ? user.nickname.charCodeAt(user.nickname.length - 1 - 0xAC00) % 28 === 0
+                ? '가'
+                : '이'
+            : '이';
+    let content: string;
+    if (!createdWar || createdWar.status !== 'active') {
+        content = `[${user.nickname}]${nicknameEnding} 길드 전쟁에 참여했습니다. 매칭을 진행합니다.`;
+    } else if ((createdWar as any).isBotGuild) {
+        content = `[${user.nickname}]${nicknameEnding} 길드 전쟁에 참여했습니다. 홀수 대기로 시스템 봇 길드와 매칭되었습니다.`;
+    } else {
+        const oid = createdWar.guild1Id === guildId ? createdWar.guild2Id : createdWar.guild1Id;
+        const oname = (guildsMap[oid]?.name as string | undefined)?.trim() || '상대 길드';
+        content = `[${user.nickname}]${nicknameEnding} 길드 전쟁에 참여했습니다. 상대: 「${oname}」`;
+    }
+    const systemMessage: any = {
+        id: `msg-guild-war-${randomUUID()}`,
+        guildId: g.id,
+        authorId: 'system',
+        content,
+        createdAt: Date.now(),
+        system: true,
+    };
+    if (!g.chatHistory) g.chatHistory = [];
+    g.chatHistory.push(systemMessage);
+    if (g.chatHistory.length > 100) {
+        g.chatHistory.shift();
+    }
 }
 
 function guildWarSeededHash(input: string): number {
@@ -1739,10 +1859,19 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
             
             const now = Date.now();
-            const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
-            const existingWar = activeWars.find(w => 
-                (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && 
-                w.status === 'active'
+            // 종료 시각이 지난 전쟁이 메인 루프보다 먼저 정리되지 않으면 status가 active로 남아 «이미 진행 중» 오탐이 난다.
+            try {
+                const { processGuildWarEnd } = await import('../scheduledTasks.js');
+                await processGuildWarEnd();
+            } catch (gwEndErr: any) {
+                console.warn('[START_GUILD_WAR] processGuildWarEnd (non-fatal):', gwEndErr?.message);
+            }
+            const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+            const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
+            const existingWar = activeWars.find(
+                (w) =>
+                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                    guildWarIsChronologicallyActive(w, now)
             );
 
             // 데모 모드: 이미 진행 중인 전쟁이 있으면 해당 전쟁으로 입장 가능하도록 반환 (에러 없이)
@@ -1787,12 +1916,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
                 if (!matchingQueue.includes(user.guildId)) {
                     matchingQueue.push(user.guildId);
-                    (guild as any).guildWarMatching = true;
                     (guild as any).lastWarActionTime = now;
-                    await db.setKV('guildWarMatchingQueue', matchingQueue);
-                    await db.setKV('guilds', guilds);
-                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
                 }
+                (guild as any).guildWarMatching = true;
+                await db.setKV('guildWarMatchingQueue', matchingQueue);
+                await db.setKV('guilds', guilds);
+                await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
                 const { processGuildWarMatching } = await import('../scheduledTasks.js');
                 await processGuildWarMatching(true);
                 const updatedWars = await db.getKV<any[]>('activeGuildWars') || [];
@@ -1802,11 +1931,28 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
                     (guildsForResponse as Record<string, any>)[oppId] = { id: oppId, name: '[데모]길드전AI', level: 1, members: [], leaderId: oppId };
                 }
+                if (createdWar) {
+                    appendGuildWarParticipationSystemChat(guildsForResponse as any, user.guildId, user, createdWar);
+                    await db.setKV('guilds', guildsForResponse);
+                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds: guildsForResponse } });
+                    const pres = buildGuildWarMatchPresentation(createdWar, guildsForResponse as any, user.guildId, {
+                        instantAllBotDemo: true,
+                    });
+                    return {
+                        clientResponse: {
+                            matched: true,
+                            message: pres.message,
+                            matchPresentation: pres.matchPresentation,
+                            activeWar: createdWar,
+                            guilds: guildsForResponse,
+                            isMatching: false,
+                        },
+                    };
+                }
                 return {
                     clientResponse: {
-                        matched: !!createdWar,
-                        message: createdWar ? '데모: 봇 길드와 매칭되었습니다. 입장 버튼으로 전쟁을 체험해 보세요.' : '매칭 처리 중입니다. 잠시 후 다시 조회해 주세요.',
-                        activeWar: createdWar ?? undefined,
+                        matched: false,
+                        message: '매칭 처리 중입니다. 잠시 후 다시 조회해 주세요.',
                         guilds: guildsForResponse,
                         isMatching: false,
                     },
@@ -1820,13 +1966,62 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: '자동 매칭 가능한 길드원이 없습니다.' };
             }
             (guild as any).guildWarPendingParticipantIds = defaults;
-            
-            // 이미 매칭 중인지 확인
-            if ((guild as any).guildWarMatching) {
-                return { error: '이미 매칭 중입니다.' };
+
+            let matchingQueue = (await db.getKV<string[]>('guildWarMatchingQueue')) || [];
+
+            // guildWarMatching만 켜져 큐에 없는 비정상(KV 불일치·부분 실패)이면 큐에 복구 후 아래에서 즉시 매칭
+            if ((guild as any).guildWarMatching && !matchingQueue.includes(user.guildId)) {
+                matchingQueue.push(user.guildId);
+                await db.setKV('guildWarMatchingQueue', matchingQueue);
+                console.warn(`[START_GUILD_WAR] Repaired guild ${user.guildId}: guildWarMatching without queue entry`);
             }
-            
-            // 쿨타임 확인 (취소 후 1시간 동안 재신청 불가)
+
+            // 이미 큐에 있으면(스케줄 자동 등록 포함) 취소 쿨다운 없이 즉시 매칭 처리
+            if (matchingQueue.includes(user.guildId)) {
+                (guild as any).guildWarMatching = true;
+                await db.setKV('guilds', guilds);
+                await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                const { processGuildWarMatching } = await import('../scheduledTasks.js');
+                await processGuildWarMatching(true);
+                const updatedWars = await db.getKV<any[]>('activeGuildWars') || [];
+                const guildsForResponse = await db.getKV<Record<string, Guild>>('guilds') || {};
+                const createdWar = updatedWars.find(
+                    (w: any) => w.status === 'active' && (w.guild1Id === user.guildId || w.guild2Id === user.guildId)
+                );
+                if (createdWar) {
+                    augmentGuildWarOpponentInGuildsMap(createdWar, user.guildId, guildsForResponse as any);
+                }
+                const freshGuild = guildsForResponse[user.guildId] as any;
+                const stillMatching = !!freshGuild?.guildWarMatching;
+                if (createdWar) {
+                    appendGuildWarParticipationSystemChat(guildsForResponse as any, user.guildId, user, createdWar);
+                    await db.setKV('guilds', guildsForResponse);
+                    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds: guildsForResponse } });
+                    const pres = buildGuildWarMatchPresentation(createdWar, guildsForResponse as any, user.guildId);
+                    return {
+                        clientResponse: {
+                            matched: true,
+                            message: pres.message,
+                            matchPresentation: pres.matchPresentation,
+                            activeWar: createdWar,
+                            guilds: guildsForResponse,
+                            isMatching: false,
+                        },
+                    };
+                }
+                return {
+                    clientResponse: {
+                        matched: false,
+                        message: stillMatching
+                            ? '매칭 처리 중입니다. 잠시 후 길드 전쟁 화면을 확인해 주세요.'
+                            : '매칭 처리를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.',
+                        isMatching: stillMatching,
+                        guilds: guildsForResponse,
+                    },
+                };
+            }
+
+            // 쿨타임: 큐에 아직 없는 «새 신청»에만 적용 (취소 직후 자동 큐 등록 뒤 수동 재시도는 위 분기에서 처리)
             const lastWarAction = (guild as any).lastWarActionTime || 0;
             const cooldownTime = 60 * 60 * 1000; // 1시간
             if (lastWarAction && (now - lastWarAction) < cooldownTime) {
@@ -1835,42 +2030,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
                 return { error: `전쟁 취소 후 1시간이 지나야 신청할 수 있습니다. (남은 시간: ${minutes}분 ${seconds}초)` };
             }
-            
-            const nextMatchDate = getNextGuildWarMatchDate(now);
-            
-            // 매칭 큐 가져오기
-            const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
-            
-            // 이미 큐에 있는지 확인
-            if (matchingQueue.includes(user.guildId)) {
-                return { error: '이미 매칭 큐에 등록되어 있습니다.' };
-            }
-            
+
             // 매칭 큐에 추가 (다음날 0시에 자동 매칭됨)
             matchingQueue.push(user.guildId);
             (guild as any).guildWarMatching = true;
             (guild as any).lastWarActionTime = now;
-            
-            // 길드 채팅에 시스템 메시지 추가
-            const { randomUUID } = await import('crypto');
-            const nicknameEnding = user.nickname && /[가-힣]$/.test(user.nickname)
-                ? (user.nickname.charCodeAt(user.nickname.length - 1 - 0xAC00) % 28 === 0 ? '가' : '이')
-                : '이';
-            
-            const systemMessage: any = {
-                id: `msg-guild-war-${randomUUID()}`,
-                guildId: guild.id,
-                authorId: 'system',
-                content: `[${user.nickname}]${nicknameEnding} 길드 전쟁 매칭을 신청했습니다. 상대가 정해지면 전쟁이 시작됩니다. (월/목 23시까지 참여·취소 가능)`,
-                createdAt: now,
-                system: true,
-            };
-            
-            if (!guild.chatHistory) guild.chatHistory = [];
-            guild.chatHistory.push(systemMessage);
-            if (guild.chatHistory.length > 100) {
-                guild.chatHistory.shift();
-            }
             
             await db.setKV('guildWarMatchingQueue', matchingQueue);
             await db.setKV('guilds', guilds);
@@ -1886,38 +2050,27 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const createdWar = updatedWars.find(
                 (w: any) => w.status === 'active' && (w.guild1Id === user.guildId || w.guild2Id === user.guildId)
             );
-            const oppId = createdWar
-                ? createdWar.guild1Id === user.guildId
-                    ? createdWar.guild2Id
-                    : createdWar.guild1Id
-                : null;
-            if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
-                (guildsForResponse as Record<string, any>)[oppId] = {
-                    id: oppId,
-                    name: '[시스템]길드전AI',
-                    level: 1,
-                    members: [],
-                    leaderId: oppId,
-                };
+            if (createdWar) {
+                augmentGuildWarOpponentInGuildsMap(createdWar, user.guildId, guildsForResponse as any);
             }
 
-            const cancelDeadlineTime = nextMatchDate - (60 * 60 * 1000);
             const freshGuild = guildsForResponse[user.guildId] as any;
             const stillMatching = !!freshGuild?.guildWarMatching;
 
+            appendGuildWarParticipationSystemChat(guildsForResponse as any, user.guildId, user, createdWar ?? null);
+            await db.setKV('guilds', guildsForResponse);
+            await broadcast({ type: 'GUILD_UPDATE', payload: { guilds: guildsForResponse } });
+
             if (createdWar) {
-                const vsBot = !!(createdWar as any).isBotGuild || oppId === GUILD_WAR_BOT_GUILD_ID;
+                const pres = buildGuildWarMatchPresentation(createdWar, guildsForResponse as any, user.guildId);
                 return {
                     clientResponse: {
                         matched: true,
-                        message: vsBot
-                            ? '봇 길드와 매칭되었습니다. 입장 버튼으로 전쟁에 참여하세요.'
-                            : '상대 길드와 매칭되었습니다. 입장 버튼으로 전쟁에 참여하세요.',
+                        message: pres.message,
+                        matchPresentation: pres.matchPresentation,
                         activeWar: createdWar,
                         guilds: guildsForResponse,
                         isMatching: false,
-                        nextMatchTime: nextMatchDate,
-                        cancelDeadline: cancelDeadlineTime,
                     },
                 };
             }
@@ -1926,10 +2079,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 clientResponse: {
                     matched: false,
                     message: stillMatching
-                        ? '매칭 신청이 완료되었습니다. 잠시 후 길드 전쟁 화면을 확인해 주세요. (월/목 23시까지 참여·취소 가능)'
+                        ? '매칭 처리 중입니다. 잠시 후 길드 전쟁 화면을 확인해 주세요.'
                         : '매칭 처리를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.',
-                    nextMatchTime: nextMatchDate,
-                    cancelDeadline: cancelDeadlineTime,
                     isMatching: stillMatching,
                     guilds: guildsForResponse,
                 },
@@ -1956,13 +2107,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             const now = Date.now();
-            const nextMatchDate = getNextGuildWarMatchDate(now);
-            const cancelDeadline = nextMatchDate - (60 * 60 * 1000); // 매칭 1시간 전(23시)
-            
-            if (now >= cancelDeadline) {
-                return { error: '매칭 1시간 전부터는 취소할 수 없습니다.' };
-            }
-            
+
             // 매칭 큐에서 제거
             const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
             const queueIndex = matchingQueue.indexOf(user.guildId);
@@ -2008,15 +2153,25 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         case 'GET_GUILD_WAR_DATA': {
             if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
             
-            const guilds = await db.getKV<Record<string, Guild>>('guilds') || {};
-            const guild = guilds[user.guildId];
+            let guilds = await db.getKV<Record<string, Guild>>('guilds') || {};
+            let guild = guilds[user.guildId];
             if (!guild) return { error: '길드를 찾을 수 없습니다.' };
             
             // 길드???�이??가?�오�?
-            const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
+            try {
+                const { processGuildWarEnd } = await import('../scheduledTasks.js');
+                await processGuildWarEnd();
+            } catch (e: any) {
+                console.warn('[GET_GUILD_WAR_DATA] processGuildWarEnd (non-fatal):', e?.message);
+            }
+            const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
+            const now = Date.now();
+
+            let activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
             let warInProgress = activeWars.find(
                 (w) =>
-                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && w.status === 'active'
+                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                    guildWarIsChronologicallyActive(w, now)
             );
             if (warInProgress && normalizeGuildWarBoardModes(warInProgress)) {
                 await db.setKV('activeGuildWars', activeWars);
@@ -2028,31 +2183,62 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     await db.setKV('activeGuildWars', activeWars);
                 }
             }
-            
-            // ?�음 매칭 ?�짜 가?�오�?(길드???�정?�어 ?�으�??�용, ?�으�?계산)
+
+            // 진행 중 전쟁이 없는데 큐·플래그만 남은 경우 즉시 봇 매칭으로 복구(입장 가능 상태로)
+            if (!warInProgress) {
+                const guildsLive = (await db.getKV<Record<string, Guild>>('guilds')) || {};
+                const gLive = guildsLive[user.guildId];
+                if (gLive) {
+                    let mq = (await db.getKV<string[]>('guildWarMatchingQueue')) || [];
+                    let mqChanged = false;
+                    let gChanged = false;
+                    if (mq.includes(user.guildId) && !(gLive as any).guildWarMatching) {
+                        (gLive as any).guildWarMatching = true;
+                        gChanged = true;
+                    }
+                    if ((gLive as any).guildWarMatching && !mq.includes(user.guildId)) {
+                        mq = [...mq, user.guildId];
+                        mqChanged = true;
+                    }
+                    if (mqChanged) await db.setKV('guildWarMatchingQueue', mq);
+                    if (gChanged) await db.setKV('guilds', guildsLive);
+                    if (mq.includes(user.guildId) || (gLive as any).guildWarMatching) {
+                        const { processGuildWarMatching } = await import('../scheduledTasks.js');
+                        await processGuildWarMatching(true);
+                        activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+                        guilds = (await db.getKV<Record<string, Guild>>('guilds')) || {};
+                        guild = guilds[user.guildId] ?? guild;
+                        warInProgress = activeWars.find(
+                            (w) =>
+                                (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                                guildWarIsChronologicallyActive(w, now)
+                        );
+                        if (warInProgress && normalizeGuildWarBoardModes(warInProgress)) {
+                            await db.setKV('activeGuildWars', activeWars);
+                        }
+                        if (warInProgress) {
+                            botWarChanged = applyBotGuildWarAttemptScript(warInProgress, Date.now());
+                            if (botWarChanged) {
+                                await db.setKV('activeGuildWars', activeWars);
+                            }
+                        }
+                    }
+                }
+            }
 
             // 매칭 중 여부 확인 (guildWarMatching 또는 매칭큐에 있으면 true)
             const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
             const isInQueue = matchingQueue.includes(user.guildId);
             let isMatching = (guild as any).guildWarMatching || isInQueue;
 
-            // 조회 액션은 상태만 반환해야 하므로 자동 큐 등록/강제 매칭을 수행하지 않는다.
-            
-            // 다음 매칭: 화/금 0:00. 신청 마감: 월/목 23:00 (매칭 1시간 전)
-            let nextMatchTime: number | undefined = undefined;
-            let cancelDeadline: number | null = null;
-            let applicationDeadline: number | null = null;
-            const nextMatchDate = getNextGuildWarMatchDate(Date.now());
-            applicationDeadline = nextMatchDate - (60 * 60 * 1000);
-            nextMatchTime = nextMatchDate;
-            if (isMatching) {
-                cancelDeadline = applicationDeadline; // 23시부터 취소 불가
-            }
+            // 예약 매칭 일정 안내는 사용하지 않음(즉시 봇 매칭 정책)
+            const nextMatchTime: number | undefined = undefined;
+            const cancelDeadline: number | null = null;
+            const applicationDeadline: number | null = null;
             
             // 전쟁 참여 쿨타임 (취소 후 1시간 동안 재신청 불가)
             const lastWarAction = (guild as any).lastWarActionTime || 0;
             const cooldownTime = 60 * 60 * 1000; // 1시간
-            const now = Date.now();
             let warActionCooldown: number | null = null;
             if (lastWarAction && (now - lastWarAction) < cooldownTime && !isMatching) {
                 warActionCooldown = lastWarAction + cooldownTime;
@@ -2067,7 +2253,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 )
                 .sort((a: any, b: any) => (b.endTime ?? 0) - (a.endTime ?? 0));
             const latestCompletedWar = completedForGuild[0];
-            const activeWar = warInProgress ?? latestCompletedWar ?? null;
+            const activeWar = warInProgress ?? null;
 
             const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
             let guildWarLatestCompletedRewardClaimed = false;
@@ -2133,7 +2319,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             let guildWarTicketSummary: ReturnType<typeof buildGuildWarTicketSummary> | null = null;
             if (activeWarForUser) {
                 const isG1 = activeWarForUser.guild1Id === myGuildId;
-                const attempts = Number(activeWarForUser.userAttempts?.[effectiveUserId] ?? 0) || 0;
+                /** 관리자: 길드전 도전권 소모 없음 — UI는 항상 잔여 최대(예: 2/2)로 표시 */
+                const attempts = user.isAdmin
+                    ? 0
+                    : (Number(activeWarForUser.userAttempts?.[effectiveUserId] ?? 0) || 0);
                 const maxAttempts = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
                 let contributedStars = 0;
                 for (const board of Object.values(activeWarForUser.boards || {})) {
@@ -2145,12 +2334,20 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 myRecordInCurrentWar = { attempts, maxAttempts, contributedStars };
             }
 
-            // 데모/테스트: 상대가 봇 길드일 때 guilds에 봇 길드가 없으면 추가해 입장 버튼·상대명 표시 가능하도록
+            // 상대가 시스템 봇 길드일 때 guilds에 없으면 표시용 엔트리 추가
             const guildsForResponse = { ...guilds };
             if (activeWar && activeWar.status === 'active') {
                 const oppId = activeWar.guild1Id === myGuildId ? activeWar.guild2Id : activeWar.guild1Id;
-                if (oppId === GUILD_WAR_BOT_GUILD_ID && !guildsForResponse[oppId]) {
-                    (guildsForResponse as Record<string, any>)[oppId] = { id: oppId, name: '[데모]길드전AI', level: 1, members: [], leaderId: oppId };
+                if ((activeWar as any).isBotGuild || oppId === GUILD_WAR_BOT_GUILD_ID) {
+                    if (!guildsForResponse[oppId]) {
+                        (guildsForResponse as Record<string, any>)[oppId] = {
+                            id: oppId,
+                            name: '[시스템] 길드전 AI',
+                            level: 1,
+                            members: [],
+                            leaderId: oppId,
+                        };
+                    }
                 }
             }
 
@@ -2219,6 +2416,98 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 },
             };
         }
+
+        case 'GET_MY_GUILD_WAR_ATTEMPT_LOG': {
+            if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
+            try {
+                const { processGuildWarEnd } = await import('../scheduledTasks.js');
+                await processGuildWarEnd();
+            } catch (e: any) {
+                console.warn('[GET_MY_GUILD_WAR_ATTEMPT_LOG] processGuildWarEnd (non-fatal):', e?.message);
+            }
+            const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
+            const now = Date.now();
+            const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+            const warInProgress = activeWars.find(
+                (w) =>
+                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && guildWarIsChronologicallyActive(w, now),
+            );
+            if (!warInProgress?.id) {
+                return { clientResponse: { myGuildWarAttemptLog: [], warId: null, attemptsUsedInWar: 0, attemptsMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS } };
+            }
+            const acceptedIds = user.isAdmin ? [ADMIN_USER_ID, user.id] : [user.id];
+            const { listEndedGuildWarGamesForWar } = await import('../prisma/gameService.js');
+            const rows = await listEndedGuildWarGamesForWar(String(warInProgress.id), acceptedIds, 60);
+            const AI_USER_ID = 'ai-player-01';
+
+            const modeLabel = (mode: GameMode | string | undefined): string => {
+                const m = mode as GameMode;
+                if (m === GameMode.Capture) return '따내기';
+                if (m === GameMode.Hidden) return '히든';
+                if (m === GameMode.Missile) return '미사일';
+                return '바둑';
+            };
+
+            const log: Array<{
+                gameId: string;
+                boardId: string;
+                boardName: string;
+                modeLabel: string;
+                outcome: 'win' | 'lose' | 'draw';
+                stars: number;
+                captures: number;
+                scoreDiff?: number;
+                endedAtMs: number;
+                detailSummary?: string;
+            }> = [];
+            for (const { game, rowUpdatedAtMs } of rows) {
+                const boardId = String((game as any).guildWarBoardId ?? '');
+                const blackId = game.blackPlayerId;
+                const whiteId = game.whitePlayerId;
+                const humanId =
+                    blackId && blackId !== AI_USER_ID ? blackId : whiteId && whiteId !== AI_USER_ID ? whiteId : game.player1?.id;
+                let humanEnum: Player;
+                if (blackId === humanId) humanEnum = Player.Black;
+                else if (whiteId === humanId) humanEnum = Player.White;
+                else continue;
+                const isDraw = game.winner === Player.None;
+                const humanWon = !isDraw && game.winner === humanEnum;
+                const outcome: 'win' | 'lose' | 'draw' = isDraw ? 'draw' : humanWon ? 'win' : 'lose';
+                const metrics = computeGuildWarAttemptMetrics(game, humanEnum, humanWon);
+                const detailParts: string[] = [];
+                if (game.mode === GameMode.Capture) {
+                    detailParts.push(`따낸 돌 ${metrics.captures ?? 0}개`);
+                    if (metrics.maxSingleCapture != null) detailParts.push(`한 번에 최대 ${metrics.maxSingleCapture}점`);
+                } else if (metrics.scoreDiff != null) {
+                    detailParts.push(`집 차이 ${metrics.scoreDiff}집`);
+                } else if (typeof metrics.score === 'number' && metrics.score > 0) {
+                    detailParts.push(`집점수 약 ${metrics.score}`);
+                }
+                log.push({
+                    gameId: game.id,
+                    boardId: boardId || '—',
+                    boardName: boardId ? getGuildWarBoardDisplayName(boardId) : '—',
+                    modeLabel: modeLabel(game.mode),
+                    outcome,
+                    stars: metrics.stars ?? 0,
+                    captures: metrics.captures ?? 0,
+                    scoreDiff: metrics.scoreDiff,
+                    endedAtMs: rowUpdatedAtMs,
+                    detailSummary: detailParts.length ? detailParts.join(' · ') : undefined,
+                });
+            }
+
+            const attemptsUsedInWar = user.isAdmin ? 0 : (Number(warInProgress.userAttempts?.[effectiveUserId] ?? 0) || 0);
+
+            return {
+                clientResponse: {
+                    myGuildWarAttemptLog: log,
+                    warId: String(warInProgress.id),
+                    attemptsUsedInWar,
+                    attemptsMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS,
+                },
+            };
+        }
         
         case 'START_GUILD_WAR_GAME': {
             const { boardId, isDemo } = (payload ?? {}) as { boardId?: string; isDemo?: boolean };
@@ -2241,13 +2530,22 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     initialStones: [getGuildWarCaptureInitialStones(boardId)],
                 };
             } else {
-                // 실제 모드: 활성 전쟁 확인
-                const activeWars = await db.getKV<any[]>('activeGuildWars') || [];
-                activeWar = activeWars.find(w => 
-                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) && 
-                    w.status === 'active'
+                try {
+                    const { processGuildWarEnd } = await import('../scheduledTasks.js');
+                    await processGuildWarEnd();
+                } catch (e: any) {
+                    console.warn('[START_GUILD_WAR_GAME] processGuildWarEnd (non-fatal):', e?.message);
+                }
+                const { guildWarIsChronologicallyActive } = await import('../guildWarActiveUtils.js');
+                const nowG = Date.now();
+                // 실제 모드: 시계상 진행 중인 전쟁만 (status만 active인 좀비 제외)
+                const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+                activeWar = activeWars.find(
+                    (w) =>
+                        (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                        guildWarIsChronologicallyActive(w, nowG)
                 );
-                
+
                 if (!activeWar) {
                     return { error: '진행 중인 길드 전쟁이 없습니다.' };
                 }
@@ -2259,15 +2557,15 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
                 board.gameMode = normalizedBoardMode;
                 board.boardSize = getGuildWarBoardLineSize(boardId);
-                if (!board.initialStones || !Array.isArray(board.initialStones) || board.initialStones.length === 0) {
-                    board.initialStones = [getGuildWarCaptureInitialStones(boardId)];
-                }
+                board.initialStones = [getGuildWarCaptureInitialStones(boardId)];
 
-                const usedAttempts = Number(activeWar.userAttempts?.[effectiveUserId] ?? 0) || 0;
-                if (usedAttempts >= GUILD_WAR_PERSONAL_DAILY_ATTEMPTS) {
-                    return {
-                        error: `이번 길드전 도전 가능 횟수를 모두 사용했습니다. (1인당 ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`,
-                    };
+                if (!user.isAdmin) {
+                    const usedAttempts = Number(activeWar.userAttempts?.[effectiveUserId] ?? 0) || 0;
+                    if (usedAttempts >= GUILD_WAR_PERSONAL_DAILY_ATTEMPTS) {
+                        return {
+                            error: `이번 길드전 도전 가능 횟수를 모두 사용했습니다. (1인당 ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`,
+                        };
+                    }
                 }
             }
             
@@ -2293,12 +2591,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     ? getAiUserForGuildWar(gameMode, boardId)
                     : getAiUser(gameMode);
             
-            // 길드전 9칸: 모드별 Kata 프로필 단계(→ kataServerLevel) — 따내기 3, 히든 7, 미사일 5
+            // 길드전 9칸: AI 난이도 단계는 모드별, Kata `kataServerLevel`은 좌/중/우 열(경기장 id)별 고정
             const guildWarKataProfileStep =
                 normalizedBoardMode === 'capture' ? 3 : normalizedBoardMode === 'hidden' ? 7 : 5;
-            const guildWarKataServerLevel =
-                KATA_SERVER_LEVEL_BY_PROFILE_STEP[guildWarKataProfileStep] ??
-                KATA_SERVER_LEVEL_BY_PROFILE_STEP[3];
+            const guildWarKataServerLevel = getGuildWarKataServerLevelByBoardId(
+                typeof boardId === 'string' ? boardId : '',
+            );
 
             // 게임 설정
             const gameSettings = {
@@ -2400,7 +2698,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 const now = Date.now();
                 if (!activeWar.dailyAttempts) activeWar.dailyAttempts = {};
                 if (!activeWar.userAttempts) activeWar.userAttempts = {};
-                activeWar.userAttempts[effectiveUserId] = (Number(activeWar.userAttempts[effectiveUserId] ?? 0) || 0) + 1;
+                if (!user.isAdmin) {
+                    activeWar.userAttempts[effectiveUserId] = (Number(activeWar.userAttempts[effectiveUserId] ?? 0) || 0) + 1;
+                }
 
                 // 바둑판 도전 중 상태 업데이트
                 if (!board.challenging) {
@@ -3045,7 +3345,23 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             } else {
                 console.warn(`[START_GUILD_BOSS_BATTLE] No equipment in rewards for user ${freshUser.id}. Rewards:`, JSON.stringify(rewards));
             }
-            
+
+            const vipBossGrant = isRewardVipActive(freshUser) ? rollAndResolveRewardVipPlayGrant() : null;
+            if (vipBossGrant?.goldBonus) {
+                freshUser.gold = (freshUser.gold || 0) + vipBossGrant.goldBonus;
+            }
+            if (vipBossGrant?.inventoryItem) {
+                itemsToAdd.push(vipBossGrant.inventoryItem);
+            }
+            (result as GuildBossBattleResult).vipPlayRewardSlot = {
+                locked: !isRewardVipActive(freshUser),
+                ...(vipBossGrant?.grantedDisplay && isRewardVipActive(freshUser)
+                    ? {
+                          grantedItem: vipBossGrant.grantedDisplay,
+                      }
+                    : {}),
+            };
+
             // 인벤토리에 아이템 추가
             if (itemsToAdd.length > 0) {
                 const { success, updatedInventory } = addItemsToInventory(freshUser.inventory || [], freshUser.inventorySlots || { equipment: 30, consumable: 30, material: 30 }, itemsToAdd);
@@ -3079,23 +3395,6 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 console.warn(`[START_GUILD_BOSS_BATTLE] No generatedEquipment to add to result for user ${freshUser.id}`);
             }
 
-            const vipBossExtra = isRewardVipActive(freshUser) ? createConsumableItemInstance(VIP_PLAY_REWARD_CONSUMABLE_NAME) : null;
-            if (vipBossExtra) {
-                itemsToAdd.push(vipBossExtra);
-            }
-            (result as GuildBossBattleResult).vipPlayRewardSlot = {
-                locked: !isRewardVipActive(freshUser),
-                ...(vipBossExtra
-                    ? {
-                          grantedItem: {
-                              name: vipBossExtra.name,
-                              quantity: vipBossExtra.quantity ?? 1,
-                              image: (vipBossExtra as { image?: string }).image,
-                          },
-                      }
-                    : {}),
-            };
-            
             updateQuestProgress(freshUser, 'guild_boss_participate');
             
             const currentBoss = GUILD_BOSSES.find(b => b.id === guild.guildBossState!.currentBossId);

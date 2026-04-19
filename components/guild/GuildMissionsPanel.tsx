@@ -18,8 +18,9 @@ const MissionItem: React.FC<{
     mission: GuildMission;
     guildLevel: number;
     guild: GuildType;
-    isNativeMobile: boolean;
-}> = ({ mission, guildLevel, guild, isNativeMobile }) => {
+    /** 네이티브 앱·좁은 뷰포트: 한 단 높이 압축 레이아웃 */
+    compactLayout: boolean;
+}> = ({ mission, guildLevel, guild, compactLayout }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     const progress = mission.progress ?? 0;
     const target = mission.target ?? 0;
@@ -52,91 +53,152 @@ const MissionItem: React.FC<{
                 isComplete && !isClaimed && !isExpired
                     ? 'ring-amber-400/25 shadow-[0_0_0_1px_rgba(251,191,36,0.12),0_16px_48px_-12px_rgba(245,158,11,0.12)]'
                     : 'hover:border-amber-400/35 hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.55)]',
-                isNativeMobile ? 'p-2' : 'p-3.5 sm:p-4',
+                compactLayout ? 'p-2' : 'p-3.5 sm:p-4',
             ].join(' ')}
         >
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/[0.07] via-transparent to-violet-600/[0.06]" />
-            <div className={`relative z-10 flex ${isNativeMobile ? 'flex-col gap-2' : 'flex-row items-stretch gap-4'}`}>
-                <div
-                    className={`flex shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner ${
-                        isNativeMobile ? 'h-10 w-10' : 'h-14 w-14 sm:h-[3.75rem] sm:w-[3.75rem]'
-                    }`}
-                >
-                    <img
-                        src="/images/guild/button/guildmission.png"
-                        alt=""
-                        className={isNativeMobile ? 'h-7 w-7 object-contain opacity-95' : 'h-10 w-10 object-contain opacity-95 sm:h-11 sm:w-11'}
-                    />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex flex-wrap items-start justify-between gap-1.5 sm:mb-1.5 sm:gap-2">
-                        <h4
-                            className={`font-bold leading-snug text-amber-50/95 ${isNativeMobile ? 'text-[12px]' : 'text-sm sm:text-[15px]'}`}
-                            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
-                        >
-                            {mission.title}
-                        </h4>
-                        {isComplete && !isClaimed && !isExpired && (
-                            <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200/95">
-                                달성
-                            </span>
-                        )}
+            {compactLayout ? (
+                <div className="relative z-10 flex min-w-0 flex-col gap-1.5">
+                    <div className="flex min-w-0 gap-2">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner">
+                            <img
+                                src="/images/guild/button/guildmission.png"
+                                alt=""
+                                className="h-7 w-7 object-contain opacity-95"
+                            />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <div className="mb-0.5 flex flex-wrap items-start justify-between gap-1">
+                                <h4
+                                    className="min-w-0 flex-1 text-[12px] font-bold leading-snug text-amber-50/95"
+                                    style={{ textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
+                                >
+                                    {mission.title}
+                                </h4>
+                                {isComplete && !isClaimed && !isExpired && (
+                                    <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-emerald-200/95">
+                                        달성
+                                    </span>
+                                )}
+                            </div>
+                            {mission.description ? (
+                                <p className="text-[10px] leading-snug text-stone-400">{mission.description}</p>
+                            ) : null}
+                        </div>
                     </div>
-                    {mission.description ? (
-                        <p
-                            className={`text-stone-400 ${isNativeMobile ? 'mb-1.5 text-[10px] leading-snug' : 'mb-2.5 text-xs leading-relaxed line-clamp-2'}`}
-                        >
-                            {mission.description}
-                        </p>
-                    ) : null}
 
-                    <div className={`mb-1 w-full overflow-hidden rounded-full border border-stone-700/60 bg-black/40 sm:mb-1.5 ${isNativeMobile ? 'h-1.5' : 'h-2.5'}`}>
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
+                            <span className="inline-flex max-w-full items-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-1.5 py-0.5 text-[10px] font-semibold text-amber-200/95">
+                                <img src="/images/guild/tokken.png" alt="" className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{mission.personalReward?.guildCoins ?? 0}</span>
+                            </span>
+                            <span className="inline-flex max-w-full items-center rounded-lg border border-emerald-500/25 bg-black/35 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-300/95">
+                                <span className="truncate">길드 XP +{finalXp.toLocaleString()}</span>
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleClaim}
+                            disabled={!canClaim}
+                            className={`relative shrink-0 overflow-hidden rounded-lg px-3 py-1.5 text-[11px] font-bold transition-all ${
+                                canClaim
+                                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white shadow-md shadow-emerald-600/20 hover:brightness-110 active:scale-[0.98]'
+                                    : isClaimed
+                                      ? 'cursor-not-allowed border border-stone-600/50 bg-stone-800/60 text-stone-500'
+                                      : 'cursor-not-allowed border border-stone-600/50 bg-stone-800/50 text-stone-500'
+                            }`}
+                        >
+                            {canClaim && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full transition-transform duration-700 hover:translate-x-full" />
+                            )}
+                            <span className="relative z-10 whitespace-nowrap">
+                                {isExpired ? '만료됨' : isClaimed ? '보상 완료' : isComplete ? '보상 받기' : '진행 중'}
+                            </span>
+                        </button>
+                    </div>
+
+                    <div className="h-1.5 w-full overflow-hidden rounded-full border border-stone-700/60 bg-black/40">
                         <div
                             className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-violet-500 shadow-[0_0_12px_rgba(251,191,36,0.35)] transition-[width] duration-500 ease-out"
                             style={{ width: `${percentage}%` }}
                         />
                     </div>
-                    <p className={`text-right font-mono tabular-nums text-stone-400 ${isNativeMobile ? 'text-[9px]' : 'text-xs'}`}>
+                    <p className="text-right font-mono text-[9px] tabular-nums text-stone-400">
                         {progress.toLocaleString()} / {target.toLocaleString()}
                     </p>
                 </div>
-
-                <div
-                    className={`flex shrink-0 flex-col justify-between ${isNativeMobile ? 'w-full border-t border-stone-700/50 pt-2' : 'w-[7.25rem] border-l border-stone-700/40 pl-4'}`}
-                >
-                    <div className={`flex flex-wrap justify-center gap-1 ${isNativeMobile ? 'mb-1.5' : 'mb-2 sm:gap-1.5'}`}>
-                        <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-amber-200/95">
-                            <img src="/images/guild/tokken.png" alt="" className="h-3 w-3" />
-                            {mission.personalReward?.guildCoins ?? 0}
-                        </span>
-                        <span className="inline-flex items-center rounded-lg border border-emerald-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-emerald-300/95">
-                            길드 XP +{finalXp.toLocaleString()}
-                        </span>
+            ) : (
+                <div className="relative z-10 flex flex-row items-stretch gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner sm:h-[3.75rem] sm:w-[3.75rem]">
+                        <img
+                            src="/images/guild/button/guildmission.png"
+                            alt=""
+                            className="h-10 w-10 object-contain opacity-95 sm:h-11 sm:w-11"
+                        />
                     </div>
-                    <button
-                        type="button"
-                        onClick={handleClaim}
-                        disabled={!canClaim}
-                        className={`relative w-full overflow-hidden rounded-xl font-bold transition-all ${
-                            isNativeMobile ? 'py-1.5 text-[11px]' : 'py-2.5 text-xs'
-                        } ${
-                            canClaim
-                                ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white shadow-lg shadow-emerald-600/25 hover:brightness-110 active:scale-[0.98]'
-                                : isClaimed
-                                  ? 'cursor-not-allowed border border-stone-600/50 bg-stone-800/60 text-stone-500'
-                                  : 'cursor-not-allowed border border-stone-600/50 bg-stone-800/50 text-stone-500'
-                        }`}
-                    >
-                        {canClaim && (
-                            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full transition-transform duration-700 hover:translate-x-full" />
-                        )}
-                        <span className="relative z-10">
-                            {isExpired ? '만료됨' : isClaimed ? '보상 완료' : isComplete ? '보상 받기' : '진행 중'}
-                        </span>
-                    </button>
+
+                    <div className="min-w-0 flex-1">
+                        <div className="mb-1 flex flex-wrap items-start justify-between gap-1.5 sm:mb-1.5 sm:gap-2">
+                            <h4
+                                className="text-sm font-bold leading-snug text-amber-50/95 sm:text-[15px]"
+                                style={{ textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
+                            >
+                                {mission.title}
+                            </h4>
+                            {isComplete && !isClaimed && !isExpired && (
+                                <span className="shrink-0 rounded-full border border-emerald-400/40 bg-emerald-950/50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-200/95">
+                                    달성
+                                </span>
+                            )}
+                        </div>
+                        {mission.description ? (
+                            <p className="mb-2.5 text-xs leading-relaxed text-stone-400 line-clamp-2 sm:text-sm">{mission.description}</p>
+                        ) : null}
+
+                        <div className="mb-1 h-2.5 w-full overflow-hidden rounded-full border border-stone-700/60 bg-black/40 sm:mb-1.5">
+                            <div
+                                className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-violet-500 shadow-[0_0_12px_rgba(251,191,36,0.35)] transition-[width] duration-500 ease-out"
+                                style={{ width: `${percentage}%` }}
+                            />
+                        </div>
+                        <p className="text-right font-mono text-xs tabular-nums text-stone-400">
+                            {progress.toLocaleString()} / {target.toLocaleString()}
+                        </p>
+                    </div>
+
+                    <div className="flex w-[7.25rem] shrink-0 flex-col justify-between border-l border-stone-700/40 pl-4">
+                        <div className="mb-2 flex flex-wrap justify-center gap-1 sm:mb-2 sm:gap-1.5">
+                            <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-amber-200/95">
+                                <img src="/images/guild/tokken.png" alt="" className="h-3 w-3" />
+                                {mission.personalReward?.guildCoins ?? 0}
+                            </span>
+                            <span className="inline-flex items-center rounded-lg border border-emerald-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-emerald-300/95">
+                                길드 XP +{finalXp.toLocaleString()}
+                            </span>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleClaim}
+                            disabled={!canClaim}
+                            className={`relative w-full overflow-hidden rounded-xl py-2.5 text-xs font-bold transition-all ${
+                                canClaim
+                                    ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white shadow-lg shadow-emerald-600/25 hover:brightness-110 active:scale-[0.98]'
+                                    : isClaimed
+                                      ? 'cursor-not-allowed border border-stone-600/50 bg-stone-800/60 text-stone-500'
+                                      : 'cursor-not-allowed border border-stone-600/50 bg-stone-800/50 text-stone-500'
+                            }`}
+                        >
+                            {canClaim && (
+                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full transition-transform duration-700 hover:translate-x-full" />
+                            )}
+                            <span className="relative z-10">
+                                {isExpired ? '만료됨' : isClaimed ? '보상 완료' : isComplete ? '보상 받기' : '진행 중'}
+                            </span>
+                        </button>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -145,6 +207,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
     const { currentUserWithStatus } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice(1025);
+    const compactMissionLayout = isNativeMobile || isHandheld;
     const now = Date.now();
     const isExpired = guild.lastMissionReset && isDifferentWeekKST(guild.lastMissionReset, now);
 
@@ -257,7 +320,12 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                             <ul className={`flex flex-col ${isNativeMobile ? 'gap-2' : 'gap-2.5 sm:gap-3'}`}>
                                 {guild.weeklyMissions.map((mission) => (
                                     <li key={mission.id}>
-                                        <MissionItem mission={mission} guildLevel={guild.level} guild={guild} isNativeMobile={isNativeMobile} />
+                                        <MissionItem
+                                            mission={mission}
+                                            guildLevel={guild.level}
+                                            guild={guild}
+                                            compactLayout={compactMissionLayout}
+                                        />
                                     </li>
                                 ))}
                             </ul>

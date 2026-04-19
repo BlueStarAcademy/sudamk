@@ -87,7 +87,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
     className = '',
 }) => (
     <div
-        className={`flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/35 bg-slate-950/80 p-1 ring-1 ring-inset ring-amber-500/12 ${className}`}
+        className={`flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/35 bg-slate-950/80 p-0.5 ring-1 ring-inset ring-amber-500/12 ${className}`}
         role="tablist"
         aria-label="결과 탭"
     >
@@ -95,7 +95,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
             type="button"
             role="tab"
             aria-selected={active === 'match'}
-            className={`min-h-[2.25rem] flex-1 rounded-md px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-[0.08em] transition-colors sm:text-xs ${
+            className={`min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-[0.08em] transition-colors sm:text-xs ${
                 active === 'match'
                     ? 'border border-amber-400/40 bg-amber-500/20 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
                     : 'border border-transparent text-slate-500 hover:text-slate-300'
@@ -108,7 +108,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
             type="button"
             role="tab"
             aria-selected={active === 'record'}
-            className={`min-h-[2.25rem] flex-1 rounded-md px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-[0.1em] transition-colors sm:text-xs ${
+            className={`min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-[0.1em] transition-colors sm:text-xs ${
                 active === 'record'
                     ? 'border border-violet-400/35 bg-violet-500/18 text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
                     : 'border border-transparent text-slate-500 hover:text-slate-300'

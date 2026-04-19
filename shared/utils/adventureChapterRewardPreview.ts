@@ -12,6 +12,7 @@ import {
 import { ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE } from '../constants/adventureStrategicGold.js';
 import { getAdventureChapterDirectLootDefinition, resolveAdventureChapterIndexForLoot } from './adventureChapterDirectLoot.js';
 import { ADVENTURE_ENHANCEMENT_STONE_QTY_NORMAL } from './adventureEnhancementStoneQty.js';
+import { getAdventureBoardSizeExtentForMonsterLevels } from './adventureBattleBoard.js';
 
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
@@ -79,22 +80,11 @@ function materialGradeRangeLabel(def: ReturnType<typeof getAdventureChapterDirec
     return a === b ? a : `${a}~${b}`;
 }
 
-/** 챕터에서 등장하는 일반 몬스터 판 크기(보스 19줄 제외) */
+/** 챕터 레벨 구간에 따른 가능한 판 크기 범위(몬스터 레벨→판 규칙과 동일) */
 export function getAdventureChapterNormalBoardSizeRange(stageId: AdventureStageId): { min: number; max: number } {
-    switch (stageId) {
-        case 'neighborhood_hill':
-            return { min: 7, max: 7 };
-        case 'lake_park':
-            return { min: 9, max: 9 };
-        case 'aquarium':
-            return { min: 9, max: 11 };
-        case 'zoo':
-            return { min: 11, max: 13 };
-        case 'amusement_park':
-            return { min: 13, max: 13 };
-        default:
-            return { min: 9, max: 9 };
-    }
+    const chapterIndex = resolveAdventureChapterIndexForLoot(stageId);
+    const { min: lvMin, max: lvMax } = getAdventureStageLevelRange(chapterIndex);
+    return getAdventureBoardSizeExtentForMonsterLevels(lvMin, lvMax);
 }
 
 function previewGoldAt(boardSize: number, monsterLevel: number): number {

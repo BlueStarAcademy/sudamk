@@ -6,9 +6,10 @@ import type { WeeklyCompetitor, InventoryItem } from '../shared/types/index.js';
 import { RANKING_TIERS, SEASONAL_TIER_REWARDS, BORDER_POOL, LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, SEASONAL_TIER_BORDERS, DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS, TOURNAMENT_DEFINITIONS, BOT_NAMES, AVATAR_POOL, CONSUMABLE_ITEMS } from '../shared/constants';
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getTodayKSTDateString } from '../shared/utils/timeUtils.js';
-import { DEMO_GUILD_WAR } from '../shared/constants/auth.js';
+import { DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID } from '../shared/constants/auth.js';
 import {
     GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
+    GUILD_WAR_MIN_PARTICIPANTS,
     GUILD_WAR_BOARD_ORDER,
     getGuildWarBoardMode,
     getGuildWarCaptureInitialStones,
@@ -24,6 +25,7 @@ import * as mailRepo from './prisma/mailRepository.js';
 import { volatileState } from './state.js';
 import { FUNCTION_VIP_DAILY_CONDITION_POTION_NAME } from '../shared/constants/vipBenefits.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
+import { guildWarEffectiveEndMs, guildWarIsChronologicallyActive } from './guildWarActiveUtils.js';
 
 let lastSeasonProcessed: SeasonInfo | null = null;
 let lastWeeklyResetTimestamp: number | null = null;
@@ -34,6 +36,139 @@ let lastTowerRankingRewardTimestamp: number | null = null;
 let lastGuildWarMatchTimestamp: number | null = null;
 /** 화/금 0시대 큐 잔여분 1회 처리(월·목 23시 매칭 누락·지연 대비) — 같은 KST 일+요일에 한 번만 */
 let lastGuildWarCatchupMark: string | null = null;
+
+const KV_GUILD_WAR_BOOTSTRAP_ONCE = 'guildWarBootstrapMatchOnce';
+const KV_GUILD_WAR_PRIME_BULK_ENROLL = 'guildWarPrimeBulkEnrollMark';
+
+async function consumeGuildWarBootstrapMatchOnce(): Promise<boolean> {
+    const v = await db.getKV<boolean>(KV_GUILD_WAR_BOOTSTRAP_ONCE);
+    if (!v) return false;
+    await db.setKV(KV_GUILD_WAR_BOOTSTRAP_ONCE, false);
+    console.log('[GuildWarMatch] One-shot bootstrap flag consumed (guildWarBootstrapMatchOnce)');
+    return true;
+}
+
+/** 시계상 아직 끝나지 않은 길드전에 참가 중인 길드 ID (매칭 큐 자동 등록 제외) */
+function collectActiveGuildWarGuildIds(allWars: any[], nowMs: number): Set<string> {
+    const ids = new Set<string>();
+    for (const w of allWars) {
+        if (!w || !guildWarIsChronologicallyActive(w, nowMs)) continue;
+        if (w.guild1Id) ids.add(w.guild1Id);
+        if (w.guild2Id) ids.add(w.guild2Id);
+    }
+    return ids;
+}
+
+/** 완료된 전쟁의 result만 사용해 정렬용 점수(높을수록 상대적으로 강함) */
+function guildWarRecordScore(guildId: string, allWars: any[]): number {
+    let wins = 0;
+    let losses = 0;
+    let scoreSum = 0;
+    let starSum = 0;
+    for (const w of allWars) {
+        if (!w?.result?.winnerId) continue;
+        if (w.guild1Id !== guildId && w.guild2Id !== guildId) continue;
+        const is1 = w.guild1Id === guildId;
+        const wid = w.result.winnerId;
+        if (wid === guildId) wins++;
+        else losses++;
+        scoreSum += is1 ? Number(w.result.guild1Score ?? 0) : Number(w.result.guild2Score ?? 0);
+        starSum += is1 ? Number(w.result.guild1Stars ?? 0) : Number(w.result.guild2Stars ?? 0);
+    }
+    return wins * 100_000 - losses * 38_000 + starSum * 800 + scoreSum;
+}
+
+function sortGuildQueueByWarRecord(queue: string[], allWars: any[]): string[] {
+    const arr = [...queue];
+    arr.sort((a, b) => {
+        const ra = guildWarRecordScore(a, allWars);
+        const rb = guildWarRecordScore(b, allWars);
+        if (rb !== ra) return rb - ra;
+        return a.localeCompare(b);
+    });
+    return arr;
+}
+
+/** `bulkAutoEnrollGuildsForScheduledWar` — 왜 큐에 안 올라갔는지 로그용 */
+type BulkAutoEnrollDiagnostics = {
+    totalGuildKeys: number;
+    skippedNullOrBot: number;
+    skippedActiveWar: number;
+    skippedTooFewMembers: number;
+    skippedNoDefaults: number;
+    passedFilters: number;
+    addedToQueueNew: number;
+    refreshedAlreadyInQueue: number;
+};
+
+/**
+ * 스케줄 매칭 시 수동 신청 없이 조건을 만족하는 길드를 큐에 올림(길드장/부길드장 신청 불필요).
+ * 쿨다운·lastWarActionTime은 건드리지 않는다(취소 쿨다운은 플레이어 주도 신청에만 적용).
+ */
+async function bulkAutoEnrollGuildsForScheduledWar(
+    guilds: Record<string, types.Guild>,
+    matchingQueue: string[],
+    activeGuildIds: Set<string>
+): Promise<{
+    guilds: Record<string, types.Guild>;
+    matchingQueue: string[];
+    addedToQueueCount: number;
+    diagnostics: BulkAutoEnrollDiagnostics;
+}> {
+    const diagnostics: BulkAutoEnrollDiagnostics = {
+        totalGuildKeys: Object.keys(guilds).length,
+        skippedNullOrBot: 0,
+        skippedActiveWar: 0,
+        skippedTooFewMembers: 0,
+        skippedNoDefaults: 0,
+        passedFilters: 0,
+        addedToQueueNew: 0,
+        refreshedAlreadyInQueue: 0,
+    };
+
+    const queueSet = new Set(matchingQueue);
+    let addedToQueueCount = 0;
+
+    for (const [guildId, guild] of Object.entries(guilds)) {
+        if (!guild || guildId === GUILD_WAR_BOT_GUILD_ID) {
+            diagnostics.skippedNullOrBot++;
+            continue;
+        }
+        if (activeGuildIds.has(guildId)) {
+            diagnostics.skippedActiveWar++;
+            continue;
+        }
+
+        const memberIds = (guild.members || []).map((m) => m.userId).filter(Boolean);
+        if (memberIds.length < GUILD_WAR_MIN_PARTICIPANTS) {
+            diagnostics.skippedTooFewMembers++;
+            continue;
+        }
+
+        const memberIdSet = new Set(memberIds);
+        const defaults = memberIds.filter((id) => memberIdSet.has(id));
+        if (defaults.length === 0) {
+            diagnostics.skippedNoDefaults++;
+            continue;
+        }
+
+        diagnostics.passedFilters++;
+        if (!queueSet.has(guildId)) {
+            matchingQueue.push(guildId);
+            queueSet.add(guildId);
+            addedToQueueCount++;
+            diagnostics.addedToQueueNew++;
+        } else {
+            diagnostics.refreshedAlreadyInQueue++;
+        }
+        (guild as any).guildWarMatching = true;
+        (guild as any).guildWarPendingParticipantIds = defaults;
+    }
+
+    await db.setKV('guildWarMatchingQueue', matchingQueue);
+    await db.setKV('guilds', guilds);
+    return { guilds, matchingQueue, addedToQueueCount, diagnostics };
+}
 
 async function increaseGuildWarMonthlyParticipationCounts(userIds: string[], now: number): Promise<void> {
     if (!Array.isArray(userIds) || userIds.length === 0) return;
@@ -2166,9 +2301,20 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }
 
-// 길드전 매칭: 월·목 23:00~23:59 KST + 화·금 0:00~0:34 캐치업(큐 잔여 시)
-// 신청 마감 23:00, 스케줄러는 23시대에 짝 매칭 후 홀수·단독은 봇 길드와 매칭
-export async function processGuildWarMatching(force: boolean = false): Promise<void> {
+// 길드전 매칭: 월·목 23:00~23:59 KST 짝 매칭 + 화·금 0:00~0:34 캐치업. 비데모에서는 짝 길드끼리 매칭 후 홀수 1팀만 봇과 매칭.
+// 예약 시간 외 매칭 큐가 있으면 매 분(메인 루프)에서 동일 규칙으로 처리(짝·홀수 봇). 데모만 큐 전체를 봇과 즉시 매칭.
+/** `processGuildWarMatching` 두 번째 인자 — `GUILD_WAR_MATCH_TEST_MODE=1` 일 때만 test 옵션이 적용된다. */
+export type ProcessGuildWarMatchingOptions = {
+    /** 전 길드 자동 큐 등록(월·목·화·금 시각을 기다리지 않고 통합 테스트) */
+    testBulkEnrollAll?: boolean;
+    /** testBulkEnrollAll 과 함께: warType 강제 */
+    testWarTypeOverride?: 'tue_wed' | 'fri_sun';
+};
+
+export async function processGuildWarMatching(
+    force: boolean = false,
+    options?: ProcessGuildWarMatchingOptions,
+): Promise<void> {
     const now = Date.now();
     const kstDay = getKSTDay(now);
     const kstHours = getKSTHours(now);
@@ -2176,63 +2322,149 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     const isPrimeMatchWindow = (kstDay === 1 || kstDay === 4) && kstHours === 23 && kstMinutes < 60; // 월·목 23:00~23:59
     const isCatchUpWindow =
         (kstDay === 2 || kstDay === 5) && kstHours === 0 && kstMinutes < 35; // 화·금 0:00~0:34
+    const inScheduledWindow = isPrimeMatchWindow || isCatchUpWindow;
 
-    if (!force && !isPrimeMatchWindow && !isCatchUpWindow) {
-        return;
+    const bootstrapOnce = await consumeGuildWarBootstrapMatchOnce();
+    const testBulk =
+        process.env.GUILD_WAR_MATCH_TEST_MODE === '1' && Boolean(options?.testBulkEnrollAll);
+
+    // 예약 시간대가 아니어도 매칭 큐에 길드가 있으면 즉시 처리(봇 매칭 분기 — START_GUILD_WAR 등으로 쌓인 큐 소진). 부트스트랩 1회는 큐가 비어도 진행.
+    let instantQueueDrain = false;
+    if (!force && !bootstrapOnce && !inScheduledWindow) {
+        const peekQueue = (await db.getKV<string[]>('guildWarMatchingQueue')) || [];
+        if (peekQueue.length === 0) {
+            return;
+        }
+        instantQueueDrain = true;
     }
 
-    if (!force && isCatchUpWindow) {
+    if (!force && !bootstrapOnce && isCatchUpWindow) {
         const catchupKey = `${getStartOfDayKST(now)}-${kstDay}`;
         if (lastGuildWarCatchupMark === catchupKey) {
             return;
         }
     }
 
-    if (!force && isPrimeMatchWindow && lastGuildWarMatchTimestamp !== null) {
+    if (!force && !bootstrapOnce && isPrimeMatchWindow && lastGuildWarMatchTimestamp !== null) {
         const lastMatchDayStart = getStartOfDayKST(lastGuildWarMatchTimestamp);
         const currentDayStart = getStartOfDayKST(now);
         if (lastMatchDayStart === currentDayStart) {
             const queueLen = (await db.getKV<string[]>('guildWarMatchingQueue'))?.length ?? 0;
-            console.log(`[GuildWarMatch] Already processed today (${new Date(lastGuildWarMatchTimestamp).toISOString()}), queue=${queueLen}`);
-            return;
+            // 같은 날 이미 1회 돌았어도 큐에 길드가 남아 있으면(늦게 신청·부분 매칭 등) 짝/봇 매칭은 계속 소진
+            if (queueLen === 0) {
+                console.log(`[GuildWarMatch] Already processed today (${new Date(lastGuildWarMatchTimestamp).toISOString()}), queue=0 — skip`);
+                return;
+            }
+            console.log(
+                `[GuildWarMatch] Same KST day as last match (${new Date(lastGuildWarMatchTimestamp).toISOString()}), queue=${queueLen} — draining queue`,
+            );
         }
     }
 
-    const warType = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun'; // 월·화(캐치업)→화수 전쟁, 목·금(캐치업)→금일 전쟁
-    const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
     const maxAttemptsPerGuild = 0;
-    const guilds = await db.getKV<Record<string, types.Guild>>('guilds') || {};
-    const matchingQueue = await db.getKV<string[]>('guildWarMatchingQueue') || [];
+
+    let guilds = (await db.getKV<Record<string, types.Guild>>('guilds')) || {};
+    let matchingQueue = (await db.getKV<string[]>('guildWarMatchingQueue')) || [];
+    const existingAllWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+    const activeGuildIds = collectActiveGuildWarGuildIds(existingAllWars, now);
+
+    // 비데모: 정규 창(월·목 23시, 화·금 캐치업) 또는 1회 부트스트랩·테스트(testBulk) 시 신청 없이 조건 충족 길드 전원 큐 등록
+    const scheduledAutoEnroll =
+        !DEMO_GUILD_WAR &&
+        (bootstrapOnce || inScheduledWindow || testBulk) &&
+        (!force || testBulk);
+    if (scheduledAutoEnroll) {
+        if (bootstrapOnce) {
+            const r = await bulkAutoEnrollGuildsForScheduledWar(guilds, [...matchingQueue], activeGuildIds);
+            guilds = r.guilds;
+            matchingQueue = r.matchingQueue;
+            const d = r.diagnostics;
+            const dMsg = `diag={keys:${d.totalGuildKeys},nullBot:${d.skippedNullOrBot},activeWar:${d.skippedActiveWar},fewMembers:${d.skippedTooFewMembers},noDef:${d.skippedNoDefaults},passed:${d.passedFilters},newQ:${d.addedToQueueNew},refreshQ:${d.refreshedAlreadyInQueue}}`;
+            console.log(
+                `[GuildWarMatch] Bootstrap: auto-enrolled guilds, addedToQueue=${r.addedToQueueCount}, queueLen=${matchingQueue.length}${r.addedToQueueCount === 0 ? `, ${dMsg}` : ''}`,
+            );
+        } else if (testBulk) {
+            const r = await bulkAutoEnrollGuildsForScheduledWar(guilds, [...matchingQueue], activeGuildIds);
+            guilds = r.guilds;
+            matchingQueue = r.matchingQueue;
+            const d = r.diagnostics;
+            console.log(
+                `[GuildWarMatch] TEST(testBulkEnrollAll): auto-enrolled guilds, addedToQueue=${r.addedToQueueCount}, queueLen=${matchingQueue.length}, diag={keys:${d.totalGuildKeys},nullBot:${d.skippedNullOrBot},activeWar:${d.skippedActiveWar},fewMembers:${d.skippedTooFewMembers},noDef:${d.skippedNoDefaults},passed:${d.passedFilters},newQ:${d.addedToQueueNew},refreshQ:${d.refreshedAlreadyInQueue}}`,
+            );
+        } else if (isPrimeMatchWindow) {
+            const primeEnrollKey = `${getStartOfDayKST(now)}-${kstDay}`;
+            const prevMark = await db.getKV<string>(KV_GUILD_WAR_PRIME_BULK_ENROLL);
+            if (prevMark !== primeEnrollKey) {
+                const r = await bulkAutoEnrollGuildsForScheduledWar(guilds, [...matchingQueue], activeGuildIds);
+                guilds = r.guilds;
+                matchingQueue = r.matchingQueue;
+                await db.setKV(KV_GUILD_WAR_PRIME_BULK_ENROLL, primeEnrollKey);
+                const d = r.diagnostics;
+                const dMsg = `diag={keys:${d.totalGuildKeys},nullBot:${d.skippedNullOrBot},activeWar:${d.skippedActiveWar},fewMembers:${d.skippedTooFewMembers},noDef:${d.skippedNoDefaults},passed:${d.passedFilters},newQ:${d.addedToQueueNew},refreshQ:${d.refreshedAlreadyInQueue}}`;
+                console.log(
+                    `[GuildWarMatch] Prime window: auto-enrolled guilds, addedToQueue=${r.addedToQueueCount}, queueLen=${matchingQueue.length}${r.addedToQueueCount === 0 ? `, ${dMsg}` : ''}`,
+                );
+            } else {
+                guilds = (await db.getKV<Record<string, types.Guild>>('guilds')) || guilds;
+                matchingQueue = (await db.getKV<string[]>('guildWarMatchingQueue')) || matchingQueue;
+            }
+        } else if (isCatchUpWindow) {
+            const r = await bulkAutoEnrollGuildsForScheduledWar(guilds, [...matchingQueue], activeGuildIds);
+            guilds = r.guilds;
+            matchingQueue = r.matchingQueue;
+            const d = r.diagnostics;
+            const dMsg = `diag={keys:${d.totalGuildKeys},nullBot:${d.skippedNullOrBot},activeWar:${d.skippedActiveWar},fewMembers:${d.skippedTooFewMembers},noDef:${d.skippedNoDefaults},passed:${d.passedFilters},newQ:${d.addedToQueueNew},refreshQ:${d.refreshedAlreadyInQueue}}`;
+            console.log(
+                `[GuildWarMatch] Catch-up window: auto-enrolled guilds, addedToQueue=${r.addedToQueueCount}, queueLen=${matchingQueue.length}${r.addedToQueueCount === 0 ? `, ${dMsg}` : ''}`,
+            );
+        }
+    }
+
+    let warType: 'tue_wed' | 'fri_sun' = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun'; // 월·화(캐치업)→화수 전쟁, 목·금(캐치업)→금일 전쟁
+    if (bootstrapOnce) {
+        // 다음 화요일 정규 라운드(화수 기간)와 맞추기 위해 1회 부트스트랩은 항상 화수 전쟁 타입·47시간으로 진행
+        warType = 'tue_wed';
+    }
+    if (testBulk && options?.testWarTypeOverride) {
+        warType = options.testWarTypeOverride;
+    }
+    const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
+
     const sanitizedQueue = [...new Set(matchingQueue)].filter((guildId) => {
         const guild = guilds[guildId];
         // 탈퇴/삭제 등으로 사라진 길드 ID가 큐에 남아 있으면 실제 매칭이 막힐 수 있어 사전 정리한다.
-        if (!guild) return false;
-        // 이미 매칭 대기 해제된 길드는 큐에서 제거한다.
-        return !!(guild as any).guildWarMatching;
+        // guildWarMatching 플래그는 큐와 불일치할 수 있어(데모/오류) 큐에 있으면 무조건 매칭 대상으로 둔다.
+        return !!guild;
     });
     if (sanitizedQueue.length !== matchingQueue.length) {
         const removedCount = matchingQueue.length - sanitizedQueue.length;
         console.warn(`[GuildWarMatch] Cleaned stale queue entries: removed=${removedCount}, before=${matchingQueue.length}, after=${sanitizedQueue.length}`);
         await db.setKV('guildWarMatchingQueue', sanitizedQueue);
     }
+
+    const matchOrder =
+        !DEMO_GUILD_WAR && sanitizedQueue.length > 1
+            ? sortGuildQueueByWarRecord(sanitizedQueue, existingAllWars)
+            : sanitizedQueue;
+
     console.log(
-        `[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : ''} ` +
-            `(${isCatchUpWindow ? 'catch-up' : 'prime'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${sanitizedQueue.length}, DEMO=${DEMO_GUILD_WAR}`,
+        `[GuildWarMatch] Processing guild war matching${force ? ' (forced)' : instantQueueDrain ? ' (instant-queue)' : ''}${bootstrapOnce ? ' (bootstrap)' : ''}${testBulk ? ' (TEST)' : ''} ` +
+            `(${instantQueueDrain ? 'instant' : isCatchUpWindow ? 'catch-up' : 'prime'}, ${warType}, ${warType === 'tue_wed' ? '47h' : '71h'}, ${maxAttemptsPerGuild} tickets), queue=${matchOrder.length}, DEMO=${DEMO_GUILD_WAR}`,
     );
 
-    if (sanitizedQueue.length === 0) {
+    if (matchOrder.length === 0) {
         console.log(`[GuildWarMatch] No guilds in matching queue`);
         // 큐가 비어 있을 때 lastGuildWarMatchTimestamp를 쓰면, 같은 날 늦게 큐에 들어온 길드가 스케줄 매칭을 못 받음(START_GUILD_WAR force 없이 대기만 하는 경우)
-        if (!force && isCatchUpWindow) {
+        if (!force && isCatchUpWindow && !testBulk) {
             lastGuildWarCatchupMark = `${getStartOfDayKST(now)}-${kstDay}`;
         }
         return;
     }
-    
+
     const activeWars: any[] = [];
     const matchedGuildIds: string[] = [];
     
-    // 데모 모드: 큐에 있는 모든 길드를 봇 길드와 1:1 매칭 (화/금 매칭 테스트용)
+    // 데모 모드만: 큐의 모든 길드를 봇과 1:1로 즉시 매칭. 리얼(비데모)은 아래에서 길드끼리 짝을 짓고 홀수만 봇과 매칭한다.
     if (DEMO_GUILD_WAR) {
         const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
         const botGuildId = await getOrCreateBotGuildForWar();
@@ -2245,7 +2477,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             leaderId: botGuildId,
         };
         const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
-        for (const guildId of sanitizedQueue) {
+        for (const guildId of matchOrder) {
             const g = guilds[guildId];
             if (!g) continue;
             const guild1ParticipantIds = takePendingParticipantsOrDefault(g);
@@ -2294,9 +2526,9 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
             activeWars.push(war);
             matchedGuildIds.push(guildId);
             delete (g as any).guildWarMatching;
-            console.log(`[GuildWarMatch] [DEMO] Matched ${g.name} (${guildId}) vs bot guild`);
+            console.log(`[GuildWarMatch] [Bot-only] Matched ${g.name} (${guildId}) vs bot guild`);
         }
-        const newQueue = sanitizedQueue.filter(id => !matchedGuildIds.includes(id));
+        const newQueue = matchOrder.filter(id => !matchedGuildIds.includes(id));
         const existingActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
         const allActiveWars = [...existingActiveWars.filter((w: any) => w.status === 'active'), ...activeWars];
         await db.setKV('activeGuildWars', allActiveWars);
@@ -2306,20 +2538,20 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
         await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
         await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
         lastGuildWarMatchTimestamp = now;
-        if (!force && isCatchUpWindow) {
+        if (!force && isCatchUpWindow && !testBulk) {
             lastGuildWarCatchupMark = `${getStartOfDayKST(now)}-${kstDay}`;
         }
-        console.log(`[GuildWarMatch] [DEMO] Matched ${activeWars.length} guild(s) vs bot, ${newQueue.length} remaining in queue`);
+        console.log(`[GuildWarMatch] [Bot-only] Matched ${activeWars.length} guild(s) vs bot, ${newQueue.length} remaining in queue`);
         return;
     }
     
     const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
 
-    // 짝수 개의 길드 매칭
-    const matchedPairs = Math.floor(sanitizedQueue.length / 2);
+    // 짝수 개의 길드 매칭 (matchOrder: 전적·점수 기준 내림차순 정렬 후 인접 짝)
+    const matchedPairs = Math.floor(matchOrder.length / 2);
     for (let i = 0; i < matchedPairs; i++) {
-        const guild1Id = sanitizedQueue[i * 2];
-        const guild2Id = sanitizedQueue[i * 2 + 1];
+        const guild1Id = matchOrder[i * 2];
+        const guild2Id = matchOrder[i * 2 + 1];
         
         const guild1 = guilds[guild1Id];
         const guild2 = guilds[guild2Id];
@@ -2385,8 +2617,8 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     }
     
     // 홀수 길드가 남으면 봇 길드와 매칭 (상대 길드가 없어도 봇과 매칭되어 전쟁 참여 가능)
-    if (sanitizedQueue.length % 2 === 1) {
-        const remainingGuildId = sanitizedQueue[sanitizedQueue.length - 1];
+    if (matchOrder.length % 2 === 1) {
+        const remainingGuildId = matchOrder[matchOrder.length - 1];
         const remainingGuild = guilds[remainingGuildId];
 
         if (!remainingGuild) {
@@ -2461,7 +2693,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
                 leaderId: botGuildId,
             };
             
-            if (sanitizedQueue.length === 1) {
+            if (matchOrder.length === 1) {
                 console.log(`[GuildWarMatch] Single guild in queue - matched ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
             } else {
                 console.log(`[GuildWarMatch] Matched guild ${remainingGuild.name} (${remainingGuildId}) vs bot guild`);
@@ -2470,7 +2702,7 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     }
 
     // 매칭 큐에서 매칭된 길드 제거
-    const newQueue = sanitizedQueue.filter(id => !matchedGuildIds.includes(id));
+    const newQueue = matchOrder.filter(id => !matchedGuildIds.includes(id));
     
     // 기존 activeWars 가져오기 (이전 매칭이 있으면 유지)
     const existingActiveWars = await db.getKV<any[]>('activeGuildWars') || [];
@@ -2487,10 +2719,30 @@ export async function processGuildWarMatching(force: boolean = false): Promise<v
     await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
     
     lastGuildWarMatchTimestamp = now;
-    if (!force && isCatchUpWindow) {
+    if (!force && isCatchUpWindow && !testBulk) {
         lastGuildWarCatchupMark = `${getStartOfDayKST(now)}-${kstDay}`;
     }
     console.log(`[GuildWarMatch] Matched ${activeWars.length} guild wars, ${newQueue.length} guilds remaining in queue`);
+}
+
+/**
+ * 길드전 자동 매칭을 KST 예약 없이 한 사이클 실행한다(기한 지난 전쟁 정리 → 전원 큐 등록 → 짝·봇 매칭).
+ * 반드시 `GUILD_WAR_MATCH_TEST_MODE=1` 일 때만 동작. 로컬/스테이징에서 `npm run guild-war:match-test` 로 실행.
+ */
+export async function runGuildWarMatchingTestCycle(params?: {
+    warType?: 'tue_wed' | 'fri_sun';
+}): Promise<void> {
+    if (process.env.GUILD_WAR_MATCH_TEST_MODE !== '1') {
+        throw new Error(
+            'GUILD_WAR_MATCH_TEST_MODE=1 을 .env 등에 설정한 뒤에만 runGuildWarMatchingTestCycle 을 호출할 수 있습니다.',
+        );
+    }
+    await processGuildWarEnd();
+    await processGuildWarMatching(true, {
+        testBulkEnrollAll: true,
+        testWarTypeOverride: params?.warType,
+    });
+    console.log('[GuildWarMatchTest] Full cycle done (processGuildWarEnd → processGuildWarMatching+testBulk).');
 }
 
 /** 데모 모드 전용: 매일 0시(KST)에 진행 중인 길드전 공격 횟수를 0으로 리셋하여 다음 날 테스트 가능하도록 함 */
@@ -2609,9 +2861,8 @@ export async function processGuildWarEnd(): Promise<void> {
     for (const war of activeWars) {
         if (war.status !== 'active') continue;
         
-        // 48시간이 지났는지 확인
-        const warEndTime = war.endTime || (war.startTime + (48 * 60 * 60 * 1000));
-        if (now < warEndTime) continue;
+        // 종료 시각 경과 여부(ISO 문자열 endTime 대응)
+        if (now < guildWarEffectiveEndMs(war)) continue;
         
         // 결과 계산
         let guild1Stars = 0;
@@ -2686,6 +2937,135 @@ export async function processGuildWarEnd(): Promise<void> {
         const { broadcast } = await import('./socket.js');
         await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars } });
     }
+}
+
+/**
+ * 지정한 표시 이름의 길드가 진행 중 전쟁이 없으면 봇 길드와 즉시 1:1 전쟁을 개시한다(클라이언트 버튼 불필요).
+ * 운영: 서버 시작 시 `GUILD_WAR_AUTO_MATCH_BLUE_STAR=1` 등으로 한 번 호출 후 env 제거 권장.
+ */
+export async function ensureNamedGuildVsBotGuildWar(guildDisplayName: string): Promise<void> {
+    if (DEMO_GUILD_WAR) return;
+    const name = (guildDisplayName || '').trim();
+    if (!name) return;
+
+    await processGuildWarEnd();
+
+    const guilds = (await db.getKV<Record<string, types.Guild>>('guilds')) || {};
+    const activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+    const now = Date.now();
+    const guildHasChronoActiveWar = (guildId: string) =>
+        activeWars.some(
+            (w) =>
+                (w.guild1Id === guildId || w.guild2Id === guildId) && guildWarIsChronologicallyActive(w, now),
+        );
+
+    let targetGuildId: string | null = null;
+    for (const [gid, g] of Object.entries(guilds)) {
+        if (!g || gid === GUILD_WAR_BOT_GUILD_ID) continue;
+        const gn = String((g as any).name ?? '').trim();
+        if (gn === name) {
+            targetGuildId = gid;
+            break;
+        }
+    }
+    if (!targetGuildId) {
+        console.warn(`[GuildWarEnsureNamed] No guild with exact name "${name}"`);
+        return;
+    }
+    if (guildHasChronoActiveWar(targetGuildId)) {
+        console.log(`[GuildWarEnsureNamed] Guild "${name}" (${targetGuildId}) already in an active war — skip`);
+        return;
+    }
+
+    const guild = guilds[targetGuildId];
+    const memberCount = (guild.members || []).length;
+    if (memberCount < GUILD_WAR_MIN_PARTICIPANTS) {
+        console.warn(
+            `[GuildWarEnsureNamed] Guild "${name}" has ${memberCount} members (<${GUILD_WAR_MIN_PARTICIPANTS}) — skip`,
+        );
+        return;
+    }
+
+    const kstDay = getKSTDay(now);
+    const warType: 'tue_wed' | 'fri_sun' = (kstDay === 1 || kstDay === 2) ? 'tue_wed' : 'fri_sun';
+    const durationMs = warType === 'tue_wed' ? 47 * 60 * 60 * 1000 : 71 * 60 * 60 * 1000;
+    const maxAttemptsPerGuild = 0;
+
+    const { takePendingParticipantsOrDefault } = await import('./guildWarParticipants.js');
+    const guild1ParticipantIds = takePendingParticipantsOrDefault(guild);
+    delete (guild as any).guildWarPendingParticipantIds;
+    delete (guild as any).guildWarMatching;
+
+    let matchingQueue = (await db.getKV<string[]>('guildWarMatchingQueue')) || [];
+    if (matchingQueue.includes(targetGuildId)) {
+        matchingQueue = matchingQueue.filter((id) => id !== targetGuildId);
+        await db.setKV('guildWarMatchingQueue', matchingQueue);
+    }
+
+    const { createGuildWar, getOrCreateBotGuildForWar } = await import('./prisma/guildRepository.js');
+    const botGuildId = await getOrCreateBotGuildForWar();
+    const dbWar = await createGuildWar(targetGuildId, botGuildId);
+
+    const boards: Record<string, any> = {};
+    const boardIds = [...GUILD_WAR_BOARD_ORDER];
+    for (const boardId of boardIds) {
+        const gameMode = getGuildWarBoardMode(boardId);
+        boards[boardId] = {
+            boardSize: getGuildWarBoardLineSize(boardId),
+            gameMode,
+            initialStones: [getGuildWarCaptureInitialStones(boardId)],
+            guild1Stars: 0,
+            guild2Stars: 0,
+            guild1BestResult: null,
+            guild2BestResult: null,
+            guild1Attempts: 0,
+            guild2Attempts: 0,
+        };
+    }
+    const botDay1Used = 15 + Math.floor(Math.random() * 6);
+    const botDay2Used = 5 + Math.floor(Math.random() * 11);
+
+    const war: any = {
+        id: dbWar.id,
+        guild1Id: targetGuildId,
+        guild2Id: botGuildId,
+        status: 'active',
+        startTime: now,
+        endTime: now + durationMs,
+        warType,
+        maxAttemptsPerGuild,
+        guild1TotalAttempts: 0,
+        guild2TotalAttempts: 0,
+        guild1ParticipantIds,
+        guild2ParticipantIds: [],
+        dailyAttempts: {},
+        userAttempts: {},
+        result: undefined,
+        boards,
+        isBotGuild: true,
+        botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
+        botPlannedTotalAttempts: botDay1Used + botDay2Used,
+        createdAt: now,
+        updatedAt: now,
+    };
+
+    (guilds as Record<string, any>)[botGuildId] = {
+        id: botGuildId,
+        name: '[시스템]길드전AI',
+        level: 1,
+        members: [],
+        leaderId: botGuildId,
+    };
+
+    const existingActiveWars = (await db.getKV<any[]>('activeGuildWars')) || [];
+    const allActiveWars = [...existingActiveWars.filter((w: any) => w.status === 'active'), war];
+    await db.setKV('activeGuildWars', allActiveWars);
+    await db.setKV('guilds', guilds);
+
+    const { broadcast } = await import('./socket.js');
+    await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+    await broadcast({ type: 'GUILD_WAR_UPDATE', payload: { activeWars: allActiveWars } });
+    console.log(`[GuildWarEnsureNamed] Started bot war for "${name}" (${targetGuildId}) vs ${botGuildId}`);
 }
 
 /** KST 0:00~0:14 구간에서 하루 1회, 전체 Postgres 덤프 (환경변수로 켬) */

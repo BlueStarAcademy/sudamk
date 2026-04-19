@@ -21,7 +21,7 @@ const GUILD_WAR_ARENA_INITIAL_LEFT: GuildWarCaptureInitialStoneCounts = {
     blackMarked: 5,
     whiteMarked: 5,
 };
-/** 중열(상변·중앙·하변) */
+/** 중열(상변·중앙·하변) — 9줄 판, 일반 흑·백은 좌열보다 각 2개 더 */
 const GUILD_WAR_ARENA_INITIAL_MID: GuildWarCaptureInitialStoneCounts = {
     blackPlain: 7,
     whitePlain: 7,
@@ -73,12 +73,12 @@ export function getGuildWarCaptureInitialStones(boardId: string): GuildWarCaptur
 }
 
 /**
- * 길드전 9칸 바둑판 줄 수(변의 길이). 열 기준: 좌 9 · 중 11 · 우 13.
+ * 길드전 9칸 바둑판 줄 수(변의 길이). 열 기준: 좌 9 · 중 9 · 우 13.
  * 대기실·KV·START_GUILD_WAR_GAME·초기 돌 배치와 동일해야 함.
  */
 export function getGuildWarBoardLineSize(boardId: string): number {
     const col = getGuildWarArenaColumnForBoardId(boardId);
-    if (col === 'mid') return 11;
+    if (col === 'mid') return 9;
     if (col === 'right') return 13;
     return 9;
 }
@@ -207,8 +207,16 @@ export function getGuildWarBoardMode(boardId: string): 'capture' | 'hidden' | 'm
     return 'hidden';
 }
 
+/** 길드전 KataServer `kataServerLevel` — 좌열 -15 / 중앙열 -10 / 우열 -5 */
+export function getGuildWarKataServerLevelByBoardId(boardId: string): number {
+    if (boardId === 'top-left' || boardId === 'mid-left' || boardId === 'bottom-left') return -15;
+    if (boardId === 'top-mid' || boardId === 'center' || boardId === 'bottom-mid') return -10;
+    if (boardId === 'top-right' || boardId === 'mid-right' || boardId === 'bottom-right') return -5;
+    return -10;
+}
+
 /**
- * activeGuildWars 등에 남은 예전 랜덤 gameMode를 현재 규칙으로 맞춤.
+ * activeGuildWars 등: `gameMode`·`boardSize`·`initialStones[0]`를 칸별 규칙과 일치시킴.
  * @returns 변경이 있었으면 true (KV 재저장 권장)
  */
 export function normalizeGuildWarBoardModes(war: { boards?: Record<string, any> } | null | undefined): boolean {
@@ -217,9 +225,26 @@ export function normalizeGuildWarBoardModes(war: { boards?: Record<string, any> 
     for (const boardId of GUILD_WAR_BOARD_ORDER) {
         const b = war.boards[boardId];
         if (!b || typeof b !== 'object') continue;
-        const correct = getGuildWarBoardMode(boardId);
-        if (b.gameMode !== correct) {
-            b.gameMode = correct;
+        const correctMode = getGuildWarBoardMode(boardId);
+        if (b.gameMode !== correctMode) {
+            b.gameMode = correctMode;
+            changed = true;
+        }
+        const correctSize = getGuildWarBoardLineSize(boardId);
+        if (Number(b.boardSize) !== correctSize) {
+            b.boardSize = correctSize;
+            changed = true;
+        }
+        const want = getGuildWarCaptureInitialStones(boardId);
+        const cur = b.initialStones?.[0];
+        const initialMismatch =
+            !cur ||
+            Number(cur.blackPlain) !== want.blackPlain ||
+            Number(cur.whitePlain) !== want.whitePlain ||
+            Number(cur.blackMarked) !== want.blackMarked ||
+            Number(cur.whiteMarked) !== want.whiteMarked;
+        if (initialMismatch) {
+            b.initialStones = [want];
             changed = true;
         }
     }
@@ -235,7 +260,7 @@ export const GUILD_WAR_PERSONAL_DAILY_ATTEMPTS = 2;
 /** 길드전 1인당 월간 출전 가능 횟수 (KST 기준 월) */
 export const GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT = 5;
 
-/** 승리 시 별(따내기): 내 따낸 돌 수 기준 */
+/** 승리 시 별(따내기): 한 수에서 얻은 포획 점수 합 최대값 기준(일반 1점·문양 2점·배치 5점) */
 export const GUILD_WAR_STAR_CAPTURE_TIER2_MIN = 3;
 export const GUILD_WAR_STAR_CAPTURE_TIER3_MIN = 5;
 
@@ -306,9 +331,9 @@ export function getGuildWarStarConditionLines(
     const t3 = getGuildWarStarScoreTier3MinDiff(boardId);
     if (mode === 'capture') {
         return [
-            '★ 승리시',
-            `★ 한 번에 ${c2}돌 따내기 (패배해도 별 획득)`,
-            `★ 한 번에 ${c3}돌 따내기 (패배해도 별 획득)`,
+            '승리 시',
+            `한 번에 ${c2}점 획득하기 (패배해도 별 획득)`,
+            `한 번에 ${c3}점 획득하기 (패배해도 별 획득)`,
         ];
     }
     if (mode === 'hidden') {

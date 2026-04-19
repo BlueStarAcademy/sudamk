@@ -18,8 +18,8 @@ export const ADMIN_LOGIN_USERNAME = '푸른별바둑학원';
 export const GUILD_WAR_BOT_USER_ID = 'guild-war-bot-user';
 export const GUILD_WAR_BOT_GUILD_ID = 'guild-war-bot-guild';
 
-/** 데모 모드: 전쟁 신청 시 봇 길드와 즉시 매칭 (테스트용) */
-export const DEMO_GUILD_WAR = true;
+/** 데모 모드: true면 신청 길드 전원이 즉시 봇과만 매칭(로컬 테스트). 운영(리얼 짝·홀수 봇)은 false. */
+export const DEMO_GUILD_WAR = false;
 export const ADMIN_NICKNAME = '관리자';
 
 export const BOT_NAMES = ['알파고', '카타고', '절예', '신의한수', '딥젠고', '바둑도사', '묘수타파', '기성'];

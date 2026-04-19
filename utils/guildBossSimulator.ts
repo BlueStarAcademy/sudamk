@@ -3,12 +3,12 @@
 // FIX: Split type and value imports to resolve namespace collision errors
 // FIX: Changed imports to point to specific files to avoid namespace conflicts
 import type { User, Guild, GuildBossInfo, QuestReward, MannerEffects, GuildBossSkill, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillEffect, GuildBossSkillSubEffect, BattleLogEntry, GuildBossBattleResult } from '../types/index.js';
-import { GuildResearchId, CoreStat, SpecialStat, MythicStat } from '../types/enums.js';
+import { GuildResearchId, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../types/enums.js';
 import { GUILD_RESEARCH_PROJECTS } from '../constants/index.js';
 import { calculateGuildBossBattleRewards, clampGuildBossStage, guildBossStatMultiplier } from './guildBossStageUtils.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
-import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../shared/constants/vipPlayReward.js';
-import { CONSUMABLE_ITEMS } from '../constants/index.js';
+import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
+import { CONSUMABLE_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
 import { BOSS_SKILL_ICON_MAP, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_REGEN_IMG, GUILD_ATTACK_ICON } from '../assets.js';
 import { calculateUserEffects, calculateTotalStats } from './statUtils.js';
 import { getMannerEffects } from './mannerUtils.js';
@@ -310,20 +310,33 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     const finalDamage = Math.max(0, Math.round(totalDamageDealt));
     const calculatedRewards = calculateGuildBossBattleRewards(finalDamage, st);
 
+    const vipSimGranted = ((): { name: string; quantity: number; image?: string } | undefined => {
+        if (!isRewardVipActive(user)) return undefined;
+        const o = rollVipPlayRewardOutcome();
+        if (o.type === 'gold') {
+            return { name: '골드', quantity: o.amount, image: '/images/icon/Gold.png' };
+        }
+        if (o.type === 'legendary_equipment') {
+            const pool = EQUIPMENT_POOL.filter((e) => e.grade === ItemGrade.Legendary);
+            const t = pool[Math.floor(Math.random() * Math.max(1, pool.length))]!;
+            return { name: t.name, quantity: 1, image: t.image };
+        }
+        if (o.type === 'equipment_box') {
+            const names = ['장비 상자 I', '장비 상자 II', '장비 상자 III', '장비 상자 IV'] as const;
+            const n = names[o.tier];
+            return { name: n, quantity: 1, image: CONSUMABLE_ITEMS.find((c) => c.name === n)?.image };
+        }
+        const names = ['재료 상자 I', '재료 상자 II', '재료 상자 III', '재료 상자 IV'] as const;
+        const n = names[o.tier];
+        return { name: n, quantity: 1, image: CONSUMABLE_ITEMS.find((c) => c.name === n)?.image };
+    })();
+
     return {
         damageDealt: finalDamage,
         turnsSurvived,
         vipPlayRewardSlot: {
             locked: !isRewardVipActive(user),
-            ...(isRewardVipActive(user)
-                ? {
-                      grantedItem: {
-                          name: VIP_PLAY_REWARD_CONSUMABLE_NAME,
-                          quantity: 1,
-                          image: CONSUMABLE_ITEMS.find((c) => c.name === VIP_PLAY_REWARD_CONSUMABLE_NAME)?.image,
-                      },
-                  }
-                : {}),
+            ...(vipSimGranted ? { grantedItem: vipSimGranted } : {}),
         },
         rewards: {
             tier: calculatedRewards.tier,

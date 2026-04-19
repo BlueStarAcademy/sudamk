@@ -467,6 +467,27 @@ export function getPreGameSummaryFour(
     return buildAdventurePreGameSummary(session);
   }
 
+  /** 길드전 AI 판: 일반 모드 요약을 쓰되 승·패 문구만 짧게 (인게임 경기시작 모달과 동일 톤) */
+  if (String(session.gameCategory ?? '') === 'guildwar') {
+    const stripped = { ...session, gameCategory: undefined } as LiveGameSession;
+    const base = getPreGameSummaryFour(stripped, undefined, towerLobbyInventory);
+    const cap = settings.captureTarget ?? 20;
+    const limit = settings.scoringTurnLimit;
+    const hasAuto = typeof limit === 'number' && Number.isFinite(limit) && limit > 0;
+    if (mode === GameMode.Capture) {
+      return {
+        ...base,
+        winGoal: hasAuto ? `${cap}점 선취 또는 ${limit}턴 계가 승` : `${cap}점 먼저 따내면 승리`,
+        loseGoal: `상대 ${cap}점 선취`,
+      };
+    }
+    return {
+      ...base,
+      winGoal: hasAuto ? `계가 집 다수 승 · ${limit}수 자동 계가` : '계가에서 집이 많으면 승리',
+      loseGoal: '계가 열세 · 시간 초과',
+    };
+  }
+
   if (mode === GameMode.Mix) {
     return {
       winGoal: mixWinGoal(settings, mix),

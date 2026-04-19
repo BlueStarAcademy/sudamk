@@ -67,6 +67,8 @@ export default defineConfig({
     filterProxyErrorsPlugin(),
   ],
   resolve: {
+    // Context가 undefined로 나오는 이중 React 번들 방지
+    dedupe: ['react', 'react-dom'],
     // Node.js 모듈들을 브라우저 번들에서 제외
     alias: {
       'fs': false,

@@ -24,6 +24,8 @@ import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js
 import {
     getGuildWarBoardMode,
     getGuildWarStarConditionLines,
+    GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
+    GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
     userMeetsGuildFeatureLevelRequirement,
 } from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
@@ -715,11 +717,44 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     );
 };
 
-const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession }> = ({ session }) => {
+const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession; currentUser: User }> = ({ session, currentUser }) => {
     if (session.gameCategory !== 'guildwar') return null;
     const boardId = (session as any).guildWarBoardId as string | undefined;
-    const boardMode = boardId ? getGuildWarBoardMode(boardId) : undefined;
+    const boardMode = boardId ? getGuildWarBoardMode(boardId) : 'capture';
     const lines = getGuildWarStarConditionLines(boardMode, boardId);
+
+    const humanEnum = currentUser.id === session.blackPlayerId ? Player.Black : Player.White;
+    const ended = ['ended', 'no_contest', 'rematch_pending'].includes(session.gameStatus);
+    const humanWon = ended && session.winner === humanEnum;
+    const maxPts = Number((session as any).maxSingleCapturePointsByPlayer?.[humanEnum] ?? 0) || 0;
+
+    if (boardMode === 'capture') {
+        const c2 = GUILD_WAR_STAR_CAPTURE_TIER2_MIN;
+        const c3 = GUILD_WAR_STAR_CAPTURE_TIER3_MIN;
+        const rows = [
+            { label: '승리', ok: humanWon },
+            { label: lines[1] ?? `한 번에 ${c2}점 획득하기 (패배해도 별 획득)`, ok: maxPts >= c2 },
+            { label: lines[2] ?? `한 번에 ${c3}점 획득하기 (패배해도 별 획득)`, ok: maxPts >= c3 },
+        ];
+        return (
+            <div className={arenaGameRoomGuildStarPanelClass}>
+                <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>별 획득 조건</h3>
+                <div className="space-y-1.5">
+                    {rows.map((row) => (
+                        <div key={row.label} className="flex items-start justify-between gap-2 text-xs text-gray-200">
+                            <span className="min-w-0 flex-1 leading-snug">{row.label}</span>
+                            <img
+                                src={row.ok ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
+                                alt=""
+                                className="mt-0.5 h-4 w-4 shrink-0 object-contain opacity-95"
+                                aria-hidden
+                            />
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={arenaGameRoomGuildStarPanelClass}>
@@ -756,7 +791,7 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                     onAction={props.onAction}
                 />
                 <UserListPanel {...props} />
-                <GuildWarStarConditionsPanel session={session} />
+                <GuildWarStarConditionsPanel session={session} currentUser={props.currentUser} />
                 {/* PC 사이드바 광고 (300×250) */}
                 <AdBanner position="sidebar" />
             </div>

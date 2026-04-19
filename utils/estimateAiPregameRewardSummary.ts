@@ -1,4 +1,5 @@
 import { LiveGameSession, User, GameMode } from '../types.js';
+import { getGuildWarMatchGoldReward } from '../shared/utils/guildWarAttemptMetrics.js';
 import { ItemGrade } from '../types/enums.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants.js';
 import { ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE } from '../shared/constants/adventureStrategicGold.js';
@@ -43,7 +44,7 @@ function baseStrategicWinGold(session: LiveGameSession): number {
 /** `GameSummaryModal`의 VIP 슬롯 노출 조건과 동기화 */
 function pregameQualifiesVipPlayRewardSurface(session: LiveGameSession): boolean {
   const cat = String(session.gameCategory ?? '');
-  if (cat === 'guildwar') return false;
+  if (cat === 'guildwar') return true;
   if (session.isSinglePlayer || cat === 'tower' || cat === 'singleplayer') return false;
   return isStrategicOrPlayfulOrAdventure(session);
 }
@@ -152,12 +153,15 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
   }
 
   if (session.gameCategory === 'guildwar') {
+    const mode = session.mode;
+    const minGold = getGuildWarMatchGoldReward(mode, 1);
+    const maxGold = getGuildWarMatchGoldReward(mode, 3);
+    const slots: AiPregameRewardSlot[] = [{ kind: 'gold_range', min: minGold, max: maxGold }];
+    appendVipPlayRewardSlot(slots, session, currentUser);
     return {
-      slots: [
-        { kind: 'icon_only', image: '/images/icon/Gold.png' },
-        { kind: 'icon_only', image: '/images/icon/Zem.png' },
-      ],
-      footnote: '※ 전투 결과·별·길드 규칙에 따라 지급이 달라집니다.',
+      slots,
+      footnote:
+        '※ 이번 판에서 획득한 별(0~3)에 따라 골드만 지급됩니다. 0별이면 골드 없음. 보상 VIP는 승리 시 VIP 슬롯에서 골드(100~1000), 장비 상자 I~IV, 재료 상자 I~IV, 전설 장비 중 하나를 받습니다.',
     };
   }
 
@@ -176,7 +180,7 @@ export function buildAiPregameRewardVisual(session: LiveGameSession, currentUser
     return {
       slots,
       footnote:
-        '※ 전략 AI 승리 시 모험과 동일한 기본 전략 경험치만 지급됩니다. 골드·아이템 드롭 없음. 보상 VIP는 승리 시 VIP 슬롯에서 장비 상자 II를 받습니다.',
+        '※ 전략 AI 승리 시 모험과 동일한 기본 전략 경험치만 지급됩니다. 골드·아이템 드롭 없음. 보상 VIP는 승리 시 VIP 슬롯에서 골드(100~1000), 장비 상자 I~IV, 재료 상자 I~IV, 전설 장비 중 하나를 받습니다.',
     };
   }
 

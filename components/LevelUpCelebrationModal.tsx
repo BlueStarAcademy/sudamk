@@ -5,6 +5,7 @@ import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants.js';
 import Avatar from './Avatar.js';
 import { getXpRequiredForCurrentLevel } from '../utils/playerLevelXp.js';
+import { getLevelUpFeatureUnlockLines } from '../utils/levelUpUnlockFeatures.js';
 
 type LevelUpCelebrationModalProps = {
     user: UserWithStatus;
@@ -78,6 +79,16 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a) => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find((b) => b.id === user.borderId)?.url, [user.borderId]);
     const displayName = user.nickname || user.username || user.id;
+
+    const unlockLines = useMemo(
+        () =>
+            getLevelUpFeatureUnlockLines(payload, {
+                strategyLevel: user.strategyLevel,
+                playfulLevel: user.playfulLevel,
+            }),
+        [payload, user.strategyLevel, user.playfulLevel],
+    );
+    const hasFeatureUnlocks = unlockLines.strategy.length > 0 || unlockLines.combined.length > 0;
 
     const overlayZ = isTopmost ? 'z-[12050]' : 'z-[12040]';
 
@@ -181,6 +192,50 @@ const LevelUpCelebrationModal: React.FC<LevelUpCelebrationModalProps> = ({ user,
                                 />
                             )}
                         </div>
+
+                        {hasFeatureUnlocks && (
+                            <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 shadow-inner ring-1 ring-inset ring-white/[0.04] sm:px-5 sm:py-4">
+                                <p className="mb-2.5 text-center text-[0.68rem] font-bold uppercase tracking-[0.18em] text-amber-200/85">
+                                    이번에 열린 기능
+                                </p>
+                                <div className="space-y-3 text-[0.8125rem] leading-snug text-slate-100/95 sm:text-sm">
+                                    {unlockLines.strategy.length > 0 && (
+                                        <div>
+                                            <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-wide text-emerald-200/75">
+                                                전략 바둑 레벨
+                                            </p>
+                                            <ul className="space-y-1.5">
+                                                {unlockLines.strategy.map((line, i) => (
+                                                    <li key={`strat-unlock-${i}`} className="flex gap-2">
+                                                        <span className="shrink-0 font-black text-emerald-300/90" aria-hidden>
+                                                            ·
+                                                        </span>
+                                                        <span className="min-w-0">{line}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                    {unlockLines.combined.length > 0 && (
+                                        <div>
+                                            <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-wide text-cyan-200/75">
+                                                통합 레벨 · 프로필
+                                            </p>
+                                            <ul className="space-y-1.5">
+                                                {unlockLines.combined.map((line, i) => (
+                                                    <li key={`combo-unlock-${i}`} className="flex gap-2">
+                                                        <span className="shrink-0 font-black text-cyan-300/90" aria-hidden>
+                                                            ·
+                                                        </span>
+                                                        <span className="min-w-0">{line}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         <div className="mt-7 flex justify-center">
                             <button

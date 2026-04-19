@@ -21,6 +21,7 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import {
@@ -1233,6 +1234,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     maxSingleCaptureByPlayer[myPlayerEnum] = captureCountThisMove;
                 }
                 if (!game.justCaptured) game.justCaptured = [];
+                let guildWarCapturePointsThisMove = 0;
                 for (const stone of result.capturedStones) {
                     const capturedPlayerEnum = opponentPlayerEnum;
                     
@@ -1265,8 +1267,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     }
 
                     game.captures[myPlayerEnum] += points;
+                    guildWarCapturePointsThisMove += points;
                     game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
                 }
+                bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, myPlayerEnum, guildWarCapturePointsThisMove);
                 stripPatternStonesAtConsumedIntersections(game);
                 removeCapturedBaseStoneMarkers(game, result.capturedStones);
             }

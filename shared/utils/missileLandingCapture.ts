@@ -4,6 +4,7 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from './patternStoneConsume.js';
+import { bumpGuildWarMaxSingleCapturePointsForPlayer } from './guildWarMaxSingleCapturePoints.js';
 
 export type MissileCaptureProcessResult = {
     isValid: boolean;
@@ -58,6 +59,7 @@ export function applyMissileCaptureProcessResult(
         maxSingleCaptureByPlayer[myPlayerEnum] = captureCountThisMove;
     }
 
+    let guildWarCapturePointsThisMove = 0;
     for (const stone of captureResult.capturedStones) {
         const capturedPlayerEnum = opponentEnum;
         let points = 1;
@@ -100,6 +102,7 @@ export function applyMissileCaptureProcessResult(
         }
 
         game.captures[myPlayerEnum] = (game.captures[myPlayerEnum] ?? 0) + points;
+        guildWarCapturePointsThisMove += points;
         game.justCaptured.push({
             point: stone,
             player: capturedPlayerEnum,
@@ -108,6 +111,7 @@ export function applyMissileCaptureProcessResult(
         });
     }
 
+    bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, myPlayerEnum, guildWarCapturePointsThisMove);
     stripPatternStonesAtConsumedIntersections(game);
     removeCapturedBaseStoneMarkers(game, captureResult.capturedStones);
     game.koInfo = captureResult.newKoInfo ?? null;

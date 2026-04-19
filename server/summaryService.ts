@@ -8,7 +8,7 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
 import * as mannerService from './mannerService.js';
-import { openEquipmentBox1, rollRandomEquipmentFromGradeWeights } from './shop.js';
+import { openEquipmentBox1, openGuildGradeBox, rollRandomEquipmentFromGradeWeights } from './shop.js';
 import * as effectService from './effectService.js';
 import { randomUUID } from 'crypto';
 // FIX: Correctly import aiUser and getAiUser.
@@ -44,8 +44,8 @@ import {
 } from '../utils/adventureRegionalSpecialtyBuff.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from '../shared/constants/rewardConfig.js';
 import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../shared/constants/adventureStrategyXp.js';
-import { VIP_PLAY_REWARD_CONSUMABLE_NAME } from '../shared/constants/vipPlayReward.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
+import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -780,6 +780,64 @@ export const createConsumableItemInstance = (name: string, quantity: number = 1)
     };
 };
 
+const VIP_EQUIPMENT_BOX_BY_TIER = ['장비 상자 I', '장비 상자 II', '장비 상자 III', '장비 상자 IV'] as const;
+const VIP_MATERIAL_BOX_BY_TIER = ['재료 상자 I', '재료 상자 II', '재료 상자 III', '재료 상자 IV'] as const;
+
+export type RewardVipResolvedGrant = {
+    goldBonus: number;
+    inventoryItem: InventoryItem | null;
+    grantedDisplay: { name: string; quantity: number; image?: string };
+};
+
+export function rollAndResolveRewardVipPlayGrant(): RewardVipResolvedGrant {
+    const outcome = rollVipPlayRewardOutcome();
+    if (outcome.type === 'gold') {
+        return {
+            goldBonus: outcome.amount,
+            inventoryItem: null,
+            grantedDisplay: {
+                name: '골드',
+                quantity: outcome.amount,
+                image: '/images/icon/Gold.png',
+            },
+        };
+    }
+    if (outcome.type === 'legendary_equipment') {
+        const item = openGuildGradeBox(ItemGrade.Legendary);
+        return {
+            goldBonus: 0,
+            inventoryItem: item,
+            grantedDisplay: {
+                name: item.name,
+                quantity: 1,
+                image: (item as { image?: string }).image,
+            },
+        };
+    }
+    const boxName =
+        outcome.type === 'equipment_box'
+            ? VIP_EQUIPMENT_BOX_BY_TIER[outcome.tier]
+            : VIP_MATERIAL_BOX_BY_TIER[outcome.tier];
+    const item = createConsumableItemInstance(boxName);
+    if (!item) {
+        const fb = Math.floor(Math.random() * 901) + 100;
+        return {
+            goldBonus: fb,
+            inventoryItem: null,
+            grantedDisplay: { name: '골드', quantity: fb, image: '/images/icon/Gold.png' },
+        };
+    }
+    return {
+        goldBonus: 0,
+        inventoryItem: item,
+        grantedDisplay: {
+            name: item.name,
+            quantity: item.quantity ?? 1,
+            image: (item as { image?: string }).image,
+        },
+    };
+}
+
 // --- START NEW REWARD CONSTANTS ---
 
 const STRATEGIC_GOLD_REWARDS = ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE;
@@ -1503,11 +1561,10 @@ const processPlayerSummary = async (
     const qualifiesVipPlayRewardSurface =
         player.id !== aiUserId &&
         !isNoContest &&
-        !isGuildWarMatch &&
         (game.gameCategory as string) !== 'tower' &&
         (game.gameCategory as string) !== 'singleplayer' &&
         !game.isSinglePlayer &&
-        (isAdventureGame || isStrategic || isPlayful);
+        (isAdventureGame || isStrategic || isPlayful || isGuildWarMatch);
 
     const vipWinEligible =
         qualifiesVipPlayRewardSurface &&
@@ -1520,14 +1577,19 @@ const processPlayerSummary = async (
         delete rewards.adventureGoldUnderstandingBonus;
     }
 
+    let vipGoldBonus = 0;
     let vipGrant: InventoryItem | null = null;
+    let vipGrantedDisplay: { name: string; quantity: number; image?: string } | undefined;
     if (vipWinEligible && isRewardVipActive(updatedPlayer)) {
-        vipGrant = createConsumableItemInstance(VIP_PLAY_REWARD_CONSUMABLE_NAME);
+        const vip = rollAndResolveRewardVipPlayGrant();
+        vipGoldBonus = vip.goldBonus;
+        vipGrant = vip.inventoryItem;
+        vipGrantedDisplay = vip.grantedDisplay;
     }
 
     const itemsForInventory = [...rewards.items, ...(vipGrant ? [vipGrant] : [])];
 
-    updatedPlayer.gold += rewards.gold;
+    updatedPlayer.gold += rewards.gold + vipGoldBonus;
     if (rewards.diamonds > 0) {
         updatedPlayer.diamonds += rewards.diamonds;
     }
@@ -1552,14 +1614,15 @@ const processPlayerSummary = async (
             game.gameCategory === 'tower' ||
             (game.gameCategory as string) === 'singleplayer';
 
+        const questCtx = { gameCategory: game.gameCategory as string | undefined };
         if (!isPveQuestExempt) {
-            updateQuestProgress(updatedPlayer, 'participate', mode, 1);
+            updateQuestProgress(updatedPlayer, 'participate', mode, 1, questCtx);
             if (isWinner) {
-                updateQuestProgress(updatedPlayer, 'win', mode, 1);
+                updateQuestProgress(updatedPlayer, 'win', mode, 1, questCtx);
             }
         }
         if (isPvpRewardTarget && !liveSessionHasChampionshipDungeonBot(game)) {
-            updateQuestProgress(updatedPlayer, 'pvp_participate', mode, 1);
+            updateQuestProgress(updatedPlayer, 'pvp_participate', mode, 1, questCtx);
         }
         if (isWinner && game.gameCategory === 'adventure') {
             updateQuestProgress(updatedPlayer, 'adventure_win', undefined, 1);
@@ -1622,7 +1685,7 @@ const processPlayerSummary = async (
             wins: gameStats.wins,
             losses: gameStats.losses,
         },
-        gold: rewards.gold,
+        gold: rewards.gold + vipGoldBonus,
         diamonds: rewards.diamonds,
         items: rewards.items,
         level: levelSummary,
@@ -1637,13 +1700,9 @@ const processPlayerSummary = async (
             ? {
                   vipPlayRewardSlot: {
                       locked: !isRewardVipActive(updatedPlayer),
-                      ...(vipGrant
+                      ...(vipGrantedDisplay
                           ? {
-                                grantedItem: {
-                                    name: vipGrant.name,
-                                    quantity: vipGrant.quantity ?? 1,
-                                    image: (vipGrant as { image?: string }).image,
-                                },
+                                grantedItem: vipGrantedDisplay,
                             }
                           : {}),
                   },
@@ -1789,7 +1848,18 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             game.summary[p1.id] = p1Summary;
             // 게임 종료 후 업데이트된 필드만 브로드캐스트 (메모리 절약)
             const { broadcastUserUpdate } = await import('./socket.js');
-            const fieldsToUpdate = ['gold', 'diamonds', 'strategyXp', 'strategyLevel', 'playfulXp', 'playfulLevel', 'mannerScore', 'rating', 'stats'];
+            const fieldsToUpdate = [
+                'gold',
+                'diamonds',
+                'strategyXp',
+                'strategyLevel',
+                'playfulXp',
+                'playfulLevel',
+                'mannerScore',
+                'rating',
+                'stats',
+                'quests',
+            ];
             if (p1Summary.items && p1Summary.items.length > 0) {
                 fieldsToUpdate.push('inventory');
             }
@@ -1816,7 +1886,18 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             game.summary[p2.id] = p2Summary;
             // 게임 종료 후 업데이트된 필드만 브로드캐스트 (메모리 절약)
             const { broadcastUserUpdate } = await import('./socket.js');
-            const fieldsToUpdate = ['gold', 'diamonds', 'strategyXp', 'strategyLevel', 'playfulXp', 'playfulLevel', 'mannerScore', 'rating', 'stats'];
+            const fieldsToUpdate = [
+                'gold',
+                'diamonds',
+                'strategyXp',
+                'strategyLevel',
+                'playfulXp',
+                'playfulLevel',
+                'mannerScore',
+                'rating',
+                'stats',
+                'quests',
+            ];
             if (p2Summary.items && p2Summary.items.length > 0) {
                 fieldsToUpdate.push('inventory');
             }

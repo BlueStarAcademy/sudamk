@@ -202,40 +202,32 @@ const AdventureLobby: React.FC = () => {
                                                 {stage.lobbyStoryLine}
                                             </p>
                                             {!unlocked && conditionLines.length > 0 && (
-                                                mobileFillViewportCards ? (
-                                                    <p
-                                                        className={`truncate text-[8px] font-semibold leading-snug ${
-                                                            conditionLines[0]?.satisfied
-                                                                ? 'text-emerald-300'
-                                                                : 'text-amber-200/95'
-                                                        }`}
-                                                        title={conditionLines.map((l) => l.text).join(' · ')}
-                                                    >
-                                                        {conditionLines[0]?.text}
-                                                        {conditionLines.length > 1 ? ' · …' : ''}
-                                                    </p>
-                                                ) : (
-                                                    <p className="flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 text-[9px] font-semibold leading-snug sm:text-[10px] lg:text-[11px]">
-                                                        {conditionLines.map((line, idx) => (
-                                                            <Fragment key={line.key}>
-                                                                {idx > 0 ? (
-                                                                    <span className="shrink-0 text-zinc-500" aria-hidden>
-                                                                        ·
-                                                                    </span>
-                                                                ) : null}
-                                                                <span
-                                                                    className={`whitespace-nowrap ${
-                                                                        line.satisfied
-                                                                            ? 'text-emerald-300 drop-shadow-[0_0_6px_rgba(52,211,153,0.35)]'
-                                                                            : 'text-amber-200/95'
-                                                                    }`}
-                                                                >
-                                                                    {line.text}
+                                                <p
+                                                    className={`flex min-w-0 flex-wrap items-center gap-x-1 gap-y-0.5 font-semibold leading-snug ${
+                                                        mobileFillViewportCards
+                                                            ? 'text-[9px]'
+                                                            : 'text-[9px] sm:text-[10px] lg:text-[11px]'
+                                                    }`}
+                                                >
+                                                    {conditionLines.map((line, idx) => (
+                                                        <Fragment key={line.key}>
+                                                            {idx > 0 ? (
+                                                                <span className="shrink-0 text-zinc-500" aria-hidden>
+                                                                    ·
                                                                 </span>
-                                                            </Fragment>
-                                                        ))}
-                                                    </p>
-                                                )
+                                                            ) : null}
+                                                            <span
+                                                                className={`min-w-0 break-words ${
+                                                                    line.satisfied
+                                                                        ? 'text-emerald-300 drop-shadow-[0_0_6px_rgba(52,211,153,0.35)]'
+                                                                        : 'text-amber-200/95'
+                                                                }`}
+                                                            >
+                                                                {line.text}
+                                                            </span>
+                                                        </Fragment>
+                                                    ))}
+                                                </p>
                                             )}
                                         </div>
                                     </div>

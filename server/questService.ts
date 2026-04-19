@@ -3,6 +3,12 @@
 import * as types from '../types/index.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 
+/** 경기 요약 등에서 퀘스트 중복·제외 조건을 넘길 때 사용 */
+export type QuestProgressContext = {
+    /** `adventure`이면 「전략바둑 승리하기」는 카운트하지 않음(「모험에서 승리하기」 전용) */
+    gameCategory?: string;
+};
+
 export type QuestProgressEvent =
     | 'win'
     | 'participate'
@@ -25,7 +31,13 @@ export type QuestProgressEvent =
     | 'guild_donate'
     | 'guild_boss_participate';
 
-export const updateQuestProgress = (user: types.User, type: QuestProgressEvent, mode?: types.GameMode, amount: number = 1) => {
+export const updateQuestProgress = (
+    user: types.User,
+    type: QuestProgressEvent,
+    mode?: types.GameMode,
+    amount: number = 1,
+    questContext?: QuestProgressContext
+) => {
     if (!user.quests) return;
     const isStrategic = mode ? SPECIAL_GAME_MODES.some(m => m.mode === mode) : false;
     const isPlayful = mode ? PLAYFUL_GAME_MODES.some((m: { mode: types.GameMode; }) => m.mode === mode) : false;
@@ -53,7 +65,15 @@ export const updateQuestProgress = (user: types.User, type: QuestProgressEvent, 
             case '놀이바둑 경기하기':
                 if (type === 'pvp_participate' && isPlayful) shouldUpdate = true;
                 break;
-            case '전략바둑 승리하기': if (type === 'win' && isStrategic) shouldUpdate = true; break;
+            case '전략바둑 승리하기':
+                if (
+                    type === 'win' &&
+                    isStrategic &&
+                    questContext?.gameCategory !== 'adventure'
+                ) {
+                    shouldUpdate = true;
+                }
+                break;
             case '놀이바둑 승리하기': if (type === 'win' && isPlayful) shouldUpdate = true; break;
             case '모험에서 승리하기': if (type === 'adventure_win') shouldUpdate = true; break;
             case '액션버튼 사용하기':

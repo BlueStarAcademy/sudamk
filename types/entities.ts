@@ -840,7 +840,7 @@ export type GameSummary = {
     xpBefore: number;
     xpAfter: number;
   };
-  /** 전략/놀이/모험 등: 항상 표시되는 VIP 보상 슬롯(잠금 또는 지급 아이템) */
+  /** 전략/놀이/모험·길드 전쟁 AI 대국 등: 항상 표시되는 VIP 보상 슬롯(잠금 또는 지급 아이템) */
   vipPlayRewardSlot?: {
     locked: boolean;
     grantedItem?: { name: string; quantity: number; image?: string };
