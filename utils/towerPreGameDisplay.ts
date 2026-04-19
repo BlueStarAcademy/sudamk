@@ -1,4 +1,4 @@
-import { LiveGameSession, SinglePlayerStageInfo } from '../types.js';
+import { LiveGameSession, Player, SinglePlayerStageInfo } from '../types.js';
 import {
     countTowerLobbyInventoryQty,
     TOWER_ITEM_HIDDEN_NAMES,
@@ -17,6 +17,19 @@ export function getTowerSessionFloor(session: Pick<LiveGameSession, 'towerFloor'
         if (Number.isFinite(n) && n >= 1) return n;
     }
     return 1;
+}
+
+/** 결과 모달·인게임 종료 푸터 공통: 흑(유저) 승리로 볼지 (`TowerSummaryModal`과 동일 규칙). */
+export function isTowerHumanWinnerFromSession(
+    session: Pick<LiveGameSession, 'gameStatus' | 'winner' | 'analysisResult'>,
+): boolean {
+    const isEnded = session.gameStatus === 'ended';
+    const analysisResult = session.analysisResult?.['system'];
+    return isEnded && session.winner != null
+        ? session.winner === Player.Black
+        : analysisResult
+          ? (analysisResult.scoreDetails?.black?.total ?? 0) > (analysisResult.scoreDetails?.white?.total ?? 0)
+          : session.winner === Player.Black;
 }
 
 /**

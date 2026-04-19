@@ -28,6 +28,36 @@ import {
 
 const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
 
+const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
+    types.GameMode.Standard,
+    types.GameMode.Capture,
+    types.GameMode.Speed,
+    types.GameMode.Base,
+    types.GameMode.Hidden,
+    types.GameMode.Missile,
+    types.GameMode.Mix,
+];
+
+/**
+ * 모험/길드전 서버 Kata AI: 유저 착수 직후 메인 루프가 같은 틱에 makeAiMove를 잡아
+ * startAiProcessing과 경쟁하는 것을 줄이기 위해 aiTurnStartTime을 약간 미룬다.
+ * (인라인 makeAiMove 전 1초 대기와 맞추기 위해 1100ms)
+ */
+function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession, now: number): number {
+    const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+    const isGo = STRATEGIC_GO_SERVER_AI_MODES.includes(game.mode);
+    if (
+        game.isAiGame &&
+        !game.isSinglePlayer &&
+        isGo &&
+        !useClientSideAi &&
+        (game.gameCategory === types.GameCategory.Adventure || game.gameCategory === types.GameCategory.GuildWar)
+    ) {
+        return now + 1100;
+    }
+    return now;
+}
+
 const syncAdventureEncounterDeadlineDuringMonsterTurn = (game: types.LiveGameSession, now: number) => {
     if (game.gameCategory !== types.GameCategory.Adventure) return;
     const deadline = (game as any).adventureEncounterDeadlineMs;
@@ -1226,8 +1256,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 const { aiUserId } = await import('../aiPlayer.js');
                 const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (currentPlayerId === aiUserId) {
-                    game.aiTurnStartTime = now;
-                    console.log(`[handleStrategicAction] AI turn after PLACE_STONE, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+                    game.aiTurnStartTime = startAt;
+                    console.log(
+                        `[handleStrategicAction] AI turn after PLACE_STONE, game ${game.id}, setting aiTurnStartTime to ${startAt} (now=${now})`,
+                    );
                 } else {
                     // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
                     game.aiTurnStartTime = undefined;
@@ -1336,8 +1369,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     const { aiUserId } = await import('../aiPlayer.js');
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
-                        game.aiTurnStartTime = now;
-                        console.log(`[handleStrategicAction] AI turn after PASS_TURN, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+                        game.aiTurnStartTime = startAt;
+                        console.log(
+                            `[handleStrategicAction] AI turn after PASS_TURN, game ${game.id}, setting aiTurnStartTime to ${startAt} (now=${now})`,
+                        );
                     } else {
                         // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
                         game.aiTurnStartTime = undefined;

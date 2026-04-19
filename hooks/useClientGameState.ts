@@ -6,6 +6,7 @@
 import { Player, LiveGameSession, Point, GameMode } from '../types/index.js';
 import { getFischerIncrementSeconds } from '../shared/utils/gameTimeControl.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../shared/utils/patternStoneConsume.js';
+import { getTowerSessionFloor } from '../utils/towerPreGameDisplay.js';
 
 export type GameType = 'tower' | 'singleplayer';
 
@@ -333,9 +334,10 @@ export function updateGameStateAfterMove(
 
     let checkInfo: { towerFloor?: number; stageId: string; newCaptures: { [key in Player]?: number }; gameType: GameType } | undefined;
 
-    if (gameType === 'tower' && game.towerFloor !== undefined && game.towerFloor >= 1 && game.towerFloor <= 20 && game.stageId) {
+    const towerSessionFloor = gameType === 'tower' ? getTowerSessionFloor(game) : 0;
+    if (gameType === 'tower' && towerSessionFloor >= 1 && towerSessionFloor <= 20 && game.stageId) {
         checkInfo = {
-            towerFloor: game.towerFloor,
+            towerFloor: towerSessionFloor,
             stageId: game.stageId,
             newCaptures: updatedCaptures,
             gameType: 'tower'

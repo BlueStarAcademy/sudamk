@@ -101,6 +101,7 @@ export function useTouchLayoutProfile(): TouchLayoutProfile {
         update();
         window.addEventListener('resize', update);
         window.addEventListener('orientationchange', update);
+        window.addEventListener('sudamr-portrait-lock-change', update);
         const mqCoarse = window.matchMedia('(pointer: coarse)');
         const mqHover = window.matchMedia('(hover: none)');
         mqCoarse.addEventListener('change', update);
@@ -108,6 +109,7 @@ export function useTouchLayoutProfile(): TouchLayoutProfile {
         return () => {
             window.removeEventListener('resize', update);
             window.removeEventListener('orientationchange', update);
+            window.removeEventListener('sudamr-portrait-lock-change', update);
             mqCoarse.removeEventListener('change', update);
             mqHover.removeEventListener('change', update);
         };
@@ -116,12 +118,27 @@ export function useTouchLayoutProfile(): TouchLayoutProfile {
     return profile;
 }
 
-const getViewportSize = () => {
+/** App.tsx 가 html 에 sudamr-handheld-portrait-lock 을 붙인 상태(소형 폰 물리 가로 → 세로 UI 고정) */
+export function isHandheldPortraitLockActive(): boolean {
+    if (typeof document === 'undefined') return false;
+    return document.documentElement.classList.contains('sudamr-handheld-portrait-lock');
+}
+
+/**
+ * 레이아웃·훅용 뷰포트 크기. `sudamr-handheld-portrait-lock` 일 때는 물리 가로여도 세로로 들고 있을 때와 같은 w/h로 본다.
+ */
+export function getLayoutViewportSize(): { width: number; height: number } {
     if (typeof window === 'undefined') {
         return { width: 0, height: 0 };
     }
-    return { width: window.innerWidth, height: window.innerHeight };
-};
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    /** html 클래스가 켜진 뒤에는 터치 프로필과 무관하게 스왑(App·프로필 판정 불일치 시에도 일관) */
+    if (isHandheldPortraitLockActive()) {
+        return { width: Math.min(w, h), height: Math.max(w, h) };
+    }
+    return { width: w, height: h };
+}
 
 /** 모바일 레이아웃은 폰 크기까지만 허용 (8인치급 태블릿은 PC 레이아웃 유지) */
 export const PHONE_LAYOUT_MAX_WIDTH_PX = 768;
@@ -137,21 +154,23 @@ const isPortraitViewport = (width: number, height: number) => width <= height;
  */
 export function useIsMobileLayout(breakpoint: number = 1024): boolean {
     const [isMobile, setIsMobile] = useState(() => {
-        const { width, height } = getViewportSize();
+        const { width, height } = getLayoutViewportSize();
         return isHandheldWidth(width, breakpoint) && isPortraitViewport(width, height);
     });
 
     useEffect(() => {
         const update = () => {
-            const { width, height } = getViewportSize();
+            const { width, height } = getLayoutViewportSize();
             setIsMobile(isHandheldWidth(width, breakpoint) && isPortraitViewport(width, height));
         };
         update();
         window.addEventListener('resize', update);
         window.addEventListener('orientationchange', update);
+        window.addEventListener('sudamr-portrait-lock-change', update);
         return () => {
             window.removeEventListener('resize', update);
             window.removeEventListener('orientationchange', update);
+            window.removeEventListener('sudamr-portrait-lock-change', update);
         };
     }, [breakpoint]);
 
@@ -161,7 +180,7 @@ export function useIsMobileLayout(breakpoint: number = 1024): boolean {
 /** 좁은 화면의 휴대기기 여부. 레이아웃이 아니라 safe-area/회전 정책 판단용. */
 export function useIsHandheldDevice(breakpoint: number = 1024): boolean {
     const [isHandheld, setIsHandheld] = useState(() => {
-        const { width, height } = getViewportSize();
+        const { width, height } = getLayoutViewportSize();
         const touch = computeTouchLayoutProfile();
         if (touch.isLargeTouchTablet && width > height) return false;
         return isHandheldWidth(width, breakpoint);
@@ -169,7 +188,7 @@ export function useIsHandheldDevice(breakpoint: number = 1024): boolean {
 
     useEffect(() => {
         const update = () => {
-            const { width, height } = getViewportSize();
+            const { width, height } = getLayoutViewportSize();
             const touch = computeTouchLayoutProfile();
             if (touch.isLargeTouchTablet && width > height) {
                 setIsHandheld(false);
@@ -180,9 +199,11 @@ export function useIsHandheldDevice(breakpoint: number = 1024): boolean {
         update();
         window.addEventListener('resize', update);
         window.addEventListener('orientationchange', update);
+        window.addEventListener('sudamr-portrait-lock-change', update);
         return () => {
             window.removeEventListener('resize', update);
             window.removeEventListener('orientationchange', update);
+            window.removeEventListener('sudamr-portrait-lock-change', update);
         };
     }, [breakpoint]);
 
@@ -197,21 +218,28 @@ export const VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT = 600;
  * 짧은 데스크톱 창·가로폭은 넓은 상태에서도 모바일 셸 전환에 사용.
  */
 export function useViewportHeightBelow(maxHeightExclusive: number): boolean {
-    const [below, setBelow] = useState(() => getViewportSize().height < maxHeightExclusive);
+    const [below, setBelow] = useState(() => getLayoutViewportSize().height < maxHeightExclusive);
 
     useEffect(() => {
         const update = () => {
-            const vv = window.visualViewport;
-            const h = vv?.height ?? window.innerHeight;
+            let h: number;
+            if (isHandheldPortraitLockActive()) {
+                h = getLayoutViewportSize().height;
+            } else {
+                const vv = window.visualViewport;
+                h = vv?.height ?? window.innerHeight;
+            }
             setBelow(h < maxHeightExclusive);
         };
         update();
         window.addEventListener('resize', update);
         window.addEventListener('orientationchange', update);
+        window.addEventListener('sudamr-portrait-lock-change', update);
         window.visualViewport?.addEventListener('resize', update);
         return () => {
             window.removeEventListener('resize', update);
             window.removeEventListener('orientationchange', update);
+            window.removeEventListener('sudamr-portrait-lock-change', update);
             window.visualViewport?.removeEventListener('resize', update);
         };
     }, [maxHeightExclusive]);
@@ -224,20 +252,23 @@ export function useViewportHeightBelow(maxHeightExclusive: number): boolean {
  */
 export function useIsPortrait(): boolean {
     const [isPortrait, setIsPortrait] = useState(() => {
-        const { width, height } = getViewportSize();
+        const { width, height } = getLayoutViewportSize();
         return isPortraitViewport(width, height);
     });
 
     useEffect(() => {
         const update = () => {
-            const { width, height } = getViewportSize();
+            const { width, height } = getLayoutViewportSize();
             setIsPortrait(isPortraitViewport(width, height));
         };
+        update();
         window.addEventListener('resize', update);
         window.addEventListener('orientationchange', update);
+        window.addEventListener('sudamr-portrait-lock-change', update);
         return () => {
             window.removeEventListener('resize', update);
             window.removeEventListener('orientationchange', update);
+            window.removeEventListener('sudamr-portrait-lock-change', update);
         };
     }, []);
 

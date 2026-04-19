@@ -130,6 +130,23 @@ export function cancelAiProcessing(gameId: string): void {
     session.lastUpdatedAt = Date.now();
 }
 
+export function isAiProcessing(gameId: string): boolean {
+    const s = aiSessions.get(gameId);
+    return !!s?.isProcessing;
+}
+
+/**
+ * 다른 경로(메인 루프 setImmediate 등)가 startAiProcessing을 잡고 있을 때
+ * 인라인 makeAiMove가 즉시 return 하며 AI가 스킵되는 레이스를 줄이기 위해 대기한다.
+ */
+export async function waitUntilAiProcessingReleased(gameId: string, maxMs: number): Promise<void> {
+    const deadline = Date.now() + maxMs;
+    while (Date.now() < deadline) {
+        if (!isAiProcessing(gameId)) return;
+        await new Promise<void>((r) => setTimeout(r, 25));
+    }
+}
+
 /**
  * 게임이 종료되었을 때 세션 제거
  */

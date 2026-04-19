@@ -19,6 +19,7 @@ import {
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
+import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../utils/towerPreGameDisplay.js';
 import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
@@ -168,15 +169,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const analysisResult = session.analysisResult?.['system'];
     const summary = session.summary?.[currentUser.id];
     
-    // 계가 결과가 있으면 점수를 기반으로 승리/실패 판단, 없으면 session.winner 사용
-    // 계가 중일 때는 승리/실패를 판단하지 않음 (잘못된 실패 표시 방지)
-    // 도전의 탑에서는 session.winner를 우선 사용 (클라이언트에서 정확히 판정함)
-    const isWinner = (isEnded && session.winner !== null)
-        ? (session.winner === Player.Black)
-        : (analysisResult 
-            ? (analysisResult.scoreDetails?.black?.total ?? 0) > (analysisResult.scoreDetails?.white?.total ?? 0)
-            : (session.winner === Player.Black)); // Human is always Black
-    const currentFloor = session.towerFloor ?? 1;
+    // 계가 결과가 있으면 점수를 기반으로 승리/실패 판단, 없으면 session.winner 사용 (`towerPreGameDisplay`와 인게임 푸터 동일)
+    const isWinner = isTowerHumanWinnerFromSession(session);
+    const currentFloor = getTowerSessionFloor(session);
     const currentStage = TOWER_STAGES.find((s: any) => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
         return stageFloor === currentFloor;

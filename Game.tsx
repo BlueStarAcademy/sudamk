@@ -58,6 +58,17 @@ import {
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
+/** 로비 Kata AI·모험·길드전 등 서버 전략바둑 AI 대국 (타워/싱글플 제외) */
+const KATA_STYLE_AI_GO_MODES = new Set<GameMode>([
+    GameMode.Standard,
+    GameMode.Capture,
+    GameMode.Speed,
+    GameMode.Base,
+    GameMode.Hidden,
+    GameMode.Missile,
+    GameMode.Mix,
+]);
+
 /** 모바일 우측 패널: 100vh 대신 dvh + 노치/홈바로 하단 잘림 방지 */
 const mobileGameSidebarDrawerStyle: React.CSSProperties = {
     paddingTop: 'env(safe-area-inset-top, 0px)',
@@ -817,12 +828,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
         const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
-        const shouldShowModal = gameHasJustEnded || 
-            ((isSinglePlayer || isTower)
-                ? (isImmediateEnd || (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
-                   (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived))
-                : ((gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
-                   (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived)));
+        // 싱글/탑: 종료 직후 전면 결과 모달을 자동으로 띄우지 않는다. 모달 백드롭이 인게임 하단(다음 층·재도전 등)을 가려 버튼이 먹히지 않는 문제 방지.
+        // 상세 결과는 하단 「결과 보기」로 연다. 계가·기권 등은 기존처럼 자동 오픈.
+        const pveAutoResultModal =
+            isImmediateEnd ||
+            (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
+            (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
+        const shouldShowModal = (isSinglePlayer || isTower)
+            ? pveAutoResultModal
+            : gameHasJustEnded ||
+              (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
+              (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
 
         if (shouldShowModal) {
             setShowResultModal(true);
@@ -2171,6 +2187,78 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         }
     }, [session.serverRevision, session.isSinglePlayer, isTower, lastReceivedServerRevision, isBoardLocked]);
+
+    const aiStuckGameStateSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const lastGameStateSyncSentAtRef = useRef(0);
+
+    // Kata 계열 AI 대국: AI(봇) 차례인데 10초간 착수가 없으면 서버와 다시 맞추고 AI 세션 복구를 시도
+    useEffect(() => {
+        if (aiStuckGameStateSyncTimeoutRef.current) {
+            clearTimeout(aiStuckGameStateSyncTimeoutRef.current);
+            aiStuckGameStateSyncTimeoutRef.current = null;
+        }
+        const eligibleKataContext =
+            session.isAiGame &&
+            !session.isSinglePlayer &&
+            KATA_STYLE_AI_GO_MODES.has(mode) &&
+            session.gameCategory !== 'tower' &&
+            session.gameCategory !== 'singleplayer';
+        if (!eligibleKataContext || gameStatus !== 'playing') return;
+
+        const manuallyPausedAi =
+            session.isAiGame &&
+            !session.isSinglePlayer &&
+            session.gameCategory !== 'tower' &&
+            session.gameCategory !== 'singleplayer' &&
+            session.pausedTurnTimeLeft !== undefined &&
+            !session.turnDeadline &&
+            !session.itemUseDeadline;
+        if (manuallyPausedAi) return;
+
+        if (currentPlayer === Player.None) return;
+
+        const currentPlayerId =
+            currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
+        const isAiBotTurn =
+            currentPlayerId === AI_USER_ID ||
+            (session.isAiGame && currentPlayerId === 'ai-player-01') ||
+            (!!currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'));
+        if (!isAiBotTurn) return;
+
+        const AI_STUCK_NO_MOVE_RESYNC_MS = 10_000;
+        const MIN_BETWEEN_RESYNC_MS = 12_000;
+        aiStuckGameStateSyncTimeoutRef.current = setTimeout(() => {
+            aiStuckGameStateSyncTimeoutRef.current = null;
+            const now = Date.now();
+            if (now - lastGameStateSyncSentAtRef.current < MIN_BETWEEN_RESYNC_MS) return;
+            lastGameStateSyncSentAtRef.current = now;
+            void handlers.handleAction({
+                type: 'REQUEST_GAME_STATE_SYNC',
+                payload: { gameId: session.id },
+            } as ServerAction);
+        }, AI_STUCK_NO_MOVE_RESYNC_MS);
+        return () => {
+            if (aiStuckGameStateSyncTimeoutRef.current) {
+                clearTimeout(aiStuckGameStateSyncTimeoutRef.current);
+                aiStuckGameStateSyncTimeoutRef.current = null;
+            }
+        };
+    }, [
+        session.id,
+        session.isAiGame,
+        session.isSinglePlayer,
+        session.gameCategory,
+        session.pausedTurnTimeLeft,
+        session.turnDeadline,
+        session.itemUseDeadline,
+        session.moveHistory?.length,
+        mode,
+        gameStatus,
+        currentPlayer,
+        session.blackPlayerId,
+        session.whitePlayerId,
+        handlers.handleAction,
+    ]);
 
     // 싱글플레이: 클라이언트 측 AI 자동 처리 (서버 부하 최소화)
     // 보드 잠금은 사용자 입력만 막는 것이므로, AI 수 계산은 보드 잠금과 독립적으로 실행

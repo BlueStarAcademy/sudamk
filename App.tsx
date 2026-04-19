@@ -7,7 +7,7 @@ import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
-import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js';
+import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT, computeTouchLayoutProfile } from './hooks/useIsMobileLayout.js';
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
@@ -22,6 +22,7 @@ import {
     NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
 } from './constants/ads.js';
+import { syncDocumentViewportHeightVar } from './utils/layoutViewportCss.js';
 
 function usePrevious<T>(value: T): T | undefined {
     const ref = useRef<T | undefined>(undefined);
@@ -169,15 +170,84 @@ const AppContent: React.FC = () => {
         }
     }, [currentUser]);
 
-    /** 예전 배포의 CSS 회전 클래스가 남아 있으면 제거(회전·세로폭 축소 없이 OS 세로 고정만 사용) */
+    /**
+     * 소형 터치 폰 + 물리 가로: 전체 셸을 -90° 고정(세로와 동일 화면). OS lock은 보조(index.tsx).
+     * 8인치+ 태블릿 가로 PC 셸은 제외. transition 없음(index.css)으로 ‘돌아가는’ 느낌 최소화.
+     */
     useEffect(() => {
-        const el = document.documentElement;
-        el.classList.remove(
-            'sudamr-handheld-portrait-lock',
-            'sudamr-handheld-portrait-secondary',
-            'sudamr-handheld-real-landscape',
-        );
-        el.style.removeProperty('--sudamr-landscape-ui-rotate');
+        const clearClasses = () => {
+            const el = document.documentElement;
+            el.classList.remove(
+                'sudamr-handheld-portrait-lock',
+                'sudamr-handheld-portrait-secondary',
+                'sudamr-handheld-real-landscape',
+            );
+            el.style.removeProperty('--sudamr-landscape-ui-rotate');
+        };
+
+        const sync = () => {
+            try {
+                const el = document.documentElement;
+                const hadLockBefore = el.classList.contains('sudamr-handheld-portrait-lock');
+                const { isPhoneHandheldTouch, isLargeTouchTablet } = computeTouchLayoutProfile();
+                if (!isPhoneHandheldTouch || isLargeTouchTablet) {
+                    clearClasses();
+                    if (hadLockBefore) window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
+                    return;
+                }
+                const w = window.innerWidth;
+                const h = window.innerHeight;
+                if (w <= h) {
+                    clearClasses();
+                    if (hadLockBefore) window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
+                    return;
+                }
+                el.classList.add('sudamr-handheld-portrait-lock');
+                el.classList.remove('sudamr-handheld-portrait-secondary');
+                const so = screen.orientation as ScreenOrientation | undefined;
+                const type = so?.type ?? '';
+                const angle = typeof so?.angle === 'number' ? so.angle : NaN;
+                if (type.includes('landscape-secondary') || angle === 270 || angle === -90) {
+                    el.classList.add('sudamr-handheld-portrait-secondary');
+                }
+                if (!hadLockBefore) window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
+            } finally {
+                syncDocumentViewportHeightVar();
+            }
+        };
+
+        const syncSoon = () => {
+            sync();
+            requestAnimationFrame(sync);
+            [16, 50, 120, 280].forEach((ms) => window.setTimeout(sync, ms));
+        };
+
+        const mqCoarse = window.matchMedia?.('(pointer: coarse)');
+        const mqHover = window.matchMedia?.('(hover: none)');
+        mqCoarse?.addEventListener('change', syncSoon);
+        mqHover?.addEventListener('change', syncSoon);
+
+        sync();
+        window.addEventListener('resize', sync);
+        window.addEventListener('orientationchange', syncSoon);
+        const mq = window.matchMedia?.('(orientation: portrait)');
+        mq?.addEventListener('change', syncSoon);
+        const so = typeof screen !== 'undefined' ? (screen as Screen & { orientation?: EventTarget }).orientation : undefined;
+        so?.addEventListener?.('change', syncSoon as EventListener);
+        window.visualViewport?.addEventListener('resize', sync);
+        return () => {
+            mqCoarse?.removeEventListener('change', syncSoon);
+            mqHover?.removeEventListener('change', syncSoon);
+            window.removeEventListener('resize', sync);
+            window.removeEventListener('orientationchange', syncSoon);
+            mq?.removeEventListener('change', syncSoon);
+            so?.removeEventListener?.('change', syncSoon as EventListener);
+            window.visualViewport?.removeEventListener('resize', sync);
+            const had = document.documentElement.classList.contains('sudamr-handheld-portrait-lock');
+            clearClasses();
+            if (had) window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
+            syncDocumentViewportHeightVar();
+        };
     }, []);
 
     const isGameView = currentRoute.view === 'game';
@@ -353,7 +423,8 @@ const AppContent: React.FC = () => {
                                 className="mx-auto flex h-full min-h-0 w-full max-h-full min-w-0 flex-1 flex-col overflow-hidden"
                                 style={{
                                     maxWidth: NATIVE_MOBILE_SHELL_MAX_WIDTH,
-                                    maxHeight: 'calc(var(--vh, 1vh) * 100)',
+                                    /* 부모 높이 한도: 가로+portrait-lock 시 var(--vh) 미갱신·1vh 폴백이 짧은 변(375)로 셸을 잘랐음 */
+                                    maxHeight: '100%',
                                 }}
                             >
                             <main

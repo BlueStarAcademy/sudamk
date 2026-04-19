@@ -23,6 +23,7 @@ import {
     useTouchLayoutProfile,
     useIsPortrait,
 } from './useIsMobileLayout.js';
+import { syncDocumentViewportHeightVar } from '../utils/layoutViewportCss.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
@@ -5949,7 +5950,11 @@ export const useApp = () => {
                                         const lastMove = (game.moveHistory as any[])?.[game.moveHistory.length - 1];
                                         const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
                                         const isNewAiMoveLive = isStrategicAiGame && hasNewMoves && lastMove?.player === aiPlayerEnum;
-                                        const deferStrategicAiMoveForEffect = isNewAiMoveLive;
+                                        // 모험/길드전: 서버가 유저 착수 후 1초 뒤 AI를 반영하므로 클라에서 또 1초 미루면 체감이 2초가 된다.
+                                        const deferStrategicAiMoveForEffect =
+                                            isNewAiMoveLive &&
+                                            game.gameCategory !== 'adventure' &&
+                                            game.gameCategory !== 'guildwar';
                                         if (deferStrategicAiMoveForEffect) {
                                             if (liveGameGnugoDelayTimeoutRef.current[gameId] != null) {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
@@ -6616,18 +6621,17 @@ export const useApp = () => {
     // --- Misc UseEffects ---
     useEffect(() => {
         const updateViewportVars = () => {
-            // 레이아웃 뷰포트 높이만 사용: iOS Safari에서 visualViewport는 주소창·스크롤 바운스마다 달라져
-            // #root·모바일 셸 높이가 안드로이드와 달리 흔들리는 원인이 됨. 웹·앱 공통으로 innerHeight 기준 통일.
-            const height = window.innerHeight;
-            document.documentElement.style.setProperty('--vh', `${height * 0.01}px`);
+            syncDocumentViewportHeightVar();
         };
 
         updateViewportVars();
         window.addEventListener('resize', updateViewportVars);
         window.addEventListener('orientationchange', updateViewportVars);
+        window.addEventListener('sudamr-portrait-lock-change', updateViewportVars);
         return () => {
             window.removeEventListener('resize', updateViewportVars);
             window.removeEventListener('orientationchange', updateViewportVars);
+            window.removeEventListener('sudamr-portrait-lock-change', updateViewportVars);
         };
     }, []);
 

@@ -736,6 +736,63 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             return { clientResponse: { serverAiMoveDone: true } };
         }
 
+        if (type === 'REQUEST_GAME_STATE_SYNC') {
+            const uid = userData.id;
+            if (game.player1.id !== uid && game.player2.id !== uid) {
+                return { error: '해당 경기 참가자가 아닙니다.' };
+            }
+            const goModes: GameMode[] = [
+                GameMode.Standard,
+                GameMode.Capture,
+                GameMode.Speed,
+                GameMode.Base,
+                GameMode.Hidden,
+                GameMode.Missile,
+                GameMode.Mix,
+            ];
+            if (!game.isAiGame || game.isSinglePlayer || !goModes.includes(game.mode)) {
+                return { error: '이 경기 유형에서는 동기화를 지원하지 않습니다.' };
+            }
+            const gc = (game as any).gameCategory;
+            if (gc === 'tower' || gc === 'singleplayer') {
+                return { error: '이 경기 유형에서는 동기화를 지원하지 않습니다.' };
+            }
+            const { waitUntilAiProcessingReleased, syncAiSession } = await import('./aiSessionManager.js');
+            const { aiUserId, makeAiMove } = await import('./aiPlayer.js');
+            await waitUntilAiProcessingReleased(game.id, 10_000);
+            const fresh = await db.getLiveGame(gameId);
+            if (!fresh) {
+                return { error: 'Game not found.' };
+            }
+            Object.assign(game, JSON.parse(JSON.stringify(fresh)) as types.LiveGameSession);
+            syncAiSession(game, aiUserId);
+            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+            const effectiveUseClientSideAi = useClientSideAi && goModes.includes(game.mode);
+            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            const isAiTurnNow =
+                game.gameStatus === 'playing' &&
+                game.currentPlayer !== types.Player.None &&
+                (currentPlayerId === aiUserId ||
+                    (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')));
+            if (isAiTurnNow && !effectiveUseClientSideAi) {
+                await waitUntilAiProcessingReleased(game.id, 3000);
+                try {
+                    await makeAiMove(game);
+                } catch (e: any) {
+                    console.error('[GameActions] REQUEST_GAME_STATE_SYNC makeAiMove failed:', e?.message);
+                }
+            }
+            updateGameCache(game);
+            await db.saveGame(game);
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const payloadGame =
+                game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                    ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                    : game;
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payloadGame } }, game);
+            return { clientResponse: { synced: true } };
+        }
+
         // 일반 AI 대국의 수동 일시정지 중에는 착수/통과 등 주요 게임 액션을 차단
         const isManuallyPausedAi = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer'
             && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
@@ -747,6 +804,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'SEND_CHAT_MESSAGE',
                 'LEAVE_SPECTATING',
                 'SET_USER_STATUS',
+                'REQUEST_GAME_STATE_SYNC',
             ]);
             if (!allowedWhilePaused.has(type)) {
                 return { error: '일시 정지 상태에서는 해당 동작을 할 수 없습니다.' };
@@ -1019,6 +1077,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 ) {
                     const gameIdInlineAi = game.id;
                     try {
+                        const { waitUntilAiProcessingReleased } = await import('./aiSessionManager.js');
+                        await waitUntilAiProcessingReleased(game.id, 10_000);
+                        await new Promise<void>((r) => setTimeout(r, 1000));
                         const moveBeforeInline = game.moveHistory?.length ?? 0;
                         await makeAiMove(game);
                         const aiAdvanced = (game.moveHistory?.length ?? 0) > moveBeforeInline;

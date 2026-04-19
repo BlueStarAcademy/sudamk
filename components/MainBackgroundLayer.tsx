@@ -20,11 +20,13 @@ const MainBackgroundLayer: React.FC<MainBackgroundLayerProps> = ({ variant = 'ap
         <div className={`pointer-events-none absolute inset-0 overflow-hidden ${className}`} aria-hidden>
             {showMainBgImage && (
                 <img
+                    ref={(el) => {
+                        if (el) el.setAttribute('fetchpriority', 'low');
+                    }}
                     src={getMainBackgroundUrl()}
                     alt=""
                     className="absolute inset-0 h-full w-full object-cover"
                     decoding="async"
-                    fetchPriority="low"
                 />
             )}
             <div className={`absolute inset-0 bg-gradient-to-b ${dim}`} />

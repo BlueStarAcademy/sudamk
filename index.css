@@ -467,14 +467,70 @@ html, body {
     overflow: hidden;
 }
 
-/* sudamr-handheld-portrait-lock: 제거됨 — CSS로 화면을 돌리면 회전감·세로폭 축소가 생겨 OS orientation.lock 만 사용 */
+/*
+  소형 터치 폰 물리 가로: 세로 UI만 쓰도록 #root > .app-container 회전.
+  transition/animation 끔 — 브라우저 기본 보간으로 ‘휙’ 도는 느낌 완화.
+*/
+html.sudamr-handheld-portrait-lock,
+html.sudamr-handheld-portrait-lock body {
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    max-width: 100vw;
+    max-height: 100dvh;
+    margin: 0;
+    transition: none !important;
+    animation: none !important;
+}
 
-/* 실제 가로: 한쪽 방향에서만 180° (JS가 --sudamr-landscape-ui-rotate 설정) */
-html.sudamr-handheld-real-landscape #root {
+html.sudamr-handheld-portrait-lock #root {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-width: 100vw;
+    max-height: 100dvh;
+    overflow: hidden;
+    transition: none !important;
+    animation: none !important;
+}
+
+/* vmin/vmax: 물리 가로에서도 짧은 변×긴 변 = 세로 논리 캔버스(100vh×100vw와 동치). dvh/dvw는 일부 DevTools·UI에서 어긋날 수 있음 */
+html.sudamr-handheld-portrait-lock #root > .app-container {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100vmin;
+    height: 100vmax;
+    max-width: none;
+    transform-origin: 0 0;
+    transform: rotate(-90deg);
+    flex: none;
+    transition: none !important;
+    animation: none !important;
+}
+
+html.sudamr-handheld-portrait-lock.sudamr-handheld-portrait-secondary #root > .app-container {
+    top: 100%;
+    left: auto;
+    right: 0;
+    width: 100vmin;
+    height: 100vmax;
+    max-width: none;
+    transform-origin: 100% 0;
+    transform: rotate(90deg);
+    transition: none !important;
+    animation: none !important;
+}
+
+/* 실제 가로: portrait-lock 과 동시에 쓰지 않음 */
+html.sudamr-handheld-real-landscape:not(.sudamr-handheld-portrait-lock) #root {
     position: relative;
 }
 
-html.sudamr-handheld-real-landscape #root > .app-container {
+html.sudamr-handheld-real-landscape:not(.sudamr-handheld-portrait-lock) #root > .app-container {
     transform: rotate(var(--sudamr-landscape-ui-rotate, 0deg));
     transform-origin: 50% 50%;
     width: 100%;

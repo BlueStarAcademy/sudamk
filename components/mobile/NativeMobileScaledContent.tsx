@@ -5,12 +5,15 @@ import {
 } from '../../constants/ads.js';
 
 /**
- * 레이아웃 박스만 사용(Safari·Chrome 공통). visualViewport 교차는 iOS에서 주소창/바운스마다 달라져
- * 기기별 스케일·비율이 어긋나므로 쓰지 않는다. pinch-zoom은 브라우저 기본 동작에 맡긴다.
+ * 레이아웃 박스만 사용(Safari·Chrome 공통). visualViewport 교차는 iOS에서 주소창·바운스마다 달라져 쓰지 않는다.
+ * `getBoundingClientRect`는 조상 `transform`(예: html portrait-lock 회전) 뒤 **뷰포트 축 정렬 AABB**가 되어
+ * 가로에서 667×375처럼 읽히며 스케일·논리 높이가 짧은 변에 맞춰져 UI가 찌그러진다 — `client*`는 로컬 레이아웃 크기.
  */
 function readLayoutBoxSize(el: HTMLElement): { sw: number; sh: number } {
-    const r = el.getBoundingClientRect();
-    return { sw: r.width, sh: r.height };
+    const sw = el.clientWidth;
+    const sh = el.clientHeight;
+    if (sw > 0 && sh > 0) return { sw, sh };
+    return { sw: el.offsetWidth, sh: el.offsetHeight };
 }
 
 /**
@@ -44,10 +47,12 @@ const NativeMobileScaledContent: React.FC<{ children: React.ReactNode; className
         if (ro) ro.observe(el);
         window.addEventListener('resize', measure);
         window.addEventListener('orientationchange', measure);
+        window.addEventListener('sudamr-portrait-lock-change', measure);
         return () => {
             ro?.disconnect();
             window.removeEventListener('resize', measure);
             window.removeEventListener('orientationchange', measure);
+            window.removeEventListener('sudamr-portrait-lock-change', measure);
         };
     }, []);
 

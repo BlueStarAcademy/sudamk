@@ -15,6 +15,7 @@ import {
     TOWER_ITEM_REFRESH_NAMES,
 } from '../../utils/towerLobbyInventory.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
+import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../../utils/towerPreGameDisplay.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
 import {
     arenaPostGameButtonClass,
@@ -88,7 +89,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         setTowerShopInitialItemId(itemId);
         setTowerItemShopOpen(true);
     };
-    const floor = session.towerFloor ?? 1;
+    const floor = getTowerSessionFloor(session);
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
     const stage = TOWER_STAGES.find(s => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
@@ -156,7 +157,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
     ]);
 
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
-        const isWinner = session.winner === Player.Black;
+        const isWinner = isTowerHumanWinnerFromSession(session);
         const nextFloor = floor < 100 ? floor + 1 : null;
         const nextStageForEnded = nextFloor
             ? TOWER_STAGES.find(s => {
