@@ -61,6 +61,17 @@ function formatStageDisplayName(stage: SinglePlayerStageInfo, isTower: boolean):
     return label ? `${label} · ${stage.name}` : stage.name;
 }
 
+/** 모바일 헤더·본문: 1행 반 이름, 2행 스테이지 N */
+function getCompactStageTitleLines(stage: SinglePlayerStageInfo, isTower: boolean): { line1: string; line2: string } {
+    if (isTower) {
+        return { line1: '도전의 탑', line2: stage.name };
+    }
+    const label = SINGLE_PLAYER_LEVEL_DISPLAY[stage.level as SinglePlayerLevel] ?? '바둑학원';
+    const tail = stage.id.split('-').pop() ?? '';
+    const stageNum = /^\d+$/.test(tail) ? tail : null;
+    return { line1: label, line2: stageNum ? `스테이지 ${stageNum}` : stage.name };
+}
+
 const getGameModeName = (mode: GameMode): string => {
     const specialMode = SPECIAL_GAME_MODES.find((m) => m.mode === mode);
     if (specialMode) return specialMode.name;
@@ -156,6 +167,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
 
     const gameModeName = getGameModeName(session.mode);
     const stageDisplayName = formatStageDisplayName(stage, isTower);
+    const compactTitleLines = getCompactStageTitleLines(stage, isTower);
     const modeMeta =
         SPECIAL_GAME_MODES.find((m) => m.mode === session.mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === session.mode);
 
@@ -193,7 +205,9 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             <div
                 className={`rounded-xl border border-amber-500/28 bg-gradient-to-r from-amber-950/50 via-zinc-900/85 to-zinc-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] ${isCompactUi ? 'p-2.5' : 'p-3 sm:p-3.5'}`}
             >
-                <div className="flex flex-row items-stretch gap-2 sm:gap-3 md:gap-4">
+                <div
+                    className={`flex items-stretch gap-2 sm:gap-3 md:gap-4 ${isCompactUi ? 'flex-col min-[400px]:flex-row' : 'flex-row'}`}
+                >
                     <div
                         className={`flex min-w-0 flex-1 gap-2 sm:gap-3 ${isCompactUi ? '' : 'sm:items-center'}`}
                     >
@@ -221,11 +235,20 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                             <h3
                                 className={`mt-0.5 font-black leading-tight tracking-tight text-white drop-shadow-sm ${
                                     isCompactUi
-                                        ? 'text-[1.05rem] leading-snug sm:text-xl'
+                                        ? 'text-[1.02rem] leading-snug sm:text-lg'
                                         : 'text-lg max-[480px]:text-[1.2rem] sm:text-xl'
                                 }`}
                             >
-                                {stageDisplayName}
+                                {isCompactUi ? (
+                                    <>
+                                        <span className="block">{compactTitleLines.line1}</span>
+                                        <span className="mt-0.5 block text-[0.95rem] font-bold text-amber-100/95 sm:text-[1.02rem]">
+                                            {compactTitleLines.line2}
+                                        </span>
+                                    </>
+                                ) : (
+                                    stageDisplayName
+                                )}
                             </h3>
                             <p className={`mt-1 text-sky-200/88 ${isCompactUi ? 'text-[0.8125rem] sm:text-[0.95rem]' : 'text-sm sm:text-[0.95rem]'}`}>
                                 모드{' '}
@@ -237,7 +260,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     <div
                         className={
                             isCompactUi
-                                ? 'flex w-[min(10.25rem,40%)] shrink-0 flex-col border-l border-amber-500/25 pl-2 text-center'
+                                ? 'flex min-h-0 w-full min-w-0 shrink-0 flex-col border-t border-amber-500/25 pt-2 text-center min-[400px]:w-[min(10.25rem,40%)] min-[400px]:border-l min-[400px]:border-t-0 min-[400px]:pl-2 min-[400px]:pt-0'
                                 : 'flex w-auto min-w-[11.5rem] max-w-[16rem] shrink-0 flex-col border-l border-amber-500/25 pl-3 text-center sm:min-w-[12rem] sm:pl-4'
                         }
                     >
@@ -305,6 +328,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 session={session}
                 summary={summaryFour}
                 singleColumn={isCompactUi}
+                forceTwoColumnPrimary={isCompactUi}
                 briefLayout
                 onTowerItemZeroClick={
                     canOpenTowerShop
@@ -393,6 +417,15 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     return (
         <DraggableWindow
             title={`${stageDisplayName} - 게임 설명`}
+            titleContent={
+                isCompactUi ? (
+                    <span className="flex min-w-0 flex-col items-start gap-0 leading-tight">
+                        <span className="text-[0.95rem] font-black tracking-tight text-amber-50 sm:text-base">{compactTitleLines.line1}</span>
+                        <span className="text-[0.82rem] font-bold text-amber-200/90 sm:text-[0.88rem]">{compactTitleLines.line2}</span>
+                        <span className="mt-0.5 text-[0.68rem] font-semibold text-amber-100/70">게임 설명</span>
+                    </span>
+                ) : undefined
+            }
             windowId="game-description-modal"
             onClose={onboardingPregameFinalSubStep ? undefined : onClose}
             initialWidth={760}

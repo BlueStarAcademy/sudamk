@@ -52,27 +52,27 @@ const MissionItem: React.FC<{
                 isComplete && !isClaimed && !isExpired
                     ? 'ring-amber-400/25 shadow-[0_0_0_1px_rgba(251,191,36,0.12),0_16px_48px_-12px_rgba(245,158,11,0.12)]'
                     : 'hover:border-amber-400/35 hover:shadow-[0_16px_48px_-16px_rgba(0,0,0,0.55)]',
-                isNativeMobile ? 'p-2.5' : 'p-3.5 sm:p-4',
+                isNativeMobile ? 'p-2' : 'p-3.5 sm:p-4',
             ].join(' ')}
         >
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/[0.07] via-transparent to-violet-600/[0.06]" />
-            <div className={`relative z-10 flex ${isNativeMobile ? 'flex-col gap-2.5' : 'flex-row items-stretch gap-4'}`}>
+            <div className={`relative z-10 flex ${isNativeMobile ? 'flex-col gap-2' : 'flex-row items-stretch gap-4'}`}>
                 <div
                     className={`flex shrink-0 items-center justify-center rounded-xl border border-amber-500/35 bg-gradient-to-b from-amber-950/50 to-stone-950/80 shadow-inner ${
-                        isNativeMobile ? 'h-12 w-12' : 'h-14 w-14 sm:h-[3.75rem] sm:w-[3.75rem]'
+                        isNativeMobile ? 'h-10 w-10' : 'h-14 w-14 sm:h-[3.75rem] sm:w-[3.75rem]'
                     }`}
                 >
                     <img
                         src="/images/guild/button/guildmission.png"
                         alt=""
-                        className={isNativeMobile ? 'h-9 w-9 object-contain opacity-95' : 'h-10 w-10 object-contain opacity-95 sm:h-11 sm:w-11'}
+                        className={isNativeMobile ? 'h-7 w-7 object-contain opacity-95' : 'h-10 w-10 object-contain opacity-95 sm:h-11 sm:w-11'}
                     />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
+                    <div className="mb-1 flex flex-wrap items-start justify-between gap-1.5 sm:mb-1.5 sm:gap-2">
                         <h4
-                            className={`font-bold leading-snug text-amber-50/95 ${isNativeMobile ? 'text-[13px]' : 'text-sm sm:text-[15px]'}`}
+                            className={`font-bold leading-snug text-amber-50/95 ${isNativeMobile ? 'text-[12px]' : 'text-sm sm:text-[15px]'}`}
                             style={{ textShadow: '0 1px 2px rgba(0,0,0,0.45)' }}
                         >
                             {mission.title}
@@ -85,27 +85,27 @@ const MissionItem: React.FC<{
                     </div>
                     {mission.description ? (
                         <p
-                            className={`mb-2.5 text-stone-400 ${isNativeMobile ? 'text-[11px] leading-snug line-clamp-2' : 'text-xs leading-relaxed line-clamp-2'}`}
+                            className={`text-stone-400 ${isNativeMobile ? 'mb-1.5 text-[10px] leading-snug' : 'mb-2.5 text-xs leading-relaxed line-clamp-2'}`}
                         >
                             {mission.description}
                         </p>
                     ) : null}
 
-                    <div className={`mb-1.5 w-full overflow-hidden rounded-full border border-stone-700/60 bg-black/40 ${isNativeMobile ? 'h-2' : 'h-2.5'}`}>
+                    <div className={`mb-1 w-full overflow-hidden rounded-full border border-stone-700/60 bg-black/40 sm:mb-1.5 ${isNativeMobile ? 'h-1.5' : 'h-2.5'}`}>
                         <div
                             className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-400 to-violet-500 shadow-[0_0_12px_rgba(251,191,36,0.35)] transition-[width] duration-500 ease-out"
                             style={{ width: `${percentage}%` }}
                         />
                     </div>
-                    <p className={`text-right font-mono tabular-nums text-stone-400 ${isNativeMobile ? 'text-[10px]' : 'text-xs'}`}>
+                    <p className={`text-right font-mono tabular-nums text-stone-400 ${isNativeMobile ? 'text-[9px]' : 'text-xs'}`}>
                         {progress.toLocaleString()} / {target.toLocaleString()}
                     </p>
                 </div>
 
                 <div
-                    className={`flex shrink-0 flex-col justify-between ${isNativeMobile ? 'w-full border-t border-stone-700/50 pt-2.5' : 'w-[7.25rem] border-l border-stone-700/40 pl-4'}`}
+                    className={`flex shrink-0 flex-col justify-between ${isNativeMobile ? 'w-full border-t border-stone-700/50 pt-2' : 'w-[7.25rem] border-l border-stone-700/40 pl-4'}`}
                 >
-                    <div className={`flex flex-wrap justify-center gap-1.5 ${isNativeMobile ? 'mb-2' : 'mb-2'}`}>
+                    <div className={`flex flex-wrap justify-center gap-1 ${isNativeMobile ? 'mb-1.5' : 'mb-2 sm:gap-1.5'}`}>
                         <span className="inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-black/35 px-2 py-0.5 text-[10px] font-semibold text-amber-200/95">
                             <img src="/images/guild/tokken.png" alt="" className="h-3 w-3" />
                             {mission.personalReward?.guildCoins ?? 0}
@@ -119,7 +119,7 @@ const MissionItem: React.FC<{
                         onClick={handleClaim}
                         disabled={!canClaim}
                         className={`relative w-full overflow-hidden rounded-xl font-bold transition-all ${
-                            isNativeMobile ? 'py-2 text-[12px]' : 'py-2.5 text-xs'
+                            isNativeMobile ? 'py-1.5 text-[11px]' : 'py-2.5 text-xs'
                         } ${
                             canClaim
                                 ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 text-white shadow-lg shadow-emerald-600/25 hover:brightness-110 active:scale-[0.98]'
@@ -182,45 +182,69 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
             onClose={onClose}
             windowId="guild-missions"
             initialWidth={620}
-            initialHeight={640}
+            initialHeight={isNativeMobile ? 520 : 640}
             variant="store"
             mobileViewportFit={isNativeMobile}
             mobileViewportMaxHeightVh={94}
             mobileLockViewportHeight={isHandheld}
             bodyNoScroll={isHandheld}
             hideFooter={isHandheld}
-            bodyPaddingClassName={isNativeMobile ? 'p-3' : 'p-4 sm:p-5'}
+            bodyPaddingClassName={isNativeMobile ? 'p-2.5 sm:p-3' : 'p-4 sm:p-5'}
             pcViewportMaxHeightCss="min(88dvh, 820px)"
         >
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_50%_-20%,rgba(251,191,36,0.12),transparent_55%),radial-gradient(ellipse_80%_50%_at_100%_50%,rgba(139,92,246,0.08),transparent_45%)]" />
 
-                <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-                    <div className="flex shrink-0 flex-col gap-2 rounded-2xl border border-amber-500/20 bg-gradient-to-r from-stone-900/90 via-stone-900/70 to-violet-950/30 px-3 py-2.5 shadow-inner sm:flex-row sm:items-center sm:justify-between sm:px-4 sm:py-3">
-                        <div className="flex min-w-0 items-center gap-2.5">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-400/35 bg-gradient-to-br from-amber-600/30 to-amber-950/40 shadow-md">
-                                <img src="/images/guild/button/guildmission.png" alt="" className="h-8 w-8 object-contain opacity-95" />
+                <div className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col ${isNativeMobile ? 'gap-2' : 'gap-3'}`}>
+                    <div
+                        className="flex shrink-0 flex-col gap-1.5 rounded-2xl border border-amber-500/20 bg-gradient-to-r from-stone-900/90 via-stone-900/70 to-violet-950/30 px-2.5 py-2 shadow-inner sm:flex-row sm:items-center sm:justify-between sm:gap-2 sm:px-4 sm:py-3"
+                    >
+                        <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center sm:gap-2.5">
+                            <div
+                                className={`flex shrink-0 items-center justify-center rounded-xl border border-amber-400/35 bg-gradient-to-br from-amber-600/30 to-amber-950/40 shadow-md ${
+                                    isNativeMobile ? 'h-8 w-8' : 'h-10 w-10'
+                                }`}
+                            >
+                                <img
+                                    src="/images/guild/button/guildmission.png"
+                                    alt=""
+                                    className={isNativeMobile ? 'h-6 w-6 object-contain opacity-95' : 'h-8 w-8 object-contain opacity-95'}
+                                />
                             </div>
-                            <div className="min-w-0">
-                                <p className="text-[11px] font-semibold tracking-wide text-amber-200/80">다음 주 초기화까지</p>
-                                <p className="text-xs font-medium leading-snug text-stone-300 sm:text-sm">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                                    <p
+                                        className={`font-semibold tracking-wide text-amber-200/85 ${isNativeMobile ? 'text-[10px] leading-tight' : 'text-[11px]'}`}
+                                    >
+                                        주간 길드 미션
+                                    </p>
+                                    <p
+                                        className={`shrink-0 font-mono tabular-nums text-amber-100/90 ${isNativeMobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`}
+                                    >
+                                        {resetCountdown}
+                                    </p>
+                                </div>
+                                <p
+                                    className={`mt-0.5 font-medium leading-snug text-stone-300 ${isNativeMobile ? 'text-[10px] leading-snug' : 'text-xs sm:text-sm'}`}
+                                >
                                     길드원이 함께 채우는 주간 목표입니다. 달성 시{' '}
                                     <span className="text-amber-200/95">길드 코인</span>과{' '}
                                     <span className="text-emerald-300/95">길드 경험치</span>를 받을 수 있습니다.
                                 </p>
                             </div>
                         </div>
-                        <p className="shrink-0 text-center font-mono text-[11px] tabular-nums text-amber-100/85 sm:text-right sm:text-xs">{resetCountdown}</p>
                     </div>
 
                     {hasUnclaimedRewards && (
                         <div
-                            className={`flex shrink-0 items-center gap-2 rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-950/55 to-orange-950/40 px-3 py-2 shadow-[0_0_24px_-8px_rgba(245,158,11,0.35)] ${
-                                isNativeMobile ? '' : ''
-                            }`}
+                            className={`flex shrink-0 items-center gap-1.5 rounded-xl border border-amber-500/45 bg-gradient-to-r from-amber-950/55 to-orange-950/40 px-2.5 py-1.5 shadow-[0_0_24px_-8px_rgba(245,158,11,0.35)] sm:gap-2 sm:px-3 sm:py-2`}
                         >
-                            <span className={`flex shrink-0 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)] ${isNativeMobile ? 'h-2 w-2 animate-pulse' : 'h-2.5 w-2.5 animate-pulse'}`} />
-                            <span className={`font-semibold text-amber-100 ${isNativeMobile ? 'text-[11px]' : 'text-xs'}`}>
+                            <span
+                                className={`flex shrink-0 rounded-full bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.8)] ${
+                                    isNativeMobile ? 'h-1.5 w-1.5 animate-pulse' : 'h-2.5 w-2.5 animate-pulse'
+                                }`}
+                            />
+                            <span className={`font-semibold text-amber-100 ${isNativeMobile ? 'text-[10px] leading-snug' : 'text-xs'}`}>
                                 수령 가능한 보상이 있습니다. 잊지 말고 받아 가세요.
                             </span>
                         </div>
@@ -230,7 +254,7 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                         className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] ${isNativeMobile ? 'pr-0.5' : 'pr-1'}`}
                     >
                         {guild.weeklyMissions && guild.weeklyMissions.length > 0 ? (
-                            <ul className="flex flex-col gap-2.5 sm:gap-3">
+                            <ul className={`flex flex-col ${isNativeMobile ? 'gap-2' : 'gap-2.5 sm:gap-3'}`}>
                                 {guild.weeklyMissions.map((mission) => (
                                     <li key={mission.id}>
                                         <MissionItem mission={mission} guildLevel={guild.level} guild={guild} isNativeMobile={isNativeMobile} />

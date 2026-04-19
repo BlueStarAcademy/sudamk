@@ -25,6 +25,9 @@ interface DraggableWindowProps {
 
     title: string;
 
+    /** 헤더 제목을 문자열 대신 노드로 렌더(모바일 두 줄 등). 접근성·닫기 라벨은 `title` 문자열을 그대로 사용 */
+    titleContent?: ReactNode;
+
     windowId: string;
 
     onClose?: () => void;
@@ -309,6 +312,7 @@ let globalZIndexCounter = 10000;
 
 const DraggableWindow: React.FC<DraggableWindowProps> = ({
     title,
+    titleContent,
     windowId,
     onClose,
     children,
@@ -1196,11 +1200,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                 >
                     {headerShowTitle ? (
                         <h2
-                            className={`select-none font-bold leading-tight tracking-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
+                            className={`min-w-0 flex-1 pr-2 select-none font-bold leading-tight tracking-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
                                 uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-xl' : 'text-lg'
                             }`}
                         >
-                            {title}
+                            {titleContent ?? title}
                         </h2>
                     ) : (
                         <div className="min-h-0 min-w-0 flex-1" aria-hidden />

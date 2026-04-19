@@ -208,7 +208,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [isMoveInFlight, setIsMoveInFlight] = useState(false);
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
     const boardRuleFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const clientTimes = useClientTimer(session, (session.isSinglePlayer || (session.gameCategory === 'tower')) ? { isPaused } : {});
+    const clientTimes = useClientTimer(
+        session,
+        session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'adventure' ? { isPaused } : {}
+    );
     const [isAiRematchModalOpen, setIsAiRematchModalOpen] = useState(false);
     // 싱글플레이 고급 히든: AI 히든 아이템 연출 종료 시각 (이 시각까지 바둑판 패널 테두리만 빛남)
     const [aiHiddenItemEffectEndTime, setAiHiddenItemEffectEndTime] = useState<number | null>(null);
@@ -1317,8 +1320,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.isAiGame &&
             !session.isSinglePlayer &&
             session.gameCategory !== 'tower' &&
-            session.gameCategory !== 'singleplayer' &&
-            session.gameCategory !== 'adventure';
+            session.gameCategory !== 'singleplayer';
         if ((session.isSinglePlayer || isTower || isPausableAiGame) && isPaused) return;
         if ((session.isSinglePlayer || isTower) && isBoardLocked) {
             console.log('[Game] Board is locked, ignoring click', { isBoardLocked, serverRevision: session.serverRevision });
@@ -1991,8 +1993,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.isAiGame &&
             !session.isSinglePlayer &&
             session.gameCategory !== 'tower' &&
-            session.gameCategory !== 'singleplayer' &&
-            session.gameCategory !== 'adventure';
+            session.gameCategory !== 'singleplayer';
         if (!(session.isSinglePlayer || isTower || isPausableAiGame)) return;
         if (!isPaused) {
             initiatePause();
@@ -2108,7 +2109,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     useEffect(() => {
         const isTower = session.gameCategory === 'tower';
-        if (!(session.isSinglePlayer || isTower)) return;
+        const isAdventure = session.gameCategory === 'adventure';
+        if (!(session.isSinglePlayer || isTower || isAdventure)) return;
         if (isPaused && ['ended', 'no_contest'].includes(gameStatus)) {
             resumeFromPause();
         }
@@ -2785,8 +2787,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.isAiGame &&
         !session.isSinglePlayer &&
         session.gameCategory !== 'tower' &&
-        session.gameCategory !== 'singleplayer' &&
-        session.gameCategory !== 'adventure';
+        session.gameCategory !== 'singleplayer';
 
     const gameControlsProps = {
         session, isMyTurn, isSpectator, onAction: handlers.handleAction, setShowResultModal, setConfirmModalType, currentUser: currentUserWithStatus,
@@ -3168,7 +3169,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     // isPausableAiGame은 위에서 이미 정의됨
-    const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame || isAdventureGame) ? isPaused : false;
+    const effectivePaused = (session.isSinglePlayer || isTower || isPausableAiGame) ? isPaused : false;
 
     return (
         <InGameModalLayoutProvider>

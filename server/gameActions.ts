@@ -990,6 +990,62 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const { broadcastToGameParticipants } = await import('./socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 
+            // 모험·길드전 서버 AI: 메인 루프의 setImmediate(makeAiMove)가 startAiProcessing 잠금과 겹치면 봇이 스킵되는 간헐 이슈 방지 (알까기 인라인과 동일)
+            const pveServerGoAiCategory =
+                game.isAiGame &&
+                !game.isSinglePlayer &&
+                ((game as any).gameCategory === 'adventure' || (game as any).gameCategory === 'guildwar');
+            if (pveServerGoAiCategory) {
+                const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
+                const isGoMode =
+                    game.mode === GameMode.Standard ||
+                    game.mode === GameMode.Capture ||
+                    game.mode === GameMode.Speed ||
+                    game.mode === GameMode.Base ||
+                    game.mode === GameMode.Hidden ||
+                    game.mode === GameMode.Missile ||
+                    game.mode === GameMode.Mix;
+                const effectiveUseClientSideAi = useClientSideAi && isGoMode;
+                const { aiUserId, makeAiMove } = await import('./aiPlayer.js');
+                const pidAfterUser = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                const isAiTurnAfterUser =
+                    pidAfterUser === aiUserId || (pidAfterUser && String(pidAfterUser).startsWith('dungeon-bot-'));
+                if (
+                    !effectiveUseClientSideAi &&
+                    isGoMode &&
+                    game.gameStatus === 'playing' &&
+                    game.currentPlayer !== types.Player.None &&
+                    isAiTurnAfterUser
+                ) {
+                    const gameIdInlineAi = game.id;
+                    try {
+                        const moveBeforeInline = game.moveHistory?.length ?? 0;
+                        await makeAiMove(game);
+                        const aiAdvanced = (game.moveHistory?.length ?? 0) > moveBeforeInline;
+                        if (aiAdvanced) {
+                            game.aiTurnStartTime = undefined;
+                            if (!game.turnStartTime) game.turnStartTime = Date.now();
+                        } else {
+                            game.aiTurnStartTime = Date.now() + 50;
+                        }
+                        updateGameCache(game);
+                        await db.saveGame(game);
+                        const payloadAfterAi =
+                            game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                                ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                                : game;
+                        broadcastToGameParticipants(
+                            gameIdInlineAi,
+                            { type: 'GAME_UPDATE', payload: { [gameIdInlineAi]: payloadAfterAi } },
+                            game
+                        );
+                    } catch (e: any) {
+                        console.error('[GameActions] Inline adventure/guildwar AI move failed:', e?.message);
+                        game.aiTurnStartTime = Date.now() + 1000;
+                    }
+                }
+            }
+
             // 알까기 턴제 배치: 흑(유저)이 둔 직후 백(AI) 턴이면 메인 루프를 기다리지 않고 즉시 AI 배치 실행 (백이 안 두는 버그 방지)
             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const { aiUserId } = await import('./aiPlayer.js');

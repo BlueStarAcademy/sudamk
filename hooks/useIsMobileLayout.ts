@@ -59,7 +59,15 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
         (isAndroidUa || isIpadLikeUa) &&
         shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
         longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX;
-    const treatAsTouchTablet = (hasTouch && (tabletLikePointer || likelyTabletBySize)) || likelyTabletByUaAndSize;
+    /** iPhone/iPod: 일부 iOS·WebView에서 (pointer:coarse)가 잠깐 false여도 실제 휴대폰이다 */
+    const likelyApplePhoneByUa = /iPhone|iPod/i.test(ua);
+    /** Android 폰: UA에 Mobile이 있는 경우가 많고, 주변기기·접근성으로 coarse가 꺼져도 폰으로 본다 */
+    const likelyAndroidPhoneByUa =
+        isAndroidUa && /Mobile/i.test(ua) && !/\bTablet\b/i.test(ua) && !/Silk\//i.test(ua);
+    const treatAsTouchTablet =
+        (hasTouch && (tabletLikePointer || likelyTabletBySize)) ||
+        likelyTabletByUaAndSize ||
+        (hasTouch && (likelyApplePhoneByUa || likelyAndroidPhoneByUa));
 
     if (!treatAsTouchTablet) {
         return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };

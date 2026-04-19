@@ -46,4 +46,6 @@ export function installPortraitLockLifecycleForPhoneHandheld(): void {
     document.addEventListener('click', onGesture, { capture: true });
 
     window.addEventListener('resize', () => tryLockPortraitForPhoneHandheld());
+    window.addEventListener('pageshow', () => tryLockPortraitForPhoneHandheld(0));
+    document.addEventListener('fullscreenchange', () => tryLockPortraitForPhoneHandheld(0));
 }

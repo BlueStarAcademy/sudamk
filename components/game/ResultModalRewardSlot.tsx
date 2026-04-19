@@ -256,3 +256,6 @@ export const RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS =
 
 /** 도전의 탑 등 결과 모달: 획득 보상 줄 높이를 낮춤(동일 한 줄·가로 스크롤) */
 export const RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS = `flex min-h-[2.85rem] w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-0.5 overflow-x-auto overscroll-x-contain py-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;
+
+/** 바둑학원(싱글) 결과 모달: 보상 행을 탑보다 약간 높게·PC 모바일 행보다는 낮게 */
+export const RESULT_MODAL_REWARDS_ROW_MOBILE_SP_SLIM_CLASS = `flex min-h-[4.75rem] w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-1 overflow-x-auto overscroll-x-contain py-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;

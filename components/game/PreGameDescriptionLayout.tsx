@@ -239,6 +239,8 @@ export function PreGameSummaryGrid({
   singleColumn = false,
   /** 모험 등: 짧은 카피 + 한 단 작은 글자 */
   briefLayout = false,
+  /** 인게임 싱글/탑 시작 모달: 좁은 폭에서도 2열(2×2)로 세로 스크롤 최소화 */
+  forceTwoColumnPrimary = false,
   /** 도전의 탑: 미사일·히든·스캔 배지가 0일 때 탭하면 상점 */
   onTowerItemZeroClick,
   /** 온보딩 phase 5: 승패 / 나머지 블록에 `data-onboarding-target` 분리 */
@@ -249,6 +251,7 @@ export function PreGameSummaryGrid({
   /** 모바일 풀폭: 한 줄에 한 카드씩 세로 스택 */
   singleColumn?: boolean;
   briefLayout?: boolean;
+  forceTwoColumnPrimary?: boolean;
   onTowerItemZeroClick?: (slotKey: string) => void;
   embedOnboardingSpotlightTargets?: boolean;
 }) {
@@ -286,9 +289,11 @@ export function PreGameSummaryGrid({
   };
 
   const gridGap = singleColumn ? 'gap-2.5' : 'gap-2 sm:gap-2.5';
-  /** 좁은 단일열 모드: 매우 좁은 폰은 1열, ~480px 이상부터 2열(승리|패배, 점수|시간)로 가로 활용 */
+  /** 좁은 단일열 모드: 기본은 1열→480px 이상 2열. `forceTwoColumnPrimary`면 항상 2열(인게임 시작 모달) */
   const primaryGridClass = singleColumn
-    ? `grid grid-cols-1 min-[480px]:grid-cols-2 ${gridGap}`
+    ? forceTwoColumnPrimary
+      ? `grid grid-cols-2 ${gridGap}`
+      : `grid grid-cols-1 min-[480px]:grid-cols-2 ${gridGap}`
     : `grid grid-cols-2 ${gridGap}`;
   const titleRow = briefLayout
     ? singleColumn

@@ -300,6 +300,90 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
             );
         })();
 
+    const radarBlock = (
+        <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-visible rounded-lg border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-1 sm:p-1.5">
+            <div className="aspect-square w-full max-w-full min-w-0 overflow-visible">
+                <RadarChart datasets={radarDatasets} maxStatValue={300} size={640} />
+            </div>
+        </div>
+    );
+
+    const bonusPanel = (
+        <div className="flex w-[min(7.5rem,32%)] shrink-0 flex-col justify-center rounded-lg border border-white/10 bg-black/25 px-2 py-2 text-center sm:px-2.5 sm:py-2.5">
+            <p className="text-[10px] font-semibold leading-tight tracking-wide text-amber-200/90 sm:text-xs">보너스 포인트</p>
+            <p
+                className={`mt-0.5 font-black leading-none bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent ${
+                    isMobile ? 'text-2xl tabular-nums' : 'text-3xl tabular-nums sm:text-4xl'
+                }`}
+            >
+                {availablePoints}
+            </p>
+        </div>
+    );
+
+    const statButtons = (layout: 'column' | 'grid3x2') =>
+        statGridOrder.map((stat) => {
+            const colorClass = statColors[stat];
+            const isGrid = layout === 'grid3x2';
+            return (
+                <button
+                    key={stat}
+                    type="button"
+                    onClick={() => setSelectedStat(stat)}
+                    className={`${statCardClass} ${
+                        isGrid
+                            ? 'flex min-h-[2.85rem] flex-col items-center justify-center gap-0.5 px-1 py-1 text-center'
+                            : 'flex min-h-0 flex-1 basis-0 items-center px-2.5 py-0 text-left sm:px-3'
+                    }`}
+                >
+                    {isGrid ? (
+                        <>
+                            <span className="w-full min-w-0 whitespace-nowrap text-center text-[11px] font-bold leading-tight text-slate-100 sm:text-xs">
+                                {CORE_STATS_DATA[stat].name}
+                            </span>
+                            <span
+                                className={`font-mono text-lg font-black leading-none tabular-nums sm:text-xl bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}
+                            >
+                                {chartStats[stat]}
+                            </span>
+                        </>
+                    ) : (
+                        <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                            <span className="min-w-0 truncate text-lg font-bold leading-tight text-slate-100 sm:text-xl">
+                                {CORE_STATS_DATA[stat].name}
+                            </span>
+                            <span
+                                className={`shrink-0 font-mono text-2xl font-black leading-none tabular-nums sm:text-3xl bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}
+                            >
+                                {chartStats[stat]}
+                            </span>
+                        </div>
+                    )}
+                </button>
+            );
+        });
+
+    const resetFooter = (
+        <div className={`rounded-xl bg-[#0b0d13] p-1.5 ${isMobile ? 'shrink-0 border-t border-white/10' : 'border-t border-white/10 pt-2'} flex-shrink-0`}>
+            <div className="flex w-full items-start justify-center">
+                <div className="flex min-w-0 flex-col items-center">
+                    <Button
+                        onClick={handleReset}
+                        colorScheme="red"
+                        disabled={!canReset}
+                        className={`${isMobile ? '!text-[10px] sm:!text-[11px] !leading-none !py-1.5 !px-3 !whitespace-nowrap !w-auto min-h-[36px] max-w-[min(100%,16rem)]' : '!text-xs sm:!text-sm !py-1.5 !px-4 !whitespace-nowrap !w-auto'} rounded-lg border border-rose-300/35 bg-gradient-to-r from-rose-600/90 via-rose-500/90 to-orange-500/85 shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:from-rose-500 hover:via-rose-500 hover:to-orange-400 disabled:cursor-not-allowed disabled:opacity-50`}
+                    >
+                        초기화 (<img src="/images/icon/Gold.png" alt="골드" className="inline-block h-3 w-3" />
+                        {resetCost.toLocaleString()})
+                    </Button>
+                    <p className={`${isMobile ? 'text-[10px]' : 'text-[11px]'} mt-0.5 whitespace-nowrap text-center text-slate-400`}>
+                        일일({remainingResetsToday}/{maxDailyResets})
+                    </p>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <DraggableWindow
             title="능력치 포인트 분배"
@@ -310,80 +394,39 @@ const StatAllocationModal: React.FC<StatAllocationModalProps> = ({ currentUser, 
             shrinkHeightToContent={!isMobile}
         >
             <div
-                className={`${shellClass} flex min-h-0 flex-col ${isMobile ? 'h-[min(74vh,560px)] gap-2 p-2 sm:p-2.5' : 'gap-2.5 p-3'}`}
+                className={`${shellClass} flex min-h-0 flex-col ${isMobile ? 'h-[min(78vh,620px)] gap-2 p-2 sm:p-2.5' : 'gap-2.5 p-3'}`}
             >
-                {/* 좌·우 각각 가로의 약 50%: 레이더+보너스(세로) / 능력치 6개(세로) */}
-                <div className="grid min-h-0 w-full flex-1 grid-cols-2 grid-rows-[minmax(0,1fr)] items-stretch gap-2 sm:gap-3">
-                    <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-visible rounded-xl border border-amber-300/25 bg-gradient-to-b from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm sm:p-2">
-                        <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-visible rounded-lg border border-amber-300/20 bg-gradient-to-br from-slate-900/85 via-[#0e111a] to-slate-950/85 p-1 sm:p-1.5">
-                            {/* 열 너비(그리드의 절반)에 맞춰 정사각형으로 최대 확대 — 라벨은 SVG viewBox 패딩으로 잘리지 않게 */}
-                            <div className="aspect-square w-full max-w-full min-w-0 overflow-visible">
-                                <RadarChart
-                                    datasets={radarDatasets}
-                                    maxStatValue={300}
-                                    size={640}
-                                />
+                {isMobile ? (
+                    <>
+                        {/* 모바일: 상단 육각형 + 우측 보너스 / 중단 3×2 / 하단 초기화 고정 */}
+                        <div className="flex min-h-0 w-full shrink-0 flex-row items-stretch gap-2 overflow-visible rounded-xl border border-amber-300/25 bg-gradient-to-b from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm sm:p-2">
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col">{radarBlock}</div>
+                            {bonusPanel}
+                        </div>
+                        <div className="grid min-h-0 w-full flex-1 grid-cols-3 grid-rows-2 gap-1.5 sm:gap-2">{statButtons('grid3x2')}</div>
+                        {resetFooter}
+                    </>
+                ) : (
+                    <>
+                        <div className="grid min-h-0 w-full flex-1 grid-cols-2 grid-rows-[minmax(0,1fr)] items-stretch gap-2 sm:gap-3">
+                            <div className="flex h-full min-h-0 min-w-0 flex-col gap-2 overflow-visible rounded-xl border border-amber-300/25 bg-gradient-to-b from-amber-950/35 via-slate-900/75 to-indigo-950/35 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-sm sm:p-2">
+                                {radarBlock}
+                                <div className="shrink-0 rounded-lg border border-white/10 bg-black/25 px-1.5 py-2 text-center sm:px-2 sm:py-2.5">
+                                    <p className="text-[10px] font-semibold leading-tight tracking-wide text-amber-200/90 sm:text-xs">
+                                        보너스 포인트
+                                    </p>
+                                    <p className="mt-0.5 bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-3xl font-black tabular-nums leading-none text-transparent sm:text-4xl">
+                                        {availablePoints}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex h-full min-h-0 min-w-0 flex-col pr-0.5">
+                                <div className="flex min-h-0 flex-1 flex-col gap-1 sm:gap-1.5">{statButtons('column')}</div>
                             </div>
                         </div>
-                        <div className="shrink-0 rounded-lg border border-white/10 bg-black/25 px-1.5 py-2 text-center sm:px-2 sm:py-2.5">
-                            <p className="text-[10px] font-semibold leading-tight tracking-wide text-amber-200/90 sm:text-xs">
-                                보너스 포인트
-                            </p>
-                            <p
-                                className={`mt-0.5 font-black leading-none bg-gradient-to-r from-emerald-300 via-cyan-300 to-sky-300 bg-clip-text text-transparent ${
-                                    isMobile ? 'text-xl tabular-nums' : 'text-3xl tabular-nums sm:text-4xl'
-                                }`}
-                            >
-                                {availablePoints}
-                            </p>
-                        </div>
-                    </div>
-                    <div className="flex h-full min-h-0 min-w-0 flex-col pr-0.5">
-                        <div className="flex min-h-0 flex-1 flex-col gap-1 sm:gap-1.5">
-                            {statGridOrder.map((stat) => {
-                                const colorClass = statColors[stat];
-                                return (
-                                    <button
-                                        key={stat}
-                                        type="button"
-                                        onClick={() => setSelectedStat(stat)}
-                                        className={`${statCardClass} flex min-h-0 flex-1 basis-0 items-center px-2.5 py-0 text-left sm:px-3`}
-                                    >
-                                        <div className="flex w-full min-w-0 items-center justify-between gap-2">
-                                            <span
-                                                className={`min-w-0 truncate font-bold leading-tight ${isMobile ? 'text-[16px] sm:text-[18px]' : 'text-lg sm:text-xl'} text-slate-100`}
-                                            >
-                                                {CORE_STATS_DATA[stat].name}
-                                            </span>
-                                            <span
-                                                className={`shrink-0 font-mono font-black leading-none tabular-nums ${isMobile ? 'text-[18px] sm:text-[22px]' : 'text-2xl sm:text-3xl'} bg-gradient-to-r ${colorClass} bg-clip-text text-transparent`}
-                                            >
-                                                {chartStats[stat]}
-                                            </span>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 하단: 버튼들 */}
-                <div className={`bg-[#0b0d13] rounded-xl p-1.5 ${isMobile ? '' : 'border-t border-white/10 pt-2'} flex-shrink-0`}>
-                    <div className="flex w-full items-start justify-center">
-                        <div className="flex min-w-0 flex-col items-center">
-                            <Button
-                                onClick={handleReset}
-                                colorScheme="red"
-                                disabled={!canReset}
-                                className={`${isMobile ? '!text-[10px] sm:!text-[11px] !leading-none !py-1.5 !px-3 !whitespace-nowrap !w-auto min-h-[36px] max-w-[min(100%,16rem)]' : '!text-xs sm:!text-sm !py-1.5 !px-4 !whitespace-nowrap !w-auto'} rounded-lg border border-rose-300/35 bg-gradient-to-r from-rose-600/90 via-rose-500/90 to-orange-500/85 shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:from-rose-500 hover:via-rose-500 hover:to-orange-400 disabled:opacity-50 disabled:cursor-not-allowed`}
-                            >
-                                초기화 (<img src="/images/icon/Gold.png" alt="골드" className="w-3 h-3 inline-block" />{resetCost.toLocaleString()})
-                            </Button>
-                            <p className={`${isMobile ? 'text-[10px]' : 'text-[11px]'} mt-0.5 whitespace-nowrap text-center text-slate-400`}>일일({remainingResetsToday}/{maxDailyResets})</p>
-                        </div>
-                    </div>
-                </div>
+                        {resetFooter}
+                    </>
+                )}
             </div>
             {typeof document !== 'undefined' &&
                 selectedStat &&

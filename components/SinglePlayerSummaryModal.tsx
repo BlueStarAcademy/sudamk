@@ -20,7 +20,7 @@ import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
-    RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_SP_SLIM_CLASS,
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
@@ -107,7 +107,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
 
     return (
         <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : ''}`}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2">
+            <div className={`grid gap-1.5 sm:gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
                     <h3 className={`font-bold text-center mb-0.5 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>흑</h3>
                     <div className="flex justify-between" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span>영토:</span> <span>{scoreDetails.black.territory.toFixed(0)}</span></div>
@@ -455,10 +455,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const spRewardsSection = (
         <div
             data-onboarding-target="onboarding-sp-summary-rewards"
-            className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-1.5 sm:p-2`}
+            className={`flex flex-col gap-0.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-1.5 sm:p-2 ${isMobile ? 'sm:gap-1' : ''}`}
         >
             <h2
-                className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
+                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-1 text-center sm:mb-2 sm:pb-1.5`}
                 style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
             >
                 획득 보상
@@ -466,7 +466,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             <div
                 className={
                     isMobile
-                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_CLASS
+                        ? RESULT_MODAL_REWARDS_ROW_MOBILE_SP_SLIM_CLASS
                         : `flex ${RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS} flex-wrap content-center items-center justify-center gap-1.5 sm:gap-2`
                 }
             >
@@ -601,10 +601,13 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                         </h2>
                                         <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-visible">
                                             {(analysisResult || (isEnded && session.winner !== null)) && (
-                                                <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5`}>
-                                                    <div className="flex items-center justify-between" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}>
-                                                        <span className="text-amber-200/65">총 걸린 시간:</span>
-                                                        <span className="font-semibold text-zinc-100">{gameDuration}</span>
+                                                <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5 text-center`}>
+                                                    <div
+                                                        className="flex flex-col items-center gap-0.5"
+                                                        style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
+                                                    >
+                                                        <span className="text-amber-200/65">총 걸린 시간</span>
+                                                        <span className="font-semibold tabular-nums text-zinc-100">{gameDuration}</span>
                                                     </div>
                                                     {(winReasonText || failureReason) && (
                                                         <p

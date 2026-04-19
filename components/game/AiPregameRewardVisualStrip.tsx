@@ -302,51 +302,65 @@ export const AiPregameRewardVisualStrip: React.FC<{
 
     if (uniformSlots.length === 0) return null;
 
+    /** 모험 시작 모달: 최대 6칸은 한 뷰포트 너비에 균등 배치, 7개 이상은 같은 줄 가로 스크롤 */
+    const n = uniformSlots.length;
+    const tileBoxClass =
+      'relative flex aspect-square w-full max-h-[2.35rem] max-w-[2.35rem] shrink-0 items-center justify-center rounded-lg border p-0.5 ring-1 ring-inset sm:max-h-10 sm:max-w-10';
+
     return (
-      <div className="mt-2.5 w-full rounded-lg border border-violet-400/18 bg-black/25 p-2.5 ring-1 ring-inset ring-white/[0.04] sm:mt-3 sm:p-3">
-        <h3 className="mb-2 flex items-center gap-2 border-b border-violet-400/18 pb-1.5 text-[0.72rem] font-bold text-violet-100/95 sm:mb-2.5 sm:text-xs">
+      <div className="mt-2.5 w-full rounded-lg border border-violet-400/18 bg-black/25 p-2 ring-1 ring-inset ring-white/[0.04] sm:mt-3 sm:p-2.5">
+        <h3 className="mb-1.5 flex items-center gap-2 border-b border-violet-400/18 pb-1 text-[0.7rem] font-bold text-violet-100/95 sm:mb-2 sm:pb-1.5 sm:text-xs">
           획득 가능한 보상
         </h3>
-        <div className="grid grid-cols-4 gap-2 min-[420px]:grid-cols-5 sm:grid-cols-6">
-          {uniformSlots.map((slot) => (
-            <div key={slot.key} className="flex min-w-0 flex-col items-center gap-1">
+        <div className="overflow-x-auto overflow-y-visible pb-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
+          <div
+            className={`flex min-w-full flex-nowrap items-stretch gap-1 sm:gap-1.5 ${n > 6 ? 'w-max pr-0.5' : ''}`}
+          >
+            {uniformSlots.map((slot) => (
               <div
-                className={`relative flex ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} shrink-0 items-center justify-center rounded-lg border p-1 ring-1 ring-inset ${
-                  slot.isVipText
-                    ? 'overflow-hidden border-fuchsia-300/55 bg-gradient-to-br from-[#3a1437]/95 via-[#251129]/95 to-[#120914]/95 shadow-[inset_0_1px_0_rgba(255,230,255,0.16),0_0_18px_rgba(217,70,239,0.3)] ring-fuchsia-300/35'
-                    : 'border-violet-300/30 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-violet-400/20'
+                key={slot.key}
+                className={`flex min-w-0 flex-col items-center gap-0.5 ${
+                  n <= 6 ? 'min-w-0 flex-[1_1_0] basis-0' : 'w-[2.65rem] shrink-0 sm:w-[2.85rem]'
                 }`}
               >
-                {slot.isVipText ? (
-                  <div
-                    className="pointer-events-none absolute inset-0 opacity-35"
-                    style={{
-                      background:
-                        'radial-gradient(circle at 20% 18%, rgba(250,232,255,0.45), transparent 42%), radial-gradient(circle at 82% 80%, rgba(232,121,249,0.25), transparent 46%)',
-                    }}
-                  />
-                ) : null}
-                {slot.image ? (
-                  <img src={slot.image} alt="" className="h-full w-full object-contain" />
-                ) : slot.isVipText ? (
-                  <div className="relative z-[1] flex flex-col items-center leading-none">
-                    <span className="text-[0.58rem] font-black tracking-[0.11em] text-fuchsia-100">VIP</span>
-                    <span className="mt-[2px] text-[0.58rem] font-black tracking-[0.11em] text-fuchsia-50">보상</span>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center leading-none">
-                    <span className="text-[0.58rem] font-black tracking-[0.08em] text-emerald-100">
-                      {slot.expTopLabel ?? '전략'}
-                    </span>
-                    <span className="mt-[2px] text-[0.58rem] font-black tracking-[0.08em] text-emerald-50">EXP</span>
-                  </div>
-                )}
+                <div
+                  className={`${tileBoxClass} ${
+                    slot.isVipText
+                      ? 'overflow-hidden border-fuchsia-300/55 bg-gradient-to-br from-[#3a1437]/95 via-[#251129]/95 to-[#120914]/95 shadow-[inset_0_1px_0_rgba(255,230,255,0.16),0_0_18px_rgba(217,70,239,0.3)] ring-fuchsia-300/35'
+                      : 'border-violet-300/30 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-black/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-violet-400/20'
+                  }`}
+                >
+                  {slot.isVipText ? (
+                    <div
+                      className="pointer-events-none absolute inset-0 opacity-35"
+                      style={{
+                        background:
+                          'radial-gradient(circle at 20% 18%, rgba(250,232,255,0.45), transparent 42%), radial-gradient(circle at 82% 80%, rgba(232,121,249,0.25), transparent 46%)',
+                      }}
+                    />
+                  ) : null}
+                  {slot.image ? (
+                    <img src={slot.image} alt="" className="h-full w-full max-h-[1.65rem] max-w-[1.65rem] object-contain sm:max-h-[1.85rem] sm:max-w-[1.85rem]" />
+                  ) : slot.isVipText ? (
+                    <div className="relative z-[1] flex flex-col items-center leading-none">
+                      <span className="text-[0.52rem] font-black tracking-[0.1em] text-fuchsia-100 sm:text-[0.56rem]">VIP</span>
+                      <span className="mt-px text-[0.52rem] font-black tracking-[0.1em] text-fuchsia-50 sm:text-[0.56rem]">보상</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center leading-none">
+                      <span className="text-[0.52rem] font-black tracking-[0.06em] text-emerald-100 sm:text-[0.56rem]">
+                        {slot.expTopLabel ?? '전략'}
+                      </span>
+                      <span className="mt-px text-[0.52rem] font-black tracking-[0.06em] text-emerald-50 sm:text-[0.56rem]">EXP</span>
+                    </div>
+                  )}
+                </div>
+                <span className="w-full truncate text-center text-[0.58rem] font-bold tabular-nums leading-tight text-zinc-100 sm:text-[0.62rem]">
+                  {slot.line}
+                </span>
               </div>
-              <span className="w-full truncate text-center text-[0.62rem] font-bold tabular-nums leading-tight text-zinc-100 sm:text-[0.66rem]">
-                {slot.line}
-              </span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     );

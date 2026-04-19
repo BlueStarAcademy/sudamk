@@ -370,30 +370,74 @@ interface BossPanelProps {
     compact?: boolean;
 }
 
-const BossSkillTile: React.FC<{ skill: GuildBossInfo['skills'][number]; className?: string }> = ({ skill, className = '' }) => (
-    <button
-        type="button"
-        className={`group/skill relative shrink-0 border-none bg-transparent p-0 outline-none transition hover:opacity-95 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent rounded-xl ${className}`}
-        aria-label={`${skill.name}. ${skill.description}`}
-    >
-        <div className="flex aspect-square h-full w-full min-h-0 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-black/40">
-            <img src={skill.image || ''} alt="" className="h-full w-full object-contain p-0.5 sm:p-1" />
-        </div>
-        <div
-            className="pointer-events-none absolute bottom-full left-1/2 z-[70] mb-2 w-56 max-w-[min(18rem,85vw)] -translate-x-1/2 rounded-2xl border border-amber-500/40 bg-gray-950/95 px-3 py-2.5 text-left opacity-0 shadow-xl backdrop-blur-sm transition-opacity duration-150 group-hover/skill:opacity-100 group-focus-visible/skill:opacity-100 group-active/skill:opacity-100"
-            role="tooltip"
+const BossSkillTile: React.FC<{ skill: GuildBossInfo['skills'][number]; className?: string }> = ({ skill, className = '' }) => {
+    const [touchTipOpen, setTouchTipOpen] = useState(false);
+    const [coarsePointer, setCoarsePointer] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(hover: none)');
+        const apply = () => setCoarsePointer(mq.matches);
+        apply();
+        mq.addEventListener('change', apply);
+        return () => mq.removeEventListener('change', apply);
+    }, []);
+
+    useEffect(() => {
+        if (!coarsePointer || !touchTipOpen) return;
+        const close = (ev: Event) => {
+            const t = ev.target as Node;
+            if (btnRef.current?.contains(t)) return;
+            setTouchTipOpen(false);
+        };
+        const id = window.setTimeout(() => {
+            document.addEventListener('touchstart', close, true);
+            document.addEventListener('click', close, true);
+        }, 0);
+        return () => {
+            window.clearTimeout(id);
+            document.removeEventListener('touchstart', close, true);
+            document.removeEventListener('click', close, true);
+        };
+    }, [coarsePointer, touchTipOpen]);
+
+    const tipOpen = coarsePointer ? touchTipOpen : false;
+
+    return (
+        <button
+            ref={btnRef}
+            type="button"
+            className={`group/skill relative shrink-0 rounded-xl border-none bg-transparent p-0 outline-none transition hover:opacity-95 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-amber-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent ${className}`}
+            aria-label={skill.name}
+            aria-expanded={coarsePointer ? touchTipOpen : undefined}
+            onClick={(e) => {
+                if (!coarsePointer) return;
+                e.stopPropagation();
+                setTouchTipOpen((v) => !v);
+            }}
         >
+            <div className="flex aspect-square h-full w-full min-h-0 min-w-0 items-center justify-center overflow-hidden rounded-lg border border-white/15 bg-black/40">
+                <img src={skill.image || ''} alt="" className="h-full w-full object-contain p-0.5 sm:p-1" />
+            </div>
             <div
-                className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-amber-500/40 bg-gray-950/95"
-                aria-hidden
-            />
-            <p className="relative font-bold text-amber-200">{skill.name}</p>
-            <p className="relative mt-1 text-xs leading-snug text-white" style={{ textShadow: '1px 1px 2px black' }}>
-                {skill.description}
-            </p>
-        </div>
-    </button>
-);
+                className={`pointer-events-none absolute bottom-full left-1/2 z-[70] mb-2 w-56 max-w-[min(18rem,85vw)] -translate-x-1/2 rounded-2xl border border-amber-500/40 bg-gray-950/95 px-3 py-2.5 text-left shadow-xl backdrop-blur-sm transition-opacity duration-150 ${
+                    tipOpen ? 'opacity-100' : 'opacity-0'
+                } ${coarsePointer ? '' : 'group-hover/skill:opacity-100 group-focus-visible/skill:opacity-100'}`}
+                role="tooltip"
+            >
+                <div
+                    className="absolute left-1/2 top-full h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-r border-amber-500/40 bg-gray-950/95"
+                    aria-hidden
+                />
+                <p className="relative font-bold text-amber-200">{skill.name}</p>
+                <p className="relative mt-1 text-xs leading-snug text-white" style={{ textShadow: '1px 1px 2px black' }}>
+                    {skill.description}
+                </p>
+            </div>
+        </button>
+    );
+};
 
 const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[]; compact?: boolean }> = ({ stats, compact = false }) => (
     <button

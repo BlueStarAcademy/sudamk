@@ -35,8 +35,13 @@
             (isAndroidUa || isIpadLikeUa) &&
             shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
             longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX;
+          var likelyApplePhoneByUa = /iPhone|iPod/i.test(ua);
+          var likelyAndroidPhoneByUa =
+            isAndroidUa && /Mobile/i.test(ua) && !/\bTablet\b/i.test(ua) && !/Silk\//i.test(ua);
           var treatAsTouchTablet =
-            (hasTouch && (tabletLikePointer || likelyTabletBySize)) || likelyTabletByUaAndSize;
+            (hasTouch && (tabletLikePointer || likelyTabletBySize)) ||
+            likelyTabletByUaAndSize ||
+            (hasTouch && (likelyApplePhoneByUa || likelyAndroidPhoneByUa));
           if (!treatAsTouchTablet) return;
 
           var isLargeTouchTablet = false;
