@@ -104,16 +104,6 @@ const removeCapturedBaseStoneMarkers = (game: types.LiveGameSession, capturedSto
     game.baseStones = game.baseStones.filter((s) => !capturedKeys.has(`${s.x},${s.y}`));
 };
 
-/** `currentPlayer`가 곧 둘 차례인 플레이어가 서버 AI인지 (착수 반영 후 `currentPlayer`는 다음 수 차례) */
-async function isCurrentPlayerTheAi(game: types.LiveGameSession): Promise<boolean> {
-    if (!game.isAiGame) return false;
-    const cp = game.currentPlayer;
-    if (cp !== types.Player.Black && cp !== types.Player.White) return false;
-    const { aiUserId } = await import('../aiPlayer.js');
-    const pid = cp === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-    return pid === aiUserId;
-}
-
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
     const p1 = game.player1;
     const p2 = game.player2;
@@ -1244,31 +1234,25 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 const newTotalTurns = (game.moveHistory || []).length;
                 game.totalTurns = newTotalTurns;
                 if (newTotalTurns >= scoringTurnLimitAfterMove) {
-                    // 모험: 제한 수순에 도달한 직후 다음 차례가 AI면, 먼저 계가하지 않고 AI 착수 후(goAiBot) 계가되게 함
-                    const deferScoringForAdventureAi =
-                        game.gameCategory === 'adventure' && (await isCurrentPlayerTheAi(game));
-                    if (deferScoringForAdventureAi) {
-                        console.log(
-                            `[handleStrategicAction] Adventure: at scoringTurnLimit (${newTotalTurns}/${scoringTurnLimitAfterMove}) but AI is next — deferring scoring until after AI move`,
-                        );
-                    } else {
-                        console.log(`[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimitAfterMove}, triggering getGameResult`);
-                        if (isLobbyAiStrategicGame(game)) {
-                            await broadcastPlayingSnapshotBeforeScoring(game);
-                        }
-                        game.gameStatus = 'scoring';
-                        await db.saveGame(game);
-                        const { broadcastToGameParticipants } = await import('../socket.js');
-                        const gameToBroadcast = { ...game };
-                        delete (gameToBroadcast as any).boardState;
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                        try {
-                            await getGameResult(game);
-                        } catch (scoringError: any) {
-                            console.error(`[handleStrategicAction] Error during scoring (turn limit) for game ${game.id}:`, scoringError?.message);
-                        }
-                        return {};
+                    // N수 계가: 제한 도달 직후(정확히 N수가 쌓인 판)에서 계가 — 다음 차례가 AI여도 한 수 더 두지 않음(81수째 계가 방지)
+                    console.log(
+                        `[handleStrategicAction] Scoring turn limit reached: totalTurns=${newTotalTurns}, scoringTurnLimit=${scoringTurnLimitAfterMove}, triggering getGameResult`,
+                    );
+                    if (isLobbyAiStrategicGame(game)) {
+                        await broadcastPlayingSnapshotBeforeScoring(game);
                     }
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    const { broadcastToGameParticipants } = await import('../socket.js');
+                    const gameToBroadcast = { ...game };
+                    delete (gameToBroadcast as any).boardState;
+                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    try {
+                        await getGameResult(game);
+                    } catch (scoringError: any) {
+                        console.error(`[handleStrategicAction] Error during scoring (turn limit) for game ${game.id}:`, scoringError?.message);
+                    }
+                    return {};
                 }
             }
 

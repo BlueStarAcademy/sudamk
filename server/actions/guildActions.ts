@@ -2462,6 +2462,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 stars: number;
                 captures: number;
                 scoreDiff?: number;
+                /** 해당 판 기준 집점수(모드별 계산 — 클라이언트 기록 표시용) */
+                houseScore: number;
                 endedAtMs: number;
                 detailSummary?: string;
             }> = [];
@@ -2488,6 +2490,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 } else if (typeof metrics.score === 'number' && metrics.score > 0) {
                     detailParts.push(`집점수 약 ${metrics.score}`);
                 }
+                const houseScore =
+                    typeof metrics.score === 'number' && Number.isFinite(metrics.score)
+                        ? Math.round(metrics.score * 10) / 10
+                        : 0;
                 log.push({
                     gameId: game.id,
                     boardId: boardId || '—',
@@ -2497,6 +2503,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     stars: metrics.stars ?? 0,
                     captures: metrics.captures ?? 0,
                     scoreDiff: metrics.scoreDiff,
+                    houseScore,
                     endedAtMs: rowUpdatedAtMs,
                     detailSummary: detailParts.length ? detailParts.join(' · ') : undefined,
                 });

@@ -175,13 +175,11 @@ GuildTicketPill.displayName = 'GuildTicketPill';
 function useGuildWarTicketsRemaining(
     guildId: string | undefined,
     handleAction: (action: ServerAction) => Promise<{ error?: string; clientResponse?: Record<string, unknown> } | void>,
-    /** false면 API·폴링 없음 — 길드전 대기 화면(#/guildwar)에서만 서버 부하를 줄이기 위해 사용 */
-    enabled: boolean,
 ): { remaining: number; max: number } {
     const max = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
     const [remaining, setRemaining] = useState(max);
     useEffect(() => {
-        if (!enabled || !guildId) {
+        if (!guildId) {
             setRemaining(max);
             return;
         }
@@ -211,13 +209,11 @@ function useGuildWarTicketsRemaining(
         void fetchWar();
         const onEv = () => void fetchWar();
         if (typeof window !== 'undefined') window.addEventListener('sudamr:guild-war-update', onEv);
-        const iv = window.setInterval(fetchWar, 60_000);
         return () => {
             cancelled = true;
             if (typeof window !== 'undefined') window.removeEventListener('sudamr:guild-war-update', onEv);
-            window.clearInterval(iv);
         };
-    }, [guildId, max, handleAction, enabled]);
+    }, [guildId, max, handleAction]);
     return { remaining, max };
 }
 
@@ -276,7 +272,7 @@ export const ActionPointTimer: React.FC<{ user: UserWithStatus; mobile?: boolean
 interface HeaderProps { compact?: boolean }
 
 const Header: React.FC<HeaderProps> = ({ compact = false }) => {
-    const { currentUserWithStatus, handlers, unreadMailCount, isNativeMobile, currentRoute } = useAppContext();
+    const { currentUserWithStatus, handlers, unreadMailCount, isNativeMobile } = useAppContext();
     const isMobile = Boolean(isNativeMobile);
     const dense = isMobile || compact;
     const [isSpecialResourcesOpen, setIsSpecialResourcesOpen] = useState(false);
@@ -335,8 +331,7 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
 
     const { handleLogout, openProfileEditModal, openMailbox, openSettingsModal, handleAction } = handlers;
     const { actionPoints, gold, diamonds, guildCoins, isAdmin, avatarId, borderId, mbti, strategyLevel, playfulLevel, guildId } = currentUserWithStatus;
-    const guildWarHeaderTicketsEnabled = currentRoute.view === 'guildwar';
-    const guildWarTickets = useGuildWarTicketsRemaining(guildId, handleAction, guildWarHeaderTicketsEnabled);
+    const guildWarTickets = useGuildWarTicketsRemaining(guildId, handleAction);
     const todayKstBoss = getTodayKSTDateString();
     const guildBossUsedToday =
         guildId && currentUserWithStatus.guildBossLastAttemptDayKST === todayKstBoss
@@ -374,22 +369,19 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                 value: guildBossRemaining,
                 ratio: { remaining: guildBossRemaining, max: GUILD_BOSS_MAX_ATTEMPTS },
             });
-            if (guildWarHeaderTicketsEnabled) {
-                base.push({
-                    key: 'guildWarTickets',
-                    icon: GUILD_WAR_TICKET_IMG,
-                    label: '길드전 참여권',
-                    value: guildWarTickets.remaining,
-                    ratio: { remaining: guildWarTickets.remaining, max: guildWarTickets.max },
-                });
-            }
+            base.push({
+                key: 'guildWarTickets',
+                icon: GUILD_WAR_TICKET_IMG,
+                label: '길드전 참여권',
+                value: guildWarTickets.remaining,
+                ratio: { remaining: guildWarTickets.remaining, max: guildWarTickets.max },
+            });
         }
         return base;
     }, [
         guildId,
         guildBossRemaining,
         guildCoins,
-        guildWarHeaderTicketsEnabled,
         guildWarTickets.max,
         guildWarTickets.remaining,
         safeDiamonds,
@@ -554,16 +546,14 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                 dense={dense}
                                 isMobile={false}
                             />
-                            {guildWarHeaderTicketsEnabled ? (
-                                <GuildTicketPill
-                                    iconSrc={GUILD_WAR_TICKET_IMG}
-                                    label="길드전 참여권"
-                                    remaining={guildWarTickets.remaining}
-                                    max={guildWarTickets.max}
-                                    dense={dense}
-                                    isMobile={false}
-                                />
-                            ) : null}
+                            <GuildTicketPill
+                                iconSrc={GUILD_WAR_TICKET_IMG}
+                                label="길드전 참여권"
+                                remaining={guildWarTickets.remaining}
+                                max={guildWarTickets.max}
+                                dense={dense}
+                                isMobile={false}
+                            />
                         </>
                     )}
                     <div

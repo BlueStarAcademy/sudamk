@@ -332,8 +332,8 @@ export function getGuildWarStarConditionLines(
     if (mode === 'capture') {
         return [
             '승리 시',
-            `한 번에 ${c2}점 획득하기 (패배해도 별 획득)`,
-            `한 번에 ${c3}점 획득하기 (패배해도 별 획득)`,
+            `한 번에 ${c2}점 획득하기`,
+            `한 번에 ${c3}점 획득하기`,
         ];
     }
     if (mode === 'hidden') {

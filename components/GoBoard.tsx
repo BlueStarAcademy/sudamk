@@ -585,8 +585,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const captureFloatTimeoutsRef = useRef<Array<number | ReturnType<typeof setTimeout>>>([]);
     const lastMoveForFloatRef = useRef<Point | null>(null);
     lastMoveForFloatRef.current = lastMove;
-    /** captures 기반: 이미 플로트 처리한 수(moveHistory 인덱스·좌표·플레이어) */
+    /** captures 기반: 직전 커밋한 수(moveHistory 인덱스·좌표·플레이어) — 증분·justCaptured 슬라이스 동기화용 */
     const lastFloatedMoveKeyRef = useRef<string>('');
+    /** 실제 +N 플로트를 이미 띄운 수 — 동일 수에 대한 병합/연속 렌더로 이중 재생 방지 */
+    const lastCaptureScoreFloatPushedMoveKeyRef = useRef<string>('');
     const prevCapturesForFloatRef = useRef<Partial<Record<Player, number>> | null>(null);
     /** 미사일 연출 중 매 프레임 착지점 (애니 종료 후 null이 되어도 여기 남음) */
     const lastMissileAnimationToRef = useRef<Point | null>(null);
@@ -597,6 +599,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     useEffect(() => {
         processedJustCapturedCountRef.current = 0;
         lastFloatedMoveKeyRef.current = '';
+        lastCaptureScoreFloatPushedMoveKeyRef.current = '';
         prevCapturesForFloatRef.current = null;
         lastMissileAnimationToRef.current = null;
         missileCaptureScoreAnchorRef.current = null;
@@ -728,11 +731,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
                 const floatPts = slicePts > 0 ? slicePts : delta;
 
-                // 수순 키가 같아도(미사일 착지로 따냄) 포획 점수가 늘었으면 플로트 허용
-                if (moveKey === lastFloatedMoveKeyRef.current && floatPts < minPts) {
-                    return;
-                }
-
                 const commitMoveFloatState = () => {
                     lastFloatedMoveKeyRef.current = moveKey;
                     prevCapturesForFloatRef.current = { ...captures };
@@ -742,6 +740,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 const isPass = last.x < 0 || last.y < 0;
 
                 if (floatPts >= minPts) {
+                    if (moveKey === lastCaptureScoreFloatPushedMoveKeyRef.current) {
+                        commitMoveFloatState();
+                        return;
+                    }
                     // justCaptured 기반 포획인데 마지막 수가 상대(예: AI) 착수면: 플로트는 실제 따낸 쪽의 마지막 착점에 붙인다
                     let anchorMove = last;
                     if (sliceEntries.length > 0) {
@@ -773,6 +775,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     }
                     commitMoveFloatState();
                     if (missileAnchor) missileCaptureScoreAnchorRef.current = null;
+                    lastCaptureScoreFloatPushedMoveKeyRef.current = moveKey;
                     pushFloat(floatPts, anchor, 0);
                     return;
                 }
@@ -795,12 +798,23 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const totalPts = sumCapturePoints(newEntries);
             if (totalPts < minPts) return;
 
+            let moveKeyForSlice = '';
+            if (moveHistory?.length) {
+                const lm = moveHistory[moveHistory.length - 1];
+                if (lm) moveKeyForSlice = `${moveHistory.length}-${lm.player}-${lm.x}-${lm.y}`;
+            }
+            if (moveKeyForSlice && moveKeyForSlice === lastCaptureScoreFloatPushedMoveKeyRef.current) {
+                return;
+            }
+
             const capturer =
                 newEntries[0].player === Player.Black ? Player.White : Player.Black;
             const missileAnchor = missileMovedStoneAnchorFor(capturer);
             const lm = lastMoveForFloatRef.current;
             const anchor = missileAnchor ?? (lm ? { x: lm.x, y: lm.y } : newEntries[0].point);
             if (missileAnchor) missileCaptureScoreAnchorRef.current = null;
+            if (moveKeyForSlice) lastCaptureScoreFloatPushedMoveKeyRef.current = moveKeyForSlice;
+            if (captures) prevCapturesForFloatRef.current = { ...captures };
             pushFloat(totalPts, anchor, 0);
         }, DEBOUNCE_MS);
         return () => clearTimeout(t);

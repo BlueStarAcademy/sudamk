@@ -117,6 +117,16 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
             return () => clearTimeout(t);
         }
     }, [currentUserWithStatus]);
+
+    // 길드가 없거나 사용자가 길드에 속해있지 않으면 프로필로 리다이렉트 (로드 완료 후 myGuild가 없을 때만)
+    // 반드시 조기 return 이전에 두어 훅 순서가 렌더마다 동일해야 함
+    useEffect(() => {
+        if (!currentUserWithStatus?.guildId) return;
+        if (isLoading) return; // 로딩 중에는 리다이렉트하지 않음
+        if (!myGuild && hasLoadedRef.current) {
+            window.location.hash = '#/profile';
+        }
+    }, [currentUserWithStatus?.guildId, myGuild, isLoading]);
     
     if (!currentUserWithStatus?.guildId) {
         return (
@@ -136,15 +146,6 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         );
     }
 
-    // 길드가 없거나 사용자가 길드에 속해있지 않으면 프로필로 리다이렉트 (로드 완료 후 myGuild가 없을 때만)
-    useEffect(() => {
-        if (!currentUserWithStatus?.guildId) return;
-        if (isLoading) return; // 로딩 중에는 리다이렉트하지 않음
-        if (!myGuild && hasLoadedRef.current) {
-            window.location.hash = '#/profile';
-        }
-    }, [currentUserWithStatus?.guildId, myGuild, isLoading]);
-
     // 길드가 없으면 로딩 또는 리다이렉트 중 표시
     if (!myGuild) {
         return (
@@ -155,9 +156,9 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         );
     }
 
-    // 길드가 있으면 대시보드 표시
+    // 길드가 있으면 대시보드 표시 (배경은 GuildDashboard의 guildbg.webp)
     return (
-        <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col text-primary">
+        <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col text-primary">
             <GuildDashboard
                 guild={myGuild}
                 guildDonationAnimation={guildDonationAnimation}

@@ -5,6 +5,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import { ARENA_ENTRANCE_KEYS, ARENA_ENTRANCE_LABELS, type ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import Button from '../Button.js';
 import AdminPageHeader from './AdminPageHeader.js';
+import KataServerLevelReferenceCard from './KataServerLevelReferenceCard.js';
 import { adminCard, adminCardTitle, adminCheckRow, adminInput, adminPageNarrow, adminSectionGap } from './adminChrome.js';
 
 interface KataGoStatus {
@@ -377,7 +378,12 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
                     {mobileTab === 'modes' && modeEntranceCard}
                     {mobileTab === 'lobby' && lobbyAnnouncementsCard}
                     {mobileTab === 'emergency' && emergencyCard}
-                    {mobileTab === 'katago' && kataGoCard}
+                    {mobileTab === 'katago' && (
+                        <div className={adminSectionGap}>
+                            {kataGoCard}
+                            <KataServerLevelReferenceCard />
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -388,6 +394,7 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
                     {lobbyAnnouncementsCard}
                     {emergencyCard}
                     {kataGoCard}
+                    <KataServerLevelReferenceCard />
                 </div>
             </div>
         </div>

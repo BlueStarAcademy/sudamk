@@ -14,7 +14,8 @@ import { GAME_CHAT_MESSAGES, GAME_CHAT_EMOJIS, ADMIN_USER_ID, ADMIN_NICKNAME } f
 import { containsProfanity } from '../../profanity.js';
 
 // 고급 버튼 스타일 함수
-const luxuryButtonBase = "relative overflow-hidden whitespace-normal break-keep text-sm px-4 py-2 rounded-xl backdrop-blur-sm font-semibold tracking-wide transition-all duration-200 flex items-center justify-center gap-1";
+const luxuryButtonBase =
+    'relative flex items-center justify-center gap-1 overflow-hidden whitespace-normal break-keep rounded-xl px-4 py-2 text-sm font-semibold tracking-wide transition-all duration-200';
 
 export const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral' | 'accent' | 'success' | 'green' | 'gray' = 'primary') => {
     const variants: Record<string, string> = {
@@ -93,7 +94,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
 
     return (
         <>
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-2 sm:p-4 rounded-xl flex flex-col h-full border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden">
+        <div className="relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-2 shadow-lg sm:p-4">
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10 flex flex-col h-full min-h-0">
                 <div className="flex justify-between items-center mb-2 flex-shrink-0">
@@ -117,7 +118,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                     오늘 출석: <span className="font-bold text-primary text-sm sm:text-base">{todaysCheckIns} / {totalMembers}</span>명
                 </p>
                 <div className="my-2 relative z-10 flex-shrink-0">
-                    <div className="w-full bg-tertiary/60 rounded-full h-2 sm:h-3 relative border-2 border-black/30 shadow-inner backdrop-blur-sm">
+                    <div className="relative h-2 w-full rounded-full border-2 border-black/30 bg-tertiary/60 shadow-inner sm:h-3">
                         <div className="bg-gradient-to-r from-emerald-400 via-green-500 to-emerald-600 h-full rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(74,222,128,0.6)]" style={{ width: `${progressPercent}%` }}></div>
                         {GUILD_CHECK_IN_MILESTONE_REWARDS.map((milestone, index) => {
                             // 마일스톤 구분선: totalMembers 기준으로 위치 계산
@@ -155,7 +156,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
                         const canClaim = isAchieved && !isClaimed && hasCheckedInToday && !isClaiming;
                         
                         return (
-                            <div key={index} className={`bg-gradient-to-br ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40'} p-1.5 sm:p-3 rounded-xl text-center flex flex-col items-center justify-between border-2 ${isAchieved ? 'border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-transparent'} min-w-0 aspect-square backdrop-blur-sm transition-all hover:scale-105`}>
+                            <div key={index} className={`flex aspect-square min-w-0 flex-col items-center justify-between rounded-xl border-2 bg-gradient-to-br p-1.5 text-center transition-all hover:scale-105 sm:p-3 ${isAchieved ? 'from-yellow-900/40 via-amber-900/30 to-yellow-800/40 border-yellow-500/60 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'from-tertiary/60 via-tertiary/50 to-tertiary/40 border-transparent'}`}>
                                 <div className="flex flex-col items-center">
                                     <img src="/images/guild/tokken.png" alt="길드 코인" className="w-4 h-4 sm:w-8 sm:h-8 drop-shadow-lg mb-0.5 sm:mb-1"/>
                                     <span className="text-[10px] sm:text-base font-bold text-primary drop-shadow">+{milestone.reward.guildCoins}</span>
@@ -222,7 +223,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
 
 export const GuildAnnouncementPanel: React.FC<{ guild: GuildType; compact?: boolean }> = ({ guild, compact = false }) => (
     <div
-        className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 shadow-2xl backdrop-blur-md ${
+        className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${
             compact ? 'p-2' : 'p-4'
         }`}
     >
@@ -236,7 +237,7 @@ export const GuildAnnouncementPanel: React.FC<{ guild: GuildType; compact?: bool
             <span>길드 공지</span>
         </h3>
         <div
-            className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner backdrop-blur-sm ${
+            className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner ${
                 compact ? 'p-2 pr-1.5' : 'p-4 pr-2'
             }`}
         >
@@ -340,7 +341,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
 
     return (
         <div
-            className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl h-full flex flex-col border-2 border-stone-600/60 shadow-2xl backdrop-blur-md relative overflow-hidden ${
+            className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${
                 isNativeMobile ? 'px-2 py-2 sm:p-4' : 'p-4'
             }`}
         >
@@ -368,7 +369,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
             )}
             <div
                 ref={chatBodyRef}
-                className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg bg-tertiary/50 ${isNativeMobile ? 'mb-1 space-y-0.5 p-1 pr-1' : 'mb-3 space-y-3 p-4 pr-2'} border-2 border-black/20 shadow-inner backdrop-blur-sm`}
+                className={`relative z-10 min-h-0 flex-grow overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner ${isNativeMobile ? 'mb-1 space-y-0.5 p-1 pr-1' : 'mb-3 space-y-3 p-4 pr-2'}`}
             >
                 {activeTab === 'global' ? (
                     // 전체 채팅 메시지 표시 (길드채팅과 동일한 형태)
@@ -537,7 +538,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
                             placeholder={placeholderText}
-                            className="min-w-0 flex-grow resize-none rounded-lg border-2 border-black/30 bg-tertiary/80 p-3 text-sm shadow-inner backdrop-blur-sm transition-all focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:bg-secondary disabled:text-tertiary"
+                            className="min-w-0 flex-grow resize-none rounded-lg border-2 border-black/30 bg-tertiary/80 p-3 text-sm shadow-inner transition-all focus:border-accent/50 focus:outline-none focus:ring-2 focus:ring-accent/50 disabled:bg-secondary disabled:text-tertiary"
                             rows={1}
                             maxLength={200}
                             disabled={isInputDisabled}

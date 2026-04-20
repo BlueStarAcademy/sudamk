@@ -81,11 +81,14 @@ export function repairEquipmentStatBounds(item: InventoryItem): InventoryItem {
             const tol = Math.max(4, Math.ceil(ceiling * MAIN_SLACK_RATIO));
             const expected = computeEnhancedMainValueAtStars(baseValue, grade, stars);
             const cur = Number(main.value);
+            // 주옵 강화는 난수 없음 → base·등급·별 수가 맞으면 value는 항상 expected와 일치해야 함.
+            // (구버전 base로 강화 후 base만 마이그레이션된 경우 value가 천장 범위 안에 있어도 틀릴 수 있음 → 도감과 불일치)
             const broken =
                 !Number.isFinite(cur) ||
                 cur > ceiling + tol ||
                 cur < baseValue - 1 ||
-                (stars === 0 && Math.abs(cur - baseValue) > 0.51);
+                (stars === 0 && Math.abs(cur - baseValue) > 0.51) ||
+                (stars > 0 && Math.abs(cur - expected) > 0.51);
             if (broken) {
                 main.value = parseFloat(expected.toFixed(2));
                 rebuildMainDisplay(main);

@@ -5193,6 +5193,18 @@ export const useApp = () => {
                                 const isAiHiddenItemPresentationUpdate =
                                     game.animation?.type === 'ai_thinking' &&
                                     (game as any).aiHiddenItemAnimationEndTime != null;
+                                // moveHistory만 먼저 오고 boardState가 늦게 실리는 패킷 순서에서, naive 복원 직후
+                                // 동일 수순 길이의 "풀 보드" 정정 패킷이 100ms 쓰로틀에 걸리면 돌이 안 보이고 턴/착수만 바뀌는 현상이 난다.
+                                const incomingHasSubstantiveBoard =
+                                    game.boardState &&
+                                    Array.isArray(game.boardState) &&
+                                    game.boardState.length > 0 &&
+                                    game.boardState.some(
+                                        (row: any[]) =>
+                                            row &&
+                                            Array.isArray(row) &&
+                                            row.some((c: any) => c !== 0 && c != null)
+                                    );
                                 if (
                                     !hasNewMoves &&
                                     !isPlayfulBoardUpdate &&
@@ -5210,6 +5222,7 @@ export const useApp = () => {
                                     !isMissileAnimExitToPlaying &&
                                     !disconnectStateChanged &&
                                     !isAiHiddenItemPresentationUpdate &&
+                                    !incomingHasSubstantiveBoard &&
                                     now - lastUpdateTime < GAME_UPDATE_THROTTLE_MS
                                 ) {
                                     return;

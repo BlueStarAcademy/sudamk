@@ -40,6 +40,7 @@ import {
     getGuildWarBotBoardDisplayTally,
 } from '../../shared/utils/guildWarBoardOwner.js';
 import { GUILD_WAR_BOT_GUILD_ID } from '../../shared/constants/auth.js';
+import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
 
@@ -188,6 +189,7 @@ type MyGuildWarAttemptLogRow = {
     stars: number;
     captures: number;
     scoreDiff?: number;
+    houseScore?: number;
     endedAtMs: number;
     detailSummary?: string;
 };
@@ -676,7 +678,7 @@ const GuildWar = () => {
         return <div className="flex justify-center">{stars}</div>;
     };
     
-    const warMapBgClass = `flex h-full w-full flex-col bg-tertiary bg-cover bg-center text-primary ${isNativeMobile ? 'p-2' : 'p-4'}`;
+    const warMapBgClass = `flex min-h-full w-full flex-col bg-tertiary bg-cover bg-center text-primary ${isNativeMobile ? 'p-2' : 'p-4'}`;
     const warMapBgStyle = { backgroundImage: "url('/images/guild/guildwar/warmap.png')" } as const;
 
     if (!activeWar || !myGuild || !opponentGuild) {
@@ -733,6 +735,24 @@ const GuildWar = () => {
 
     const visualBlueGuild = weAreVisualBlue ? myGuild : opponentGuild;
     const visualRedGuild = weAreVisualBlue ? opponentGuild : myGuild;
+
+    /** 상황판 선택 맵: 우리 길드 vs 상대 집점(보드별) */
+    const houseForSituationBoard = ((): { ours: number; theirs: number } => {
+        if (!selectedBoard?.id || !activeWar?.boards) return { ours: 0, theirs: 0 };
+        const raw = (activeWar.boards as Record<string, unknown>)[selectedBoard.id];
+        if (raw == null) return { ours: 0, theirs: 0 };
+        const tally = getGuildWarBotBoardDisplayTally(raw as any, {
+            warId: String(activeWar.id),
+            boardId: selectedBoard.id,
+            guild1Id: activeWar.guild1Id,
+            guild2Id: activeWar.guild2Id,
+            botGuildId: GUILD_WAR_BOT_GUILD_ID,
+            isBotWar: isBotWarView,
+        });
+        const g1 = tally.guild1HouseTally;
+        const g2 = tally.guild2HouseTally;
+        return { ours: weAreGuild1 ? g1 : g2, theirs: weAreGuild1 ? g2 : g1 };
+    })();
 
     /** 바둑판 칸: 선택 여부와 관계없이 청/홍 날개 + 중앙 보드 레이아웃 유지 (선택 시 링·강조만 추가) */
     const renderGuildWarBoardCell = (board: Board, compact: boolean, onAfterSelectBoard?: () => void) => {
@@ -875,6 +895,8 @@ const GuildWar = () => {
         teamTotalTickets: number;
         teamTicketsUnknown?: boolean;
         board: Board | null;
+        /** 선택 맵 기준 우리·상대 집점(상단 통합 바용) */
+        boardHousePair: { ours: number; theirs: number };
         /** 남은 개인 도전권 N/최대 */
         personalTicketsRemaining?: number;
         personalTicketsTotal?: number;
@@ -888,6 +910,7 @@ const GuildWar = () => {
         teamTotalTickets,
         teamTicketsUnknown,
         board,
+        boardHousePair,
         personalTicketsRemaining: myTicketsLeft,
         personalTicketsTotal: myTicketsMax,
         onOpenMyAttemptLog,
@@ -905,11 +928,10 @@ const GuildWar = () => {
             ? 'border-white/10 bg-gradient-to-b from-black/45 via-black/35 to-black/50'
             : 'border-red-900/40 bg-gradient-to-b from-red-950/35 via-black/40 to-black/50';
         const detailAccentText = isBlue ? 'text-sky-100' : 'text-rose-100';
-        const perspectiveStars = board ? board.myStars : 0;
         const perspectiveAttempts = board ? (board.myGuildBoardAttempts ?? 0) : 0;
 
         return (
-            <div className={`flex min-h-0 w-full flex-1 flex-col gap-2 ${panelClasses} rounded-lg border-2 p-2 sm:p-2.5`}>
+            <div className={`flex h-full min-h-0 w-full flex-col gap-2 ${panelClasses} rounded-lg border-2 p-2 sm:p-2.5`}>
                 <div className="shrink-0">
                     <h2 className={`mb-1.5 text-center text-lg font-bold sm:text-xl ${textClasses}`}>상황판</h2>
                     <div className="space-y-1.5">
@@ -947,83 +969,77 @@ const GuildWar = () => {
                         </div>
                         <div className={`rounded-lg border px-2 py-1.5 sm:px-2.5 sm:py-2 ${occupierPanelClasses}`}>
                             <p className={`mb-1 text-center text-xs font-semibold leading-none sm:text-sm ${secondaryTextClasses}`}>현재 점령자</p>
-                            {!board ? (
-                                <div className="h-11 rounded-md border border-dashed border-white/10 bg-black/20 sm:h-12" aria-hidden />
-                            ) : board.ownerGuildId && board.occupierNickname ? (
-                                <div className="flex min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden sm:gap-2">
-                                    <Avatar
-                                        userId={board.occupierNickname}
-                                        userName={board.occupierNickname}
-                                        avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.png'}
-                                        borderUrl={
-                                            BORDER_POOL.find((b) => b.id === (board.occupierBorderId || 'default'))?.url ?? '#FFFFFF'
-                                        }
-                                        size={40}
-                                        className="shrink-0"
-                                    />
-                                    <span className="shrink-0 whitespace-nowrap text-xs font-black tabular-nums leading-none text-white sm:text-sm">
-                                        {board.occupierIsAiBot
-                                            ? `AI Lv.${Number(board.occupierLevel ?? 0) || 0}`
-                                            : `통합 Lv.${Number(board.occupierLevel ?? 0) || 0}`}
-                                    </span>
-                                    <span
-                                        className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight text-slate-200 sm:text-sm"
-                                        title={board.occupierNickname}
-                                    >
-                                        {board.occupierNickname}
-                                    </span>
-                                    {board.gameMode === 'capture' || board.gameMode === 'hidden' || board.gameMode === 'missile' ? (
-                                        <span
-                                            className="max-w-[38%] shrink-0 truncate text-right text-[10px] font-bold leading-tight text-amber-200/95 sm:max-w-[42%] sm:text-xs"
-                                            title={
-                                                board.gameMode === 'capture'
-                                                    ? `따낸 돌 ${board.occupierCaptures ?? 0}개`
-                                                    : `집 차이 ${board.occupierScoreDiff ?? 0}집`
+                            <div className="flex min-h-11 w-full items-center justify-center sm:min-h-12">
+                                {!board ? (
+                                    <div className="min-h-11 w-full rounded-md border border-dashed border-white/10 bg-black/20 sm:min-h-12" aria-hidden />
+                                ) : board.ownerGuildId && board.occupierNickname ? (
+                                    <div className="flex min-h-11 w-full min-w-0 flex-nowrap items-center gap-1.5 overflow-hidden sm:min-h-12 sm:gap-2">
+                                        <Avatar
+                                            userId={board.occupierNickname}
+                                            userName={board.occupierNickname}
+                                            avatarUrl={board.occupierAvatarUrl || '/images/profiles/profile1.png'}
+                                            borderUrl={
+                                                BORDER_POOL.find((b) => b.id === (board.occupierBorderId || 'default'))?.url ?? '#FFFFFF'
                                             }
-                                        >
-                                            {board.gameMode === 'capture'
-                                                ? `따낸 ${board.occupierCaptures ?? 0}개`
-                                                : `차이 ${board.occupierScoreDiff ?? 0}집`}
+                                            size={40}
+                                            className="shrink-0"
+                                        />
+                                        <span className="shrink-0 whitespace-nowrap text-xs font-black tabular-nums leading-none text-white sm:text-sm">
+                                            {board.occupierIsAiBot
+                                                ? `AI Lv.${Number(board.occupierLevel ?? 0) || 0}`
+                                                : `Lv.${Number(board.occupierLevel ?? 0) || 0}`}
                                         </span>
-                                    ) : (
-                                        <span className="shrink-0 text-[10px] font-semibold text-slate-500 sm:text-xs">—</span>
-                                    )}
-                                </div>
-                            ) : (
-                                <span className="block text-center text-xs text-slate-500 sm:text-sm">없음</span>
-                            )}
+                                        <span
+                                            className="min-w-0 flex-1 truncate text-xs font-semibold leading-tight text-slate-200 sm:text-sm"
+                                            title={board.occupierNickname}
+                                        >
+                                            {board.occupierNickname}
+                                        </span>
+                                        {board.gameMode === 'capture' || board.gameMode === 'hidden' || board.gameMode === 'missile' ? (
+                                            <span
+                                                className="max-w-[38%] shrink-0 truncate text-right text-[10px] font-bold leading-tight text-amber-200/95 sm:max-w-[42%] sm:text-xs"
+                                                title={
+                                                    board.gameMode === 'capture'
+                                                        ? `따낸돌 ${board.occupierCaptures ?? 0}개`
+                                                        : `집 차이 ${board.occupierScoreDiff ?? 0}집`
+                                                }
+                                            >
+                                                {board.gameMode === 'capture'
+                                                    ? `따낸돌 ${board.occupierCaptures ?? 0}개`
+                                                    : `차이 ${board.occupierScoreDiff ?? 0}집`}
+                                            </span>
+                                        ) : (
+                                            <span className="shrink-0 text-[10px] font-semibold text-slate-500 sm:text-xs">—</span>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <span className="block w-full text-center text-xs text-slate-500 sm:text-sm">없음</span>
+                                )}
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="flex min-h-0 flex-1 flex-col border-t border-gray-500/40 pt-1">
+                <div className="mt-0.5 flex min-h-0 flex-1 flex-col border-t border-gray-500/40 pt-1">
                     <div
                         className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border p-2 text-sm shadow-inner backdrop-blur-sm sm:p-2.5 ${detailShellClass}`}
                     >
                         {board ? (
-                            <div className="flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-hidden text-left">
-                                <div className="shrink-0 text-center">
-                                    <div className="flex flex-wrap items-center justify-center gap-1.5">
-                                        <div className="inline-flex items-center justify-center rounded-full border border-amber-300/45 bg-gradient-to-r from-amber-600/90 via-amber-500/85 to-yellow-600/90 px-3 py-1">
-                                            <span className="text-sm font-black tracking-wide text-stone-900 drop-shadow-sm sm:text-base">
-                                                {board.name}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className="inline-flex items-center gap-0.5"
-                                            title={`우리 길드 별 ${Math.min(3, perspectiveStars)}/3`}
-                                            aria-label={`우리 길드 별 ${Math.min(3, perspectiveStars)}개`}
-                                        >
-                                            {[0, 1, 2].map((i) => (
-                                                <img
-                                                    key={i}
-                                                    src={i < Math.min(3, Math.max(0, perspectiveStars)) ? GUILD_WAR_STAR_IMG : GUILD_WAR_EMPTY_STAR_IMG}
-                                                    alt=""
-                                                    className="h-5 w-5 object-contain drop-shadow sm:h-6 sm:w-6"
-                                                />
-                                            ))}
-                                        </div>
+                            <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto text-left">
+                                <div className="shrink-0 space-y-1.5 text-center">
+                                    <div className="inline-flex max-w-full items-center justify-center rounded-full border border-amber-300/45 bg-gradient-to-r from-amber-600/90 via-amber-500/85 to-yellow-600/90 px-3 py-1 shadow-md">
+                                        <span className="truncate text-sm font-black tracking-wide text-stone-900 drop-shadow-sm sm:text-base">
+                                            {board.name}
+                                        </span>
                                     </div>
+                                    <GuildWarUnifiedScoreboard
+                                        compact
+                                        hideHouseWhenZero
+                                        blueStars={board.myStars}
+                                        redStars={board.opponentStars}
+                                        blueHouse={boardHousePair.ours}
+                                        redHouse={boardHousePair.theirs}
+                                    />
                                 </div>
 
                                 {(() => {
@@ -1102,12 +1118,12 @@ const GuildWar = () => {
                                     );
                                 })()}
 
-                                <div className="shrink-0 rounded-lg border border-amber-600/30 bg-amber-950/35 px-1.5 py-1 sm:px-2 sm:py-1.5">
-                                    <p className="mb-0.5 flex shrink-0 items-center gap-1 text-[9px] font-semibold uppercase tracking-wide text-amber-200/90 sm:text-[10px]">
-                                        <img src={GUILD_WAR_STAR_IMG} alt="" className="h-3 w-3 shrink-0 opacity-95 sm:h-3.5 sm:w-3.5" />
+                                <div className="shrink-0 rounded-lg border border-amber-600/30 bg-amber-950/35 px-2 py-1.5 sm:px-2.5 sm:py-2">
+                                    <p className="mb-1 flex shrink-0 items-center justify-center gap-1.5 text-xs font-bold uppercase tracking-wide text-amber-200/95 sm:text-sm">
+                                        <img src={GUILD_WAR_STAR_IMG} alt="" className="h-4 w-4 shrink-0 opacity-95 sm:h-4 sm:w-4" />
                                         별 획득 조건
                                     </p>
-                                    <ul className="space-y-0.5 text-[9px] leading-[1.35] text-amber-50/95 sm:text-[10px] sm:leading-snug">
+                                    <ul className="space-y-1 text-xs leading-snug text-amber-50/95 sm:text-sm sm:leading-relaxed">
                                         {getGuildWarStarConditionLines(board.gameMode, board.id).map((line, i) => (
                                             <li key={i} className="break-words">
                                                 {line}
@@ -1116,15 +1132,25 @@ const GuildWar = () => {
                                     </ul>
                                 </div>
 
-                                <div className="shrink-0 rounded-lg border border-slate-600/35 bg-slate-900/45 px-2 py-1.5 sm:px-2.5 sm:py-2">
-                                    <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wider text-slate-400 sm:text-xs">초기 배치</p>
-                                    <div className="grid grid-cols-2 gap-1.5">
+                                <div className="shrink-0 rounded-lg border border-slate-600/35 bg-slate-900/45 px-1.5 py-1 sm:px-2 sm:py-1.5">
+                                    <div
+                                        className="flex flex-nowrap items-center justify-between gap-1 overflow-x-auto"
+                                        role="group"
+                                        aria-label={`초기 배치: 흑 ${board.initialStoneCounts.blackPlain}, 백 ${board.initialStoneCounts.whitePlain}, 문양 흑 ${board.initialStoneCounts.blackMarked}, 문양 백 ${board.initialStoneCounts.whiteMarked}`}
+                                    >
                                         {[
-                                            { key: 'bp', label: '흑돌', icon: <PlainBlackStoneIcon />, n: board.initialStoneCounts.blackPlain },
-                                            { key: 'wp', label: '백돌', icon: <PlainWhiteStoneIcon />, n: board.initialStoneCounts.whitePlain },
+                                            {
+                                                key: 'bp',
+                                                icon: <PlainBlackStoneIcon className="h-6 w-6 sm:h-7 sm:w-7" />,
+                                                n: board.initialStoneCounts.blackPlain,
+                                            },
+                                            {
+                                                key: 'wp',
+                                                icon: <PlainWhiteStoneIcon className="h-6 w-6 sm:h-7 sm:w-7" />,
+                                                n: board.initialStoneCounts.whitePlain,
+                                            },
                                             {
                                                 key: 'bm',
-                                                label: '문양 흑',
                                                 icon: (
                                                     <img
                                                         src={BLACK_BASE_STONE_IMG}
@@ -1136,7 +1162,6 @@ const GuildWar = () => {
                                             },
                                             {
                                                 key: 'wm',
-                                                label: '문양 백',
                                                 icon: (
                                                     <img
                                                         src={WHITE_BASE_STONE_IMG}
@@ -1149,13 +1174,10 @@ const GuildWar = () => {
                                         ].map((row) => (
                                             <div
                                                 key={row.key}
-                                                className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/40 px-2 py-1 sm:py-1.5"
+                                                className="flex shrink-0 items-center gap-0.5 rounded-md border border-white/10 bg-black/40 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-1"
                                             >
                                                 {row.icon}
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="text-[10px] leading-tight text-slate-400 sm:text-xs">{row.label}</p>
-                                                    <p className="text-sm font-bold tabular-nums text-amber-100 sm:text-base">{row.n}</p>
-                                                </div>
+                                                <span className="min-w-[1rem] text-center text-xs font-black tabular-nums text-amber-100 sm:text-sm">{row.n}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -1302,8 +1324,8 @@ const GuildWar = () => {
             </header>
             {isNativeMobile ? (
                 <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                    <div className="shrink-0 rounded-xl border border-amber-300/35 bg-gradient-to-b from-black/55 via-black/45 to-black/55 px-2.5 py-2.5 shadow-[0_6px_20px_rgba(0,0,0,0.4)]">
-                        <div className="flex items-center gap-1.5 text-white sm:gap-2" style={{ textShadow: '1px 1px 3px black' }}>
+                    <div className="shrink-0 space-y-2">
+                        <div className="flex items-end gap-1.5 text-white sm:gap-2" style={{ textShadow: '1px 1px 3px black' }}>
                             <div className="flex min-w-0 flex-1 flex-col items-center">
                                 {!weAreVisualBlue ? (
                                     <div className="mb-1 flex w-full max-w-[7.25rem] flex-col items-center gap-0.5 rounded-md border border-blue-800/55 bg-blue-950/45 px-1 py-1">
@@ -1323,18 +1345,14 @@ const GuildWar = () => {
                                 />
                                 <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualBlueGuild.name}</span>
                             </div>
-                            <div className="min-w-0 flex-[1.4] text-center">
-                                <div className="flex items-center justify-center gap-2">
-                                    <img src={GUILD_WAR_STAR_IMG} alt="" className="h-6 w-6 shrink-0" />
-                                    <span className="text-3xl font-black tabular-nums">{visualBlueTeamStars}</span>
-                                    <span className="text-sm font-extrabold text-amber-200/90">VS</span>
-                                    <span className="text-3xl font-black tabular-nums">{visualRedTeamStars}</span>
-                                    <img src={GUILD_WAR_STAR_IMG} alt="" className="h-6 w-6 shrink-0" />
-                                </div>
-                                <div className="mt-1.5 flex justify-between gap-1 text-[11px] font-bold tabular-nums text-cyan-100">
-                                    <span className="min-w-0 truncate">집 {blueTotalHouseScore}</span>
-                                    <span className="min-w-0 truncate">집 {redTotalHouseScore}</span>
-                                </div>
+                            <div className="min-w-0 flex-[1.35] pb-0.5">
+                                <GuildWarUnifiedScoreboard
+                                    compact
+                                    blueStars={visualBlueTeamStars}
+                                    redStars={visualRedTeamStars}
+                                    blueHouse={blueTotalHouseScore}
+                                    redHouse={redTotalHouseScore}
+                                />
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col items-center">
                                 <img
@@ -1364,13 +1382,14 @@ const GuildWar = () => {
                 </main>
             ) : (
                 <main className="flex min-h-0 min-w-0 flex-1 gap-4">
-                    <div className="flex min-h-0 w-[18vw] min-w-[17.5rem] max-w-[24rem] shrink-0 flex-col">
+                    <div className="flex h-full min-h-0 w-[min(30rem,24vw)] min-w-[21rem] max-w-[32rem] shrink-0 flex-col">
                         <StatusAndViewerPanel
                             colorSide={weAreVisualBlue ? 'blue' : 'red'}
                             challengingMembers={myMembersChallenging}
                             teamUsedTickets={myTeamTickets.used}
                             teamTotalTickets={myTeamTickets.total}
                             board={selectedBoard}
+                            boardHousePair={houseForSituationBoard}
                             personalTicketsRemaining={personalTicketsRemaining}
                             personalTicketsTotal={personalTicketTotal}
                             onOpenMyAttemptLog={openMyAttemptLogModal}
@@ -1410,24 +1429,13 @@ const GuildWar = () => {
                                 </div>
                             </div>
 
-                            <div className="flex min-w-[13rem] max-w-[600px] flex-1 flex-col items-stretch self-center pt-1">
-                                <div className="w-full rounded-2xl border border-amber-300/35 bg-gradient-to-b from-black/55 via-black/45 to-black/55 px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,0.45)] sm:px-5 sm:py-5">
-                                    <div className="grid grid-cols-[1fr_auto_1fr] items-center text-white" style={{ textShadow: '2px 2px 4px black' }}>
-                                        <div className="inline-flex min-w-0 items-center justify-end justify-self-center gap-2 sm:gap-2.5">
-                                            <img src={GUILD_WAR_STAR_IMG} alt="star" className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" />
-                                            <span className="text-4xl font-black tabular-nums sm:text-5xl">{visualBlueTeamStars}</span>
-                                        </div>
-                                        <span className="mx-2 shrink-0 text-xl font-extrabold text-amber-200/90 sm:mx-2.5 sm:text-2xl">VS</span>
-                                        <div className="inline-flex min-w-0 items-center justify-start justify-self-center gap-2 sm:gap-2.5">
-                                            <span className="text-4xl font-black tabular-nums sm:text-5xl">{visualRedTeamStars}</span>
-                                            <img src={GUILD_WAR_STAR_IMG} alt="star" className="h-9 w-9 shrink-0 sm:h-10 sm:w-10" />
-                                        </div>
-                                    </div>
-                                    <div className="mt-2 flex items-center justify-between text-sm font-bold tabular-nums text-cyan-100 sm:text-base">
-                                        <span>집점수 {blueTotalHouseScore}</span>
-                                        <span>집점수 {redTotalHouseScore}</span>
-                                    </div>
-                                </div>
+                            <div className="flex min-w-[13rem] max-w-[640px] flex-1 flex-col items-stretch self-center pt-1">
+                                <GuildWarUnifiedScoreboard
+                                    blueStars={visualBlueTeamStars}
+                                    redStars={visualRedTeamStars}
+                                    blueHouse={blueTotalHouseScore}
+                                    redHouse={redTotalHouseScore}
+                                />
                             </div>
 
                             <div className="flex shrink-0 items-start gap-2.5">
@@ -1481,7 +1489,7 @@ const GuildWar = () => {
                         aria-modal="true"
                         aria-labelledby="guild-war-my-situation-title"
                         aria-hidden={!mySituationDrawerOpen}
-                        className={`fixed top-0 right-0 z-[10051] flex h-[100dvh] max-h-[100dvh] w-[min(92vw,22rem)] flex-col border-l border-white/20 bg-gray-950/98 shadow-[-12px_0_32px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                        className={`fixed top-0 right-0 z-[10051] flex h-[100dvh] max-h-[100dvh] w-[min(94vw,28rem)] flex-col border-l border-white/20 bg-gray-950/98 shadow-[-12px_0_32px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
                             mySituationDrawerOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
                         }`}
                         style={{
@@ -1501,13 +1509,14 @@ const GuildWar = () => {
                                 닫기
                             </button>
                         </div>
-                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
+                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-2">
                             <StatusAndViewerPanel
                                 colorSide={weAreVisualBlue ? 'blue' : 'red'}
                                 challengingMembers={myMembersChallenging}
                                 teamUsedTickets={myTeamTickets.used}
                                 teamTotalTickets={myTeamTickets.total}
                                 board={selectedBoard}
+                                boardHousePair={houseForSituationBoard}
                                 personalTicketsRemaining={personalTicketsRemaining}
                                 personalTicketsTotal={personalTicketTotal}
                                 onOpenMyAttemptLog={openMyAttemptLogModal}
@@ -1535,9 +1544,16 @@ const GuildWar = () => {
                         className="fixed left-1/2 top-1/2 z-[10061] flex max-h-[min(85dvh,32rem)] w-[min(96vw,26rem)] -translate-x-1/2 -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-stone-950 via-stone-900 to-black shadow-[0_20px_60px_rgba(0,0,0,0.65)] ring-1 ring-white/10"
                     >
                         <div className="flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-4 py-3">
-                            <h2 id="guild-war-my-attempt-log-title" className="text-base font-bold text-amber-50 sm:text-lg" style={{ textShadow: '1px 1px 3px black' }}>
-                                내 도전 기록
+                            <h2 id="guild-war-my-attempt-log-title" className="sr-only">
+                                길드전 종료 대국 기록
                             </h2>
+                            <div className="flex min-w-0 items-center gap-2 rounded-lg border border-amber-500/25 bg-black/40 px-2.5 py-1.5">
+                                <img src={GUILD_WAR_TICKET_IMG} alt="" className="h-5 w-5 shrink-0 object-contain opacity-95" />
+                                <span className="text-xs font-semibold text-slate-400">도전권</span>
+                                <span className="font-black tabular-nums text-amber-100 sm:text-base">
+                                    {myAttemptLogUsed}/{myAttemptLogMax}
+                                </span>
+                            </div>
                             <button
                                 type="button"
                                 disabled={myAttemptLogLoading}
@@ -1547,13 +1563,6 @@ const GuildWar = () => {
                                 닫기
                             </button>
                         </div>
-                        <p className="shrink-0 border-b border-white/5 px-4 py-2 text-sm text-slate-300">
-                            이번 길드전에서 내가 사용한 도전권{' '}
-                            <span className="font-black tabular-nums text-white">
-                                {myAttemptLogUsed}/{myAttemptLogMax}
-                            </span>
-                            회 (종료된 대국만 아래에 표시됩니다)
-                        </p>
                         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-3 py-3">
                             {myAttemptLogLoading && myAttemptLogRows.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
@@ -1596,14 +1605,33 @@ const GuildWar = () => {
                                                         {oc.t}
                                                     </span>
                                                 </div>
-                                                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
-                                                    <span className="inline-flex items-center gap-1 font-bold text-amber-200">
-                                                        <img src={GUILD_WAR_STAR_IMG} alt="" className="h-4 w-4" />
-                                                        {row.stars}별
-                                                    </span>
-                                                    {row.detailSummary ? (
-                                                        <span className="text-xs text-slate-300 sm:text-sm">{row.detailSummary}</span>
-                                                    ) : null}
+                                                <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/[0.06] pt-2">
+                                                    <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                                                        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">기여도</p>
+                                                        <div className="mt-0.5 flex items-center gap-1">
+                                                            <div className="flex items-center gap-0.5">
+                                                                {[0, 1, 2].map((i) => (
+                                                                    <img
+                                                                        key={i}
+                                                                        src={i < Math.min(3, Math.max(0, row.stars)) ? GUILD_WAR_STAR_IMG : GUILD_WAR_EMPTY_STAR_IMG}
+                                                                        alt=""
+                                                                        className="h-3.5 w-3.5"
+                                                                    />
+                                                                ))}
+                                                            </div>
+                                                            <span className="font-black tabular-nums text-amber-200">{row.stars}</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="rounded-lg border border-white/10 bg-black/30 px-2 py-1.5">
+                                                        <p className="text-[9px] font-semibold uppercase tracking-wider text-slate-500">집점수</p>
+                                                        <p className="mt-0.5 text-lg font-black tabular-nums leading-none text-cyan-200/95">
+                                                            {typeof row.houseScore === 'number' && Number.isFinite(row.houseScore)
+                                                                ? Number.isInteger(row.houseScore)
+                                                                    ? row.houseScore
+                                                                    : row.houseScore.toFixed(1)
+                                                                : '—'}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             </li>
                                         );

@@ -33,6 +33,63 @@ function cleanupScoringPrecompute(nowMs: number): void {
     }
 }
 
+/**
+ * 계가(Kata) 직전: 미공개 히든 착점을 최종 국면에 맞게 보드에 반영하고, 공개 목록·메타를 정리한다.
+ * - analyzeGame은 boardState의 실돌만 전달하므로, 히든 플래그만 남고 칸이 비면 영토에서 빠질 수 있음
+ * - 유저/상대 구분 없이 hiddenMoves에 남은 좌표를 처리한다
+ */
+function finalizeHiddenStonesForScoring(game: types.LiveGameSession): void {
+    const isHiddenMode =
+        game.mode === types.GameMode.Hidden ||
+        (game.mode === types.GameMode.Mix && Boolean(game.settings.mixedModes?.includes(types.GameMode.Hidden)));
+    if (!isHiddenMode || !game.moveHistory || !game.boardState) return;
+
+    if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+
+    if (game.hiddenMoves) {
+        const keys = [...Object.keys(game.hiddenMoves)];
+        for (const key of keys) {
+            const i = parseInt(key, 10);
+            if (!Number.isFinite(i) || i < 0 || i >= game.moveHistory.length) continue;
+            if (!game.hiddenMoves[i]) continue;
+            const m = game.moveHistory[i];
+            if (!m || m.x < 0 || m.y < 0) continue;
+            const { x, y } = m;
+            const row = game.boardState[y];
+            if (!row || row[x] === undefined) continue;
+            const cell = row[x];
+            const opponent = m.player === types.Player.Black ? types.Player.White : types.Player.Black;
+
+            if (cell === m.player) {
+                if (!game.permanentlyRevealedStones.some((p) => p.x === x && p.y === y)) {
+                    game.permanentlyRevealedStones.push({ x, y });
+                }
+                delete game.hiddenMoves[i];
+            } else if (cell === types.Player.None) {
+                row[x] = m.player;
+                if (!game.permanentlyRevealedStones.some((p) => p.x === x && p.y === y)) {
+                    game.permanentlyRevealedStones.push({ x, y });
+                }
+                delete game.hiddenMoves[i];
+            } else if (cell === opponent) {
+                delete game.hiddenMoves[i];
+            }
+        }
+    }
+
+    const ai = (game as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
+    if (ai && Number.isInteger(ai.x) && Number.isInteger(ai.y)) {
+        const c = game.boardState[ai.y]?.[ai.x];
+        if (c !== types.Player.None && c != null) {
+            if (!game.permanentlyRevealedStones.some((p) => p.x === ai.x && p.y === ai.y)) {
+                game.permanentlyRevealedStones.push({ x: ai.x, y: ai.y });
+            }
+        }
+        (game as any).aiInitialHiddenStone = undefined;
+        (game as any).aiInitialHiddenStoneIsPrePlaced = false;
+    }
+}
+
 export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, session: types.LiveGameSession, preservedTimeInfo?: { blackTimeLeft?: number, whiteTimeLeft?: number, blackInitialTimeLeft?: number, whiteInitialTimeLeft?: number }): types.AnalysisResult => {
     const finalAnalysis = JSON.parse(JSON.stringify(baseAnalysis)); // Deep copy
 
@@ -323,9 +380,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                         ...game,
                         boardState: game.boardState,
                         moveHistory: game.moveHistory,
-                    }));
+                    })) as types.LiveGameSession;
+                    // 실제 계가 직전과 동일한 국면으로 분석해야 함(히든 메타만 있고 칸이 비는 경우 보정)
+                    finalizeHiddenStonesForScoring(snapshot);
                     const scoringLim = getScoringKataGoLimits();
-                    const p = analyzeGame(snapshot as types.LiveGameSession, {
+                    const p = analyzeGame(snapshot, {
                         includePolicy: false,
                         includeOwnership: true,
                         maxVisits: scoringLim.maxVisits,
@@ -343,7 +402,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             console.log(`[getGameResult] Adventure: skipping hidden_final_reveal animation, proceeding to scoring for game ${game.id}`);
         }
     }
-    
+
+    if (isHiddenMode) {
+        finalizeHiddenStonesForScoring(game);
+    }
+
     // 게임 상태 보존 (계가 전에 게임이 초기화되는 것을 방지)
     // 먼저 보호 플래그를 설정하여 다른 로직이 게임을 초기화하지 않도록 함
     (game as any).isScoringProtected = true;

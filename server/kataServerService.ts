@@ -11,6 +11,13 @@ import { Point } from '../types/index.js';
 const KATA_SERVER_URL = process.env.KATA_SERVER_URL?.trim();
 const KATA_SERVER_KEY = process.env.KATA_SERVER_KEY?.trim();
 const KATA_SERVER_TIMEOUT_MS = Math.max(5000, parseInt(process.env.KATA_SERVER_TIMEOUT_MS || '15000', 10));
+/** Kata 응답 후 실제 착점(또는 PASS)을 적용하기 전 대기 — 유저 착수는 즉시 처리되고 AI 수만 체감상 늦춤 (ms, 0 비활성) */
+const KATA_APPLY_MOVE_DELAY_MS = Math.max(0, parseInt(process.env.KATA_APPLY_MOVE_DELAY_MS || '1000', 10));
+
+function sleep(ms: number): Promise<void> {
+    if (ms <= 0) return Promise.resolve();
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 // GTP column letters (A–T, I omitted) — KataGo / GnuGo와 동일하게 모든 보드 크기에 사용
 const GTP_COLUMN_LETTERS = 'ABCDEFGHJKLMNOPQRST';
@@ -174,8 +181,13 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
 
         console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
 
-        if (!data.move || data.move === 'PASS') return { x: -1, y: -1 };
-        return gtpCoordToPoint(data.move, boardSize);
+        if (!data.move || data.move === 'PASS') {
+            await sleep(KATA_APPLY_MOVE_DELAY_MS);
+            return { x: -1, y: -1 };
+        }
+        const pt = gtpCoordToPoint(data.move, boardSize);
+        await sleep(KATA_APPLY_MOVE_DELAY_MS);
+        return pt;
     } catch (err: any) {
         if (err.name === 'AbortError') {
             throw new Error(`KataServer timeout (${KATA_SERVER_TIMEOUT_MS}ms)`);

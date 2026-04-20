@@ -821,22 +821,24 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             </div>
                         </div>
                     </div>
-                    <div className="mx-1 mt-1.5 flex gap-1.5">
+                    <div className="mx-1 mt-1.5 flex min-h-0 items-stretch gap-1.5">
                         <aside
-                            className="min-w-0 flex-1 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
                             aria-label="챕터 보상 안내"
                         >
                             <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} compact />
                         </aside>
                         <aside
-                            className="min-w-0 flex-1 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
                             aria-label="지역 열쇠"
                         >
-                            <AdventureChapterKeyPanel
-                                stageId={stage.id as AdventureStageId}
-                                adventureProfile={currentUserWithStatus?.adventureProfile}
-                                compact
-                            />
+                            <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
+                                <AdventureChapterKeyPanel
+                                    stageId={stage.id as AdventureStageId}
+                                    adventureProfile={currentUserWithStatus?.adventureProfile}
+                                    compact
+                                />
+                            </div>
                         </aside>
                     </div>
                 </div>
@@ -1231,7 +1233,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} iconLayout="wrap" />
                                 </aside>
                                 <aside
-                                    className="flex w-[10rem] shrink-0 flex-col overflow-y-auto overflow-x-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[11.25rem] sm:p-3.5 [scrollbar-width:thin] [scrollbar-color:rgba(245,158,11,0.45)_rgba(24,24,27,0.4)] [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/70 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-500/40"
+                                    className="flex min-h-0 w-[10rem] shrink-0 flex-col overflow-x-hidden overflow-y-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[11.25rem] sm:p-3.5"
                                     style={
                                         desktopKeyPanelHeightPx != null
                                             ? {
@@ -1243,10 +1245,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     }
                                     aria-label="지역 열쇠"
                                 >
-                                    <div className="flex min-h-0 flex-1 flex-col justify-center">
+                                    <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
                                         <AdventureChapterKeyPanel
                                             stageId={stage.id as AdventureStageId}
                                             adventureProfile={currentUserWithStatus?.adventureProfile}
+                                            compact
                                         />
                                     </div>
                                 </aside>

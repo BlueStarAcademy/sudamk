@@ -1376,8 +1376,7 @@ export async function makeGoAiBotMove(
         }
     }
 
-    // 전략바둑 로비 턴 제한: 제한 수순 이상이면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
-    // 모험: 제한 수순에 "도달"한 직후(===)에도 몬스터가 한 수 둔 뒤 계가해야 하므로, 모험만 엄격히 `>` 로만 조기 계가한다.
+    // 전략바둑 턴 제한: 제한 수순에 도달한 국면에서는 AI가 수를 두지 않고 즉시 계가(모험/로비/길드전 동일,정확히 N수에서 종료)
     const scoringTurnLimit = (game.settings as any)?.scoringTurnLimit;
     if (
         scoringTurnLimit != null &&
@@ -1388,13 +1387,9 @@ export async function makeGoAiBotMove(
     ) {
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const totalTurnsSoFar = (game.moveHistory || []).length;
-        const isAdventureCategory = (game as any).gameCategory === types.GameCategory.Adventure;
-        const overLimit = isAdventureCategory
-            ? totalTurnsSoFar > scoringTurnLimit
-            : totalTurnsSoFar >= scoringTurnLimit;
-        if (overLimit) {
+        if (totalTurnsSoFar >= scoringTurnLimit) {
             console.log(
-                `[makeGoAiBotMove] Game ${game.id} over scoringTurnLimit (${totalTurnsSoFar} vs ${scoringTurnLimit}, adventure=${isAdventureCategory}), triggering getGameResult without making a move`,
+                `[makeGoAiBotMove] Game ${game.id} at or over scoringTurnLimit (${totalTurnsSoFar} >= ${scoringTurnLimit}), triggering getGameResult without making a move`,
             );
             if (isLobbyAiStrategicGoGame(game)) {
                 await broadcastPlayingSnapshotBeforeScoring(game);

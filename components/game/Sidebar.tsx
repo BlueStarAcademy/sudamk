@@ -720,8 +720,8 @@ const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession; currentU
         const c3 = GUILD_WAR_STAR_CAPTURE_TIER3_MIN;
         const rows = [
             { label: '승리', ok: humanWon },
-            { label: lines[1] ?? `한 번에 ${c2}점 획득하기 (패배해도 별 획득)`, ok: maxPts >= c2 },
-            { label: lines[2] ?? `한 번에 ${c3}점 획득하기 (패배해도 별 획득)`, ok: maxPts >= c3 },
+            { label: lines[1] ?? `한 번에 ${c2}점 획득하기`, ok: maxPts >= c2 },
+            { label: lines[2] ?? `한 번에 ${c3}점 획득하기`, ok: maxPts >= c3 },
         ];
         return (
             <div className={arenaGameRoomGuildStarPanelClass}>

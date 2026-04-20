@@ -19,12 +19,14 @@ import HelpModal from '../HelpModal.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from '../QuickAccessSidebar.js';
 import GuildWarRewardModal from './GuildWarRewardModal.js';
 import GuildWarMatchingModal, { type GuildWarMatchPresentationClient } from './GuildWarMatchingModal.js';
+import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { getTimeUntilNextMondayKST, isSameDayKST, isDifferentWeekKST, formatDateTimeKST, getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.js';
 import { getCurrentGuildBossStage, getScaledGuildBossMaxHp } from '../../utils/guildBossStageUtils.js';
 import { getGuildWarBotBoardDisplayTally } from '../../shared/utils/guildWarBoardOwner.js';
 // 고급 버튼 스타일 (길드 패널용)
-const guildPanelBtnBase = 'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold tracking-wide transition-all duration-200 px-4 py-2 text-sm border backdrop-blur-sm';
+const guildPanelBtnBase =
+    'inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-semibold tracking-wide transition-all duration-200';
 const guildPanelBtn = {
     boss: `${guildPanelBtnBase} border-cyan-400/40 bg-gradient-to-br from-blue-600/90 via-cyan-500/85 to-blue-600/90 text-white shadow-[0_4px_14px_-2px_rgba(34,211,238,0.4)] hover:shadow-[0_6px_20px_-2px_rgba(34,211,238,0.5)] hover:-translate-y-0.5 active:translate-y-0`,
     war: `${guildPanelBtnBase} border-red-400/40 bg-gradient-to-br from-red-600/90 via-rose-500/85 to-red-600/90 text-white shadow-[0_4px_14px_-2px_rgba(244,63,94,0.4)] hover:shadow-[0_6px_20px_-2px_rgba(244,63,94,0.5)] hover:-translate-y-0.5 active:translate-y-0`,
@@ -36,6 +38,9 @@ const guildPanelBtn = {
 
 /** 모바일 길드 기부 DraggableWindow와 동일 — 포털 기부 횟수 모달이 바깥 클릭으로 창이 닫히지 않도록 DraggableWindow가 인식 */
 const GUILD_HOME_MOBILE_DONATION_WINDOW_ID = 'guild-home-mobile-donation';
+
+/** `public/images/guild/guildbg.webp` — 길드 홈 전체 배경 */
+const GUILD_HOME_BACKGROUND_IMAGE = '/images/guild/guildbg.webp';
 
 // 길드 아이콘 경로 수정 함수
 const getGuildIconPath = (icon: string | undefined): string => {
@@ -129,18 +134,18 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
     const isMobile = false;
 
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl flex flex-col gap-3 relative overflow-hidden border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-1 min-h-[200px] max-h-[320px]" style={{ minHeight: '200px' }}>
+        <div className="flex min-h-[200px] max-h-[320px] flex-1 flex-col gap-3 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg relative" style={{ minHeight: '200px' }}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none rounded-xl" />
             <h3 className="font-bold text-base text-highlight text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
                 <span className="text-lg">💎</span>
                 <span>길드 기부</span>
             </h3>
 
-            <div className="flex flex-row gap-3 relative z-10 min-w-0 flex-1 min-h-0 items-stretch">
-            {/* 좌측: 기부 버튼 — 뷰포트 md 대신 항상 PC와 동일(캔버스 내부는 설계 너비 기준) */}
-            <div className="flex-[1] flex flex-row gap-4 min-w-0 shrink-0 justify-center items-stretch">
+            <div className="flex min-h-0 flex-1 flex-row gap-3 relative z-10 min-w-0 items-stretch">
+            {/* 좌측: 골드·다이아 기부 버튼 세로 배치 (PC) */}
+            <div className="flex w-[9.75rem] shrink-0 flex-col justify-center gap-3">
                 {/* 골드 기부 */}
-                <div className="flex-1 flex flex-col gap-1.5 min-w-[100px] max-w-[140px] shrink-0 items-center justify-center">
+                <div className="flex w-full flex-col gap-1.5 items-center">
                     <div className="text-xs text-amber-200 font-semibold whitespace-nowrap text-center w-full">골드 기부</div>
                     <div ref={goldButtonRef} className="w-full min-w-0">
                         <Button
@@ -165,7 +170,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                 </div>
 
                 {/* 다이아 기부 */}
-                <div className="flex-1 flex flex-col gap-1.5 min-w-[100px] max-w-[140px] shrink-0 items-center justify-center">
+                <div className="flex w-full flex-col gap-1.5 items-center">
                     <div className="text-xs text-blue-200 font-semibold whitespace-nowrap text-center w-full">다이아 기부</div>
                     <div ref={diamondButtonRef} className="w-full min-w-0">
                         <Button
@@ -190,11 +195,11 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                 </div>
             </div>
 
-            {/* 우측: 기부 기록 - 고정 높이, 내용 많으면 내부 스크롤 */}
-            <div className="flex-[1.5] min-w-0 flex flex-col min-h-0 relative z-10 border-l border-stone-600/50 pl-3 pt-0">
-                <div className="text-xs font-semibold text-highlight mb-1 flex-shrink-0">기부 기록</div>
-                <div className="flex-1 min-h-0 overflow-y-auto pr-1 rounded-lg border-2 border-black/20 bg-tertiary/50 shadow-inner backdrop-blur-sm">
-                    <div className="p-3 space-y-0.5 text-xs text-secondary min-h-full">
+            {/* 우측: 기부 기록 — 가로폭 우선 */}
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-stone-600/50 pl-3 pt-0 relative z-10">
+                <div className="mb-1 flex-shrink-0 text-sm font-semibold text-highlight">기부 기록</div>
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/40 pr-1 shadow-inner">
+                    <div className="min-h-full space-y-0.5 p-2.5 text-sm leading-snug text-secondary sm:p-3">
                             {donationByUser.length === 0 ? (
                                 <div className="text-stone-500 py-1">기록 없음</div>
                             ) : (
@@ -206,10 +211,10 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
                                         {' · '}
                                         <span className="text-blue-200/95">다이아 <span className="font-semibold text-white">{agg.diamondCount}</span>회</span>
                                         {' · '}
-                                        <img src="/images/guild/tokken.png" alt="코인" className="w-2.5 h-2.5 inline align-middle" />
+                                        <img src="/images/guild/tokken.png" alt="코인" className="inline h-3 w-3 align-middle" />
                                         <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
                                         {' · '}
-                                        <img src="/images/guild/button/guildlab.png" alt="RP" className="w-2.5 h-2.5 inline align-middle" />
+                                        <img src="/images/guild/button/guildlab.png" alt="RP" className="inline h-3 w-3 align-middle" />
                                         <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
                                     </div>
                                 ))
@@ -388,11 +393,11 @@ const GuildDonationPanelPhone: React.FC<{ guild?: GuildType | null; guildDonatio
     }, [guild?.donationLog]);
 
     return (
-        <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-2 shadow-2xl backdrop-blur-md sm:gap-3 sm:p-3">
+        <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-2 shadow-lg sm:gap-3 sm:p-3">
             <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" />
 
             <div className="relative z-10 flex min-h-0 w-full min-w-0 flex-1 flex-col gap-2">
-                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-stone-600/45 bg-tertiary/45 p-2 shadow-inner backdrop-blur-sm">
+                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border border-stone-600/45 bg-tertiary/45 p-2 shadow-inner">
                     <div className="mb-1 text-[11px] font-semibold text-highlight">기부 기록</div>
                     <div className="space-y-1 text-sm leading-tight text-secondary">
                         {donationByUser.length === 0 ? (
@@ -569,7 +574,7 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
         { name: '보스 도감', icon: '/images/guild/button/bossraid1.png', action: onOpenBossGuide },
     ];
     return (
-        <div className="bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 p-3 rounded-xl border-2 border-stone-600/60 shadow-2xl backdrop-blur-md flex-shrink-0">
+        <div className="flex-shrink-0 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
             <h3 className="font-bold text-base text-highlight mb-2 text-center flex items-center justify-center gap-2 flex-shrink-0">
                 <span className="text-xl">⚡</span>
                 <span>길드 활동</span>
@@ -816,7 +821,7 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
     const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
 
     return (
-        <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
+        <div className={`bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10 w-full flex flex-col h-full min-h-0">
                 <h3 className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'} text-highlight ${isMobile ? 'mb-1' : 'mb-3'} flex items-center justify-center gap-2 flex-shrink-0`}>
@@ -892,7 +897,7 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                             {/* 호버 시 툴팁 */}
                                             {hoveredSkill?.id === skill.id && skillTooltipPos && (
                                             <div 
-                                                className="fixed z-[9999] w-64 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 border-2 border-stone-600/60 rounded-xl shadow-2xl p-3 backdrop-blur-md"
+                                                className="fixed z-[9999] w-64 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 p-3 shadow-2xl"
                                                 style={{
                                                     bottom: `calc(100vh - ${skillTooltipPos.top}px + 8px)`,
                                                     left: `${skillTooltipPos.left}px`,
@@ -1447,7 +1452,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     // 점령률 계산
     const calculateOccupancy = () => {
         if (!activeWar || !activeWar.boards) {
-            return { ourGuild: 0, enemyGuild: 0, ourStars: 0, enemyStars: 0, ourScore: 0, enemyScore: 0 };
+            return { ourStars: 0, enemyStars: 0, ourScore: 0, enemyScore: 0 };
         }
         
         const myGuildId = guild.id;
@@ -1498,21 +1503,15 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             if (enemyBestResult) enemyScore += addHouse(enemyBestResult);
         });
         
-        const totalStars = ourStars + enemyStars;
-        const ourGuildOccupancy = totalStars > 0 ? (ourStars / totalStars) * 100 : 50;
-        const enemyGuildOccupancy = totalStars > 0 ? (enemyStars / totalStars) * 100 : 50;
-        
-        return { 
-            ourGuild: ourGuildOccupancy, 
-            enemyGuild: enemyGuildOccupancy,
+        return {
             ourStars,
             enemyStars,
             ourScore,
-            enemyScore
+            enemyScore,
         };
     };
-    
-    const { ourGuild: ourGuildOccupancy, enemyGuild: enemyGuildOccupancy, ourStars, enemyStars, ourScore, enemyScore } = calculateOccupancy();
+
+    const { ourStars, enemyStars, ourScore, enemyScore } = calculateOccupancy();
     const opponentGuildIdForDisplay = activeWar ? (activeWar.guild1Id === guild.id ? activeWar.guild2Id : activeWar.guild1Id) : null;
     const displayOpponent =
         opponentGuild ??
@@ -1530,176 +1529,195 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
     const showOpponentWarPanel = !!(activeWar && !isMatching && displayOpponent);
 
+    const warStatPill = (label: string, value: string | number, tone: 'emerald' | 'rose' | 'amber') => {
+        const ring =
+            tone === 'emerald'
+                ? 'border-emerald-500/35 bg-emerald-950/40 text-emerald-200'
+                : tone === 'rose'
+                  ? 'border-rose-500/35 bg-rose-950/40 text-rose-200'
+                  : 'border-amber-500/35 bg-amber-950/45 text-amber-200';
+        return (
+            <div className={`flex min-w-0 flex-1 flex-col rounded-lg border px-2 py-1.5 text-center shadow-inner ${ring}`}>
+                <span className={`${isMobile ? 'text-[9px]' : 'text-[10px]'} font-semibold uppercase tracking-wider opacity-80`}>{label}</span>
+                <span className={`${isMobile ? 'text-sm' : 'text-base'} font-black tabular-nums leading-tight`}>{value}</span>
+            </div>
+        );
+    };
+
     return (
         <>
-            <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 ${isMobile ? 'p-2' : 'p-3'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
-                <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-                <div className="relative z-10 w-full flex flex-col h-full min-h-0">
-                    {/* 상단: 길드 전쟁 마크 패널 중앙, 누적 전적 우측·높이 맞춤 */}
-                    <div className={`w-full flex-shrink-0 flex flex-row items-center justify-center gap-2 ${isMobile ? 'mb-2' : 'mb-2'}`}>
-                        <div className="flex-1 min-w-0" />
-                        <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                            <div className={`${isMobile ? 'w-12 h-12' : 'w-16 h-16'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg`}>
-                                <img src="/images/guild/button/guildwar.png" alt="길드 전쟁" className={`${isMobile ? 'w-8 h-8' : 'w-12 h-12'} drop-shadow-lg object-contain`} />
+            <div
+                className={`relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${isMobile ? 'p-2.5' : 'p-3'} ${className || ''}`}
+            >
+                <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" aria-hidden />
+                <div className="relative z-10 flex h-full min-h-0 w-full flex-col">
+                    {/* 헤더: 타이틀 + 누적 전적 칩 */}
+                    <div className={`mb-2 flex w-full flex-shrink-0 flex-col gap-2.5 sm:mb-3 sm:flex-row sm:items-center sm:justify-between`}>
+                        <div className="flex min-w-0 items-center gap-3 text-left">
+                            <div
+                                className={`relative flex shrink-0 items-center justify-center rounded-xl border border-stone-600/50 bg-gradient-to-br from-stone-800/60 to-stone-900/70 shadow-inner ${isMobile ? 'h-12 w-12' : 'h-14 w-14'}`}
+                            >
+                                <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-black/25 to-transparent" aria-hidden />
+                                <img
+                                    src="/images/guild/button/guildwar.png"
+                                    alt=""
+                                    className={`relative z-[1] object-contain drop-shadow-lg ${isMobile ? 'h-8 w-8' : 'h-10 w-10'}`}
+                                />
                             </div>
-                            <span className={`font-bold ${isMobile ? 'text-xs' : 'text-sm'} text-highlight`}>길드 전쟁</span>
+                            <div className="min-w-0">
+                                <h3 className={`font-black tracking-tight text-highlight ${isMobile ? 'text-sm' : 'text-base'}`}>길드 전쟁</h3>
+                            </div>
                         </div>
-                        <div className="flex-1 flex justify-end items-center min-w-0">
-                            {/* 누적 전적 - 마크와 같은 줄·높이 맞춤, 자리수 늘어나도 여유 있게 */}
-                            <div className={`bg-stone-800/50 rounded-lg border border-stone-600/50 overflow-hidden flex-shrink-0 ${isMobile ? 'min-h-[58px]' : 'min-h-[72px]'}`}>
-                                <div className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-400 font-semibold px-3 py-1 bg-stone-700/50 text-center border-b border-stone-600/40`}>누적 전적</div>
-                                <table className="border-collapse min-w-[110px] w-full">
-                                    <thead>
-                                        <tr className="bg-stone-700/50">
-                                            <th className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-400 font-semibold px-3 py-1 border-b border-r border-stone-600/40 w-1/3 whitespace-nowrap`}>승</th>
-                                            <th className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-400 font-semibold px-3 py-1 border-b border-r border-stone-600/40 w-1/3 whitespace-nowrap`}>패</th>
-                                            <th className={`${isMobile ? 'text-xs' : 'text-sm'} text-stone-400 font-semibold px-3 py-1 border-b border-stone-600/40 w-1/3 whitespace-nowrap`}>승률</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-emerald-400 px-3 py-1 text-center whitespace-nowrap`}>{warStats?.totalWins ?? 0}</td>
-                                            <td className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-red-400 px-3 py-1 text-center whitespace-nowrap`}>{warStats?.totalLosses ?? 0}</td>
-                                            <td className={`${isMobile ? 'text-xs' : 'text-sm'} font-bold text-amber-300 px-3 py-1 text-center whitespace-nowrap`}>{warStats && (warStats.totalWins + warStats.totalLosses) > 0 ? `${warStats.winRate}%` : '0%'}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div className={`flex w-full min-w-0 gap-1.5 sm:max-w-[14rem] sm:flex-shrink-0 ${isMobile ? '' : 'sm:justify-end'}`}>
+                            {warStatPill('승', warStats?.totalWins ?? 0, 'emerald')}
+                            {warStatPill('패', warStats?.totalLosses ?? 0, 'rose')}
+                            {warStatPill(
+                                '승률',
+                                warStats && warStats.totalWins + warStats.totalLosses > 0 ? `${warStats.winRate}%` : '0%',
+                                'amber'
+                            )}
                         </div>
                     </div>
 
-                    <div className={`${isMobile ? 'w-full flex-shrink-0 mb-1.5 flex gap-1.5' : 'w-full flex-1 min-h-0 mb-2 flex gap-2'}`}>
+                    <div className={`${isMobile ? 'mb-1.5 flex w-full flex-shrink-0 flex-col gap-1.5' : 'mb-2 flex min-h-0 w-full flex-1 flex-col gap-2 sm:flex-row'}`}>
                         {showOpponentWarPanel && (
-                            <div className="flex flex-1 min-w-0 flex-col bg-stone-800/50 rounded-lg border border-stone-600/50 overflow-hidden">
-                                <div className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300 font-semibold px-2 py-1.5 bg-stone-700/50 text-center border-b border-stone-600/40`}>이번 상대</div>
-                                <div className={`${isMobile ? 'p-2 min-h-[60px]' : 'p-3 h-full min-h-0'} overflow-y-auto`}>
-                                    <div className={`${isMobile ? 'space-y-1 text-xs' : 'space-y-2 text-sm'}`}>
-                                        <div
-                                            className={`${isMobile ? '' : 'text-base'} font-bold text-red-300 truncate text-center`}
-                                            title={displayOpponent!.name}
-                                        >
-                                            {displayOpponent!.name || '상대 길드'}
-                                        </div>
-                                        <div className={`${isMobile ? 'text-[10px]' : 'text-sm'} flex justify-between`}>
-                                            <span className="text-blue-300">
-                                                {ourStars} vs {enemyStars} (별)
-                                            </span>
-                                        </div>
-                                        <div className={`${isMobile ? 'text-[10px]' : 'text-sm'} flex justify-between`}>
-                                            <span className="text-blue-300">
-                                                {ourScore.toLocaleString()} vs {enemyScore.toLocaleString()}
-                                            </span>
-                                        </div>
-                                        {(myRecordInCurrentWar || myWarAttempts > 0) && (
-                                            <div
-                                                className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-amber-300/90 border-t border-stone-600/40 pt-1 mt-1`}
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner">
+                                <div
+                                    className={`border-b border-stone-600/40 bg-gradient-to-r from-orange-950/55 via-stone-950/60 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-orange-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
+                                >
+                                    이번 상대
+                                </div>
+                                <div className={`flex min-h-0 flex-1 flex-col gap-2 ${isMobile ? 'p-2' : 'p-2.5'} overflow-y-auto`}>
+                                    <p
+                                        className={`truncate text-center font-bold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                                        title={displayOpponent!.name}
+                                    >
+                                        {displayOpponent!.name || '상대 길드'}
+                                    </p>
+                                    <GuildWarUnifiedScoreboard
+                                        variant="embedded"
+                                        compact
+                                        blueStars={ourStars}
+                                        redStars={enemyStars}
+                                        blueHouse={ourScore}
+                                        redHouse={enemyScore}
+                                        hideHouseWhenZero
+                                    />
+                                    {(myRecordInCurrentWar || myWarAttempts > 0) && (
+                                        <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-2">
+                                            <span
+                                                className={`inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-black/40 px-2 py-1 font-semibold tabular-nums text-amber-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                                             >
-                                                내 기록: {(myRecordInCurrentWar?.attempts ?? myWarAttempts)}/
-                                                {(myRecordInCurrentWar?.maxAttempts ?? GUILD_WAR_PERSONAL_DAILY_ATTEMPTS)} 공격권
-                                                {myRecordInCurrentWar?.contributedStars != null &&
-                                                myRecordInCurrentWar.contributedStars > 0
-                                                    ? ` · ${myRecordInCurrentWar.contributedStars}별 기여`
-                                                    : ''}
-                                            </div>
-                                        )}
-                                        <div className="flex gap-1 mt-0.5">
-                                            <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-blue-500 rounded-full"
-                                                    style={{ width: `${ourGuildOccupancy}%` }}
-                                                />
-                                            </div>
-                                            <div className="flex-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
-                                                <div
-                                                    className="h-full bg-red-500 rounded-full"
-                                                    style={{ width: `${enemyGuildOccupancy}%` }}
-                                                />
-                                            </div>
+                                                <img src="/images/guild/warticket.png" alt="" className="h-3.5 w-3.5 opacity-90" />
+                                                {(myRecordInCurrentWar?.attempts ?? myWarAttempts)}/
+                                                {(myRecordInCurrentWar?.maxAttempts ?? GUILD_WAR_PERSONAL_DAILY_ATTEMPTS)}
+                                            </span>
+                                            {myRecordInCurrentWar?.contributedStars != null && myRecordInCurrentWar.contributedStars > 0 ? (
+                                                <span
+                                                    className={`inline-flex items-center gap-1 rounded-lg border border-amber-400/30 bg-amber-950/35 px-2 py-1 font-bold text-amber-200 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
+                                                >
+                                                    <img src="/images/guild/guildwar/clearstar.png" alt="" className="h-3.5 w-3.5" />
+                                                    기여 {myRecordInCurrentWar.contributedStars}
+                                                </span>
+                                            ) : null}
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             </div>
                         )}
-                        <div className="flex flex-1 min-w-0 flex-col bg-stone-800/50 rounded-lg border border-stone-600/50 overflow-hidden">
-                            <div className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300 font-semibold px-2 py-1.5 bg-stone-700/50 text-center border-b border-stone-600/40`}>마지막 상대 기록</div>
-                            <table className="w-full text-left border-collapse h-full">
-                                <tbody>
+                        <div
+                            className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${showOpponentWarPanel ? 'flex-1' : 'w-full flex-1'}`}
+                        >
+                            <div
+                                className={`border-b border-stone-600/40 bg-gradient-to-r from-amber-950/45 via-stone-950/55 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-amber-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
+                            >
+                                직전 길드전
+                            </div>
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                                <div className={`min-h-0 flex-1 overflow-y-auto ${isMobile ? 'p-2' : 'p-2.5'}`}>
                                     {warStats?.lastOpponent ? (
-                                        <>
-                                            <tr>
-                                                <td className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 px-2 py-1 border-b border-r border-stone-600/40 w-16`}>상대</td>
-                                                <td className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-medium px-2 py-1 border-b border-stone-600/40 truncate`} title={warStats.lastOpponent.name}>{warStats.lastOpponent.name}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 px-2 py-1 border-b border-r border-stone-600/40`}>스코어</td>
-                                                <td className={`${isMobile ? 'text-[10px]' : 'text-sm'} px-2 py-1 border-b border-stone-600/40`}>{warStats.lastOpponent.ourScore.toLocaleString()} vs {warStats.lastOpponent.enemyScore.toLocaleString()}</td>
-                                            </tr>
-                                            <tr>
-                                                <td className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 px-2 py-1 border-b border-r border-stone-600/40`}>별/승패</td>
-                                                <td className={`${isMobile ? 'text-[10px]' : 'text-sm'} px-2 py-1 border-b border-stone-600/40`}>
-                                                    {warStats.lastOpponent.ourStars} vs {warStats.lastOpponent.enemyStars} · <span className={warStats.lastOpponent.isWin ? 'text-emerald-400 font-bold' : 'text-red-400 font-bold'}>{warStats.lastOpponent.isWin ? '승' : '패'}</span>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 px-2 py-1 border-r border-stone-600/40`}>보상</td>
-                                                <td className={`${isMobile ? 'text-[10px]' : 'text-sm'} px-2 py-1 border-b border-stone-600/40`}>
-                                                    {warStats.lastOpponent.guildXp != null && warStats.lastOpponent.researchPoints != null ? (
-                                                        <span className="flex flex-wrap gap-x-1.5 gap-y-0.5">
-                                                            <span><img src="/images/guild/tokken.png" alt="" className="w-3 h-3 inline align-middle" />{warStats.lastOpponent.guildXp}</span>
-                                                            <span><img src="/images/guild/button/guildlab.png" alt="" className="w-3 h-3 inline align-middle" />{warStats.lastOpponent.researchPoints}RP</span>
+                                        <div className="flex flex-col gap-2">
+                                            <p
+                                                className={`truncate text-center font-semibold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                                                title={warStats.lastOpponent.name}
+                                            >
+                                                {warStats.lastOpponent.name}
+                                            </p>
+                                            <GuildWarUnifiedScoreboard
+                                                variant="embedded"
+                                                compact
+                                                blueStars={warStats.lastOpponent.ourStars}
+                                                redStars={warStats.lastOpponent.enemyStars}
+                                                blueHouse={warStats.lastOpponent.ourScore}
+                                                redHouse={warStats.lastOpponent.enemyScore}
+                                                hideHouseWhenZero
+                                            />
+                                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                                <span
+                                                    className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${
+                                                        warStats.lastOpponent.isWin
+                                                            ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-300'
+                                                            : 'border-rose-500/40 bg-rose-950/50 text-rose-300'
+                                                    }`}
+                                                >
+                                                    {warStats.lastOpponent.isWin ? '승리' : '패배'}
+                                                </span>
+                                                {warStats.lastOpponent.guildXp != null && warStats.lastOpponent.researchPoints != null ? (
+                                                    <span className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] font-medium text-stone-400 sm:text-xs">
+                                                        <span className="inline-flex items-center gap-0.5">
+                                                            <img src="/images/guild/tokken.png" alt="" className="h-3.5 w-3.5" />
+                                                            {warStats.lastOpponent.guildXp}
                                                         </span>
-                                                    ) : (
-                                                        <span className="text-stone-500">미수령</span>
-                                                    )}
-                                                </td>
-                                            </tr>
-                                            {(warStats as any).myRecordInLastWar != null && (
-                                                <tr>
-                                                    <td className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 px-2 py-1 border-r border-stone-600/40`}>내 기록</td>
-                                                    <td className={`${isMobile ? 'text-[10px]' : 'text-sm'} px-2 py-1 text-amber-300/90`}>
-                                                        {((warStats as any).myRecordInLastWar as { contributedStars: number }).contributedStars}별 기여
-                                                    </td>
-                                                </tr>
-                                            )}
-                                        </>
+                                                        <span className="inline-flex items-center gap-0.5">
+                                                            <img src="/images/guild/button/guildlab.png" alt="" className="h-3.5 w-3.5" />
+                                                            {warStats.lastOpponent.researchPoints} RP
+                                                        </span>
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-[10px] text-stone-500">보상 미수령</span>
+                                                )}
+                                            </div>
+                                            {(warStats as any).myRecordInLastWar != null ? (
+                                                <div className="flex justify-center border-t border-white/10 pt-2">
+                                                    <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-amber-200 sm:text-xs">
+                                                        <img src="/images/guild/guildwar/clearstar.png" alt="" className="h-3.5 w-3.5" />
+                                                        기여 {((warStats as any).myRecordInLastWar as { contributedStars: number }).contributedStars}
+                                                    </span>
+                                                </div>
+                                            ) : null}
+                                        </div>
                                     ) : (
-                                        <tr>
-                                            <td colSpan={2} className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-500 text-center py-3`}>기록 없음</td>
-                                        </tr>
+                                        <p className={`py-6 text-center text-stone-500 ${isMobile ? 'text-[10px]' : 'text-sm'}`}>기록 없음</p>
                                     )}
-                                </tbody>
-                            </table>
+                                </div>
+                                <div className="flex shrink-0 justify-center border-t border-stone-600/40 px-2 py-2">
+                                    <button
+                                        type="button"
+                                        disabled={isClaimed || !canClaimReward}
+                                        title={
+                                            isClaimed
+                                                ? '이미 직전 길드전 보상을 수령했습니다.'
+                                                : canClaimReward
+                                                  ? '직전 길드전 보상을 받습니다.'
+                                                  : '받을 보상이 없거나, 수령 가능 시각 전입니다. (전쟁 종료 1시간 후부터)'
+                                        }
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (canClaimReward && !isClaimed) setShowRewardModal(true);
+                                        }}
+                                        className={canClaimReward && !isClaimed ? guildPanelBtn.reward : guildPanelBtn.disabled}
+                                    >
+                                        {isClaimed ? '보상 수령 완료' : '보상 수령'}
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
                     <div className="w-full flex-1 flex flex-col min-h-0">
                         {/* 중간 내용 영역 - flex-1로 공간 차지 */}
-                        <div className="flex-1 min-h-0 overflow-y-auto">
+                        <div className="min-h-0 flex-1 overflow-y-auto">
                             {/* 매칭 중 / 전쟁 진행 중 상세는 상단 '이번 상대' 패널에 표시됨 */}
-                            
-                            {/* 이번 상대/마지막 상대 정보는 상단 좌우 패널에 표시됨 */}
-                            
-                            {/* 보상 받기 버튼 */}
-                            {canClaimReward && !isClaimed && (
-                                <div className={`flex-shrink-0 ${isMobile ? 'mt-1' : 'mt-1.5'} flex justify-center`}>
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setShowRewardModal(true);
-                                        }}
-                                        className={guildPanelBtn.reward}
-                                    >
-                                        보상 받기
-                                    </button>
-                                </div>
-                            )}
-                            {isClaimed && (
-                                <div className={`flex-shrink-0 ${isMobile ? 'mt-1' : 'mt-1.5'} flex justify-center`}>
-                                    <div className="inline-flex items-center px-4 py-2 rounded-xl bg-emerald-900/50 text-emerald-300 text-sm font-semibold border border-emerald-500/30">
-                                        보상 수령 완료
-                                    </div>
-                                </div>
-                            )}
                         </div>
                         
                         {/* 입장 버튼 - 하단 고정 */}
@@ -1785,7 +1803,7 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
     });
 
     const detailPanel = (
-        <div className={`bg-gradient-to-br from-stone-900/95 via-neutral-800/90 to-stone-900/95 rounded-xl overflow-y-auto border-2 border-stone-600/60 shadow-2xl relative overflow-hidden ${isNativeMobile ? 'flex-1 min-h-0 p-2.5' : 'w-2/3 p-4'}`}>
+        <div className={`bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 rounded-xl overflow-y-auto border-2 border-stone-600/60 shadow-2xl relative overflow-hidden ${isNativeMobile ? 'flex-1 min-h-0 p-2.5' : 'w-2/3 p-4'}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10">
                 <div className={`flex border-b-2 border-stone-700/60 ${isNativeMobile ? 'flex-col items-center text-center gap-2 mb-3 pb-3' : 'items-center gap-4 mb-4 pb-4'}`}>
@@ -2067,7 +2085,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     left: `${goldButtonPos.left}px`
                 }}
             >
-                <div className="flex items-center gap-2 bg-gradient-to-r from-amber-900/95 via-yellow-900/95 to-amber-800/95 px-4 py-2 rounded-lg border-2 border-amber-400/60 shadow-[0_4px_12px_rgba(251,191,36,0.6)] backdrop-blur-sm">
+                <div className="flex items-center gap-2 rounded-lg border-2 border-amber-400/60 bg-gradient-to-r from-amber-900/95 via-yellow-900/95 to-amber-800/95 px-4 py-2 shadow-[0_4px_12px_rgba(251,191,36,0.6)]">
                     <img src="/images/guild/tokken.png" alt="Coin" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
                     <span className="text-sm font-bold text-yellow-300 drop-shadow-lg whitespace-nowrap">+{guildDonationAnimation.coins}</span>
                     <img src="/images/guild/button/guildlab.png" alt="Research" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
@@ -2088,7 +2106,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     left: `${diamondButtonPos.left}px`
                 }}
             >
-                <div className="flex items-center gap-2 bg-gradient-to-r from-blue-900/95 via-indigo-900/95 to-purple-900/95 px-4 py-2 rounded-lg border-2 border-blue-400/60 shadow-[0_4px_12px_rgba(59,130,246,0.6)] backdrop-blur-sm">
+                <div className="flex items-center gap-2 rounded-lg border-2 border-blue-400/60 bg-gradient-to-r from-blue-900/95 via-indigo-900/95 to-purple-900/95 px-4 py-2 shadow-[0_4px_12px_rgba(59,130,246,0.6)]">
                     <img src="/images/guild/tokken.png" alt="Coin" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
                     <span className="text-sm font-bold text-yellow-300 drop-shadow-lg whitespace-nowrap">+{guildDonationAnimation.coins}</span>
                     <img src="/images/guild/button/guildlab.png" alt="Research" className="w-5 h-5 drop-shadow-md flex-shrink-0" />
@@ -2126,7 +2144,14 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     ] as const;
 
     return (
-        <div className="relative z-10 flex h-full min-h-0 w-full flex-col">
+        <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden">
+            <div
+                className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+                style={{ backgroundImage: `url('${GUILD_HOME_BACKGROUND_IMAGE}')` }}
+                aria-hidden
+            />
+            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-stone-950/50 via-stone-950/35 to-stone-950/55" aria-hidden />
+            <div className="relative z-10 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col">
             {isMissionsOpen && <GuildMissionsPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsMissionsOpen(false)} />}
             {isResearchOpen && <GuildResearchPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsResearchOpen(false)} />}
             {isShopOpen && <GuildShopModal onClose={() => setIsShopOpen(false)} isTopmost={true} />}
@@ -2452,6 +2477,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                     </div>,
                     document.getElementById('sudamr-modal-root') ?? document.body
                 )}
+            </div>
         </div>
     );
 };

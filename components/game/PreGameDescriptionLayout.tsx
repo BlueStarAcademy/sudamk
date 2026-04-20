@@ -302,7 +302,8 @@ export function PreGameSummaryGrid({
     : singleColumn
       ? 'text-[0.76rem] font-bold uppercase tracking-[0.09em] text-amber-200/88 sm:text-[0.78rem] sm:tracking-[0.1em]'
       : 'text-[0.68rem] font-bold uppercase tracking-[0.08em] text-amber-200/88 sm:text-[0.72rem] sm:tracking-[0.1em]';
-  const cellDensity: 'comfortable' | 'compact' | 'micro' = briefLayout ? 'micro' : singleColumn ? 'comfortable' : 'compact';
+  /** 단일열(모바일 시트 등)에서도 줄바꿈 없이 `PreGameSummaryCellBody`가 글자 크기만 줄여 맞춤 */
+  const cellDensity: 'compact' | 'micro' = briefLayout ? 'micro' : 'compact';
   const imgBoxGoal = singleColumn
     ? 'flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-11 sm:w-11'
     : 'flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg border bg-gradient-to-br from-black/55 via-zinc-950/90 to-zinc-900/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] sm:h-10 sm:w-10';
@@ -488,19 +489,9 @@ export function PreGameSummaryGrid({
               >
                 <img src={row.img} alt="" className="max-h-full max-w-full object-contain drop-shadow-md" />
               </div>
-              <p
-                className={
-                  briefLayout
-                    ? singleColumn
-                      ? 'min-w-0 flex-1 text-[0.68rem] font-semibold leading-tight text-white/95 sm:text-[0.72rem]'
-                      : 'min-w-0 flex-1 text-[0.65rem] font-semibold leading-tight text-white/95 sm:text-[0.7rem]'
-                    : singleColumn
-                      ? 'min-w-0 flex-1 text-[0.8125rem] font-semibold leading-snug text-white/95 sm:text-sm'
-                      : 'min-w-0 flex-1 text-xs font-semibold leading-snug text-white/95 sm:text-sm'
-                }
-              >
-                {row.text}
-              </p>
+              <div className="min-w-0 flex-1 self-center overflow-hidden">
+                <PreGameSummaryCellBody text={row.text} density={briefLayout ? 'micro' : 'compact'} />
+              </div>
             </div>
           ))}
         </div>
