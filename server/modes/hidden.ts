@@ -254,9 +254,10 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.boardState[cap.move.y][cap.move.x] = myPlayerEnum;
                     }
                     stripPatternStonesAtConsumedIntersections(game);
-                    
-                    if (!game.newlyRevealed) game.newlyRevealed = [];
-                    game.newlyRevealed.push(...cap.hiddenContributors.map(p => ({ point: p, player: myPlayerEnum })));
+
+                    // hidden_reveal 오버레이에서 이미 스파클 연출을 했고, permanentlyRevealed로 표시가 유지되므로
+                    // newlyRevealed로 본판에 같은 애니를 한 번 더 붙이지 않는다.
+                    game.newlyRevealed = [];
                 }
 
                 game.animation = null;

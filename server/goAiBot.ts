@@ -1376,8 +1376,8 @@ export async function makeGoAiBotMove(
         }
     }
 
-    // 전략바둑 로비 턴 제한: 이미 제한 수순을 넘기면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
-    // 모험: 제한 "도달" 직후(===)에도 AI가 한 수 둔 뒤 계가해야 하므로, adventure만 `>` 로만 조기 계가 (strategic PLACE_STONE과 동일한 의도)
+    // 전략바둑 로비 턴 제한: 제한 수순 이상이면 수를 두지 않고 즉시 계가 진행 (그누고/계속 진행 방지)
+    // 모험: 제한 수순에 "도달"한 직후(===)에도 몬스터가 한 수 둔 뒤 계가해야 하므로, 모험만 엄격히 `>` 로만 조기 계가한다.
     const scoringTurnLimit = (game.settings as any)?.scoringTurnLimit;
     if (
         scoringTurnLimit != null &&
@@ -1388,10 +1388,13 @@ export async function makeGoAiBotMove(
     ) {
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const totalTurnsSoFar = (game.moveHistory || []).length;
-        const overLimit = totalTurnsSoFar >= scoringTurnLimit;
+        const isAdventureCategory = (game as any).gameCategory === types.GameCategory.Adventure;
+        const overLimit = isAdventureCategory
+            ? totalTurnsSoFar > scoringTurnLimit
+            : totalTurnsSoFar >= scoringTurnLimit;
         if (overLimit) {
             console.log(
-                `[makeGoAiBotMove] Game ${game.id} already at or over scoringTurnLimit (${totalTurnsSoFar} vs ${scoringTurnLimit}, adventureStrict=${(game as any).gameCategory === 'adventure'}), triggering getGameResult without making a move`,
+                `[makeGoAiBotMove] Game ${game.id} over scoringTurnLimit (${totalTurnsSoFar} vs ${scoringTurnLimit}, adventure=${isAdventureCategory}), triggering getGameResult without making a move`,
             );
             if (isLobbyAiStrategicGoGame(game)) {
                 await broadcastPlayingSnapshotBeforeScoring(game);

@@ -130,8 +130,8 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
         if (cap.move && typeof cap.move.x === 'number' && typeof cap.move.y === 'number') {
             game.boardState[cap.move.y][cap.move.x] = myP;
         }
-        if (!game.newlyRevealed) game.newlyRevealed = [];
-        game.newlyRevealed.push(...cap.hiddenContributors.map(p => ({ point: p, player: myP })));
+        // hidden_reveal 연출과 본판 newlyRevealed 스파클 이중 재생 방지 (permanentlyRevealed로 충분)
+        game.newlyRevealed = [];
     }
 
     game.animation = null;

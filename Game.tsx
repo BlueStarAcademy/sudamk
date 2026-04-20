@@ -756,18 +756,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     if ((next as any).hidden_stones_p2 == null && typeof parsed.hidden_stones_p2 === 'number') {
                         next = { ...next, hidden_stones_p2: parsed.hidden_stones_p2 } as any;
                     }
-                    // 도전의 탑: 턴 추가 보너스 — 세션·저장분 중 큰 값 (저장에 키가 없어도 세션만으로 반영)
+                    // 도전의 탑: 턴 추가 보너스 — towerGames 세션이 있으면 우선(낙관+스토리지 max로 UI만 +6 되는 것 방지). 없을 때만 스토리지.
                     if (isTower) {
+                        const rawNext = (next as any).blackTurnLimitBonus;
+                        const sessionHasBonus = rawNext !== undefined && rawNext !== null && String(rawNext) !== '';
+                        const nb = sessionHasBonus ? Number(rawNext) : NaN;
                         const pb = Number(parsed.blackTurnLimitBonus);
-                        const nb = Number((next as any).blackTurnLimitBonus);
-                        if (Number.isFinite(pb) || Number.isFinite(nb)) {
-                            next = {
-                                ...next,
-                                blackTurnLimitBonus: Math.max(
-                                    Number.isFinite(pb) ? pb : 0,
-                                    Number.isFinite(nb) ? nb : 0
-                                ),
-                            } as any;
+                        const merged =
+                            sessionHasBonus && Number.isFinite(nb)
+                                ? nb
+                                : Number.isFinite(pb)
+                                  ? pb
+                                  : 0;
+                        if (sessionHasBonus || Number.isFinite(pb)) {
+                            next = { ...next, blackTurnLimitBonus: merged } as any;
                         }
                     }
                 }

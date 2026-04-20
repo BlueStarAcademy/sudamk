@@ -1329,9 +1329,17 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : (currentUser.id === whitePlayerId ? Player.White : Player.None);
     const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
 
-    // 서버 START_SCANNING과 동일: 상대 히든 수가 수순에 있고 아직 영구 공개되지 않았으면 스캔 가능.
-    // (온라인 브로드캐스트에 boardState가 없을 때 로컬 보드가 비어 있어 스캔이 막히는 문제 방지)
+    // 서버 hasOpponentHiddenScanTargets와 동일: 미공개 히든이 수순에 있고, 영구 공개 전이며, 보드에 상대 돌로 남아 있을 때만 스캔 가능.
+    // (aiHiddenItemUsed만으로 true를 주면 전체 공개 후에도 스캔이 켜지는 버그가 난다)
     const canScan = useMemo(() => {
+        const board = session.boardState;
+        const boardOk =
+            Array.isArray(board) &&
+            board.length > 0 &&
+            board[0] &&
+            Array.isArray(board[0]) &&
+            board[0].length > 0;
+
         const myRevealed = session.revealedHiddenMoves?.[currentUser.id];
         const fromHistory =
             session.hiddenMoves &&
@@ -1346,7 +1354,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 }
                 const { x, y } = move;
                 const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
-                return !isPermanentlyRevealed;
+                if (isPermanentlyRevealed) return false;
+                if (boardOk) {
+                    const row = board[y];
+                    if (!row || x < 0 || x >= row.length) return false;
+                    if (row[x] !== opponentPlayerEnum) return false;
+                }
+                return true;
             });
         if (fromHistory) return true;
 
@@ -1362,13 +1376,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         ) {
             const revealed = session.permanentlyRevealedStones?.some((p) => p.x === aiPt.x && p.y === aiPt.y);
             if (revealed || scannedAiInitialByMe) return false;
+            if (boardOk) {
+                const row = board[aiPt.y];
+                if (!row || aiPt.x < 0 || aiPt.x >= row.length) return false;
+                if (row[aiPt.x] !== opponentPlayerEnum) return false;
+            }
             return true;
         }
-        const aiHiddenUsed = !!(session as any).aiHiddenItemUsed;
-        const scannedByMe = !!(session as any).scannedAiInitialHiddenByUser?.[currentUser.id];
-        if (session.isAiGame && aiHiddenUsed && !scannedByMe) return true;
         return false;
     }, [
+        session.boardState,
         session.hiddenMoves,
         session.moveHistory,
         session.permanentlyRevealedStones,
@@ -1380,7 +1397,6 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         session.isAiGame,
         opponentPlayerEnum,
         currentUser.id,
-        (session as any).aiHiddenItemUsed,
         (session as any).scannedAiInitialHiddenByUser,
         (session as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone,
     ]);
@@ -1983,7 +1999,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 )
             ) : (
                 <>
-                    {isStrategic && mode !== GameMode.Capture && !isAiLobbyGame && (
+                    {isStrategic &&
+                        mode !== GameMode.Capture &&
+                        !isAiLobbyGame &&
+                        session.gameCategory !== 'adventure' && (
                         <LabeledControlButton
                             key="pass"
                             src="/images/button/pass.png"

@@ -70,10 +70,12 @@ function mergeTowerServerGameWithClientBoardIfStale(
     const equalMovesButServerEmptyBoard =
         clientMoves === serverMoves && clientMoves > 0 && clientBoardHasStones && !serverBoardHasStones;
     if (!clientAhead && !serverBoardStale && !equalMovesButServerEmptyBoard) return serverGame;
-    const bonusMerged = Math.max(
-        Number((serverGame as any).blackTurnLimitBonus) || 0,
-        Number((clientGame as any).blackTurnLimitBonus) || 0
-    );
+    // 턴 추가 보너스: max(서버,클라)면 낙관적(+3) 직후 서버(+3) 패킷에서 6으로 이중 누적됨 → 서버 필드가 있으면 서버를 신뢰한다.
+    const srvBonusRaw = (serverGame as any).blackTurnLimitBonus;
+    const serverBonusDefined = srvBonusRaw !== undefined && srvBonusRaw !== null;
+    const bonusMerged = serverBonusDefined
+        ? Number(srvBonusRaw) || 0
+        : Math.max(Number((serverGame as any).blackTurnLimitBonus) || 0, Number((clientGame as any).blackTurnLimitBonus) || 0);
     return {
         ...serverGame,
         boardState: clientGame.boardState,
@@ -82,7 +84,7 @@ function mergeTowerServerGameWithClientBoardIfStale(
         captures: clientGame.captures ?? serverGame.captures,
         koInfo: clientGame.koInfo ?? serverGame.koInfo,
         hiddenMoves: clientGame.hiddenMoves ?? serverGame.hiddenMoves,
-        ...(bonusMerged > 0 ? { blackTurnLimitBonus: bonusMerged } : {}),
+        ...(bonusMerged > 0 || serverBonusDefined ? { blackTurnLimitBonus: bonusMerged } : {}),
         ...((clientGame as { aiInitialHiddenStone?: { x: number; y: number } | null }).aiInitialHiddenStone !== undefined
             ? {
                   aiInitialHiddenStone: (clientGame as { aiInitialHiddenStone?: { x: number; y: number } | null })
@@ -2576,20 +2578,8 @@ export const useApp = () => {
                                 return { ...current, [gid]: { ...g, blackTurnLimitBonus: prev + 3 } };
                             });
                         });
-                        try {
-                            const key = `gameState_${gid}`;
-                            const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null;
-                            if (raw) {
-                                const parsed = JSON.parse(raw) as Record<string, unknown>;
-                                if (parsed && parsed.gameId === gid) {
-                                    parsed.blackTurnLimitBonus = (Number(parsed.blackTurnLimitBonus) || 0) + 3;
-                                    parsed.timestamp = Date.now();
-                                    sessionStorage.setItem(key, JSON.stringify(parsed));
-                                }
-                            }
-                        } catch {
-                            /* ignore */
-                        }
+                        // sessionStorage는 여기서 +3 하지 않음 — Game.tsx 저장분과 max 병합 시 이중 누적·UI+6 버그가 난다.
+                        // 성공 응답에서 서버 보너스로 한 번에 맞춘다.
                     }
                 }
             }
@@ -2814,6 +2804,30 @@ export const useApp = () => {
                         const left = (towerAddTurnOptimisticPendingByGameRef.current[gidOk] || 0) - 3;
                         if (left <= 0) delete towerAddTurnOptimisticPendingByGameRef.current[gidOk];
                         else towerAddTurnOptimisticPendingByGameRef.current[gidOk] = left;
+                    }
+                    const authGame = (result as any)?.clientResponse?.game as { id?: string; blackTurnLimitBonus?: unknown } | undefined;
+                    const gidAuth = authGame?.id || (action.payload as { gameId?: string })?.gameId;
+                    if (gidAuth && typeof sessionStorage !== 'undefined') {
+                        try {
+                            const key = `gameState_${gidAuth}`;
+                            const raw = sessionStorage.getItem(key);
+                            if (raw) {
+                                const parsed = JSON.parse(raw) as Record<string, unknown>;
+                                if (parsed && parsed.gameId === gidAuth) {
+                                    const b =
+                                        authGame && authGame.blackTurnLimitBonus !== undefined && authGame.blackTurnLimitBonus !== null
+                                            ? Number(authGame.blackTurnLimitBonus) || 0
+                                            : undefined;
+                                    if (b !== undefined) {
+                                        parsed.blackTurnLimitBonus = b;
+                                        parsed.timestamp = Date.now();
+                                        sessionStorage.setItem(key, JSON.stringify(parsed));
+                                    }
+                                }
+                            }
+                        } catch {
+                            /* ignore */
+                        }
                     }
                 }
                 // LEAVE_AI_GAME 성공 시 로컬 상태에서 해당 게임 제거 및 사용자 gameId 해제 → 전략/놀이 대기실로 이동
@@ -5332,31 +5346,44 @@ export const useApp = () => {
                                                     Array.isArray(game.boardState[0]) && 
                                                     game.boardState[0].length > 0;
                                                 
+                                                const existingMoveHistoryValid = existingGame?.moveHistory &&
+                                                    Array.isArray(existingGame.moveHistory) &&
+                                                    existingGame.moveHistory.length > 0;
+
+                                                const serverMoveHistoryValid = game.moveHistory &&
+                                                    Array.isArray(game.moveHistory) &&
+                                                    game.moveHistory.length > 0;
+
+                                                const serverMhLen = serverMoveHistoryValid ? game.moveHistory.length : 0;
+                                                const existingMhLen = existingMoveHistoryValid ? existingGame.moveHistory.length : 0;
+                                                /** 서버가 이미 한 수 이상 앞선 패킷(히든 공개 직후 등)이면 수순·보드를 서버 기준으로 맞춘다. 기존만 고르면 착수가 사라진 것처럼 보인다. */
+                                                const serverMoveHistoryAhead = serverMhLen > existingMhLen;
+
                                                 // missile_animating일 때는 서버의 boardState/captures 적용 (미사일로 따낸 돌이 즉시 반영되도록)
                                                 const finalBoardState = isMissileAnimating && serverBoardStateValid
                                                     ? game.boardState
-                                                    : (existingBoardStateValid && !isMissileAnimating
+                                                    : serverMoveHistoryAhead && serverBoardStateValid
+                                                      ? game.boardState
+                                                      : existingBoardStateValid && !isMissileAnimating
                                                         ? existingGame.boardState
-                                                        : (serverBoardStateValid ? game.boardState : existingGame?.boardState));
+                                                        : serverBoardStateValid
+                                                          ? game.boardState
+                                                          : existingGame?.boardState;
                                                 const finalCapturesForItemMode = isMissileAnimating && game.captures && typeof game.captures === 'object' && Object.keys(game.captures).length > 0
                                                     ? game.captures
                                                     : preservedCaptures;
-                                                
+
                                                 // moveHistory: 미사일은 수순 길이가 같고 중간 좌표만 바뀌므로, 애니 중에는 반드시 서버 수순을 써야 보드·마커·히든 인덱스가 일치함
-                                                const existingMoveHistoryValid = existingGame?.moveHistory && 
-                                                    Array.isArray(existingGame.moveHistory) && 
-                                                    existingGame.moveHistory.length > 0;
-                                                
-                                                const serverMoveHistoryValid = game.moveHistory && 
-                                                    Array.isArray(game.moveHistory) && 
-                                                    game.moveHistory.length > 0;
-                                                
                                                 const finalMoveHistory =
                                                     isMissileAnimating && serverMoveHistoryValid
                                                         ? game.moveHistory
-                                                        : existingMoveHistoryValid
+                                                        : serverMoveHistoryAhead && serverMoveHistoryValid
+                                                          ? game.moveHistory
+                                                          : existingMoveHistoryValid
                                                             ? existingGame.moveHistory
-                                                            : (serverMoveHistoryValid ? game.moveHistory : existingGame?.moveHistory);
+                                                            : serverMoveHistoryValid
+                                                              ? game.moveHistory
+                                                              : existingGame?.moveHistory;
                                                 
                                                 // 서버 공개 목록 + 클라이언트 기존 목록 합집합 (서버가 빈 배열/생략이어도 이미 공개된 히든이 사라지지 않게)
                                                 const existingRevealedSp = existingGame?.permanentlyRevealedStones ?? [];
@@ -5673,9 +5700,13 @@ export const useApp = () => {
                                             if (!isServerScoringOrReveal && !isServerEndedOrNoContest && !isServerItemMode && !isServerMissileAnimating && !isServerExitingAnimation && (localMoveHistoryLength > serverMoveHistoryLength || 
                                                 (localMoveHistoryLength === serverMoveHistoryLength && localServerRevision >= serverRevision))) {
                                                 // 턴 추가(TOWER_ADD_TURNS) 등: 서버만 알고 있는 필드는 병합 (전체 패킷 무시 시 보너스·리비전 유실 방지)
-                                                const serverBonus = Number((game as any).blackTurnLimitBonus) || 0;
+                                                const srvRaw = (game as any).blackTurnLimitBonus;
+                                                const serverBonusFieldSet = srvRaw !== undefined && srvRaw !== null;
+                                                const serverBonus = Number(srvRaw) || 0;
                                                 const localBonus = Number((existingGame as any).blackTurnLimitBonus) || 0;
-                                                const mergedBonus = Math.max(serverBonus, localBonus);
+                                                const mergedBonus = serverBonusFieldSet
+                                                    ? serverBonus
+                                                    : Math.max(serverBonus, localBonus);
                                                 const srvRev = game.serverRevision ?? 0;
                                                 const patch: Partial<LiveGameSession> & { blackTurnLimitBonus?: number } = {};
                                                 if (mergedBonus !== localBonus) patch.blackTurnLimitBonus = mergedBonus;
@@ -6027,6 +6058,8 @@ export const useApp = () => {
                                             game.mode !== GameMode.Dice &&
                                             game.mode !== GameMode.Thief &&
                                             game.gameStatus !== 'missile_animating' &&
+                                            game.gameStatus !== 'hidden_reveal_animating' &&
+                                            existingGame?.gameStatus !== 'hidden_reveal_animating' &&
                                             incomingMoveCount === existingMoveCount &&
                                             existingBoardValid &&
                                             existingGame?.moveHistory?.length > 0

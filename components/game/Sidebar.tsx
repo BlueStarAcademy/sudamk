@@ -762,10 +762,19 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     const { gameStatus } = session;
 
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
+    const isAdventureGame = session.gameCategory === 'adventure';
     const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     const isPauseButtonDisabled = (isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0) || pauseDisabledBecauseAiTurn;
 
-    const leaveButtonText = isNoContestLeaveAvailable ? '무효처리' : (isGameEnded ? '대기실로' : (isSpectator ? '관전종료' : '기권하기'));
+    const leaveButtonText = isNoContestLeaveAvailable
+        ? '무효처리'
+        : isGameEnded
+          ? isAdventureGame
+              ? '맵으로 이동'
+              : '대기실로'
+          : isSpectator
+            ? '관전종료'
+            : '기권하기';
 
     return (
         <div className={`${arenaGameRoomSidebarShell} gap-2`}>
