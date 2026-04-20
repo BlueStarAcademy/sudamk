@@ -105,7 +105,7 @@ function RouletteStripCell({ roll }: { roll: AdventureTreasureRollResult }) {
                         </span>
                     </div>
                     <span className="pb-1.5 pt-0.5 text-center font-mono text-[10px] font-black tabular-nums text-amber-200/95 sm:text-[11px]">
-                        +{roll.actionPoints}
+                        {p.subLabel}
                     </span>
                 </div>
             </div>

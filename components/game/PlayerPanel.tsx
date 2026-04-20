@@ -385,6 +385,20 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const winLoseTextSize = isMobile ? 'text-xl' : 'text-2xl';
     const displayWinLoseTextSize =
         fluidTextLayout && isMobile ? 'text-base font-black' : `${winLoseTextSize} font-black`;
+    /** 모바일: 이름 옆 승·패가 flex-1 닉네임과 경쟁해 말줄임 발생 → 아바타 위 오버레이만 사용 */
+    const showWinLoseAvatarOverlay = isMobile && isGameEnded && (isWinner || isLoser);
+    const winLoseAvatarRibbonClass =
+        'pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)]';
+    const winLoseAvatarRibbon =
+        showWinLoseAvatarOverlay && isWinner ? (
+            <span className={`${winLoseAvatarRibbonClass} bg-blue-600/95`} aria-hidden>
+                승
+            </span>
+        ) : showWinLoseAvatarOverlay && isLoser ? (
+            <span className={`${winLoseAvatarRibbonClass} bg-red-600/95`} aria-hidden>
+                패
+            </span>
+        ) : null;
     const padding = isMobile ? 'p-1.5' : 'p-1';
     const gap = isMobile ? 'gap-1.5' : 'gap-2';
 
@@ -435,28 +449,33 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     className={`flex min-w-0 shrink-0 ${fluidTextLayout ? 'items-start' : 'items-center'} ${gap} ${isLeft ? '' : 'flex-row-reverse'}`}
                 >
                     {opponentMonsterDisplay ? (
-                        <div
-                            className="shrink-0 overflow-hidden rounded-md border border-white/20 bg-black/50"
-                            style={{ width: avatarSize, height: avatarSize }}
-                        >
-                            <img
-                                src={opponentMonsterDisplay.portraitUrl}
-                                alt=""
-                                draggable={false}
-                                className="h-full w-full object-contain object-center"
-                            />
+                        <div className="relative shrink-0" style={{ width: avatarSize, height: avatarSize }}>
+                            <div
+                                className="h-full w-full overflow-hidden rounded-md border border-white/20 bg-black/50"
+                            >
+                                <img
+                                    src={opponentMonsterDisplay.portraitUrl}
+                                    alt=""
+                                    draggable={false}
+                                    className="h-full w-full object-contain object-center"
+                                />
+                            </div>
+                            {winLoseAvatarRibbon}
                         </div>
                     ) : (
-                        <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                        <div className="relative shrink-0 self-center">
+                            <Avatar userId={user.id} userName={user.nickname} size={avatarSize} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                            {winLoseAvatarRibbon}
+                        </div>
                     )}
                     <div className="min-w-0 w-full flex-1 basis-0">
                         <div
                             className={`flex w-full min-w-0 ${fluidTextLayout ? `flex-nowrap items-baseline gap-x-1 ${justifyClass}` : `items-baseline ${gap} ${justifyClass}`}`}
                         >
-                            {!isLeft && isGameEnded && isWinner && (
+                            {!isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
                             )}
-                            {!isLeft && isGameEnded && isLoser && (
+                            {!isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
                             )}
                             <h2
@@ -484,10 +503,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                                 )}
                                 {role ? ` (${role})` : ''}
                             </h2>
-                            {isLeft && isGameEnded && isWinner && (
+                            {isLeft && isGameEnded && isWinner && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-blue-400`}>승</span>
                             )}
-                            {isLeft && isGameEnded && isLoser && (
+                            {isLeft && isGameEnded && isLoser && !showWinLoseAvatarOverlay && (
                                 <span className={`shrink-0 ${displayWinLoseTextSize} text-red-400`}>패</span>
                             )}
                         </div>

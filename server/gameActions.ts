@@ -296,7 +296,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     
 
     // 관리자 액션은 먼저 처리 (gameId가 있어도 관리자 액션은 여기서 처리)
-    if (type.startsWith('ADMIN_')) return handleAdminAction(volatileState, action, userData);
+    // ADMIN_SET_VIP_TEST_FLAGS는 프로필 VIP 테스트용으로 userActions에서만 처리
+    if (type.startsWith('ADMIN_') && type !== 'ADMIN_SET_VIP_TEST_FLAGS') return handleAdminAction(volatileState, action, userData);
 
     // 타워 게임 관련 액션은 먼저 처리 (gameId가 있어도 타워 액션은 여기서 처리)
     if (type === 'START_TOWER_GAME' || type === 'CONFIRM_TOWER_GAME_START' || type === 'TOWER_REFRESH_PLACEMENT' || type === 'TOWER_ADD_TURNS' || type === 'END_TOWER_GAME') {

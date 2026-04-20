@@ -847,11 +847,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
         const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
-        // 싱글: 계가 분석 전에는 전면 모달을 늦추는 등 기존 동작 유지.
+        // 싱글: 탑과 같이 종료·계가 진입 직후 결과 모달을 연다(입문 등 analysisResult 지연 시에도 빈 화면 방지).
+        // 계가 분석이 오면 기존처럼 영토 표시 등 후속 갱신.
         // 도전의 탑: 따내기 승·패 등 analysisResult 없이 ended 되는 경우가 많아 종료 직후 바로 결과 모달을 연다.
+        const singleJustEnteredScoring =
+            isSinglePlayer && gameStatus === 'scoring' && prevGameStatus === 'playing';
         const pveAutoResultModal =
             isImmediateEnd ||
             (isTower && gameHasJustEnded) ||
+            (isSinglePlayer && gameHasJustEnded) ||
+            (isSinglePlayer && singleJustEnteredScoring) ||
             (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
             (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
         const shouldShowModal = (isSinglePlayer || isTower)

@@ -58,14 +58,14 @@ const AdventureTreasureChestRewardSections: React.FC<Props> = ({ sections, compa
                             ))}
                         </div>
                     </section>
-                    <section className={cell} aria-label={`행동력 ${sections.actionPoints}`}>
-                        <span className="sr-only">행동력</span>
+                    <section className={cell} aria-label={`행동력 ${sections.actionPoints} 회복`}>
+                        <span className="sr-only">행동력 회복</span>
                         <div className="flex flex-1 flex-col items-center justify-center gap-1.5">
                             <span className="text-3xl leading-none drop-shadow-md sm:text-[2rem]" aria-hidden>
                                 ⚡
                             </span>
                             <p className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-center font-mono text-sm font-black tabular-nums leading-none text-transparent">
-                                +{sections.actionPoints}
+                                {sections.actionPoints} 회복
                             </p>
                         </div>
                     </section>
@@ -127,15 +127,15 @@ const AdventureTreasureChestRewardSections: React.FC<Props> = ({ sections, compa
                 {/* 행동력 — 골드 타일과 동일한 박스, 이모지 + 수치만 */}
                 <section
                     className={`${tileBase} ${pad} order-2 w-full shrink-0 sm:order-4 sm:w-[6.75rem] sm:max-w-[7rem]`}
-                    aria-label={`행동력 ${sections.actionPoints}`}
+                    aria-label={`행동력 ${sections.actionPoints} 회복`}
                 >
-                    <span className="sr-only">행동력</span>
+                    <span className="sr-only">행동력 회복</span>
                     <div className="flex flex-1 flex-col items-center justify-center gap-1.5">
                         <span className="text-[1.75rem] leading-none drop-shadow-md sm:text-[2rem]" aria-hidden>
                             ⚡
                         </span>
                         <p className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-center font-mono text-xs font-black tabular-nums leading-none text-transparent sm:text-[13px]">
-                            +{sections.actionPoints}
+                            {sections.actionPoints} 회복
                         </p>
                     </div>
                 </section>

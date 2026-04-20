@@ -281,8 +281,8 @@ const AiGameDescriptionModal: React.FC<Props> = ({ session, onAction, readOnly =
               <h2
                 className={
                   isMobileSheet
-                    ? 'min-w-0 max-w-full whitespace-nowrap text-[clamp(0.75rem,4.5vw,1.65rem)] font-black leading-none tracking-tight text-white drop-shadow-sm sm:text-[clamp(0.8rem,3.8vw,1.85rem)]'
-                    : 'min-w-0 max-w-full whitespace-nowrap text-[clamp(0.9rem,2.6vw,2.35rem)] font-black leading-none tracking-tight text-white drop-shadow-sm sm:text-[clamp(1rem,2.2vw,2.5rem)]'
+                    ? 'min-w-0 max-w-full whitespace-nowrap text-[clamp(0.7rem,3.6vw,1.35rem)] font-black leading-none tracking-tight text-white drop-shadow-sm sm:text-[clamp(0.75rem,3vw,1.5rem)]'
+                    : 'min-w-0 max-w-full whitespace-nowrap text-[clamp(0.85rem,1.9vw,1.65rem)] font-black leading-none tracking-tight text-white drop-shadow-sm sm:text-[clamp(0.9rem,1.65vw,1.875rem)]'
                 }
               >
                 {meta?.name ?? session.mode}

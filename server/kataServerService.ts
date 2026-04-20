@@ -123,6 +123,15 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
     }
 
     const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, allowPass, player } = params;
+    for (let i = 0; i < moveHistory.length; i++) {
+        const m = moveHistory[i]!;
+        if (m.x < 0 || m.y < 0) continue;
+        if (m.x >= boardSize || m.y >= boardSize) {
+            throw new Error(
+                `[KataServer] moveHistory[${i}] (${m.x},${m.y}) out of bounds for boardSize=${boardSize} (player=${m.player})`,
+            );
+        }
+    }
     const moves = toKataServerMoves(moveHistory, boardSize);
     const isFirstMove = moves.length < 2;
 

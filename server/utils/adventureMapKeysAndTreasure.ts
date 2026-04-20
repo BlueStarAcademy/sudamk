@@ -19,7 +19,6 @@ import {
 import { fnv1a32 } from '../../shared/utils/adventureMapSchedule.js';
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { createConsumableItemInstance } from '../summaryService.js';
-import * as effectService from '../effectService.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
 import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
 
@@ -300,6 +299,9 @@ export async function confirmAdventureMapTreasureChest(
     if (spendBase < 1) return { ok: false, error: '열쇠가 부족합니다.' };
 
     const grants = selectedSlots.map((i) => sess.rolls[i]!);
+    /** 보물 수령 중 effect 동기화를 하지 않으므로, 회복 상한은 이 시점의 저장 max (절대 올리지 않음) */
+    const treasureActionPointsMaxSnapshot =
+        user.actionPoints != null ? Math.max(1, Math.floor(user.actionPoints.max)) : null;
     const boxItems = collectItemsFromRolls(grants);
     if (!boxItems.ok) return { ok: false, error: boxItems.error };
 
@@ -320,13 +322,19 @@ export async function confirmAdventureMapTreasureChest(
     }
     user.gold = gold;
 
-    for (const roll of grants) {
-        if (roll.category === 'actionPoints') {
-            const add = roll.actionPoints;
-            const maxAp = Math.max(1, Math.floor(user.actionPoints?.max ?? 1));
-            user.actionPoints.current = Math.min(maxAp, Math.max(0, Math.floor(user.actionPoints.current)) + add);
-            user.lastActionPointUpdate = Date.now();
+    const apGainTotal = grants
+        .filter((r): r is Extract<AdventureTreasureRollResult, { category: 'actionPoints' }> => r.category === 'actionPoints')
+        .reduce((sum, r) => sum + Math.max(0, Math.floor(r.actionPoints)), 0);
+    if (apGainTotal > 0) {
+        if (!user.actionPoints) {
+            user.actionPoints = { current: 0, max: 1 };
         }
+        const cap =
+            treasureActionPointsMaxSnapshot != null
+                ? treasureActionPointsMaxSnapshot
+                : Math.max(1, Math.floor(user.actionPoints.max));
+        const cur0 = Math.max(0, Math.floor(user.actionPoints.current));
+        user.actionPoints.current = Math.min(cap, cur0 + apGainTotal);
     }
 
     const keysHeld = { ...(prev.adventureMapKeysHeldByStageId ?? {}) };
@@ -342,10 +350,15 @@ export async function confirmAdventureMapTreasureChest(
         adventureMapTreasurePickSession: undefined,
     };
 
-    try {
-        await effectService.syncActionPointsStateAfterEquipmentChange(user);
-    } catch {
-        /* ignore */
+    if (apGainTotal > 0 && user.actionPoints) {
+        if (user.actionPoints.current >= user.actionPoints.max) {
+            user.lastActionPointUpdate = 0;
+        } else {
+            const lu = user.lastActionPointUpdate;
+            if (lu === 0 || lu === undefined || lu === null || (typeof lu === 'number' && Number.isNaN(lu))) {
+                user.lastActionPointUpdate = Date.now();
+            }
+        }
     }
 
     return { ok: true, grantedRolls: grants };

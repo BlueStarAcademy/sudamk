@@ -58,6 +58,17 @@ const gradeOrder: Record<ItemGrade, number> = {
     transcendent: 6,
 };
 
+const inventoryTypeRank: Record<InventoryItemType, number> = {
+    equipment: 0,
+    consumable: 1,
+    material: 2,
+};
+
+/** PC 가방 등: 옵션 패널 고정 높이(스크롤) — `expandOptionsToFill`이 아닐 때만 사용 */
+function bagPcOptionsBlockHeightPx(scaleFactor: number): number {
+    return Math.max(128, Math.round(164 * scaleFactor));
+}
+
 const getStarDisplayInfo = (stars: number) => {
     if (stars >= 10) {
         return { text: `(★${stars})`, colorClass: "prism-text-effect" };
@@ -305,6 +316,8 @@ const LocalItemDetailDisplay: React.FC<{
     detailScaleMultiplier?: number;
     /** 모바일 장비 비교용: 좌측(이미지+기본정보), 우측(옵션 전체) 분리 레이아웃 */
     compactCompareLayout?: boolean;
+    /** 부모가 `flex`+고정 높이일 때: 옵션 박스가 남는 세로를 모두 쓰고(최대화), 고정 픽셀 높이 제거 */
+    expandOptionsToFill?: boolean;
 }> = ({
     item,
     title,
@@ -315,15 +328,20 @@ const LocalItemDetailDisplay: React.FC<{
     emptySlot,
     detailScaleMultiplier = 1,
     compactCompareLayout = false,
+    expandOptionsToFill = false,
 }) => {
     const imgBox = Math.max(52, Math.round(80 * scaleFactor * detailScaleMultiplier));
+    const optionsBlockHeightPx = bagPcOptionsBlockHeightPx(scaleFactor);
     const [compactCompareTab, setCompactCompareTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
     // item이 없을 때도 "선택 장비" 뷰어와 동일한 구조로 표시
     if (!item) {
         return (
-            <div className="flex flex-col h-full" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+            <div
+                className={`flex min-h-0 w-full flex-col ${expandOptionsToFill ? 'h-full' : ''}`}
+                style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+            >
                 {/* Top Section: Image (left), Name (right) - 선택 장비 뷰어와 동일한 구조 */}
-                <div className="flex items-start justify-between mb-2">
+                <div className="flex shrink-0 items-start justify-between mb-2">
                     {/* Left: 빈 슬롯 이미지 */}
                     {emptySlot && (
                         <div 
@@ -345,7 +363,23 @@ const LocalItemDetailDisplay: React.FC<{
                 </div>
 
                 {/* Bottom Section: Sub Options - 비워둠 */}
-                <div className="w-full text-left space-y-1 bg-gray-900/50 p-2 rounded-lg flex-grow overflow-y-auto min-h-0 max-h-[200px]" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+                <div
+                    className={`w-full space-y-1 bg-gray-900/50 p-2 text-left ${
+                        expandOptionsToFill
+                            ? 'min-h-0 flex-1 overflow-y-auto rounded-t-lg rounded-b-none'
+                            : 'flex-shrink-0 overflow-y-auto rounded-lg'
+                    }`}
+                    style={{
+                        fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px`,
+                        ...(expandOptionsToFill
+                            ? {}
+                            : {
+                                  height: `${optionsBlockHeightPx}px`,
+                                  minHeight: `${optionsBlockHeightPx}px`,
+                                  maxHeight: `${optionsBlockHeightPx}px`,
+                              }),
+                    }}
+                >
                     {/* 옵션 없음 */}
                 </div>
             </div>
@@ -718,9 +752,12 @@ const LocalItemDetailDisplay: React.FC<{
     }
 
     return (
-        <div className="flex flex-col h-full" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+        <div
+            className={`flex min-h-0 w-full flex-col ${expandOptionsToFill ? 'h-full' : ''}`}
+            style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+        >
             {/* Top Section: Image (left), Name & Main Option (right) */}
-            <div className="flex items-start justify-between mb-2">
+            <div className="flex shrink-0 items-start justify-between mb-2">
                 {/* Left: Image */}
                 <div 
                     className="relative rounded-lg flex-shrink-0"
@@ -859,8 +896,24 @@ const LocalItemDetailDisplay: React.FC<{
                 </div>
             </div>
 
-            {/* Bottom Section: Sub Options */}
-            <div className="w-full text-left space-y-1 bg-gray-900/50 p-2 rounded-lg flex-grow overflow-y-auto min-h-0 max-h-[200px]" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
+            {/* Bottom Section: Sub Options — fill 모드면 세로 최대 사용, 아니면 고정 높이+스크롤 */}
+            <div
+                className={`w-full space-y-1 bg-gray-900/50 p-2 text-left ${
+                    expandOptionsToFill
+                        ? 'min-h-0 flex-1 overflow-y-auto rounded-t-lg rounded-b-none'
+                        : 'flex-shrink-0 overflow-y-auto rounded-lg'
+                }`}
+                style={{
+                    fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px`,
+                    ...(expandOptionsToFill
+                        ? {}
+                        : {
+                              height: `${optionsBlockHeightPx}px`,
+                              minHeight: `${optionsBlockHeightPx}px`,
+                              maxHeight: `${optionsBlockHeightPx}px`,
+                          }),
+                }}
+            >
                 {optionRows}
             </div>
         </div>
@@ -868,6 +921,49 @@ const LocalItemDetailDisplay: React.FC<{
 };
 
 const EQUIPMENT_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+
+function compareInventoryItemsForSort(a: InventoryItem, b: InventoryItem, primary: SortKey): number {
+    const byCreated = () => b.createdAt - a.createdAt;
+    const byGradeStars = () => {
+        const ga = gradeOrder[a.grade];
+        const gb = gradeOrder[b.grade];
+        if (ga !== gb) return gb - ga;
+        return b.stars - a.stars;
+    };
+    const byType = () => inventoryTypeRank[a.type] - inventoryTypeRank[b.type];
+    const bySlotOrName = () => {
+        const ia = a.slot ? EQUIPMENT_SLOTS.indexOf(a.slot) : 999;
+        const ib = b.slot ? EQUIPMENT_SLOTS.indexOf(b.slot) : 999;
+        if (ia !== ib) return ia - ib;
+        return a.name.localeCompare(b.name, 'ko');
+    };
+
+    if (primary === 'createdAt') {
+        const t = byCreated();
+        if (t !== 0) return t;
+        const g = byGradeStars();
+        if (g !== 0) return g;
+        const ty = byType();
+        if (ty !== 0) return ty;
+        return bySlotOrName();
+    }
+    if (primary === 'grade') {
+        const g = byGradeStars();
+        if (g !== 0) return g;
+        const t = byCreated();
+        if (t !== 0) return t;
+        const ty = byType();
+        if (ty !== 0) return ty;
+        return bySlotOrName();
+    }
+    const ty = byType();
+    if (ty !== 0) return ty;
+    const g = byGradeStars();
+    if (g !== 0) return g;
+    const t = byCreated();
+    if (t !== 0) return t;
+    return bySlotOrName();
+}
 
 // 소모품 이름 정규화 함수: 다양한 형식의 이름을 표준 형식으로 변환
 const normalizeConsumableName = (name: string): string => {
@@ -1068,6 +1164,19 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return 1.0;
     }, [narrowInventoryLayout, modalLayerUsesDesignPixels]);
     const detailTextScale = narrowInventoryLayout ? mobileTextScale : mobileTextScale * 1.3;
+    /** PC 상단 밴드 높이: 옵션은 패널 안에서 flex로 채움 — 최소 확보만 합성(인벤에 세로 양보) */
+    const desktopBagViewerRowPx = useMemo(() => {
+        if (narrowInventoryLayout) return null;
+        const imgBox = Math.max(52, Math.round(80 * scaleFactor));
+        const topInfo = Math.round(92 * scaleFactor + 18 * detailTextScale);
+        const titleBar = 34;
+        const buttonBar = 50;
+        const panelPadding = Math.round(36 * scaleFactor + 22);
+        const minOptionsStretch = Math.max(112, Math.round(132 * scaleFactor));
+        const composed = titleBar + imgBox + topInfo + minOptionsStretch + buttonBar + panelPadding;
+        const h = Math.max(1, windowHeight);
+        return Math.round(Math.min(500, Math.max(284, composed, h * 0.28)));
+    }, [narrowInventoryLayout, scaleFactor, detailTextScale, windowHeight]);
     const compareModalTextScale = narrowInventoryLayout ? mobileTextScale : mobileTextScale * 1.35;
     const luxuryTabButtonBase = 'rounded-lg border font-semibold tracking-wide transition-all duration-200 shadow-[0_12px_24px_-16px_rgba(15,23,42,0.85)] hover:-translate-y-0.5 active:translate-y-0';
     const getLuxuryTabButtonClass = (isActive: boolean) =>
@@ -1207,24 +1316,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 items = items.filter((item: InventoryItem) => item.type === activeTab);
             }
         }
-        // Log for debugging: Check if materials are present and filtered correctly
-        if (activeTab === 'material') {
-            console.log('Filtered materials:', items);
-        }
-        items.sort((a, b) => {
-            if (sortKey === 'createdAt') return b.createdAt - a.createdAt;
-            if (sortKey === 'grade') {
-                const gradeA = gradeOrder[a.grade];
-                const gradeB = gradeOrder[b.grade];
-                if (gradeA !== gradeB) return gradeB - gradeA;
-                return b.stars - a.stars;
-            }
-            if (sortKey === 'type') {
-                const typeOrder: Record<InventoryItemType, number> = { equipment: 1, consumable: 2, material: 3 };
-                return typeOrder[a.type] - typeOrder[b.type];
-            }
-            return 0;
-        });
+        items.sort((a, b) => compareInventoryItemsForSort(a, b, sortKey));
         return items;
     }, [currentUser.inventory, activeTab, sortKey, updateTrigger]);
 
@@ -1416,15 +1508,22 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     </div>
                 ) : (
                     <div
-                        className="bg-gray-800 mb-2 rounded-md shadow-inner flex shrink-0 flex-row"
+                        className="bg-gray-800 mb-2 flex min-h-0 shrink-0 flex-row overflow-hidden rounded-md shadow-inner"
                         style={{
                             padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
+                            ...(desktopBagViewerRowPx != null
+                                ? {
+                                      height: desktopBagViewerRowPx,
+                                      minHeight: desktopBagViewerRowPx,
+                                      maxHeight: desktopBagViewerRowPx,
+                                  }
+                                : {}),
                         }}
                     >
                         <>
                             {/* 데스크톱: 좌 1/3 장착+스탯, 우측 상세 */}
                             <div
-                                className="w-1/3 flex-shrink-0 border-r border-gray-700"
+                                className="flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-y-auto border-r border-gray-700"
                                 style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
                                 {...(showObEquippedStatsPreset && !narrowInventoryLayout
                                     ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
@@ -1499,26 +1598,27 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
 
                     {/* Conditional middle and right panels (데스크톱) */}
                     {selectedItem && selectedItem.type === 'equipment' ? (
-                        <div className={`flex flex-row gap-0 flex-1`}>
+                        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-0 overflow-hidden">
                             {/* Middle panel: Currently equipped item for comparison */}
-                            <div className={`flex flex-col flex-1 h-full bg-panel-secondary rounded-lg p-2 relative overflow-hidden border-r border-gray-700`}>
-                                <h3 className="font-bold text-on-panel mb-1 flex-shrink-0" style={{ fontSize: `${Math.max(15, Math.round(19 * scaleFactor * detailTextScale))}px` }}>현재 장착</h3>
-                                <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
-                                    <LocalItemDetailDisplay 
-                                        item={correspondingEquippedItem} 
-                                        title="장착된 장비 없음" 
+                            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg border-r border-gray-700 bg-panel-secondary p-2">
+                                <h3 className="mb-1 shrink-0 font-bold text-on-panel" style={{ fontSize: `${Math.max(15, Math.round(19 * scaleFactor * detailTextScale))}px` }}>현재 장착</h3>
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                    <LocalItemDetailDisplay
+                                        item={correspondingEquippedItem}
+                                        title="장착된 장비 없음"
                                         comparisonItem={undefined}
-                                        scaleFactor={scaleFactor} 
-                                        mobileTextScale={detailTextScale} 
+                                        scaleFactor={scaleFactor}
+                                        mobileTextScale={detailTextScale}
                                         userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
                                         emptySlot={selectedItem?.slot}
+                                        expandOptionsToFill
                                     />
                                 </div>
                             </div>
 
                             {/* Right panel: Selected equipment item */}
-                            <div className={`flex flex-col flex-1 h-full bg-panel-secondary rounded-lg p-3 relative overflow-hidden`}>
-                                <div className="mb-1 flex flex-shrink-0 items-center justify-between gap-2">
+                            <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-3">
+                                <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
                                     <div className="flex min-w-0 items-center gap-2">
                                         <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(15, Math.round(19 * scaleFactor * detailTextScale))}px` }}>선택 장비</h3>
                                         {combatPowerChange !== null && combatPowerChange !== 0 && (
@@ -1539,10 +1639,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </Button>
                                     )}
                                 </div>
-                                <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'} pb-16`} style={{ WebkitOverflowScrolling: 'touch' }}>
-                                    <LocalItemDetailDisplay item={selectedItem} title="선택된 아이템 없음" comparisonItem={undefined} scaleFactor={scaleFactor} mobileTextScale={detailTextScale} userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel} />
+                                <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                    <LocalItemDetailDisplay
+                                        item={selectedItem}
+                                        title="선택된 아이템 없음"
+                                        comparisonItem={undefined}
+                                        scaleFactor={scaleFactor}
+                                        mobileTextScale={detailTextScale}
+                                        userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
+                                        expandOptionsToFill
+                                    />
                                 </div>
-                                <div className={`absolute bottom-2 left-0 right-0 flex justify-center gap-2 px-2 flex-shrink-0 bg-panel-secondary/95 backdrop-blur-sm`}>
+                                <div className="flex shrink-0 flex-wrap justify-center gap-1.5 px-0 pt-0">
                                     {selectedItem.id === correspondingEquippedItem?.id ? (
                                         <Button
                                             onClick={() => handleEquipToggle(selectedItem.id)}
@@ -1583,7 +1691,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         </div>
                     ) : (
                         /* Single right panel for non-equipment items or no selection */
-                        <div className={`flex flex-col w-2/3 h-full bg-panel-secondary rounded-lg p-3 relative overflow-hidden ml-4`}>
+                        <div className="relative ml-4 flex h-full min-h-0 w-2/3 flex-col overflow-hidden rounded-lg bg-panel-secondary p-3">
                             {selectedItem ? (
                                 (selectedItem.type === 'consumable' || selectedItem.type === 'material') ? (
                                     <>
@@ -1717,7 +1825,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     style={{
                         minHeight: narrowInventoryLayout
                             ? `${Math.max(120, Math.round(140 * scaleFactor))}px`
-                            : `${Math.max(400, Math.max(320 * scaleFactor, Math.round(windowHeight * 0.34)))}px`,
+                            : `${Math.max(320, Math.max(280 * scaleFactor, Math.round(windowHeight * 0.38)))}px`,
                         padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
@@ -1779,7 +1887,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 gridTemplateColumns: narrowInventoryLayout
                                     ? `repeat(${mobileInventoryColumns}, minmax(0, 1fr))`
                                     : `repeat(12, minmax(0, 1fr))`,
-                                gap: `${Math.max(narrowInventoryLayout ? 3 : 4, Math.round((narrowInventoryLayout ? 5 : 8) * scaleFactor))}px`,
+                                gap: `${Math.max(narrowInventoryLayout ? 2 : 3, Math.round((narrowInventoryLayout ? 4 : 7) * scaleFactor))}px`,
                                 width: '100%',
                                 minWidth: 0,
                                 paddingBottom: `${Math.max(200, Math.round(250 * scaleFactor))}px`
@@ -1962,8 +2070,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     mobileViewportMaxHeightVh={96}
                     bodyPaddingClassName="p-2 sm:p-3"
                 >
-                    <div className="flex min-h-[48dvh] flex-col gap-2">
-                        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg bg-panel-secondary p-2">
+                    <div className="flex min-h-[48dvh] flex-col gap-0">
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg bg-panel-secondary p-2">
                             <LocalItemDetailDisplay
                                 item={selectedItem}
                                 title="선택된 아이템 없음"
@@ -1972,9 +2080,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 mobileTextScale={mobileTextScale}
                                 userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
                                 detailScaleMultiplier={0.92}
+                                expandOptionsToFill={selectedItem.type === 'equipment'}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <div className="grid shrink-0 grid-cols-2 gap-2 pt-1.5 sm:grid-cols-3">
                             {selectedItem.type === 'equipment' && (
                                 <>
                                     {selectedItem.id === correspondingEquippedItem?.id ? (
@@ -2284,7 +2393,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         >
                                             현재 장착
                                         </h4>
-                                        <div className="min-h-0 flex-1 overflow-y-auto p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
                                             <LocalItemDetailDisplay
                                                 item={correspondingEquippedItem}
                                                 title="장착된 장비 없음"
@@ -2294,6 +2403,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
                                                 emptySlot={selectedItem.slot}
                                                 detailScaleMultiplier={0.92}
+                                                expandOptionsToFill
                                             />
                                         </div>
                                     </div>
@@ -2304,7 +2414,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         >
                                             선택 장비
                                         </h4>
-                                        <div className="min-h-0 flex-1 overflow-y-auto p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
                                             <LocalItemDetailDisplay
                                                 item={selectedItem}
                                                 title="선택된 아이템 없음"
@@ -2313,6 +2423,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 mobileTextScale={compareModalTextScale}
                                                 userLevelSum={currentUser.strategyLevel + currentUser.playfulLevel}
                                                 detailScaleMultiplier={0.92}
+                                                expandOptionsToFill
                                             />
                                         </div>
                                     </div>

@@ -186,7 +186,7 @@ export function getAdventureTreasureRollPreview(roll: AdventureTreasureRollResul
     return {
         imageSrc: PREVIEW_LIGHTNING,
         label: '행동력',
-        subLabel: `+${roll.actionPoints}`,
+        subLabel: `${roll.actionPoints} 회복`,
     };
 }
 
@@ -291,7 +291,7 @@ export function getAdventureTreasureRewardPreviewBlocks(stageIndex: number): Adv
             image: MAT_IMG[row.roman] ?? MAT_IMG.I!,
             label: `${row.weight}%`,
         })),
-        ap: { image: '/images/icon/lightning.png', label: String(def.actionPoints) },
+        ap: { image: '/images/icon/lightning.png', label: `${def.actionPoints} 회복` },
     };
 }
 
@@ -305,6 +305,6 @@ export function formatAdventureTreasureChestAdminLines(stageIndex: number): stri
         `골드 범위: ${def.goldMin.toLocaleString()}~${def.goldMax.toLocaleString()}`,
         `장비상자(25% 안에서): ${eq}`,
         `재료상자(25% 안에서): ${mat}`,
-        `행동력: ${def.actionPoints}`,
+        `행동력 회복: ${def.actionPoints} (최대치까지, 최대치 자체는 증가하지 않음)`,
     ];
 }

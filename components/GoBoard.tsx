@@ -669,6 +669,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 if (list.length < prevCount) {
                     processedJustCapturedCountRef.current = 0;
                 }
+                // 턴마다 justCaptured를 통째로 교체하면 길이가 이전과 같아도 start === length가 되어 슬라이스가 비고,
+                // captures 델타만으로 floatPts가 계산된다. 모험 지역 가산(+N)과 같으면 아래 head-start 스킵이 오동작한다.
+                if (list.length > 0 && processedJustCapturedCountRef.current >= list.length) {
+                    processedJustCapturedCountRef.current = 0;
+                }
                 return processedJustCapturedCountRef.current;
             };
             const newJustCapturedEntries = () => {
@@ -737,13 +742,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 const headStartBonus = adventureRegionalHeadStartCaptureBonus ?? 0;
                 const validMovesPlaced = moveHistory.filter((m) => m && m.x >= 0 && m.y >= 0).length;
-                /** 첫 착점 직후 캡처 없이 캡처 점수만 지역 가산과 동일하게 오른 경우(동기화 등) — 지역 이해도 +1 플로트 생략 */
+                /** 첫 착점 직후 캡처 없이 캡처 점수만 지역 가산과 동일하게 오른 경우(동기화 등) — 지역 이해도 가산 플로트 생략 */
+                const lastOnBoard = last.x >= 0 && last.y >= 0;
                 if (
                     headStartBonus > 0 &&
                     validMovesPlaced === 1 &&
                     sliceEntries.length === 0 &&
                     floatPts === headStartBonus &&
-                    delta === headStartBonus
+                    delta === headStartBonus &&
+                    !lastOnBoard
                 ) {
                     lastFloatedMoveKeyRef.current = moveKey;
                     prevCapturesForFloatRef.current = { ...captures };

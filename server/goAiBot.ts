@@ -26,6 +26,7 @@ import {
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from './kataCaptureSetupEncoding.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/guildWarMaxSingleCapturePoints.js';
+import { reconcileStrategicAiBoardSizeWithGroundTruth } from './utils/effectiveBoardSize.js';
 
 /** AI 히든 연출 직전에 확정한 Kata 좌표(프로세스 메모리; DB의 animation.pendingHiddenMove로 재주입) */
 const pendingAiHiddenKataMoveByGameId = new Map<string, Point>();
@@ -736,11 +737,16 @@ function buildKataMoveHistory(
         game.mode === types.GameMode.Base ||
         (game.mode === types.GameMode.Mix && Boolean(game.settings.mixedModes?.includes(types.GameMode.Base)));
     if (isBaseMode) {
+        const bs = game.settings?.boardSize ?? 19;
         const baseStones = (game.baseStones ?? []).filter(
             (s): s is { x: number; y: number; player: Player } =>
                 !!s &&
                 Number.isInteger(s.x) &&
                 Number.isInteger(s.y) &&
+                s.x >= 0 &&
+                s.x < bs &&
+                s.y >= 0 &&
+                s.y < bs &&
                 (s.player === Player.Black || s.player === Player.White)
         );
         if (baseStones.length === 0) return moveHistory;
@@ -777,10 +783,19 @@ function buildKataMoveHistory(
         | undefined;
     if (!Array.isArray(setupMoves) || setupMoves.length === 0) {
         const snap = (game as any).kataStrategicOpeningBoardState as types.BoardState | undefined;
+        const bs = game.settings?.boardSize ?? 19;
         if (snap?.length) {
-            setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(snap);
-            if (setupMoves.length > 0) {
-                (game as any).kataCaptureSetupMoves = setupMoves;
+            const snapOk =
+                snap.length === bs && snap.every((row) => Array.isArray(row) && row.length === bs);
+            if (!snapOk) {
+                console.warn(
+                    `[buildKataMoveHistory] kataStrategicOpeningBoardState size mismatch (snap=${snap?.length}, boardSize=${bs}) game=${game.id} — ignoring snapshot`,
+                );
+            } else {
+                setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(snap);
+                if (setupMoves.length > 0) {
+                    (game as any).kataCaptureSetupMoves = setupMoves;
+                }
             }
         } else if (moveHistory.length === 0 && game.boardState?.length) {
             setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState);
@@ -1210,6 +1225,8 @@ export async function makeGoAiBotMove(
     const aiPlayerEnum = game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
+
+    reconcileStrategicAiBoardSizeWithGroundTruth(game);
 
     rehydratePendingAiHiddenKataFromStoredAnimation(game);
 
