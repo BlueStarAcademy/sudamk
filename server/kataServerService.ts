@@ -96,6 +96,29 @@ function toKataServerMoves(
     });
 }
 
+type KataMoveApiData = {
+    move?: string;
+    strategy?: string;
+    winrate?: number;
+    bestMove?: string;
+};
+
+/** bestMove 우선, 그다음 응답 `move`(엔진과 다를 때 서버 규칙과 맞는 쪽이 있을 수 있음). PASS·중복 제거. */
+function buildGtpCandidatesFromKataResponse(data: KataMoveApiData): string[] {
+    const best = data.bestMove?.trim();
+    const reported = data.move?.trim();
+    const out: string[] = [];
+    const pushUnique = (s?: string) => {
+        if (!s) return;
+        const u = s.toUpperCase();
+        if (u === 'PASS' || u === '') return;
+        if (!out.some((g) => g.toUpperCase() === u)) out.push(s);
+    };
+    pushUnique(best);
+    pushUnique(reported);
+    return out;
+}
+
 export interface GenerateKataServerMoveParams {
     boardSize: number;
     player: 'black' | 'white';
@@ -109,20 +132,18 @@ export interface GenerateKataServerMoveParams {
      * 재입장(/api/game/rejoin) 시에는 settings.kataSessionResumeSeq 기반 `rsN`이 태그에 포함된다(goAiBot).
      */
     kataSessionTag?: string;
-    /** false: PASS 후보 제외(둘 곳이 없을 때만 PASS). 생략 시 서버 기본(true). */
-    allowPass?: boolean;
 }
 
 /**
- * KataServer Move API로 AI 수 생성
- * 서버가 레벨에 맞는 착점 선택 로직을 모두 처리
+ * Kata 한 번 호출로 후보 좌표 목록 반환 (bestMove → move 순, PASS 제외).
+ * 미사일 PVE 등에서 엔진 좌표와 서버 `processMove` 불일치 시 다음 후보·폴백에 사용.
  */
-export async function generateKataServerMove(params: GenerateKataServerMoveParams): Promise<Point> {
+export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {
     if (!KATA_SERVER_URL) {
         throw new Error('KATA_SERVER_URL is not set');
     }
 
-    const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, allowPass, player } = params;
+    const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, player } = params;
     for (let i = 0; i < moveHistory.length; i++) {
         const m = moveHistory[i]!;
         if (m.x < 0 || m.y < 0) continue;
@@ -134,6 +155,7 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
     }
     const moves = toKataServerMoves(moveHistory, boardSize);
     const isFirstMove = moves.length < 2;
+    const historyHasPass = moveHistory.some((m) => m.x < 0 || m.y < 0);
 
     const body: Record<string, unknown> = {
         level,
@@ -145,8 +167,8 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
         firstMove: isFirstMove,
         player,
     };
-    if (allowPass === false) {
-        body.allowPass = false;
+    if (!historyHasPass) {
+        (body as any).allowPass = false;
     }
 
     const url = `${KATA_SERVER_URL}/move`;
@@ -181,22 +203,34 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
             throw new Error(`KataServer API error: ${response.status} - ${text}`);
         }
 
-        const data = (await response.json()) as {
-            move?: string;
-            strategy?: string;
-            winrate?: number;
-            bestMove?: string;
-        };
+        const data = (await response.json()) as KataMoveApiData;
 
         console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
 
-        if (!data.move || data.move === 'PASS') {
-            await sleep(KATA_APPLY_MOVE_DELAY_MS);
-            return { x: -1, y: -1 };
+        const gtps = buildGtpCandidatesFromKataResponse(data);
+        const best = data.bestMove?.trim();
+        const reported = data.move?.trim();
+        if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {
+            console.log(
+                `[KataServer] candidate order: bestMove=${best} then move=${reported} (strategy=${data.strategy ?? 'n/a'})`,
+            );
         }
-        const pt = gtpCoordToPoint(data.move, boardSize);
+
+        if (gtps.length === 0) {
+            await sleep(KATA_APPLY_MOVE_DELAY_MS);
+            return [{ x: -1, y: -1 }];
+        }
+
+        const points: Point[] = [];
+        for (const g of gtps) {
+            try {
+                points.push(gtpCoordToPoint(g, boardSize));
+            } catch (e: any) {
+                console.warn(`[KataServer] skip unparsable GTP coord "${g}": ${e?.message ?? e}`);
+            }
+        }
         await sleep(KATA_APPLY_MOVE_DELAY_MS);
-        return pt;
+        return points.length > 0 ? points : [{ x: -1, y: -1 }];
     } catch (err: any) {
         if (err.name === 'AbortError') {
             throw new Error(`KataServer timeout (${KATA_SERVER_TIMEOUT_MS}ms)`);
@@ -205,6 +239,16 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
     } finally {
         clearTimeout(timeoutId);
     }
+}
+
+/**
+ * KataServer Move API로 AI 수 생성
+ * 서버가 레벨에 맞는 착점 선택 로직을 모두 처리
+ */
+export async function generateKataServerMove(params: GenerateKataServerMoveParams): Promise<Point> {
+    const pts = await generateKataServerMoveCandidates(params);
+    const first = pts[0];
+    return first ?? { x: -1, y: -1 };
 }
 
 /**

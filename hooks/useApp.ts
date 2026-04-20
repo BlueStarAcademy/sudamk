@@ -41,7 +41,6 @@ import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/o
 import { applyUserProgressionArenaLocks, getBadukAbilitySnapshotFromStats } from '../shared/utils/contentProgressionGates.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
-import { getLightGoAiMove } from '../client/logic/lightGoAi.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
 import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
@@ -78,6 +77,15 @@ function mergeTowerServerGameWithClientBoardIfStale(
         : Math.max(Number((serverGame as any).blackTurnLimitBonus) || 0, Number((clientGame as any).blackTurnLimitBonus) || 0);
     return {
         ...serverGame,
+        // 서버 페이로드에 settings 키가 덜 실릴 때 클라이언트 값(kataServerLevel 등)을 보존한 뒤 서버가 준 필드로 덮음.
+        settings: {
+            ...((clientGame as any).settings && typeof (clientGame as any).settings === 'object'
+                ? (clientGame as any).settings
+                : {}),
+            ...((serverGame as any).settings && typeof (serverGame as any).settings === 'object'
+                ? (serverGame as any).settings
+                : {}),
+        },
         boardState: clientGame.boardState,
         moveHistory: clientGame.moveHistory,
         totalTurns: clientGame.totalTurns ?? serverGame.totalTurns,
@@ -274,8 +282,6 @@ export const useApp = () => {
     // AI 게임 경기 시작 후 경기장 입장 시 state 반영 전 리다이렉트 방지 (레이스 컨디션)
     // CONFIRM_AI_GAME_START 응답의 게임을 보관해 'Game not found after max attempts' 시에도 라우팅 가능하게 함
     const pendingAiGameEntryRef = useRef<{ gameId: string; until: number; game?: LiveGameSession } | null>(null);
-    // 클라이언트 측 AI(Electron): 같은 턴에 중복 전송 방지
-    const lastClientSideAiSentRef = useRef<Record<string, number>>({});
     // 새로고침(F5) 후 재입장: 재입장 API 실패 시에만 게임 페이지에서 나가기
     const [rejoinFailedForGameId, setRejoinFailedForGameId] = useState<string | null>(null);
     const rejoinRequestedRef = useRef<Set<string>>(new Set());
@@ -1256,7 +1262,8 @@ export const useApp = () => {
             action.type !== 'COMPLETE_TOURNAMENT_SIMULATION' &&
             action.type !== 'GET_GUILD_WAR_DATA' &&
             action.type !== 'GET_MY_GUILD_WAR_ATTEMPT_LOG' &&
-            action.type !== 'GET_GUILD_INFO'
+            action.type !== 'GET_GUILD_INFO' &&
+            action.type !== 'REQUEST_SERVER_AI_MOVE'
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;
@@ -1940,8 +1947,6 @@ export const useApp = () => {
                 let blackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
                 let whitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
                 const justCaptured: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[] = [];
-                const newlyRevealed = (pendingCapture.hiddenContributors || []).map((point: Point) => ({ point, player: movePlayer }));
-
                 let clearAiInitialHidden = false;
                 const aiInitialHiddenStone = (game as any).aiInitialHiddenStone as Point | undefined;
 
@@ -2006,7 +2011,7 @@ export const useApp = () => {
                     blackPatternStones,
                     whitePatternStones,
                     justCaptured,
-                    newlyRevealed,
+                    newlyRevealed: [],
                     currentPlayer: nextPlayer,
                     gameStatus: 'playing',
                     animation: null,
@@ -2304,7 +2309,15 @@ export const useApp = () => {
                     const survivalTurns = (game.settings as any)?.survivalTurns;
                     if (survivalTurns) {
                         const updatedGame = updateResult.updatedGame as LiveGameSession;
-                        const whiteTurnsPlayed = (updatedGame as any).whiteTurnsPlayed || 0;
+                        // 서버와 동일한 기준: whiteTurnsPlayed 우선, 없으면 백 유효 수 개수로 보정
+                        const whiteTurnsPlayedRaw = (updatedGame as any).whiteTurnsPlayed;
+                        const whiteTurnsPlayed =
+                            typeof whiteTurnsPlayedRaw === 'number'
+                                ? Math.max(0, Math.floor(whiteTurnsPlayedRaw))
+                                : (updatedGame.moveHistory || []).filter(
+                                      (m: { player: Player; x: number; y: number }) =>
+                                          m.player === Player.White && m.x !== -1 && m.y !== -1,
+                                  ).length;
                         const remainingTurns = survivalTurns - whiteTurnsPlayed;
 
                         const whiteTarget = updatedGame.effectiveCaptureTargets?.[Player.White];
@@ -3259,7 +3272,8 @@ export const useApp = () => {
                  }
                  
                 const obtainedItemsBulk = result.clientResponse?.obtainedItemsBulk || result.obtainedItemsBulk;
-                if (obtainedItemsBulk) {
+                // 도전의 탑 전용 상점 구매: 인벤은 갱신되지만 획득 아이템 모달은 띄우지 않음
+                if (obtainedItemsBulk && action.type !== 'BUY_TOWER_ITEM') {
                     const stampedItems = obtainedItemsBulk.map((item: any) => ({
                         ...item,
                         id: item.id || `reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -5480,7 +5494,7 @@ export const useApp = () => {
                                                         // 자동계가: 남은 턴이 0 이하(0/N 도달)이면 반드시 계가 트리거
                                                         if (remainingTurns <= 0 && totalTurns > 0) {
                                                             // 마지막 수가 AI 차례라면 AI가 실제로 착수한 뒤 계가를 진행해야 함.
-                                                            // (클라이언트 AI 착수는 `Game.tsx`에서 처리되므로 여기서는 트리거하지 않고 대기)
+                                                            // (싱글은 `Game.tsx`에서 Kata 수 요청 후 GAME_UPDATE로 반영될 때까지 대기)
                                                             const isAiTurnForSinglePlayer =
                                                                 game.isSinglePlayer &&
                                                                 ((game.currentPlayer === Player.White && game.whitePlayerId === aiUserId) ||
@@ -5774,6 +5788,28 @@ export const useApp = () => {
                                         
                                         const updatedGames = { ...currentGames };
                                         let mergedGame = game;
+                                        // goAiBot AI 히든 연출 패킷은 boardState를 생략하는 경우가 있어, 그대로 병합하면
+                                        // 클라 판이 비고 턴/연출만 꼬인다. 연출 중에는 기존 보드·수순을 유지한다.
+                                        const isTowerAiHiddenPresentation =
+                                            game.animation?.type === 'ai_thinking' ||
+                                            (game as any).aiHiddenItemAnimationEndTime != null;
+                                        if (
+                                            isTowerAiHiddenPresentation &&
+                                            existingGame &&
+                                            (!game.boardState ||
+                                                !Array.isArray(game.boardState) ||
+                                                game.boardState.length === 0)
+                                        ) {
+                                            mergedGame = {
+                                                ...mergedGame,
+                                                boardState: existingGame.boardState,
+                                                moveHistory:
+                                                    Array.isArray(existingGame.moveHistory) &&
+                                                    existingGame.moveHistory.length > 0
+                                                        ? existingGame.moveHistory
+                                                        : mergedGame.moveHistory,
+                                            };
+                                        }
                                         // 종료된 게임의 GAME_UPDATE 시 클라이언트 바둑판 유지 (서버는 보드 미저장 가능)
                                         if ((game.gameStatus === 'ended' || game.gameStatus === 'no_contest') && existingGame?.boardState &&
                                             Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0) {
@@ -7108,108 +7144,6 @@ export const useApp = () => {
 
         return aggregated;
     }, [currentUserWithStatus]);
-
-    // 클라이언트 측 AI(lightGoAi): useClientSideAi 게임에서 AI 차례일 때 로컬에서 수 계산 후 서버로 전송
-    useEffect(() => {
-        const game = activeGame;
-        if (!game?.id || !game?.isAiGame || (game?.gameStatus !== 'playing' && game?.gameStatus !== 'hidden_placing')) return;
-        const goModes = new Set<GameMode>([
-            GameMode.Standard,
-            GameMode.Capture,
-            GameMode.Speed,
-            GameMode.Base,
-            GameMode.Hidden,
-            GameMode.Missile,
-            GameMode.Mix,
-        ]);
-        if (!goModes.has(game.mode as any)) return;
-        // 전략바둑 AI 대국: 이제 기본은 서버 AI(그누고/서버 goAiBot) 사용.
-        // 클라이언트 측 AI는 명시적으로 useClientSideAi === true 인 경우에만 사용한다.
-        const isStrategicGoAi = game.isAiGame && game.gameCategory !== 'tower' && !game.isSinglePlayer;
-        const useClientSideAi = isStrategicGoAi && (game.settings as any)?.useClientSideAi === true;
-        if (!useClientSideAi) return;
-        // myPlayer: blackPlayerId/whitePlayerId 우선, 없으면 AI 대국에서 player1 = 인간으로 추론
-        let myPlayer = game.blackPlayerId === currentUser?.id ? Player.Black : (game.whitePlayerId === currentUser?.id ? Player.White : Player.None);
-        if (myPlayer === Player.None && game.player1 && currentUser?.id === game.player1.id) {
-            if (game.blackPlayerId === game.player1.id) myPlayer = Player.Black;
-            else if (game.whitePlayerId === game.player1.id) myPlayer = Player.White;
-            else myPlayer = Player.Black; // AI 대국 기본: 선수(흑) = 인간
-        }
-        if (myPlayer === Player.None) return;
-        const isAiTurn = game.currentPlayer !== myPlayer && game.currentPlayer !== Player.None;
-        if (!isAiTurn) return;
-        const moveCount = (game.moveHistory || []).filter((m: { x: number; y: number }) => m.x >= 0 && m.y >= 0).length;
-        if (lastClientSideAiSentRef.current[game.id] === moveCount) return;
-        const boardSize = game.settings?.boardSize ?? 19;
-        const playerStr = game.currentPlayer === Player.Black ? 'black' : 'white';
-        const moveHistoryForGnuGo = (game.moveHistory || []).map((m: { x: number; y: number; player: Player }) => ({
-            x: m.x,
-            y: m.y,
-            player: m.player === Player.Black ? 1 : 2
-        }));
-        const level = (game.settings as any)?.goAiBotLevel ?? (game.settings as any)?.aiDifficulty ?? 5;
-        // 클래식/스피드/믹스에서는 최소 6으로 해서 휴리스틱 AI가 너무 나쁜 수를 덜 두도록 함 (Gnugo 수준은 아님)
-        const effectiveLevel = (game.mode === GameMode.Standard || game.mode === GameMode.Speed || game.mode === GameMode.Mix) ? Math.max(6, level) : level;
-
-        const requestServerFallback = (reason?: unknown) => {
-            if (reason) console.warn('[useApp] Client-side AI submit failed; requesting server AI move:', reason);
-            // Allow future retries if game state doesn't change
-            delete lastClientSideAiSentRef.current[game.id];
-            handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: game.id } }).catch((err) => {
-                console.error('[useApp] REQUEST_SERVER_AI_MOVE failed:', err);
-                delete lastClientSideAiSentRef.current[game.id];
-            });
-        };
-
-        // 착수 직후 텀(400ms): 서버가 유저 수를 반영한 GAME_UPDATE를 보낼 시간을 주어 "돌이 옮겨지는" 현상·시간패 방지
-        const CLIENT_AI_DELAY_MS = 400;
-        const gameId = game.id;
-        const currentMoveCount = moveCount;
-        const sendClientAiMove = () => {
-            const latestGame = liveGamesRef.current[gameId];
-            if (!latestGame || lastClientSideAiSentRef.current[gameId] === currentMoveCount) return;
-            const stillAiTurn = latestGame.currentPlayer !== (latestGame.blackPlayerId === currentUser?.id ? Player.Black : (latestGame.whitePlayerId === currentUser?.id ? Player.White : Player.None)) && latestGame.currentPlayer !== Player.None;
-            if (!stillAiTurn) return;
-
-            const applyMove = (move: { x: number; y: number }) => {
-                lastClientSideAiSentRef.current[gameId] = currentMoveCount;
-                if (move.x === -1 && move.y === -1) {
-                    handleAction({ type: 'PASS_TURN', payload: { gameId } } as any).catch((err) => { console.error('[useApp] PASS_TURN (client-side AI) failed:', err); requestServerFallback(err); });
-                } else {
-                    try { console.log('[useApp] Client-side AI: sending move for gameId=', gameId); } catch (_) {}
-                    handleAction({
-                        type: 'PLACE_STONE',
-                        payload: { gameId, x: move.x, y: move.y, clientSideAiMove: true },
-                    }).catch((err) => { console.error('[useApp] Client-side AI PLACE_STONE failed:', err); requestServerFallback(err); });
-                }
-            };
-
-            (async () => {
-                const result = getLightGoAiMove(latestGame, effectiveLevel);
-                if (result?.move == null) { requestServerFallback('no move'); return; }
-                applyMove(result.move);
-            })();
-        };
-
-        // 클라이언트가 수를 보내지 못할 경우(효과 미실행/실패) 대비: 서버 AI 폴백 (Game.tsx 12s+ 복구와 중첩되어도 안전)
-        const timeoutMs = 8000;
-        const timeoutId = setTimeout(() => {
-            if (lastClientSideAiSentRef.current[gameId] !== currentMoveCount) {
-                console.warn('[useApp] Client-side AI did not send in time; requesting server AI move');
-                delete lastClientSideAiSentRef.current[gameId];
-                handleAction({ type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId } }).catch((err) => {
-                    console.error('[useApp] REQUEST_SERVER_AI_MOVE (timeout fallback) failed:', err);
-                });
-            }
-        }, timeoutMs);
-
-        const delayId = setTimeout(sendClientAiMove, CLIENT_AI_DELAY_MS);
-
-        return () => {
-            clearTimeout(timeoutId);
-            clearTimeout(delayId);
-        };
-    }, [activeGame?.id, activeGame?.currentPlayer, activeGame?.moveHistory?.length, activeGame?.gameStatus, activeGame?.settings, currentUser?.id, handleAction]);
 
     return {
         currentUser,

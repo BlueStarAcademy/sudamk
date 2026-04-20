@@ -438,7 +438,10 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
         }
         case 'START_AI_GAME': {
             try {
-                const { mode, settings } = payload;
+                const { mode, settings: incomingSettings } = payload;
+                const settings = SPECIAL_GAME_MODES.some((m) => m.mode === mode)
+                    ? { ...incomingSettings, useClientSideAi: false }
+                    : incomingSettings;
                 const cost = getActionPointCost(mode);
                 await applyPassiveActionPointRegenToUser(user, now);
                 if (user.actionPoints.current < cost && !user.isAdmin) {

@@ -1,10 +1,11 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 // FIX: Import missing types from the centralized types file.
 import { Player, GameProps, GameMode, User, AlkkagiPlacementType, GameSettings, GameStatus, UserWithStatus } from '../../types/index.js';
 import Avatar from '../Avatar.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, ALKKAGI_TURN_TIME_LIMIT, CURLING_TURN_TIME_LIMIT, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT, aiUserId, AVATAR_POOL, BORDER_POOL, PLAYFUL_MODE_FOUL_LIMIT, THIEF_NIGHTS_PER_SEGMENT } from '../../constants';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
-import { TOWER_STAGES } from '../../constants/towerConstants.js';
+import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../../constants/towerConstants.js';
 import {
     resolveAiLobbyProfileStepFromSettings,
     strategicAiDisplayLevelFromProfileStep,
@@ -14,6 +15,7 @@ import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNickname
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
+import { isIntro11IngameStepRead, isIntro11TutorialActiveForGame, markIntro11IngameStepRead } from '../../utils/singlePlayerIntro11Tutorial.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -700,6 +702,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     const leftPlayerUser = player1;
     const rightPlayerUser = player2;
+    const towerOpponentPanelUser =
+        session.gameCategory === 'tower' && rightPlayerUser.id === aiUserId
+            ? { ...rightPlayerUser, nickname: TOWER_AI_BOT_DISPLAY_NAME }
+            : rightPlayerUser;
     
     const leftPlayerEnum = leftPlayerUser.id === blackPlayerId ? Player.Black : (leftPlayerUser.id === whitePlayerId ? Player.White : Player.None);
     const rightPlayerEnum = rightPlayerUser.id === blackPlayerId ? Player.Black : (rightPlayerUser.id === whitePlayerId ? Player.White : Player.None);
@@ -906,9 +912,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         
         // 살리기바둑: 백의 남은 턴
         if (stage.survivalTurns) {
-            // 백이 수를 둔 횟수를 moveHistory에서 직접 계산 (백이 수를 둘 때마다만 카운팅)
-            const whiteMovesCount = moveHistory.filter(m => m.player === Player.White && m.x !== -1).length;
-            const remainingTurns = Math.max(0, stage.survivalTurns - whiteMovesCount);
+            // 서버 승패 판정과 동일하게 whiteTurnsPlayed를 우선 사용한다.
+            const whiteTurnsPlayedRaw = (session as any).whiteTurnsPlayed;
+            const whiteTurnsPlayed =
+                typeof whiteTurnsPlayedRaw === 'number'
+                    ? Math.max(0, Math.floor(whiteTurnsPlayedRaw))
+                    : moveHistory.filter(m => m.player === Player.White && m.x !== -1).length;
+            const remainingTurns = Math.max(0, stage.survivalTurns - whiteTurnsPlayed);
             return {
                 type: 'survival' as const,
                 label: '백 남은 턴',
@@ -1012,9 +1022,67 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : {};
     const userPanelOnboardingTarget =
         singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === leftPlayerUser.id;
+    const [intro11IngameTutorialOpen, setIntro11IngameTutorialOpen] = useState(false);
+    const intro11RootRef = useRef<HTMLDivElement | null>(null);
+    const intro11TargetRef = useRef<HTMLDivElement | null>(null);
+    const [intro11SpotlightRect, setIntro11SpotlightRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
+
+    useEffect(() => {
+        const shouldOpen =
+            session.stageId === '입문-11' &&
+            session.gameCategory === 'singleplayer' &&
+            session.gameStatus === 'playing' &&
+            isIntro11TutorialActiveForGame(session.id) &&
+            !isIntro11IngameStepRead(session.id);
+        setIntro11IngameTutorialOpen(shouldOpen);
+    }, [session.id, session.stageId, session.gameCategory, session.gameStatus]);
+
+    useLayoutEffect(() => {
+        if (!intro11IngameTutorialOpen) {
+            setIntro11SpotlightRect(null);
+            return;
+        }
+        const mountRoot = typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') ?? document.body : null;
+        const root = mountRoot;
+        const target = intro11TargetRef.current;
+        if (!root || !target) {
+            setIntro11SpotlightRect(null);
+            return;
+        }
+        const rr = root.getBoundingClientRect();
+        const tr = target.getBoundingClientRect();
+        const pad = 10;
+        const left = tr.left - rr.left;
+        const top = tr.top - rr.top;
+        const right = tr.right - rr.left;
+        const bottom = tr.bottom - rr.top;
+        const x1 = Math.max(0, left - pad);
+        const y1 = Math.max(0, top - pad);
+        const x2 = Math.min(rr.width, right + pad);
+        const y2 = Math.min(rr.height, bottom + pad);
+        setIntro11SpotlightRect({
+            top: y1,
+            left: x1,
+            width: Math.max(0, x2 - x1),
+            height: Math.max(0, y2 - y1),
+        });
+    }, [intro11IngameTutorialOpen, compactBarRowClass]);
+
+    const intro11SpotlightCenterY =
+        intro11SpotlightRect != null
+            ? intro11SpotlightRect.top + intro11SpotlightRect.height / 2
+            : null;
+    const intro11PanelPlacementTop =
+        intro11SpotlightCenterY == null
+            ? false
+            : intro11SpotlightCenterY > (typeof window !== 'undefined' ? window.innerHeight : 0) * 0.5;
+    const intro11PortalMount =
+        typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') ?? document.body : null;
 
     return (
+        <div ref={intro11RootRef} className="relative">
         <div
+            ref={intro11TargetRef}
             className={`flex w-full ${compactBarRowClass} flex-shrink-0`}
             {...barHighlightAttrs}
         >
@@ -1113,7 +1181,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             )}
             <div className={playerColClass}>
             <SinglePlayerPanel
-                user={rightPlayerUser}
+                user={towerOpponentPanelUser}
                 playerEnum={rightPlayerEnum}
                 score={rightPanelStoneCaptureDisplay}
                 isActive={isRightPlayerActive}
@@ -1142,6 +1210,61 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 {...rightAdventureCdProps}
             />
             </div>
+        </div>
+        {intro11IngameTutorialOpen && intro11PortalMount && createPortal(
+            <>
+                {intro11SpotlightRect && (
+                    <div className="pointer-events-none absolute inset-0 z-[280]" aria-hidden>
+                        <div className="absolute left-0 top-0 w-full bg-black/55" style={{ height: intro11SpotlightRect.top }} />
+                        <div
+                            className="absolute left-0 bg-black/55"
+                            style={{
+                                top: intro11SpotlightRect.top,
+                                width: intro11SpotlightRect.left,
+                                height: intro11SpotlightRect.height,
+                            }}
+                        />
+                        <div
+                            className="absolute right-0 bg-black/55"
+                            style={{
+                                top: intro11SpotlightRect.top,
+                                width: `calc(100% - ${intro11SpotlightRect.left + intro11SpotlightRect.width}px)`,
+                                height: intro11SpotlightRect.height,
+                            }}
+                        />
+                        <div
+                            className="absolute bottom-0 left-0 w-full bg-black/55"
+                            style={{ height: `calc(100% - ${intro11SpotlightRect.top + intro11SpotlightRect.height}px)` }}
+                        />
+                    </div>
+                )}
+                <div className="pointer-events-none absolute inset-0 z-[281] px-3 pt-2 sm:px-5 sm:pt-3">
+                <div
+                    className="pointer-events-auto absolute left-1/2 w-[min(100%,32rem)] -translate-x-1/2 rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5"
+                    style={intro11PanelPlacementTop ? { top: '0.75rem' } : { bottom: '0.75rem' }}
+                >
+                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">살기기 바둑</p>
+                    <p className="mt-2 text-left text-sm leading-relaxed text-stone-200/95 sm:text-[15px]">
+                        3턴동안 백의 공격을 피해 1점을 빼앗기지 않도록 피해보세요. 돌을 연결하고 넓은 공간으로 나가면 잡히지 않을겁니다.
+                    </p>
+                    <div className="mt-3 flex justify-end gap-2 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
+                        <button
+                            type="button"
+                            className="min-h-9 rounded-lg bg-amber-500 px-4 text-sm font-semibold text-black hover:bg-amber-400"
+                            onClick={() => {
+                                markIntro11IngameStepRead(session.id);
+                                setIntro11IngameTutorialOpen(false);
+                            }}
+                        >
+                            다음
+                        </button>
+                    </div>
+                </div>
+                </div>
+            </>
+            ,
+            intro11PortalMount,
+        )}
         </div>
     );
 };

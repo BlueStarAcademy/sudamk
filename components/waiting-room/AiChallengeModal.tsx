@@ -21,7 +21,6 @@ import {
   OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
-import { shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 
 interface AiChallengeModalProps {
@@ -299,23 +298,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                 window.alert('믹스룰은 규칙을 2개 이상 선택해야 합니다.');
                 return;
             }
-            // Gnugo 대체 엔진(lightGoAi)을 브라우저에서 실행해 서버 부하를 줄임.
-            // 바둑(착수) 모드만 클라이언트 AI 사용. 놀이바둑은 서버만 사용.
-            const goModes: GameMode[] = [
-                GameMode.Standard,
-                GameMode.Capture,
-                GameMode.Speed,
-                GameMode.Base,
-                GameMode.Hidden,
-                GameMode.Missile,
-                GameMode.Mix,
-            ];
-            const isGoMode = goModes.includes(selectedGameMode);
-            // 전략바둑 대기실에서 시작하는 AI 대국은 항상 서버 AI를 사용한다.
-            // 클라이언트 측 AI(lightGoAi)는 놀이바둑 등 다른 컨텐츠에서만 사용.
-            const useClientSideAi = lobbyType === 'strategic'
-                ? false
-                : (isGoMode && shouldUseClientSideAi());
+            // 전략바둑 AI 대국은 항상 서버 Kata(goAiBot). 클라이언트 로컬 AI는 사용하지 않음.
+            const useClientSideAi = false;
 
             // AI 대국은 모두 시간 무제한으로 고정:
             // - timeLimit: 0, byoyomiTime: 0, byoyomiCount: 0, timeIncrement: 0

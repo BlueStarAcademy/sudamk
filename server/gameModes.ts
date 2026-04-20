@@ -15,6 +15,7 @@ import * as db from './db.js';
 import * as effectService from './effectService.js';
 import { endGame } from './summaryService.js';
 import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
+import { TOWER_AI_BOT_DISPLAY_NAME } from '../constants/towerConstants.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -913,6 +914,11 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
     
     const isAiGame = opponent.id === aiUserId;
 
+    // 전략바둑 계열 AI 대국은 서버 Kata(goAiBot)만 사용. 클라이언트 로컬 AI 플래그는 항상 끈다.
+    if (isAiGame && SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+        (settings as any).useClientSideAi = false;
+    }
+
     // 전략바둑 AI 대결에서 "제한없음(0)" 옵션 제거 정책:
     // 서버에서 scoringTurnLimit이 0/음수/없으면 보드 크기에 맞는 기본값으로 강제한다.
     if (isAiGame && SPECIAL_GAME_MODES.some(m => m.mode === mode) && mode !== types.GameMode.Capture) {
@@ -1056,7 +1062,12 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 game.gameCategory === 'guildwar' ||
                 game.gameCategory === 'adventure';
             const needsRevealTransition = isPVEGame && (game.gameStatus === 'hidden_final_reveal' || game.gameStatus === 'hidden_reveal_animating');
-            const needsMissileOrScanTransition = isPVEGame && (game.gameStatus === 'missile_animating' || game.gameStatus === 'scanning_animating');
+            const needsMissileOrScanTransition =
+                isPVEGame &&
+                (game.gameStatus === 'missile_animating' ||
+                    game.gameStatus === 'scanning_animating' ||
+                    // 도전의 탑: 미사일 선택 중에도 updateMissileState(아이템 데드라인 등)가 돌아야 함
+                    game.gameStatus === 'missile_selecting');
             const needsPveServerGoAiTick =
                 game.isAiGame &&
                 (game.gameCategory === 'adventure' || game.gameCategory === 'guildwar') &&
@@ -1305,10 +1316,13 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             const needsP2Load = game.player2.id !== aiUserId && (!game.player2 || !game.player2.nickname);
             
             const guildWarBoardId = (game as any).gameCategory === 'guildwar' ? ((game as any).guildWarBoardId as string | undefined) : undefined;
-            const aiUserResolved =
+            let aiUserResolved =
                 guildWarBoardId && String(guildWarBoardId).length > 0
                     ? getAiUserForGuildWar(game.mode, guildWarBoardId)
                     : getAiUser(game.mode);
+            if (String((game as any).gameCategory ?? '') === 'tower') {
+                aiUserResolved = { ...aiUserResolved, nickname: TOWER_AI_BOT_DISPLAY_NAME };
+            }
 
             if (needsP1Load || needsP2Load) {
                 const [p1, p2] = await Promise.all([
@@ -1404,21 +1418,8 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             const currentPlayerIdForAi = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const isAiPlayerTurn = currentPlayerIdForAi === aiUserId ||
                 (currentPlayerIdForAi && String(currentPlayerIdForAi).startsWith('dungeon-bot-'));
-            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
-            const isGoMode =
-                game.mode === types.GameMode.Standard ||
-                game.mode === types.GameMode.Capture ||
-                game.mode === types.GameMode.Speed ||
-                game.mode === types.GameMode.Base ||
-                game.mode === types.GameMode.Hidden ||
-                game.mode === types.GameMode.Missile ||
-                game.mode === types.GameMode.Mix;
-            // 놀이바둑은 서버가 애니메이션/물리/랜덤 등을 처리해야 하므로 client-side AI를 사용하지 않음 (설정이 실수로 켜져도 무시)
-            const effectiveUseClientSideAi = useClientSideAi && isGoMode;
             const isAiTurn = (game.isAiGame || isAiPlayerTurn) && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
-                isAiPlayerTurn &&
-                // 클라이언트 측 AI(Electron 로컬 GnuGo) 사용 시에만 서버에서 makeAiMove 호출하지 않음. useClientSideAi가 false면 탑/전략바둑 모두 서버 AI 사용.
-                !effectiveUseClientSideAi;
+                isAiPlayerTurn;
 
             // 알까기: 배치→공격 전환 직후 AI 공격 1회 확실히 스케줄 (round-robin 등으로 놓치는 것 방지)
             const didAlkkagiTriggerAiAttack = (game as any).alkkagiTriggerAiAttack === true &&

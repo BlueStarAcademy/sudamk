@@ -12,16 +12,16 @@ export function getTowerKataServerLevelByFloor(floor: number): number {
     if (f <= 35) return -20;
     if (f <= 40) return -18;
     if (f <= 45) return -16;
-    if (f <= 50) return -14;
-    if (f <= 55) return -12;
-    if (f <= 60) return -10;
-    if (f <= 65) return -9;
-    if (f <= 70) return -8;
-    if (f <= 75) return -7;
-    if (f <= 80) return -5;
-    if (f <= 85) return -4;
-    if (f <= 90) return -2;
-    if (f <= 95) return -1;
-    if (f <= 99) return 1;
-    return 3;
+    if (f <= 50) return -15;
+    if (f <= 55) return -14;
+    if (f <= 60) return -13;
+    if (f <= 65) return -12;
+    if (f <= 70) return -11;
+    if (f <= 75) return -10;
+    if (f <= 80) return -9;
+    if (f <= 85) return -8;
+    if (f <= 90) return -7;
+    if (f <= 95) return -6;
+    if (f <= 99) return -5;
+    return -3;
 }

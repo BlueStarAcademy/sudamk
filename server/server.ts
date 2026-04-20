@@ -1978,11 +1978,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     const timeoutDuration = (activeGame || (userStatus?.status === 'in-game' && userStatus?.gameId)) ? GAME_DISCONNECT_TIMEOUT_MS : LOBBY_TIMEOUT_MS;
 
                     if (now - volatileState.userConnections[userId] > timeoutDuration) {
-                    // User timed out. Check if they are in a single player game first.
-                    const isSinglePlayerGame = activeGame && (activeGame.isSinglePlayer || activeGame.gameCategory === 'tower' || activeGame.isAiGame);
+                    // User timed out. Check if they are in a local PVE game first.
+                    // 주의: adventure/대기실 AI 대국(isAiGame)은 재접속 복구 대상이므로 여기서 싱글처럼 취급하지 않는다.
+                    const isLocalPveGame =
+                        activeGame &&
+                        (activeGame.isSinglePlayer ||
+                            activeGame.gameCategory === 'tower' ||
+                            activeGame.gameCategory === 'singleplayer');
                     
                     // 싱글플레이 게임에서는 타임아웃이 발생해도 연결을 유지하고 게임을 계속 진행
-                    if (isSinglePlayerGame) {
+                    if (isLocalPveGame) {
                         // 연결 시간을 갱신하여 타임아웃을 방지 (게임이 진행 중이므로)
                         volatileState.userConnections[userId] = now;
                         continue;
@@ -1997,8 +2002,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         if (activeGame) {
                             // User was in a game. Set the disconnection state for the single-player-disconnect logic.
                             // Their userStatus remains for now, so we know they were in this game.
-                            // 도전의 탑, 싱글플레이, AI 게임에서는 접속 끊김 패널티 없음
-                            const isNoPenaltyGame = activeGame.isSinglePlayer || activeGame.gameCategory === 'tower' || activeGame.isAiGame;
+                            // 도전의 탑/싱글플레이는 접속 끊김 패널티 없음
+                            // (온라인 AI 대국은 여기서 삭제하지 않고 재접속 복구를 허용)
+                            const isNoPenaltyGame =
+                                activeGame.isSinglePlayer ||
+                                activeGame.gameCategory === 'tower' ||
+                                activeGame.gameCategory === 'singleplayer';
                             if (!activeGame.disconnectionState) {
                                 if (!isNoPenaltyGame) {
                                     // 일반 게임에서만 접속 끊김 카운트 및 패널티 적용
@@ -2017,10 +2026,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                         await db.saveGame(activeGame);
                                     }
                                 } else {
-                                    // 도전의 탑, 싱글플레이, AI 게임에서는 연결 끊김 시 게임 삭제
-                                    const isAiGame = activeGame.isSinglePlayer || activeGame.gameCategory === 'tower' || activeGame.isAiGame;
-                                    if (isAiGame) {
-                                        console.log(`[Disconnect] Deleting AI game ${activeGame.id} for user ${userId} due to disconnect`);
+                                    // 로컬 PVE(싱글/탑)만 연결 끊김 시 즉시 삭제.
+                                    // 온라인 AI 대국(모험 포함)은 여기서 삭제하지 않고 유저 재접속을 허용한다.
+                                    const shouldDeleteLocalPveGame =
+                                        activeGame.isSinglePlayer ||
+                                        activeGame.gameCategory === 'tower' ||
+                                        activeGame.gameCategory === 'singleplayer';
+                                    if (shouldDeleteLocalPveGame) {
+                                        console.log(`[Disconnect] Deleting local PVE game ${activeGame.id} for user ${userId} due to disconnect`);
                                         
                                         // 사용자 상태에서 gameId 제거
                                         if (volatileState.userStatuses[userId]) {
@@ -2036,8 +2049,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                         delete volatileState.gameChats[activeGame.id];
                                         // 게임 삭제 브로드캐스트
                                         broadcast({ type: 'GAME_DELETED', payload: { gameId: activeGame.id } });
+                                    } else if (activeGame.isAiGame) {
+                                        // 온라인 AI 대국은 접속 끊김으로 삭제/강제종료하지 않음.
+                                        // userStatus(gameId)를 유지해 재접속 시 같은 게임으로 복귀 가능하게 한다.
+                                        console.log(
+                                            `[Disconnect] Keeping online AI game ${activeGame.id} for reconnect recovery (user=${userId})`
+                                        );
                                     } else {
-                                        // 일반 AI 게임은 종료만 처리
                                         const winner = activeGame.blackPlayerId === userId ? types.Player.White : types.Player.Black;
                                         await endGame(activeGame, winner, 'disconnect');
                                     }

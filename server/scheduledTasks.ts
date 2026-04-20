@@ -23,7 +23,7 @@ import { startTournamentSessionForUser } from './actions/tournamentActions.js';
 import { broadcast } from './socket.js';
 import * as mailRepo from './prisma/mailRepository.js';
 import { volatileState } from './state.js';
-import { FUNCTION_VIP_DAILY_CONDITION_POTION_NAME } from '../shared/constants/vipBenefits.js';
+import { FUNCTION_VIP_DAILY_ACTION_POINT_POTION_NAME } from '../shared/constants/vipBenefits.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { guildWarEffectiveEndMs, guildWarIsChronologicallyActive } from './guildWarActiveUtils.js';
 
@@ -2090,7 +2090,7 @@ export async function processDailyQuestReset(): Promise<void> {
         if (!u?.id || !isFunctionVipActive(u)) continue;
         const mailId = `mail-vip-function-${dayKey}-${u.id}`;
         if (u.mail?.some((m) => m.id === mailId)) continue;
-        const template = CONSUMABLE_ITEMS.find((c) => c.name === FUNCTION_VIP_DAILY_CONDITION_POTION_NAME);
+        const template = CONSUMABLE_ITEMS.find((c) => c.name === FUNCTION_VIP_DAILY_ACTION_POINT_POTION_NAME);
         if (!template) continue;
         const item: InventoryItem = {
             ...template,
@@ -2106,7 +2106,7 @@ export async function processDailyQuestReset(): Promise<void> {
             from: 'System',
             title: '기능 VIP 일일 보상',
             message:
-                '기능 VIP 혜택으로 컨디션 회복제(대) 1개를 드립니다. 7일 이내에 수령해 주세요.',
+                '기능 VIP 혜택으로 행동력 회복제(+30) 1개를 드립니다. 7일 이내에 수령해 주세요.',
             attachments: { items: [item] },
             receivedAt: now,
             expiresAt: now + 7 * 24 * 60 * 60 * 1000,

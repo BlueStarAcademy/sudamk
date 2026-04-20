@@ -17,7 +17,8 @@ export function cloneBoardStateForKataOpeningSnapshot(
  * KataServer는 boardState를 받지 않고 moves만으로 국면을 복원하므로,
  * 따내기·고정 포석 등 moveHistory에 없는 선배치 돌을 이 배열로 앞에 붙인다.
  *
- * 순서: 흑 전부(행→열) 후 백 전부(행→열). 연속 동색 착점은 Kata 엔진이 포석으로 처리하는 경우가 많다.
+ * 일반 규칙(흑·백 번갈)으로 재생되도록: 연속 흑 착점 사이에 백 PASS, 연속 백 사이에 흑 PASS.
+ * 마지막 수 이후 다음 착수가 흑이 되도록(대부분 탑·AI에서 유저 흑 선) 필요 시 한 수 PASS를 덧둔다.
  */
 export function encodeBoardStateAsKataSetupMovesFromEmpty(
     boardState: BoardState | null | undefined
@@ -38,8 +39,35 @@ export function encodeBoardStateAsKataSetupMovesFromEmpty(
     const cmp = (a: { x: number; y: number }, b: { x: number; y: number }) => a.y - b.y || a.x - b.x;
     blacks.sort(cmp);
     whites.sort(cmp);
-    return [
-        ...blacks.map((p) => ({ ...p, player: Player.Black })),
-        ...whites.map((p) => ({ ...p, player: Player.White })),
-    ];
+
+    const out: Array<{ x: number; y: number; player: Player }> = [];
+    if (blacks.length === 0 && whites.length === 0) return out;
+
+    for (let i = 0; i < blacks.length; i++) {
+        out.push({ ...blacks[i]!, player: Player.Black });
+        if (i < blacks.length - 1) {
+            out.push({ x: -1, y: -1, player: Player.White });
+        }
+    }
+
+    if (blacks.length > 0 && whites.length === 0) {
+        out.push({ x: -1, y: -1, player: Player.White });
+        return out;
+    }
+
+    if (blacks.length === 0) {
+        for (let i = 0; i < whites.length; i++) {
+            out.push({ x: -1, y: -1, player: Player.Black });
+            out.push({ ...whites[i]!, player: Player.White });
+        }
+        return out;
+    }
+
+    for (let i = 0; i < whites.length; i++) {
+        out.push({ ...whites[i]!, player: Player.White });
+        if (i < whites.length - 1) {
+            out.push({ x: -1, y: -1, player: Player.Black });
+        }
+    }
+    return out;
 }

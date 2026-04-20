@@ -667,137 +667,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return {};
             }
 
-            // 클라이언트 측 AI(Electron 로컬 GnuGo): 클라이언트가 계산한 AI 수를 서버가 검증 후 적용
-            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
-            if (payload.clientSideAiMove && useClientSideAi && game.isAiGame) {
-                const { aiUserId } = await import('../aiPlayer.js');
-                const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                if (aiPlayerId === aiUserId && game.currentPlayer !== types.Player.None && (game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing')) {
-                    const { x, y } = payload;
-                    const boardSize = game.settings.boardSize;
-                    if (typeof x !== 'number' || typeof y !== 'number' || x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
-                        return { error: 'Invalid client-side AI move position.' };
-                    }
-                    const aiPlayerEnum = game.currentPlayer;
-                    const humanPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                    const move = { x, y, player: aiPlayerEnum };
-                    const result = processMove(
-                        game.boardState,
-                        move,
-                        game.koInfo,
-                        game.moveHistory.length,
-                        { ignoreSuicide: false, isSinglePlayer: true, opponentPlayer: humanPlayerEnum }
-                    );
-                    if (!result.isValid) {
-                        return { error: `Client-side AI move invalid: ${result.reason || 'invalid'}` };
-                    }
-                    const isHiddenAiMove = !!(payload as any).isHidden;
-                    if (isHiddenAiMove) {
-                        const aiPlayerIdForHidden =
-                            aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                        const hiddenKeyForAi =
-                            aiPlayerIdForHidden === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
-                        const curHiddenForAi =
-                            (game as any)[hiddenKeyForAi] ?? game.settings.hiddenStoneCount ?? 0;
-                        if (curHiddenForAi <= 0) {
-                            return { error: 'AI has no hidden stones remaining.' };
-                        }
-                    }
-                    game.boardState = result.newBoardState;
-                    game.moveHistory.push(move);
-                    game.koInfo = result.newKoInfo;
-                    if (!isHiddenAiMove) {
-                        game.lastMove = { x, y };
-                    } else {
-                        if (!game.hiddenMoves) game.hiddenMoves = {};
-                        game.hiddenMoves[game.moveHistory.length - 1] = true;
-                        const aiPlayerId =
-                            aiPlayerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                        const hiddenKey =
-                            aiPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
-                        const curHidden =
-                            (game as any)[hiddenKey] ?? game.settings.hiddenStoneCount ?? 0;
-                        (game as any)[hiddenKey] = Math.max(0, curHidden - 1);
-                    }
-                    game.passCount = 0;
-                    if (result.capturedStones.length > 0) {
-                        game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + result.capturedStones.length;
-                        if (!game.justCaptured) game.justCaptured = [];
-                        for (const stone of result.capturedStones) {
-                            game.justCaptured.push({ point: stone, player: humanPlayerEnum, wasHidden: false, capturePoints: 1 });
-                        }
-                        removeCapturedBaseStoneMarkers(game, result.capturedStones);
-                    }
-                    game.currentPlayer = humanPlayerEnum;
-                    game.gameStatus = 'playing';
-                    game.aiTurnStartTime = undefined;
-                    const { hasTimeControl, shouldEnforceTimeControl } = await import('./shared.js');
-                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                        const nextTimeKey = humanPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        const nextByoyomiKey = humanPlayerEnum === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                        const isFischer = isFischerStyleTimeControl(game as any);
-                        const isNextInByoyomi = (game[nextTimeKey] ?? 0) <= 0 && (game.settings.byoyomiCount ?? 0) > 0 && (game[nextByoyomiKey] ?? 0) > 0 && !isFischer;
-                        if (isNextInByoyomi) {
-                            game.turnDeadline = now + (game.settings.byoyomiTime ?? 30) * 1000;
-                        } else {
-                            game.turnDeadline = now + Math.max(0, game[nextTimeKey] ?? 0) * 1000;
-                        }
-                        game.turnStartTime = now;
-                    } else {
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
-                    // 길드전 등: 계가까지 N수 — 클라이언트 AI 수도 totalTurns·자동 계가 반영
-                    const autoScoringAfterAi = (game.settings as any)?.autoScoringTurns as number | undefined;
-                    if (
-                        (game as any).gameCategory === 'guildwar' &&
-                        autoScoringAfterAi != null &&
-                        autoScoringAfterAi > 0
-                    ) {
-                        const validAfter = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1);
-                        game.totalTurns = validAfter.length;
-                        if (validAfter.length >= autoScoringAfterAi) {
-                            game.gameStatus = 'scoring';
-                            await db.saveGame(game);
-                            const { broadcastToGameParticipants } = await import('../socket.js');
-                            const gameToBroadcast = { ...game };
-                            delete (gameToBroadcast as any).boardState;
-                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                            try {
-                                await getGameResult(game);
-                            } catch (e: any) {
-                                console.error(
-                                    `[handleStandardAction] getGameResult failed after clientSideAiMove (guildwar autoScoring) for game ${game.id}:`,
-                                    e?.message
-                                );
-                            }
-                            return {};
-                        }
-                    }
-                    // 전략바둑: AI 수 적용 후 정해진 수순(scoringTurnLimit) 도달 시 계가 진행
-                    const scoringTurnLimitAfterAi = game.settings.scoringTurnLimit;
-                    if (scoringTurnLimitAfterAi != null && scoringTurnLimitAfterAi > 0 && !game.isSinglePlayer && game.gameCategory !== 'tower') {
-                        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
-                        const turnsAfter = (game.moveHistory || []).length;
-                        if (turnsAfter >= scoringTurnLimitAfterAi) {
-                            console.log(`[handleStandardAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${turnsAfter}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
-                            game.gameStatus = 'scoring';
-                            game.totalTurns = turnsAfter;
-                            await db.saveGame(game);
-                            const { broadcastToGameParticipants } = await import('../socket.js');
-                            const gameToBroadcast = { ...game };
-                            delete (gameToBroadcast as any).boardState;
-                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                            try {
-                                await getGameResult(game);
-                            } catch (e: any) {
-                                console.error(`[handleStandardAction] getGameResult failed after clientSideAiMove for game ${game.id}:`, e?.message);
-                            }
-                            return {};
-                        }
-                    }
-                    return {};
-                }
+            if (payload.clientSideAiMove) {
+                return { error: '클라이언트 측 AI 수는 지원되지 않습니다. 서버 AI(Kata)만 사용됩니다.' };
             }
 
             if (!isMyTurn || (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing')) {
@@ -1249,7 +1120,16 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
                             points = 2;
                         } else {
-                            const moveIndex = game.moveHistory.findIndex((m) => m.x === stone.x && m.y === stone.y);
+                            // 동일 좌표 재착수 시 과거(가장 이른) 수순을 보지 않도록,
+                            // 실제로 따낸 돌의 "최신 상대 수순" 기준으로 히든 여부를 판정한다.
+                            let moveIndex = -1;
+                            for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                                const m = game.moveHistory![i];
+                                if (m.x === stone.x && m.y === stone.y && m.player === capturedPlayerEnum) {
+                                    moveIndex = i;
+                                    break;
+                                }
+                            }
                             const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                             wasHiddenForJustCaptured = wasHidden;
                             if (wasHidden) {
@@ -1270,7 +1150,14 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         }
                     } else { // PvP logic
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
-                        const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                        let moveIndex = -1;
+                        for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                            const m = game.moveHistory![i];
+                            if (m.x === stone.x && m.y === stone.y && m.player === capturedPlayerEnum) {
+                                moveIndex = i;
+                                break;
+                            }
+                        }
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         wasHiddenForJustCaptured = wasHidden; // pass to justCaptured
                         

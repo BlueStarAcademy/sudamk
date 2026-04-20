@@ -6,7 +6,6 @@ import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { resolveTowerCaptureBlackTarget, resolveTowerPlainWhiteCount } from '../shared/utils/towerStageRules.js';
-import { shouldUseClientSideAi } from '../services/wasmGnuGo.js';
 import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
@@ -489,7 +488,7 @@ const TowerLobby: React.FC = () => {
                                                     try {
                                                         const res = await handlers.handleAction({
                                                             type: 'START_TOWER_GAME',
-                                                            payload: { floor, useClientSideAi: shouldUseClientSideAi() }
+                                                            payload: { floor }
                                                         });
                                                         const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
                                                         console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });
@@ -524,7 +523,7 @@ const TowerLobby: React.FC = () => {
 											try {
 												const res = await handlers.handleAction({
                                                     type: 'START_TOWER_GAME',
-                                                    payload: { floor, useClientSideAi: shouldUseClientSideAi() }
+                                                    payload: { floor }
                                                 });
 												const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
 												console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });

@@ -211,8 +211,12 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     
     const handleUseMissile = React.useCallback(() => {
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
-        onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
-    }, [gameStatus, session.id, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
+        const clientSync = buildPveItemActionClientSync(session);
+        onAction({
+            type: 'START_MISSILE_SELECTION',
+            payload: { gameId: session.id, ...(clientSync ? { clientSync } : {}) },
+        });
+    }, [gameStatus, session, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     const handleRefresh = React.useCallback(() => {
         if (canRefresh && canAfford) {

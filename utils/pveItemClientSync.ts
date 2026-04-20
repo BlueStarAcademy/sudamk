@@ -14,6 +14,7 @@ export function buildPveItemActionClientSync(session: LiveGameSession): PveItemA
         hiddenMoves: session.hiddenMoves ? { ...session.hiddenMoves } : undefined,
         permanentlyRevealedStones: session.permanentlyRevealedStones?.map((p) => ({ ...p })),
         currentPlayer: session.currentPlayer,
+        gameStatus: session.gameStatus,
         captures: session.captures ? { ...session.captures } : undefined,
         koInfo: session.koInfo,
         totalTurns: session.totalTurns,

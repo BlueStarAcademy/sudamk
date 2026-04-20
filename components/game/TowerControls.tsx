@@ -4,7 +4,6 @@ import { GameProps, Player } from '../../types.js';
 import Button from '../Button.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
-import { shouldUseClientSideAi } from '../../services/wasmGnuGo.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import {
     countTowerLobbyInventoryQty,
@@ -190,7 +189,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
 
         const handleRetry = async () => {
             try {
-                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor, useClientSideAi: shouldUseClientSideAi() } });
+                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor } });
                 const gameId = (result as any)?.gameId;
                 if (gameId) {
                     await new Promise(resolve => setTimeout(resolve, 200));
@@ -206,7 +205,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         const handleNextFloor = async () => {
             if (!canTryNext || !nextFloor) return;
             try {
-                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor: nextFloor, useClientSideAi: shouldUseClientSideAi() } });
+                const result = await onAction({ type: 'START_TOWER_GAME', payload: { floor: nextFloor } });
                 const gameId = (result as any)?.gameId;
                 if (gameId) {
                     await new Promise(resolve => setTimeout(resolve, 200));
@@ -345,7 +344,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
             return;
         }
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn) return;
-        onAction({ type: 'START_MISSILE_SELECTION', payload: { gameId: session.id } });
+        const clientSync = buildPveItemActionClientSync(session);
+        onAction({
+            type: 'START_MISSILE_SELECTION',
+            payload: { gameId: session.id, ...(clientSync ? { clientSync } : {}) },
+        });
     };
     
     const hiddenCount = showMissileAndHiddenForHook ? getItemCount(TOWER_ITEM_HIDDEN_NAMES) : 0;

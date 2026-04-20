@@ -46,15 +46,30 @@ export function reconcileStrategicAiBoardSizeWithGroundTruth(game: LiveGameSessi
 
     const snap = g.kataStrategicOpeningBoardState;
     const snapN = getSquareBoardSideFromBoardState(snap);
-    if (snapN != null && snapN !== target) {
+    // 실제 판이 정사각으로 확보된 경우에만 스냅과 비교한다.
+    // (탑·WS 병합 직후 boardState가 비었거나 행 길이가 어긋난 한 틱에 target=19로 스냅만 지우면 Kata 포석 접두가 통째로 사라짐)
+    if (fromState != null && snapN != null && snapN !== fromState) {
         console.warn(
-            `[reconcileStrategicAiBoardSize] Clearing stale kataStrategicOpeningBoardState (snap=${snapN}, target=${target}) game=${game.id}`,
+            `[reconcileStrategicAiBoardSize] Clearing stale kataStrategicOpeningBoardState (snap=${snapN}, board=${fromState}) game=${game.id}`,
         );
         g.kataStrategicOpeningBoardState = undefined;
         g.kataCaptureSetupMoves = undefined;
+        if (String(g.gameCategory ?? '') === 'tower') {
+            g.kataTowerOpeningBoardBackup = undefined;
+        }
+    } else if (fromState == null && snapN != null && snapN !== target) {
+        if (process.env.NODE_ENV === 'development') {
+            console.warn(
+                `[reconcileStrategicAiBoardSize] keep opening snapshot (no square boardState yet) game=${game.id} snap=${snapN} inferredTarget=${target}`,
+            );
+        }
     }
     const setup = g.kataCaptureSetupMoves as Array<{ x: number; y: number }> | undefined;
-    if (Array.isArray(setup) && setup.some((m) => m && Number.isInteger(m.x) && Number.isInteger(m.y) && (m.x >= target || m.y >= target))) {
+    if (
+        fromState != null &&
+        Array.isArray(setup) &&
+        setup.some((m) => m && Number.isInteger(m.x) && Number.isInteger(m.y) && (m.x >= target || m.y >= target))
+    ) {
         console.warn(`[reconcileStrategicAiBoardSize] Clearing kataCaptureSetupMoves out of range for board ${target} game=${game.id}`);
         g.kataCaptureSetupMoves = undefined;
     }

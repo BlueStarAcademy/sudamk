@@ -581,6 +581,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         onboardingDemoAnchorPoint = null,
         onboardingForcedFirstMovePoint = null,
     } = props;
+    /** playing 중에 세션에 남은 stale newlyRevealed로 스파클·가시성이 매 수 재생되는 것 방지 */
+    const isHiddenRevealStatus =
+        gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal';
+    const effectiveNewlyRevealed = isHiddenRevealStatus ? newlyRevealed : undefined;
     const [captureScoreFloats, setCaptureScoreFloats] = useState<{ id: string; point: Point; label: string }[]>([]);
     /** 서버는 justCaptured를 누적하므로, 이번 업데이트에서 새로 추가된 항목만 처리 */
     const processedJustCapturedCountRef = useRef<number>(0);
@@ -598,6 +602,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     /** missile_animating → playing 직후: 따내기 점수 플로트를 이동한 내 돌 위치에서 띄우기 위한 앵커 */
     const missileCaptureScoreAnchorRef = useRef<Point | null>(null);
     const prevGameStatusForMissileFloatRef = useRef<GameStatus | undefined>(undefined);
+    const isMyCaptureByPlayer = (capturer: Player): boolean =>
+        myPlayerEnum !== Player.None && capturer === myPlayerEnum;
 
     useEffect(() => {
         processedJustCapturedCountRef.current = 0;
@@ -647,22 +653,22 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
      * 본경기로 돌아온 뒤 미공개 히든 따내기(+5 등)는 공개 애니가 끝난 다음 한 박자 늦춰 이어서 재생한다.
      */
     useEffect(() => {
-        const animType = (animation as { type?: string } | null | undefined)?.type;
-        const inHiddenRevealPhase = animType === 'hidden_reveal' || String(gameStatus) === 'hidden_reveal_animating';
+        const inHiddenRevealPhase =
+            gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal';
         if (inHiddenRevealPhase) {
             return;
         }
         const DEBOUNCE_MS = 48;
         const t = window.setTimeout(() => {
-            const innerAnimType = (animation as { type?: string } | null | undefined)?.type;
-            if (innerAnimType === 'hidden_reveal' || String(gameStatus) === 'hidden_reveal_animating') {
+            const st = String(gameStatus);
+            if (st === 'hidden_reveal_animating' || st === 'hidden_final_reveal') {
                 return;
             }
             const list = justCaptured ?? [];
             const CAPTURE_FLOAT_MS = 2800;
             const minPts = captureScoreFloatMinPoints;
-            /** 미공개 히든 포획(+5) 등: 공개 연출 직후 점수 플로트를 분리 */
-            const hiddenRevealScoreFloatLagMs = list.some((e) => e.wasHidden || (e.capturePoints ?? 0) >= 5) ? 450 : 0;
+            /** 미공개 히든 포획(+5): 공개 연출 직후 점수 플로트를 분리 */
+            const hiddenRevealScoreFloatLagMs = list.some((e) => e.wasHidden) ? 450 : 0;
 
             const syncJustCapturedSliceStart = () => {
                 const prevCount = processedJustCapturedCountRef.current;
@@ -739,6 +745,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
                 /** justCaptured만 보면 히든 5점 등이 누락될 수 있어(낙관적 갱신·슬라이스 동기), captures 증가분과 맞춤 */
                 const floatPts = Math.max(slicePts, delta);
+                const capturerFromSlice =
+                    sliceEntries.length > 0
+                        ? (sliceEntries[0].player === Player.Black ? Player.White : Player.Black)
+                        : floatPlayer;
 
                 const headStartBonus = adventureRegionalHeadStartCaptureBonus ?? 0;
                 const validMovesPlaced = moveHistory.filter((m) => m && m.x >= 0 && m.y >= 0).length;
@@ -765,6 +775,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     processedJustCapturedCountRef.current = list.length;
                 };
 
+                // 내 캡처가 아니면 내 화면에서 점수 획득 플로트를 띄우지 않는다.
+                if (!isMyCaptureByPlayer(capturerFromSlice)) {
+                    commitMoveFloatState();
+                    return;
+                }
+
                 const isPass = last.x < 0 || last.y < 0;
 
                 if (floatPts >= minPts) {
@@ -775,8 +791,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // justCaptured 기반 포획인데 마지막 수가 상대(예: AI) 착수면: 플로트는 실제 따낸 쪽의 마지막 착점에 붙인다
                     let anchorMove = last;
                     if (sliceEntries.length > 0) {
-                        const capturerFromSlice =
-                            sliceEntries[0].player === Player.Black ? Player.White : Player.Black;
                         for (let i = moveHistory.length - 1; i >= 0; i--) {
                             const m = moveHistory[i];
                             if (m && m.player === capturerFromSlice && m.x >= 0 && m.y >= 0) {
@@ -837,6 +851,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
             const capturer =
                 newEntries[0].player === Player.Black ? Player.White : Player.Black;
+            if (!isMyCaptureByPlayer(capturer)) {
+                if (captures) prevCapturesForFloatRef.current = { ...captures };
+                return;
+            }
             const missileAnchor = missileMovedStoneAnchorFor(capturer);
             const lm = lastMoveForFloatRef.current;
             const anchor = missileAnchor ?? (lm ? { x: lm.x, y: lm.y } : newEntries[0].point);
@@ -1603,7 +1621,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         !!hiddenMoves[moveIndex] &&
                         !!histMove &&
                         histMove.player === actualPlayer;
-                    const isInRevealAnimation = animation?.type === 'hidden_reveal' && animation.stones?.some((s: { point: Point }) => s.point.x === x && s.point.y === y);
+                    const isInRevealAnimation =
+                        isHiddenRevealStatus &&
+                        animation?.type === 'hidden_reveal' &&
+                        animation.stones?.some((s: { point: Point }) => s.point.x === x && s.point.y === y);
                     const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y) || !!isInRevealAnimation;
                     const atAiInitialHiddenStone =
                         !!aiInitialHiddenStone &&
@@ -1635,7 +1656,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         if (isSpectator) {
                             isVisible = isGameFinished || !!isPermanentlyRevealed;
                         } else {
-                            const isNewlyRevealed = newlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
+                            const isNewlyRevealed = effectiveNewlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
                             isVisible =
                                 isGameFinished ||
                                 !!isPermanentlyRevealed ||
@@ -1659,7 +1680,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         if (animation.to.x === x && animation.to.y === y) return null; // 목적지 자리
                     }
                     
-                    const isNewlyRevealedForAnim = newlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
+                    const isNewlyRevealedForAnim = effectiveNewlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
                     // 반투명: 내가 둔 히든 돌(비공개 상태) 또는 스캔으로만 안 돌만. 영구 공개/방금 공개된 돌은 선명하게
                     const isFaint = !isSpectator && (
                         (softScanAtCurrentMove && !isPermanentlyRevealed) ||
@@ -1855,7 +1876,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                     revealPlayer={displayBoardState[animation.point.y]?.[animation.point.x] ?? Player.None}
                                 />
                             )}
-                            {animation.type === 'hidden_reveal' &&
+                            {isHiddenRevealStatus &&
+                                animation.type === 'hidden_reveal' &&
                                 animation.stones.map((s, i) => {
                                     const isAtLastPlacedPoint =
                                         !!lastMove &&

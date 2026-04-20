@@ -1205,16 +1205,46 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const aiPlayerEnum = session.currentPlayer;
         if (aiPlayerEnum !== Player.Black && aiPlayerEnum !== Player.White) return;
         const opponentPlayerEnum = aiPlayerEnum === Player.Black ? Player.White : Player.Black;
+
+        // 히든 연출 종료 직후 AI 히든 착수: 탑·싱글은 서버가 연출에 실은 Kata 확정 좌표(pendingHiddenMove) 우선, 없으면 휴리스틱 폴백
         const maskedBoardState = getMaskedBoardForHiddenAi(session, boardStateToUse);
         const koInfoAtCalculation = session.koInfo ? JSON.parse(JSON.stringify(session.koInfo)) : null;
-        const aiMove = calculateSimpleAiMove(
-            JSON.parse(JSON.stringify(maskedBoardState)),
-            aiPlayerEnum,
-            opponentPlayerEnum,
-            koInfoAtCalculation,
-            moveHistoryLength,
-            session.settings?.aiDifficulty ?? 1
-        );
+        let aiMove: { x: number; y: number } | null = null;
+        if (isGuildWarGame) {
+            aiMove = calculateSimpleAiMove(
+                JSON.parse(JSON.stringify(maskedBoardState)),
+                aiPlayerEnum,
+                opponentPlayerEnum,
+                koInfoAtCalculation,
+                moveHistoryLength,
+                session.settings?.aiDifficulty ?? 1
+            );
+        } else {
+            const anim = session.animation as { type?: string; pendingHiddenMove?: { x: number; y: number } } | undefined;
+            const pm = anim?.pendingHiddenMove;
+            const boardSize = boardStateToUse.length;
+            const kataFromAnim =
+                anim?.type === 'ai_thinking' &&
+                pm &&
+                Number.isInteger(pm.x) &&
+                Number.isInteger(pm.y) &&
+                pm.x >= 0 &&
+                pm.y >= 0 &&
+                pm.x < boardSize &&
+                pm.y < boardSize;
+            if (kataFromAnim && pm) {
+                aiMove = { x: pm.x, y: pm.y };
+            } else {
+                aiMove = calculateSimpleAiMove(
+                    JSON.parse(JSON.stringify(maskedBoardState)),
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    koInfoAtCalculation,
+                    moveHistoryLength,
+                    session.settings?.aiDifficulty ?? 1
+                );
+            }
+        }
         if (!aiMove) return;
         if (isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y)) {
             lastAiMoveRef.current = {
@@ -1230,10 +1260,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     gameId: session.id,
                     gameType: isTower ? 'tower' : isGuildWarGame ? 'guildwar' : 'singleplayer',
                     point: { x: aiMove.x, y: aiMove.y },
-                    // Reveal target belongs to the opponent of the AI placing this hidden stone.
                     player: opponentPlayerEnum,
-                    keepTurn: true
-                }
+                    keepTurn: true,
+                },
             } as any);
             return;
         }
@@ -1251,7 +1280,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             timestamp: Date.now(),
             revealSig: session.permanentlyRevealedStones?.length ?? 0,
         };
-        // 길드전은 liveGames만 사용하므로 싱글/탑 클라이언트 무브가 적용되지 않음 → 서버 PLACE_STONE(clientSideAi + 히든)으로 동기화
         if (isGuildWarGame) {
             handlers.handleAction({
                 type: 'PLACE_STONE',
@@ -1291,6 +1319,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         handlers.handleAction,
         isTower,
         isGuildWarGame,
+        session.isSinglePlayer,
+        session.gameCategory,
+        session.animation,
     ]);
 
     useEffect(() => {
@@ -2616,195 +2647,68 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 } as ServerAction);
                 return;
             }
-            
-            // 클라이언트 측에서 AI 수 계산 (바둑 모드만)
-            const aiLevel = session.settings.aiDifficulty || 1;
-            const opponentPlayer = currentPlayer === Player.Black ? Player.White : Player.Black;
-            
-            // 현재 게임 ID와 상태를 저장 (timeout 내에서 사용)
-            const currentGameId = session.id;
-            const currentGameStatus = session.gameStatus;
-            const currentPlayerAtCalculation = currentPlayer;
-            const moveHistoryLengthAtCalculation = moveHistoryLength;
-            
-            // 히든 모드에서는 유저의 미공개 히든 돌을 AI에게 빈칸처럼 보이게 처리한다.
-            const boardStateToUse = restoredBoardState || session.boardState;
-            const boardStateForAi =
-                session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'guildwar'
-                    ? getMaskedBoardForHiddenAi(session, boardStateToUse)
-                    : boardStateToUse;
-            const boardStateAtCalculation = JSON.parse(JSON.stringify(boardStateForAi));
-            const actualBoardStateAtCalculation = JSON.parse(JSON.stringify(boardStateToUse));
-            const koInfoAtCalculation = session.koInfo ? JSON.parse(JSON.stringify(session.koInfo)) : null;
-            
-            const aiMove = calculateSimpleAiMove(
-                boardStateAtCalculation,
-                currentPlayer,
-                opponentPlayer,
-                koInfoAtCalculation,
-                moveHistoryLengthAtCalculation,
-                aiLevel
-            );
 
-            if (aiMove) {
-                console.log('[Game] AI move calculated:', {
-                    gameId: currentGameId,
-                    gameCategory: session.gameCategory,
-                    isTower: session.gameCategory === 'tower',
-                    aiMove,
-                    currentPlayer: currentPlayerAtCalculation,
-                    aiLevel,
-                    moveHistoryLength: moveHistoryLengthAtCalculation
-                });
-                
-                // 약 1초 지연 후 AI 수 전송 (봇도 시간을 사용해야 하므로)
-                const delay = 1000; // 1초 고정
+            // 도전의 탑·싱글플레이: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
+            if (session.gameCategory === 'tower' || session.isSinglePlayer) {
+                const currentGameId = session.id;
+                const currentGameStatus = session.gameStatus;
+                const currentPlayerAtCalculation = currentPlayer;
+                const moveHistoryLengthAtCalculation = moveHistoryLength;
+                const delay = 1000;
                 aiMoveTimeoutRef.current = setTimeout(() => {
-                    // 게임 상태가 여전히 'playing'이고 AI 차례인지 다시 확인
-                    // 게임 ID가 변경되지 않았는지도 확인
-                    // moveHistory 길이가 변경되지 않았는지 확인 (다른 수가 이미 둬졌는지 확인)
-                    const currentMoveHistoryLength = session.moveHistory?.length || 0;
-                    if (session.gameStatus === 'playing' && 
-                        session.currentPlayer === currentPlayerAtCalculation &&
-                        session.id === currentGameId &&
-                        session.gameStatus === currentGameStatus &&
-                        currentMoveHistoryLength === moveHistoryLengthAtCalculation) {
-                        // 타워 게임, 싱글플레이 게임, 놀이바둑 AI 게임의 AI move도 클라이언트에서만 처리
-                        const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-                        if (session.gameCategory === 'tower' || session.isSinglePlayer || isPlayfulAiGame) {
-                            console.log(`[Game] ${session.gameCategory === 'tower' ? 'Tower' : 'Single player'} game - processing AI move client-side:`, {
-                                gameId: currentGameId,
-                                x: aiMove.x,
-                                y: aiMove.y,
-                                currentPlayer: currentPlayerAtCalculation
-                            });
-
-                            const aiTriedUserHiddenStone =
-                                (session.isSinglePlayer || session.gameCategory === 'tower') &&
-                                isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y);
-                            if (aiTriedUserHiddenStone) {
-                                lastAiMoveRef.current = {
-                                    gameId: currentGameId,
-                                    moveHistoryLength: moveHistoryLengthAtCalculation,
-                                    player: currentPlayerAtCalculation,
-                                    timestamp: Date.now(),
-                                    revealSig: session.permanentlyRevealedStones?.length ?? 0,
-                                };
-                                handlers.handleAction({
-                                    type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
-                                    payload: {
-                                        gameId: currentGameId,
-                                        gameType: session.gameCategory === 'tower' ? 'tower' : 'singleplayer',
-                                        point: { x: aiMove.x, y: aiMove.y },
-                                        player: Player.Black,
-                                        keepTurn: true
-                                    }
-                                } as any);
-                                aiMoveTimeoutRef.current = null;
-                                return;
-                            }
-                            
-                            // 클라이언트에서 AI move 처리
-                            const aiMoveResult = processMoveClient(
-                                actualBoardStateAtCalculation,
-                                { x: aiMove.x, y: aiMove.y, player: currentPlayerAtCalculation },
-                                koInfoAtCalculation,
-                                moveHistoryLengthAtCalculation
-                            );
-                            
-                            if (!aiMoveResult.isValid) {
-                                console.warn(`[Game] ${session.gameCategory === 'tower' ? 'Tower' : 'Single player'} game - Invalid AI move:`, aiMoveResult.reason);
-                                lastAiMoveRef.current = null;
-                                return;
-                            }
-                            
-                            // AI 수를 실제로 전송한 후에만 lastAiMoveRef 설정 (중복 전송 방지)
-                            lastAiMoveRef.current = {
-                                gameId: currentGameId,
-                                moveHistoryLength: moveHistoryLengthAtCalculation,
-                                player: currentPlayerAtCalculation,
-                                timestamp: Date.now(),
-                                revealSig: session.permanentlyRevealedStones?.length ?? 0,
-                            };
-                            
-                            // 게임 상태 업데이트 (handlers를 통해)
-                            handlers.handleAction({
-                                type: session.gameCategory === 'tower' ? 'TOWER_CLIENT_MOVE' : 'SINGLE_PLAYER_CLIENT_MOVE',
-                                payload: {
-                                    gameId: currentGameId,
-                                    x: aiMove.x,
-                                    y: aiMove.y,
-                                    newBoardState: aiMoveResult.newBoardState,
-                                    capturedStones: aiMoveResult.capturedStones,
-                                    newKoInfo: aiMoveResult.newKoInfo,
-                                }
-                            } as any);
-                        } else {
+                    void (async () => {
+                        const currentMoveHistoryLength = session.moveHistory?.length || 0;
                         if (
-                            session.gameCategory === 'guildwar' &&
-                            isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y)
+                            session.gameStatus !== 'playing' ||
+                            session.currentPlayer !== currentPlayerAtCalculation ||
+                            session.id !== currentGameId ||
+                            session.gameStatus !== currentGameStatus ||
+                            currentMoveHistoryLength !== moveHistoryLengthAtCalculation
                         ) {
-                            lastAiMoveRef.current = {
-                                gameId: currentGameId,
-                                moveHistoryLength: moveHistoryLengthAtCalculation,
-                                player: currentPlayerAtCalculation,
-                                timestamp: Date.now(),
-                                revealSig: session.permanentlyRevealedStones?.length ?? 0,
-                            };
-                            handlers.handleAction({
-                                type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
-                                payload: {
-                                    gameId: currentGameId,
-                                    gameType: 'guildwar',
-                                    point: { x: aiMove.x, y: aiMove.y },
-                                    player: Player.Black,
-                                    keepTurn: true,
-                                },
-                            } as any);
+                            lastAiMoveRef.current = null;
                             aiMoveTimeoutRef.current = null;
                             return;
                         }
-                        console.log('[Game] Sending AI move:', {
-                            gameId: currentGameId,
-                            x: aiMove.x,
-                            y: aiMove.y,
-                            isClientAiMove: true
-                        });
-                        handlers.handleAction({
-                            type: 'PLACE_STONE',
-                            payload: {
-                                gameId: currentGameId,
-                                x: aiMove.x,
-                                y: aiMove.y,
-                                isClientAiMove: true, // 클라이언트가 계산한 AI 수임을 표시
-                            },
-                        } as ServerAction);
+                        const clientSync = buildPveItemActionClientSync(session);
+                        if (!clientSync) {
+                            if (process.env.NODE_ENV === 'development') {
+                                console.warn('[Game] PVE server AI: missing clientSync', { gameId: currentGameId });
+                            }
+                            lastAiMoveRef.current = null;
+                            aiMoveTimeoutRef.current = null;
+                            return;
                         }
-                    } else {
-                        console.log('[Game] AI move cancelled due to state change:', {
-                            gameStatus: session.gameStatus,
-                            currentPlayer: session.currentPlayer,
-                            gameId: session.id,
-                            moveHistoryLength: currentMoveHistoryLength,
-                            expectedLength: moveHistoryLengthAtCalculation
-                        });
-                        // 상태가 변경되었으므로 lastAiMoveRef 초기화
-                        lastAiMoveRef.current = null;
-                    }
-                    aiMoveTimeoutRef.current = null;
+                        lastAiMoveRef.current = {
+                            gameId: currentGameId,
+                            moveHistoryLength: moveHistoryLengthAtCalculation,
+                            player: currentPlayerAtCalculation,
+                            timestamp: Date.now(),
+                            revealSig: session.permanentlyRevealedStones?.length ?? 0,
+                        };
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log('[Game] PVE server AI: REQUEST_SERVER_AI_MOVE', {
+                                gameId: currentGameId,
+                                gameCategory: session.gameCategory,
+                                isSinglePlayer: session.isSinglePlayer,
+                                moveHistoryLength: moveHistoryLengthAtCalculation,
+                            });
+                        }
+                        try {
+                            const result = await handlers.handleAction({
+                                type: 'REQUEST_SERVER_AI_MOVE',
+                                payload: { gameId: currentGameId, clientSync },
+                            } as ServerAction);
+                            if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
+                                console.warn('[Game] PVE server AI failed:', (result as any).error);
+                                lastAiMoveRef.current = null;
+                            }
+                        } catch (e) {
+                            console.error('[Game] PVE server AI error:', e);
+                            lastAiMoveRef.current = null;
+                        }
+                        aiMoveTimeoutRef.current = null;
+                    })();
                 }, delay);
-            } else {
-                console.warn('[Game] calculateSimpleAiMove returned null:', {
-                    gameId: currentGameId,
-                    gameCategory: session.gameCategory,
-                    isTower: session.gameCategory === 'tower',
-                    currentPlayer: currentPlayerAtCalculation,
-                    aiLevel,
-                    boardSize: boardStateAtCalculation.length,
-                    moveHistoryLength: moveHistoryLengthAtCalculation
-                });
-                // AI 수를 계산할 수 없으면 lastAiMoveRef 초기화하여 다음 시도 허용
-                lastAiMoveRef.current = null;
             }
         } else {
             // AI 차례가 아니면 lastAiMoveRef 초기화 (다음 AI 차례를 위해)

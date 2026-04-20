@@ -75,6 +75,20 @@ const singlePlayerPlainWhiteReduction = (level: SinglePlayerLevel): number => {
 };
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
+    // 입문-11 튜토리얼 스테이지는 항상 동일한 2돌 배치로 시작한다.
+    if (stage.id === '입문-11') {
+        const bs = stage.boardSize;
+        const center = Math.floor(bs / 2);
+        const board: BoardState = Array(bs)
+            .fill(null)
+            .map(() => Array(bs).fill(Player.None));
+        board[center][center] = Player.Black;
+        if (center + 1 < bs) {
+            board[center][center + 1] = Player.White;
+        }
+        return { board, blackPattern: [], whitePattern: [] };
+    }
+
     if (stage.fixedOpening?.length) {
         const bs = stage.boardSize;
         const board: BoardState = Array(bs)
@@ -959,6 +973,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!game || !game.isSinglePlayer) {
                 return { error: 'Invalid single player game.' };
             }
+            const { applyPveItemActionClientSync } = await import('../pveItemSync.js');
+            applyPveItemActionClientSync(game, payload);
             const { handleSinglePlayerMissileAction } = await import('../modes/singlePlayerMissile.js');
             const result = await handleSinglePlayerMissileAction(game, action, user);
             

@@ -15,6 +15,8 @@ export type PveItemActionClientSync = {
     permanentlyRevealedStones?: Point[];
     aiInitialHiddenStone?: Point | null;
     currentPlayer?: Player;
+    /** 클라가 본 경기 단계(탑/싱글 PVE에서 서버만 애니 상태로 남는 경우 REQUEST_SERVER_AI_MOVE 정합용) */
+    gameStatus?: LiveGameSession['gameStatus'];
     captures?: LiveGameSession['captures'];
     koInfo?: LiveGameSession['koInfo'] | null;
     totalTurns?: number;
@@ -161,7 +163,7 @@ export type ServerAction =
     | { type: 'RESIGN_GAME', payload: { gameId: string, andLeave?: boolean } }
     | { type: 'LEAVE_AI_GAME', payload: { gameId: string } }
     | { type: 'REQUEST_NO_CONTEST_LEAVE', payload: { gameId: string } }
-    | { type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: string } }
+    | { type: 'REQUEST_SERVER_AI_MOVE', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     /** 모험/길드전·로비 Kata AI 대국: 클라이언트가 장시간 미착수 등으로 서버 상태를 다시 맞출 때 */
     | { type: 'REQUEST_GAME_STATE_SYNC', payload: { gameId: string } }
     | { type: 'EMERGENCY_EXIT', payload?: never }
@@ -185,7 +187,7 @@ export type ServerAction =
     | { type: 'START_SCANNING', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     | { type: 'SCAN_BOARD', payload: { gameId: string; x: number; y: number; clientSync?: PveItemActionClientSync } }
     // Missile Go
-    | { type: 'START_MISSILE_SELECTION', payload: { gameId: string } }
+    | { type: 'START_MISSILE_SELECTION', payload: { gameId: string; clientSync?: PveItemActionClientSync } }
     // Scoring (PVE games only)
     | { type: 'REQUEST_SCORING', payload: { gameId: string; boardState: BoardState; moveHistory: any[]; settings: any } }
     | { type: 'LAUNCH_MISSILE', payload: { gameId: string, from: Point, direction: 'up' | 'down' | 'left' | 'right', boardState?: BoardState, moveHistory?: any[] } }

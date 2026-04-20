@@ -200,7 +200,8 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
             expiry: now + 4000 
         };
         game.gameStatus = 'playing';
-        
+        game.currentPlayer = timedOutPlayerEnum;
+
         // 미사일 아이템 소멸
         const missileKey = timedOutPlayerId === game.player1.id ? 'missiles_p1' : 'missiles_p2';
         const currentMissiles = game[missileKey] ?? 0;
@@ -211,9 +212,13 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
         if (game.gameCategory === 'tower' && timedOutPlayerId === game.player1?.id) {
             void persistTowerP1ConsumableDecrement(game.player1.id, 'missile');
         }
-        
+
         // 원래 경기 시간 복원 (턴 유지)
-        resumeGameTimer(game, now, timedOutPlayerEnum);
+        const timerResumed = resumeGameTimer(game, now, timedOutPlayerEnum);
+        if (!timerResumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+        }
         return true; // 게임 상태가 변경되었음을 반환
     }
     
@@ -503,7 +508,11 @@ export const updateMissileState = (game: types.LiveGameSession, now: number): bo
 export const handleMissileAction = (game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): HandleActionResult | null => {
     const { type, payload } = action as any;
     const now = Date.now();
-    const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
+    let myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
+    // 탑/PVE: 일부 세션에서 player1(인간)과 blackPlayerId 불일치 시 None → LAUNCH가 "Not your stone"으로 400
+    if (myPlayerEnum === types.Player.None && game.player1?.id === user.id) {
+        myPlayerEnum = types.Player.Black;
+    }
     const isMyTurn = myPlayerEnum === game.currentPlayer;
     // 도전의 탑/싱글: 유저가 방금 둔 직후(턴이 AI로 넘어갔지만 AI가 아직 두기 전)에도 미사일 허용 (싱글플레이와 동일)
     const lastMove = game.moveHistory?.length ? game.moveHistory[game.moveHistory.length - 1] : null;

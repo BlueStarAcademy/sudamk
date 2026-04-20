@@ -45,13 +45,11 @@ const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
  * (인라인 makeAiMove 전 1초 대기와 맞추기 위해 1100ms)
  */
 function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession, now: number): number {
-    const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
     const isGo = STRATEGIC_GO_SERVER_AI_MODES.includes(game.mode);
     if (
         game.isAiGame &&
         !game.isSinglePlayer &&
         isGo &&
-        !useClientSideAi &&
         (game.gameCategory === types.GameCategory.Adventure || game.gameCategory === types.GameCategory.GuildWar)
     ) {
         return now + 1100;
@@ -451,130 +449,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 return {};
             }
 
-            // 클라이언트 측 AI(Electron 로컬 GnuGo): 클라이언트가 계산한 AI 수를 서버가 검증 후 적용
-            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
-            if (payload.clientSideAiMove && useClientSideAi && game.isAiGame) {
-                const { aiUserId } = await import('../aiPlayer.js');
-                const aiPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                if (aiPlayerId === aiUserId && game.currentPlayer !== types.Player.None && (game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing')) {
-                    const { x, y } = payload;
-                    const boardSize = game.settings.boardSize;
-                    if (typeof x !== 'number' || typeof y !== 'number' || x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
-                        return { error: 'Invalid client-side AI move position.' };
-                    }
-                    const aiPlayerEnum = game.currentPlayer;
-                    const humanPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                    const move = { x, y, player: aiPlayerEnum };
-                    const result = processMove(
-                        game.boardState,
-                        move,
-                        game.koInfo,
-                        game.moveHistory.length,
-                        { ignoreSuicide: false, isSinglePlayer: true, opponentPlayer: humanPlayerEnum }
-                    );
-                    if (!result.isValid) {
-                        return { error: `Client-side AI move invalid: ${result.reason || 'invalid'}` };
-                    }
-                    game.boardState = result.newBoardState;
-                    game.moveHistory.push(move);
-                    game.koInfo = result.newKoInfo;
-                    game.lastMove = { x, y };
-                    game.passCount = 0;
-                    if (result.capturedStones.length > 0) {
-                        if (!game.justCaptured) game.justCaptured = [];
-                        let guildWarCapturePointsThisMove = 0;
-                        for (const stone of result.capturedStones) {
-                            const capturedPlayerEnum = humanPlayerEnum;
-                            let points = 1;
-                            let wasHiddenForJustCaptured = false;
-
-                            const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
-                            if (isBaseStone) {
-                                game.baseStoneCaptures[aiPlayerEnum]++;
-                                points = 5;
-                            } else {
-                                const wasPatternStone = consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum);
-                                if (wasPatternStone) {
-                                    points = 2;
-                                } else {
-                                    const moveIndex = game.moveHistory.findIndex((m) => m.x === stone.x && m.y === stone.y);
-                                    const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                                    const wasAiInitialHidden =
-                                        (game as any).aiInitialHiddenStone &&
-                                        (game as any).aiInitialHiddenStone.x === stone.x &&
-                                        (game as any).aiInitialHiddenStone.y === stone.y;
-                                    if (wasHidden || wasAiInitialHidden) {
-                                        game.hiddenStoneCaptures[aiPlayerEnum] =
-                                            (game.hiddenStoneCaptures[aiPlayerEnum] || 0) + 1;
-                                        points = 5;
-                                        wasHiddenForJustCaptured = true;
-                                        if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                                        if (
-                                            !game.permanentlyRevealedStones.some((p) => p.x === stone.x && p.y === stone.y)
-                                        ) {
-                                            game.permanentlyRevealedStones.push(stone);
-                                        }
-                                    }
-                                }
-                            }
-                            game.captures[aiPlayerEnum] = (game.captures[aiPlayerEnum] ?? 0) + points;
-                            guildWarCapturePointsThisMove += points;
-                            game.justCaptured.push({
-                                point: stone,
-                                player: capturedPlayerEnum,
-                                wasHidden: wasHiddenForJustCaptured,
-                                capturePoints: points,
-                            });
-                        }
-                        bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, aiPlayerEnum, guildWarCapturePointsThisMove);
-                        stripPatternStonesAtConsumedIntersections(game);
-                        removeCapturedBaseStoneMarkers(game, result.capturedStones);
-                    }
-                    game.currentPlayer = humanPlayerEnum;
-                    game.gameStatus = 'playing';
-                    game.aiTurnStartTime = undefined;
-                    const { hasTimeControl, shouldEnforceTimeControl } = await import('./shared.js');
-                    if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
-                        const nextTimeKey = humanPlayerEnum === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                        game.turnDeadline = now + (game[nextTimeKey] ?? 0) * 1000;
-                        game.turnStartTime = now;
-                    } else {
-                        game.turnDeadline = undefined;
-                        game.turnStartTime = undefined;
-                    }
-                    // 전략바둑: AI 수 적용 후 정해진 수순(scoringTurnLimit) 도달 시 계가 진행
-                    const scoringTurnLimitAfterAi = game.settings.scoringTurnLimit;
-                    if (
-                        scoringTurnLimitAfterAi != null &&
-                        scoringTurnLimitAfterAi > 0 &&
-                        game.mode !== types.GameMode.Capture &&
-                        !game.isSinglePlayer &&
-                        game.gameCategory !== 'tower'
-                    ) {
-                        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
-                        const turnsAfter = (game.moveHistory || []).length;
-                        if (turnsAfter >= scoringTurnLimitAfterAi) {
-                            console.log(`[handleStrategicAction] Scoring turn limit reached after clientSideAiMove: totalTurns=${turnsAfter}, scoringTurnLimit=${scoringTurnLimitAfterAi}, triggering getGameResult`);
-                            if (isLobbyAiStrategicGame(game)) {
-                                await broadcastPlayingSnapshotBeforeScoring(game);
-                            }
-                            game.gameStatus = 'scoring';
-                            game.totalTurns = turnsAfter;
-                            await db.saveGame(game);
-                            const { broadcastToGameParticipants } = await import('../socket.js');
-                            const gameToBroadcast = { ...game };
-                            delete (gameToBroadcast as any).boardState;
-                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
-                            try {
-                                await getGameResult(game);
-                            } catch (e: any) {
-                                console.error(`[handleStrategicAction] getGameResult failed after clientSideAiMove for game ${game.id}:`, e?.message);
-                            }
-                            return {};
-                        }
-                    }
-                    return {};
-                }
+            if (payload.clientSideAiMove) {
+                return { error: '클라이언트 측 AI 수는 지원되지 않습니다. 서버 AI(Kata)만 사용됩니다.' };
             }
 
             if (!isMyTurn || (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing')) {
@@ -1067,7 +943,15 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                                 points = 2;
                             } else {
                                 // 싱글/탑/길드전: 히든·AI초기히든은 5점 (문양돌과 겹치면 문양 점수 우선 — 위에서 처리됨)
-                                const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                                // 동일 좌표 재착수 시 과거(가장 이른) 수순 오인 방지를 위해 최신 상대 수순을 찾는다.
+                                let moveIndex = -1;
+                                for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                                    const m = game.moveHistory![i];
+                                    if (m.x === stone.x && m.y === stone.y && m.player === capturedPlayerEnum) {
+                                        moveIndex = i;
+                                        break;
+                                    }
+                                }
                                 const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                                 const wasAiInitialHidden =
                                     (game as any).aiInitialHiddenStone &&
@@ -1086,7 +970,14 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         }
                     } else { // PvP logic
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
-                        const moveIndex = game.moveHistory.findIndex(m => m.x === stone.x && m.y === stone.y);
+                        let moveIndex = -1;
+                        for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                            const m = game.moveHistory![i];
+                            if (m.x === stone.x && m.y === stone.y && m.player === capturedPlayerEnum) {
+                                moveIndex = i;
+                                break;
+                            }
+                        }
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         wasHiddenForJustCaptured = wasHidden; // pass to justCaptured
                         

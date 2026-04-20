@@ -74,12 +74,17 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
         
         game.foulInfo = { message: `${game.player1.id === timedOutPlayerId ? game.player1.nickname : game.player2.nickname}님의 아이템 시간 초과!`, expiry: now + 4000 };
         game.gameStatus = 'playing';
-        
-        // 아이템 소멸 처리
+        game.currentPlayer = timedOutPlayerEnum;
+
+        // 아이템 소멸 처리 (착수 완료와 동일하게 재고 감소 + used 증가, 턴은 그대로)
         if (currentItemMode === 'hidden_placing') {
-            // 히든 아이템 소멸
-            const hiddenKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
-            game[hiddenKey] = (game[hiddenKey] || 0) + 1;
+            const hiddenInvKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+            const usedKey = timedOutPlayerId === game.player1.id ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
+            const currentHidden = game[hiddenInvKey] ?? game.settings.hiddenStoneCount ?? 0;
+            if (currentHidden > 0) {
+                game[hiddenInvKey] = currentHidden - 1;
+                game[usedKey] = (game[usedKey] || 0) + 1;
+            }
         } else if (currentItemMode === 'scanning') {
             // 스캔 아이템 소멸
             const scanKey = timedOutPlayerId === game.player1.id ? 'scans_p1' : 'scans_p2';
@@ -88,10 +93,14 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 game[scanKey] = currentScans - 1;
             }
         }
-        
+
         // 원래 경기 시간 복원 (턴 유지)
-        resumeGameTimer(game, now, timedOutPlayerEnum);
-        
+        const timerResumed = resumeGameTimer(game, now, timedOutPlayerEnum);
+        if (!timerResumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+        }
+
         return;
     }
 

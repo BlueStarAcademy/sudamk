@@ -641,7 +641,10 @@ export const sendToUser = (userId: string, message: any) => {
 // USER_UPDATE 최적화: 변경된 필드만 전송 (대역폭 절약)
 export const broadcastUserUpdate = (user: any, changedFields?: string[]) => {
     if (!wss) return;
-    
+
+    const narrowFields =
+        Array.isArray(changedFields) && changedFields.length > 0 ? changedFields : null;
+
     // 변경된 필드만 포함하는 최적화된 사용자 객체 생성
     const optimizedUser: any = {
         id: user.id,
@@ -654,14 +657,20 @@ export const broadcastUserUpdate = (user: any, changedFields?: string[]) => {
         gold: user.gold,
         diamonds: user.diamonds,
         actionPoints: user.actionPoints,
-        strategyLevel: user.strategyLevel,
-        playfulLevel: user.playfulLevel,
         tournamentScore: user.tournamentScore,
     };
-    
+
+    // 좁은 브로드캐스트: 레벨은 changedFields에 있을 때만 실어 보낸다.
+    // (항상 넣으면 호출 시점의 user 스냅샷이 낡았을 때 클라이언트 레벨이 잠깐 되돌아갔다가
+    //  다음 패치로 복구되며 applyUserUpdate가 '레벨업' 축하 모달을 띄우는 레이스가 난다.)
+    if (!narrowFields) {
+        optimizedUser.strategyLevel = user.strategyLevel;
+        optimizedUser.playfulLevel = user.playfulLevel;
+    }
+
     // 변경된 필드가 지정된 경우에만 추가 필드 포함
-    if (changedFields) {
-        changedFields.forEach(field => {
+    if (narrowFields) {
+        narrowFields.forEach(field => {
             if (user[field] !== undefined) {
                 // inventory는 크기가 클 수 있으므로 최적화
                 if (field === 'inventory' && Array.isArray(user[field])) {

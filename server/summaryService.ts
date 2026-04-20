@@ -4,7 +4,7 @@ import { LiveGameSession, Player, User, GameSummary, StatChange, GameMode, Inven
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
 import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS, ENABLE_PVP_SKILL_REWARD_MULTIPLIER, getPvpSkillRewardMultiplier } from '../constants';
-import { TOWER_STAGES } from '../constants/towerConstants.js';
+import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
 import * as mannerService from './mannerService.js';
@@ -1596,15 +1596,35 @@ const processPlayerSummary = async (
     }
 
     // Add dropped items to inventory
+    let vipInventoryItemGranted = false;
     if (itemsForInventory.length > 0) {
         const { success, updatedInventory } = addItemsToInventory(updatedPlayer.inventory, updatedPlayer.inventorySlots, itemsForInventory);
         if (success) {
             // Update inventory with the returned updatedInventory (includes stacked items)
             updatedPlayer.inventory = updatedInventory;
             await guildService.recordGuildEpicPlusEquipmentAcquisition(updatedPlayer, itemsForInventory);
+            vipInventoryItemGranted = !!vipGrant;
         } else {
             console.error(`[Summary] Insufficient inventory space for user ${updatedPlayer.id}. Items not granted.`);
-            // Optionally, send items via mail here in the future
+            // VIP 보상은 결과창 표시와 실제 지급이 불일치하면 안 되므로, 최소한 VIP 아이템은 강제 적재한다.
+            if (vipGrant) {
+                const vipQty = Math.max(1, vipGrant.quantity ?? 1);
+                const forcedInventory = [...updatedPlayer.inventory];
+                const stack = forcedInventory.find(
+                    (it) => it.name === vipGrant.name && (it.source ?? null) === (vipGrant.source ?? null)
+                );
+                if (stack) {
+                    stack.quantity = Math.max(1, stack.quantity ?? 1) + vipQty;
+                } else {
+                    forcedInventory.push({ ...vipGrant, quantity: vipQty });
+                }
+                updatedPlayer.inventory = forcedInventory;
+                vipInventoryItemGranted = true;
+                await guildService.recordGuildEpicPlusEquipmentAcquisition(updatedPlayer, [vipGrant]);
+                console.warn(
+                    `[Summary] addItemsToInventory failed for ${updatedPlayer.id}; forced VIP reward insertion applied.`
+                );
+            }
         }
     }
     
@@ -1709,6 +1729,7 @@ const processPlayerSummary = async (
                   },
               }
             : {}),
+        ...(vipInventoryItemGranted ? { vipInventoryItemGranted: true } : {}),
     };
 
     return { summary, updatedPlayer };
@@ -1736,10 +1757,15 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
     };
 
     const p1 = player1.id === aiUserId ? aiUserForSummary(guildWarBoardId) : await db.getUser(player1.id);
-    // 싱글플레이 게임의 경우 player2는 이미 스테이지별로 설정된 AI 유저이므로 덮어쓰지 않음
-    const p2 = game.isSinglePlayer 
-        ? player2  // 싱글플레이: 기존 player2 유지
-        : (player2.id === aiUserId ? aiUserForSummary(guildWarBoardId) : await db.getUser(player2.id));
+    // 싱글플레이: 스테이지별 봇 닉 유지. 도전의 탑: 국면의 봇 필드 유지하되 표시명만 통일(`processGame` 등에서 모드별 닉으로 덮일 수 있음).
+    const isTowerGame = String((game as any).gameCategory ?? '') === 'tower';
+    const p2 = game.isSinglePlayer
+        ? player2
+        : player2.id === aiUserId
+          ? isTowerGame
+              ? { ...(player2 as any), nickname: TOWER_AI_BOT_DISPLAY_NAME }
+              : aiUserForSummary(guildWarBoardId)
+          : await db.getUser(player2.id);
 
     if (!p1 || !p2) {
         console.error(`[Summary] Could not find one or more users from DB for game ${game.id}`);
@@ -1864,6 +1890,9 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             if (p1Summary.items && p1Summary.items.length > 0) {
                 fieldsToUpdate.push('inventory');
             }
+            if ((p1Summary as GameSummary & { vipInventoryItemGranted?: boolean }).vipInventoryItemGranted) {
+                fieldsToUpdate.push('inventory');
+            }
             if (
                 game.gameCategory === 'adventure' &&
                 p1.id !== aiUserId &&
@@ -1900,6 +1929,9 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
                 'quests',
             ];
             if (p2Summary.items && p2Summary.items.length > 0) {
+                fieldsToUpdate.push('inventory');
+            }
+            if ((p2Summary as GameSummary & { vipInventoryItemGranted?: boolean }).vipInventoryItemGranted) {
                 fieldsToUpdate.push('inventory');
             }
             if (

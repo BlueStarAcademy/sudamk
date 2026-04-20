@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, LiveGameSession, Player, GameMode, Point, BoardState, SinglePlayerStageInfo, UserStatus, GameCategory } from '../../types/index.js';
-import { TOWER_STAGES } from '../../constants/towerConstants.js';
+import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../../constants/towerConstants.js';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
@@ -92,7 +92,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
         case 'START_TOWER_GAME': {
             const towerGate = await requireArenaEntranceOpen(user.isAdmin, 'tower', user);
             if (!towerGate.ok) return { error: towerGate.error };
-            const { floor, useClientSideAi } = payload;
+            const { floor } = payload;
             const stage = TOWER_STAGES.find(s => {
                 const stageFloor = parseInt(s.id.replace('tower-', ''));
                 return stageFloor === floor;
@@ -154,7 +154,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             const kataServerLevel = getTowerKataServerLevelByFloor(floor);
             const kataProfileStep =
                 profileStepFromKataServerLevel(kataServerLevel) ?? towerAiDifficultyFallbackFromFloor(floor);
-            const botNickname = `탑봇 Lv.${floor}`;
+            const botNickname = TOWER_AI_BOT_DISPLAY_NAME;
             const botLevel = kataProfileStep * 10;
 
             const aiUser = {
@@ -209,7 +209,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                     scanCount: stage.scanCount ?? (stage.hiddenCount ? 2 : 0),
                     missileCount: stage.missileCount,
                     mixedModes: mixedModes.length > 0 ? mixedModes : undefined,
-                    useClientSideAi: useClientSideAi === true,
+                    // 탑은 층별 `kataServerLevel`을 서버 Kata에만 사용한다. 클라 로컬 AI(WASM) 경로를 켜면
+                    // 서버가 makeAiMove를 건너뛰어 체감 난이도가 설정과 무관해지므로 항상 비활성화.
+                    useClientSideAi: false,
                 } as any,
                 player1: user,
                 player2: aiUser,
@@ -235,6 +237,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
 
             (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
             (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
+            // reconcile 등으로 스냅만 지워질 때 Kata 포석 접두 복구용(길드전과 동일한 오프닝 보존 개념)
+            (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
 
             // 1~20층: 따내기 목표점수 직접 설정(입찰 생략, 흑은 사용자 고정). 6~10층·11~20층은 서버 규칙으로 목표 덮어씀.
             if (gameMode === GameMode.Capture) {
@@ -450,6 +454,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.whitePatternStones = whitePattern;
             (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
             (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
+            (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
 
             // 도전의 탑은 시간 제한 미적용이므로 turnDeadline 복구하지 않음
             game.turnDeadline = undefined;

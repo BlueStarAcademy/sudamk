@@ -187,6 +187,27 @@ describe('PVP Strategic mode', () => {
             expect(game.gameStatus).toBe('playing');
         });
 
+        it('hidden_placing item use timeout consumes a hidden stone and keeps the turn', async () => {
+            const game = makePvpStrategicGame();
+            game.hidden_stones_p1 = 2;
+            game.gameStatus = 'hidden_placing';
+            game.currentPlayer = Player.Black;
+            game.itemUseDeadline = Date.now() - 1000;
+            game.pausedTurnTimeLeft = 60;
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+
+            const { updateHiddenState } = await import('../../modes/hidden.js');
+            await updateHiddenState(game, Date.now());
+
+            expect(game.gameStatus).toBe('playing');
+            expect(game.currentPlayer).toBe(Player.Black);
+            expect(game.hidden_stones_p1).toBe(1);
+            expect((game as any).hidden_stones_used_p1).toBe(1);
+            expect(game.itemUseDeadline).toBeUndefined();
+            expect(game.turnDeadline).toBeDefined();
+        });
+
         it('PLACE_STONE with isHidden in hidden_placing records hidden move and switches turn', async () => {
             const game = makePvpStrategicGame();
             game.gameStatus = 'hidden_placing';
@@ -276,6 +297,7 @@ describe('PVP Strategic mode', () => {
             // Hidden stone remains (only revealed).
             expect(game.boardState[y][x]).toBe(opponent);
         });
+
     });
 
     describe('scan item', () => {

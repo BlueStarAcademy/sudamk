@@ -138,7 +138,26 @@ const SINGLE_PLAYER_STAGES_BASE: SinglePlayerStageInfo[] = [
     { id: '입문-9', name: '스테이지 9', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 7, targetScore: { black: 6, white: 6 }, placements: { black: 3, white: 4, blackPattern: 3, whitePattern: 3, centerBlackStoneChance: 90 }, timeControl: { type: 'byoyomi', mainTime: 3, byoyomiTime: 0, byoyomiCount: 3 }, blackTurnLimit: 15, rewards: { firstClear: { gold: 100, exp: 18 }, repeatClear: { gold: 10, exp: 10 } } },
     { id: '입문-10', name: '스테이지 10', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 7, targetScore: { black: 7, white: 5 }, placements: { black: 4, white: 7, blackPattern: 2, whitePattern: 3 }, timeControl: { type: 'fischer', mainTime: 5, increment: 10 }, blackTurnLimit: 15, rewards: { firstClear: { gold: 150, exp: 20, items: [{itemId: "장비 상자 I", quantity: 1}] }, repeatClear: { gold: 10, exp: 15 } } },
     // 입문 11~20: 살리기 바둑 모드 (AI가 정해진 턴 동안 도망가며 살아남기)
-    { id: '입문-11', name: '스테이지 11', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 9, targetScore: { black: 5, white: 0 }, placements: { black: 3, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, survivalTurns: 15, rewards: { firstClear: { gold: 150, exp: 20 }, repeatClear: { gold: 10, exp: 10 } } },
+    {
+        id: '입문-11',
+        name: '스테이지 11',
+        level: SinglePlayerLevel.입문,
+        actionPointCost: 2,
+        boardSize: 9,
+        // 살리기 바둑: 백(봇)이 1점을 만들지 못하면 승리
+        targetScore: { black: 1, white: 0 },
+        fixedOpening: [
+            { x: 4, y: 4, color: 'black' },
+            { x: 5, y: 4, color: 'white' },
+        ],
+        placements: { black: 0, white: 0, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
+        timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
+        survivalTurns: 3,
+        rewards: {
+            firstClear: { gold: 150, exp: 20, items: [{ itemId: '새싹 바둑판', quantity: 1 }] },
+            repeatClear: { gold: 10, exp: 10 },
+        },
+    },
     { id: '입문-12', name: '스테이지 12', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 9, targetScore: { black: 5, white: 0 }, placements: { black: 4, white: 14, blackPattern: 1, whitePattern: 0, centerBlackStoneChance: 0 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, survivalTurns: 15, rewards: { firstClear: { gold: 150, exp: 20 }, repeatClear: { gold: 10, exp: 10 } } },
     { id: '입문-13', name: '스테이지 13', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 9, targetScore: { black: 5, white: 0 }, placements: { black: 5, white: 15, blackPattern: 2, whitePattern: 0, centerBlackStoneChance: 0 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, survivalTurns: 15, rewards: { firstClear: { gold: 150, exp: 20 }, repeatClear: { gold: 10, exp: 10 } } },
     { id: '입문-14', name: '스테이지 14', level: SinglePlayerLevel.입문, actionPointCost: 2, boardSize: 9, targetScore: { black: 5, white: 0 }, placements: { black: 4, white: 15, blackPattern: 2, whitePattern: 0, centerBlackStoneChance: 0 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 }, survivalTurns: 15, rewards: { firstClear: { gold: 150, exp: 20 }, repeatClear: { gold: 10, exp: 10 } } },

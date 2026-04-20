@@ -44,27 +44,11 @@ export function computeGuildWarAttemptMetrics(
             trackedMaxPoints > 0 ? trackedMaxPoints : getMaxSingleCaptureForPlayer(game, humanEnum);
         /** 길드전 집점수(따내기): 따낸 돌 총점의 2배 + 남은 시간 보너스(10초당 1집) */
         const captureHouseScore = captures * 2 + timeHouseBonus;
-        if (!humanWon) {
-            const starsFromCombo =
-                maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN
-                    ? 3
-                    : maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN
-                      ? 2
-                      : 0;
-            return {
-                stars: starsFromCombo,
-                captures,
-                score: captureHouseScore,
-                scoreDiff: margin,
-                maxSingleCapture,
-            };
-        }
+        // 별 개수는 UI「별 달성 조건」과 동일: 승리·한 번에 3점·한 번에 5점 각각 1개씩(최대 3)
         const stars =
-            maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN
-                ? 3
-                : maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN
-                  ? 2
-                  : 1;
+            (humanWon ? 1 : 0) +
+            (maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN ? 1 : 0) +
+            (maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN ? 1 : 0);
         return { stars, captures, score: captureHouseScore, scoreDiff: margin, maxSingleCapture };
     }
 

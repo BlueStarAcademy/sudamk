@@ -392,6 +392,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         './modes/towerPlayerHidden.js'
                     );
                     await updateTowerPlayerHiddenState(game, Date.now());
+                    // TOWER_CLIENT_MOVE 등으로 클라가 앞서 있을 때 미사일 검증이 막히지 않게 (히든/스캔과 동일)
+                    applyPveItemActionClientSync(game, payload);
                     if (type === 'START_MISSILE_SELECTION') {
                         cancelTowerScanningSessionForOtherItemUse(game);
                     }
@@ -711,11 +713,50 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             console.log(`[handleAction] Game found: gameId=${gameId}, type=${type}, gameCategory=${gcat}, isSinglePlayer=${!!game.isSinglePlayer}, gameStatus=${game.gameStatus}${tfPart}`);
         }
 
-        // 클라이언트 측 AI(WASM/Electron) 실패 시 서버에서 makeAiMove(goAiBot → Kata 서버)로 해당 국면 수 계산 폴백 (예: 패 포함 수순)
+        // 전략바둑 AI 대국: 클라이언트 복구/타임아웃 시 서버에서 makeAiMove(goAiBot → Kata)로 해당 국면 수 계산
         if (type === 'REQUEST_SERVER_AI_MOVE') {
-            const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
-            if (!useClientSideAi) {
-                return { error: 'Game does not use client-side AI.' };
+            const goModesForServerAi: GameMode[] = [
+                GameMode.Standard,
+                GameMode.Capture,
+                GameMode.Speed,
+                GameMode.Base,
+                GameMode.Hidden,
+                GameMode.Missile,
+                GameMode.Mix,
+            ];
+            if (!goModesForServerAi.includes(game.mode as GameMode)) {
+                return { error: 'Server AI move is only available for strategic Go modes.' };
+            }
+            if (!game.isAiGame) {
+                return { error: 'Not an AI game.' };
+            }
+            // 도전의 탑·싱글플레이: 착수가 클라 전용이라 서버 판이 뒤처질 수 있음 → Kata 호출 전 클라 스냅샷으로 맞춤
+            if ((game.gameCategory === 'tower' || game.isSinglePlayer) && (payload as any)?.clientSync) {
+                const cs = (payload as any).clientSync as Record<string, unknown> | undefined;
+                applyPveItemActionClientSync(game, { clientSync: cs });
+                // CONFIRM/WS 타이밍으로 서버만 pending인데 클라는 이미 본대국인 경우
+                if (game.gameStatus === 'pending') {
+                    const clientSaysPlaying = String(cs?.gameStatus) === 'playing';
+                    const clientMoves = Array.isArray(cs?.moveHistory) ? (cs.moveHistory as { x?: number; y?: number }[]) : [];
+                    const hasClientMoves = clientMoves.some(
+                        (m) => m && typeof m.x === 'number' && typeof m.y === 'number' && m.x >= 0 && m.y >= 0
+                    );
+                    const hasMovesAfterSync = (game.moveHistory?.length ?? 0) > 0;
+                    if (clientSaysPlaying || hasClientMoves || hasMovesAfterSync) {
+                        (game as any).gameStatus = 'playing';
+                    }
+                }
+                // 본대국으로 정규화할 때는 타이머만 정리한다. AI 히든 6초 연출(ai_thinking·aiHiddenItemAnimationEndTime)은
+                // 여기서 지우면 안 된다 — 다음 REQUEST에서 makeGoAiBotMove가 만료 분기로 pendingAiHiddenPlacement를
+                // 세팅해야 실제 히든 착수가 이어진다. 무조건 제거 시 연출 없이 즉시 백 차례로 돌아가는 버그가 난다.
+                if (String(game.gameStatus) === 'playing') {
+                    game.itemUseDeadline = undefined;
+                    game.pausedTurnTimeLeft = undefined;
+                }
+            }
+            const uid = userData.id;
+            if (game.player1.id !== uid && game.player2.id !== uid) {
+                return { error: '해당 경기 참가자가 아닙니다.' };
             }
             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const { aiUserId } = await import('./aiPlayer.js');
@@ -1098,7 +1139,6 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 !game.isSinglePlayer &&
                 ((game as any).gameCategory === 'adventure' || (game as any).gameCategory === 'guildwar');
             if (pveServerGoAiCategory) {
-                const useClientSideAi = (game.settings as any)?.useClientSideAi === true;
                 const isGoMode =
                     game.mode === GameMode.Standard ||
                     game.mode === GameMode.Capture ||
@@ -1107,13 +1147,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     game.mode === GameMode.Hidden ||
                     game.mode === GameMode.Missile ||
                     game.mode === GameMode.Mix;
-                const effectiveUseClientSideAi = useClientSideAi && isGoMode;
                 const { aiUserId, makeAiMove } = await import('./aiPlayer.js');
                 const pidAfterUser = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 const isAiTurnAfterUser =
                     pidAfterUser === aiUserId || (pidAfterUser && String(pidAfterUser).startsWith('dungeon-bot-'));
                 if (
-                    !effectiveUseClientSideAi &&
                     isGoMode &&
                     game.gameStatus === 'playing' &&
                     game.currentPlayer !== types.Player.None &&

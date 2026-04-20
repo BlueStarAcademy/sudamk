@@ -19,6 +19,7 @@ import {
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDifficulty.js';
+import { getTowerKataServerLevelByFloor } from '../shared/utils/towerKataServerLevel.js';
 
 
 export const aiUserId = 'ai-player-01';
@@ -1227,7 +1228,29 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     const stageNum = parseInt(parts[3], 10);
                     difficulty = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
                 } else if (game.isSinglePlayer || isTower) {
+                    // 싱글/탑: 길드전과 동일하게 kataServerLevel이 있으면 그걸로 단계를 잡는다(없으면 탑은 층 표로 복구).
                     difficulty = game.settings.aiDifficulty || 1;
+                    let ks: number | undefined =
+                        typeof (game.settings as any)?.kataServerLevel === 'number' &&
+                        Number.isFinite((game.settings as any).kataServerLevel)
+                            ? (game.settings as any).kataServerLevel
+                            : undefined;
+                    if (ks === undefined && isTower) {
+                        const f = Number((game as any).towerFloor);
+                        if (Number.isFinite(f) && f >= 1) {
+                            ks = getTowerKataServerLevelByFloor(f);
+                        }
+                    }
+                    if (ks !== undefined) {
+                        const fromKata = profileStepFromKataServerLevel(ks);
+                        if (fromKata != null) {
+                            difficulty = fromKata;
+                        } else if (ks >= 1 && ks <= 10) {
+                            difficulty = ks;
+                        } else if ((game.settings as any)?.goAiBotLevel != null) {
+                            difficulty = Number((game.settings as any).goAiBotLevel) || difficulty;
+                        }
+                    }
                 } else {
                     const ks = (game.settings as any)?.kataServerLevel;
                     if (typeof ks === 'number' && Number.isFinite(ks)) {

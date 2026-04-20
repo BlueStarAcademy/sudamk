@@ -1,5 +1,8 @@
 import { SinglePlayerStageInfo } from '../types/index.js';
 
+/** 도전의 탑 PVE 백(봇) 표시명 — `getAiUser(mode)`로 덮어쓸 때도 동일하게 유지 */
+export const TOWER_AI_BOT_DISPLAY_NAME = '도전의 탑봇';
+
 // 도전의 탑 스테이지 정보 (1-20층: 따내기 바둑)
 export const TOWER_STAGES: SinglePlayerStageInfo[] = [
     // 1층

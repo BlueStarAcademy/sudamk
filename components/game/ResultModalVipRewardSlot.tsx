@@ -118,8 +118,7 @@ export const ResultModalVipRewardSlot: React.FC<{
                     </div>
                 ) : (
                     <div className="relative z-[1] flex flex-col items-center justify-center gap-0.5 px-1 text-center">
-                        <span className="text-[0.58rem] font-semibold text-fuchsia-100/80 sm:text-[0.62rem]">이번 전투</span>
-                        <span className="text-[0.58rem] font-bold text-slate-300/90 sm:text-[0.62rem]">추가 없음</span>
+                        <span className="text-[0.58rem] font-bold text-fuchsia-100/90 sm:text-[0.62rem]">승리 시 획득</span>
                     </div>
                 )}
             </div>

@@ -24,6 +24,12 @@ import {
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
+import {
+    clearIntro11TutorialForGame,
+    isIntro11ResultStepRead,
+    isIntro11TutorialActiveForGame,
+    markIntro11ResultStepRead,
+} from '../utils/singlePlayerIntro11Tutorial.js';
 
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
@@ -453,6 +459,16 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     }, [session.id]);
 
     const desktopCompactRewards = !isMobile;
+    const [intro11ClearTutorialOpen, setIntro11ClearTutorialOpen] = useState(false);
+
+    useEffect(() => {
+        const shouldOpen =
+            session.stageId === '입문-11' &&
+            isWinner &&
+            isIntro11TutorialActiveForGame(session.id) &&
+            !isIntro11ResultStepRead(session.id);
+        setIntro11ClearTutorialOpen(shouldOpen);
+    }, [session.id, session.stageId, isWinner]);
 
     const spRewardsSection = (
         <div
@@ -538,6 +554,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="sp-summary-redesigned"
+            skipSavedPosition
             initialWidth={900}
             initialHeight={780}
             uniformPcScale={false}
@@ -545,7 +562,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             mobileViewportMaxHeightVh={97}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
-            defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
         >
@@ -862,6 +878,30 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </Button>
                     </div>
                 </div>
+                {intro11ClearTutorialOpen && (
+                    <div className="pointer-events-none absolute inset-0 z-[8] px-3 pt-2 sm:px-5 sm:pt-3">
+                        <div className="pointer-events-auto absolute left-1/2 top-4 w-[min(100%,32rem)] -translate-x-1/2 rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5">
+                            <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">튜토리얼</p>
+                            <p className="mt-2 text-left text-sm leading-relaxed text-stone-200/95 sm:text-[15px]">
+                                내 돌을 지켜내는데 성공했군요! 상대방의 돌을 잡으려 하는것도 중요하지만 내 돌을 지키는것 또한 중요합니다! 항상 경기 시작전에 어떤 종류의 경기인지 확인하는 습관이 필요합니다. 바둑판 장비를 장착해서 능력치를 상승시켜보세요.
+                            </p>
+                            <div className="mt-3 flex justify-end gap-2 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
+                                <Button
+                                    type="button"
+                                    colorScheme="accent"
+                                    className="min-h-9 px-4 text-sm"
+                                    onClick={() => {
+                                        markIntro11ResultStepRead(session.id);
+                                        clearIntro11TutorialForGame(session.id);
+                                        setIntro11ClearTutorialOpen(false);
+                                    }}
+                                >
+                                    튜토리얼 종료
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </>
         </DraggableWindow>
     );
