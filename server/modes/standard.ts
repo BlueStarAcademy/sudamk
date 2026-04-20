@@ -1248,6 +1248,25 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                             points = 5;
                         } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
                             points = 2;
+                        } else {
+                            const moveIndex = game.moveHistory.findIndex((m) => m.x === stone.x && m.y === stone.y);
+                            const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+                            wasHiddenForJustCaptured = wasHidden;
+                            if (wasHidden) {
+                                if (!game.hiddenStoneCaptures) {
+                                    game.hiddenStoneCaptures = {
+                                        [types.Player.None]: 0,
+                                        [types.Player.Black]: 0,
+                                        [types.Player.White]: 0,
+                                    };
+                                }
+                                game.hiddenStoneCaptures[myPlayerEnum]++;
+                                points = 5;
+                                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                                if (!game.permanentlyRevealedStones.some((p) => p.x === stone.x && p.y === stone.y)) {
+                                    game.permanentlyRevealedStones.push(stone);
+                                }
+                            }
                         }
                     } else { // PvP logic
                         const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);

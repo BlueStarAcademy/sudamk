@@ -522,7 +522,8 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
             if (myRole === 'thief') {
                 // 도둑: 기존 돌의 활로에만 배치 가능
                 const noBlackStonesOnBoard = !game.boardState.flat().includes(types.Player.Black);
-                const canPlaceFreely = (game.turnInRound === 1 || noBlackStonesOnBoard);
+                const canPlaceFreely =
+                    game.turnInRound === 1 || noBlackStonesOnBoard || !!game.thiefFreestyleThiefPlacing;
                 
                 if (canPlaceFreely) {
                     // 자유 배치: 백돌을 최대한 많이 따낼 수 있는 위치 선택
@@ -693,11 +694,13 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                 }
                 
                 game.gameStatus = 'thief_round_end';
+                game.thiefFreestyleThiefPlacing = undefined;
                 // AI 대국: PVP 전용 자동 시작 카운트다운 없음 — 유저가 모달에서 확인할 때까지 대기
                 game.revealEndTime = undefined;
                 if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
                 game.roundEndConfirmations[aiUserId] = now;
             } else {
+                game.thiefFreestyleThiefPlacing = undefined;
                 game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
                 game.gameStatus = 'thief_rolling';
                 game.turnDeadline = now + 30000;

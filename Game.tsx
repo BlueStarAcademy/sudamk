@@ -273,6 +273,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const lastDiceThiefPlaceSoundKeyRef = useRef<string>('');
     /** 전략바둑·오목류: lastMove만으로는 낙관적/모바일 확정 경로에서 갱신이 빠져 소리가 안 날 수 있어 moveHistory 꼬리로 통일 */
     const strategicPlaceSoundKeyRef = useRef<string>('');
+    /** 수순이 짧아지는 재동기화(히든 공개 후 턴 유지 등)에서 꼬리만 바뀌며 착점 소리가 나는 오탐 방지 */
+    const strategicPlaceSoundGameIdRef = useRef<string>('');
+    const strategicPlaceHistoryLenRef = useRef<number | undefined>(undefined);
     const prevMoveCount = usePrevious(session.moveHistory?.length);
     const myBaseStoneCountForUnlock = useMemo(() => {
         if (gameStatus !== 'base_placement') return undefined;
@@ -389,13 +392,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     const storedRound = typeof parsed.round === 'number' ? parsed.round : 1;
                     // 라운드가 바뀌면 sessionStorage의 온 판·수순은 무효. 서버가 클리어 후 새 백돌 배치를 내도
                     // moveHistory 길이 비교만으로는 서버를 택하지 못해 2라운드에서 1라운드 판에 멈춘다.
-                    if (
-                        serverRound !== storedRound &&
-                        session.boardState &&
-                        Array.isArray(session.boardState) &&
-                        session.boardState.length > 0
-                    ) {
-                        return session.boardState;
+                    if (serverRound !== storedRound) {
+                        // 주사위/도둑: 라운드가 바뀌면 sessionStorage 판을 절대 쓰지 않음(아래 분기에서 온 판이 덮어씌워져 빈 판 고착)
+                        if (session.mode === GameMode.Dice || session.mode === GameMode.Thief) {
+                            return session.boardState;
+                        }
+                        if (
+                            session.boardState &&
+                            Array.isArray(session.boardState) &&
+                            session.boardState.length > 0
+                        ) {
+                            return session.boardState;
+                        }
                     }
                     // 서버 moveHistory가 더 길면 서버가 최신(AI 수 등) → 서버 boardState 또는 moveHistory 복원 (AI가 둔 수가 사라지는 버그 방지)
                     const serverMoveCount = session.moveHistory?.length ?? 0;
@@ -521,6 +529,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         gameId,
         gameStatus,
         session.round,
+        session.mode,
         session.stonesPlacedThisTurn?.length,
         session.stonesToPlace,
     ]);
@@ -961,19 +970,54 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.mode === GameMode.Ttamok;
         if (!isStrategicLike) return;
         if (!['playing', 'hidden_placing'].includes(gameStatus)) return;
-        if (!moveHistoryTail) return;
+
+        if (strategicPlaceSoundGameIdRef.current !== gameId) {
+            strategicPlaceSoundGameIdRef.current = gameId;
+            strategicPlaceHistoryLenRef.current = undefined;
+            strategicPlaceSoundKeyRef.current = '';
+        }
+
+        const len = session.moveHistory?.length ?? 0;
+        const prevTrackedLen = strategicPlaceHistoryLenRef.current;
+
+        if (!moveHistoryTail) {
+            strategicPlaceHistoryLenRef.current = len;
+            return;
+        }
+
+        // 수순 길이가 줄면 "새로 착수"가 아니라 되돌림/재동기화로 꼬리만 바뀐 경우가 많음 → 착점 소리 생략
+        if (prevTrackedLen !== undefined && len < prevTrackedLen) {
+            strategicPlaceSoundKeyRef.current = `${len}:${moveHistoryTail.x},${moveHistoryTail.y}`;
+            strategicPlaceHistoryLenRef.current = len;
+            return;
+        }
+
         if (prevMoveHistoryTail === undefined) {
-            const len = session.moveHistory?.length ?? 0;
-            if (len !== 1) return;
+            if (len !== 1) {
+                strategicPlaceHistoryLenRef.current = len;
+                return;
+            }
         } else if (JSON.stringify(moveHistoryTail) === JSON.stringify(prevMoveHistoryTail)) {
+            strategicPlaceHistoryLenRef.current = len;
             return;
         }
         const key = `${session.moveHistory?.length ?? 0}:${moveHistoryTail.x},${moveHistoryTail.y}`;
-        if (strategicPlaceSoundKeyRef.current === key) return;
+        if (strategicPlaceSoundKeyRef.current === key) {
+            strategicPlaceHistoryLenRef.current = len;
+            return;
+        }
         strategicPlaceSoundKeyRef.current = key;
+        strategicPlaceHistoryLenRef.current = len;
         void audioService.initialize();
         audioService.placeStone();
-    }, [session.mode, gameStatus, moveHistoryTail, prevMoveHistoryTail, session.moveHistory?.length]);
+    }, [
+        gameId,
+        session.mode,
+        gameStatus,
+        moveHistoryTail,
+        prevMoveHistoryTail,
+        session.moveHistory?.length,
+    ]);
 
     // 주사위/도둑: 한 턴에 여러 돌 — 클라 낙관은 moveHistory를 늘리지 않고, 도둑 모드는 서버도 moveHistory에 착수를 쌓지 않아
     // moveHistory 꼬리만으로는 마지막 착점(또는 턴 종료 시점)에만 소리가 난다. stonesPlacedThisTurn·lastMove로 매 돌마다 1회 재생.

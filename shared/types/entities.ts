@@ -1002,6 +1002,8 @@ export type LiveGameSession = {
   thiefRoundSummary?: ThiefRoundSummary;
   thiefDiceRollHistory?: { [playerId: string]: number[] };
   thiefCapturesThisRound?: number;
+  /** 도둑 착수 턴 시작 시 판에 흑(도둑)이 없었으면 true — 한 턴 동안 주사위 개수만큼 어디에나 놓을 수 있음 */
+  thiefFreestyleThiefPlacing?: boolean;
   thiefGoItemUses?: { [playerId: string]: { high36: number; noOne: number } };
   alkkagiStones?: AlkkagiStone[];
   alkkagiStones_p1?: AlkkagiStone[];

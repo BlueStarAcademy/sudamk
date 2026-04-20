@@ -162,6 +162,16 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         return false;
     }, [gameStatus, session.isSinglePlayer, session.gameCategory, session.stageId, session.moveHistory, session.totalTurns]);
 
+    const adventureRegionalHeadStartCaptureBonus =
+        session.gameCategory === 'adventure'
+            ? Math.max(
+                  0,
+                  Math.floor(
+                      Number((session as { adventureRegionalHumanFlatScoreBonus?: unknown }).adventureRegionalHumanFlatScoreBonus ?? 0),
+                  ),
+              )
+            : 0;
+
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
@@ -225,6 +235,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     gameId={session.id}
                     pendingMove={pendingMove}
                     captureScoreFloatMinPoints={captureScoreFloatMinPoints}
+                    adventureRegionalHeadStartCaptureBonus={adventureRegionalHeadStartCaptureBonus}
                     onBoardRuleFlash={props.onBoardRuleFlash}
                     onboardingDemoAnchorPoint={onboardingDemoAnchorPoint}
                     onboardingForcedFirstMovePoint={onboardingForcedFirstMovePoint}

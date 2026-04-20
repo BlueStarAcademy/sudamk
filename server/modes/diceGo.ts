@@ -816,6 +816,22 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         game.moveHistory = [];
                         game.koInfo = null;
                         game.dicePlacingSettleUntil = undefined;
+                        game.animation = null;
+                        game.dice = undefined;
+                        game.stonesToPlace = 0;
+                        game.stonesPlacedThisTurn = [];
+                        game.lastTurnStones = [];
+                        game.lastMove = null;
+                        game.justCaptured = [];
+                        if (game.isAiGame) {
+                            const currentPlayerId =
+                                game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                            if (currentPlayerId === aiUserId) {
+                                scheduleAiTurnStartForFreshUi(game, now);
+                            } else {
+                                game.aiTurnStartTime = undefined;
+                            }
+                        }
                         return;
                     } else {
                         const winnerId = p1Score > p2Score ? p1Id : p2Id;
@@ -829,7 +845,11 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
 
                 // Start next round
                 game.boardState = Array(game.settings.boardSize).fill(0).map(() => Array(game.settings.boardSize).fill(types.Player.None));
-                const initialStoneCount = DICE_GO_INITIAL_WHITE_STONES_BY_ROUND[game.round - 1];
+                const roundIdx = Math.max(
+                    0,
+                    Math.min(game.round - 1, DICE_GO_INITIAL_WHITE_STONES_BY_ROUND.length - 1)
+                );
+                const initialStoneCount = DICE_GO_INITIAL_WHITE_STONES_BY_ROUND[roundIdx];
                 placeDiceGoInitialWhiteStones(game.boardState, game.settings.boardSize, initialStoneCount);
                 game.gameStatus = 'dice_rolling';
                 game.currentPlayer = types.Player.Black; // Black (first player) always starts the round
@@ -844,6 +864,23 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.moveHistory = [];
                 game.koInfo = null;
                 game.dicePlacingSettleUntil = undefined;
+                // 이전 라운드의 굴림/착수/보너스 연출이 남으면 클라·AI 루프가 꼬일 수 있음
+                game.animation = null;
+                game.dice = undefined;
+                game.stonesToPlace = 0;
+                game.stonesPlacedThisTurn = [];
+                game.lastTurnStones = [];
+                game.lastMove = null;
+                game.justCaptured = [];
+                if (game.isAiGame) {
+                    const currentPlayerId =
+                        game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (currentPlayerId === aiUserId) {
+                        scheduleAiTurnStartForFreshUi(game, now);
+                    } else {
+                        game.aiTurnStartTime = undefined;
+                    }
+                }
             }
             break;
     }

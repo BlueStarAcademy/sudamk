@@ -26,7 +26,7 @@ export function isDiceGoLibertyPlacement(game: LiveGameSession, x: number, y: nu
 
 /**
  * 도둑과 경찰 착수: 빈 점이어야 하며, 역할·턴에 따라 흑(도둑) 활로 규칙 적용.
- * 서버 `server/modes/thief.ts` THIEF_PLACE_STONE 활로 검사와 동일 조건.
+ * 서버 `server/modes/thief.ts` THIEF_PLACE_STONE 활로 검사와 동일 조건 (`thiefFreestyleThiefPlacing` 포함).
  */
 export function isThiefGoValidPlacement(game: LiveGameSession, x: number, y: number, actingUserId: string): boolean {
     const boardState = game.boardState;
@@ -40,7 +40,8 @@ export function isThiefGoValidPlacement(game: LiveGameSession, x: number, y: num
 
     if (isThief) {
         const noBlackStonesOnBoard = !boardState.flat().some((s) => s === types.Player.Black);
-        const canPlaceFreely = game.turnInRound === 1 || noBlackStonesOnBoard;
+        const canPlaceFreely =
+            game.turnInRound === 1 || noBlackStonesOnBoard || !!game.thiefFreestyleThiefPlacing;
         if (!canPlaceFreely) {
             const liberties = logic.getAllLibertiesOfPlayer(types.Player.Black, boardState);
             if (liberties.length > 0 && !liberties.some((p) => p.x === x && p.y === y)) return false;

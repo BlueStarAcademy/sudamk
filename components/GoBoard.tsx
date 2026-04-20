@@ -546,6 +546,8 @@ interface GoBoardProps {
   captureScoreFloatMinPoints?: number;
   /** 따낸 점수 플로트(+N)를 captures 증가분으로 계산할 때 사용. 없으면 justCaptured 슬라이스만 사용(교체형 페이로드에서 오차 가능) */
   captures?: { [key in Player]?: number };
+  /** 모험 지역 이해도 시작 가산(캡처 점수) — 첫 수에서 이 값만 오른 따낸 점수 플로트는 표시하지 않음 */
+  adventureRegionalHeadStartCaptureBonus?: number;
   /** 패·둘 수 없는 자리 등 — TurnDisplay 전광판 */
   onBoardRuleFlash?: (message: string) => void;
   /** 온보딩: 화살표 위치 측정용 투명 앵커(SVG) */
@@ -574,6 +576,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         isSinglePlayer = false, isRotated = false, pendingMove = null,
         captureScoreFloatMinPoints = 2,
         captures,
+        adventureRegionalHeadStartCaptureBonus = 0,
         onBoardRuleFlash,
         onboardingDemoAnchorPoint = null,
         onboardingForcedFirstMovePoint = null,
@@ -729,7 +732,25 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 const sliceEntries = newJustCapturedEntries();
                 const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
-                const floatPts = slicePts > 0 ? slicePts : delta;
+                /** justCaptured만 보면 히든 5점 등이 누락될 수 있어(낙관적 갱신·슬라이스 동기), captures 증가분과 맞춤 */
+                const floatPts = Math.max(slicePts, delta);
+
+                const headStartBonus = adventureRegionalHeadStartCaptureBonus ?? 0;
+                const validMovesPlaced = moveHistory.filter((m) => m && m.x >= 0 && m.y >= 0).length;
+                /** 첫 착점 직후 캡처 없이 캡처 점수만 지역 가산과 동일하게 오른 경우(동기화 등) — 지역 이해도 +1 플로트 생략 */
+                if (
+                    headStartBonus > 0 &&
+                    validMovesPlaced === 1 &&
+                    sliceEntries.length === 0 &&
+                    floatPts === headStartBonus &&
+                    delta === headStartBonus
+                ) {
+                    lastFloatedMoveKeyRef.current = moveKey;
+                    prevCapturesForFloatRef.current = { ...captures };
+                    processedJustCapturedCountRef.current = list.length;
+                    lastCaptureScoreFloatPushedMoveKeyRef.current = moveKey;
+                    return;
+                }
 
                 const commitMoveFloatState = () => {
                     lastFloatedMoveKeyRef.current = moveKey;
@@ -818,7 +839,17 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             pushFloat(totalPts, anchor, 0);
         }, DEBOUNCE_MS);
         return () => clearTimeout(t);
-    }, [justCaptured, captures, moveHistory, boardState, captureScoreFloatMinPoints, gameId, gameStatus, animation]);
+    }, [
+        justCaptured,
+        captures,
+        moveHistory,
+        boardState,
+        captureScoreFloatMinPoints,
+        gameId,
+        gameStatus,
+        animation,
+        adventureRegionalHeadStartCaptureBonus,
+    ]);
 
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const [selectedMissileStone, setSelectedMissileStone] = useState<Point | null>(null);

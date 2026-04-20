@@ -51,6 +51,7 @@ const THIEF_TURNS_PER_ROUND = THIEF_NIGHTS_PER_ROUND * 2;
 
 /** 착수 종료 후 상대 주사위 단계로 (주사위 바둑 applyDicePlacingTurnPass와 대응) */
 function applyThiefPlacingHandoff(game: types.LiveGameSession, now: number) {
+    game.thiefFreestyleThiefPlacing = undefined;
     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
     game.gameStatus = 'thief_rolling';
     if (shouldEnforceTimeControl(game)) {
@@ -87,6 +88,7 @@ function resetThiefBoardForNewSegment(game: types.LiveGameSession) {
     game.dicePlacingSettleUntil = undefined;
     game.passCount = 0;
     game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
+    game.thiefFreestyleThiefPlacing = undefined;
 }
 
 function enterThiefRoundEndModal(game: types.LiveGameSession, now: number) {
@@ -323,6 +325,11 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             game.animation = null;
             game.gameStatus = 'thief_placing';
             game.stonesPlacedThisTurn = []; // Initialize for the new turn
+            if (game.currentPlayer === types.Player.Black) {
+                game.thiefFreestyleThiefPlacing = !game.boardState.flat().includes(types.Player.Black);
+            } else {
+                game.thiefFreestyleThiefPlacing = undefined;
+            }
             if (shouldEnforceTimeControl(game)) {
                 game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
                 game.turnStartTime = now;
@@ -376,7 +383,8 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                     // 도둑: 기존 돌의 활로에만 놓을 수 있음
                     const liberties = logicForLiberty.getAllLibertiesOfPlayer(types.Player.Black, tempBoardState);
                     const noBlackStonesOnBoard = !tempBoardState.flat().includes(types.Player.Black);
-                    const canPlaceFreely = (game.turnInRound === 1 || noBlackStonesOnBoard);
+                    const canPlaceFreely =
+                        game.turnInRound === 1 || noBlackStonesOnBoard || !!game.thiefFreestyleThiefPlacing;
                     
                     if (canPlaceFreely) {
                         // 자유롭게 놓을 수 있음
@@ -650,7 +658,8 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
         
             if (myRole === 'thief') {
                 const noBlackStonesOnBoard = !game.boardState.flat().includes(types.Player.Black);
-                const canPlaceFreely = (game.turnInRound === 1 || noBlackStonesOnBoard);
+                const canPlaceFreely =
+                    game.turnInRound === 1 || noBlackStonesOnBoard || !!game.thiefFreestyleThiefPlacing;
 
                 if (!canPlaceFreely) {
                     const liberties = logic.getAllLibertiesOfPlayer(types.Player.Black, game.boardState);

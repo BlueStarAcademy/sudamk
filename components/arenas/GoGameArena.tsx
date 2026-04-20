@@ -42,8 +42,18 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         pendingMove,
         captureScoreFloatMinPoints = 2,
     } = props;
-    
+
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
+
+    const adventureRegionalHeadStartCaptureBonus =
+        session.gameCategory === 'adventure'
+            ? Math.max(
+                  0,
+                  Math.floor(
+                      Number((session as { adventureRegionalHumanFlatScoreBonus?: unknown }).adventureRegionalHumanFlatScoreBonus ?? 0),
+                  ),
+              )
+            : 0;
 
     const adventurePregameHideBoard =
         session.gameCategory === 'adventure' &&
@@ -280,6 +290,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 isRotated={isBoardRotated}
                 pendingMove={pendingMove}
                 captureScoreFloatMinPoints={captureScoreFloatMinPoints}
+                adventureRegionalHeadStartCaptureBonus={adventureRegionalHeadStartCaptureBonus}
                 onBoardRuleFlash={props.onBoardRuleFlash}
                 />
                 </div>

@@ -5957,6 +5957,25 @@ export const useApp = () => {
                                         }
                                         const updatedGames = { ...currentGames };
                                         let mergedGame: typeof game = game;
+                                        const incomingRound = game.round ?? 1;
+                                        const existingRound = existingGame?.round ?? 1;
+                                        const boardSize = game.settings?.boardSize;
+                                        const serverBoardGridOk =
+                                            Array.isArray(game.boardState) &&
+                                            game.boardState.length > 0 &&
+                                            typeof boardSize === 'number' &&
+                                            boardSize > 0 &&
+                                            game.boardState.length === boardSize &&
+                                            Array.isArray(game.boardState[0]) &&
+                                            game.boardState[0].length === boardSize;
+                                        /** 라운드 종료 모달 직후 → 다음 라운드: 병합이 빈 판을 유지하는 케이스 보정 */
+                                        const isDiceGoNewRoundFromRoundEnd =
+                                            game.mode === GameMode.Dice &&
+                                            !!existingGame &&
+                                            existingGame.gameStatus === 'dice_round_end' &&
+                                            game.gameStatus === 'dice_rolling' &&
+                                            incomingRound > existingRound &&
+                                            serverBoardGridOk;
                                         const hasServerBoard = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 &&
                                             game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((c: any) => c !== 0 && c != null));
                                         const moveHistoryToDerive = (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0)
@@ -6123,6 +6142,15 @@ export const useApp = () => {
                                                 blackPatternStones: game.blackPatternStones ?? mergedGame.blackPatternStones,
                                                 whitePatternStones: game.whitePatternStones ?? mergedGame.whitePatternStones,
                                                 hiddenMoves: game.hiddenMoves ?? mergedGame.hiddenMoves,
+                                            };
+                                        }
+                                        if (isDiceGoNewRoundFromRoundEnd) {
+                                            mergedGame = {
+                                                ...mergedGame,
+                                                boardState: game.boardState.map((row: number[]) => [...row]),
+                                                moveHistory: Array.isArray(game.moveHistory)
+                                                    ? game.moveHistory.map((m: any) => ({ ...m }))
+                                                    : [],
                                             };
                                         }
                                         updatedGames[gameId] = mergedGame;

@@ -15,23 +15,40 @@ interface ThiefRoundSummaryProps {
 const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: User) => {
     const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
+    const isThief = summary.role === 'thief';
     return (
-        <div className="bg-gray-900/50 p-4 rounded-lg flex flex-col items-center text-center">
-            <Avatar userId={user.id} userName={user.nickname} size={80} avatarUrl={avatarUrl} borderUrl={borderUrl} />
-            <p className="mt-2 font-bold text-lg">{user.nickname}</p>
-            <p className={`px-2 py-0.5 rounded-full text-sm font-semibold my-2 ${summary.role === 'thief' ? 'bg-yellow-600 text-black' : 'bg-blue-600 text-white'}`}>
-                {summary.role === 'thief' ? '🏃 도둑' : '🚓 경찰'}
-            </p>
-            <div className="text-left text-sm space-y-1 w-full">
-                <div className="flex justify-between">
-                    <span>라운드 성과:</span>
-                    <span className="font-bold">{summary.roundScore} {summary.role === 'thief' ? '개 생존' : '개 검거'}</span>
-                </div>
-                <div className="flex justify-between border-t border-gray-600 pt-1 mt-1 font-bold">
-                    <span>누적 점수:</span>
-                    <span className="font-mono text-xl text-yellow-300">{summary.cumulativeScore}점</span>
-                </div>
+        <div className="flex min-h-0 min-w-0 flex-col items-stretch rounded-lg border border-white/[0.06] bg-gradient-to-b from-zinc-800/75 to-zinc-950/90 p-1.5 shadow-inner shadow-black/30 ring-1 ring-inset ring-amber-500/10 sm:p-2">
+            <div className="flex flex-col items-center gap-1">
+                <Avatar userId={user.id} userName={user.nickname} size={52} avatarUrl={avatarUrl} borderUrl={borderUrl} />
+                <p
+                    className="line-clamp-2 w-full max-w-full px-0.5 text-center text-[11px] font-semibold leading-tight text-amber-50 break-words sm:text-xs"
+                    title={user.nickname}
+                >
+                    {user.nickname}
+                </p>
+                <span
+                    className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 sm:text-[10px] ${
+                        isThief
+                            ? 'bg-amber-500/25 text-amber-100 ring-amber-400/35'
+                            : 'bg-sky-600/35 text-sky-100 ring-sky-400/30'
+                    }`}
+                >
+                    {isThief ? '도둑' : '경찰'}
+                </span>
             </div>
+            <dl className="mt-1.5 space-y-1 border-t border-white/10 pt-1.5 text-[10px] leading-tight text-zinc-300 sm:mt-2 sm:space-y-1.5 sm:text-[11px]">
+                <div className="flex items-baseline justify-between gap-1">
+                    <dt className="shrink-0 text-zinc-500">{isThief ? '생존' : '검거'}</dt>
+                    <dd className="min-w-0 text-right font-mono font-bold tabular-nums text-amber-100">
+                        {summary.roundScore}
+                        <span className="font-sans text-[9px] font-normal text-zinc-500">개</span>
+                    </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-1 border-t border-white/5 pt-1">
+                    <dt className="shrink-0 text-zinc-500">누적</dt>
+                    <dd className="font-mono text-sm font-bold tabular-nums text-amber-300 sm:text-base">{summary.cumulativeScore}</dd>
+                </div>
+            </dl>
         </div>
     );
 };
@@ -41,44 +58,71 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
 
     if (!thiefRoundSummary) return null;
-    
+
     const { round, isDeathmatch, player1: summaryP1, player2: summaryP2 } = thiefRoundSummary;
 
-    const title = isDeathmatch ? `데스매치 ${round - 2} 종료` : `${round} 라운드 종료`;
+    const title = isDeathmatch ? `데스매치 ${round - 2} 종료` : `${round}라운드 집계`;
 
     let description = '';
     if (isDeathmatch) {
-        description = '승부가 나지 않아, 다시 역할을 정하고 데스매치를 진행합니다.';
+        description = '동점으로 데스매치를 이어갑니다.';
     } else if (round < 2) {
-        description = '이제 역할을 교대하여 다음 라운드를 시작합니다.';
+        description = '역할을 바꿔 다음 라운드를 진행합니다.';
     } else {
-        description = '2라운드가 모두 종료되었습니다. 최종 점수가 같으면 데스매치를 진행합니다.';
+        description = '2라운드 종료. 동점이면 데스매치입니다.';
     }
 
+    const btnLabel = hasConfirmed ? '상대 확인 대기' : '다음 라운드';
+    const countdownLabel = isDeathmatch ? '다음 데스매치 자동 시작까지' : '다음 라운드 자동 시작까지';
+    const countdownLabelShort = isDeathmatch ? '데스매치까지' : '다음까지';
+
     return (
-        <DraggableWindow title={title} initialWidth={550} windowId="thief-round-summary">
-            <div className="text-white">
-                <p className="text-center text-gray-300 mb-6">{description}</p>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
+        <DraggableWindow
+            title={title}
+            headerShowTitle
+            windowId="thief-round-summary"
+            initialWidth={560}
+            shrinkHeightToContent
+            hideFooter
+            bodyScrollable={false}
+            bodyNoScroll
+            bodyPaddingClassName="p-2.5 sm:p-4 max-[380px]:p-2"
+            containerExtraClassName="!rounded-2xl !shadow-[0_24px_64px_-16px_rgba(0,0,0,0.65),0_0_0_1px_rgba(251,191,36,0.12)]"
+            mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 12px))"
+        >
+            <div className="relative flex h-full min-h-0 flex-col gap-2 text-amber-50/95 sm:gap-3">
+                <div className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-[radial-gradient(ellipse_at_30%_0%,rgba(251,191,36,0.12),transparent_50%),radial-gradient(ellipse_at_100%_80%,rgba(56,189,248,0.1),transparent_42%)]" />
+
+                <p className="text-center text-[11px] leading-snug text-zinc-300 sm:text-xs">{description}</p>
+
+                <div className="grid min-h-0 shrink grid-cols-2 gap-1.5 sm:gap-2">
                     {renderPlayerSummary(summaryP1, player1)}
                     {renderPlayerSummary(summaryP2, player2)}
                 </div>
 
-                <Button
-                    onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId }})} 
-                    disabled={hasConfirmed}
-                    className="w-full py-3"
-                >
-                    {hasConfirmed ? '상대방 확인 대기 중...' : '다음 라운드 시작'}
-                </Button>
-                {!session.isAiGame && revealEndTime != null && (
-                    <RoundCountdownIndicator
-                        deadline={revealEndTime}
-                        durationSeconds={20}
-                        label={isDeathmatch ? '다음 데스매치 자동 시작까지' : '다음 라운드 자동 시작까지'}
-                    />
-                )}
+                <div className="mt-auto flex min-h-0 shrink-0 flex-col gap-1.5 pt-0.5">
+                    <Button
+                        bare
+                        onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
+                        disabled={hasConfirmed}
+                        title={hasConfirmed ? undefined : btnLabel}
+                        className={`w-full rounded-xl border px-2 py-2 text-[13px] font-bold shadow-lg transition sm:py-2.5 sm:text-sm ${
+                            hasConfirmed
+                                ? 'cursor-not-allowed border-zinc-600 bg-zinc-800/80 text-zinc-500'
+                                : 'border-amber-400/40 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 text-zinc-950 shadow-amber-900/30 hover:from-amber-300 hover:to-amber-600 active:scale-[0.99]'
+                        }`}
+                    >
+                        {btnLabel}
+                    </Button>
+                    {!session.isAiGame && revealEndTime != null && (
+                        <RoundCountdownIndicator
+                            deadline={revealEndTime}
+                            durationSeconds={20}
+                            label={countdownLabel}
+                            labelShort={countdownLabelShort}
+                        />
+                    )}
+                </div>
             </div>
         </DraggableWindow>
     );

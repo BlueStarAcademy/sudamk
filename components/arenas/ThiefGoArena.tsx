@@ -65,7 +65,8 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
 
         if (myRole === '도둑') {
             const noBlackStonesOnBoard = !boardState.flat().includes(Player.Black);
-            const canPlaceFreely = session.turnInRound === 1 || noBlackStonesOnBoard;
+            const canPlaceFreely =
+                session.turnInRound === 1 || noBlackStonesOnBoard || !!session.thiefFreestyleThiefPlacing;
             if (canPlaceFreely) {
                 return allEmptyPoints();
             }
@@ -82,7 +83,7 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
             return liberties.length > 0 ? liberties : allEmptyPoints();
         }
         return allEmptyPoints();
-    }, [gameStatus, isMyTurn, session, boardState, currentUser.id, thiefPlayerId, settings.boardSize]);
+    }, [gameStatus, isMyTurn, session, session.thiefFreestyleThiefPlacing, boardState, currentUser.id, thiefPlayerId, settings.boardSize]);
 
     const backgroundClass = useMemo(() => {
         if (PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode)) {

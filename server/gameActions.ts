@@ -1046,6 +1046,19 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
         }
 
+        // 도둑과 경찰: 라운드 종료 확인 직후 한 틱 — 저장·브로드캐스트 전에 updateThiefState가 안 돌면
+        // thief_round_end에 머물거나 판이 비지 않은 채로 보이는 문제가 난다.
+        if (
+            result != null &&
+            result !== undefined &&
+            !(result as any).error &&
+            type === 'CONFIRM_ROUND_END' &&
+            game.mode === GameMode.Thief
+        ) {
+            const { updatePlayfulGameState } = await import('./modes/playful.js');
+            await updatePlayfulGameState(game, Date.now());
+        }
+
         // 모험/길드전 AI 전략국: 메인 루프에서 PVE로 제외되는 동안 processGame이 안 돌면
         // updateBaseState 등이 호출되지 않아 베이스 배치 완료 후 진행이 멈출 수 있음 → 액션 직후 한 틱 적용.
         if (

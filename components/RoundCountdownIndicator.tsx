@@ -5,6 +5,8 @@ interface RoundCountdownIndicatorProps {
     durationSeconds: number;
     enabled?: boolean;
     label?: string;
+    /** 좁은 화면에서 짧은 문구(한 줄·넘침 방지). 없으면 `label`만 사용 */
+    labelShort?: string;
 }
 
 const getRemainingMs = (deadline: number | null | undefined, durationSeconds: number) => {
@@ -18,6 +20,7 @@ const RoundCountdownIndicator: React.FC<RoundCountdownIndicatorProps> = ({
     durationSeconds,
     enabled = true,
     label = '자동 진행까지',
+    labelShort,
 }) => {
     const [remainingMs, setRemainingMs] = useState(() => enabled ? getRemainingMs(deadline, durationSeconds) : 0);
 
@@ -44,14 +47,23 @@ const RoundCountdownIndicator: React.FC<RoundCountdownIndicatorProps> = ({
     const progressPercent = Math.max(0, Math.min(100, (remainingMs / (durationSeconds * 1000)) * 100));
 
     return (
-        <div className="mt-3">
-            <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-300">{label}</span>
-                <span className="text-2xl font-mono font-bold text-yellow-400 tabular-nums">{displaySeconds}초</span>
+        <div className="mt-1.5 sm:mt-2">
+            <div className="flex items-start justify-between gap-2 text-[11px] leading-tight sm:text-sm">
+                <span className="min-w-0 flex-1 text-zinc-400">
+                    {labelShort ? (
+                        <>
+                            <span className="hidden sm:inline">{label}</span>
+                            <span className="inline sm:hidden">{labelShort}</span>
+                        </>
+                    ) : (
+                        label
+                    )}
+                </span>
+                <span className="shrink-0 font-mono text-lg font-bold tabular-nums text-amber-300 sm:text-2xl">{displaySeconds}초</span>
             </div>
-            <div className="mt-2 w-full h-2.5 rounded-full overflow-hidden bg-gray-700/80 border border-gray-600/70">
+            <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full border border-amber-900/40 bg-zinc-900/90 sm:mt-2 sm:h-2.5">
                 <div
-                    className="h-full rounded-full bg-gradient-to-r from-yellow-500 via-amber-400 to-orange-400 transition-[width] duration-100 ease-linear"
+                    className="h-full rounded-full bg-gradient-to-r from-amber-500 via-amber-300 to-yellow-200 transition-[width] duration-100 ease-linear shadow-[0_0_8px_rgba(251,191,36,0.35)]"
                     style={{ width: `${progressPercent}%` }}
                 />
             </div>
