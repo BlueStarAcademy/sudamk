@@ -71,6 +71,7 @@ const AppContent: React.FC = () => {
         settings,
         isNativeMobile,
         isLargeTouchTablet,
+        isPhoneHandheldTouch,
         usePortraitFirstShell,
         isNarrowViewport,
     } = useAppContext();
@@ -171,22 +172,60 @@ const AppContent: React.FC = () => {
     }, [currentUser]);
 
     /**
-     * 예전에는 물리 가로일 때 html 에 portrait-lock 클래스를 걸고 #root 를 CSS 로 -90° 돌렸는데,
-     * OS 세로 고정 상태에서도 inner 크기·visualViewport 변동으로 클래스가 깜빡이며 ‘회전’처럼 보이는 문제가 있었다.
-     * 가로 대응은 하지 않고(클래스를 더 이상 붙이지 않음), 남은 클래스만 한 번 제거한다.
+     * 터치 폰만: 물리 가로일 때 OS가 뷰포트를 돌리면 모바일 셸이 풀리고 PC 레이아웃으로 바뀌는 문제가 있다.
+     * `screen.orientation.lock` 은 브라우저·전체화면 조건으로 자주 실패하므로, 폰일 때만 index.css 의
+     * `sudamr-handheld-portrait-lock` 으로 세로 UI를 유지한다. 8인치+ 태블릿(`isLargeTouchTablet`)은 제외.
+     * 잠금은 `innerWidth > innerHeight` 일 때만 걸어 세로에서는 클래스를 두지 않는다(과거 깜빡임 완화).
      */
     useEffect(() => {
         const el = document.documentElement;
-        const hadLock = el.classList.contains('sudamr-handheld-portrait-lock');
-        el.classList.remove(
-            'sudamr-handheld-portrait-lock',
-            'sudamr-handheld-portrait-secondary',
-            'sudamr-handheld-real-landscape',
-        );
-        el.style.removeProperty('--sudamr-landscape-ui-rotate');
-        syncDocumentViewportHeightVar();
-        if (hadLock) window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
-    }, []);
+
+        const syncPhonePortraitLock = () => {
+            const physicalLandscape = typeof window !== 'undefined' && window.innerWidth > window.innerHeight;
+            const shouldLock = isPhoneHandheldTouch && physicalLandscape;
+            const hadLock = el.classList.contains('sudamr-handheld-portrait-lock');
+
+            if (shouldLock) {
+                if (!hadLock) {
+                    el.classList.add('sudamr-handheld-portrait-lock');
+                    el.classList.remove('sudamr-handheld-portrait-secondary', 'sudamr-handheld-real-landscape');
+                    el.style.removeProperty('--sudamr-landscape-ui-rotate');
+                    syncDocumentViewportHeightVar();
+                    window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
+                }
+            } else if (hadLock) {
+                el.classList.remove(
+                    'sudamr-handheld-portrait-lock',
+                    'sudamr-handheld-portrait-secondary',
+                    'sudamr-handheld-real-landscape',
+                );
+                el.style.removeProperty('--sudamr-landscape-ui-rotate');
+                syncDocumentViewportHeightVar();
+                window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
+            }
+        };
+
+        const onGeometryChange = () => {
+            requestAnimationFrame(() => syncPhonePortraitLock());
+        };
+
+        syncPhonePortraitLock();
+        window.addEventListener('resize', onGeometryChange);
+        window.addEventListener('orientationchange', onGeometryChange);
+        window.addEventListener('sudamr-portrait-lock-change', onGeometryChange);
+        const vv = typeof window !== 'undefined' ? window.visualViewport : undefined;
+        vv?.addEventListener('resize', onGeometryChange);
+        const mq = typeof window !== 'undefined' ? window.matchMedia?.('(orientation: landscape)') : undefined;
+        mq?.addEventListener('change', onGeometryChange);
+
+        return () => {
+            window.removeEventListener('resize', onGeometryChange);
+            window.removeEventListener('orientationchange', onGeometryChange);
+            window.removeEventListener('sudamr-portrait-lock-change', onGeometryChange);
+            vv?.removeEventListener('resize', onGeometryChange);
+            mq?.removeEventListener('change', onGeometryChange);
+        };
+    }, [isPhoneHandheldTouch]);
 
     const isGameView = currentRoute.view === 'game';
     const hideAppHeader = Boolean(currentUser && currentRoute.view === 'set-nickname');
