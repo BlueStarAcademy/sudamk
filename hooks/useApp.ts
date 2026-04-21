@@ -38,6 +38,8 @@ import {
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
 import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
+
+const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
 import { applyUserProgressionArenaLocks, getBadukAbilitySnapshotFromStats } from '../shared/utils/contentProgressionGates.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
@@ -780,6 +782,7 @@ export const useApp = () => {
     const [globalOverrideAnnouncement, setGlobalOverrideAnnouncement] = useState<OverrideAnnouncement | null>(null);
     const [announcementInterval, setAnnouncementInterval] = useState(3);
     const [homeBoardPosts, setHomeBoardPosts] = useState<HomeBoardPost[]>([]);
+    const [readHomeBoardPostIds, setReadHomeBoardPostIds] = useState<string[]>([]);
     const [guilds, setGuilds] = useState<Record<string, Guild>>({});
     
     // --- UI Modals & Toasts ---
@@ -843,6 +846,52 @@ export const useApp = () => {
     const [isInsufficientActionPointsModalOpen, setIsInsufficientActionPointsModalOpen] = useState(false);
     const [isOpponentInsufficientActionPointsModalOpen, setIsOpponentInsufficientActionPointsModalOpen] = useState(false);
     const [isActionPointModalOpen, setIsActionPointModalOpen] = useState(false);
+
+    const homeBoardReadStorageKey = useMemo(
+        () => `${HOME_BOARD_READ_STORAGE_PREFIX}:${currentUser?.id ?? 'guest'}`,
+        [currentUser?.id],
+    );
+
+    useEffect(() => {
+        try {
+            const raw = localStorage.getItem(homeBoardReadStorageKey);
+            if (!raw) {
+                setReadHomeBoardPostIds([]);
+                return;
+            }
+            const parsed = JSON.parse(raw);
+            setReadHomeBoardPostIds(Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string') : []);
+        } catch {
+            setReadHomeBoardPostIds([]);
+        }
+    }, [homeBoardReadStorageKey]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(homeBoardReadStorageKey, JSON.stringify(readHomeBoardPostIds));
+        } catch {
+            // ignore storage failure
+        }
+    }, [homeBoardReadStorageKey, readHomeBoardPostIds]);
+
+    useEffect(() => {
+        const currentIds = new Set(homeBoardPosts.map((p) => p.id));
+        setReadHomeBoardPostIds((prev) => {
+            const next = prev.filter((id) => currentIds.has(id));
+            return next.length === prev.length ? prev : next;
+        });
+    }, [homeBoardPosts]);
+
+    const unreadHomeBoardPostIds = useMemo(() => {
+        const readSet = new Set(readHomeBoardPostIds);
+        return homeBoardPosts.filter((post) => !readSet.has(post.id)).map((post) => post.id);
+    }, [homeBoardPosts, readHomeBoardPostIds]);
+    const hasUnreadHomeBoardPosts = unreadHomeBoardPostIds.length > 0;
+
+    const markHomeBoardPostRead = useCallback((postId: string) => {
+        if (!postId) return;
+        setReadHomeBoardPostIds((prev) => (prev.includes(postId) ? prev : [...prev, postId]));
+    }, []);
 
     useEffect(() => {
         try {
@@ -7512,6 +7561,8 @@ export const useApp = () => {
         globalOverrideAnnouncement,
         announcementInterval,
         homeBoardPosts,
+        unreadHomeBoardPostIds,
+        hasUnreadHomeBoardPosts,
         activeGame,
         activeNegotiation,
         showExitToast,
@@ -7611,6 +7662,7 @@ export const useApp = () => {
             closeInfoModal: () => setIsInfoModalOpen(false),
             openAnnouncementsModal: () => setIsAnnouncementsModalOpen(true),
             closeAnnouncementsModal: () => setIsAnnouncementsModalOpen(false),
+            markHomeBoardPostRead,
             openRankingQuickModal: () => setIsRankingQuickModalOpen(true),
             closeRankingQuickModal: () => setIsRankingQuickModalOpen(false),
             openChatQuickModal: () => setIsChatQuickModalOpen(true),

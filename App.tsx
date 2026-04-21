@@ -241,9 +241,7 @@ const AppContent: React.FC = () => {
         const tryPortraitPrimaryLock = () => {
             try {
                 if (!so?.lock) return;
-                void so.lock('portrait-primary').catch(() => {
-                    void so.lock('portrait').catch(() => {});
-                });
+                void so.lock('portrait-primary').catch(() => {});
             } catch {
                 /* lock 은 전체화면·정책 등으로 자주 거절됨 */
             }

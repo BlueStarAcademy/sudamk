@@ -61,6 +61,7 @@ const AppModalLayer: React.FC = () => {
         announcements,
         globalOverrideAnnouncement,
         homeBoardPosts,
+        unreadHomeBoardPostIds,
         waitingRoomChats,
     } = useAppContext();
 
@@ -190,6 +191,8 @@ const AppModalLayer: React.FC = () => {
                     >
                         <HomeBoardPanel
                             posts={homeBoardPosts}
+                            unreadPostIds={unreadHomeBoardPostIds}
+                            onPostRead={handlers.markHomeBoardPostRead}
                             isAdmin={Boolean(currentUserWithStatus?.isAdmin)}
                             onAction={handlers.handleAction}
                             modalMode

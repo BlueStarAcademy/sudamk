@@ -55,7 +55,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     className = '',
     mobileHeaderStrip = false,
 }) => {
-    const { handlers, hasClaimableQuest, currentUserWithStatus } = useAppContext();
+    const { handlers, hasClaimableQuest, hasUnreadHomeBoardPosts, currentUserWithStatus } = useAppContext();
 
     const onboardingPhase = currentUserWithStatus?.onboardingTutorialPhase ?? 0;
     const onboardingActive = isOnboardingTutorialActive(currentUserWithStatus);
@@ -174,7 +174,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 emoji: '📢',
                 handler: handlers.openAnnouncementsModal,
                 disabled: false,
-                notification: false,
+                notification: hasUnreadHomeBoardPosts,
             },
             {
                 label: '설정',
@@ -185,7 +185,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
         ],
-        [handlers, hasClaimableQuest, onboardingActive, onboardingPhase, badukSnap, currentUserWithStatus?.isAdmin],
+        [handlers, hasClaimableQuest, hasUnreadHomeBoardPosts, onboardingActive, onboardingPhase, badukSnap, currentUserWithStatus?.isAdmin],
     );
 
     const gameplayButtons = buttons.filter((b) => b.gameplay);
