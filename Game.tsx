@@ -2760,6 +2760,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 type: 'REQUEST_SERVER_AI_MOVE',
                                 payload: { gameId: currentGameId, clientSync },
                             } as ServerAction);
+                            const hasGamePayload =
+                                !!(result as any)?.game || !!(result as any)?.clientResponse?.game;
+                            if (!hasGamePayload) {
+                                // 서버가 빈 성공 응답만 준 경우 AI 잠금을 즉시 해제해 다음 effect tick에서 재시도한다.
+                                console.warn('[Game] PVE server AI returned no game payload, retrying soon:', {
+                                    gameId: currentGameId,
+                                    moveHistoryLength: moveHistoryLengthAtCalculation,
+                                    currentPlayer: currentPlayerAtCalculation,
+                                    resultKeys: result && typeof result === 'object' ? Object.keys(result as any) : [],
+                                });
+                                lastAiMoveRef.current = null;
+                            }
                             if (result && typeof result === 'object' && 'error' in result && (result as any).error) {
                                 console.warn('[Game] PVE server AI failed:', (result as any).error);
                                 lastAiMoveRef.current = null;

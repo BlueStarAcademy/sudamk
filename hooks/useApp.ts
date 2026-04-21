@@ -3192,7 +3192,52 @@ export const useApp = () => {
 
                 // /api/action 성공 본문은 `{ success, ...clientResponse }` 평탄화 → `game`은 최상위 `result.game`
                 if (action.type === 'REQUEST_SERVER_AI_MOVE') {
-                    const g = ((result as any).game || result.clientResponse?.game) as LiveGameSession | undefined;
+                    let g = ((result as any).game || result.clientResponse?.game) as LiveGameSession | undefined;
+                    const requestedGameId = (action.payload as { gameId?: string } | undefined)?.gameId;
+                    // 근본 보정: AI 응답이 slim payload(성공만 반환)인 경우 즉시 게임 상태를 동기화해
+                    // 다음 effect tick의 "재시도" 없이 현재 턴을 바로 반영한다.
+                    if (!g && requestedGameId) {
+                        try {
+                            const syncRes = await fetch(getApiUrl('/api/action'), {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include',
+                                body: JSON.stringify({
+                                    type: 'REQUEST_GAME_STATE_SYNC',
+                                    payload: { gameId: requestedGameId },
+                                    userId: currentUserRef.current.id,
+                                }),
+                            });
+                            if (syncRes.ok) {
+                                const syncResult = await syncRes.json();
+                                const syncedGame = ((syncResult as any).game || syncResult?.clientResponse?.game) as LiveGameSession | undefined;
+                                if (syncedGame?.id) {
+                                    g = syncedGame;
+                                    (result as any).game = syncedGame;
+                                    console.log('[handleAction] REQUEST_SERVER_AI_MOVE - hydrated missing game via REQUEST_GAME_STATE_SYNC:', {
+                                        gameId: syncedGame.id,
+                                        moveHistoryLength: Array.isArray(syncedGame.moveHistory) ? syncedGame.moveHistory.length : undefined,
+                                        currentPlayer: syncedGame.currentPlayer,
+                                    });
+                                } else {
+                                    console.warn('[handleAction] REQUEST_SERVER_AI_MOVE - sync succeeded but game still missing:', {
+                                        gameId: requestedGameId,
+                                        syncKeys: syncResult && typeof syncResult === 'object' ? Object.keys(syncResult) : [],
+                                    });
+                                }
+                            } else {
+                                console.warn('[handleAction] REQUEST_SERVER_AI_MOVE - REQUEST_GAME_STATE_SYNC failed:', {
+                                    gameId: requestedGameId,
+                                    status: syncRes.status,
+                                });
+                            }
+                        } catch (syncError) {
+                            console.warn('[handleAction] REQUEST_SERVER_AI_MOVE - sync hydration error:', {
+                                gameId: requestedGameId,
+                                error: syncError,
+                            });
+                        }
+                    }
                     const gid = g?.id;
                     if (gid && g) {
                         const boardClone =
