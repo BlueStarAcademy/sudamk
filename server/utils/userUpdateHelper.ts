@@ -18,8 +18,8 @@ export function getSelectiveUserUpdate(
     // 액션 타입별 필요한 필드 맵
     const fieldMap: Record<string, string[]> = {
         // 인벤토리 관련
-        'USE_ITEM': ['inventory', 'gold', 'diamonds', 'actionPoints'],
-        'USE_ALL_ITEMS_OF_TYPE': ['inventory', 'gold', 'diamonds', 'actionPoints'],
+        'USE_ITEM': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
+        'USE_ALL_ITEMS_OF_TYPE': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'TOGGLE_EQUIP_ITEM': ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate'],
         'SELL_ITEM': ['inventory', 'gold'],
         'COMBINE_ITEMS': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
@@ -29,8 +29,8 @@ export function getSelectiveUserUpdate(
         'EXPAND_INVENTORY': ['inventorySlots', 'diamonds'],
         
         // 상점 관련
-        'BUY_SHOP_ITEM': ['inventory', 'gold', 'diamonds'],
-        'BUY_MATERIAL_BOX': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases'],
+        'BUY_SHOP_ITEM': ['inventory', 'gold', 'diamonds', 'quests'],
+        'BUY_MATERIAL_BOX': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases', 'quests'],
         'BUY_CONDITION_POTION': ['inventory', 'gold', 'dailyShopPurchases'],
         'BUY_TOWER_ITEM': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases'],
         'CLAIM_SHOP_AD_REWARD': ['inventory', 'diamonds', 'dailyShopPurchases'],

@@ -67,12 +67,21 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
 
     /** 좌표가 같으면 객체 참조를 유지해 GoBoard 따낸 점수 effect 등이 매 렌더 불필요하게 돌지 않게 함 */
     const displayLastMoveKey = useMemo(() => {
-        if (!hiddenMoves || typeof hiddenMoves !== 'object' || !moveHistory?.length) {
+        if (!moveHistory?.length) {
+            return lastMove != null ? `${lastMove.x},${lastMove.y}` : '';
+        }
+        // hiddenMoves가 없거나 직렬화로 빠진 경우에도 수순 꼬리가 진실원천 (lastMove만 보면 AI 수 직후 한 박자 늦거나 이전 수에 고정되는 버그)
+        if (!hiddenMoves || typeof hiddenMoves !== 'object') {
+            for (let i = moveHistory.length - 1; i >= 0; i--) {
+                const m = moveHistory[i];
+                if (!m || (m.x === -1 && m.y === -1)) continue;
+                return `${m.x},${m.y}`;
+            }
             return lastMove != null ? `${lastMove.x},${lastMove.y}` : '';
         }
         for (let i = moveHistory.length - 1; i >= 0; i--) {
             const m = moveHistory[i];
-            if (m.x === -1 && m.y === -1) continue;
+            if (!m || (m.x === -1 && m.y === -1)) continue;
             if (!hiddenMoves[i]) return `${m.x},${m.y}`;
         }
         return lastMove != null ? `${lastMove.x},${lastMove.y}` : '';

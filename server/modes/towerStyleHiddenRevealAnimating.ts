@@ -7,6 +7,10 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import {
+    isIntersectionRecordedAsBaseStone,
+    removeCapturedBaseStoneMarkersFromSession,
+} from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 
 export type TowerStyleHiddenRevealPostTurnHook = (game: types.LiveGameSession, now: number) => Promise<void>;
@@ -95,7 +99,7 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
         game.justCaptured = [];
         for (const stone of cap.stones) {
             game.boardState[stone.y][stone.x] = types.Player.None;
-            const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
+            const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
             let moveIndex = -1;
             for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
                 const m = game.moveHistory![i];
@@ -134,6 +138,7 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
             }
         }
         stripPatternStonesAtConsumedIntersections(game);
+        removeCapturedBaseStoneMarkersFromSession(game, cap.stones);
         if (cap.move && typeof cap.move.x === 'number' && typeof cap.move.y === 'number') {
             game.boardState[cap.move.y][cap.move.x] = myP;
         }

@@ -151,7 +151,8 @@ const safeBoolean = (value: unknown, fallback = false): boolean => {
 };
 
 const ensureQuestLog = (value: unknown): QuestLog => {
-  const parsed = parseJson<QuestLog>(value, createDefaultQuests());
+  const defaultQuests = createDefaultQuests();
+  const parsed = parseJson<QuestLog>(value, defaultQuests);
   const out: QuestLog = {
     daily: {
       quests: Array.isArray(parsed.daily?.quests) ? parsed.daily?.quests : [],
@@ -170,7 +171,15 @@ const ensureQuestLog = (value: unknown): QuestLog => {
       activityProgress: parsed.monthly?.activityProgress ?? 0,
       claimedMilestones: parsed.monthly?.claimedMilestones ?? [false, false, false, false, false],
       lastReset: parsed.monthly?.lastReset ?? 0
-    }
+    },
+    achievements: {
+      ...(defaultQuests.achievements || { tracks: {} }),
+      ...(parsed.achievements || {}),
+      tracks: {
+        ...((defaultQuests.achievements && defaultQuests.achievements.tracks) || {}),
+        ...((parsed.achievements && parsed.achievements.tracks) || {}),
+      },
+    },
   };
   normalizeQuestLogProgressCaps(out);
   return out;

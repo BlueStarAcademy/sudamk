@@ -62,8 +62,9 @@
 
           var o = screen.orientation;
           if (!o || !o.lock) return;
-          o.lock('portrait').catch(function () {
-            o.lock('portrait-primary').catch(function () {});
+          /* portrait 은 secondary(거꾸로 세로)까지 허용되므로, 폰에서는 primary만 먼저 잠근다. */
+          o.lock('portrait-primary').catch(function () {
+            o.lock('portrait').catch(function () {});
           });
         } catch (e) {}
       })();

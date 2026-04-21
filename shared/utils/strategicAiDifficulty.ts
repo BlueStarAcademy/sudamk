@@ -18,7 +18,18 @@ export const KATA_SERVER_LEVEL_BY_PROFILE_STEP: Readonly<Record<number, number>>
   10: 5,
 };
 
+/** 바둑학원 싱글 Kata level(전략 대기실 표와 별도) → 프로필 단계 1~5 */
+const SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP: Record<number, number> = {
+  [-31]: 1,
+  [-30]: 2,
+  [-29]: 3,
+  [-28]: 4,
+  [-27]: 5,
+};
+
 export function profileStepFromKataServerLevel(kataLevel: number): number | undefined {
+  const academy = SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP[kataLevel];
+  if (academy !== undefined) return academy;
   const entry = Object.entries(KATA_SERVER_LEVEL_BY_PROFILE_STEP).find(([, v]) => v === kataLevel);
   return entry ? Math.max(1, Math.min(10, parseInt(entry[0], 10))) : undefined;
 }

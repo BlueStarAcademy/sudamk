@@ -776,7 +776,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
                 : game;
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payloadGame } }, game);
-            return { clientResponse: { serverAiMoveDone: true } };
+            // PVE는 WS만 기다리면 지연·병합으로 AI 착수가 화면에 안 보일 수 있음 → HTTP 응답으로 즉시 동기화
+            return { clientResponse: { serverAiMoveDone: true, game: payloadGame } };
         }
 
         if (type === 'REQUEST_GAME_STATE_SYNC') {

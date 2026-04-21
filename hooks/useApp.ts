@@ -3051,9 +3051,73 @@ export const useApp = () => {
                 console.debug('[handleAction] Action response received', {
                     actionType: action.type,
                     hasUpdatedUser: !!result.updatedUser || !!result.clientResponse?.updatedUser,
-                    moveHistoryLength: Array.isArray(result.clientResponse?.game?.moveHistory) ? result.clientResponse.game.moveHistory.length : undefined,
+                    moveHistoryLength: Array.isArray((result as any).game?.moveHistory)
+                        ? (result as any).game.moveHistory.length
+                        : Array.isArray(result.clientResponse?.game?.moveHistory)
+                          ? result.clientResponse.game.moveHistory.length
+                          : undefined,
                     raw: result,
                 });
+
+                // /api/action 성공 본문은 `{ success, ...clientResponse }` 평탄화 → `game`은 최상위 `result.game`
+                if (action.type === 'REQUEST_SERVER_AI_MOVE') {
+                    const g = ((result as any).game || result.clientResponse?.game) as LiveGameSession | undefined;
+                    const gid = g?.id;
+                    if (gid && g) {
+                        const boardClone =
+                            g.boardState && Array.isArray(g.boardState)
+                                ? (g.boardState as number[][]).map((row) => [...row])
+                                : g.boardState;
+                        const merged = { ...g, boardState: boardClone } as LiveGameSession;
+                        const mh = merged.moveHistory;
+                        if (Array.isArray(mh) && mh.length > 0) {
+                            for (let i = mh.length - 1; i >= 0; i--) {
+                                const m = mh[i] as { x?: number; y?: number } | undefined;
+                                if (
+                                    m &&
+                                    typeof m.x === 'number' &&
+                                    typeof m.y === 'number' &&
+                                    m.x >= 0 &&
+                                    m.y >= 0
+                                ) {
+                                    merged.lastMove = { x: m.x, y: m.y };
+                                    break;
+                                }
+                            }
+                        }
+                        const cat = String((g as any).gameCategory ?? '');
+                        // PVE 유저 수는 클라에서만 serverRevision을 올리고, 서버는 saveGame 1회로 맞춰져
+                        // 같은 값이면 Game.tsx 보드 잠금(serverRevision 증가)이 풀리지 않음 → 한 단계 강제 상승
+                        const ensureAiHttpRevisionAdvances = (
+                            prevSession: LiveGameSession | undefined,
+                            session: LiveGameSession,
+                        ): LiveGameSession => {
+                            if (!prevSession) return session;
+                            const prevRev = prevSession.serverRevision ?? 0;
+                            const incomingRev = session.serverRevision ?? 0;
+                            const maxRev = Math.max(prevRev, incomingRev);
+                            const serverRevision = maxRev > prevRev ? maxRev : prevRev + 1;
+                            return serverRevision === (session.serverRevision ?? 0)
+                                ? session
+                                : { ...session, serverRevision };
+                        };
+                        if (cat === 'tower') {
+                            setTowerGames((prev) => {
+                                const prevG = prev[gid];
+                                const next = ensureAiHttpRevisionAdvances(prevG, merged);
+                                return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
+                            });
+                        } else if (cat === 'singleplayer' || g.isSinglePlayer) {
+                            setSinglePlayerGames((prev) => {
+                                const prevG = prev[gid];
+                                const next = ensureAiHttpRevisionAdvances(prevG, merged);
+                                return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
+                            });
+                        } else {
+                            setLiveGames((prev) => ({ ...prev, [gid]: { ...(prev[gid] || ({} as LiveGameSession)), ...merged } }));
+                        }
+                    }
+                }
 
                 if (action.type === 'ADMIN_TOGGLE_GAME_MODE' && (result.gameModeAvailability ?? result.clientResponse?.gameModeAvailability)) {
                     setGameModeAvailability(result.gameModeAvailability ?? result.clientResponse.gameModeAvailability);
@@ -5622,12 +5686,15 @@ export const useApp = () => {
                                                         mergedRevealed.push(p);
                                                 }
                                                 if (isAnimating || existingGame) {
+                                                    // 서버가 슬림 페이로드(boardState 생략)를내도 final*가 기존 판을 유지하므로 항상 반영한다.
+                                                    // 그렇지 않으면 클라 board가 비고 buildPveItemActionClientSync → REQUEST_SERVER_AI_MOVE가 영구 스킵된다.
                                                     updatedGames[gameId] = {
                                                         ...game,
-                                                        ...(preserveBoardFromExisting || preserveMoveHistoryFromExisting ? { boardState: finalBoardState, moveHistory: finalMoveHistory } : {}),
+                                                        boardState: finalBoardState,
+                                                        moveHistory: finalMoveHistory,
                                                         permanentlyRevealedStones: mergedRevealed,
                                                         totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
-                                                        captures: preservedCaptures
+                                                        captures: preservedCaptures,
                                                     };
                                                 } else {
                                                     updatedGames[gameId] = { ...game, permanentlyRevealedStones: mergedRevealed };

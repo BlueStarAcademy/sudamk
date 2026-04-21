@@ -12,7 +12,9 @@ export type AchievementStageDefinition = {
         | { type: 'playful_tier'; tier: '루키' | '브론즈' | '실버' | '골드' | '플래티넘' | '다이아' | '마스터' | '챌린저' }
         | { type: 'adventure_understanding_tier'; stageId: 'neighborhood_hill' | 'lake_park' | 'aquarium' | 'zoo' | 'amusement_park'; tier: '편함' | '익숙함' | '친숙함' | '정복' }
         | { type: 'adventure_codex_score'; score: number }
-        | { type: 'blacksmith_level'; level: number };
+        | { type: 'blacksmith_level'; level: number }
+        | { type: 'equipment_box_opens'; opens: number }
+        | { type: 'material_box_opens'; opens: number };
     rewardDiamonds: number;
 };
 
@@ -36,6 +38,8 @@ export const ZOO_EXPLORATION_TRACK_ID = 'adventure_zoo_conquest';
 export const AMUSEMENT_PARK_EXPLORATION_TRACK_ID = 'adventure_amusement_park_conquest';
 export const MONSTER_CODEX_HUNTER_TRACK_ID = 'adventure_monster_codex_hunter';
 export const BLACKSMITH_LEVEL_TRACK_ID = 'blacksmith_level_milestones';
+export const EQUIPMENT_BOX_OPENS_TRACK_ID = 'equipment_box_opens_milestones';
+export const MATERIAL_BOX_OPENS_TRACK_ID = 'material_box_opens_milestones';
 
 export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
     {
@@ -233,6 +237,38 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
             { id: 'blacksmith-level-10', title: '대장간 레벨 10 달성', description: '대장간 레벨 10에 도달하세요.', requirement: { type: 'blacksmith_level', level: 10 }, rewardDiamonds: 100 },
             { id: 'blacksmith-level-15', title: '대장간 레벨 15 달성', description: '대장간 레벨 15에 도달하세요.', requirement: { type: 'blacksmith_level', level: 15 }, rewardDiamonds: 100 },
             { id: 'blacksmith-level-20', title: '대장간 레벨 20 달성', description: '대장간 레벨 20에 도달하세요.', requirement: { type: 'blacksmith_level', level: 20 }, rewardDiamonds: 100 },
+        ],
+    },
+    {
+        id: EQUIPMENT_BOX_OPENS_TRACK_ID,
+        title: '장비좀 주세요 업적',
+        stages: [
+            { id: 'equip-box-10', title: '장비 상자 10회 사용', description: '장비 상자를 누적 10회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 10 }, rewardDiamonds: 10 },
+            { id: 'equip-box-50', title: '장비 상자 50회 사용', description: '장비 상자를 누적 50회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 50 }, rewardDiamonds: 20 },
+            { id: 'equip-box-100', title: '장비 상자 100회 사용', description: '장비 상자를 누적 100회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 100 }, rewardDiamonds: 30 },
+            { id: 'equip-box-150', title: '장비 상자 150회 사용', description: '장비 상자를 누적 150회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 150 }, rewardDiamonds: 40 },
+            { id: 'equip-box-200', title: '장비 상자 200회 사용', description: '장비 상자를 누적 200회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 200 }, rewardDiamonds: 50 },
+            { id: 'equip-box-300', title: '장비 상자 300회 사용', description: '장비 상자를 누적 300회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 300 }, rewardDiamonds: 100 },
+            { id: 'equip-box-450', title: '장비 상자 450회 사용', description: '장비 상자를 누적 450회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 450 }, rewardDiamonds: 100 },
+            { id: 'equip-box-600', title: '장비 상자 600회 사용', description: '장비 상자를 누적 600회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 600 }, rewardDiamonds: 100 },
+            { id: 'equip-box-800', title: '장비 상자 800회 사용', description: '장비 상자를 누적 800회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 800 }, rewardDiamonds: 100 },
+            { id: 'equip-box-1000', title: '장비 상자 1000회 사용', description: '장비 상자를 누적 1000회 사용하세요.', requirement: { type: 'equipment_box_opens', opens: 1000 }, rewardDiamonds: 100 },
+        ],
+    },
+    {
+        id: MATERIAL_BOX_OPENS_TRACK_ID,
+        title: '강화재료가 부족해 업적',
+        stages: [
+            { id: 'mat-box-10', title: '재료 상자 10회 사용', description: '재료 상자를 누적 10회 사용하세요.', requirement: { type: 'material_box_opens', opens: 10 }, rewardDiamonds: 10 },
+            { id: 'mat-box-50', title: '재료 상자 50회 사용', description: '재료 상자를 누적 50회 사용하세요.', requirement: { type: 'material_box_opens', opens: 50 }, rewardDiamonds: 20 },
+            { id: 'mat-box-100', title: '재료 상자 100회 사용', description: '재료 상자를 누적 100회 사용하세요.', requirement: { type: 'material_box_opens', opens: 100 }, rewardDiamonds: 30 },
+            { id: 'mat-box-150', title: '재료 상자 150회 사용', description: '재료 상자를 누적 150회 사용하세요.', requirement: { type: 'material_box_opens', opens: 150 }, rewardDiamonds: 40 },
+            { id: 'mat-box-200', title: '재료 상자 200회 사용', description: '재료 상자를 누적 200회 사용하세요.', requirement: { type: 'material_box_opens', opens: 200 }, rewardDiamonds: 50 },
+            { id: 'mat-box-300', title: '재료 상자 300회 사용', description: '재료 상자를 누적 300회 사용하세요.', requirement: { type: 'material_box_opens', opens: 300 }, rewardDiamonds: 100 },
+            { id: 'mat-box-450', title: '재료 상자 450회 사용', description: '재료 상자를 누적 450회 사용하세요.', requirement: { type: 'material_box_opens', opens: 450 }, rewardDiamonds: 100 },
+            { id: 'mat-box-600', title: '재료 상자 600회 사용', description: '재료 상자를 누적 600회 사용하세요.', requirement: { type: 'material_box_opens', opens: 600 }, rewardDiamonds: 100 },
+            { id: 'mat-box-800', title: '재료 상자 800회 사용', description: '재료 상자를 누적 800회 사용하세요.', requirement: { type: 'material_box_opens', opens: 800 }, rewardDiamonds: 100 },
+            { id: 'mat-box-1000', title: '재료 상자 1000회 사용', description: '재료 상자를 누적 1000회 사용하세요.', requirement: { type: 'material_box_opens', opens: 1000 }, rewardDiamonds: 100 },
         ],
     },
 ];

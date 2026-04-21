@@ -103,7 +103,7 @@ type KataMoveApiData = {
     bestMove?: string;
 };
 
-/** bestMove 우선, 그다음 응답 `move`(엔진과 다를 때 서버 규칙과 맞는 쪽이 있을 수 있음). PASS·중복 제거. */
+/** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. PASS·중복 제거. */
 function buildGtpCandidatesFromKataResponse(data: KataMoveApiData): string[] {
     const best = data.bestMove?.trim();
     const reported = data.move?.trim();
@@ -114,8 +114,8 @@ function buildGtpCandidatesFromKataResponse(data: KataMoveApiData): string[] {
         if (u === 'PASS' || u === '') return;
         if (!out.some((g) => g.toUpperCase() === u)) out.push(s);
     };
-    pushUnique(best);
     pushUnique(reported);
+    pushUnique(best);
     return out;
 }
 
@@ -135,7 +135,7 @@ export interface GenerateKataServerMoveParams {
 }
 
 /**
- * Kata 한 번 호출로 후보 좌표 목록 반환 (bestMove → move 순, PASS 제외).
+ * Kata 한 번 호출로 후보 좌표 목록 반환 (move → bestMove 순, PASS 제외).
  * PASS·빈 응답·전부 파싱 실패 시 `[-1,-1]` 폴백 없이 예외를 던져 원인 추적이 가능하게 한다.
  */
 export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {
@@ -212,7 +212,7 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
         const reported = data.move?.trim();
         if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {
             console.log(
-                `[KataServer] candidate order: bestMove=${best} then move=${reported} (strategy=${data.strategy ?? 'n/a'})`,
+                `[KataServer] candidate order: move=${reported} then bestMove=${best} (strategy=${data.strategy ?? 'n/a'})`,
             );
         }
 

@@ -1,5 +1,6 @@
 import { Player } from '../types/index.js';
 import type { BoardState } from '../types/index.js';
+import { processMove } from './goLogic.js';
 
 /**
  * 선포석 게임에서 `kataCaptureSetupMoves`가 유실돼도 Kata 수순 접두를 다시 만들 수 있도록
@@ -70,4 +71,72 @@ export function encodeBoardStateAsKataSetupMovesFromEmpty(
         }
     }
     return out;
+}
+
+export function oppositePlayerForKata(p: Player): Player {
+    return p === Player.Black ? Player.White : Player.Black;
+}
+
+/** encode 접두 재생 후 다음 착수자가 wantToMove가 되도록 PASS를 덧붙인다. */
+export function appendPassesUntilSideToMove(
+    moves: Array<{ x: number; y: number; player: Player }>,
+    wantToMove: Player
+): Array<{ x: number; y: number; player: Player }> {
+    const out = [...moves];
+    for (let i = 0; i < 4; i++) {
+        const next = out.length === 0 ? Player.Black : oppositePlayerForKata(out[out.length - 1]!.player);
+        if (next === wantToMove) return out;
+        out.push({ x: -1, y: -1, player: next });
+    }
+    console.warn(
+        `[appendPassesUntilSideToMove] could not align to wantToMove=${wantToMove} (len=${moves.length})`,
+    );
+    return out;
+}
+
+function boardsEqualForKata(a: BoardState, b: BoardState): boolean {
+    if (!a?.length || !b?.length || a.length !== b.length) return false;
+    for (let y = 0; y < a.length; y++) {
+        if (!b[y] || a[y].length !== b[y].length) return false;
+        for (let x = 0; x < a[y].length; x++) {
+            if ((a[y][x] ?? 0) !== (b[y][x] ?? 0)) return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * Kata 입력용 수열이 빈 판에서 규칙대로 재생되어 `targetBoard`와 일치하는지 검사.
+ * (오프닝 접두 + moveHistory 불일치 시 KataGo Illegal move 방지)
+ */
+export function doesKataCombinedMovesReplayToBoard(
+    boardSize: number,
+    moves: Array<{ x: number; y: number; player: number }>,
+    targetBoard: BoardState | null | undefined
+): boolean {
+    if (!targetBoard?.length || targetBoard.length !== boardSize) return false;
+    let board: BoardState = Array.from({ length: boardSize }, () =>
+        Array.from({ length: boardSize }, () => Player.None),
+    );
+    let koInfo: { point: { x: number; y: number }; turn: number } | null = null;
+    let turnIdx = 0;
+    for (const m of moves) {
+        if (m.x < 0 || m.y < 0) {
+            koInfo = null;
+            turnIdx++;
+            continue;
+        }
+        const r = processMove(
+            board,
+            { x: m.x, y: m.y, player: m.player as Player },
+            koInfo,
+            turnIdx,
+            {}
+        );
+        if (!r.isValid) return false;
+        board = r.newBoardState.map((row) => [...row]);
+        koInfo = r.newKoInfo ?? null;
+        turnIdx++;
+    }
+    return boardsEqualForKata(board, targetBoard);
 }

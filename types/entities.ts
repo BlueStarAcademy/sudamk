@@ -118,6 +118,10 @@ export type AchievementTrackState = {
 
 export type AchievementData = {
   tracks: Record<string, AchievementTrackState>;
+  /** 누적 장비 상자 사용(상점 즉시 개봉·인벤 사용·광고 보상 즉시 개봉 등) */
+  totalEquipmentBoxOpens?: number;
+  /** 누적 재료 상자 사용 */
+  totalMaterialBoxOpens?: number;
 };
 
 

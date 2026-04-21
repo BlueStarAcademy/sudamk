@@ -3,10 +3,11 @@
  * 대기실 UI와 실제 게임 생성 시 수치가 어긋나지 않도록 여기서만 정의한다.
  */
 
-/** 따내기 1~20층: 흑(유저) 목표. 6~10층=10, 11~20층=15 고정, 그 외는 스테이지 정의값. */
+/** 따내기 1~20층: 흑(유저) 목표. 1~10=5, 11~19=6, 20=7. 21층+는 스테이지 정의값. */
 export function resolveTowerCaptureBlackTarget(floor: number, stageBlack: number | undefined): number {
-    if (floor >= 6 && floor <= 10) return 10;
-    if (floor >= 11 && floor <= 20) return 15;
+    if (floor >= 1 && floor <= 10) return 5;
+    if (floor >= 11 && floor <= 19) return 6;
+    if (floor === 20) return 7;
     if (stageBlack != null && stageBlack > 0) return stageBlack;
     return 999;
 }

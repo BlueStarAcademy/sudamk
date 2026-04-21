@@ -2603,7 +2603,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     ? getAiUserForGuildWar(gameMode, boardId)
                     : getAiUser(gameMode);
             
-            // 길드전 9칸: AI 난이도 단계는 모드별, Kata `kataServerLevel`은 좌/중/우 열(경기장 id)별 고정
+            // 길드전 9칸: AI 난이도 단계는 모드별, Kata `kataServerLevel`은 좌/중/우 열(-30/-28/-25) 고정
             const guildWarKataProfileStep =
                 normalizedBoardMode === 'capture' ? 3 : normalizedBoardMode === 'hidden' ? 7 : 5;
             const guildWarKataServerLevel = getGuildWarKataServerLevelByBoardId(

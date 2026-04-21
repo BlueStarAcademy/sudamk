@@ -467,6 +467,12 @@ html, body {
     overflow: hidden;
 }
 
+/* 휴대폰 세로 거꾸로(portrait-secondary): 잠금 API 실패 시에도 primary 와 같은 방향으로 보이게 보정 */
+html.sudamr-handheld-neutralize-portrait-secondary #root {
+    transform: rotate(180deg);
+    transform-origin: 50% 50%;
+}
+
 /*
   소형 터치 폰 물리 가로: 세로 UI만 쓰도록 #root > .app-container 회전.
   transition/animation 끔 — 브라우저 기본 보간으로 ‘휙’ 도는 느낌 완화.

@@ -7,6 +7,10 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import {
+    isIntersectionRecordedAsBaseStone,
+    removeCapturedBaseStoneMarkersFromSession,
+} from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { useAiInitialHiddenCellTracking, useTowerStyleHiddenRevealAnimatingResolution } from './hiddenRevealPolicy.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
@@ -208,7 +212,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     for (const stone of cap.stones) {
                         game.boardState[stone.y][stone.x] = types.Player.None; // Remove stone from board
         
-                        const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
+                        const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         // 같은 좌표에 공격자 착수가 이어지면(히든 따내기) 마지막 수만 보면 hiddenMoves가 없다.
                         // 제거되는 돌의 주인(상대)이 둔 수순을 찾아야 히든 여부를 맞출 수 있다.
                         let moveIndex = -1;
@@ -263,6 +267,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.boardState[cap.move.y][cap.move.x] = myPlayerEnum;
                     }
                     stripPatternStonesAtConsumedIntersections(game);
+                    removeCapturedBaseStoneMarkersFromSession(game, cap.stones);
 
                     // hidden_reveal 오버레이에서 이미 스파클 연출을 했고, permanentlyRevealed로 표시가 유지되므로
                     // newlyRevealed로 본판에 같은 애니를 한 번 더 붙이지 않는다.

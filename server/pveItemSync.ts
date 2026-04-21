@@ -108,4 +108,12 @@ export function applyPveItemActionClientSync(game: LiveGameSession, payload: unk
         game.totalTurns = sync.totalTurns;
     }
     reconcileMoveHistoryCoordsToBoardState(game);
+
+    const gc = String((game as any).gameCategory ?? '');
+    const pveLike =
+        game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer' || gc === 'guildwar' || gc === 'adventure';
+    if (pveLike) {
+        // clientSync 이후에도 남은 오프닝 스냅샷 + 수순 조합이 Kata 재생과 어긋나 Illegal move가 날 수 있음 → 다음 AI에서 재검증
+        (game as any).kataPveKataMovesFromBoardStateOnly = false;
+    }
 }

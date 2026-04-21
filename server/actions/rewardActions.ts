@@ -446,6 +446,10 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 requirementMet = totalSum >= stage.requirement.score;
             } else if (stage.requirement.type === 'blacksmith_level') {
                 requirementMet = (user.blacksmithLevel ?? 1) >= stage.requirement.level;
+            } else if (stage.requirement.type === 'equipment_box_opens') {
+                requirementMet = (user.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= stage.requirement.opens;
+            } else if (stage.requirement.type === 'material_box_opens') {
+                requirementMet = (user.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= stage.requirement.opens;
             }
             if (!requirementMet) {
                 return { error: '아직 업적 조건을 달성하지 않았습니다.' };

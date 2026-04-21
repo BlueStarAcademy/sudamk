@@ -207,12 +207,12 @@ export function getGuildWarBoardMode(boardId: string): 'capture' | 'hidden' | 'm
     return 'hidden';
 }
 
-/** 길드전 KataServer `kataServerLevel` — 좌열 -15 / 중앙열 -10 / 우열 -5 */
+/** 길드전 KataServer `kataServerLevel` — 좌열 -30 / 중앙열 -28 / 우열 -25 */
 export function getGuildWarKataServerLevelByBoardId(boardId: string): number {
-    if (boardId === 'top-left' || boardId === 'mid-left' || boardId === 'bottom-left') return -15;
-    if (boardId === 'top-mid' || boardId === 'center' || boardId === 'bottom-mid') return -10;
-    if (boardId === 'top-right' || boardId === 'mid-right' || boardId === 'bottom-right') return -5;
-    return -10;
+    if (boardId === 'top-left' || boardId === 'mid-left' || boardId === 'bottom-left') return -30;
+    if (boardId === 'top-mid' || boardId === 'center' || boardId === 'bottom-mid') return -28;
+    if (boardId === 'top-right' || boardId === 'mid-right' || boardId === 'bottom-right') return -25;
+    return -28;
 }
 
 /**

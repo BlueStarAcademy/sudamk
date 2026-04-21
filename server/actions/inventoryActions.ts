@@ -4,6 +4,7 @@ import { type ServerAction, type User, type VolatileState, InventoryItem, ItemOp
 import { ItemGrade } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
+import { recordAchievementBoxOpens } from '../achievementBoxOpenProgress.js';
 import * as guildService from '../guildService.js';
 import {
     EQUIPMENT_POOL,
@@ -749,6 +750,12 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             // 새 배열 생성 (성능 최적화)
             user.inventory = [...tempInventoryAfterUse, ...finalItemsToAdd];
 
+            if (shopItem.type === 'equipment') {
+                recordAchievementBoxOpens(user, 'equipment', useQuantity);
+            } else if (shopItem.type === 'material') {
+                recordAchievementBoxOpens(user, 'material', useQuantity);
+            }
+
             await guildService.recordGuildEpicPlusEquipmentAcquisition(user, allObtainedItems);
             
             // 선택적 필드만 반환 (메시지 크기 최적화)
@@ -761,7 +768,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory']);
+            broadcastUserUpdate(user, ['inventory', 'quests']);
             
             return { clientResponse: { obtainedItemsBulk: allObtainedItems, updatedUser } };
         }
@@ -842,6 +849,15 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             user.gold += totalGoldGained;
             user.diamonds += totalDiamondsGained;
 
+            if (shopItemKey && !bundleInfo) {
+                const si = SHOP_ITEMS[shopItemKey as keyof typeof SHOP_ITEMS];
+                if (si.type === 'equipment') {
+                    recordAchievementBoxOpens(user, 'equipment', totalQuantity);
+                } else if (si.type === 'material') {
+                    recordAchievementBoxOpens(user, 'material', totalQuantity);
+                }
+            }
+
             await guildService.recordGuildEpicPlusEquipmentAcquisition(user, allObtainedItems);
 
             // Prepare client response
@@ -859,9 +875,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            const changedFields = ['inventory'];
+            const changedFields: string[] = ['inventory'];
             if (totalGoldGained > 0) changedFields.push('gold');
             if (totalDiamondsGained > 0) changedFields.push('diamonds');
+            if (shopItemKey && !bundleInfo) changedFields.push('quests');
             broadcastUserUpdate(user, changedFields);
 
             return { clientResponse: { obtainedItemsBulk: clientResponseItems, updatedUser } };

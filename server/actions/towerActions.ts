@@ -245,7 +245,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
             reconcileStrategicAiBoardSizeWithGroundTruth(game);
 
-            // 1~20층: 따내기 목표점수 직접 설정(입찰 생략, 흑은 사용자 고정). 6~10층·11~20층은 서버 규칙으로 목표 덮어씀.
+            // 1~20층: 따내기 목표점수 직접 설정(입찰 생략, 흑은 사용자 고정). 흑 목표는 `resolveTowerCaptureBlackTarget`로 층별 고정.
             if (gameMode === GameMode.Capture) {
                 const blackTarget = towerBlackCaptureTarget;
                 const whiteTarget = stage.targetScore?.white && stage.targetScore.white > 0 ? stage.targetScore.white : 999;

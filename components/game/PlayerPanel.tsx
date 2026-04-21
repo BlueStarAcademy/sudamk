@@ -1005,17 +1005,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.gameCategory === 'adventure' &&
         ['nigiri_reveal', 'color_start_confirmation', 'nigiri_choosing', 'nigiri_guessing'].includes(session.gameStatus);
 
-    if (adventurePregameColorReveal) {
-        return (
-            <div
-                className={`flex w-full ${compactBarRowClass} flex-shrink-0`}
-            >
-                <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
-                <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
-            </div>
-        );
-    }
-
     const barHighlightAttrs =
         singlePlayerOnboardingBarHighlight === 'scores-bar'
             ? ({ 'data-onboarding-target': 'onboarding-sp-ingame-scores-bar' } as const)
@@ -1078,6 +1067,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : intro11SpotlightCenterY > (typeof window !== 'undefined' ? window.innerHeight : 0) * 0.5;
     const intro11PortalMount =
         typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') ?? document.body : null;
+
+    if (adventurePregameColorReveal) {
+        return (
+            <div
+                className={`flex w-full ${compactBarRowClass} flex-shrink-0`}
+            >
+                <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
+                <div className={`${playerColClass} rounded-lg border border-stone-600/25 bg-zinc-950/35`} aria-hidden />
+            </div>
+        );
+    }
 
     return (
         <div ref={intro11RootRef} className="relative">

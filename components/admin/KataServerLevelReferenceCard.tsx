@@ -200,7 +200,7 @@ const KataServerLevelReferenceCard: React.FC = () => {
                 <section>
                     <h3 className="text-sm font-semibold text-amber-200/90">길드전 9칸 (열 고정)</h3>
                     <p className="mt-0.5 text-xs text-gray-500">
-                        <span className="font-mono">getGuildWarKataServerLevelByBoardId</span> — 좌열 -15 / 중앙열 -10 / 우열 -5
+                        <span className="font-mono">getGuildWarKataServerLevelByBoardId</span> — 좌열 -30 / 중앙열 -28 / 우열 -25
                     </p>
                     <div className={tableWrap}>
                         <table className={tableCls}>

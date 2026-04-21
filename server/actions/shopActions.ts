@@ -11,6 +11,7 @@ import { isSameDayKST, isDifferentWeekKST } from '../../utils/timeUtils.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT, SHOP_BORDER_ITEMS } from '../../constants';
 import { addItemsToInventory } from '../../utils/inventoryUtils.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
+import { recordAchievementBoxOpens } from '../achievementBoxOpenProgress.js';
 import * as guildService from '../guildService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 
@@ -94,6 +95,8 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 // updatedInventory는 이미 새로운 배열이므로 직접 할당 (성능 최적화)
                 user.inventory = updatedInventory;
 
+                recordAchievementBoxOpens(user, 'equipment', quantity);
+
                 await guildService.recordGuildEpicPlusEquipmentAcquisition(user, obtainedItems);
                 
                 // 선택적 필드만 반환 (메시지 크기 최적화)
@@ -106,7 +109,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
                 // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
                 const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds']);
+                broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'quests']);
 
                 return { clientResponse: { obtainedItemsBulk: obtainedItems, updatedUser } };
             } catch (error: any) {
@@ -198,6 +201,8 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             
             // 인벤토리를 깊은 복사하여 새로운 배열로 할당 (참조 문제 방지)
             user.inventory = JSON.parse(JSON.stringify(updatedInventory));
+
+            recordAchievementBoxOpens(user, 'material', quantity);
             
             if (!user.isAdmin) {
                 if (resetPurchaseRecord || !user.dailyShopPurchases[itemId]) {
@@ -217,7 +222,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'dailyShopPurchases']);
+            broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'dailyShopPurchases', 'quests']);
 
             // 아이템을 이름별로 집계하되, 원본 아이템의 모든 속성(image 포함)을 보존
             const itemMap = new Map<string, InventoryItem>();
@@ -641,6 +646,11 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 }
                 user.inventory = JSON.parse(JSON.stringify(updatedInventory));
                 obtainedItems.push(...rewards);
+                if (tab === 'equipment') {
+                    recordAchievementBoxOpens(user, 'equipment', 1);
+                } else if (tab === 'materials') {
+                    recordAchievementBoxOpens(user, 'material', 1);
+                }
             }
 
             if (!user.isAdmin) {
@@ -654,7 +664,12 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             });
 
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'diamonds', 'dailyShopPurchases']);
+            broadcastUserUpdate(
+                user,
+                tab === 'equipment' || tab === 'materials'
+                    ? ['inventory', 'diamonds', 'dailyShopPurchases', 'quests']
+                    : ['inventory', 'diamonds', 'dailyShopPurchases'],
+            );
 
             return {
                 clientResponse: {

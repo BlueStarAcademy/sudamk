@@ -163,6 +163,12 @@ const AchievementTrackPanel: React.FC<{
         if (stage.requirement.type === 'blacksmith_level') {
             return (currentUser.blacksmithLevel ?? 1) >= stage.requirement.level;
         }
+        if (stage.requirement.type === 'equipment_box_opens') {
+            return (currentUser.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= stage.requirement.opens;
+        }
+        if (stage.requirement.type === 'material_box_opens') {
+            return (currentUser.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= stage.requirement.opens;
+        }
         return false;
     };
 
@@ -838,6 +844,10 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                 met = getAdventureCodexCompletionBreakdown(currentUser.adventureProfile).totalSum >= requirement.score;
             } else if (requirement.type === 'blacksmith_level') {
                 met = (currentUser.blacksmithLevel ?? 1) >= requirement.level;
+            } else if (requirement.type === 'equipment_box_opens') {
+                met = (currentUser.quests?.achievements?.totalEquipmentBoxOpens ?? 0) >= requirement.opens;
+            } else if (requirement.type === 'material_box_opens') {
+                met = (currentUser.quests?.achievements?.totalMaterialBoxOpens ?? 0) >= requirement.opens;
             }
 
             if (met) return true;

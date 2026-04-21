@@ -1395,13 +1395,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         );
     };
 
-    const findMoveIndexAt = (game: Pick<LiveGameSession, 'moveHistory'>, x: number, y: number): number => {
+    const findMoveIndexAt = (
+        game: Pick<LiveGameSession, 'moveHistory'>,
+        x: number,
+        y: number,
+        /** 보드에 놓인 돌 색과 일치하는 수만 본다(같은 좌표의 과거 수순 오인 방지) */
+        player?: Player
+    ): number => {
         const moveHistory = game.moveHistory || [];
         if (!Array.isArray(moveHistory)) {
             return -1;
         }
         for (let i = moveHistory.length - 1; i >= 0; i--) {
-            if (moveHistory[i].x === x && moveHistory[i].y === y) {
+            const m = moveHistory[i];
+            if (m.x === x && m.y === y && (player === undefined || m.player === player)) {
                 return i;
             }
         }
@@ -1613,7 +1620,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
                     const isMyJustPlacedStone = !!lastMove && lastMove.x === x && lastMove.y === y && actualPlayer === myPlayerEnum;
                     
-                    const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y) : -1;
+                    const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y, actualPlayer) : -1;
                     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
                     const isHiddenMove =
                         hiddenMoves &&

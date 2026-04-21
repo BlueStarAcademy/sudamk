@@ -14,7 +14,6 @@ import {
 } from '../strategicInitialBoard.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
-import { KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../../shared/utils/strategicAiDifficulty.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { ONBOARDING_PHASE_COMPLETE } from '../../shared/constants/onboardingTutorial.js';
 import { updateQuestProgress } from '../questService.js';
@@ -36,8 +35,7 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
 };
 
 /**
- * 반(난이도 구간)별 KataServer 프로필 단계 (1~5) → `KATA_SERVER_LEVEL_BY_PROFILE_STEP`과 대응.
- * 입문~유단자 각 스테이지 1~20 전부 동일 단계.
+ * 반(난이도 구간)별 프로필 단계 1~5 (봇 표시 레벨·aiDifficulty 등, 스테이지 구간 내 동일).
  */
 const getSinglePlayerKataProfileStep = (level: SinglePlayerLevel): number => {
     switch (level) {
@@ -53,6 +51,24 @@ const getSinglePlayerKataProfileStep = (level: SinglePlayerLevel): number => {
             return 5;
         default:
             return 1;
+    }
+};
+
+/** 바둑학원 반별 KataServer `level` 파라미터 (전략바둑 대기실 1~10단계 표와 별도). */
+const getSinglePlayerKataServerLevel = (level: SinglePlayerLevel): number => {
+    switch (level) {
+        case SinglePlayerLevel.입문:
+            return -31;
+        case SinglePlayerLevel.초급:
+            return -30;
+        case SinglePlayerLevel.중급:
+            return -29;
+        case SinglePlayerLevel.고급:
+            return -28;
+        case SinglePlayerLevel.유단자:
+            return -27;
+        default:
+            return -31;
     }
 };
 
@@ -208,10 +224,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 gameMode = GameMode.Standard;
             }
 
-            // 싱글플레이용 AI: 반별 Kata 프로필 1~5단계 (KataServer 레벨봇 API 값은 kataServerLevel)
+            // 싱글플레이용 AI: 반별 프로필 1~5 + KataServer levelbot (`kataServerLevel`)
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
-            const kataServerLevel =
-                KATA_SERVER_LEVEL_BY_PROFILE_STEP[kataProfileStep] ?? KATA_SERVER_LEVEL_BY_PROFILE_STEP[1];
+            const kataServerLevel = getSinglePlayerKataServerLevel(stage.level);
             const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
                              stage.level === SinglePlayerLevel.초급 ? '초급' :
                              stage.level === SinglePlayerLevel.중급 ? '중급' :

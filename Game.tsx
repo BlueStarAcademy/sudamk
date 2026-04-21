@@ -850,21 +850,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             prevGameStatus !== 'rematch_pending';
 
         // 분석 결과가 도착했을 때만 모달 표시 (바둑판 초기화 방지)
-        // scoring 상태일 때는 모달을 열지 않고, 바둑판 위 22초 연출(ScoringOverlay)만 표시. 연출 후 계가 결과가 나올 때 결과 모달 표시
+        // scoring 상태일 때는 모달을 열지 않고(싱글은 Arena의 ScoringOverlay), 계가 결과(analysisResult) 도착 시 결과 모달 표시
         // 기권/접속 끊김 등 즉시 종료되는 경우에는 analysisResult 없이도 모달 표시
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
         const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
-        // 싱글: 탑과 같이 종료·계가 진입 직후 결과 모달을 연다(입문 등 analysisResult 지연 시에도 빈 화면 방지).
-        // 계가 분석이 오면 기존처럼 영토 표시 등 후속 갱신.
+        // 싱글: ended 직후 결과 모달(입문 등 analysisResult 지연 시 빈 화면 방지). scoring 진입 시에는 모달을 열지 않음 —
+        // SinglePlayerArena의 ScoringOverlay(스캔·약 3초)가 먼저 보이고, system 분석 도착 시 아래 분기로 모달 연다.
         // 도전의 탑: 따내기 승·패 등 analysisResult 없이 ended 되는 경우가 많아 종료 직후 바로 결과 모달을 연다.
-        const singleJustEnteredScoring =
-            isSinglePlayer && gameStatus === 'scoring' && prevGameStatus === 'playing';
         const pveAutoResultModal =
             isImmediateEnd ||
             (isTower && gameHasJustEnded) ||
             (isSinglePlayer && gameHasJustEnded) ||
-            (isSinglePlayer && singleJustEnteredScoring) ||
             (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
             (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
         const shouldShowModal = (isSinglePlayer || isTower)
@@ -982,7 +979,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.mode === GameMode.Omok ||
             session.mode === GameMode.Ttamok;
         if (!isStrategicLike) return;
-        if (!['playing', 'hidden_placing'].includes(gameStatus)) return;
+        // playing→scoring 한 번에 오는 경우(자동 계가 직전 AI 수)에도 착점음이 나도록 scoring 직후 한 틱 허용
+        const stoneSoundOkStatus =
+            ['playing', 'hidden_placing'].includes(gameStatus) ||
+            (gameStatus === 'scoring' && prevGameStatus === 'playing');
+        if (!stoneSoundOkStatus) return;
 
         if (strategicPlaceSoundGameIdRef.current !== gameId) {
             strategicPlaceSoundGameIdRef.current = gameId;
@@ -1027,6 +1028,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         gameId,
         session.mode,
         gameStatus,
+        prevGameStatus,
         moveHistoryTail,
         prevMoveHistoryTail,
         session.moveHistory?.length,
@@ -2705,7 +2707,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
 
             // 도전의 탑·싱글플레이: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
-            if (session.gameCategory === 'tower' || session.isSinglePlayer) {
+            if (
+                session.gameCategory === 'tower' ||
+                session.gameCategory === 'singleplayer' ||
+                session.isSinglePlayer
+            ) {
                 const currentGameId = session.id;
                 const currentGameStatus = session.gameStatus;
                 const currentPlayerAtCalculation = currentPlayer;
@@ -3482,7 +3488,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     )}
                                 </div>
                             </div>
-                            {/* 계가 중: 바둑판 위 22초 연출만 표시 (모달 없음). 싱글/탑은 Arena에서 fullscreen 오버레이 표시 */}
+                            {/* 계가 중: 바둑판 위 연출(ScoringOverlay). 싱글/탑은 Arena에서 fullscreen 오버레이 표시 */}
                             {session.gameStatus === 'scoring' &&
                                 !session.isSinglePlayer &&
                                 session.gameCategory !== 'tower' &&

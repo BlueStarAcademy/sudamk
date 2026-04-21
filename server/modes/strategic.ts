@@ -17,6 +17,10 @@ import {
     consumeOpponentPatternStoneIfAny,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
+import {
+    isIntersectionRecordedAsBaseStone,
+    removeCapturedBaseStoneMarkersFromSession,
+} from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { broadcastPlayingSnapshotBeforeScoring } from '../utils/broadcastPlayingBeforeScoring.js';
 import { aiUserId } from '../aiPlayer.js';
@@ -91,16 +95,6 @@ const isLobbyAiStrategicGame = (game: types.LiveGameSession) =>
     game.gameCategory !== 'tower' &&
     game.gameCategory !== 'singleplayer' &&
     game.gameCategory !== 'guildwar';
-
-/**
- * 베이스 돌이 따인 직후 좌표를 baseStones에서 제거한다.
- * 제거하지 않으면 이후 같은 자리에 둔 일반 돌이 베이스로 오인된다.
- */
-const removeCapturedBaseStoneMarkers = (game: types.LiveGameSession, capturedStones: types.Point[]) => {
-    if (!game.baseStones || game.baseStones.length === 0 || capturedStones.length === 0) return;
-    const capturedKeys = new Set(capturedStones.map((s) => `${s.x},${s.y}`));
-    game.baseStones = game.baseStones.filter((s) => !capturedKeys.has(`${s.x},${s.y}`));
-};
 
 export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
     const p1 = game.player1;
@@ -933,7 +927,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         (game as any).gameCategory === 'guildwar' ||
                         (game as any).gameCategory === 'tower'
                     ) {
-                        const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+                        const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
@@ -969,7 +963,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                             }
                         }
                     } else { // PvP logic
-                        const isBaseStone = game.baseStones?.some(bs => bs.x === stone.x && bs.y === stone.y);
+                        const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         let moveIndex = -1;
                         for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
                             const m = game.moveHistory![i];
@@ -980,15 +974,17 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         }
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         wasHiddenForJustCaptured = wasHidden; // pass to justCaptured
-                        
+
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
+                        } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
+                            points = 2;
                         } else if (wasHidden) {
-                             game.hiddenStoneCaptures[myPlayerEnum]++;
-                             points = 5;
-                             if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-                             game.permanentlyRevealedStones.push(stone);
+                            game.hiddenStoneCaptures[myPlayerEnum]++;
+                            points = 5;
+                            if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                            game.permanentlyRevealedStones.push(stone);
                         }
                     }
 
@@ -1012,7 +1008,11 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
                 bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, myPlayerEnum, guildWarCapturePointsThisMove);
                 stripPatternStonesAtConsumedIntersections(game);
-                removeCapturedBaseStoneMarkers(game, result.capturedStones);
+                removeCapturedBaseStoneMarkersFromSession(game, result.capturedStones);
+            }
+
+            if (!isHidden && game.permanentlyRevealedStones?.length) {
+                game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter((p) => !(p.x === x && p.y === y));
             }
 
             const playerWhoMoved = myPlayerEnum;

@@ -21,24 +21,31 @@ import {
     isPatternIntersectionPermanentlyConsumed,
     stripPatternStonesAtConsumedIntersections,
 } from '../shared/utils/patternStoneConsume.js';
+import {
+    isIntersectionRecordedAsBaseStone,
+    removeCapturedBaseStoneMarkersFromSession,
+} from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { adventureMonsterLevelToKataServerLevel, KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
 import { getGuildWarKataServerLevelByBoardId } from '../shared/constants/guildConstants.js';
 import { getTowerKataServerLevelByFloor } from '../shared/utils/towerKataServerLevel.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
 import {
+    appendPassesUntilSideToMove,
     cloneBoardStateForKataOpeningSnapshot,
+    doesKataCombinedMovesReplayToBoard,
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from './kataCaptureSetupEncoding.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from './utils/effectiveBoardSize.js';
 
-/** 싱글·탑 등 PVE: 마지막 AI 수 돌이 보인 뒤 계가 — 클라 착수 애니메이션과 순서 맞춤 */
-const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 600;
+/** 싱글·탑·로비 AI 등: 마지막 AI 수가 판에 보이고 착수음이 난 뒤 계가 — 클라 렌더·오디오 여유 */
+const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 1200;
 const pveDeferredAutoScoringTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
     const gc = String((game as any).gameCategory ?? '');
-    return !!(game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer');
+    if (game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer') return true;
+    return isLobbyAiStrategicGoGame(game);
 }
 
 async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
@@ -359,7 +366,11 @@ const applyAiCaptureOutcome = (
             let moveIndex = -1;
             for (let i = game.moveHistory.length - 1; i >= 0; i--) {
                 const historyMove = game.moveHistory[i];
-                if (historyMove.x === capturedStone.x && historyMove.y === capturedStone.y) {
+                if (
+                    historyMove.x === capturedStone.x &&
+                    historyMove.y === capturedStone.y &&
+                    historyMove.player === opponentPlayerEnum
+                ) {
                     moveIndex = i;
                     break;
                 }
@@ -466,7 +477,7 @@ const applyAiCaptureOutcome = (
                 clearAiInitialHiddenStone = true;
             }
         } else {
-            const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+            const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
             if (isBaseStone) {
                 game.baseStoneCaptures[aiPlayerEnum]++;
                 points = 5;
@@ -485,6 +496,7 @@ const applyAiCaptureOutcome = (
 
     bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, aiPlayerEnum, guildWarCapturePointsThisMove);
     stripPatternStonesAtConsumedIntersections(game);
+    removeCapturedBaseStoneMarkersFromSession(game, result.capturedStones);
 
     if (clearAiInitialHiddenStone) {
         (game as any).aiInitialHiddenStone = undefined;
@@ -825,27 +837,6 @@ function getMoveHistoryForKataServer(
     return getMoveHistoryForAi(game, aiPlayerEnum);
 }
 
-function oppositePlayerForKata(p: Player): Player {
-    return p === Player.Black ? Player.White : Player.Black;
-}
-
-/** encode 접두 재생 후 다음 착수자가 wantToMove가 되도록 PASS를 덧붙인다. */
-function appendPassesUntilSideToMove(
-    moves: Array<{ x: number; y: number; player: Player }>,
-    wantToMove: Player
-): Array<{ x: number; y: number; player: Player }> {
-    const out = [...moves];
-    for (let i = 0; i < 4; i++) {
-        const next = out.length === 0 ? Player.Black : oppositePlayerForKata(out[out.length - 1]!.player);
-        if (next === wantToMove) return out;
-        out.push({ x: -1, y: -1, player: next });
-    }
-    console.warn(
-        `[buildKataMoveHistory] appendPassesUntilSideToMove: could not align to wantToMove=${wantToMove} (len=${moves.length})`,
-    );
-    return out;
-}
-
 function isMissileStrategicPve(game: types.LiveGameSession): boolean {
     const missileMode =
         game.mode === types.GameMode.Missile ||
@@ -911,11 +902,22 @@ function buildKataMoveHistory(
         cat === 'adventure';
     if (!needsKataBoardSetupPrefix) return moveHistory;
 
+    const bs = game.settings?.boardSize ?? 19;
+    if (
+        (game as any).kataPveKataMovesFromBoardStateOnly === true &&
+        game.boardState?.length === bs &&
+        game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs)
+    ) {
+        return appendPassesUntilSideToMove(
+            encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState),
+            game.currentPlayer,
+        );
+    }
+
     let setupMoves = (game as any).kataCaptureSetupMoves as
         | Array<{ x: number; y: number; player: number }>
         | undefined;
     let snap = (game as any).kataStrategicOpeningBoardState as types.BoardState | undefined;
-    const bs = game.settings?.boardSize ?? 19;
     if (
         (!snap?.length || snap.length !== bs) &&
         String((game as any).gameCategory ?? '') === 'tower'
@@ -951,6 +953,26 @@ function buildKataMoveHistory(
             }
         }
     }
+
+    if (
+        !setupMoves?.length &&
+        moveHistory.length > 0 &&
+        game.boardState?.length === bs &&
+        game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs) &&
+        !(game as any).kataPveKataMovesFromBoardStateOnly
+    ) {
+        if (!doesKataCombinedMovesReplayToBoard(bs, moveHistory, game.boardState)) {
+            console.warn(
+                `[buildKataMoveHistory] moveHistory alone ≠ boardState; board-only Kata encoding, game=${game.id}`,
+            );
+            (game as any).kataPveKataMovesFromBoardStateOnly = true;
+            return appendPassesUntilSideToMove(
+                encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState),
+                game.currentPlayer,
+            );
+        }
+    }
+
     if (!setupMoves?.length) return moveHistory;
 
     // 미사일로 moveHistory의 과거 좌표만 바뀌면 오프닝 접두+수순 재생이 실제 판과 달라 Kata Illegal move가 난다.
@@ -970,7 +992,23 @@ function buildKataMoveHistory(
         }
     }
 
-    return [...setupMoves, ...moveHistory];
+    const combined = [...setupMoves, ...moveHistory];
+    if (
+        game.boardState?.length === bs &&
+        game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs) &&
+        !doesKataCombinedMovesReplayToBoard(bs, combined, game.boardState)
+    ) {
+        console.warn(
+            `[buildKataMoveHistory] setup+moveHistory does not replay to boardState; board-only Kata encoding, game=${game.id}`,
+        );
+        (game as any).kataPveKataMovesFromBoardStateOnly = true;
+        return appendPassesUntilSideToMove(
+            encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState),
+            game.currentPlayer,
+        );
+    }
+    (game as any).kataPveKataMovesFromBoardStateOnly = false;
+    return combined;
 }
 
 /**
@@ -1305,13 +1343,17 @@ export async function makeGoAiBotMove(
     if (game.aiHiddenItemAnimationEndTime != null && now >= game.aiHiddenItemAnimationEndTime) {
         const wasAiThinkingHiddenReveal =
             (game.animation as { type?: string } | null | undefined)?.type === 'ai_thinking';
+        /** updateHiddenState·클라 동기 등으로 `animation`만 비고 타이머는 남는 경우에도 히든 착수로 이어지게 함 */
+        const thinkPlacementDue = !!(game as any).aiHiddenItemThinkPlacementDue;
+        (game as any).aiHiddenItemThinkPlacementDue = false;
         game.aiHiddenItemAnimationEndTime = undefined;
         // 6초 만료 직후에도 클라·전광판에 연출 유지 → Kata 히든 착수 반영 뒤 finally에서 animation 정리
         // 연출 종료 후 "다음 착수는 히든으로 처리" 플래그를 영속 저장한다.
         // aiHiddenLeft만 보면 클라 동기화·좌석 키 불일치로 0이 되어 일반돌로 두는 경우가 있어,
         // 방금 끝난 연출이 ai_thinking(히든 아이템)이면 남은 개수와 무관하게 히든 착수로 간다.
         (game as any).pendingAiHiddenPlacement = Boolean(
-            isHiddenMode && (aiHiddenLeft > 0 || wasAiThinkingHiddenReveal)
+            isHiddenMode &&
+                (aiHiddenLeft > 0 || wasAiThinkingHiddenReveal || thinkPlacementDue)
         );
         shouldApplyHiddenOnThisMove = !!(game as any).pendingAiHiddenPlacement;
     }
@@ -1396,6 +1438,7 @@ export async function makeGoAiBotMove(
         if (aiHiddenLeft > 0 && appliesToAi) {
             (game as any).pendingAiHiddenPlacement = false;
             pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+            (game as any).aiHiddenItemThinkPlacementDue = true;
 
             if (isStrategicAiGame) {
                 (game as any).aiHiddenItemsUsedCount = usedAiHiddenItems + 1;
@@ -1736,7 +1779,13 @@ export async function makeGoAiBotMove(
         (game as any).aiInitialHiddenStone = { x: selectedMove.x, y: selectedMove.y };
         (game as any).aiInitialHiddenStoneIsPrePlaced = false;
         (game as any).pendingAiHiddenPlacement = false;
+        (game as any).aiHiddenItemThinkPlacementDue = false;
         pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
+    }
+    if (!shouldApplyHiddenOnThisMove && game.permanentlyRevealedStones?.length) {
+        game.permanentlyRevealedStones = game.permanentlyRevealedStones.filter(
+            (p) => !(p.x === selectedMove.x && p.y === selectedMove.y)
+        );
     }
     game.koInfo = result.newKoInfo;
     game.passCount = 0;
