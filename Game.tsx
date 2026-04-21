@@ -1298,8 +1298,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (session.gameStatus !== 'playing') return;
         const anim = session.animation as { type?: string; startTime?: number } | undefined;
         if (anim?.type !== 'ai_thinking') return;
-        const end = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
-        if (end == null || !Number.isFinite(end)) return;
+        const endFromServer = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
+        const startAt = Number(anim.startTime ?? 0);
+        // 서버가 endTime을 누락하는 케이스 대비: startTime 기준 6초(+buffer)로 만료 시각을 보정
+        const fallbackEnd = Number.isFinite(startAt) && startAt > 0 ? startAt + 6050 : Date.now();
+        const end = Number.isFinite(endFromServer as number) ? Number(endFromServer) : fallbackEnd;
 
         const sid = String(session.id ?? '');
         const followKey = `${sid}:${end}:${anim.startTime ?? 0}`;
@@ -1310,8 +1313,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (pveAiHiddenPostAnimRequestDoneRef.current === followKey) return;
             const s = sessionRefForPveAiHiddenFollowup.current;
             const animNow = s.animation as { type?: string } | undefined;
-            const endNow = (s as any).aiHiddenItemAnimationEndTime as number | undefined;
-            if (animNow?.type !== 'ai_thinking' || endNow !== end || s.gameStatus !== 'playing') return;
+            const endNowFromServer = (s as any).aiHiddenItemAnimationEndTime as number | undefined;
+            const startNow = Number((s.animation as { startTime?: number } | undefined)?.startTime ?? 0);
+            const fallbackEndNow = Number.isFinite(startNow) && startNow > 0 ? startNow + 6050 : Date.now();
+            const endNow = Number.isFinite(endNowFromServer as number) ? Number(endNowFromServer) : fallbackEndNow;
+            if (animNow?.type !== 'ai_thinking' || endNow < Date.now() || s.gameStatus !== 'playing') return;
             const aiPlayerId = s.currentPlayer === Player.Black ? s.blackPlayerId : s.whitePlayerId;
             const isAiTurnNow =
                 aiPlayerId === AI_USER_ID || (s.isAiGame && aiPlayerId === 'ai-player-01');
@@ -2519,10 +2525,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         
         const isTower = session.gameCategory === 'tower';
+        const isGuildWarGame = session.gameCategory === 'guildwar';
         const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
         // 게임이 종료되었거나 일시정지되었거나 플레이 중이 아니면 AI 수를 보내지 않음
         // 놀이바둑 AI 게임도 클라이언트에서 처리
-        if (!(session.isSinglePlayer || isTower || isPlayfulAiGame) || isPaused || gameStatus !== 'playing') {
+        if (!(session.isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame) || isPaused || gameStatus !== 'playing') {
             lastAiMoveRef.current = null;
             return;
         }
@@ -2543,15 +2550,25 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 놀이바둑 AI 게임도 클라이언트에서 처리
         const isAiTurn = aiPlayerId === AI_USER_ID || (session.isAiGame && aiPlayerId === 'ai-player-01');
 
-        // Safety: 서버가 ai_thinking을 유지하는 동안(6초 만료 후 Kata 히든 착수까지 포함) 클라가 AI 수를 보내지 않음
-        const isServerAiHiddenAnimationInProgress = session.animation?.type === 'ai_thinking';
+        // Safety: ai_thinking이 "실제 진행 중"일 때만 AI 전송 차단 (stale ai_thinking 잔존으로 영구 정지 방지)
+        const aiThinkingAnim = session.animation as { type?: string; startTime?: number } | undefined;
+        const aiThinkingEndTime = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
+        const aiThinkingStart = Number(aiThinkingAnim?.startTime ?? 0);
+        const aiThinkingFallbackEnd = Number.isFinite(aiThinkingStart) && aiThinkingStart > 0 ? aiThinkingStart + 6050 : 0;
+        const aiThinkingEffectiveEnd = Number.isFinite(aiThinkingEndTime as number)
+            ? Number(aiThinkingEndTime)
+            : aiThinkingFallbackEnd;
+        const isServerAiHiddenAnimationInProgress =
+            aiThinkingAnim?.type === 'ai_thinking' &&
+            Number.isFinite(aiThinkingEffectiveEnd) &&
+            aiThinkingEffectiveEnd > Date.now();
         if (isServerAiHiddenAnimationInProgress) {
             lastAiMoveRef.current = null;
             return;
         }
 
-        // 디버깅: AI 차례 판단 로그 (도전의 탑과 싱글플레이에서 상세하게)
-        if ((isTower || session.isSinglePlayer) && (currentPlayer === Player.Black || currentPlayer === Player.White)) {
+        // 디버깅: AI 차례 판단 로그 (도전의 탑/싱글/길드전에서 상세하게)
+        if ((isTower || session.isSinglePlayer || isGuildWarGame) && (currentPlayer === Player.Black || currentPlayer === Player.White)) {
             const logData = {
                 gameId: session.id,
                 gameCategory: session.gameCategory,
@@ -2572,7 +2589,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 lastAiMove: lastAiMoveRef.current,
                 moveHistoryLength: session.moveHistory?.length || 0
             };
-            console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} AI turn check:`, logData);
+            const gameLabel = isTower ? 'Tower' : isGuildWarGame ? 'Guild war' : 'Single player';
+            console.log(`[Game] ${gameLabel} AI turn check:`, logData);
             if (currentPlayer === Player.White && session.whitePlayerId !== AI_USER_ID) {
                 console.error(`[Game] MISMATCH: Current player is White but whitePlayerId is not AI_USER_ID!`, {
                     whitePlayerId: session.whitePlayerId,
@@ -2624,7 +2642,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
             // 게임이 이미 종료되었는지 확인
             if (gameStatus !== 'playing' && (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring')) {
-                console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game already ended, skipping AI move:`, {
+                const gameLabel = isTower ? 'Tower' : isGuildWarGame ? 'Guild war' : 'Single player';
+                console.log(`[Game] ${gameLabel} game already ended, skipping AI move:`, {
                     gameId: session.id,
                     gameStatus
                 });
@@ -2706,9 +2725,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return;
             }
 
-            // 도전의 탑·싱글플레이: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
+            // 도전의 탑·싱글플레이·길드전: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
             if (
                 session.gameCategory === 'tower' ||
+                session.gameCategory === 'guildwar' ||
                 session.gameCategory === 'singleplayer' ||
                 session.isSinglePlayer
             ) {
