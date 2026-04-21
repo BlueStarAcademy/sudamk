@@ -767,6 +767,23 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (freshGame) {
                     serverBoardState = freshGame.boardState;
                     serverMoveHistory = freshGame.moveHistory;
+                    // board/moveHistory만 DB와 맞추고 hiddenMoves 등은 옛 메모리를 쓰면 상대 히idden 칸이 일반 착수로 처리될 수 있음 (전략 AI 대기실 등)
+                    if (freshGame.hiddenMoves != null) {
+                        game.hiddenMoves = { ...freshGame.hiddenMoves };
+                    }
+                    if (Array.isArray(freshGame.permanentlyRevealedStones)) {
+                        game.permanentlyRevealedStones = [...freshGame.permanentlyRevealedStones];
+                    }
+                    if (freshGame.revealedHiddenMoves != null) {
+                        game.revealedHiddenMoves = { ...freshGame.revealedHiddenMoves } as any;
+                    }
+                    const fg = freshGame as any;
+                    const gg = game as any;
+                    if (fg.aiInitialHiddenStone !== undefined) gg.aiInitialHiddenStone = fg.aiInitialHiddenStone;
+                    if (fg.aiInitialHiddenStoneIsPrePlaced !== undefined) gg.aiInitialHiddenStoneIsPrePlaced = fg.aiInitialHiddenStoneIsPrePlaced;
+                    if (fg.scannedAiInitialHiddenByUser != null) {
+                        gg.scannedAiInitialHiddenByUser = { ...fg.scannedAiInitialHiddenByUser };
+                    }
                 }
             }
             

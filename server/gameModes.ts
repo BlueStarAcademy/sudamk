@@ -1,6 +1,6 @@
 
 import { getGoLogic } from './goLogic.js';
-import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, TIME_BONUS_SECONDS_PER_POINT, getScoringTurnLimitOptionsByBoardSize } from '../constants';
+import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, TIME_BONUS_SECONDS_PER_POINT, getScoringTurnLimitOptionsByBoardSize, PLAYFUL_AI_BATCH_STONE_INTERVAL_MS } from '../constants';
 import * as types from '../types/index.js';
 import { analyzeGame, getScoringKataGoLimits } from './kataGoService.js';
 import type { LiveGameSession, AppState, Negotiation, ActionButton, GameMode } from '../types/index.js';
@@ -1345,6 +1345,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 'playing', 'hidden_placing', 'scanning', 'missile_selecting',
                 'alkkagi_playing',
                 'curling_playing',
+                'curling_tiebreaker_playing',
                 'dice_rolling',
                 'dice_placing',
                 'thief_rolling',
@@ -1455,7 +1456,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             // 멀티플레이 AI 게임의 경우에만 메인 루프에서 AI 수 처리
             // 놀이바둑 모드별로 AI가 행동할 수 있는 gameStatus 모두 허용
             const playfulPlacementStatuses = ['alkkagi_placement', 'alkkagi_simultaneous_placement', 'thief_rolling', 'thief_placing'];
-            const playfulPlayingStatuses = ['alkkagi_playing', 'curling_playing', 'dice_rolling', 'dice_placing', 'dice_turn_rolling', 'dice_turn_choice', 'dice_start_confirmation'];
+            const playfulPlayingStatuses = ['alkkagi_playing', 'curling_playing', 'curling_tiebreaker_playing', 'dice_rolling', 'dice_placing', 'dice_turn_rolling', 'dice_turn_choice', 'dice_start_confirmation'];
             const animatingStatuses = [
                 'missile_animating',
                 'hidden_reveal_animating',
@@ -1497,8 +1498,16 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                             const moveCountAfter = game.moveHistory?.length ?? 0;
                             const aiActuallyMoved = moveCountAfter > initialMoveCount;
                             if (aiActuallyMoved) {
-                                game.aiTurnStartTime = undefined;
-                                if (!game.turnStartTime) game.turnStartTime = Date.now();
+                                const stillMultiStonePlacing =
+                                    (game.gameStatus === 'thief_placing' || game.gameStatus === 'dice_placing') &&
+                                    (game.stonesToPlace ?? 0) > 0;
+                                if (stillMultiStonePlacing) {
+                                    // 연속 착수: 다음 수는 즉시 메인루프에 맡기지 않고 일정 간격 후에만 스케줄 (버스트 방지)
+                                    game.aiTurnStartTime = Date.now() + PLAYFUL_AI_BATCH_STONE_INTERVAL_MS;
+                                } else {
+                                    game.aiTurnStartTime = undefined;
+                                    if (!game.turnStartTime) game.turnStartTime = Date.now();
+                                }
                             } else {
                                 game.aiTurnStartTime = Date.now() + 50;
                             }

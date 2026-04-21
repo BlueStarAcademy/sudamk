@@ -2962,6 +2962,30 @@ export const useApp = () => {
                 try {
                     const errorData = await res.json();
                     errorMessage = errorData.message || errorData.error || errorMessage;
+                    const isStaleGameStateSync =
+                        action.type === 'REQUEST_GAME_STATE_SYNC' &&
+                        res.status === 400 &&
+                        typeof errorMessage === 'string' &&
+                        /game not found/i.test(errorMessage);
+                    if (isStaleGameStateSync) {
+                        if (import.meta.env.DEV) {
+                            console.debug(
+                                `[handleAction] ${action.type} - server has no game (ended/removed); dropping local copy if any:`,
+                                { gameId: actionGameId, errorData }
+                            );
+                        }
+                        if (typeof actionGameId === 'string' && actionGameId.length > 0) {
+                            setLiveGames((c) => {
+                                if (!c[actionGameId]) return c;
+                                const next = { ...c };
+                                delete next[actionGameId];
+                                return next;
+                            });
+                        }
+                        revertPvpDicePlaceSnapshot();
+                        rollbackTowerAddTurnOptimistic();
+                        return { error: errorMessage } as HandleActionResult;
+                    }
                     console.error(`[handleAction] ${action.type} - HTTP ${res.status} error:`, errorData);
                 } catch (parseError) {
                     console.error(`[handleAction] ${action.type} - Failed to parse error response:`, parseError);

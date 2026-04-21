@@ -1,6 +1,10 @@
 import { useState, useCallback, useRef } from 'react';
 import type { InterstitialTrigger, InterstitialState } from '../types/ads.js';
-import { INTERSTITIAL_CONFIG, INTERSTITIAL_LIMITS } from '../constants/ads.js';
+import {
+  INTERSTITIAL_CONFIG,
+  INTERSTITIAL_LIMITS,
+  SHOP_AD_REWARD_INTERSTITIAL_SECONDS,
+} from '../constants/ads.js';
 
 /** 전면 광고 빈도/쿨다운 관리 훅 */
 export function useAds(isProduction: boolean, isAdFree: boolean) {
@@ -17,7 +21,11 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
     reward_claim: 0,
     lobby_transition: 0,
     tower_clear: 0,
+    shop_ad_reward: 0,
   });
+
+  /** 상점 광고 보상: 모달을 닫을 때 한 번만 실행 */
+  const shopAdRewardOnCloseRef = useRef<(() => void) | null>(null);
 
   // 글로벌 제한 추적
   const lastShownAtRef = useRef<number>(0);
@@ -40,6 +48,7 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
     if (triggerCountsRef.current[trigger] % config.frequency !== 0) return false;
 
     // 전면 광고 표시
+    shopAdRewardOnCloseRef.current = null;
     lastShownAtRef.current = now;
     sessionCountRef.current += 1;
 
@@ -74,17 +83,62 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
       clearInterval(skipTimerRef.current);
       skipTimerRef.current = null;
     }
+    const rewardCb = shopAdRewardOnCloseRef.current;
+    shopAdRewardOnCloseRef.current = null;
     setInterstitial({
       isVisible: false,
       canSkip: false,
       skipCountdown: 0,
       trigger: null,
     });
+    rewardCb?.();
   }, []);
+
+  const showShopAdRewardInterstitial = useCallback(
+    (onClosed: () => void) => {
+      if (isAdFree) {
+        queueMicrotask(() => onClosed());
+        return;
+      }
+      if (skipTimerRef.current) {
+        clearInterval(skipTimerRef.current);
+        skipTimerRef.current = null;
+      }
+      shopAdRewardOnCloseRef.current = onClosed;
+      const skipDelay = SHOP_AD_REWARD_INTERSTITIAL_SECONDS;
+      setInterstitial({
+        isVisible: true,
+        canSkip: skipDelay === 0,
+        skipCountdown: skipDelay,
+        trigger: 'shop_ad_reward',
+      });
+      if (skipDelay > 0) {
+        let remaining = skipDelay;
+        skipTimerRef.current = setInterval(() => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            if (skipTimerRef.current) clearInterval(skipTimerRef.current);
+            skipTimerRef.current = null;
+            setInterstitial((prev) =>
+              prev.trigger === 'shop_ad_reward'
+                ? { ...prev, canSkip: true, skipCountdown: 0 }
+                : prev
+            );
+          } else {
+            setInterstitial((prev) =>
+              prev.trigger === 'shop_ad_reward' ? { ...prev, skipCountdown: remaining } : prev
+            );
+          }
+        }, 1000);
+      }
+    },
+    [isAdFree]
+  );
 
   return {
     interstitial,
     showInterstitial,
+    showShopAdRewardInterstitial,
     closeInterstitial,
   };
 }

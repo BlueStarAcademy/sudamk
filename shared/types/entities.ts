@@ -1034,6 +1034,15 @@ export type LiveGameSession = {
   hammerPlayerId?: string; // Player with last stone advantage
   isTiebreaker?: boolean;
   tiebreakerStonesThrown?: number;
+  /** 바둑 컬링: 최종 라운드 동점 후 승부치기(같은 보드) — 스냅 기준으로 하우스·넉아웃 변화 반영 */
+  curlingTiebreakerSnap?: {
+    scoreBlack: number;
+    scoreWhite: number;
+    houseBlack: number;
+    houseWhite: number;
+    koBlack: number;
+    koWhite: number;
+  };
   stonesThrownThisRound?: { [playerId: string]: number };
   preGameConfirmations?: { [playerId: string]: boolean | number };
   /** 베이스(구버전): `base_komi_result` 단계에서 각 참가자 확인 — 신규 경기는 `base_game_start_confirmation`만 사용 */

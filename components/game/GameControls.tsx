@@ -162,6 +162,7 @@ const ACTIVE_GAME_STATUSES: GameStatus[] = [
     'playing',
     'alkkagi_playing',
     'curling_playing',
+    'curling_tiebreaker_playing',
     'dice_rolling',
     'dice_placing',
     'thief_rolling',
@@ -1136,7 +1137,7 @@ const CurlingItemPanel: React.FC<{
 
     const isSlowActive = myActiveItems.includes('slow');
     const isAimActive = myActiveItems.includes('aimingLine');
-    const canUse = isMyTurn && gameStatus === 'curling_playing';
+    const canUse = isMyTurn && (gameStatus === 'curling_playing' || gameStatus === 'curling_tiebreaker_playing');
     return (
         <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className={compact ? 'min-w-0' : ''}>
             <LabeledControlButton

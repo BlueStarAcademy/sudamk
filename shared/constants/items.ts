@@ -129,9 +129,10 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
     { name: '히든', description: '도전의 탑에서 사용할 수 있는 히든 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/hidden.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '스캔', description: '도전의 탑에서 사용할 수 있는 스캔 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/scan.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '배치변경', description: '도전의 탑에서 사용할 수 있는 배치변경 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/reflesh.png', grade: ItemGrade.Normal, usable: true, sellable: true },
-    { name: '행동력 회복제(+10)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/applus.png', grade: ItemGrade.Normal, usable: true, sellable: false },
-    { name: '행동력 회복제(+20)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/applus.png', grade: ItemGrade.Uncommon, usable: true, sellable: false },
-    { name: '행동력 회복제(+30)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/applus.png', grade: ItemGrade.Rare, usable: true, sellable: false },
+    // 아이콘: 번개 — 헤더「행동력 충전」버튼 전용은 applus(resourceIcons.actionPlus), 아이템·우편·가방은 lightning
+    { name: '행동력 회복제(+10)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Normal, usable: true, sellable: false },
+    { name: '행동력 회복제(+20)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Uncommon, usable: true, sellable: false },
+    { name: '행동력 회복제(+30)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Rare, usable: true, sellable: false },
 ];
 
 export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = {

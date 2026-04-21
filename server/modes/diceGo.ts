@@ -653,12 +653,12 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         game.turnStartTime = now;
                     }
                     
-                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                    // 오버샷 안내 이후 한 박자 쉬고(약 3초) AI가 다음 굴림을 시작하도록 지연
                     if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                         if (currentPlayerId === aiUserId) {
-                            game.aiTurnStartTime = now;
-                            console.log(`[updateDiceGoState] AI turn after overshot, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                            game.aiTurnStartTime = now + 3000;
+                            console.log(`[updateDiceGoState] AI turn after overshot, game ${game.id}, delaying aiTurnStartTime by 3s: ${game.aiTurnStartTime} (now=${now})`);
                         } else {
                             game.aiTurnStartTime = undefined;
                             console.log(`[updateDiceGoState] User turn after overshot, game ${game.id}, clearing aiTurnStartTime`);
@@ -843,11 +843,15 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         game.lastTurnStones = [];
                         game.lastMove = null;
                         game.justCaptured = [];
+                        // 라운드 전환 시 이전 틱의 AI 디스패치 락이 남으면 첫 턴 AI가 멈출 수 있어 초기화
+                        (game as any)._aiMoveDispatching = false;
+                        (game as any)._aiMoveDispatchingAt = undefined;
                         if (game.isAiGame) {
                             const currentPlayerId =
                                 game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                             if (currentPlayerId === aiUserId) {
-                                scheduleAiTurnStartForFreshUi(game, now);
+                                // 라운드 시작 첫 굴림은 지연 없이 즉시 시작하도록 보장
+                                game.aiTurnStartTime = now;
                             } else {
                                 game.aiTurnStartTime = undefined;
                             }
@@ -892,11 +896,15 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.lastTurnStones = [];
                 game.lastMove = null;
                 game.justCaptured = [];
+                // 라운드 전환 시 이전 틱의 AI 디스패치 락이 남으면 첫 턴 AI가 멈출 수 있어 초기화
+                (game as any)._aiMoveDispatching = false;
+                (game as any)._aiMoveDispatchingAt = undefined;
                 if (game.isAiGame) {
                     const currentPlayerId =
                         game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
-                        scheduleAiTurnStartForFreshUi(game, now);
+                        // 라운드 시작 첫 굴림은 지연 없이 즉시 시작하도록 보장
+                        game.aiTurnStartTime = now;
                     } else {
                         game.aiTurnStartTime = undefined;
                     }

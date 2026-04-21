@@ -46,7 +46,6 @@ import { DraggableMoveConfirmPanel } from './components/game/DraggableMoveConfir
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
-import { useAdContext } from './components/ads/AdProvider.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 import {
     isOnboardingTutorialActive,
@@ -186,8 +185,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         updateFeatureSetting,
         isNativeMobile,
     } = useAppContext();
-    const { showInterstitial } = useAdContext();
-
     const { id: gameId, currentPlayer, gameStatus, player1, player2, mode, blackPlayerId, whitePlayerId } = session;
 
     if (!player1?.id || !player2?.id || !currentUser || !currentUserWithStatus) {
@@ -875,12 +872,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (gameStatus === 'ended') {
                 setShowFinalTerritory(true);
             }
-            // 게임 종료 후 전면 광고 트리거 (빈도 제한은 useAds에서 처리)
-            if (isTower) {
-                showInterstitial('tower_clear');
-            } else {
-                showInterstitial('game_end');
-            }
         }
         
         // 계가가 완료되었을 때(analysisResult가 있을 때) 영토 표시 활성화
@@ -932,7 +923,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return false;
             }
             case 'playing': case 'hidden_placing': case 'missile_selecting': 
-            case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing':
+            case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing': case 'curling_tiebreaker_playing':
             case 'dice_rolling':
             case 'dice_rolling_animating':
             case 'dice_placing':
@@ -1415,8 +1406,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [flashBoardRuleMessage]);
 
     const applyOptimisticAiUserMove = useCallback((x: number, y: number) => {
-        const boardStateToUse = restoredBoardState || session.boardState;
+        // sessionStorage 복원판은 수순이 느릴 때 서버보다 뒤처져 빈 칸으로 보이는 경우가 있어, 낙관적 착수는 서버 판 우선
+        const boardStateToUse =
+            session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                ? session.boardState
+                : restoredBoardState || session.boardState;
         if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
+        const stoneHere = boardStateToUse[y]?.[x];
+        if (stoneHere !== Player.None) return;
         try {
             const moveResult = processMoveClient(
                 boardStateToUse,
@@ -1629,6 +1626,38 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
                 return;
             }
+            // 온라인 전략바둑(대기실·PVP·AI 로비): 상대 히든 칸은 탑과 같이 PLACE_STONE(isHidden)로 공개 요청 (itemUseDeadline만으로 isHidden을 켜면 공개 클릭이 일반 착수로 감)
+            if (isOnlineHiddenStrategic && gameStatus === 'hidden_placing') {
+                const boardStateToUse = restoredBoardState || session.boardState;
+                if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
+                if (x === -1 || y === -1) return;
+                const boardSize = session.settings.boardSize;
+                if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
+                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+                const stoneAtTarget = boardStateToUse[y][x];
+                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const isHiddenTarget =
+                    stoneAtTarget === opponentPlayerEnum &&
+                    moveIndexAtTarget !== -1 &&
+                    !!session.hiddenMoves?.[moveIndexAtTarget] &&
+                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
+                if (stoneAtTarget === opponentPlayerEnum && !isHiddenTarget) return;
+                if (stoneAtTarget === opponentPlayerEnum && isHiddenTarget) {
+                    handlers.handleAction({
+                        type: 'PLACE_STONE',
+                        payload: {
+                            gameId,
+                            x,
+                            y,
+                            isHidden: true,
+                            boardState: boardStateToUse,
+                            moveHistory: session.moveHistory || [],
+                        },
+                    } as ServerAction);
+                    if (gameStatus === 'hidden_placing') audioService.stopScanBgm();
+                    return;
+                }
+            }
             // 싱글플레이 히든 아이템 착수: 클라이언트에 히든 반영 후 서버로 PLACE_STONE(isHidden) 전송
             if (isSinglePlayer && gameStatus === 'hidden_placing') {
                 const boardStateToUse = restoredBoardState || session.boardState;
@@ -1824,14 +1853,25 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return;
             }
             // 전략바둑 AI 대국 포함: 모든 온라인 게임은 서버에서만 검증/반영
-            actionType = 'PLACE_STONE'; 
+            actionType = 'PLACE_STONE';
+            const boardStateForOnline = restoredBoardState || session.boardState;
+            const opponentEnumOnline = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+            let isOpponentHiddenRevealOnline = false;
+            if (gameStatus === 'hidden_placing' && boardStateForOnline && session.moveHistory) {
+                const st = boardStateForOnline[y][x];
+                const mi = session.moveHistory.findIndex(m => m.x === x && m.y === y);
+                isOpponentHiddenRevealOnline =
+                    st === opponentEnumOnline &&
+                    mi !== -1 &&
+                    !!session.hiddenMoves?.[mi] &&
+                    !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
+            }
             const activeHiddenPlacement =
                 gameStatus === 'hidden_placing' &&
                 typeof session.itemUseDeadline === 'number' &&
                 session.itemUseDeadline > Date.now();
-            payload.isHidden = activeHiddenPlacement;
-            // 클라이언트의 boardState와 moveHistory를 서버로 전송하여 정확한 검증 가능하도록 함
-            payload.boardState = restoredBoardState || session.boardState;
+            payload.isHidden = isOpponentHiddenRevealOnline || activeHiddenPlacement;
+            payload.boardState = boardStateForOnline;
             payload.moveHistory = session.moveHistory || [];
             if (payload.isHidden) audioService.stopScanBgm();
         }
@@ -1851,8 +1891,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
-            // 전략/모험/길드전 등 온라인 AI 대국: 서버 응답 전에도 유저 수를 즉시 보드에 반영
-            if (optimisticAiStonePlace) {
+            // 전략/모험/길드전 등 온라인 AI 대국: 빈 교차점일 때만 낙관적 반영(상대 돌 위 클릭·판 불일치 시 processMoveClient PVP 차단 로그 방지)
+            const boardForOptimistic =
+                session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                    ? session.boardState
+                    : restoredBoardState || session.boardState;
+            const canOptimisticAiPlace =
+                optimisticAiStonePlace &&
+                boardForOptimistic &&
+                boardForOptimistic[y]?.[x] === Player.None;
+            if (canOptimisticAiPlace) {
                 strategicAiStoneLockRef.current = true;
                 applyOptimisticAiUserMove(x, y);
             }
@@ -1872,7 +1920,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 })
                 .finally(() => {
-                    if (optimisticAiStonePlace) {
+                    if (canOptimisticAiPlace) {
                         strategicAiStoneLockRef.current = false;
                     }
                 });
@@ -1918,12 +1966,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isTower,
         isSinglePlayer,
         isGuildWarGame,
+        isOnlineHiddenStrategic,
         showKoRuleFlash,
         myPlayerEnum,
         applyOptimisticAiUserMove,
         restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
         session.stageId,
+        session.hiddenMoves,
+        session.permanentlyRevealedStones,
+        session.itemUseDeadline,
     ]);
 
     const handleConfirmMove = useCallback(() => {
@@ -2039,12 +2091,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else {
                 // 온라인 게임(전략바둑 AI 대국 포함): 서버에서 검증/반영
                 actionType = 'PLACE_STONE';
+                const boardStateToUse = restoredBoardState || session.boardState;
+                const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+                let isOpponentHiddenReveal = false;
+                if (gameStatus === 'hidden_placing' && boardStateToUse && session.moveHistory) {
+                    const stoneAtTarget = boardStateToUse[y][x];
+                    const moveIndexAtTarget = session.moveHistory.findIndex(m => m.x === x && m.y === y);
+                    isOpponentHiddenReveal =
+                        stoneAtTarget === opponentPlayerEnum &&
+                        moveIndexAtTarget !== -1 &&
+                        !!session.hiddenMoves?.[moveIndexAtTarget] &&
+                        !(session.permanentlyRevealedStones || []).some(point => point.x === x && point.y === y);
+                }
                 const activeHiddenPlacement =
                     gameStatus === 'hidden_placing' &&
                     typeof session.itemUseDeadline === 'number' &&
                     session.itemUseDeadline > Date.now();
-                payload.isHidden = activeHiddenPlacement;
-                payload.boardState = restoredBoardState || session.boardState;
+                payload.isHidden = isOpponentHiddenReveal || activeHiddenPlacement;
+                payload.boardState = boardStateToUse;
                 payload.moveHistory = session.moveHistory || [];
             }
         }
@@ -2058,7 +2122,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 gameStatus === 'playing' &&
                 x >= 0 &&
                 y >= 0;
-            if (optimisticAiStonePlaceConfirm) {
+            const boardForOptimisticConfirm =
+                session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
+                    ? session.boardState
+                    : restoredBoardState || session.boardState;
+            const canOptimisticAiPlaceConfirm =
+                optimisticAiStonePlaceConfirm &&
+                boardForOptimisticConfirm &&
+                boardForOptimisticConfirm[y]?.[x] === Player.None;
+            if (canOptimisticAiPlaceConfirm) {
                 strategicAiStoneLockRef.current = true;
                 applyOptimisticAiUserMove(x, y);
             }
@@ -2078,7 +2150,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 })
                 .finally(() => {
-                    if (optimisticAiStonePlaceConfirm) {
+                    if (canOptimisticAiPlaceConfirm) {
                         strategicAiStoneLockRef.current = false;
                     }
                 });
@@ -2098,7 +2170,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.boardState,
         session.settings.boardSize,
         session.koInfo,
-        session.moveHistory?.length,
+        session.moveHistory,
         session.stonesToPlace,
         myPlayerEnum,
         showKoRuleFlash,
@@ -2107,6 +2179,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         restrictIntro1OnboardingMove,
         flashBoardRuleMessage,
         session.stageId,
+        session.hiddenMoves,
+        session.permanentlyRevealedStones,
+        session.itemUseDeadline,
     ]);
 
     const handleCancelMove = useCallback(() => setPendingMove(null), []);
@@ -2386,7 +2461,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         const eligibleKataContext =
             session.isAiGame &&
-            !session.isSinglePlayer &&
+            (!session.isSinglePlayer || session.gameCategory === 'adventure') &&
             KATA_STYLE_AI_GO_MODES.has(mode) &&
             session.gameCategory !== 'tower' &&
             session.gameCategory !== 'singleplayer';
@@ -2526,10 +2601,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         
         const isTower = session.gameCategory === 'tower';
         const isGuildWarGame = session.gameCategory === 'guildwar';
+        const isAdventureGame = session.gameCategory === 'adventure';
         const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
         // 게임이 종료되었거나 일시정지되었거나 플레이 중이 아니면 AI 수를 보내지 않음
         // 놀이바둑 AI 게임도 클라이언트에서 처리
-        if (!(session.isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame) || isPaused || gameStatus !== 'playing') {
+        // 모험: 서버 큐만 기대하면 AI 턴이 영구 정지할 수 있어 타워·길드전과 같이 REQUEST_SERVER_AI_MOVE 복구 경로에 포함
+        if (!(session.isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame || isAdventureGame) || isPaused || gameStatus !== 'playing') {
             lastAiMoveRef.current = null;
             return;
         }
@@ -2725,11 +2802,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return;
             }
 
-            // 도전의 탑·싱글플레이·길드전: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
+            // 도전의 탑·싱글플레이·길드전·모험: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
             if (
                 session.gameCategory === 'tower' ||
                 session.gameCategory === 'guildwar' ||
                 session.gameCategory === 'singleplayer' ||
+                session.gameCategory === 'adventure' ||
                 session.isSinglePlayer
             ) {
                 const currentGameId = session.id;

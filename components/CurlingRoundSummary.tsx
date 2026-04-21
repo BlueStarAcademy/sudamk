@@ -33,6 +33,8 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
 
     const { round, black, white, cumulativeScores, stonesState, scoredStones } = curlingRoundSummary;
     const isFinalRound = round >= totalRounds;
+    const finalRoundTie =
+        isFinalRound && cumulativeScores[Player.Black] === cumulativeScores[Player.White];
 
     const blackPlayer = blackPlayerId === player1.id ? player1 : player2;
     const whitePlayer = whitePlayerId === player1.id ? player1 : player2;
@@ -137,9 +139,9 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
         </svg>
     );
 
-    /** 데스크톱: 좁은 창에서도 세로가 넘치지 않도록 상한 */
+    /** 데스크톱: 스크롤 없이도 들어오도록 더 타이트한 상한 */
     const boardSvgDesktop = (
-        <div className="mx-auto aspect-square w-full max-h-[min(560px,62vh)] max-w-full min-h-0 overflow-hidden rounded-xl border-2 border-amber-500/30 bg-gradient-to-b from-[#6b5340] via-[#4a3a2a] to-[#2a2118] shadow-[inset_0_2px_0_rgba(255,255,255,0.12),0_12px_40px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-400/20 md:max-h-[min(640px,70vh)]">
+        <div className="mx-auto aspect-square w-full max-h-[min(440px,46vh)] max-w-full min-h-0 overflow-hidden rounded-xl border-2 border-amber-500/30 bg-gradient-to-b from-[#6b5340] via-[#4a3a2a] to-[#2a2118] shadow-[inset_0_2px_0_rgba(255,255,255,0.12),0_12px_40px_-12px_rgba(0,0,0,0.65)] ring-1 ring-amber-400/20 md:max-h-[min(480px,50vh)]">
             <div className="h-full w-full p-[3px]">
                 <div className="h-full w-full overflow-hidden rounded-[10px] border border-black/25 shadow-inner">{boardInner}</div>
             </div>
@@ -160,61 +162,57 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
     );
 
     const detailScoreCardsDesktop = (
-        <div className="grid grid-cols-1 gap-3">
-            <div className="rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#12151f] to-[#0a0c12] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
-                <div className="mb-3 flex items-center gap-3">
-                    <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={48} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
+        <div className="grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#12151f] to-[#0a0c12] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
+                <div className="mb-2 flex items-center gap-2">
+                    <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={40} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
                     <div className="min-w-0">
-                        <p className="truncate text-lg font-bold text-amber-50/95">{blackPlayer.nickname}</p>
-                        <p className="text-sm text-slate-400">흑돌</p>
+                        <p className="truncate text-sm font-bold text-amber-50/95">{blackPlayer.nickname}</p>
+                        <p className="text-[11px] text-slate-400">흑돌</p>
                     </div>
                 </div>
-                <div className="space-y-2 text-sm text-slate-200/90">
-                    <div className="flex justify-between border-b border-white/5 pb-1.5">
+                <div className="space-y-1.5 text-[12px] text-slate-200/90">
+                    <div className="flex justify-between border-b border-white/5 pb-1">
                         <span className="text-slate-400">하우스</span> <span className="font-semibold tabular-nums">{black.houseScore}점</span>
                     </div>
-                    <div className="flex justify-between border-b border-white/5 pb-1.5">
+                    <div className="flex justify-between border-b border-white/5 pb-1">
                         <span className="text-slate-400">넉아웃</span> <span className="font-semibold tabular-nums">{black.knockoutScore}점</span>
                     </div>
-                    <div className="flex flex-col gap-1 pt-1">
-                        <div className="flex justify-between text-base">
-                            <strong className="text-slate-300">라운드 합계</strong>{' '}
-                            <strong className="tabular-nums text-amber-200">{black.total}점</strong>
-                        </div>
-                        {black.previousKnockoutScore !== undefined && black.previousKnockoutScore > 0 && (
-                            <div className="ml-1 flex justify-between text-xs text-slate-500">
-                                <span>이전 라운드</span> <span className="tabular-nums">{black.previousKnockoutScore}점</span>
-                            </div>
-                        )}
+                    <div className="flex items-center justify-between pt-0.5">
+                        <strong className="text-slate-300">합계</strong>
+                        <strong className="tabular-nums text-amber-200">{black.total}점</strong>
                     </div>
+                    {black.previousKnockoutScore !== undefined && black.previousKnockoutScore > 0 && (
+                        <div className="flex justify-between text-[11px] text-slate-500">
+                            <span>이전 라운드</span> <span className="tabular-nums">{black.previousKnockoutScore}점</span>
+                        </div>
+                    )}
                 </div>
             </div>
-            <div className="rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#12151f] to-[#0a0c12] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
-                <div className="mb-3 flex items-center gap-3">
-                    <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={48} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl} />
+            <div className="rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#12151f] to-[#0a0c12] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
+                <div className="mb-2 flex items-center gap-2">
+                    <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={40} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl} />
                     <div className="min-w-0">
-                        <p className="truncate text-lg font-bold text-amber-50/95">{whitePlayer.nickname}</p>
-                        <p className="text-sm text-slate-400">백돌</p>
+                        <p className="truncate text-sm font-bold text-amber-50/95">{whitePlayer.nickname}</p>
+                        <p className="text-[11px] text-slate-400">백돌</p>
                     </div>
                 </div>
-                <div className="space-y-2 text-sm text-slate-200/90">
-                    <div className="flex justify-between border-b border-white/5 pb-1.5">
+                <div className="space-y-1.5 text-[12px] text-slate-200/90">
+                    <div className="flex justify-between border-b border-white/5 pb-1">
                         <span className="text-slate-400">하우스</span> <span className="font-semibold tabular-nums">{white.houseScore}점</span>
                     </div>
-                    <div className="flex justify-between border-b border-white/5 pb-1.5">
+                    <div className="flex justify-between border-b border-white/5 pb-1">
                         <span className="text-slate-400">넉아웃</span> <span className="font-semibold tabular-nums">{white.knockoutScore}점</span>
                     </div>
-                    <div className="flex flex-col gap-1 pt-1">
-                        <div className="flex justify-between text-base">
-                            <strong className="text-slate-300">라운드 합계</strong>{' '}
-                            <strong className="tabular-nums text-amber-200">{white.total}점</strong>
-                        </div>
-                        {white.previousKnockoutScore !== undefined && white.previousKnockoutScore > 0 && (
-                            <div className="ml-1 flex justify-between text-xs text-slate-500">
-                                <span>이전 라운드</span> <span className="tabular-nums">{white.previousKnockoutScore}점</span>
-                            </div>
-                        )}
+                    <div className="flex items-center justify-between pt-0.5">
+                        <strong className="text-slate-300">합계</strong>
+                        <strong className="tabular-nums text-amber-200">{white.total}점</strong>
                     </div>
+                    {white.previousKnockoutScore !== undefined && white.previousKnockoutScore > 0 && (
+                        <div className="flex justify-between text-[11px] text-slate-500">
+                            <span>이전 라운드</span> <span className="tabular-nums">{white.previousKnockoutScore}점</span>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -296,9 +294,9 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
 
     const cumulativeAndActionsDesktop = (
         <>
-            <div className="rounded-xl border border-amber-500/25 bg-gradient-to-br from-slate-800/80 to-slate-950/90 p-3 text-center shadow-inner ring-1 ring-inset ring-white/5">
+            <div className="rounded-xl border border-amber-500/25 bg-gradient-to-br from-slate-800/80 to-slate-950/90 px-3 py-2 text-center shadow-inner ring-1 ring-inset ring-white/5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">누적 점수</p>
-                <p className="mt-1 font-mono text-2xl font-bold text-amber-50/95">
+                <p className="mt-0.5 font-mono text-xl font-bold text-amber-50/95">
                     <span className="tabular-nums">흑 {cumulativeScores[Player.Black]}</span>
                     <span className="mx-3 text-slate-500">:</span>
                     <span className="tabular-nums">백 {cumulativeScores[Player.White]}</span>
@@ -308,7 +306,7 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
             <Button
                 onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
                 disabled={!isAiGame && !!hasConfirmed}
-                className="mt-4 w-full py-3"
+                className="mt-3 w-full py-2.5"
             >
                 {confirmLabel}
             </Button>
@@ -361,7 +359,7 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
 
     return (
         <DraggableWindow
-            title={`${round} 라운드 결과`}
+            title={finalRoundTie ? `${round} 라운드 결과 · 동점` : `${round} 라운드 결과`}
             initialWidth={900}
             initialHeight={isMobileLayout ? 636 : undefined}
             windowId="curling-round-summary"
@@ -374,6 +372,11 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
         >
             {isMobileLayout ? (
                 <>
+                    {finalRoundTie && (
+                        <div className="shrink-0 border-b border-amber-500/30 bg-amber-950/50 px-3 py-2 text-center text-[11px] font-semibold leading-snug text-amber-100/95">
+                            최종 라운드가 동점입니다. 확인 후 같은 보드에서 한 번씩 돌을 더 쏘는 승부치기가 이어집니다.
+                        </div>
+                    )}
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden text-white">
                         <div
                             className="flex shrink-0 gap-1 border-b border-amber-500/20 bg-gradient-to-b from-[#161b26] to-[#0b0e14] px-2 py-2"
@@ -422,15 +425,22 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                     </div>
                 </>
             ) : (
-                <div className="flex flex-col gap-4 text-white md:flex-row">
-                    <div className="flex w-full flex-shrink-0 flex-col items-center md:w-1/2">
-                        <h3 className="mb-2 text-xl font-bold tracking-tight text-amber-100/90">라운드 결과 보드</h3>
-                        {boardSvgDesktop}
-                    </div>
+                <div className="flex flex-col gap-4 text-white">
+                    {finalRoundTie && (
+                        <div className="w-full rounded-lg border border-amber-500/35 bg-amber-950/45 px-4 py-2.5 text-center text-sm font-semibold leading-snug text-amber-50/95">
+                            최종 라운드가 동점입니다. 확인 후 같은 보드에서 한 번씩 돌을 더 쏘는 승부치기가 이어집니다.
+                        </div>
+                    )}
+                    <div className="flex flex-col gap-4 md:flex-row">
+                        <div className="flex w-full flex-shrink-0 flex-col items-center md:w-1/2">
+                            <h3 className="mb-2 text-xl font-bold tracking-tight text-amber-100/90">라운드 결과 보드</h3>
+                            {boardSvgDesktop}
+                        </div>
 
-                    <div className="flex w-full flex-grow flex-col justify-center md:w-1/2">
-                        {detailScoreCardsDesktop}
-                        <div className="mt-4">{cumulativeAndActionsDesktop}</div>
+                        <div className="flex w-full flex-grow flex-col justify-center md:w-1/2">
+                            {detailScoreCardsDesktop}
+                            <div className="mt-4">{cumulativeAndActionsDesktop}</div>
+                        </div>
                     </div>
                 </div>
             )}

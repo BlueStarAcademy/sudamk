@@ -448,6 +448,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             'no_contest',
             'alkkagi_playing',
             'curling_playing',
+            'curling_tiebreaker_playing',
             'dice_rolling',
             'dice_placing',
             'thief_rolling',

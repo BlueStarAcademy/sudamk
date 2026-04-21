@@ -878,7 +878,7 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
     const aiPlayerEnum = game.currentPlayer;
     const opponentEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     
-    if (game.gameStatus === 'curling_playing') {
+    if (game.gameStatus === 'curling_playing' || game.gameStatus === 'curling_tiebreaker_playing') {
         const boardSizePx = 840;
         const center = { x: boardSizePx / 2, y: boardSizePx / 2 };
         const cellSize = boardSizePx / 19;
@@ -897,7 +897,10 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
         // 현재 라운드 진행 상황
         const stonesThrown = game.stonesThrownThisRound?.[aiPlayerId] || 0;
         const totalStones = game.settings.curlingStoneCount || 5;
-        const roundProgress = stonesThrown / totalStones;
+        const roundProgress =
+            game.gameStatus === 'curling_tiebreaker_playing'
+                ? 0.65
+                : stonesThrown / totalStones;
         
         // 현재 점수 상황 분석
         const currentScore = game.curlingScores?.[aiPlayerEnum] || 0;

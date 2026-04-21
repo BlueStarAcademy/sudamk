@@ -991,70 +991,76 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                         </div>
                     </div>
                     
-                    {/* 클릭 시 상세 정보 모달 (스킬용) */}
-                    {clickedSkill && (
-                        <div 
-                            className="sudamr-modal-overlay z-[100]"
-                            onClick={() => setClickedSkill(null)}
-                        >
-                            <div 
-                                className="sudamr-modal-panel mx-4 max-w-md border-stone-600/50 p-5 ring-1 ring-white/[0.05]"
-                                onClick={(e) => e.stopPropagation()}
-                            >
-                                <div className="flex items-center gap-3 mb-3">
-                                    <img src={clickedSkill.image} alt={clickedSkill.name} className="w-12 h-12 object-contain" />
-                                    <div>
-                                        <h3 className="text-lg font-bold text-highlight">{clickedSkill.name}</h3>
-                                        <span className={`text-xs ${clickedSkill.type === 'active' ? 'text-blue-400' : 'text-purple-400'}`}>
-                                            {clickedSkill.type === 'active' ? '액티브 스킬' : '패시브 스킬'}
-                                        </span>
-                                    </div>
-                                </div>
-                                <p className="text-sm text-stone-300 leading-relaxed mb-3">{clickedSkill.description}</p>
-                                <button
-                                    onClick={() => setClickedSkill(null)}
-                                    className="w-full py-2 px-4 bg-stone-700/50 hover:bg-stone-600/50 text-white rounded-lg transition-colors"
-                                >
-                                    닫기
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                    {showBossParticipantsModal && (
-                        <div
-                            className="sudamr-modal-overlay z-[110]"
-                            onClick={() => setShowBossParticipantsModal(false)}
-                        >
+                    {/* 스킬 상세·참여 기록: 길드 홈 z-10/overflow 스택에 묶이지 않도록 모달 루트로 포털 */}
+                    {typeof document !== 'undefined' &&
+                        clickedSkill &&
+                        createPortal(
                             <div
-                                className="sudamr-modal-panel flex w-[min(92vw,28rem)] max-h-[70vh] flex-col border-stone-600/50 p-4 ring-1 ring-white/[0.05]"
-                                onClick={(e) => e.stopPropagation()}
+                                className="sudamr-modal-overlay z-[100000] pointer-events-auto"
+                                onClick={() => setClickedSkill(null)}
                             >
-                                <div className="flex items-center justify-between mb-3">
-                                    <h3 className="text-base font-bold text-highlight">참여 길드원 기록</h3>
+                                <div
+                                    className="sudamr-modal-panel mx-4 max-w-md border-stone-600/50 p-5 ring-1 ring-white/[0.05]"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <img src={clickedSkill.image} alt={clickedSkill.name} className="w-12 h-12 object-contain" />
+                                        <div>
+                                            <h3 className="text-lg font-bold text-highlight">{clickedSkill.name}</h3>
+                                            <span className={`text-xs ${clickedSkill.type === 'active' ? 'text-blue-400' : 'text-purple-400'}`}>
+                                                {clickedSkill.type === 'active' ? '액티브 스킬' : '패시브 스킬'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-stone-300 leading-relaxed mb-3">{clickedSkill.description}</p>
                                     <button
-                                        type="button"
-                                        onClick={() => setShowBossParticipantsModal(false)}
-                                        className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
-                                        aria-label="닫기"
+                                        onClick={() => setClickedSkill(null)}
+                                        className="w-full py-2 px-4 bg-stone-700/50 hover:bg-stone-600/50 text-white rounded-lg transition-colors"
                                     >
                                         닫기
                                     </button>
                                 </div>
-                                {bossParticipantRanking.length > 0 ? (
-                                    <div className="overflow-y-auto pr-1 space-y-1">
-                                        {bossParticipantRanking.map((row, index) => (
-                                            <div key={row.userId} className="flex items-center justify-between rounded-md bg-stone-800/50 px-2 py-1.5 text-sm">
-                                                <span className="text-stone-200">{index + 1}위 · {row.nickname}</span>
-                                                <span className="font-bold text-amber-300 tabular-nums">{row.damage.toLocaleString()}</span>
-                                            </div>
-                                        ))}
+                            </div>,
+                            document.getElementById('sudamr-modal-root') ?? document.body
+                        )}
+                    {typeof document !== 'undefined' &&
+                        showBossParticipantsModal &&
+                        createPortal(
+                            <div
+                                className="sudamr-modal-overlay z-[100001] pointer-events-auto"
+                                onClick={() => setShowBossParticipantsModal(false)}
+                            >
+                                <div
+                                    className="sudamr-modal-panel flex w-[min(92vw,28rem)] max-h-[70vh] flex-col border-stone-600/50 p-4 ring-1 ring-white/[0.05]"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="text-base font-bold text-highlight">참여 길드원 기록</h3>
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowBossParticipantsModal(false)}
+                                            className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
+                                            aria-label="닫기"
+                                        >
+                                            닫기
+                                        </button>
                                     </div>
-                                ) : (
-                                    <div className="text-center text-sm text-stone-400 py-8">아직 참여 기록이 없습니다.</div>
-                                )}
-                            </div>
-                        </div>
-                    )}
+                                    {bossParticipantRanking.length > 0 ? (
+                                        <div className="overflow-y-auto pr-1 space-y-1">
+                                            {bossParticipantRanking.map((row, index) => (
+                                                <div key={row.userId} className="flex items-center justify-between rounded-md bg-stone-800/50 px-2 py-1.5 text-sm">
+                                                    <span className="text-stone-200">{index + 1}위 · {row.nickname}</span>
+                                                    <span className="font-bold text-amber-300 tabular-nums">{row.damage.toLocaleString()}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="text-center text-sm text-stone-400 py-8">아직 참여 기록이 없습니다.</div>
+                                    )}
+                                </div>
+                            </div>,
+                            document.getElementById('sudamr-modal-root') ?? document.body
+                        )}
                 </div>
             </div>
         </div>

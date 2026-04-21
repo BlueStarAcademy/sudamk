@@ -2,6 +2,9 @@
 
 import type { AdBannerSize, InterstitialTrigger } from '../types/ads.js';
 
+/** 상점 「광고보기」 보상: 전면 모달 최소 시청 시간(초) — 이후 닫기 시 서버 수령 */
+export const SHOP_AD_REWARD_INTERSTITIAL_SECONDS = 30;
+
 /** AdSense 광고 슬롯 ID — AdSense 콘솔에서 생성 후 여기에 입력 */
 export const AD_SLOTS = {
   bannerTop: '7312967741',
@@ -69,6 +72,7 @@ export const INTERSTITIAL_CONFIG: Record<InterstitialTrigger, {
   reward_claim: { frequency: 3, skipDelay: 5 },
   lobby_transition: { frequency: 5, skipDelay: 3 },
   tower_clear: { frequency: 3, skipDelay: 5 },
+  shop_ad_reward: { frequency: 1, skipDelay: SHOP_AD_REWARD_INTERSTITIAL_SECONDS },
 };
 
 /** 전면 광고 글로벌 제한 */

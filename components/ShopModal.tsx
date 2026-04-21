@@ -8,6 +8,7 @@ import { isDifferentWeekKST } from '../utils/timeUtils.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
+import { useAdContext } from './ads/AdProvider.js';
 
 interface ShopModalProps {
     currentUser?: UserWithStatus; // Optional: useAppContext에서 가져올 수 있도록
@@ -336,6 +337,7 @@ const DiamondShopCard: React.FC<{ product: { id: string; diamonds: number; price
 
 const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, isTopmost, initialTab }) => {
     const { currentUserWithStatus } = useAppContext();
+    const { showShopAdRewardInterstitial } = useAdContext();
     const { isNativeMobile } = useNativeMobileShell();
     const mobileShop = Boolean(isNativeMobile);
     // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
@@ -476,8 +478,10 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             setToastMessage('오늘 광고 보상 수령이 모두 완료되었습니다.');
             return;
         }
-        onAction({ type: 'CLAIM_SHOP_AD_REWARD', payload: { tab } });
-        setToastMessage('광고 보상을 수령했습니다.');
+        showShopAdRewardInterstitial(() => {
+            onAction({ type: 'CLAIM_SHOP_AD_REWARD', payload: { tab } });
+            setToastMessage('광고 보상을 수령했습니다.');
+        });
     };
 
     const handleInitiatePurchase = (item: PurchasableItem) => {
@@ -599,7 +603,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                         name,
                         description,
                         price: { gold: nextPrice },
-                        image: '/images/icon/applus.png',
+                        image: '/images/icon/lightning.png',
                         dailyLimit,
                         type: 'consumable' as const,
                         badge,

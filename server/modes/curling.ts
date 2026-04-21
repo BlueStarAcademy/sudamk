@@ -80,60 +80,88 @@ const runServerSimulation = (initialStones: types.AlkkagiStone[], flickedStone: 
     return { finalStones: simStones, stonesFallen };
 };
 
-
-const endCurlingRound = (game: types.LiveGameSession, now: number) => {
+/** 현재 보드의 하우스 점수만 계산 (라운드 종료·승부치기 동기화 공용) */
+function computeCurlingHousePoints(stones: types.AlkkagiStone[] | undefined): {
+    black: number;
+    white: number;
+    scoredStones: { [stoneId: number]: number };
+} {
     const boardSizePx = 840;
     const center = { x: boardSizePx / 2, y: boardSizePx / 2 };
     const cellSize = boardSizePx / 19;
-    
     let houseScoreBlack = 0;
     let houseScoreWhite = 0;
     const scoredStones: { [stoneId: number]: number } = {};
-
-    const onBoardStones = (game.curlingStones || []).filter(s => s.onBoard);
-    
-    // Score all stones in the house for both players
-    // 돌의 가장 안쪽 가장자리가 높은 점수 영역 안에 있으면 높은 점수 인정 (아주 약간이라도 걸쳐있으면 높은 점수)
+    const onBoardStones = (stones || []).filter(s => s.onBoard);
+    const score5Boundary = cellSize * 0.5;
+    const score3Boundary = cellSize * 2;
+    const score2Boundary = cellSize * 4;
+    const score1Boundary = cellSize * 6;
     for (const stone of onBoardStones) {
         const dist = Math.hypot(stone.x - center.x, stone.y - center.y);
         const stoneRadius = stone.radius;
-        // 돌의 가장 안쪽 가장자리와 가장 바깥쪽 가장자리까지의 거리를 고려
         const innerEdgeDist = Math.max(0, dist - stoneRadius);
-        const outerEdgeDist = dist + stoneRadius;
         let score = 0;
-        
-        // 각 점수 영역의 경계값
-        const score5Boundary = cellSize * 0.5;  // 5점 영역
-        const score3Boundary = cellSize * 2;    // 3점 영역
-        const score2Boundary = cellSize * 4;     // 2점 영역
-        const score1Boundary = cellSize * 6;     // 1점 영역
-        
-        // 가장 높은 점수부터 확인: 돌의 가장 안쪽 가장자리가 높은 점수 영역 안에 있으면 높은 점수 인정
-        // 아주 약간이라도 높은 점수 영역에 걸쳐있으면 높은 점수로 인정
-        // 돌이 하우스 안에 있는지 확인: 돌의 가장 안쪽 가장자리가 하우스 안에 있으면 점수 인정
         if (innerEdgeDist <= score1Boundary) {
-            // 돌이 하우스 안에 있음 (돌의 일부가 하우스 안에 있으면 점수 인정)
-            if (innerEdgeDist <= score5Boundary) {
-                score = 5; // 돌의 가장 안쪽 가장자리가 5점 영역 안에 있음
-            } else if (innerEdgeDist <= score3Boundary) {
-                // 돌의 가장 안쪽 가장자리가 3점 영역 안에 있음 (5점 영역에는 없음)
-                score = 3;
-            } else if (innerEdgeDist <= score2Boundary) {
-                // 돌의 가장 안쪽 가장자리가 2점 영역 안에 있음 (3점 영역에는 없음)
-                score = 2;
-            } else {
-                // 돌의 가장 안쪽 가장자리가 1점 영역 안에 있음 (2점 영역에는 없음)
-                score = 1;
-            }
+            if (innerEdgeDist <= score5Boundary) score = 5;
+            else if (innerEdgeDist <= score3Boundary) score = 3;
+            else if (innerEdgeDist <= score2Boundary) score = 2;
+            else score = 1;
         }
-        // innerEdgeDist가 score1Boundary보다 크면 점수 없음 (하우스 밖)
-        
         if (score > 0) {
             scoredStones[stone.id] = score;
             if (stone.player === types.Player.Black) houseScoreBlack += score;
             else houseScoreWhite += score;
         }
     }
+    return { black: houseScoreBlack, white: houseScoreWhite, scoredStones };
+}
+
+function syncCurlingTiebreakerScores(game: types.LiveGameSession) {
+    const snap = game.curlingTiebreakerSnap;
+    if (!snap || !game.curlingScores) return;
+    const houseNow = computeCurlingHousePoints(game.curlingStones);
+    const ko = (game as any).curlingKnockoutScores as { [k: number]: number } | undefined;
+    const dHouseB = houseNow.black - snap.houseBlack;
+    const dHouseW = houseNow.white - snap.houseWhite;
+    const dKoB = (ko?.[types.Player.Black] ?? 0) - snap.koBlack;
+    const dKoW = (ko?.[types.Player.White] ?? 0) - snap.koWhite;
+    game.curlingScores[types.Player.Black] = snap.scoreBlack + dHouseB + dKoB;
+    game.curlingScores[types.Player.White] = snap.scoreWhite + dHouseW + dKoW;
+}
+
+function enterCurlingStoneTiebreaker(game: types.LiveGameSession, now: number) {
+    const stones = game.curlingStones || [];
+    const house = computeCurlingHousePoints(stones);
+    const ko = (game as any).curlingKnockoutScores || { [types.Player.Black]: 0, [types.Player.White]: 0 };
+    game.curlingTiebreakerSnap = {
+        scoreBlack: game.curlingScores![types.Player.Black],
+        scoreWhite: game.curlingScores![types.Player.White],
+        houseBlack: house.black,
+        houseWhite: house.white,
+        koBlack: ko[types.Player.Black] || 0,
+        koWhite: ko[types.Player.White] || 0,
+    };
+    game.isTiebreaker = true;
+    game.curlingRoundSummary = undefined;
+    game.roundEndConfirmations = undefined;
+    game.revealEndTime = undefined;
+    (game as any).curlingRoundEndEnteredAt = undefined;
+    game.stonesThrownThisRound = { [game.player1.id]: 0, [game.player2.id]: 0 };
+    game.currentPlayer = game.hammerPlayerId === game.blackPlayerId ? types.Player.White : types.Player.Black;
+    game.gameStatus = 'curling_tiebreaker_playing';
+    if (shouldEnforceTimeControl(game)) {
+        game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+        game.turnStartTime = now;
+    }
+    if (game.isAiGame && (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId)) {
+        scheduleAiTurnStartForFreshUi(game, now);
+    }
+}
+
+
+const endCurlingRound = (game: types.LiveGameSession, now: number) => {
+    const { black: houseScoreBlack, white: houseScoreWhite, scoredStones } = computeCurlingHousePoints(game.curlingStones);
 
     // 이번 라운드의 넉아웃 점수 계산 (이전 라운드의 넉아웃 점수 제외)
     const curlingRoundHistory = (game as any).curlingRoundHistory || [];
@@ -232,6 +260,8 @@ export const initializeCurling = (game: types.LiveGameSession, neg: types.Negoti
     
     game.curlingStones = [];
     game.activeCurlingItems = {};
+    game.curlingTiebreakerSnap = undefined;
+    game.isTiebreaker = false;
 
     const p1SlowBonus = 0;
     const p1AimBonus = 0;
@@ -298,6 +328,8 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                 game.curlingRound = 1;
                 game.curlingScores = { [types.Player.Black]: 0, [types.Player.White]: 0, [types.Player.None]: 0 };
                 (game as any).curlingKnockoutScores = { [types.Player.Black]: 0, [types.Player.White]: 0 };
+                game.curlingTiebreakerSnap = undefined;
+                game.isTiebreaker = false;
                 game.stonesThrownThisRound = { [p1Id]: 0, [p2Id]: 0 };
                 if (shouldEnforceTimeControl(game)) {
                     game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
@@ -319,7 +351,8 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
             }
             break;
         }
-        case 'curling_playing': {
+        case 'curling_playing':
+        case 'curling_tiebreaker_playing': {
             const isAiTurnCurling = game.isAiGame && game.currentPlayer !== types.Player.None &&
                 (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
             if (shouldEnforceTimeControl(game) && game.curlingTurnDeadline && now > game.curlingTurnDeadline && !isAiTurnCurling) {
@@ -333,13 +366,15 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
 
                 game.curlingTurnDeadline = now + nextDeadlineMs;
 
-                const bothPlayersHaveThrownAllStones =
+                const curlingRegularRoundComplete =
+                    !game.curlingTiebreakerSnap &&
                     game.stonesThrownThisRound![p1Id] >= game.settings.curlingStoneCount! &&
                     game.stonesThrownThisRound![p2Id] >= game.settings.curlingStoneCount!;
-                if (bothPlayersHaveThrownAllStones) {
+                if (curlingRegularRoundComplete) {
                     endCurlingRound(game, now);
                 }
-                if (game.isAiGame && game.gameStatus === 'curling_playing' && game.currentPlayer !== types.Player.None) {
+                const aimStatus = game.gameStatus;
+                if (game.isAiGame && (aimStatus === 'curling_playing' || aimStatus === 'curling_tiebreaker_playing') && game.currentPlayer !== types.Player.None) {
                     const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (nextPlayerId === aiUserId) game.aiTurnStartTime = now;
                     else game.aiTurnStartTime = undefined;
@@ -348,86 +383,80 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
             break;
         }
         case 'curling_animating': {
-            // 애니메이션이 없거나 duration이 끝났을 때 시뮬레이션 실행 및 즉시 턴 전환
-            if (!game.animation) {
-                // 애니메이션이 없으면 바로 턴 전환
-                const bothPlayersHaveThrownAllStones = 
-                    game.stonesThrownThisRound![p1Id] >= game.settings.curlingStoneCount! &&
-                    game.stonesThrownThisRound![p2Id] >= game.settings.curlingStoneCount!;
-                
-                if (bothPlayersHaveThrownAllStones) {
-                    endCurlingRound(game, now);
-                } else {
-                    game.gameStatus = 'curling_playing';
-                    const previousPlayer = game.currentPlayer;
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    if (shouldEnforceTimeControl(game)) {
-                        game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-                        game.turnStartTime = now;
-                    }
-                    console.log(`[updateCurlingState] Turn switched from ${previousPlayer} to ${game.currentPlayer} (no animation), game ${game.id}`);
-                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                        if (currentPlayerId === aiUserId) {
-                            game.aiTurnStartTime = now;
-                            console.log(`[updateCurlingState] AI turn after animation, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
-                        } else {
-                            game.aiTurnStartTime = undefined;
-                            console.log(`[updateCurlingState] User turn after animation, game ${game.id}, clearing aiTurnStartTime`);
-                        }
+            const resumeCurlingAimStatus: types.GameStatus = game.curlingTiebreakerSnap ? 'curling_tiebreaker_playing' : 'curling_playing';
+            const curlingRegularRoundComplete =
+                !game.curlingTiebreakerSnap &&
+                game.stonesThrownThisRound![p1Id] >= game.settings.curlingStoneCount! &&
+                game.stonesThrownThisRound![p2Id] >= game.settings.curlingStoneCount!;
+
+            const finishCurlingShotContinueTurn = () => {
+                game.gameStatus = resumeCurlingAimStatus;
+                const previousPlayer = game.currentPlayer;
+                game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+                if (shouldEnforceTimeControl(game)) {
+                    game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
+                    game.turnStartTime = now;
+                }
+                console.log(`[updateCurlingState] Turn switched from ${previousPlayer} to ${game.currentPlayer}, game ${game.id}`);
+                if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    if (currentPlayerId === aiUserId) {
+                        game.aiTurnStartTime = now;
+                        console.log(`[updateCurlingState] AI turn after animation, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    } else {
+                        game.aiTurnStartTime = undefined;
+                        console.log(`[updateCurlingState] User turn after animation, game ${game.id}, clearing aiTurnStartTime`);
                     }
                 }
+            };
+
+            // 애니메이션이 없거나 duration이 끝났을 때 시뮬레이션 실행 및 즉시 턴 전환
+            if (!game.animation) {
+                if (curlingRegularRoundComplete) {
+                    endCurlingRound(game, now);
+                } else {
+                    finishCurlingShotContinueTurn();
+                }
             } else if (game.animation && now >= game.animation.startTime + game.animation.duration) {
-                // 애니메이션 duration이 정확히 끝났을 때 즉시 처리
                 const animation = game.animation as types.AnimationData & { type: 'curling_flick' };
                 const { stone, velocity } = animation;
                 const { finalStones, stonesFallen } = runServerSimulation(game.curlingStones!, stone, velocity);
                 game.curlingStones = finalStones;
-                
-                const knockoutPlayerId = stone.player === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
+
+                const inTiebreakerExtra = !!game.curlingTiebreakerSnap;
                 const knockoutPlayerEnum = stone.player;
                 const opponentEnum = knockoutPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
                 const knockoutScore = stonesFallen.filter(s => s.player === opponentEnum).length;
                 if (knockoutScore > 0) {
-                    game.curlingScores![knockoutPlayerEnum] += knockoutScore;
-                    // 넉아웃 점수를 별도로 추적
                     if (!(game as any).curlingKnockoutScores) {
                         (game as any).curlingKnockoutScores = { [types.Player.Black]: 0, [types.Player.White]: 0 };
                     }
                     (game as any).curlingKnockoutScores[knockoutPlayerEnum] += knockoutScore;
+                    if (!inTiebreakerExtra) {
+                        game.curlingScores![knockoutPlayerEnum] += knockoutScore;
+                    }
                 }
-                
-                const animationDuration = now - animation.startTime;
-                game.animation = null; // 애니메이션 제거
-                
-                const bothPlayersHaveThrownAllStones = 
-                    game.stonesThrownThisRound![p1Id] >= game.settings.curlingStoneCount! &&
-                    game.stonesThrownThisRound![p2Id] >= game.settings.curlingStoneCount!;
-                
-                if (bothPlayersHaveThrownAllStones) {
+                if (inTiebreakerExtra) {
+                    syncCurlingTiebreakerScores(game);
+                }
+
+                game.animation = null;
+
+                if (curlingRegularRoundComplete) {
                     endCurlingRound(game, now);
+                } else if (inTiebreakerExtra && game.curlingScores) {
+                    const sb = game.curlingScores[types.Player.Black];
+                    const sw = game.curlingScores[types.Player.White];
+                    if (sb !== sw) {
+                        game.curlingTiebreakerSnap = undefined;
+                        game.isTiebreaker = false;
+                        const winnerEnum = sb > sw ? types.Player.Black : types.Player.White;
+                        endGame(game, winnerEnum, 'total_score');
+                    } else {
+                        finishCurlingShotContinueTurn();
+                    }
                 } else {
-                    game.gameStatus = 'curling_playing';
-                    const previousPlayer = game.currentPlayer;
-                    game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
-                    if (shouldEnforceTimeControl(game)) {
-                        game.curlingTurnDeadline = now + CURLING_TURN_TIME_LIMIT * 1000;
-                        game.turnStartTime = now;
-                    }
-                    console.log(`[updateCurlingState] Turn switched from ${previousPlayer} to ${game.currentPlayer} immediately after animation (${animationDuration}ms elapsed), game ${game.id}`);
-                    // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-                        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                        if (currentPlayerId === aiUserId) {
-                            game.aiTurnStartTime = now;
-                            console.log(`[updateCurlingState] AI turn after animation, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
-                        } else {
-                            // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
-                            game.aiTurnStartTime = undefined;
-                            console.log(`[updateCurlingState] User turn after animation, game ${game.id}, clearing aiTurnStartTime`);
-                        }
-                    }
+                    finishCurlingShotContinueTurn();
                 }
             }
             break;
@@ -510,10 +539,7 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                     const whiteFinalScore = game.curlingScores![types.Player.White];
                     
                     if (blackFinalScore === whiteFinalScore) {
-                        // Tiebreaker logic here if needed, for now just end it
-                        const finalWinner = Math.random() < 0.5 ? types.Player.Black : types.Player.White;
-                        endGame(game, finalWinner, 'total_score');
-
+                        enterCurlingStoneTiebreaker(game, now);
                     } else {
                         const winner = blackFinalScore > whiteFinalScore ? types.Player.Black : types.Player.White;
                         endGame(game, winner, 'total_score');
@@ -546,9 +572,10 @@ export const handleCurlingAction = async (volatileState: types.VolatileState, ga
             return {};
         }
         case 'CURLING_FLICK_STONE': {
-            if (game.gameStatus !== 'curling_playing' || !isMyTurn) return { error: "지금은 공격할 수 없습니다."};
-            
-            if (game.stonesThrownThisRound![user.id] >= game.settings.curlingStoneCount!) {
+            const inTiebreakerAim = game.gameStatus === 'curling_tiebreaker_playing';
+            if ((game.gameStatus !== 'curling_playing' && !inTiebreakerAim) || !isMyTurn) return { error: "지금은 공격할 수 없습니다."};
+
+            if (!inTiebreakerAim && game.stonesThrownThisRound![user.id] >= game.settings.curlingStoneCount!) {
                 return { error: "모든 돌을 사용했습니다." };
             }
 
@@ -575,7 +602,9 @@ export const handleCurlingAction = async (volatileState: types.VolatileState, ga
             return {};
         }
         case 'USE_CURLING_ITEM': {
-            if (game.gameStatus !== 'curling_playing' || !isMyTurn) return { error: "Not your turn to use an item." };
+            if ((game.gameStatus !== 'curling_playing' && game.gameStatus !== 'curling_tiebreaker_playing') || !isMyTurn) {
+                return { error: "Not your turn to use an item." };
+            }
             const { itemType } = payload as { itemType: 'slow' | 'aimingLine' };
 
             if (game.activeCurlingItems?.[user.id]?.includes(itemType)) return { error: '아이템이 이미 활성화되어 있습니다.' };

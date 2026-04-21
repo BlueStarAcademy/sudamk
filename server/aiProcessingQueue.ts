@@ -5,6 +5,7 @@
  */
 
 import { LiveGameSession, Player } from '../types/index.js';
+import { PLAYFUL_AI_BATCH_STONE_INTERVAL_MS } from '../constants';
 import { makeAiMove, aiUserId } from './aiPlayer.js';
 import { getCachedGame } from './gameCache.js';
 import * as db from './db.js';
@@ -155,6 +156,7 @@ class AiProcessingQueue {
                 'playing', 'hidden_reveal_animating',
                 'alkkagi_playing', 'alkkagi_placement', 'alkkagi_simultaneous_placement',
                 'curling_playing',
+                'curling_tiebreaker_playing',
                 'dice_rolling', 'dice_placing', 'dice_turn_rolling', 'dice_turn_choice', 'dice_start_confirmation',
                 'thief_rolling', 'thief_placing',
             ];
@@ -179,7 +181,7 @@ class AiProcessingQueue {
             }
             // 주사위/도둑 착수 시에도 매 돌마다 1초 텀 (첫 돌·두 번째 돌 모두 1초 후에 두기)
             if (isPlacingStones) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
+                await new Promise(resolve => setTimeout(resolve, PLAYFUL_AI_BATCH_STONE_INTERVAL_MS));
             }
 
             // 지연 동안 다른 요청이 턴을 바꿨을 수 있음 — 최신 캐시로 재검증 (모험 등에서 오적용 방지)
@@ -221,7 +223,7 @@ class AiProcessingQueue {
 
             // 주사위 바둑/도둑과 경찰: 남은 돌이 있으면 1초 후 한 개씩 두는 연출을 위해 재등록
             if ((game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing') && (game.stonesToPlace ?? 0) > 0) {
-                setTimeout(() => this.enqueue(gameId), 1000);
+                setTimeout(() => this.enqueue(gameId), PLAYFUL_AI_BATCH_STONE_INTERVAL_MS);
             }
         } catch (error) {
             console.error(`[AI Queue] Error processing AI move for game ${gameId}:`, error);
@@ -242,6 +244,7 @@ class AiProcessingQueue {
                         'alkkagi_placement',
                         'alkkagi_simultaneous_placement',
                         'curling_playing',
+                        'curling_tiebreaker_playing',
                         'dice_rolling',
                         'dice_placing',
                         'dice_turn_rolling',

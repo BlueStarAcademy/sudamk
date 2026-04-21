@@ -123,7 +123,10 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
         );
     }
     
-    const canLaunch = !isSpectator && gameStatus === 'curling_playing' && myPlayer === currentPlayer;
+    const canLaunch =
+        !isSpectator &&
+        (gameStatus === 'curling_playing' || gameStatus === 'curling_tiebreaker_playing') &&
+        myPlayer === currentPlayer;
     const launchAreaCellSize = 1;
     const launchAreaPx = launchAreaCellSize * cellSize;
     

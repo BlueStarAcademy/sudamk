@@ -55,7 +55,7 @@ const ActivityVitalityIcon: React.FC<{ className?: string; size?: number }> = ({
 /** 퀘스트 목록 제목 옆 아이콘 (퀵메뉴·에셋과 동일 계열) */
 const QUEST_LIST_ICON_SRC = '/images/quest.png';
 
-/** 상점 소모품 탭과 동일: 행동력 회복제 표시는 ⚡ + 수치(applus.png는 헤더 충전 전용으로 쓰이므로 퀘스트·상점 카드에서는 이미지 대신 이 배지 사용) */
+/** 상점 소모품 탭과 동일: 행동력 회복제 카드는 ⚡ 배지 + 수치(아이템 이미지는 lightning.png, applus는 헤더 충전 버튼 전용) */
 const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null => {
     if (!reward.items?.length) return null;
     const ref = reward.items[0];

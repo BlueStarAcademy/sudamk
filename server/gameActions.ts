@@ -745,8 +745,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (!game.isAiGame) {
                 return { error: 'Not an AI game.' };
             }
-            // 도전의 탑·싱글플레이: 착수가 클라 전용이라 서버 판이 뒤처질 수 있음 → Kata 호출 전 클라 스냅샷으로 맞춤
-            if ((game.gameCategory === 'tower' || game.isSinglePlayer) && (payload as any)?.clientSync) {
+            // 도전의 탑·싱글플레이·모험: 클라 판이 서버보다 앞설 수 있음 → Kata 호출 전 클라 스냅샷으로 맞춤
+            if (
+                (game.gameCategory === 'tower' || game.isSinglePlayer || game.gameCategory === 'adventure') &&
+                (payload as any)?.clientSync
+            ) {
                 const cs = (payload as any).clientSync as Record<string, unknown> | undefined;
                 applyPveItemActionClientSync(game, { clientSync: cs });
                 // CONFIRM/WS 타이밍으로 서버만 pending인데 클라는 이미 본대국인 경우
@@ -1192,6 +1195,21 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
 
         if (result !== null && result !== undefined) {
+            // 알까기 배치: 액션 직후 한 틱 — PVP 등에서 메인 루프의 update가 오기 전에 양쪽 배치가 끝나면 alkkagi_playing으로 바로 전환되지 않던 문제 방지
+            if (
+                !(result as any).error &&
+                type === 'ALKKAGI_PLACE_STONE' &&
+                game.mode === GameMode.Alkkagi &&
+                (game.gameStatus === 'alkkagi_placement' || game.gameStatus === 'alkkagi_simultaneous_placement')
+            ) {
+                const { updatePlayfulGameState } = await import('./modes/playful.js');
+                try {
+                    await updatePlayfulGameState(game, Date.now());
+                } catch (e: any) {
+                    console.warn(`[handleAction] updatePlayfulGameState (alkkagi placement tick) failed game=${game.id}:`, e?.message);
+                }
+            }
+
             // 캐시 업데이트
             updateGameCache(game);
             // PVP 턴 전환: 다음 요청(다른 인스턴스/캐시 미스)이 DB에서 최신 currentPlayer를 읽도록 먼저 저장 후 브로드캐스트

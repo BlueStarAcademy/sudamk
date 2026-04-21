@@ -50,17 +50,30 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     document.head.appendChild(script);
   }, [isProduction, clientId, isAdFree]);
 
-  const { interstitial, showInterstitial, closeInterstitial } = useAds(isProduction, isAdFree);
+  const { interstitial, showInterstitial, showShopAdRewardInterstitial, closeInterstitial } = useAds(
+    isProduction,
+    isAdFree
+  );
 
   const value = useMemo<AdContextValue>(() => ({
     isAdReady,
     isProduction,
     clientId,
     showInterstitial,
+    showShopAdRewardInterstitial,
     closeInterstitial,
     interstitial,
     isAdFree,
-  }), [isAdReady, isProduction, clientId, showInterstitial, closeInterstitial, interstitial, isAdFree]);
+  }), [
+    isAdReady,
+    isProduction,
+    clientId,
+    showInterstitial,
+    showShopAdRewardInterstitial,
+    closeInterstitial,
+    interstitial,
+    isAdFree,
+  ]);
 
   return (
     <AdContext.Provider value={value}>

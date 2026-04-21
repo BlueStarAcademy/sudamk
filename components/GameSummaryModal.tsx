@@ -474,7 +474,12 @@ const CaptureScoreDetailsComponent: React.FC<{
     );
 };
 
-const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isMobile?: boolean, mobileTextScale?: number, mobileImageScale?: number }> = ({ gameSession, isMobile = false, mobileTextScale = 1, mobileImageScale = 1 }) => {
+const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isMobile?: boolean, mobileTextScale?: number, mobileImageScale?: number }> = ({
+    gameSession,
+    isMobile = false,
+    mobileTextScale = 1,
+    mobileImageScale: _mobileImageScale = 1,
+}) => {
     const mx = RESULT_MODAL_SCORE_MOBILE_PX;
     const { curlingScores, player1, player2, blackPlayerId, whitePlayerId } = gameSession;
     if (!curlingScores) return <p className={`text-center text-gray-400 ${isMobile ? 'text-sm' : ''}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>점수 정보가 없습니다.</p>;
@@ -484,53 +489,71 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     
     const blackScore = curlingScores[Player.Black] || 0;
     const whiteScore = curlingScores[Player.White] || 0;
-    
-    const blackAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === blackPlayer.avatarId)?.url;
-    const blackBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === blackPlayer.borderId)?.url;
-    const whiteAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === whitePlayer.avatarId)?.url;
-    const whiteBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === whitePlayer.borderId)?.url;
 
     // 라운드별 점수 히스토리 가져오기
     const roundHistory = (gameSession as any).curlingRoundHistory || [];
     const totalRounds = gameSession.settings?.curlingRounds || 3;
     const roundNums = Array.from({ length: totalRounds }, (_, i) => i + 1);
 
-    const profileRow = (
-        <div className="flex items-center justify-center gap-2 sm:gap-4">
-            <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'min-w-0 flex-1' : 'w-32'} flex-shrink-0`}>
-                <Avatar userId={blackPlayer.id} userName={blackPlayer.nickname} size={isMobile ? Math.round(44 * mobileImageScale) : 64} avatarUrl={blackAvatarUrl} borderUrl={blackBorderUrl} />
-                <span
-                    className={`font-bold mt-0.5 sm:mt-1 w-full text-center leading-tight ${isMobile ? 'text-[11px]' : 'text-base'}`}
-                    style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}
-                    title={`${blackPlayer.nickname} (흑)`}
+    /** 상단 MatchPlayersRoster와 중복되지 않도록 아바타 없이 누적 점수만 고급스럽게 표시 */
+    const curlingScoreStrip = (
+        <div
+            className={`relative mx-auto w-full overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#12151f] via-[#0b0e14] to-[#06080c] shadow-[0_12px_40px_-18px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 ${isMobile ? 'max-w-md px-3 py-3' : 'max-w-lg px-5 py-4'}`}
+        >
+            <div
+                className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent"
+                aria-hidden
+            />
+            <div className="pointer-events-none absolute -left-16 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-cyan-500/[0.06] blur-3xl" aria-hidden />
+            <div className="pointer-events-none absolute -right-16 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-amber-400/[0.07] blur-3xl" aria-hidden />
+            <div className={`relative flex items-stretch justify-between gap-2 ${isMobile ? 'min-h-[4.25rem]' : 'min-h-[5rem]'}`}>
+                <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-center">
+                    <span
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-600/60 bg-gradient-to-b from-zinc-800 to-black text-[11px] font-black text-stone-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-black/40 sm:h-9 sm:w-9"
+                        aria-hidden
+                    >
+                        흑
+                    </span>
+                    <span className="max-w-full truncate px-0.5 text-[10px] font-medium text-slate-500 sm:text-xs" title={blackPlayer.nickname}>
+                        {blackPlayer.nickname}
+                    </span>
+                </div>
+                <div className="mx-1 flex w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-amber-500/25 to-transparent sm:mx-2" aria-hidden />
+                <div
+                    className={`flex shrink-0 items-center justify-center gap-1 font-mono tabular-nums tracking-tight ${isMobile ? 'text-[1.65rem] leading-none' : 'text-4xl sm:text-5xl'}`}
+                    style={isMobile ? { fontSize: `${26 * mobileTextScale}px` } : undefined}
                 >
-                    <span className="line-clamp-2 [overflow-wrap:anywhere]">{blackPlayer.nickname}</span>
-                    <span className="block text-stone-500">흑</span>
-                </span>
+                    <span className="bg-gradient-to-b from-white via-amber-50 to-amber-200/90 bg-clip-text font-black text-transparent drop-shadow-[0_2px_18px_rgba(251,191,36,0.22)]">
+                        {blackScore}
+                    </span>
+                    <span className="px-1 text-lg font-extralight text-slate-600 sm:text-2xl" aria-hidden>
+                        :
+                    </span>
+                    <span className="bg-gradient-to-b from-white via-amber-50 to-amber-200/90 bg-clip-text font-black text-transparent drop-shadow-[0_2px_18px_rgba(251,191,36,0.22)]">
+                        {whiteScore}
+                    </span>
+                </div>
+                <div className="mx-1 flex w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-amber-500/25 to-transparent sm:mx-2" aria-hidden />
+                <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-center">
+                    <span
+                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-400/55 bg-gradient-to-b from-slate-100 to-slate-300 text-[11px] font-black text-slate-900 shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)] ring-1 ring-white/30 sm:h-9 sm:w-9"
+                        aria-hidden
+                    >
+                        백
+                    </span>
+                    <span className="max-w-full truncate px-0.5 text-[10px] font-medium text-slate-500 sm:text-xs" title={whitePlayer.nickname}>
+                        {whitePlayer.nickname}
+                    </span>
+                </div>
             </div>
-            <div className={`flex-shrink-0 ${isMobile ? 'text-2xl' : 'text-4xl lg:text-5xl xl:text-6xl'} font-mono font-bold whitespace-nowrap`} style={{ fontSize: isMobile ? `${24 * mobileTextScale}px` : undefined }}>
-                <span className="text-white">{blackScore}</span>
-                <span className="mx-2 text-gray-400">:</span>
-                <span className="text-white">{whiteScore}</span>
-            </div>
-            <div className={`flex flex-col items-center gap-1 sm:gap-2 ${isMobile ? 'min-w-0 flex-1' : 'w-32'} flex-shrink-0`}>
-                <Avatar userId={whitePlayer.id} userName={whitePlayer.nickname} size={isMobile ? Math.round(44 * mobileImageScale) : 64} avatarUrl={whiteAvatarUrl} borderUrl={whiteBorderUrl}/>
-                <span
-                    className={`font-bold mt-0.5 sm:mt-1 w-full text-center leading-tight ${isMobile ? 'text-[11px]' : 'text-base'}`}
-                    style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : undefined }}
-                    title={`${whitePlayer.nickname} (백)`}
-                >
-                    <span className="line-clamp-2 [overflow-wrap:anywhere]">{whitePlayer.nickname}</span>
-                    <span className="block text-slate-500">백</span>
-                </span>
-            </div>
+            <p className="relative mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/40">누적 점수</p>
         </div>
     );
 
     if (isMobile) {
         return (
             <div className="mx-auto w-full max-w-md space-y-3 text-left sm:space-y-4">
-                <div className="text-center">{profileRow}</div>
+                <div className="text-center">{curlingScoreStrip}</div>
                 <p className="text-center text-sm font-bold text-amber-200/95" style={{ fontSize: `${13 * mobileTextScale}px` }}>
                     라운드별 점수
                 </p>
@@ -553,9 +576,7 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div className="min-w-0 rounded-lg border border-stone-600/35 bg-black/25 px-2 py-2">
-                                        <p className="truncate text-[11px] font-semibold text-stone-300" title={blackPlayer.nickname}>
-                                            {blackPlayer.nickname} <span className="text-stone-500">흑</span>
-                                        </p>
+                                        <p className="text-[11px] font-bold tracking-wide text-stone-200">흑</p>
                                         <p className="mt-1 text-xs text-slate-200" style={{ fontSize: `${12 * mobileTextScale}px` }}>
                                             하우스 <span className="font-mono font-bold tabular-nums">{blackHouse}</span>
                                         </p>
@@ -567,9 +588,7 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                                         </p>
                                     </div>
                                     <div className="min-w-0 rounded-lg border border-slate-500/35 bg-slate-950/50 px-2 py-2">
-                                        <p className="truncate text-[11px] font-semibold text-slate-100" title={whitePlayer.nickname}>
-                                            {whitePlayer.nickname} <span className="text-slate-500">백</span>
-                                        </p>
+                                        <p className="text-[11px] font-bold tracking-wide text-slate-100">백</p>
                                         <p className="mt-1 text-xs text-slate-200" style={{ fontSize: `${12 * mobileTextScale}px` }}>
                                             하우스 <span className="font-mono font-bold tabular-nums">{whiteHouse}</span>
                                         </p>
@@ -594,18 +613,22 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
 
     return (
         <div className="mx-auto w-full max-w-lg space-y-3 text-center sm:space-y-4">
-            {profileRow}
-            
+            {curlingScoreStrip}
+
             {/* 상세 점수 내역 표 */}
-            <div className={`mt-4 bg-gray-800/50 p-4 rounded-lg`}>
-                <h3 className={`mb-3 text-center font-bold text-base lg:text-lg`}>상세 점수 내역</h3>
-                <div className={`overflow-x-auto text-xs lg:text-sm`}>
+            <div className="mt-1 rounded-xl border border-slate-600/40 bg-slate-950/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-white/[0.04] sm:p-4">
+                <h3 className="mb-2.5 text-center text-sm font-bold tracking-wide text-amber-100/90 sm:text-base">상세 점수 내역</h3>
+                <div className="overflow-x-auto text-xs lg:text-sm">
                     <table className="w-full border-collapse">
                         <thead>
                             <tr className="border-b-2 border-gray-600">
                                 <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}>라운드</th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>{blackPlayer.nickname} (흑)</th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>{whitePlayer.nickname} (백)</th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>
+                                    흑
+                                </th>
+                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>
+                                    백
+                                </th>
                             </tr>
                             <tr className="border-b border-gray-600">
                                 <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}></th>

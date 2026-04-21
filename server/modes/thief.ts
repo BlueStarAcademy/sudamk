@@ -6,6 +6,7 @@ import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_MAIN_PLACE_TIME, THIEF_NIGHTS_PER_SEGME
 import { DICE_HUMAN_PLACE_SETTLE_MS } from './diceGo.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
+import { cancelAiProcessing } from '../aiSessionManager.js';
 
 const THIEF_POOL_HIGH36 = [3, 4, 5, 6] as const;
 const THIEF_POOL_NO_ONE = [2, 3, 4, 5] as const;
@@ -89,6 +90,12 @@ function resetThiefBoardForNewSegment(game: types.LiveGameSession) {
     game.passCount = 0;
     game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
     game.thiefFreestyleThiefPlacing = undefined;
+
+    // 세그먼트(역할) 전환 직전 setImmediate(makeAiMove) 락·세션 잠금이 남으면 processGame이 조기 return 하거나
+    // 다음 턴 makeAiMove가 startAiProcessing에서 막혀 봇이 멈춤 (주사위바둑 라운드 전환과 동일 이슈).
+    (game as any)._aiMoveDispatching = false;
+    (game as any)._aiMoveDispatchingAt = undefined;
+    cancelAiProcessing(game.id);
 }
 
 function enterThiefRoundEndModal(game: types.LiveGameSession, now: number) {

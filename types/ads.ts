@@ -20,7 +20,9 @@ export type InterstitialTrigger =
   | 'game_end'
   | 'reward_claim'
   | 'lobby_transition'
-  | 'tower_clear';
+  | 'tower_clear'
+  /** 상점 광고보기 보상 — 빈도 제한 없이 30초 후 닫기 시 콜백 */
+  | 'shop_ad_reward';
 
 /** 전면 광고 상태 */
 export interface InterstitialState {
@@ -38,8 +40,10 @@ export interface AdContextValue {
   isProduction: boolean;
   /** AdSense 클라이언트 ID */
   clientId: string | null;
-  /** 전면 광고 표시 요청 */
+  /** 전면 광고 표시 요청 (빈도·세션 제한 적용) */
   showInterstitial: (trigger: InterstitialTrigger) => boolean;
+  /** 상점 광고 보상: 30초 후 닫기 가능, 닫을 때 onClosed 호출 (광고 제거 유저는 즉시 onClosed) */
+  showShopAdRewardInterstitial: (onClosed: () => void) => void;
   /** 전면 광고 닫기 */
   closeInterstitial: () => void;
   /** 전면 광고 상태 */

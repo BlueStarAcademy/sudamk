@@ -608,6 +608,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const isMyCaptureByPlayer = (capturer: Player): boolean =>
         myPlayerEnum !== Player.None && capturer === myPlayerEnum;
 
+    // 대국 세션이 바뀔 때만 초기화한다. justCaptured/captures/moveHistory를 deps에 넣으면
+    // 매 수마다 이 effect가 먼저 돌아 processed·prevCaptures가 최신으로 덮여,
+    // 디바운스된 포톤 effect에서 증분·신규 슬라이스가 비어 애니가 아예 안 뜬다.
     useEffect(() => {
         // 새로고침/재마운트 시 서버에 남아있는 마지막 justCaptured를 "신규 캡처"로 오인해
         // 점수 플로트가 다시 재생되는 문제를 방지한다.
@@ -628,7 +631,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 lastFloatedMoveKeyRef.current = `${mh!.length}-${tail.player}-${tail.x}-${tail.y}`;
             }
         }
-    }, [gameId, justCaptured, captures, moveHistory]);
+    }, [gameId]);
 
     useEffect(() => {
         if (gameStatus === 'missile_animating' && animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {

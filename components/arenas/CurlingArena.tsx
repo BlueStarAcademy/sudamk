@@ -26,6 +26,7 @@ function usePrevious<T>(value: T): T | undefined {
 const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, ref) => {
     const { session, onAction, currentUser, isSpectator, isMobile = false } = props;
     const { id: gameId, settings, gameStatus, curlingStones, currentPlayer, activeCurlingItems } = session;
+    const isCurlingAimPhase = gameStatus === 'curling_playing' || gameStatus === 'curling_tiebreaker_playing';
 
     const boardRef = useRef<CurlingBoardHandle>(null);
     const resetBoardPanRef = useRef<() => void>(() => {});
@@ -66,7 +67,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         return currentPlayer === myPlayerEnum;
     }, [currentPlayer, myPlayerEnum, isSpectator]);
 
-    const curlingMobilePanEnabled = isMobile && gameStatus === 'curling_playing' && !isSpectator && isMyTurn;
+    const curlingMobilePanEnabled = isMobile && isCurlingAimPhase && !isSpectator && isMyTurn;
     const { panX: dragBoardPanX, onDragMoveClientX, resetPan } = useSmoothedMobileBoardPan({
         boardRef,
         enabled: curlingMobilePanEnabled,
@@ -263,7 +264,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         const { session: currentSession, currentUser: user } = latestProps.current;
         const myPlayer = currentSession.blackPlayerId === user.id ? Player.Black : (currentSession.whitePlayerId === user.id ? Player.White : Player.None);
         const currentIsMyTurn = currentSession.currentPlayer === myPlayer;
-        if (!currentIsMyTurn || currentSession.gameStatus !== 'curling_playing' || flickInProgressRef.current) return;
+        if (!currentIsMyTurn || (currentSession.gameStatus !== 'curling_playing' && currentSession.gameStatus !== 'curling_tiebreaker_playing') || flickInProgressRef.current) return;
 
         isDraggingRef.current = true;
         const stoneRadius = (840 / 19) * 0.47;
@@ -308,7 +309,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
                 resetBoardPanRef.current();
                 return;
             }
-            if (p.session.gameStatus !== 'curling_playing' || p.isSpectator) {
+            if ((p.session.gameStatus !== 'curling_playing' && p.session.gameStatus !== 'curling_tiebreaker_playing') || p.isSpectator) {
                 resetBoardPanRef.current();
                 return;
             }
@@ -348,7 +349,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
             }
 
             // 애니메이션 중이거나 이미 전송 대기 중이면 전송 방지 (중복/400 에러 방지)
-            if (currentSession.gameStatus !== 'curling_playing' || flickInProgressRef.current) {
+            if ((currentSession.gameStatus !== 'curling_playing' && currentSession.gameStatus !== 'curling_tiebreaker_playing') || flickInProgressRef.current) {
                 cancelFlick();
                 return;
             }
