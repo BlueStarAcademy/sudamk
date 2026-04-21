@@ -779,7 +779,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             await waitUntilAiProcessingReleased(game.id, 3000);
             syncAiSession(game, aiUserId, { allowAdvanceOnAiTurn: true });
             cancelAiProcessing(game.id);
-            await makeAiMove(game);
+            try {
+                await makeAiMove(game);
+            } catch (e: any) {
+                console.error(`[REQUEST_SERVER_AI_MOVE] makeAiMove failed for ${game.id}:`, e?.message ?? e);
+                // 즉시 실패하더라도 큐 재시도를 예약해 AI 턴 영구 정지를 방지한다.
+                const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
+                aiProcessingQueue.enqueue(game.id);
+                return { error: `AI_MOVE_FAILED_RETRYING: ${e?.message ?? 'unknown_error'}` };
+            }
             const afterMoveLen = game.moveHistory?.length ?? 0;
             const aiStillToMove =
                 game.currentPlayer === beforePlayer &&
@@ -790,7 +798,14 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 // 1회 더 강제 복구 시도 (락 유실/세션 꼬임 잔존 케이스)
                 cancelAiProcessing(game.id);
                 syncAiSession(game, aiUserId, { allowAdvanceOnAiTurn: true });
-                await makeAiMove(game);
+                try {
+                    await makeAiMove(game);
+                } catch (e: any) {
+                    console.error(`[REQUEST_SERVER_AI_MOVE] second makeAiMove failed for ${game.id}:`, e?.message ?? e);
+                    const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
+                    aiProcessingQueue.enqueue(game.id);
+                    return { error: `AI_MOVE_FAILED_RETRYING: ${e?.message ?? 'unknown_error'}` };
+                }
             }
             updateGameCache(game);
             await db.saveGame(game);

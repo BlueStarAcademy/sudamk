@@ -35,6 +35,8 @@ class AiProcessingQueue {
         averageWaitTime: 0,
         maxWaitTime: 0,
     };
+    /** 연속 실패 시 재시도 간격을 늘리기 위한 카운터 */
+    private retryCounts: Map<string, number> = new Map();
 
     constructor(maxConcurrent?: number) {
         // CPU 코어 수를 기반으로 동시 처리 수 결정 (기본값: 코어 수 * 4, 최소 10, 최대 50)
@@ -198,6 +200,7 @@ class AiProcessingQueue {
 
             // AI 수 처리
             await makeAiMove(game);
+            this.retryCounts.delete(gameId);
 
             // DB 저장 (비동기, 응답 지연 최소화)
             db.saveGame(game).catch(err => {
@@ -222,6 +225,40 @@ class AiProcessingQueue {
             }
         } catch (error) {
             console.error(`[AI Queue] Error processing AI move for game ${gameId}:`, error);
+            const retryCount = (this.retryCounts.get(gameId) ?? 0) + 1;
+            this.retryCounts.set(gameId, retryCount);
+
+            // Kata 서버 타임아웃/일시 오류 등은 자동 재시도로 복구한다.
+            // (최대 15초까지 점진 백오프)
+            const retryDelayMs = Math.min(15000, 1000 * Math.max(1, retryCount));
+            setTimeout(async () => {
+                try {
+                    const latest = await getCachedGame(gameId);
+                    if (!latest) return;
+                    const allowedStatuses = new Set([
+                        'playing',
+                        'hidden_reveal_animating',
+                        'alkkagi_playing',
+                        'alkkagi_placement',
+                        'alkkagi_simultaneous_placement',
+                        'curling_playing',
+                        'dice_rolling',
+                        'dice_placing',
+                        'dice_turn_rolling',
+                        'dice_turn_choice',
+                        'dice_start_confirmation',
+                        'thief_rolling',
+                        'thief_placing',
+                    ]);
+                    if (!allowedStatuses.has(latest.gameStatus)) return;
+                    const currentPlayerId =
+                        latest.currentPlayer === Player.Black ? latest.blackPlayerId : latest.whitePlayerId;
+                    if (currentPlayerId !== aiUserId) return;
+                    this.enqueue(gameId);
+                } catch (requeueErr) {
+                    console.error(`[AI Queue] Failed to schedule retry for ${gameId}:`, requeueErr);
+                }
+            }, retryDelayMs);
         }
     }
 
