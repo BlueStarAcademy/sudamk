@@ -2780,8 +2780,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 type: 'REQUEST_SERVER_AI_MOVE',
                                 payload: { gameId: currentGameId, clientSync },
                             } as ServerAction);
+                            const responseGame = ((result as any)?.game ||
+                                (result as any)?.clientResponse?.game) as LiveGameSession | undefined;
                             const hasGamePayload =
-                                !!(result as any)?.game || !!(result as any)?.clientResponse?.game;
+                                !!responseGame;
                             if (!hasGamePayload) {
                                 // 서버가 빈 성공 응답만 준 경우 AI 잠금을 즉시 해제해 다음 effect tick에서 재시도한다.
                                 console.warn('[Game] PVE server AI returned no game payload, retrying soon:', {
@@ -2789,6 +2791,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     moveHistoryLength: moveHistoryLengthAtCalculation,
                                     currentPlayer: currentPlayerAtCalculation,
                                     resultKeys: result && typeof result === 'object' ? Object.keys(result as any) : [],
+                                });
+                                lastAiMoveRef.current = null;
+                            }
+                            // 서버가 game payload를 주더라도 실제 착수가 없으면(동일 수순·동일 차례) 잠금을 풀어 재시도한다.
+                            if (
+                                responseGame &&
+                                Array.isArray(responseGame.moveHistory) &&
+                                responseGame.moveHistory.length <= moveHistoryLengthAtCalculation &&
+                                responseGame.currentPlayer === currentPlayerAtCalculation
+                            ) {
+                                console.warn('[Game] PVE server AI response made no progress, retrying soon:', {
+                                    gameId: currentGameId,
+                                    responseMoveHistoryLength: responseGame.moveHistory.length,
+                                    currentPlayer: responseGame.currentPlayer,
                                 });
                                 lastAiMoveRef.current = null;
                             }

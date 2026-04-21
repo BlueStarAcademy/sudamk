@@ -1190,11 +1190,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const { broadcastToGameParticipants } = await import('./socket.js');
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
 
-            // 모험·길드전 서버 AI: 메인 루프의 setImmediate(makeAiMove)가 startAiProcessing 잠금과 겹치면 봇이 스킵되는 간헐 이슈 방지 (알까기 인라인과 동일)
+            // PVE 전략국 서버 AI: 메인 루프의 setImmediate(makeAiMove)가 startAiProcessing 잠금과 겹치면 봇이 스킵되는 간헐 이슈 방지
+            // (모험·길드전 + 싱글/도전의 탑 공통 인라인 fallback)
             const pveServerGoAiCategory =
                 game.isAiGame &&
-                !game.isSinglePlayer &&
-                ((game as any).gameCategory === 'adventure' || (game as any).gameCategory === 'guildwar');
+                (((game as any).gameCategory === 'adventure' ||
+                    (game as any).gameCategory === 'guildwar' ||
+                    (game as any).gameCategory === 'tower' ||
+                    (game as any).gameCategory === 'singleplayer') ||
+                    game.isSinglePlayer);
             if (pveServerGoAiCategory) {
                 const isGoMode =
                     game.mode === GameMode.Standard ||
@@ -1208,9 +1212,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 const pidAfterUser = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 const isAiTurnAfterUser =
                     pidAfterUser === aiUserId || (pidAfterUser && String(pidAfterUser).startsWith('dungeon-bot-'));
+                const isPlayableForInlineAi =
+                    game.gameStatus === 'playing' ||
+                    game.gameStatus === 'hidden_placing';
                 if (
                     isGoMode &&
-                    game.gameStatus === 'playing' &&
+                    isPlayableForInlineAi &&
                     game.currentPlayer !== types.Player.None &&
                     isAiTurnAfterUser
                 ) {
@@ -1232,7 +1239,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         const aiStillTurn =
                             game.currentPlayer !== types.Player.None &&
                             (pidBeforeInline === aiUserIdInline || (pidBeforeInline && String(pidBeforeInline).startsWith('dungeon-bot-')));
-                        if (!aiStillTurn || game.gameStatus !== 'playing') {
+                        const stillPlayable =
+                            game.gameStatus === 'playing' ||
+                            game.gameStatus === 'hidden_placing';
+                        if (!aiStillTurn || !stillPlayable) {
                             game.aiTurnStartTime = undefined;
                             return;
                         }
