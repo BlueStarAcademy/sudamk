@@ -1156,6 +1156,14 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
 
 
 export const makeAiMove = async (game: LiveGameSession) => {
+    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    const isAiControlledTurn =
+        game.currentPlayer !== types.Player.None &&
+        (currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')));
+    if (!isAiControlledTurn) {
+        return;
+    }
+
     const initialMoveCount = game.moveHistory?.length ?? 0;
 
     if (!shouldProcessAiTurn(game.id, initialMoveCount)) {
@@ -1168,7 +1176,6 @@ export const makeAiMove = async (game: LiveGameSession) => {
 
     try {
         let moveExecuted = false;
-        const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
 
         // ========== 놀이바둑 전용 AI (전략바둑/goAiBot과 완전 분리) ==========
         // 알까기·컬링·주사위·오목·따목·도둑은 여기서만 처리. 전략바둑 AI(goAiBot) 수정 시 이 블록은 건드리지 말 것.

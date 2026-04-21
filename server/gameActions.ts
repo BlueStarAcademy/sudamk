@@ -1164,12 +1164,21 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         const { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } = await import(
                             './constants/pveStrategicAiSchedule.js'
                         );
+                        const { aiUserId: aiUserIdInline } = await import('./aiPlayer.js');
                         await waitUntilAiProcessingReleased(game.id, 10_000);
                         await new Promise<void>((r) => setTimeout(r, PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS));
                         const { getCachedGame } = await import('./gameCache.js');
                         const freshForInline = await getCachedGame(gameIdInlineAi);
                         if (freshForInline) {
                             Object.assign(game, freshForInline);
+                        }
+                        const pidBeforeInline = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        const aiStillTurn =
+                            game.currentPlayer !== types.Player.None &&
+                            (pidBeforeInline === aiUserIdInline || (pidBeforeInline && String(pidBeforeInline).startsWith('dungeon-bot-')));
+                        if (!aiStillTurn || game.gameStatus !== 'playing') {
+                            game.aiTurnStartTime = undefined;
+                            return;
                         }
                         const moveBeforeInline = game.moveHistory?.length ?? 0;
                         await makeAiMove(game);

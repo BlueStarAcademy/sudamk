@@ -1463,6 +1463,9 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || playfulPlayingStatuses.includes(game.gameStatus));
             
             if (canProcessAiTurn && !didAlkkagiTriggerAiAttack) {
+                if ((game as any)._aiMoveDispatching) {
+                    return game;
+                }
                 if (!game.aiTurnStartTime || game.aiTurnStartTime === undefined) {
                     game.aiTurnStartTime = now;
                 }
@@ -1472,6 +1475,8 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                     // updateGameStates가 즉시 반환되도록 함. 완료 시 캐시/저장/브로드캐스트는 콜백에서 수행.
                     const gameId = game.id;
                     const initialMoveCount = game.moveHistory?.length ?? 0;
+                    (game as any)._aiMoveDispatching = true;
+                    game.aiTurnStartTime = Date.now() + 500;
                     setImmediate(() => {
                         makeAiMove(game).then(async () => {
                             const moveCountAfter = game.moveHistory?.length ?? 0;
@@ -1498,6 +1503,8 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                         }).catch((error) => {
                             console.error(`[processGame] Deferred makeAiMove failed for game ${gameId}:`, error);
                             game.aiTurnStartTime = Date.now() + 1000;
+                        }).finally(() => {
+                            (game as any)._aiMoveDispatching = false;
                         });
                     });
                     // 이번 사이클에서는 AI 수를 기다리지 않고 즉시 반환 → 타임아웃 방지

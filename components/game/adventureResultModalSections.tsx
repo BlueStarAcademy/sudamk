@@ -22,8 +22,8 @@ import {
     equipmentGradeRewardIconShellClassNames,
     RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
-    RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS,
     RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS,
+    RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS,
 } from './ResultModalRewardSlot.js';
 import { ResultModalVipRewardSlot } from './ResultModalVipRewardSlot.js';
 
@@ -34,6 +34,22 @@ const ADVENTURE_DEFAULT_MAT_BOX_IMG =
 
 const ADVENTURE_REWARD_REVEAL_MS = 3000;
 const ADVENTURE_REWARD_ROLL_MS = 2800;
+
+function HalfKeyEmojiIcon({ compact }: { compact: boolean }) {
+    return (
+        <span
+            className={`relative inline-flex items-center justify-center overflow-hidden ${compact ? 'h-6 w-4' : 'h-9 w-6'}`}
+            aria-label="열쇠 조각"
+        >
+            <span
+                className={`absolute right-0 select-none leading-none ${compact ? 'text-[22px]' : 'text-[34px]'}`}
+                style={{ width: compact ? 22 : 34 }}
+            >
+                🔑
+            </span>
+        </span>
+    );
+}
 
 function normalizeRewardImagePath(src: string | undefined | null): string | null {
     if (!src) return null;
@@ -201,6 +217,34 @@ function AdventureMissedRewardSlot({
                 }
             >
                 미획득
+            </span>
+        </div>
+    );
+}
+
+function AdventureKeyFragmentRewardSlot({
+    compact,
+    amount,
+}: {
+    compact: boolean;
+    amount: number;
+}) {
+    const qty = Math.max(1, Math.floor(amount));
+    return (
+        <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
+            <div
+                className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} flex-col`}
+            >
+                <HalfKeyEmojiIcon compact={compact} />
+            </div>
+            <span
+                className={
+                    compact
+                        ? 'text-center text-[0.72rem] font-bold tabular-nums text-amber-100'
+                        : 'text-center text-sm font-bold tabular-nums text-amber-100 min-[1024px]:text-base'
+                }
+            >
+                ×{qty}
             </span>
         </div>
     );
@@ -411,14 +455,15 @@ export function AdventureBattleFixedRewardRow({
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
     onVipLockedClick?: () => void;
 }) {
+    const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
     const xpOk = xpChange > 0;
     const rowClass = compact
         ? vipPlayRewardSlot
-            ? RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
-            : RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
+            ? RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS
+            : RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
         : vipPlayRewardSlot
-          ? 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1 min-h-[7.6rem]'
-          : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
+          ? 'grid w-full min-w-0 grid-cols-6 items-start justify-items-center gap-1 min-h-[7.6rem]'
+          : 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
 
     const xpMissedBox = (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
@@ -486,6 +531,7 @@ export function AdventureBattleFixedRewardRow({
             ) : (
                 <AdventureMissedRewardSlot compact={compact} iconSrc="/images/icon/Gold.png" />
             )}
+            <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} />
             {slots.equipment.obtained && slots.equipment.displayName ? (
                 <ResultModalItemRewardSlot
                     imageSrc={adventureRewardSlotItemImage(slots.equipment.displayName)}
@@ -541,6 +587,7 @@ export function AdventureBattleRewardRowWithReveal({
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
     onVipLockedClick?: () => void;
 }) {
+    const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
     const [revealed, setRevealed] = useState(false);
     useEffect(() => {
         const id = window.setTimeout(() => setRevealed(true), ADVENTURE_REWARD_REVEAL_MS);
@@ -563,11 +610,11 @@ export function AdventureBattleRewardRowWithReveal({
     const xpOk = xpChange > 0;
     const rowClass = compact
         ? vipPlayRewardSlot
-            ? RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
-            : RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS
+            ? RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS
+            : RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS
         : vipPlayRewardSlot
-          ? 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1 min-h-[7.6rem]'
-          : 'grid w-full min-w-0 grid-cols-4 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
+          ? 'grid w-full min-w-0 grid-cols-6 items-start justify-items-center gap-1 min-h-[7.6rem]'
+          : 'grid w-full min-w-0 grid-cols-5 items-start justify-items-center gap-1.5 min-h-[7.6rem]';
 
     const xpMissedBox = (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} opacity-45`}>
@@ -630,6 +677,7 @@ export function AdventureBattleRewardRowWithReveal({
                 xpMissedBox
             )}
             <GoldRollingPlaceholder compact={compact} obtained={slots.gold.obtained} targetAmount={slots.gold.amount} />
+            <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} />
             {slots.equipment.obtained && equipName ? (
                 <EquipmentRollingPlaceholder
                     compact={compact}

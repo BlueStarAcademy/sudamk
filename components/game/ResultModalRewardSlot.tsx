@@ -254,6 +254,10 @@ export const RESULT_MODAL_REWARDS_ROW_MOBILE_FOUR_COL_CLASS =
 export const RESULT_MODAL_REWARDS_ROW_MOBILE_FIVE_COL_CLASS =
     'grid w-full min-w-0 grid-cols-5 gap-0.5 items-start justify-items-center min-h-[4.75rem] py-0.5 sm:min-h-[5rem]';
 
+/** 모험 + VIP + 추가 슬롯 등 6칸 */
+export const RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS =
+    'grid w-full min-w-0 grid-cols-6 gap-0.5 items-start justify-items-center min-h-[4.75rem] py-0.5 sm:min-h-[5rem]';
+
 /** 도전의 탑 등 결과 모달: 획득 보상 줄 높이를 낮춤(동일 한 줄·가로 스크롤) */
 export const RESULT_MODAL_REWARDS_ROW_MOBILE_COMPACT_CLASS = `flex min-h-[2.85rem] w-full min-w-0 flex-row flex-nowrap items-center justify-center gap-0.5 overflow-x-auto overscroll-x-contain py-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] min-[480px]:justify-center`;
 

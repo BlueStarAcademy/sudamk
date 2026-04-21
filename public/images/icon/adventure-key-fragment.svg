@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="key fragment">
+  <defs>
+    <clipPath id="fragmentClip">
+      <polygon points="8,10 58,6 50,58 6,52"/>
+    </clipPath>
+  </defs>
+  <rect width="64" height="64" fill="none"/>
+  <g clip-path="url(#fragmentClip)">
+    <text x="5" y="52" font-size="52" font-family="Segoe UI Emoji, Apple Color Emoji, Noto Color Emoji">=</text>
+  </g>
+  <path d="M9 12L57 7" stroke="#ffffff" stroke-opacity="0.5" stroke-width="1.5"/>
+  <path d="M8 10L58 6L50 58L6 52Z" fill="none" stroke="#fef3c7" stroke-width="2"/>
+</svg>

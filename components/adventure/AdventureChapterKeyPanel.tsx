@@ -11,6 +11,20 @@ type Props = {
     className?: string;
 };
 
+const HalfKeyEmojiIcon: React.FC<{ compact?: boolean }> = ({ compact }) => (
+    <span
+        className={`relative inline-flex items-center justify-center overflow-hidden ${compact ? 'h-3.5 w-2.5' : 'h-4 w-3'}`}
+        aria-label="열쇠 조각"
+    >
+        <span
+            className={`absolute right-0 select-none leading-none ${compact ? 'text-[13px]' : 'text-[15px]'}`}
+            style={{ width: compact ? 13 : 15 }}
+        >
+            🔑
+        </span>
+    </span>
+);
+
 const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, compact, className }) => {
     const stage = useMemo(() => getAdventureStageById(stageId), [stageId]);
     const chapterIdx = stage?.stageIndex ?? 1;
@@ -36,8 +50,8 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
             </h2>
             <div className={compact ? 'space-y-1 px-1' : 'space-y-2 px-2 sm:space-y-2 sm:px-2.5'}>
                 <div className="flex items-center justify-between gap-2">
-                    <span className={compact ? 'text-[9px] font-semibold text-zinc-400' : 'text-[10px] font-semibold text-zinc-400 sm:text-xs'}>
-                        열쇠 경험치
+                    <span className={compact ? 'text-[9px] font-semibold text-zinc-400' : 'text-[10px] font-semibold text-zinc-400 sm:text-xs'} aria-label="열쇠 조각">
+                        <HalfKeyEmojiIcon compact={compact} />
                     </span>
                     <span
                         className={

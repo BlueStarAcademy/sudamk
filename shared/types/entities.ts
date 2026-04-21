@@ -844,6 +844,7 @@ export type GameSummary = {
   /** 모험 몬스터 승리 시 슬롯 결과(연출용; 실제 지급은 gold·items와 동일) */
   adventureRewardSlots?: {
     gold: { obtained: boolean; amount: number; understandingBonus?: number };
+    keyFragment?: { obtained: boolean; amount: number };
     equipment: { obtained: boolean; displayName?: string; grade?: ItemGrade };
     material: { obtained: boolean; displayName?: string; quantity?: number };
   };

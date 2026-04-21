@@ -106,12 +106,6 @@ export const ResultModalVipRewardSlot: React.FC<{
                             'radial-gradient(circle at 25% 15%, rgba(250,232,255,0.5), transparent 40%), radial-gradient(circle at 90% 80%, rgba(52,211,153,0.25), transparent 45%)',
                     }}
                 />
-                <span
-                    className="relative z-[1] mb-0.5 text-[0.5rem] font-black uppercase tracking-[0.2em] text-fuchsia-100/95"
-                    style={{ textShadow: '0 0 10px rgba(232,121,249,0.45)' }}
-                >
-                    VIP 보상
-                </span>
                 {g && rouletteImg ? (
                     <div className="relative z-[1] flex flex-col items-center">
                         <img src={rouletteImg} alt="" className={`${imgCls} drop-shadow-[0_0_8px_rgba(250,232,255,0.35)]`} />

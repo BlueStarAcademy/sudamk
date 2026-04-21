@@ -46,6 +46,7 @@ import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig, type RewardConfig } from 
 import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../shared/constants/adventureStrategyXp.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
+import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCodex.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -1447,7 +1448,13 @@ const processPlayerSummary = async (
             items: advR.items,
             ...(advR.understandingGoldBonus > 0 ? { adventureGoldUnderstandingBonus: advR.understandingGoldBonus } : {}),
         };
-        adventureRewardSlots = advR.adventureRewardSlots;
+        adventureRewardSlots = {
+            ...advR.adventureRewardSlots,
+            keyFragment: {
+                obtained: true,
+                amount: isAdventureChapterBossCodexId(advCodexId) ? 2 : 1,
+            },
+        };
     } else {
         const baseRewards = calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
         rewards = {
@@ -1679,6 +1686,7 @@ const processPlayerSummary = async (
     ) {
         adventureRewardSlots = {
             gold: { obtained: false, amount: 0 },
+            keyFragment: { obtained: false, amount: 0 },
             equipment: { obtained: false },
             material: { obtained: false },
         };
