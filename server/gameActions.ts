@@ -46,6 +46,20 @@ export type HandleActionResult = {
     error?: string;
 };
 
+const gameActionQueues = new Map<string, Promise<unknown>>();
+
+async function runGameActionSerial<T>(gameId: string, task: () => Promise<T>): Promise<T> {
+    const previous = gameActionQueues.get(gameId) ?? Promise.resolve();
+    const nextTask = previous.catch(() => undefined).then(task);
+    const queueTail = nextTask.finally(() => {
+        if (gameActionQueues.get(gameId) === queueTail) {
+            gameActionQueues.delete(gameId);
+        }
+    });
+    gameActionQueues.set(gameId, queueTail);
+    return nextTask;
+}
+
 // --- Helper Functions (moved from the old gameActions) ---
 const normalizeLegacyQuestTexts = (user: User): boolean => {
     if (!user.quests) return false;
@@ -715,6 +729,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
         // 전략바둑 AI 대국: 클라이언트 복구/타임아웃 시 서버에서 makeAiMove(goAiBot → Kata)로 해당 국면 수 계산
         if (type === 'REQUEST_SERVER_AI_MOVE') {
+            return runGameActionSerial(game.id, async () => {
             const goModesForServerAi: GameMode[] = [
                 GameMode.Standard,
                 GameMode.Capture,
@@ -816,9 +831,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payloadGame } }, game);
             // PVE는 WS만 기다리면 지연·병합으로 AI 착수가 화면에 안 보일 수 있음 → HTTP 응답으로 즉시 동기화
             return { clientResponse: { serverAiMoveDone: true, game: payloadGame } };
+            });
         }
 
         if (type === 'REQUEST_GAME_STATE_SYNC') {
+            return runGameActionSerial(game.id, async () => {
             const uid = userData.id;
             if (game.player1.id !== uid && game.player2.id !== uid) {
                 return { error: '해당 경기 참가자가 아닙니다.' };
@@ -883,6 +900,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     : game;
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payloadGame } }, game);
             return { clientResponse: { synced: true } };
+            });
         }
 
         // 일반 AI 대국의 수동 일시정지 중에는 착수/통과 등 주요 게임 액션을 차단

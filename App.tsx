@@ -228,14 +228,11 @@ const AppContent: React.FC = () => {
     }, [isPhoneHandheldTouch]);
 
     /**
-     * 터치 폰만: 세로를 거꾸로 들 때 OS가 portrait-secondary 로 맞추는 동작을 막는다.
+     * 터치 폰만: portrait-primary 잠금을 반복 시도해 상하 반전 시에도 UI가 별도 반응하지 않게 유지한다.
      * 8인치+ 태블릿은 이 훅이 돌지 않음(`isPhoneHandheldTouch` false).
-     * `portrait-primary` 잠금을 반복 시도하고, API가 막힌 브라우저에서는 portrait-secondary 일 때 #root 만 보정한다.
      */
     useEffect(() => {
-        const el = document.documentElement;
         if (!isPhoneHandheldTouch) {
-            el.classList.remove('sudamr-handheld-neutralize-portrait-secondary');
             return undefined;
         }
 
@@ -255,14 +252,6 @@ const AppContent: React.FC = () => {
         const syncUpsideDownAndLock = () => {
             requestAnimationFrame(() => {
                 tryPortraitPrimaryLock();
-                const type = so?.type ?? '';
-                const upsideDownPortrait = type === 'portrait-secondary';
-                const had = el.classList.contains('sudamr-handheld-neutralize-portrait-secondary');
-                if (upsideDownPortrait !== had) {
-                    el.classList.toggle('sudamr-handheld-neutralize-portrait-secondary', upsideDownPortrait);
-                    syncDocumentViewportHeightVar();
-                    window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
-                }
             });
         };
 
@@ -279,7 +268,6 @@ const AppContent: React.FC = () => {
         document.addEventListener('visibilitychange', onVisibility);
 
         return () => {
-            el.classList.remove('sudamr-handheld-neutralize-portrait-secondary');
             so?.removeEventListener('change', syncUpsideDownAndLock);
             window.removeEventListener('orientationchange', syncUpsideDownAndLock);
             window.removeEventListener('resize', syncUpsideDownAndLock);

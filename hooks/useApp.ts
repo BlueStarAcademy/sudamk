@@ -754,6 +754,8 @@ export const useApp = () => {
     const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     // 같은 게임의 AI 동기화 요청이 겹치면 턴/보드 병합이 충돌할 수 있어 in-flight 중복을 차단
     const inFlightAiSyncActionRef = useRef<Set<string>>(new Set());
+    // 배포 환경 고지연에서 동일 착수 요청이 중복 전송되는 경우(더블탭/재전송) 방지
+    const inFlightPlaceStoneActionRef = useRef<Set<string>>(new Set());
     /** PVP 주사위 바둑: 연타 시 낙관 착수는 첫 번째 요청만, inFlight는 요청마다 증가 */
     const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
     /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
@@ -2864,11 +2866,21 @@ export const useApp = () => {
                     (pvpDicePlaceInFlightRef.current[dicePlaceGameId] || 0) + 1;
             }
 
-            const actionGameId = ((action as any).payload as { gameId?: string } | undefined)?.gameId;
+            const actionPayload = (action as any).payload as { gameId?: string; x?: number; y?: number } | undefined;
+            const actionGameId = actionPayload?.gameId;
             const isAiSyncAction =
                 (action.type === 'REQUEST_SERVER_AI_MOVE' || action.type === 'REQUEST_GAME_STATE_SYNC') &&
                 typeof actionGameId === 'string' &&
                 actionGameId.length > 0;
+            const isPlaceStoneAction =
+                action.type === 'PLACE_STONE' &&
+                typeof actionGameId === 'string' &&
+                actionGameId.length > 0 &&
+                typeof actionPayload?.x === 'number' &&
+                typeof actionPayload?.y === 'number';
+            const placeStoneDedupeKey = isPlaceStoneAction
+                ? `${actionGameId}:${actionPayload!.x},${actionPayload!.y}`
+                : null;
             if (isAiSyncAction) {
                 const aiSyncDedupeKey = `${action.type}:${actionGameId}`;
                 if (inFlightAiSyncActionRef.current.has(aiSyncDedupeKey)) {
@@ -2878,6 +2890,15 @@ export const useApp = () => {
                     return;
                 }
                 inFlightAiSyncActionRef.current.add(aiSyncDedupeKey);
+            }
+            if (placeStoneDedupeKey) {
+                if (inFlightPlaceStoneActionRef.current.has(placeStoneDedupeKey)) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`[handleAction] Duplicate in-flight PLACE_STONE skipped: ${placeStoneDedupeKey}`);
+                    }
+                    return;
+                }
+                inFlightPlaceStoneActionRef.current.add(placeStoneDedupeKey);
             }
 
             const res = await fetch(getApiUrl('/api/action'), {
@@ -4209,6 +4230,7 @@ export const useApp = () => {
                 if ((action as ServerAction).type !== 'LIST_GUILDS' && result && (
                     result.clientResponse || 
                     result.guild || 
+                    result.game ||
                     result.gameId ||
                     result.donationResult ||
                     result.clientResponse?.donationResult ||
@@ -4254,6 +4276,16 @@ export const useApp = () => {
                 finalActionGameId.length > 0;
             if (finalIsAiSyncAction) {
                 inFlightAiSyncActionRef.current.delete(`${action.type}:${finalActionGameId}`);
+            }
+            if (
+                action.type === 'PLACE_STONE' &&
+                typeof finalActionGameId === 'string' &&
+                finalActionGameId.length > 0
+            ) {
+                const finalPayload = (action as any).payload as { x?: number; y?: number } | undefined;
+                if (typeof finalPayload?.x === 'number' && typeof finalPayload?.y === 'number') {
+                    inFlightPlaceStoneActionRef.current.delete(`${finalActionGameId}:${finalPayload.x},${finalPayload.y}`);
+                }
             }
             if (dicePlaceGameId) {
                 const gid = dicePlaceGameId;

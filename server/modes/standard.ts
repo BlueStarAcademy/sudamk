@@ -463,9 +463,39 @@ export const handleStrategicGameAction = async (volatileState: types.VolatileSta
     return undefined;
 };
 
+const strategicTurnActionQueues = new Map<string, Promise<unknown>>();
+
+async function runStrategicTurnActionSerial<T>(gameId: string, task: () => Promise<T>): Promise<T> {
+    const previous = strategicTurnActionQueues.get(gameId) ?? Promise.resolve();
+    const nextTask = previous.catch(() => undefined).then(task);
+    const queueTail = nextTask.finally(() => {
+        if (strategicTurnActionQueues.get(gameId) === queueTail) {
+            strategicTurnActionQueues.delete(gameId);
+        }
+    });
+    strategicTurnActionQueues.set(gameId, queueTail);
+    return nextTask;
+}
+
+const handleStandardAction = async (
+    volatileState: types.VolatileState,
+    game: types.LiveGameSession,
+    action: types.ServerAction,
+    user: types.User
+): Promise<types.HandleActionResult | null> => {
+    const actionType = (action as any)?.type as string | undefined;
+    const shouldSerializeTurnAction = actionType === 'PLACE_STONE' || actionType === 'PASS_TURN';
+    if (!shouldSerializeTurnAction) {
+        return handleStandardActionCore(volatileState, game, action, user);
+    }
+    return runStrategicTurnActionSerial(game.id, async () =>
+        handleStandardActionCore(volatileState, game, action, user)
+    );
+};
+
 
 // Keep the original standard action handler, but rename it to avoid conflicts.
-const handleStandardAction = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction, user: types.User): Promise<types.HandleActionResult | null> => {
+const handleStandardActionCore = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction, user: types.User): Promise<types.HandleActionResult | null> => {
     const { type, payload } = action as any;
     const now = Date.now();
     const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
