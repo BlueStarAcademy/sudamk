@@ -35,6 +35,34 @@ import {
     useAiInitialHiddenCellTracking,
     useAiInitialHiddenSyntheticCaptureHistory,
 } from './hiddenRevealPolicy.js';
+import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
+
+const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
+    types.GameMode.Standard,
+    types.GameMode.Capture,
+    types.GameMode.Speed,
+    types.GameMode.Base,
+    types.GameMode.Hidden,
+    types.GameMode.Missile,
+    types.GameMode.Mix,
+];
+
+/**
+ * 모험/길드전 서버 Kata AI: 유저 착수·패스 직후 메인 루프가 인라인 makeAiMove와 동시에 잠금만 잡고
+ * 봇이 스킵되는 레이스를 줄이기 위해 aiTurnStartTime을 약간 미룬다. (gameActions 인라인 대기와 동일 ms)
+ */
+function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession, now: number): number {
+    const isGo = STRATEGIC_GO_SERVER_AI_MODES.includes(game.mode);
+    if (
+        game.isAiGame &&
+        !game.isSinglePlayer &&
+        isGo &&
+        (game.gameCategory === GameCategory.Adventure || game.gameCategory === GameCategory.GuildWar)
+    ) {
+        return now + PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS;
+    }
+    return now;
+}
 
 /** 모험 히든: 유저 히든이 따냄/따임 연출에 포함되면 같은 턴에 유저의 나머지 미공개 히든도 모두 완전 공개 */
 function adventureRevealAllHumanHiddensIfInvolved(
@@ -1344,13 +1372,16 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
             
-            // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+            // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime 설정 (모험/길드전은 메인루프·인라인 경쟁 완화를 위해 지연)
             if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const { aiUserId } = await import('../aiPlayer.js');
                 const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (currentPlayerId === aiUserId) {
-                    game.aiTurnStartTime = now;
-                    console.log(`[handleStandardAction] AI turn after PLACE_STONE, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                    const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+                    game.aiTurnStartTime = startAt;
+                    console.log(
+                        `[handleStandardAction] AI turn after PLACE_STONE, game ${game.id}, setting aiTurnStartTime to ${startAt} (now=${now})`,
+                    );
                 } else {
                     // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
                     game.aiTurnStartTime = undefined;
@@ -1482,17 +1513,20 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                     game.turnDeadline = undefined;
                     game.turnStartTime = undefined;
                 }
-                // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
+                // AI 턴인 경우 aiTurnStartTime 설정 (모험/길드전은 메인루프·인라인 경쟁 완화를 위해 지연)
                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                     const { aiUserId } = await import('../aiPlayer.js');
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
-                        game.aiTurnStartTime = now;
-                        console.log(`[handleStandardAction] AI turn after PLACE_STONE, game ${game.id}, setting aiTurnStartTime to now: ${now}`);
+                        const startAt = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+                        game.aiTurnStartTime = startAt;
+                        console.log(
+                            `[handleStandardAction] AI turn after PASS_TURN, game ${game.id}, setting aiTurnStartTime to ${startAt} (now=${now})`,
+                        );
                     } else {
                         // 사용자 턴으로 넘어갔으므로 aiTurnStartTime을 undefined로 설정
                         game.aiTurnStartTime = undefined;
-                        console.log(`[handleStandardAction] User turn after PLACE_STONE, game ${game.id}, clearing aiTurnStartTime`);
+                        console.log(`[handleStandardAction] User turn after PASS_TURN, game ${game.id}, clearing aiTurnStartTime`);
                     }
                 }
             }

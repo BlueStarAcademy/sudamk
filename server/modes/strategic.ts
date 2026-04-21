@@ -30,6 +30,7 @@ import {
     treatAsPveLikeForHiddenOpponentReveal,
     useAiInitialHiddenCellTracking,
 } from './hiddenRevealPolicy.js';
+import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
 
 const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
 
@@ -46,7 +47,7 @@ const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
 /**
  * 모험/길드전 서버 Kata AI: 유저 착수 직후 메인 루프가 같은 틱에 makeAiMove를 잡아
  * startAiProcessing과 경쟁하는 것을 줄이기 위해 aiTurnStartTime을 약간 미룬다.
- * (인라인 makeAiMove 전 1초 대기와 맞추기 위해 1100ms)
+ * (`PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS`와 동일 — standard.ts·gameActions 인라인과 공유)
  */
 function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession, now: number): number {
     const isGo = STRATEGIC_GO_SERVER_AI_MODES.includes(game.mode);
@@ -56,7 +57,7 @@ function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession,
         isGo &&
         (game.gameCategory === types.GameCategory.Adventure || game.gameCategory === types.GameCategory.GuildWar)
     ) {
-        return now + 1100;
+        return now + PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS;
     }
     return now;
 }

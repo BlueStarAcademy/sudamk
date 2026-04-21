@@ -50,6 +50,58 @@ import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
 import { getMannerRank, MANNER_RANKS } from '../services/manner.js';
 
+/** 플레이어별 누적치(따내기 점수 등): 더 큰 값만 유지 — 서버·클라 중 한쪽만 갱신된 경우에도 감소하지 않게 함 */
+function mergeMonotonicCountRecord<T extends LiveGameSession['captures'] | LiveGameSession['baseStoneCaptures']>(
+    a: T,
+    b: T
+): T {
+    if (!a && !b) return a;
+    const keys = new Set<number>();
+    for (const src of [a, b]) {
+        if (src && typeof src === 'object') {
+            for (const k of Object.keys(src as object)) keys.add(Number(k));
+        }
+    }
+    if (keys.size === 0) return (a ?? b) as T;
+    const out: Record<number, number> = {};
+    for (const k of keys) {
+        const av = Number((a as any)?.[k]) || 0;
+        const bv = Number((b as any)?.[k]) || 0;
+        out[k] = Math.max(av, bv);
+    }
+    return out as T;
+}
+
+/**
+ * 도전의 탑: 수순 길이가 같을 때 서버 패킷의 따내기 점수만 늦게 오면 UI가 줄어드는 문제 보정.
+ * (동일 수순인데 serverRevision만 큰 GAME_UPDATE가 전체 세션을 덮을 때)
+ */
+function mergeTowerPveMonotonicCaptureFieldsFromClient(
+    mergedGame: LiveGameSession,
+    clientSnapshot: LiveGameSession | undefined
+): LiveGameSession {
+    if (!clientSnapshot) return mergedGame;
+    const clientMoves = clientSnapshot.moveHistory?.length ?? 0;
+    const mergedMoves = mergedGame.moveHistory?.length ?? 0;
+    if (clientMoves !== mergedMoves || clientMoves === 0) return mergedGame;
+
+    const nextCaptures = mergeMonotonicCountRecord(mergedGame.captures, clientSnapshot.captures);
+    const nextBsc = mergeMonotonicCountRecord(mergedGame.baseStoneCaptures, clientSnapshot.baseStoneCaptures);
+    const nextHsc = mergeMonotonicCountRecord(mergedGame.hiddenStoneCaptures, clientSnapshot.hiddenStoneCaptures);
+
+    const capChanged = stableStringify(mergedGame.captures || {}) !== stableStringify(nextCaptures || {});
+    const bscChanged = stableStringify(mergedGame.baseStoneCaptures || {}) !== stableStringify(nextBsc || {});
+    const hscChanged = stableStringify(mergedGame.hiddenStoneCaptures || {}) !== stableStringify(nextHsc || {});
+
+    if (!capChanged && !bscChanged && !hscChanged) return mergedGame;
+    return {
+        ...mergedGame,
+        captures: nextCaptures,
+        baseStoneCaptures: nextBsc,
+        hiddenStoneCaptures: nextHsc,
+    };
+}
+
 /** 도전의 탑 PVE: 일반 수는 클라이언트만 반영되어 서버 game의 판·수순이 뒤처질 수 있음. 히든/스캔/미사일 선택 진입 시 응답으로 덮어쓰면 판이 초기화되는 버그 방지. */
 function mergeTowerServerGameWithClientBoardIfStale(
     serverGame: LiveGameSession,
@@ -89,7 +141,7 @@ function mergeTowerServerGameWithClientBoardIfStale(
         boardState: clientGame.boardState,
         moveHistory: clientGame.moveHistory,
         totalTurns: clientGame.totalTurns ?? serverGame.totalTurns,
-        captures: clientGame.captures ?? serverGame.captures,
+        captures: mergeMonotonicCountRecord(serverGame.captures, clientGame.captures),
         koInfo: clientGame.koInfo ?? serverGame.koInfo,
         hiddenMoves: clientGame.hiddenMoves ?? serverGame.hiddenMoves,
         ...(bonusMerged > 0 || serverBonusDefined ? { blackTurnLimitBonus: bonusMerged } : {}),
@@ -110,6 +162,8 @@ function mergeTowerServerGameWithClientBoardIfStale(
         missiles_p1: (serverGame as any).missiles_p1 ?? (clientGame as any).missiles_p1,
         hidden_stones_p1: (serverGame as any).hidden_stones_p1 ?? (clientGame as any).hidden_stones_p1,
         scans_p1: (serverGame as any).scans_p1 ?? (clientGame as any).scans_p1,
+        baseStoneCaptures: mergeMonotonicCountRecord(serverGame.baseStoneCaptures, clientGame.baseStoneCaptures),
+        hiddenStoneCaptures: mergeMonotonicCountRecord(serverGame.hiddenStoneCaptures, clientGame.hiddenStoneCaptures),
     };
 }
 
@@ -1955,7 +2009,14 @@ export const useApp = () => {
                         boardState[stone.y][stone.x] = Player.None;
                     }
 
-                    const moveIndex = (game.moveHistory || []).findIndex((m: any) => m.x === stone.x && m.y === stone.y);
+                    let moveIndex = -1;
+                    for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
+                        const m = game.moveHistory?.[i];
+                        if (m?.x === stone.x && m?.y === stone.y && m?.player === opponentPlayer) {
+                            moveIndex = i;
+                            break;
+                        }
+                    }
                     const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                     const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
                     const wasBaseStone = !!game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
@@ -2113,7 +2174,38 @@ export const useApp = () => {
                     });
                     return currentGames;
                 }
-                
+
+                const { x: px, y: py, isPass: payloadIsPass } = payload as {
+                    x?: number;
+                    y?: number;
+                    isPass?: boolean;
+                };
+                if (
+                    !payloadIsPass &&
+                    typeof px === 'number' &&
+                    typeof py === 'number' &&
+                    px >= 0 &&
+                    py >= 0
+                ) {
+                    const mh = game.moveHistory;
+                    const last = mh && mh.length > 0 ? mh[mh.length - 1] : undefined;
+                    if (
+                        last &&
+                        last.x === px &&
+                        last.y === py &&
+                        last.player === game.currentPlayer
+                    ) {
+                        if (process.env.NODE_ENV === 'development') {
+                            console.warn(`[handleAction] ${actionTypeName} duplicate client move ignored`, {
+                                gameId,
+                                x: px,
+                                y: py,
+                            });
+                        }
+                        return currentGames;
+                    }
+                }
+
                 // 공통 유틸리티 함수를 사용하여 게임 상태 업데이트
                 const updateResult = updateGameStateAfterMove(game, payload, gameType);
                 finalUpdatedGame = updateResult.updatedGame;
@@ -5976,6 +6068,7 @@ export const useApp = () => {
                                             clearTimeout(towerGnugoDelayTimeoutRef.current[gameId]!);
                                             delete towerGnugoDelayTimeoutRef.current[gameId];
                                         }
+                                        mergedGame = mergeTowerPveMonotonicCaptureFieldsFromClient(mergedGame, existingGame);
                                         updatedGames[gameId] = mergedGame;
 
                                         // 그누고(AI) 수: 1초 지연 후 표시 (유저 수는 클라이언트에서 즉시 반영됨)

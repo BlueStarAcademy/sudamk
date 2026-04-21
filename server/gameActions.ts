@@ -1161,8 +1161,16 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     const gameIdInlineAi = game.id;
                     try {
                         const { waitUntilAiProcessingReleased } = await import('./aiSessionManager.js');
+                        const { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } = await import(
+                            './constants/pveStrategicAiSchedule.js'
+                        );
                         await waitUntilAiProcessingReleased(game.id, 10_000);
-                        await new Promise<void>((r) => setTimeout(r, 1000));
+                        await new Promise<void>((r) => setTimeout(r, PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS));
+                        const { getCachedGame } = await import('./gameCache.js');
+                        const freshForInline = await getCachedGame(gameIdInlineAi);
+                        if (freshForInline) {
+                            Object.assign(game, freshForInline);
+                        }
                         const moveBeforeInline = game.moveHistory?.length ?? 0;
                         await makeAiMove(game);
                         const aiAdvanced = (game.moveHistory?.length ?? 0) > moveBeforeInline;

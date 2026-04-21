@@ -1192,6 +1192,21 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const FETCH_COOLDOWN = 30000; // 30초 쿨다운 (interval과 동일하게)
     
     React.useEffect(() => {
+        // 길드 홈에서는 상세 길드전 정보를 주기적으로 가져오지 않는다.
+        // 최소 정보(매칭 플래그)는 guild 객체 동기화 값만 사용한다.
+        if (isGuildRoute) {
+            setActiveWar(null);
+            setOpponentGuild(null);
+            setWarStats(null);
+            setMyRecordInCurrentWar(null);
+            setCanClaimReward(false);
+            setIsClaimed(false);
+            setMyWarAttempts(0);
+            setWarActionCooldown(null);
+            setCancelDeadline(null);
+            return;
+        }
+
         // 길드전 데이터 가져오기
         const fetchWarData = async () => {
             // 이미 fetch 중이거나 쿨다운 중이면 스킵
@@ -1337,7 +1352,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [guild.id]); // guild.id만 의존성으로 유지 (길드가 바뀔 때만 재실행)
+    }, [guild.id, isGuildRoute]); // 길드 홈에서는 상세 fetch 비활성화
     
     // 남은 시간 계산
     React.useEffect(() => {

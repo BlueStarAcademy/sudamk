@@ -140,8 +140,8 @@ class AiProcessingQueue {
      */
     private async processAiMove(gameId: string): Promise<void> {
         try {
-            // 캐시에서 게임 가져오기
-            const game = await getCachedGame(gameId);
+            // 캐시에서 게임 가져오기 (지연 후 최신 세션으로 갱신할 수 있어 let)
+            let game = await getCachedGame(gameId);
             if (!game) {
                 console.warn(`[AI Queue] Game ${gameId} not found in cache`);
                 return;
@@ -178,6 +178,22 @@ class AiProcessingQueue {
             // 주사위/도둑 착수 시에도 매 돌마다 1초 텀 (첫 돌·두 번째 돌 모두 1초 후에 두기)
             if (isPlacingStones) {
                 await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+
+            // 지연 동안 다른 요청이 턴을 바꿨을 수 있음 — 최신 캐시로 재검증 (모험 등에서 오적용 방지)
+            const latest = await getCachedGame(gameId);
+            if (!latest) {
+                console.warn(`[AI Queue] Game ${gameId} missing from cache after think delay`);
+                return;
+            }
+            game = latest;
+            if (!allowedStatuses.includes(game.gameStatus) || game.currentPlayer === undefined) {
+                return;
+            }
+            const aiPlayerIdAfterDelay =
+                game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            if (aiPlayerIdAfterDelay !== aiUserId) {
+                return;
             }
 
             // AI 수 처리
