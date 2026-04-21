@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GameProps, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
-import { ScoringOverlay } from '../game/ScoringOverlay.js';
+import { ScoringOverlay, SCORING_PROGRESS_DURATION_MS } from '../game/ScoringOverlay.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 
@@ -82,6 +82,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
             return false;
         }
     });
+    const [showScoringOverlay, setShowScoringOverlay] = useState(false);
 
     useEffect(() => {
         try {
@@ -92,15 +93,23 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     }, [scoringOverlayStorageKey]);
 
     useEffect(() => {
-        if (gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay) {
+        if (gameStatus === 'scoring' && !hasPlayedScoringOverlay) {
             setHasPlayedScoringOverlay(true);
+            setShowScoringOverlay(true);
             try {
                 sessionStorage.setItem(scoringOverlayStorageKey, '1');
             } catch {
                 // ignore storage failure
             }
+            const timer = window.setTimeout(() => {
+                setShowScoringOverlay(false);
+            }, SCORING_PROGRESS_DURATION_MS);
+            return () => window.clearTimeout(timer);
         }
-    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey, session.analysisResult]);
+        if (gameStatus !== 'scoring') {
+            setShowScoringOverlay(false);
+        }
+    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey]);
 
     const showPlacedBaseStoneArrays =
         gameStatus === 'base_placement' ||
@@ -202,7 +211,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
-            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay && (
+            {gameStatus === 'scoring' && showScoringOverlay && (
                 <ScoringOverlay variant="fullscreen" />
             )}
             <div className={`relative w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>

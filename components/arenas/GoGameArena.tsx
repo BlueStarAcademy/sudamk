@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../types.js';
 import GoBoard from '../GoBoard.js';
-import { ScoringOverlay } from '../game/ScoringOverlay.js';
+import { ScoringOverlay, SCORING_PROGRESS_DURATION_MS } from '../game/ScoringOverlay.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
@@ -52,6 +52,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             return false;
         }
     });
+    const [showScoringOverlay, setShowScoringOverlay] = useState(false);
 
     useEffect(() => {
         try {
@@ -62,15 +63,23 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     }, [scoringOverlayStorageKey]);
 
     useEffect(() => {
-        if (gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay) {
+        if (gameStatus === 'scoring' && !hasPlayedScoringOverlay) {
             setHasPlayedScoringOverlay(true);
+            setShowScoringOverlay(true);
             try {
                 sessionStorage.setItem(scoringOverlayStorageKey, '1');
             } catch {
                 // ignore storage failure
             }
+            const timer = window.setTimeout(() => {
+                setShowScoringOverlay(false);
+            }, SCORING_PROGRESS_DURATION_MS);
+            return () => window.clearTimeout(timer);
         }
-    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey, session.analysisResult]);
+        if (gameStatus !== 'scoring') {
+            setShowScoringOverlay(false);
+        }
+    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey]);
 
     const adventureRegionalHeadStartCaptureBonus =
         session.gameCategory === 'adventure'
@@ -239,7 +248,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             }`}
         >
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
-            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay && (
+            {gameStatus === 'scoring' && showScoringOverlay && (
                 <ScoringOverlay variant="fullscreen" />
             )}
             {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
