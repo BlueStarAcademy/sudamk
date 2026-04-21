@@ -93,7 +93,7 @@ export const applyPreserveDiscovererTurnIfPending = async (
     if (game.isAiGame) {
         const { aiUserId } = await import('../aiPlayer.js');
         const curId = cur === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-        if (curId === aiUserId) {
+        if (curId === aiUserId || (curId != null && String(curId).startsWith('dungeon-bot-'))) {
             game.aiTurnStartTime = now;
         } else {
             game.aiTurnStartTime = undefined;

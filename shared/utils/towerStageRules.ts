@@ -13,8 +13,9 @@ export function resolveTowerCaptureBlackTarget(floor: number, stageBlack: number
 
 /**
  * 미리 배치되는 일반 백돌 수(placements.white).
- * 11~20: 상수 대비 -5.
- * 21~35 / 36~50 / 51~100: (총 흑돌 수) + N = (총 백돌 수)가 되도록, 문양 백(whitePattern)을 제외한 일반 백 개수.
+ * 도전의 탑 1~100층: `TOWER_STAGES`에 적힌 `white`를 그대로 쓴다.
+ * (예전 21~100층에서는 JSON의 `white`와 달리 (흑일반+흑무)+구간상수−백무 로만 계산했기 때문에,
+ *  백 개수를 늘릴 때는 그 「실효」를 기준으로 잡는 것이 맞다.)
  */
 export function resolveTowerPlainWhiteCount(
     floor: number,
@@ -23,19 +24,9 @@ export function resolveTowerPlainWhiteCount(
     whitePattern: number,
     stageWhite: number
 ): number {
-    const b = Math.max(0, blackPlain) + Math.max(0, blackPattern);
-    const wp = Math.max(0, whitePattern);
-    if (floor >= 11 && floor <= 20) {
-        return Math.max(0, stageWhite - 5);
-    }
-    if (floor >= 21 && floor <= 35) {
-        return Math.max(0, b + 3 - wp);
-    }
-    if (floor >= 36 && floor <= 50) {
-        return Math.max(0, b + 4 - wp);
-    }
-    if (floor >= 51 && floor <= 100) {
-        return Math.max(0, b + 5 - wp);
-    }
+    void floor;
+    void blackPlain;
+    void blackPattern;
+    void whitePattern;
     return Math.max(0, stageWhite);
 }

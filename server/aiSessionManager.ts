@@ -172,10 +172,16 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
     session.lastUpdatedAt = Date.now();
 
     const isAiGame = game.isAiGame || game.blackPlayerId === aiPlayerId || game.whitePlayerId === aiPlayerId;
+    const aiControlledBlack =
+        game.blackPlayerId === aiPlayerId ||
+        (game.blackPlayerId != null && String(game.blackPlayerId).startsWith('dungeon-bot-'));
+    const aiControlledWhite =
+        game.whitePlayerId === aiPlayerId ||
+        (game.whitePlayerId != null && String(game.whitePlayerId).startsWith('dungeon-bot-'));
     const aiShouldMove = isAiGame &&
         game.currentPlayer !== Player.None &&
-        ((game.currentPlayer === Player.Black && game.blackPlayerId === aiPlayerId) ||
-         (game.currentPlayer === Player.White && game.whitePlayerId === aiPlayerId));
+        ((game.currentPlayer === Player.Black && aiControlledBlack) ||
+         (game.currentPlayer === Player.White && aiControlledWhite));
 
     if (aiShouldMove && !options.allowAdvanceOnAiTurn) {
         // AI 차례의 stale state가 들어와도 lastProcessedMoveCount를 뒤로 되감지 않는다.

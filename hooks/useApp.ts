@@ -3638,6 +3638,13 @@ export const useApp = () => {
                                 return currentGames;
                             });
                         } else if (isTowerGame) {
+                            if (action.type === 'TOWER_REFRESH_PLACEMENT') {
+                                try {
+                                    sessionStorage.removeItem(`gameState_${effectiveGameId}`);
+                                } catch (_) {
+                                    /* ignore */
+                                }
+                            }
                             setTowerGames(currentGames => {
                                 // CONFIRM·배치변경·턴 추가·스캔/히든 아이템 사용 시 게임 상태가 바뀌었으므로 업데이트
                                 if (
@@ -5493,6 +5500,17 @@ export const useApp = () => {
                                                         const remainingTurns = Math.max(0, autoScoringTurns - totalTurns);
                                                         // 자동계가: 남은 턴이 0 이하(0/N 도달)이면 반드시 계가 트리거
                                                         if (remainingTurns <= 0 && totalTurns > 0) {
+                                                            const serverDeferredScoringKickoff =
+                                                                typeof (game as any).pendingAutoScoringKickoffAt === 'number' &&
+                                                                Number.isFinite((game as any).pendingAutoScoringKickoffAt);
+                                                            if (serverDeferredScoringKickoff) {
+                                                                if (process.env.NODE_ENV === 'development') {
+                                                                    console.log(
+                                                                        `[WebSocket] Auto-scoring: server deferred kickoff (pendingAutoScoringKickoffAt); skip client PLACE_STONE`,
+                                                                        { gameId, pendingAt: (game as any).pendingAutoScoringKickoffAt }
+                                                                    );
+                                                                }
+                                                            } else {
                                                             // 마지막 수가 AI 차례라면 AI가 실제로 착수한 뒤 계가를 진행해야 함.
                                                             // (싱글은 `Game.tsx`에서 Kata 수 요청 후 GAME_UPDATE로 반영될 때까지 대기)
                                                             const isAiTurnForSinglePlayer =
@@ -5573,6 +5591,7 @@ export const useApp = () => {
                                                                     });
                                                                     delete singlePlayerScoringDelayTimeoutRef.current[gameId];
                                                                 }, 500);
+                                                            }
                                                             }
                                                         }
                                                     }

@@ -20,6 +20,7 @@ import { aggregateSpecialOptionGearFromUser, towerApDiscountForFloor } from '../
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { updateQuestProgress } from '../questService.js';
+import { reconcileStrategicAiBoardSizeWithGroundTruth } from '../utils/effectiveBoardSize.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -28,6 +29,9 @@ type HandleActionResult = {
 
 /** 대기실·클라이언트 `countTowerLobbyInventoryQty`와 동일 */
 const TOWER_TURN_ADD_ITEM_NAMES = ['턴 추가', '턴증가', 'turn_add', 'turn_add_item', 'addturn'] as const;
+
+/** 배치변경: 대기실 `TOWER_ITEM_REFRESH_NAMES`와 동일 */
+const TOWER_REFRESH_PLACEMENT_ITEM_NAMES = ['배치 새로고침', '배치변경', 'reflesh', 'refresh'] as const;
 
 /**
  * CONFIRM_TOWER_GAME_START에서 startTime을 넣은 뒤에도 DB/캐시가 pending으로 남으면
@@ -239,6 +243,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
             // reconcile 등으로 스냅만 지워질 때 Kata 포석 접두 복구용(길드전과 동일한 오프닝 보존 개념)
             (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
+            reconcileStrategicAiBoardSizeWithGroundTruth(game);
 
             // 1~20층: 따내기 목표점수 직접 설정(입찰 생략, 흑은 사용자 고정). 6~10층·11~20층은 서버 규칙으로 목표 덮어씀.
             if (gameMode === GameMode.Capture) {
@@ -388,7 +393,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
         }
         case 'TOWER_REFRESH_PLACEMENT': {
             const { gameId } = payload;
-            const { getCachedGame, updateGameCache } = await import('../gameCache.js');
+            const { getCachedGame, updateGameCache, updateUserCache } = await import('../gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) {
                 game = await db.getLiveGame(gameId);
@@ -408,10 +413,18 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: '배치는 첫 수 전에만 새로고침할 수 있습니다.' };
             }
 
-            // 배치변경 아이템 사용 가능 여부 확인 및 소모 (로비·가방과 동일: 이름/id 일치 시 사용, source는 tower 또는 미지정)
-            const inventory = user.inventory || [];
-            const itemIndex = inventory.findIndex((item: any) =>
-                (item.name === '배치 새로고침' || item.name === '배치변경' || item.id === 'reflesh' || item.id === 'refresh') && (item.source === 'tower' || item.source == null)
+            // TOWER_ADD_TURNS와 동일: /api/action이 넘기는 user는 캐시분이라 inventory가 비어 있을 수 있음 → DB에서 인벤 포함 재조회
+            const userWithInventory = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
+            if (!userWithInventory) {
+                return { error: 'User not found.' };
+            }
+
+            const inventory = userWithInventory.inventory || [];
+            const itemIndex = inventory.findIndex(
+                (item: any) =>
+                    TOWER_REFRESH_PLACEMENT_ITEM_NAMES.some((n) => item.name === n || item.id === n) &&
+                    isTowerLobbyInventorySource(item) &&
+                    (item.quantity ?? 1) > 0
             );
 
             if (itemIndex === -1) {
@@ -452,9 +465,12 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.boardState = board;
             game.blackPatternStones = blackPattern;
             game.whitePatternStones = whitePattern;
+            // 스테이지 변경(줄 수 등) 후에도 KataServer boardXSize·GTP 좌표가 실제 판과 일치하도록 settings 동기화
+            game.settings = { ...(game.settings as any), boardSize: stage.boardSize } as typeof game.settings;
             (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
             (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
             (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
+            reconcileStrategicAiBoardSizeWithGroundTruth(game);
 
             // 도전의 탑은 시간 제한 미적용이므로 turnDeadline 복구하지 않음
             game.turnDeadline = undefined;
@@ -465,7 +481,10 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
 
             updateGameCache(game);
             await db.saveGame(game);
-            await db.updateUser(user);
+            await db.updateUser(userWithInventory).catch((err) => {
+                console.error(`[TOWER_REFRESH_PLACEMENT] Failed to save user ${userWithInventory.id}:`, err);
+            });
+            updateUserCache(userWithInventory);
 
             const { broadcastToGameParticipants, broadcastUserUpdate } = await import('../socket.js');
             // 배치변경 후 클라이언트가 보드/문양을 확실히 반영하도록 boardState·문양 배열 포함하여 브로드캐스트
@@ -476,9 +495,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 whitePatternStones: Array.isArray(game.whitePatternStones) ? game.whitePatternStones.map((p: Point) => ({ ...p })) : (game.whitePatternStones ?? []),
             };
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToSend } }, game);
-            broadcastUserUpdate(user, ['actionPoints', 'towerFloor']);
+            broadcastUserUpdate(userWithInventory, ['inventory', 'gold', 'diamonds', 'towerFloor', 'actionPoints']);
             // HTTP 응답에도 동일하게 포함해 클라이언트가 즉시 반영하도록 함
-            return { clientResponse: { updatedUser: user, gameId: game.id, game: gameToSend } };
+            return { clientResponse: { updatedUser: userWithInventory, gameId: game.id, game: gameToSend } };
         }
         case 'TOWER_ADD_TURNS': {
             const { gameId } = payload || {};

@@ -14,8 +14,9 @@ export function getSquareBoardSideFromBoardState(boardState: unknown): number | 
 
 /**
  * 모험·길드전·탑·로비 AI 등에서 `settings.boardSize`(또는 adventureBoardSize)와
- * 실제 `boardState` 변이 어긋나면 KataServer에 잘못된 boardXSize가 전달되어 Illegal move가 난다.
+ * 실제 `boardState` 변이 어긋나면 KataServer에 잘못된 boardXSize가 전달되어 GTP 좌표·Illegal move가 난다.
  * 실제 판을 우선해 settings·adventureBoardSize를 맞추고, 구판 기준 Kata 선포석 캐시는 제거한다.
+ * 도전의 탑: `START_TOWER_GAME` 직후·`TOWER_REFRESH_PLACEMENT` 직후·`makeGoAiBotMove` 진입 시 호출해 줄 수 일치를 유지한다.
  */
 export function reconcileStrategicAiBoardSizeWithGroundTruth(game: LiveGameSession): void {
     const g = game as Record<string, unknown>;

@@ -136,7 +136,7 @@ export interface GenerateKataServerMoveParams {
 
 /**
  * Kata 한 번 호출로 후보 좌표 목록 반환 (bestMove → move 순, PASS 제외).
- * 미사일 PVE 등에서 엔진 좌표와 서버 `processMove` 불일치 시 다음 후보·폴백에 사용.
+ * PASS·빈 응답·전부 파싱 실패 시 `[-1,-1]` 폴백 없이 예외를 던져 원인 추적이 가능하게 한다.
  */
 export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {
     if (!KATA_SERVER_URL) {
@@ -217,8 +217,9 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
         }
 
         if (gtps.length === 0) {
-            await sleep(KATA_APPLY_MOVE_DELAY_MS);
-            return [{ x: -1, y: -1 }];
+            throw new Error(
+                `[KataServer] /move returned no board coordinate (PASS or empty). move=${reported ?? 'n/a'} bestMove=${best ?? 'n/a'} strategy=${data.strategy ?? 'n/a'} level=${level} boardSize=${boardSize} moves=${moves.length} player=${player} gameId=${gameId ?? 'n/a'}`,
+            );
         }
 
         const points: Point[] = [];
@@ -229,8 +230,13 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
                 console.warn(`[KataServer] skip unparsable GTP coord "${g}": ${e?.message ?? e}`);
             }
         }
+        if (points.length === 0) {
+            throw new Error(
+                `[KataServer] /move had GTP candidates but none parsed to a point: ${JSON.stringify(gtps)} level=${level} boardSize=${boardSize} gameId=${gameId ?? 'n/a'}`,
+            );
+        }
         await sleep(KATA_APPLY_MOVE_DELAY_MS);
-        return points.length > 0 ? points : [{ x: -1, y: -1 }];
+        return points;
     } catch (err: any) {
         if (err.name === 'AbortError') {
             throw new Error(`KataServer timeout (${KATA_SERVER_TIMEOUT_MS}ms)`);

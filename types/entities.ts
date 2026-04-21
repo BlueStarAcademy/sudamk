@@ -921,6 +921,8 @@ export type LiveGameSession = {
   aiHiddenItemTurns?: number[];
   aiHiddenItemsUsedCount?: number;
   aiHiddenItemAnimationEndTime?: number;
+  /** 싱글·탑 PVE: 마지막 AI 수 직후 착수 애니 후 이 시각에 도달하면 계가 시작 */
+  pendingAutoScoringKickoffAt?: number;
   noContestInitiatorIds?: string[];
   /** 전략 PVP: 10수 미만 규정에 따른 무효 대국(기보 저장 제외 등에 사용) */
   shortGameNoContest?: boolean;

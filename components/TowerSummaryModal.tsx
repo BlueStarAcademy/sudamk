@@ -390,8 +390,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
 
     const mobileTextScale = 1;
 
-    const panelSizing = isMobile ? 'min-w-0 flex-1 basis-0' : 'min-w-0 min-h-0 w-1/2 shrink-0';
-
     useEffect(() => {
         setMobileResultTab('match');
     }, [session.id]);
@@ -494,6 +492,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             title={modalTitle}
             onClose={isScoring ? undefined : () => handleClose(session, onClose)} 
             windowId="tower-summary-redesigned"
+            skipSavedPosition
             initialWidth={840}
             shrinkHeightToContent
             uniformPcScale={false}
@@ -502,7 +501,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
-            defaultPosition={modalLayerUsesDesignPixels ? { x: 400, y: 0 } : { x: 0, y: 0 }}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
             <>
@@ -619,9 +617,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         </div>
                     </>
                 ) : (
-                    <div className="flex min-w-0 flex-row items-stretch gap-1.5 overflow-visible sm:gap-2">
+                    <div className="flex min-h-0 min-w-0 flex-row items-stretch gap-1.5 overflow-visible sm:gap-2">
                         <div
-                            className={`${panelSizing} flex flex-col ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2 sp-summary-left-panel`}
+                            className={`flex min-h-0 min-w-0 w-[48%] shrink-0 flex-col ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2 sp-summary-left-panel`}
                         >
                             <h2
                                 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
@@ -660,15 +658,15 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 ) : null}
                             </div>
                         </div>
-                        <div className={`${panelSizing} flex min-w-0 flex-col gap-1.5 overflow-visible`}>
-                            <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2`}>
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-visible">
+                            <div className={`flex min-w-0 flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} overflow-visible p-2`}>
                                 <h2
                                     className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
                                     style={{ fontSize: '15px' }}
                                 >
                                     내 정보
                                 </h2>
-                                <div className={`${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5 p-1.5`}>
+                                <div className={`${SP_SUMMARY_INSET_CLASS} flex min-w-0 flex-shrink-0 items-center gap-1.5 p-1.5`}>
                                     <Avatar
                                         userId={currentUser.id}
                                         userName={currentUser.nickname}
@@ -676,8 +674,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                         borderUrl={borderUrl}
                                         size={32}
                                     />
-                                    <div>
-                                        <p className="font-bold text-zinc-100" style={{ fontSize: '15px' }}>
+                                    <div className="min-w-0">
+                                        <p className="truncate font-bold text-zinc-100" style={{ fontSize: '15px' }}>
                                             {currentUser.nickname}
                                         </p>
                                         <p className="text-amber-200/60" style={{ fontSize: '13px' }}>

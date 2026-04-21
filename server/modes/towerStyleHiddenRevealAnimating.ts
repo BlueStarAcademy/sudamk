@@ -1,5 +1,7 @@
 import * as types from '../../types/index.js';
 import * as db from '../db.js';
+import { aiUserId } from '../aiPlayer.js';
+import { syncAiSession } from '../aiSessionManager.js';
 import { resumeGameTimer } from './shared.js';
 import {
     consumeOpponentPatternStoneIfAny,
@@ -8,6 +10,28 @@ import {
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 
 export type TowerStyleHiddenRevealPostTurnHook = (game: types.LiveGameSession, now: number) => Promise<void>;
+
+function isAiControlledSeat(game: types.LiveGameSession, playerEnum: types.Player): boolean {
+    const id = playerEnum === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    return id === aiUserId || (id != null && String(id).startsWith('dungeon-bot-'));
+}
+
+/** 연출 종료 직후 DB/캐시/브로드캐스트 반영 + AI 세션 동기화(히든 후 봇 미착수·턴 고착 방지) */
+async function persistAfterHiddenRevealTransition(game: types.LiveGameSession, now: number): Promise<void> {
+    if (isAiControlledSeat(game, game.currentPlayer)) {
+        game.aiTurnStartTime = now;
+    } else {
+        game.aiTurnStartTime = undefined;
+    }
+    await db.saveGame(game);
+    const { broadcastToGameParticipants } = await import('../socket.js');
+    const { updateGameCache } = await import('../gameCache.js');
+    updateGameCache(game);
+    const payloadGame = { ...game };
+    delete (payloadGame as any).boardState;
+    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payloadGame } }, game);
+    syncAiSession(game, aiUserId);
+}
 
 /**
  * 도전의 탑 `updateTowerPlayerHiddenState`의 `hidden_reveal_animating` 분기와 동일한 처리.
@@ -47,34 +71,17 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
         }
         game.pausedTurnTimeLeft = undefined;
         if (pendingAiAfterUserHiddenReveal) {
-            await db.saveGame(game);
-            const { broadcastToGameParticipants } = await import('../socket.js');
-            const { updateGameCache } = await import('../gameCache.js');
-            updateGameCache(game);
-            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-            const { makeAiMove } = await import('../aiPlayer.js');
-            setImmediate(() => {
-                makeAiMove(game)
-                    .then(async () => {
-                        try {
-                            updateGameCache(game);
-                            await db.saveGame(game);
-                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                        } catch (e: any) {
-                            console.error(`[${logPrefix}] AI move after user-hidden full reveal failed for ${game.id}:`, e?.message);
-                        }
-                    })
-                    .catch((err: any) => {
-                        console.error(`[${logPrefix}] makeAiMove after user-hidden full reveal failed for ${game.id}:`, err?.message);
-                    });
-            });
+            // 즉시 makeAiMove는 AI 세션 락·메인루프 setImmediate와 경합해 스킵될 수 있음 → hidden.ts와 동일하게 aiTurnStartTime만 설정
+            await persistAfterHiddenRevealTransition(game, now);
             return true;
         }
+        await persistAfterHiddenRevealTransition(game, now);
         return true;
     }
 
     if (await applyPreserveDiscovererTurnIfPending(game, now, cap)) {
         (game as any).isAiTurnCancelledAfterReveal = undefined;
+        await persistAfterHiddenRevealTransition(game, now);
         return true;
     }
 
@@ -147,27 +154,7 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
             (game as any)[aiTimeKey] = game.pausedTurnTimeLeft;
         }
         game.pausedTurnTimeLeft = undefined;
-        await db.saveGame(game);
-        const { broadcastToGameParticipants } = await import('../socket.js');
-        const { updateGameCache } = await import('../gameCache.js');
-        updateGameCache(game);
-        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-        const { makeAiMove } = await import('../aiPlayer.js');
-        setImmediate(() => {
-            makeAiMove(game)
-                .then(async () => {
-                    try {
-                        updateGameCache(game);
-                        await db.saveGame(game);
-                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
-                    } catch (e: any) {
-                        console.error(`[${logPrefix}] AI move after hidden reveal failed for ${game.id}:`, e?.message);
-                    }
-                })
-                .catch((err: any) => {
-                    console.error(`[${logPrefix}] makeAiMove after hidden reveal failed for ${game.id}:`, err?.message);
-                });
-        });
+        await persistAfterHiddenRevealTransition(game, now);
         return true;
     }
 
@@ -181,5 +168,6 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
         await onPostTurnSwitch(game, now);
     }
 
+    await persistAfterHiddenRevealTransition(game, now);
     return true;
 };

@@ -225,6 +225,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [pauseButtonCooldown, setPauseButtonCooldown] = useState(0);
     // 연속 클릭 방지: 수 처리 중에는 추가 클릭 무시
     const [isMoveInFlight, setIsMoveInFlight] = useState(false);
+    /** 싱글/타워: 클라 착수는 setState 전에 동기적으로 막아야 같은 틱·연속 클릭으로 수순이 두 번 밀리지 않음 */
+    const pveLocalStonePlacementLockRef = useRef(false);
+    /** 전략·모험·길드전 등 온라인 AI 대국: 낙관적 착수~서버 PLACE_STONE 완료까지 동기적으로 중복 클릭 차단 */
+    const strategicAiStoneLockRef = useRef(false);
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
     const boardRuleFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const clientTimes = useClientTimer(
@@ -235,6 +239,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 싱글플레이 고급 히든: AI 히든 아이템 연출 종료 시각 (이 시각까지 바둑판 패널 테두리만 빛남)
     const [aiHiddenItemEffectEndTime, setAiHiddenItemEffectEndTime] = useState<number | null>(null);
     const aiHiddenMoveExecutedRef = useRef(false);
+    /** 탑·싱글: 서버 ai_thinking 만료 후 REQUEST_SERVER_AI_MOVE를 이미 보낸 경우 `${gameId}:${endTime}` */
+    const pveAiHiddenPostAnimRequestDoneRef = useRef<string | null>(null);
+    const sessionRefForPveAiHiddenFollowup = useRef(session);
+    sessionRefForPveAiHiddenFollowup.current = session;
     // 연출 중 시간 경과로 빛/일시정지 갱신용 (0.5초마다)
     const [effectTick, setEffectTick] = useState(0);
 
@@ -1186,13 +1194,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     // 게임이 바뀌면 히든 연출 실행 여부 ref 초기화 (새 게임에서 1회 히든 턴이 동작하도록)
     useEffect(() => {
         aiHiddenMoveExecutedRef.current = false;
+        pveAiHiddenPostAnimRequestDoneRef.current = null;
     }, [session.id]);
 
-    // 싱글플레이/도전의 탑 히든: 6초 연출 종료 시점이 지나면 AI 히든 착수 실행 (한 번만)
+    // 길드전 히든: 6초 연출(클라 타이머) 종료 시 휴리스틱으로 AI 히든 착수 (한 번만)
     useEffect(() => {
         if (aiHiddenItemEffectEndTime == null) return;
         if (Date.now() < aiHiddenItemEffectEndTime) return;
         if (aiHiddenMoveExecutedRef.current) {
+            setAiHiddenItemEffectEndTime(null);
+            return;
+        }
+        if (!isGuildWarGame) {
             setAiHiddenItemEffectEndTime(null);
             return;
         }
@@ -1206,45 +1219,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (aiPlayerEnum !== Player.Black && aiPlayerEnum !== Player.White) return;
         const opponentPlayerEnum = aiPlayerEnum === Player.Black ? Player.White : Player.Black;
 
-        // 히든 연출 종료 직후 AI 히든 착수: 탑·싱글은 서버가 연출에 실은 Kata 확정 좌표(pendingHiddenMove) 우선, 없으면 휴리스틱 폴백
         const maskedBoardState = getMaskedBoardForHiddenAi(session, boardStateToUse);
         const koInfoAtCalculation = session.koInfo ? JSON.parse(JSON.stringify(session.koInfo)) : null;
-        let aiMove: { x: number; y: number } | null = null;
-        if (isGuildWarGame) {
-            aiMove = calculateSimpleAiMove(
-                JSON.parse(JSON.stringify(maskedBoardState)),
-                aiPlayerEnum,
-                opponentPlayerEnum,
-                koInfoAtCalculation,
-                moveHistoryLength,
-                session.settings?.aiDifficulty ?? 1
-            );
-        } else {
-            const anim = session.animation as { type?: string; pendingHiddenMove?: { x: number; y: number } } | undefined;
-            const pm = anim?.pendingHiddenMove;
-            const boardSize = boardStateToUse.length;
-            const kataFromAnim =
-                anim?.type === 'ai_thinking' &&
-                pm &&
-                Number.isInteger(pm.x) &&
-                Number.isInteger(pm.y) &&
-                pm.x >= 0 &&
-                pm.y >= 0 &&
-                pm.x < boardSize &&
-                pm.y < boardSize;
-            if (kataFromAnim && pm) {
-                aiMove = { x: pm.x, y: pm.y };
-            } else {
-                aiMove = calculateSimpleAiMove(
-                    JSON.parse(JSON.stringify(maskedBoardState)),
-                    aiPlayerEnum,
-                    opponentPlayerEnum,
-                    koInfoAtCalculation,
-                    moveHistoryLength,
-                    session.settings?.aiDifficulty ?? 1
-                );
-            }
-        }
+        const aiMove = calculateSimpleAiMove(
+            JSON.parse(JSON.stringify(maskedBoardState)),
+            aiPlayerEnum,
+            opponentPlayerEnum,
+            koInfoAtCalculation,
+            moveHistoryLength,
+            session.settings?.aiDifficulty ?? 1
+        );
         if (!aiMove) return;
         if (isUnrevealedUserHiddenStoneAt(session, aiMove.x, aiMove.y)) {
             lastAiMoveRef.current = {
@@ -1258,7 +1242,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
                 payload: {
                     gameId: session.id,
-                    gameType: isTower ? 'tower' : isGuildWarGame ? 'guildwar' : 'singleplayer',
+                    gameType: 'guildwar',
                     point: { x: aiMove.x, y: aiMove.y },
                     player: opponentPlayerEnum,
                     keepTurn: true,
@@ -1280,31 +1264,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             timestamp: Date.now(),
             revealSig: session.permanentlyRevealedStones?.length ?? 0,
         };
-        if (isGuildWarGame) {
-            handlers.handleAction({
-                type: 'PLACE_STONE',
-                payload: {
-                    gameId: session.id,
-                    x: aiMove.x,
-                    y: aiMove.y,
-                    isClientAiMove: true,
-                    isHidden: true,
-                },
-            } as ServerAction);
-            return;
-        }
         handlers.handleAction({
-            type: isTower ? 'TOWER_CLIENT_MOVE' : 'SINGLE_PLAYER_CLIENT_MOVE',
+            type: 'PLACE_STONE',
             payload: {
                 gameId: session.id,
                 x: aiMove.x,
                 y: aiMove.y,
-                newBoardState: aiMoveResult.newBoardState,
-                capturedStones: aiMoveResult.capturedStones,
-                newKoInfo: aiMoveResult.newKoInfo,
+                isClientAiMove: true,
                 isHidden: true,
             },
-        } as any);
+        } as ServerAction);
     }, [
         aiHiddenItemEffectEndTime,
         effectTick,
@@ -1317,11 +1286,65 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         restoredBoardState,
         session.boardState,
         handlers.handleAction,
-        isTower,
         isGuildWarGame,
-        session.isSinglePlayer,
         session.gameCategory,
-        session.animation,
+    ]);
+
+    // 도전의 탑·싱글: 서버 6초 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회
+    useEffect(() => {
+        if (!isTower && !session.isSinglePlayer) return;
+        if (session.gameStatus !== 'playing') return;
+        const anim = session.animation as { type?: string; startTime?: number } | undefined;
+        if (anim?.type !== 'ai_thinking') return;
+        const end = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
+        if (end == null || !Number.isFinite(end)) return;
+
+        const sid = String(session.id ?? '');
+        const followKey = `${sid}:${end}:${anim.startTime ?? 0}`;
+        if (pveAiHiddenPostAnimRequestDoneRef.current === followKey) return;
+
+        const scheduleMs = Math.max(0, end - Date.now()) + 50;
+        const tid = window.setTimeout(() => {
+            if (pveAiHiddenPostAnimRequestDoneRef.current === followKey) return;
+            const s = sessionRefForPveAiHiddenFollowup.current;
+            const animNow = s.animation as { type?: string } | undefined;
+            const endNow = (s as any).aiHiddenItemAnimationEndTime as number | undefined;
+            if (animNow?.type !== 'ai_thinking' || endNow !== end || s.gameStatus !== 'playing') return;
+            const aiPlayerId = s.currentPlayer === Player.Black ? s.blackPlayerId : s.whitePlayerId;
+            const isAiTurnNow =
+                aiPlayerId === AI_USER_ID || (s.isAiGame && aiPlayerId === 'ai-player-01');
+            if (!isAiTurnNow) return;
+
+            pveAiHiddenPostAnimRequestDoneRef.current = followKey;
+            const clientSync = buildPveItemActionClientSync(s);
+            if (!clientSync) {
+                pveAiHiddenPostAnimRequestDoneRef.current = null;
+                return;
+            }
+            void handlers
+                .handleAction({
+                    type: 'REQUEST_SERVER_AI_MOVE',
+                    payload: { gameId: sid, clientSync },
+                } as ServerAction)
+                .catch((err) => {
+                    console.error('[Game] PVE post ai_thinking REQUEST_SERVER_AI_MOVE failed:', err);
+                    pveAiHiddenPostAnimRequestDoneRef.current = null;
+                });
+        }, scheduleMs);
+        return () => window.clearTimeout(tid);
+    }, [
+        isTower,
+        session.isSinglePlayer,
+        session.id,
+        session.gameStatus,
+        session.animation?.type,
+        (session.animation as { startTime?: number } | undefined)?.startTime,
+        (session as any).aiHiddenItemAnimationEndTime,
+        session.currentPlayer,
+        session.blackPlayerId,
+        session.whitePlayerId,
+        session.isAiGame,
+        handlers.handleAction,
     ]);
 
     useEffect(() => {
@@ -1363,6 +1386,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             setIsMoveInFlight(false);
         }
     }, [isMoveInFlight, session.moveHistory?.length, prevMoveCount, gameStatus, prevGameStatus, myBaseStoneCountForUnlock, prevMyBaseStoneCountForUnlock]);
+
+    // 싱글/타워 클라 착수 직후: 다음 렌더에서 ref 해제(성공 경로). 실패 시에는 위에서 즉시 false.
+    useEffect(() => {
+        if (!pveLocalStonePlacementLockRef.current) return;
+        pveLocalStonePlacementLockRef.current = false;
+    }, [session.moveHistory?.length, session.currentPlayer, session.id]);
 
     const flashBoardRuleMessage = useCallback((message: string, durationMs = 3500) => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
@@ -1459,9 +1488,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
         }
 
-        // 이미 한 수가 처리 중이면 추가 클릭 무시
-        if (isMoveInFlight) {
-            console.log('[Game] Move in flight, ignoring additional click');
+        // 이미 한 수가 처리 중이면 추가 클릭 무시 (온라인: isMoveInFlight / 싱글·타워: 동기 ref / 전략AI: 낙관적 착수 동기 ref)
+        if (isMoveInFlight || pveLocalStonePlacementLockRef.current || strategicAiStoneLockRef.current) {
+            console.log('[Game] Move in flight or placement lock, ignoring additional click');
             return;
         }
 
@@ -1667,6 +1696,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             }
             // 도전의 탑·싱글플레이 일반 착수: 클라이언트에서만 처리 (서버로 전송하지 않음)
             if (isTower || isSinglePlayer) {
+                pveLocalStonePlacementLockRef.current = true;
                 // 클라이언트에서 직접 게임 상태 업데이트 (검증 없이 무조건 실행)
                 console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} game - processing move client-side (no validation):`, { x, y, gameId, currentPlayer: myPlayerEnum });
                 
@@ -1674,6 +1704,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const boardStateToUse = restoredBoardState || session.boardState;
                 if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - boardState is invalid, cannot process move`);
+                    pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
                 
@@ -1681,6 +1712,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x === -1 || y === -1) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - CRITICAL BUG PREVENTION: Attempted to place stone at pass position (${x}, ${y})`);
                     // TODO: 에러 메시지를 사용자에게 표시
+                    pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
 
@@ -1689,6 +1721,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - CRITICAL BUG PREVENTION: Attempted to place stone out of bounds (${x}, ${y}), boardSize=${boardSize}`);
                     // TODO: 에러 메시지를 사용자에게 표시
+                    pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
 
@@ -1711,17 +1744,20 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             keepTurn: true
                         }
                     } as any);
+                    pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
                 if ((isSinglePlayer || isTower) && stoneAtTarget === opponentPlayerEnum) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - CRITICAL BUG PREVENTION: Attempted to place stone on AI stone at (${x}, ${y})`);
                     // TODO: 에러 메시지를 사용자에게 표시
+                    pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
 
                 if (restrictIntro1OnboardingMove && isSinglePlayer) {
                     if (x !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x || y !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y) {
                         flashBoardRuleMessage('튜토리얼: 표시된 자리에 두세요.');
+                        pveLocalStonePlacementLockRef.current = false;
                         return;
                     }
                 }
@@ -1743,6 +1779,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 } catch (e) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - processMoveClient error:`, e);
                     // TODO: 에러 메시지를 사용자에게 표시
+                    pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
                 
@@ -1750,6 +1787,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (!moveResult.isValid) {
                     console.error(`[Game] ${isTower ? 'Tower' : 'Single player'} game - Invalid move blocked:`, moveResult.reason);
                     if (moveResult.reason === 'ko') showKoRuleFlash();
+                    pveLocalStonePlacementLockRef.current = false;
                     return;
                 }
 
@@ -1797,30 +1835,39 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         if (actionType) {
             console.log('[Game] Sending action:', { actionType, payload, isMyTurn, myPlayerEnum, currentPlayer, gameStatus });
-            // 전략/모험 AI 대국: 서버 응답 전에도 유저 수를 즉시 보드에 반영
-            if (actionType === 'PLACE_STONE' &&
+            const optimisticAiStonePlace =
+                actionType === 'PLACE_STONE' &&
                 session.isAiGame &&
                 !session.isSinglePlayer &&
                 session.gameCategory !== 'tower' &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
-                y >= 0) {
+                y >= 0;
+            // 전략/모험/길드전 등 온라인 AI 대국: 서버 응답 전에도 유저 수를 즉시 보드에 반영
+            if (optimisticAiStonePlace) {
+                strategicAiStoneLockRef.current = true;
                 applyOptimisticAiUserMove(x, y);
             }
             setIsMoveInFlight(true);
-            void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction)).then((res) => {
-                const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
-                if (hasErr) {
-                    setIsMoveInFlight(false);
-                    const err = String((res as { error: string }).error);
-                    if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
-                        showKoRuleFlash();
+            void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction))
+                .then((res) => {
+                    const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
+                    if (hasErr) {
+                        setIsMoveInFlight(false);
+                        const err = String((res as { error: string }).error);
+                        if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
+                            showKoRuleFlash();
+                        }
+                    } else if (actionType === 'DICE_PLACE_STONE' || actionType === 'THIEF_PLACE_STONE') {
+                        // 주사위/도둑: 낙관적 갱신은 moveHistory를 늘리지 않아 moveHistory 기반 잠금 해제가 되지 않음 → 매 수마다 해제
+                        setIsMoveInFlight(false);
                     }
-                } else if (actionType === 'DICE_PLACE_STONE' || actionType === 'THIEF_PLACE_STONE') {
-                    // 주사위/도둑: 낙관적 갱신은 moveHistory를 늘리지 않아 moveHistory 기반 잠금 해제가 되지 않음 → 매 수마다 해제
-                    setIsMoveInFlight(false);
-                }
-            });
+                })
+                .finally(() => {
+                    if (optimisticAiStonePlace) {
+                        strategicAiStoneLockRef.current = false;
+                    }
+                });
         } else {
             console.log('[Game] No action type determined', { 
                 isMyTurn, 
@@ -1878,8 +1925,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const y = pendingMove.y;
 
         // 이미 한 수가 처리 중이면 추가 확정 무시
-        if (isMoveInFlight) {
-            console.log('[Game] Move in flight, ignoring confirm');
+        if (isMoveInFlight || pveLocalStonePlacementLockRef.current || strategicAiStoneLockRef.current) {
+            console.log('[Game] Move in flight or placement lock, ignoring confirm');
             return;
         }
 
@@ -1908,17 +1955,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         } else if (['playing', 'hidden_placing'].includes(gameStatus) && isMyTurn) {
             // PVE(싱글/타워): 클라이언트에서 즉시 반영
             if (isPVEGame) {
+                pveLocalStonePlacementLockRef.current = true;
                 const boardStateToUse = restoredBoardState || session.boardState;
                 if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) {
+                    pveLocalStonePlacementLockRef.current = false;
                     setPendingMove(null);
                     return;
                 }
                 const boardSize = session.settings.boardSize;
                 if (x === -1 || y === -1) {
+                    pveLocalStonePlacementLockRef.current = false;
                     setPendingMove(null);
                     return;
                 }
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) {
+                    pveLocalStonePlacementLockRef.current = false;
                     setPendingMove(null);
                     return;
                 }
@@ -1928,6 +1979,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (restrictIntro1OnboardingMove && session.isSinglePlayer) {
                     if (x !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.x || y !== ONBOARDING_INTRO1_FORCED_CAPTURE_POINT.y) {
                         flashBoardRuleMessage('튜토리얼: 표시된 자리에 두세요.');
+                        pveLocalStonePlacementLockRef.current = false;
                         setPendingMove(null);
                         return;
                     }
@@ -1944,11 +1996,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     );
                 } catch (e) {
                     console.error('[Game] Confirm move processMoveClient error:', e);
+                    pveLocalStonePlacementLockRef.current = false;
                     setPendingMove(null);
                     return;
                 }
                 if (!moveResult.isValid) {
                     if (moveResult.reason === 'ko') showKoRuleFlash();
+                    pveLocalStonePlacementLockRef.current = false;
                     setPendingMove(null);
                     return;
                 }
@@ -1988,31 +2042,38 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (actionType) {
-            if (
+            const optimisticAiStonePlaceConfirm =
                 actionType === 'PLACE_STONE' &&
                 session.isAiGame &&
                 !session.isSinglePlayer &&
                 session.gameCategory !== 'tower' &&
                 gameStatus === 'playing' &&
                 x >= 0 &&
-                y >= 0
-            ) {
+                y >= 0;
+            if (optimisticAiStonePlaceConfirm) {
+                strategicAiStoneLockRef.current = true;
                 applyOptimisticAiUserMove(x, y);
             }
             setIsMoveInFlight(true);
             const at = actionType;
-            void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction)).then((res) => {
-                const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
-                if (hasErr) {
-                    setIsMoveInFlight(false);
-                    const err = String((res as { error: string }).error);
-                    if (at === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
-                        showKoRuleFlash();
+            void Promise.resolve(handlers.handleAction({ type: at, payload } as ServerAction))
+                .then((res) => {
+                    const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
+                    if (hasErr) {
+                        setIsMoveInFlight(false);
+                        const err = String((res as { error: string }).error);
+                        if (at === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
+                            showKoRuleFlash();
+                        }
+                    } else if (at === 'DICE_PLACE_STONE' || at === 'THIEF_PLACE_STONE') {
+                        setIsMoveInFlight(false);
                     }
-                } else if (at === 'DICE_PLACE_STONE' || at === 'THIEF_PLACE_STONE') {
-                    setIsMoveInFlight(false);
-                }
-            });
+                })
+                .finally(() => {
+                    if (optimisticAiStonePlaceConfirm) {
+                        strategicAiStoneLockRef.current = false;
+                    }
+                });
         }
         setPendingMove(null);
     }, [
@@ -2232,6 +2293,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         clearPauseCountdown();
         setIsBoardLocked(false);
         setLastReceivedServerRevision(session.serverRevision ?? 0);
+        pveLocalStonePlacementLockRef.current = false;
+        strategicAiStoneLockRef.current = false;
     }, [session.id, clearPauseCountdown]);
 
     // 같은 게임 내 serverRevision 변경 시: 최신 리비전 반영 및 보드 잠금 해제 (일시정지 상태는 유지)
@@ -2242,31 +2305,28 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [session.serverRevision]);
 
-    // currentPlayer 변경 감지: AI가 돌을 둔 경우 보드 잠금
+    // currentPlayer 변경 감지: AI가 돌을 둔 경우 보드 잠금 (싱글플레이만 — 타워는 클라 수라 serverRevision이 안 올라 잠금이 풀리지 않을 수 있음)
     useEffect(() => {
-        if (session.isSinglePlayer && prevCurrentPlayer !== undefined) {
-            // 싱글플레이에서는 blackPlayerId가 사용자, whitePlayerId가 AI
-            const myPlayerEnum = blackPlayerId === currentUser.id ? Player.Black : (whitePlayerId === currentUser.id ? Player.White : Player.None);
-            const wasMyTurn = prevCurrentPlayer === myPlayerEnum;
-            const isNowMyTurn = currentPlayer === myPlayerEnum;
-            
-            // AI가 돌을 둔 경우 (내 턴이 아니었다가 내 턴이 된 경우는 제외)
-            if (wasMyTurn && !isNowMyTurn) {
-                console.log('[Game] AI moved, locking board until serverRevision update', { 
-                    prevCurrentPlayer, 
-                    currentPlayer, 
-                    myPlayerEnum,
-                    wasMyTurn,
-                    isNowMyTurn
-                });
-                setIsBoardLocked(true);
-            }
+        if (!session.isSinglePlayer || prevCurrentPlayer === undefined) return;
+        const myPl = blackPlayerId === currentUser.id ? Player.Black : whitePlayerId === currentUser.id ? Player.White : Player.None;
+        const wasMyTurn = prevCurrentPlayer === myPl;
+        const isNowMyTurn = currentPlayer === myPl;
+
+        if (wasMyTurn && !isNowMyTurn) {
+            console.log('[Game] AI moved, locking board until serverRevision update', {
+                prevCurrentPlayer,
+                currentPlayer,
+                myPlayerEnum: myPl,
+                wasMyTurn,
+                isNowMyTurn,
+            });
+            setIsBoardLocked(true);
         }
     }, [currentPlayer, prevCurrentPlayer, session.isSinglePlayer, currentUser.id, blackPlayerId, whitePlayerId]);
 
     // serverRevision 변경 감지: 최신 상태를 받은 경우 보드 잠금 해제
     useEffect(() => {
-        if ((session.isSinglePlayer || isTower) && session.serverRevision !== undefined) {
+        if (session.isSinglePlayer && session.serverRevision !== undefined) {
             const newRevision = session.serverRevision;
             if (newRevision > lastReceivedServerRevision) {
                 setLastReceivedServerRevision(newRevision);
@@ -2277,7 +2337,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
             }
         }
-    }, [session.serverRevision, session.isSinglePlayer, isTower, lastReceivedServerRevision, isBoardLocked]);
+    }, [session.serverRevision, session.isSinglePlayer, lastReceivedServerRevision, isBoardLocked]);
 
     const aiStuckGameStateSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const aiStuckPostSyncFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2481,12 +2541,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 놀이바둑 AI 게임도 클라이언트에서 처리
         const isAiTurn = aiPlayerId === AI_USER_ID || (session.isAiGame && aiPlayerId === 'ai-player-01');
 
-        // Safety: during server-driven hidden animation (ai_thinking), do not calculate/send any AI move.
-        const aiHiddenItemAnimationEndTime = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
-        const isServerAiHiddenAnimationInProgress =
-            session.animation?.type === 'ai_thinking' &&
-            aiHiddenItemAnimationEndTime != null &&
-            Date.now() < aiHiddenItemAnimationEndTime;
+        // Safety: 서버가 ai_thinking을 유지하는 동안(6초 만료 후 Kata 히든 착수까지 포함) 클라가 AI 수를 보내지 않음
+        const isServerAiHiddenAnimationInProgress = session.animation?.type === 'ai_thinking';
         if (isServerAiHiddenAnimationInProgress) {
             lastAiMoveRef.current = null;
             return;
@@ -2557,7 +2613,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 neverExecutedHiddenThisGame &&
                 nextAiHiddenItemTurn != null &&
                 aiTurnIndex === nextAiHiddenItemTurn;
-            if (isAiHiddenItemTurn && aiHiddenItemEffectEndTime == null) {
+            if (isAiHiddenItemTurn && aiHiddenItemEffectEndTime == null && isGuildWarGame) {
                 aiHiddenMoveExecutedRef.current = false;
                 setAiHiddenItemEffectEndTime(Date.now() + 6000);
                 return;
@@ -2745,7 +2801,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         (session as any).hidden_stones_p2,
         session.player1?.id,
         session.animation?.type,
-        (session as any).aiHiddenItemAnimationEndTime
+        (session as any).aiHiddenItemAnimationEndTime,
+        isGuildWarGame,
     ]);
     
     const globalChat = useMemo(() => waitingRoomChats['global'] || [], [waitingRoomChats]);
@@ -2864,11 +2921,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return base;
     }, [useRefreshSessionStorageMerge, sessionWithRestoredPatternStones, restoredBoardState]);
 
-    const serverAiHiddenAnimationEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
-    const isServerAiHiddenPresentationActive =
-        session.animation?.type === 'ai_thinking' &&
-        serverAiHiddenAnimationEnd != null &&
-        Date.now() < serverAiHiddenAnimationEnd;
+    const isServerAiHiddenPresentationActive = session.animation?.type === 'ai_thinking';
     const isClientAiHiddenPresentationActive =
         aiHiddenItemEffectEndTime != null && Date.now() < aiHiddenItemEffectEndTime;
     const isAiHiddenPresentationActive =

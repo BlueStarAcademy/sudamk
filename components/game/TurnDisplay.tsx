@@ -561,10 +561,12 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     );
 
     void opponentHiddenTickerPulse;
+    const marqueeFromServerAiThinking =
+        session.animation?.type === 'ai_thinking' && opponentAiHiddenTickerEnd != null;
     const showOpponentAiHiddenMarquee =
         wantsOpponentHiddenTicker &&
         opponentAiHiddenTickerEnd != null &&
-        Date.now() < opponentAiHiddenTickerEnd;
+        (marqueeFromServerAiThinking || Date.now() < opponentAiHiddenTickerEnd);
 
     if (boardRuleFlashMessage) {
         return wrapContent(
