@@ -792,7 +792,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const beforePlayer = game.currentPlayer;
             // 세션/락 꼬임으로 shouldProcessAiTurn이 영구 false가 되는 경우를 복구
             await waitUntilAiProcessingReleased(game.id, 3000);
-            syncAiSession(game, aiUserId, { allowAdvanceOnAiTurn: true });
+            // AI 차례에서는 allowAdvanceOnAiTurn을 쓰면 lastProcessedMoveCount가 현재 수순으로 고정되어
+            // shouldProcessAiTurn이 false가 될 수 있다. 기본 동기화로 "한 수 전" 복구를 허용한다.
+            syncAiSession(game, aiUserId);
             cancelAiProcessing(game.id);
             try {
                 await makeAiMove(game);
@@ -812,7 +814,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (afterMoveLen <= beforeMoveLen && aiStillToMove) {
                 // 1회 더 강제 복구 시도 (락 유실/세션 꼬임 잔존 케이스)
                 cancelAiProcessing(game.id);
-                syncAiSession(game, aiUserId, { allowAdvanceOnAiTurn: true });
+                syncAiSession(game, aiUserId);
                 try {
                     await makeAiMove(game);
                 } catch (e: any) {
@@ -821,6 +823,18 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     aiProcessingQueue.enqueue(game.id);
                     return { error: `AI_MOVE_FAILED_RETRYING: ${e?.message ?? 'unknown_error'}` };
                 }
+            }
+            const finalMoveLen = game.moveHistory?.length ?? 0;
+            const finalCurrentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            const stillAiTurnAfterRetries =
+                game.currentPlayer !== types.Player.None &&
+                (finalCurrentPlayerId === aiUserId || (finalCurrentPlayerId && String(finalCurrentPlayerId).startsWith('dungeon-bot-')));
+            const isPlayingLikeState = game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing';
+            if (finalMoveLen <= beforeMoveLen && stillAiTurnAfterRetries && isPlayingLikeState) {
+                // makeAiMove 내부 조기 return(히든 연출/동기화 지연 등)로 무진행이면 요청 단위에서 즉시 재큐잉해 교착을 줄인다.
+                const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
+                aiProcessingQueue.enqueue(game.id);
+                return { error: 'AI_MOVE_STALLED_REQUEUED' };
             }
             updateGameCache(game);
             await db.saveGame(game);
