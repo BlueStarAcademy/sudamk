@@ -73,7 +73,7 @@ const RankingRow = ({
                 >
                     {rank}
                 </span>
-                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={34} />
+                <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={34} fixedFrameSize />
                 <UserNicknameText
                     user={{
                         nickname: user.nickname,
@@ -106,7 +106,7 @@ const RankingRow = ({
             >
                 {rank}
             </span>
-            <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} />
+            <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} fixedFrameSize />
             <UserNicknameText
                 user={{
                     nickname: user.nickname,

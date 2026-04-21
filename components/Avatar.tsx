@@ -7,9 +7,10 @@ interface AvatarProps {
   borderUrl?: string | null;
   size?: number;
   className?: string;
+  fixedFrameSize?: boolean;
 }
 
-const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl, size = 40, className = '' }) => {
+const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl, size = 40, className = '', fixedFrameSize = false }) => {
   const remSize = size / 16;
   const isColorBorder = borderUrl && (borderUrl.startsWith('#') || borderUrl.startsWith('conic-gradient'));
   const isImageBorder = borderUrl && !isColorBorder;
@@ -36,7 +37,10 @@ const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl,
     return (
       <div
         className={`relative flex-shrink-0 flex items-center justify-center ${className}`}
-        style={{ width: `${borderRemSize}rem`, height: `${borderRemSize}rem` }}
+        style={{
+          width: `${fixedFrameSize ? remSize : borderRemSize}rem`,
+          height: `${fixedFrameSize ? remSize : borderRemSize}rem`,
+        }}
       >
         {/* Avatar on bottom, centered, with original size */}
         <div
@@ -49,7 +53,8 @@ const Avatar: React.FC<AvatarProps> = ({ userId, userName, avatarUrl, borderUrl,
         <img
           src={borderUrl}
           alt=""
-          className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+          className={`absolute pointer-events-none object-contain ${fixedFrameSize ? 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2' : 'inset-0'}`}
+          style={fixedFrameSize ? { width: `${borderRemSize}rem`, height: `${borderRemSize}rem` } : undefined}
           aria-hidden="true"
           loading="lazy"
         />

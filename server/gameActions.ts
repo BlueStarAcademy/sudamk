@@ -768,7 +768,30 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 return { error: 'Game not in playing state.' };
             }
             const { makeAiMove } = await import('./aiPlayer.js');
+            const {
+                waitUntilAiProcessingReleased,
+                syncAiSession,
+                cancelAiProcessing,
+            } = await import('./aiSessionManager.js');
+            const beforeMoveLen = game.moveHistory?.length ?? 0;
+            const beforePlayer = game.currentPlayer;
+            // 세션/락 꼬임으로 shouldProcessAiTurn이 영구 false가 되는 경우를 복구
+            await waitUntilAiProcessingReleased(game.id, 3000);
+            syncAiSession(game, aiUserId, { allowAdvanceOnAiTurn: true });
+            cancelAiProcessing(game.id);
             await makeAiMove(game);
+            const afterMoveLen = game.moveHistory?.length ?? 0;
+            const aiStillToMove =
+                game.currentPlayer === beforePlayer &&
+                (game.currentPlayer === types.Player.Black
+                    ? game.blackPlayerId
+                    : game.whitePlayerId) === aiUserId;
+            if (afterMoveLen <= beforeMoveLen && aiStillToMove) {
+                // 1회 더 강제 복구 시도 (락 유실/세션 꼬임 잔존 케이스)
+                cancelAiProcessing(game.id);
+                syncAiSession(game, aiUserId, { allowAdvanceOnAiTurn: true });
+                await makeAiMove(game);
+            }
             updateGameCache(game);
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');

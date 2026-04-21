@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { GameProps, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { ScoringOverlay } from '../game/ScoringOverlay.js';
@@ -74,6 +74,33 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         baseStones_p1,
         baseStones_p2,
     } = session;
+    const scoringOverlayStorageKey = `scoringOverlayPlayed_${session.id}`;
+    const [hasPlayedScoringOverlay, setHasPlayedScoringOverlay] = useState<boolean>(() => {
+        try {
+            return sessionStorage.getItem(scoringOverlayStorageKey) === '1';
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            setHasPlayedScoringOverlay(sessionStorage.getItem(scoringOverlayStorageKey) === '1');
+        } catch {
+            setHasPlayedScoringOverlay(false);
+        }
+    }, [scoringOverlayStorageKey]);
+
+    useEffect(() => {
+        if (gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay) {
+            setHasPlayedScoringOverlay(true);
+            try {
+                sessionStorage.setItem(scoringOverlayStorageKey, '1');
+            } catch {
+                // ignore storage failure
+            }
+        }
+    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey, session.analysisResult]);
 
     const showPlacedBaseStoneArrays =
         gameStatus === 'base_placement' ||
@@ -175,7 +202,9 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
-            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && <ScoringOverlay variant="fullscreen" />}
+            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay && (
+                <ScoringOverlay variant="fullscreen" />
+            )}
             <div className={`relative w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                 {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
                 <div className="w-full h-full flex items-center justify-center rounded-lg min-w-0 min-h-0 overflow-hidden">

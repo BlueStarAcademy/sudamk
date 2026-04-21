@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { GameProps, Player, Point, GameStatus, Move, GameMode } from '../../types.js';
 import GoBoard from '../GoBoard.js';
 import { ScoringOverlay } from '../game/ScoringOverlay.js';
@@ -44,6 +44,33 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     } = props;
 
     const { blackPlayerId, whitePlayerId, player1, player2, settings, lastMove, gameStatus, mode, moveHistory, hiddenMoves } = session;
+    const scoringOverlayStorageKey = `scoringOverlayPlayed_${session.id}`;
+    const [hasPlayedScoringOverlay, setHasPlayedScoringOverlay] = useState<boolean>(() => {
+        try {
+            return sessionStorage.getItem(scoringOverlayStorageKey) === '1';
+        } catch {
+            return false;
+        }
+    });
+
+    useEffect(() => {
+        try {
+            setHasPlayedScoringOverlay(sessionStorage.getItem(scoringOverlayStorageKey) === '1');
+        } catch {
+            setHasPlayedScoringOverlay(false);
+        }
+    }, [scoringOverlayStorageKey]);
+
+    useEffect(() => {
+        if (gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay) {
+            setHasPlayedScoringOverlay(true);
+            try {
+                sessionStorage.setItem(scoringOverlayStorageKey, '1');
+            } catch {
+                // ignore storage failure
+            }
+        }
+    }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey, session.analysisResult]);
 
     const adventureRegionalHeadStartCaptureBonus =
         session.gameCategory === 'adventure'
@@ -212,7 +239,9 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
             }`}
         >
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
-            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && <ScoringOverlay variant="fullscreen" />}
+            {gameStatus === 'scoring' && !session.analysisResult?.['system'] && !hasPlayedScoringOverlay && (
+                <ScoringOverlay variant="fullscreen" />
+            )}
             {/* 회전 버튼: 흑/백 입장 전환 (이모지로 표현) */}
             {onToggleBoardRotation && (
                 <button

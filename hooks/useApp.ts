@@ -174,6 +174,27 @@ function shouldKeepLocalSessionOverIncomingPending(prevG: LiveGameSession, incom
     return s === 'playing' || s === 'scoring' || s === 'hidden_final_reveal' || s === 'ended' || s === 'no_contest';
 }
 
+/**
+ * AI 수 지연 연출(1초) 타이머가 늦게 실행되며 더 최신 상태를 되돌리는 레이스를 방지한다.
+ * - 최신 서버 리비전/수순이 더 앞서면 지연 스냅샷 적용 금지
+ * - 수순 길이가 같아도 마지막 착수 좌표가 다르면(다른 분기 패킷) 적용 금지
+ */
+function shouldSkipDelayedAiSnapshotApply(
+    latestGame: LiveGameSession | undefined,
+    delayedSnapshot: LiveGameSession
+): boolean {
+    if (!latestGame) return false;
+    const latestRevision = latestGame.serverRevision ?? 0;
+    const delayedRevision = delayedSnapshot.serverRevision ?? 0;
+    if (latestRevision > delayedRevision) return true;
+
+    const latestMoves = latestGame.moveHistory?.length ?? 0;
+    const delayedMoves = delayedSnapshot.moveHistory?.length ?? 0;
+    if (latestMoves > delayedMoves) return true;
+
+    return false;
+}
+
 /** WebSocket INITIAL_STATE에서 boardState를 떼어내므로, 격자가 없으면 F5 후에도 /api/game/rejoin으로 전체 판·수순을 받아야 한다. */
 function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boolean {
     const b = game?.boardState;
@@ -731,6 +752,8 @@ export const useApp = () => {
     const towerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     const liveGameGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
+    // 같은 게임의 AI 동기화 요청이 겹치면 턴/보드 병합이 충돌할 수 있어 in-flight 중복을 차단
+    const inFlightAiSyncActionRef = useRef<Set<string>>(new Set());
     /** PVP 주사위 바둑: 연타 시 낙관 착수는 첫 번째 요청만, inFlight는 요청마다 증가 */
     const pvpDicePlaceInFlightRef = useRef<Record<string, number>>({});
     /** 낙관 착수 실패 시 복구용 스냅샷 (해당 gameId당 1개) */
@@ -2841,6 +2864,22 @@ export const useApp = () => {
                     (pvpDicePlaceInFlightRef.current[dicePlaceGameId] || 0) + 1;
             }
 
+            const actionGameId = ((action as any).payload as { gameId?: string } | undefined)?.gameId;
+            const isAiSyncAction =
+                (action.type === 'REQUEST_SERVER_AI_MOVE' || action.type === 'REQUEST_GAME_STATE_SYNC') &&
+                typeof actionGameId === 'string' &&
+                actionGameId.length > 0;
+            if (isAiSyncAction) {
+                const aiSyncDedupeKey = `${action.type}:${actionGameId}`;
+                if (inFlightAiSyncActionRef.current.has(aiSyncDedupeKey)) {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`[handleAction] Duplicate in-flight AI sync action skipped: ${aiSyncDedupeKey}`);
+                    }
+                    return;
+                }
+                inFlightAiSyncActionRef.current.add(aiSyncDedupeKey);
+            }
+
             const res = await fetch(getApiUrl('/api/action'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -4163,6 +4202,14 @@ export const useApp = () => {
             console.error(`[handleAction] Error stack:`, err.stack);
             showError(err.message || '요청 처리 중 오류가 발생했습니다.');
         } finally {
+            const finalActionGameId = ((action as any).payload as { gameId?: string } | undefined)?.gameId;
+            const finalIsAiSyncAction =
+                (action.type === 'REQUEST_SERVER_AI_MOVE' || action.type === 'REQUEST_GAME_STATE_SYNC') &&
+                typeof finalActionGameId === 'string' &&
+                finalActionGameId.length > 0;
+            if (finalIsAiSyncAction) {
+                inFlightAiSyncActionRef.current.delete(`${action.type}:${finalActionGameId}`);
+            }
             if (dicePlaceGameId) {
                 const gid = dicePlaceGameId;
                 const n = (pvpDicePlaceInFlightRef.current[gid] || 1) - 1;
@@ -6090,17 +6137,26 @@ export const useApp = () => {
                                             const isScoringInUpdate = gameToApply.gameStatus === 'scoring';
                                             towerGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
                                                 delete towerGnugoDelayTimeoutRef.current[gameId];
+                                                let appliedDelayedSnapshot = false;
                                                 // 서버가 이미 scoring이면 playing→scoring 깜빡임은 ScoringOverlay를 두 번 마운트시킴 → 즉시 scoring 반영
                                                 if (isScoringInUpdate) {
                                                     if (towerScoringDelayTimeoutRef.current[gameId] != null) {
                                                         clearTimeout(towerScoringDelayTimeoutRef.current[gameId]);
                                                         delete towerScoringDelayTimeoutRef.current[gameId];
                                                     }
-                                                    setTowerGames(prev => ({ ...prev, [gameId]: gameToApply }));
-                                                    lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
-                                                    towerGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                    setTowerGames(prev => {
+                                                        if (shouldSkipDelayedAiSnapshotApply(prev[gameId], gameToApply)) return prev;
+                                                        appliedDelayedSnapshot = true;
+                                                        return { ...prev, [gameId]: gameToApply };
+                                                    });
                                                 } else {
-                                                    setTowerGames(prev => ({ ...prev, [gameId]: gameToApply }));
+                                                    setTowerGames(prev => {
+                                                        if (shouldSkipDelayedAiSnapshotApply(prev[gameId], gameToApply)) return prev;
+                                                        appliedDelayedSnapshot = true;
+                                                        return { ...prev, [gameId]: gameToApply };
+                                                    });
+                                                }
+                                                if (appliedDelayedSnapshot) {
                                                     lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
                                                     towerGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
                                                 }
@@ -6391,9 +6447,16 @@ export const useApp = () => {
                                             }
                                             const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
                                             liveGameGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
-                                                setLiveGames(prev => ({ ...prev, [gameId]: gameToApply }));
-                                                lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
-                                                liveGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                let appliedDelayedSnapshot = false;
+                                                setLiveGames(prev => {
+                                                    if (shouldSkipDelayedAiSnapshotApply(prev[gameId], gameToApply)) return prev;
+                                                    appliedDelayedSnapshot = true;
+                                                    return { ...prev, [gameId]: gameToApply };
+                                                });
+                                                if (appliedDelayedSnapshot) {
+                                                    lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
+                                                    liveGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                }
                                                 delete liveGameGnugoDelayTimeoutRef.current[gameId];
                                             }, STRATEGIC_AI_MOVE_DELAY_MS);
                                             return currentGames;
@@ -6915,6 +6978,19 @@ export const useApp = () => {
 
     useEffect(() => {
         if (!inGameRecoveryGameId) return;
+        // 인게임 화면에 이미 들어와 진행 중이면 불필요한 rejoin 자동갱신을 막아 경기 집중을 우선한다.
+        const routeGameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
+        const isCurrentlyViewingSameGame = routeGameId === inGameRecoveryGameId;
+        const currentGame =
+            liveGames[routeGameId] ||
+            singlePlayerGames[routeGameId] ||
+            towerGames[routeGameId];
+        const isLiveMatchNow =
+            !!currentGame &&
+            !['ended', 'no_contest', 'scoring', 'hidden_final_reveal', 'rematch_pending'].includes(
+                currentGame.gameStatus || '',
+            );
+        if (isCurrentlyViewingSameGame && isLiveMatchNow) return;
 
         const gid = inGameRecoveryGameId;
         if (rejoinRequestedRef.current.has(gid)) return;
@@ -6961,7 +7037,7 @@ export const useApp = () => {
             clearTimeout(t);
             rejoinRequestedRef.current.delete(gid);
         };
-    }, [inGameRecoveryGameId]);
+    }, [inGameRecoveryGameId, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames]);
 
     // 새로고침(F5) 후 게임 페이지에서 재입장 API 호출 - AI/PVP 공통 (INITIAL_STATE 대기 후)
     useEffect(() => {
@@ -6972,6 +7048,16 @@ export const useApp = () => {
             return;
         }
         const gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        const isLiveMatchNow =
+            !!gameInStore &&
+            !['ended', 'no_contest', 'scoring', 'hidden_final_reveal', 'rematch_pending'].includes(
+                gameInStore.gameStatus || '',
+            );
+        // 경기 중에는 현재 판이 비지 않았더라도 강제 rejoin 재요청을 막아 불필요한 상태 재병합을 피한다.
+        if (isLiveMatchNow) {
+            setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            return;
+        }
         if (gameInStore && hasHydratedBoardGridForRejoin(gameInStore)) {
             setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
             return;

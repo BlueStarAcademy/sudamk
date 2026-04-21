@@ -217,6 +217,7 @@ const RankingList: React.FC<RankingListProps> = ({ currentUser, mode, onViewUser
                     size={isTopThree ? 32 : 28} 
                     avatarUrl={avatarUrl} 
                     borderUrl={borderUrl}
+                    fixedFrameSize
                     className="relative z-10 transition-transform duration-300 group-hover:scale-105"
                 />
                 <div className="flex-grow overflow-hidden relative z-10">
