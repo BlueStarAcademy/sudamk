@@ -684,6 +684,26 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             break;
         }
         case 'dice_rolling': {
+            // 안전장치: 간헐적으로 aiTurnStartTime이 누락/비정상 값으로 남아 AI가 영구 대기하는 케이스 방지
+            // (오버샷·재연결·직렬화 경합 등에서 드물게 재현)
+            if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+                const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                const isAiTurnNow = currentPlayerId === aiUserId;
+                if (isAiTurnNow) {
+                    const startAt = Number(game.aiTurnStartTime);
+                    const isInvalidStartAt =
+                        !Number.isFinite(startAt) ||
+                        startAt <= 0 ||
+                        startAt < now - 10_000 ||
+                        startAt > now + 60_000;
+                    if (isInvalidStartAt) {
+                        game.aiTurnStartTime = now;
+                    }
+                } else if (game.aiTurnStartTime != null) {
+                    game.aiTurnStartTime = undefined;
+                }
+            }
+
             // turnDeadline이 없거나 이미 지났으면 설정 (오버샷 직후 유저 턴·캐시 만료 등으로 꼬인 경우 방지) — PVP에만
             if (shouldEnforceTimeControl(game) && (!game.turnDeadline || now > game.turnDeadline)) {
                 if (now > (game.turnDeadline || 0)) {

@@ -22,6 +22,7 @@ interface RewardCard {
     type: 'guildXp' | 'guildCoins' | 'researchPoints' | 'gold' | 'material' | 'ticket' | 'equipment' | 'materialBox';
     name: string;
     quantity?: number;
+    quantityText?: string;
     image: string;
     grade?: ItemGrade;
     isSpecial?: boolean; // 5등급 보상 또는 전설 이상 장비
@@ -43,11 +44,11 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
                         letterSpacing: '3px',
                     }}
                 >
-                    EXP
+                    GuildEXP
                 </div>
                 {card.quantity !== undefined && (
                     <div className={`mt-0.5 text-[10px] font-bold ${card.isSpecial ? 'text-yellow-200' : 'text-blue-300'}`}>
-                        {card.quantity.toLocaleString()}
+                        {card.quantityText ?? card.quantity.toLocaleString()}
                     </div>
                 )}
             </div>
@@ -66,7 +67,7 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
                     </div>
                     {card.quantity !== undefined && (
                         <div className={`text-[11px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
-                            {card.quantity.toLocaleString()}
+                            {card.quantityText ?? card.quantity.toLocaleString()}
                         </div>
                     )}
                 </div>
@@ -86,7 +87,7 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
                     </div>
                     {card.quantity !== undefined && (
                         <div className={`text-[11px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
-                            {card.quantity.toLocaleString()}
+                            {card.quantityText ?? card.quantity.toLocaleString()}
                         </div>
                     )}
                 </div>
@@ -111,6 +112,11 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     const rewards = result.rewards;
     const tier = rewards.tier;
     const isTopGrade = tier === 12;
+    const vipSlot =
+        result.vipPlayRewardSlot ??
+        (currentUserWithStatus
+            ? { locked: !isRewardVipActive(currentUserWithStatus as User) }
+            : { locked: true });
     
     useEffect(() => {
         // 보상 카드 배열 생성
@@ -126,10 +132,20 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         });
         
         // 길드 코인
+        const isRewardVipUser = !vipSlot.locked;
+        const guildCoinQuantity = rewards.guildCoins;
+        const guildCoinSplitBase =
+            isRewardVipUser && guildCoinQuantity > 0 && guildCoinQuantity % 2 === 0
+                ? guildCoinQuantity / 2
+                : null;
         cards.push({
             type: 'guildCoins',
             name: '길드 코인',
-            quantity: rewards.guildCoins,
+            quantity: guildCoinQuantity,
+            quantityText:
+                guildCoinSplitBase != null
+                    ? `${guildCoinSplitBase.toLocaleString()}(+${guildCoinSplitBase.toLocaleString()})`
+                    : undefined,
             image: '/images/guild/tokken.png',
             isSpecial: isTopGrade,
         });
@@ -156,7 +172,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         cards.push({
             type: 'material',
             name: rewards.materials.name,
-            quantity: rewards.materials.quantity,
+            quantity: rewards.materials.quantity > 1 ? rewards.materials.quantity : undefined,
             image: MATERIAL_IMAGES[rewards.materials.name] || '/images/materials/materials1.png',
             isSpecial: isTopGrade,
         });
@@ -166,7 +182,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             cards.push({
                 type: 'material',
                 name: rewards.materialsBonus.name,
-                quantity: rewards.materialsBonus.quantity,
+                quantity: rewards.materialsBonus.quantity > 1 ? rewards.materialsBonus.quantity : undefined,
                 image: MATERIAL_IMAGES[rewards.materialsBonus.name] || '/images/materials/materials5.png',
                 isSpecial: true,
             });
@@ -177,7 +193,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             cards.push({
                 type: 'materialBox',
                 name: rewards.materialBox.name,
-                quantity: rewards.materialBox.quantity,
+                quantity: rewards.materialBox.quantity > 1 ? rewards.materialBox.quantity : undefined,
                 image: MATERIAL_BOX_IMAGES[rewards.materialBox.name] || '/images/Box/ResourceBox3.png',
                 isSpecial: true,
             });
@@ -188,7 +204,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             cards.push({
                 type: 'ticket',
                 name: ticket.name,
-                quantity: ticket.quantity,
+                quantity: ticket.quantity > 1 ? ticket.quantity : undefined,
                 image: TICKET_IMAGES[ticket.name] || '/images/use/change1.png',
                 isSpecial: isTopGrade,
             });
@@ -225,7 +241,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                 : (gradeBackgrounds[gradeKey] || '/images/equipments/normalbgi.png');
 
             const rawEqQty = (equipmentItem as { quantity?: number } | undefined)?.quantity;
-            const equipmentQty = typeof rawEqQty === 'number' && rawEqQty > 0 ? rawEqQty : 1;
+            const equipmentQty = typeof rawEqQty === 'number' && rawEqQty > 1 ? rawEqQty : undefined;
 
             cards.push({
                 type: 'equipment',
@@ -301,12 +317,6 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         return label ? `${label}등급` : 'E등급';
     };
 
-    const vipSlot =
-        result.vipPlayRewardSlot ??
-        (currentUserWithStatus
-            ? { locked: !isRewardVipActive(currentUserWithStatus as User) }
-            : { locked: true });
-    
     return (
         <DraggableWindow title="전투 결과" onClose={onClose} windowId="guild-boss-battle-result" initialWidth={600} initialHeight={700} isTopmost={isTopmost}>
             <div className="flex flex-col h-full min-h-0 bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950 rounded-b-lg border-t border-amber-500/30">
@@ -322,12 +332,12 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     </div>
                 </div>
                 
-                <div className="mb-4 overflow-y-auto flex-1 min-h-0 pr-1">
-                    <div className="grid grid-cols-4 gap-2">
+                <div className="mb-3 flex-1 min-h-0 pr-1">
+                    <div className="grid grid-cols-5 gap-1.5">
                         {rewardCards.map((card, index) => (
                             <div
                                 key={index}
-                                className={`relative h-24 ${card.isSpecial ? 'z-10' : ''}`}
+                                className={`relative h-20 sm:h-[5.25rem] ${card.isSpecial ? 'z-10' : ''}`}
                                 style={{
                                     animationDelay: `${index * 100}ms`,
                                 }}
@@ -386,13 +396,13 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                                 )}
                             </div>
                         ))}
-                    </div>
-                    <div className="mt-3 flex justify-center border-t border-amber-500/20 pt-3">
-                        <ResultModalVipRewardSlot
-                            slot={vipSlot}
-                            compact={false}
-                            onLockedClick={vipSlot.locked ? () => handlers.openShop('vip') : undefined}
-                        />
+                        <div className="relative h-20 sm:h-[5.25rem]">
+                            <ResultModalVipRewardSlot
+                                slot={vipSlot}
+                                compact
+                                onLockedClick={vipSlot.locked ? () => handlers.openShop('vip') : undefined}
+                            />
+                        </div>
                     </div>
                 </div>
                 

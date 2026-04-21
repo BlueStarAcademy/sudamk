@@ -1371,7 +1371,15 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 }
             }
 
-            const isManuallyPaused = game.isAiGame && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
+            // 수동 일시정지는 현재 전략바둑 AI 대국에만 적용한다.
+            // 놀이바둑(주사위/도둑 등)에서 pausedTurnTimeLeft 잔존값이 남아 AI 턴이 영구 정지하는 것을 방지.
+            const isStrategicMode = SPECIAL_GAME_MODES.some((m) => m.mode === game.mode);
+            const isManuallyPaused =
+                isStrategicMode &&
+                game.isAiGame &&
+                game.pausedTurnTimeLeft !== undefined &&
+                !game.turnDeadline &&
+                !game.itemUseDeadline;
 
             // 게임 상태 업데이트를 먼저 실행하여 애니메이션 완료 후 턴 전환을 처리
             // 중요: 게임 상태 업데이트를 먼저 실행해야 애니메이션 완료 후 턴 전환이 제대로 처리됨
@@ -1463,6 +1471,12 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || playfulPlayingStatuses.includes(game.gameStatus));
             
             if (canProcessAiTurn && !didAlkkagiTriggerAiAttack) {
+                const dispatchingAt = Number((game as any)._aiMoveDispatchingAt ?? 0);
+                if ((game as any)._aiMoveDispatching && dispatchingAt > 0 && now - dispatchingAt > 8_000) {
+                    // 드문 예외 경로에서 finally 미도달 시 디스패치 락이 고착되는 현상 복구
+                    (game as any)._aiMoveDispatching = false;
+                    (game as any)._aiMoveDispatchingAt = undefined;
+                }
                 if ((game as any)._aiMoveDispatching) {
                     return game;
                 }
@@ -1476,6 +1490,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                     const gameId = game.id;
                     const initialMoveCount = game.moveHistory?.length ?? 0;
                     (game as any)._aiMoveDispatching = true;
+                    (game as any)._aiMoveDispatchingAt = Date.now();
                     game.aiTurnStartTime = Date.now() + 500;
                     setImmediate(() => {
                         makeAiMove(game).then(async () => {
@@ -1505,6 +1520,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                             game.aiTurnStartTime = Date.now() + 1000;
                         }).finally(() => {
                             (game as any)._aiMoveDispatching = false;
+                            (game as any)._aiMoveDispatchingAt = undefined;
                         });
                     });
                     // 이번 사이클에서는 AI 수를 기다리지 않고 즉시 반환 → 타임아웃 방지

@@ -596,6 +596,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const lastFloatedMoveKeyRef = useRef<string>('');
     /** 실제 +N 플로트를 이미 띄운 수 — 동일 수에 대한 병합/연속 렌더로 이중 재생 방지 */
     const lastCaptureScoreFloatPushedMoveKeyRef = useRef<string>('');
+    /** 동일 시그니처(+점수/앵커/수순)의 짧은 시간 중복 재생 방지 */
+    const lastCaptureFloatSignatureRef = useRef<string>('');
+    const lastCaptureFloatSignatureAtRef = useRef<number>(0);
     const prevCapturesForFloatRef = useRef<Partial<Record<Player, number>> | null>(null);
     /** 미사일 연출 중 매 프레임 착지점 (애니 종료 후 null이 되어도 여기 남음) */
     const lastMissileAnimationToRef = useRef<Point | null>(null);
@@ -606,9 +609,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         myPlayerEnum !== Player.None && capturer === myPlayerEnum;
 
     useEffect(() => {
-        processedJustCapturedCountRef.current = 0;
+        // 새로고침/재마운트 시 서버에 남아있는 마지막 justCaptured를 "신규 캡처"로 오인해
+        // 점수 플로트가 다시 재생되는 문제를 방지한다.
+        processedJustCapturedCountRef.current = (justCaptured?.length ?? 0);
         lastFloatedMoveKeyRef.current = '';
         lastCaptureScoreFloatPushedMoveKeyRef.current = '';
+        lastCaptureFloatSignatureRef.current = '';
+        lastCaptureFloatSignatureAtRef.current = 0;
         prevCapturesForFloatRef.current = null;
         lastMissileAnimationToRef.current = null;
         missileCaptureScoreAnchorRef.current = null;
@@ -621,7 +628,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 lastFloatedMoveKeyRef.current = `${mh!.length}-${tail.player}-${tail.x}-${tail.y}`;
             }
         }
-    }, [gameId]);
+    }, [gameId, justCaptured, captures, moveHistory]);
 
     useEffect(() => {
         if (gameStatus === 'missile_animating' && animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {
@@ -675,11 +682,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 if (list.length < prevCount) {
                     processedJustCapturedCountRef.current = 0;
                 }
-                // 턴마다 justCaptured를 통째로 교체하면 길이가 이전과 같아도 start === length가 되어 슬라이스가 비고,
-                // captures 델타만으로 floatPts가 계산된다. 모험 지역 가산(+N)과 같으면 아래 head-start 스킵이 오동작한다.
-                if (list.length > 0 && processedJustCapturedCountRef.current >= list.length) {
-                    processedJustCapturedCountRef.current = 0;
-                }
                 return processedJustCapturedCountRef.current;
             };
             const newJustCapturedEntries = () => {
@@ -693,6 +695,20 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 if (totalPts < minPts) return;
                 const lag = extraDelayMs + hiddenRevealScoreFloatLagMs;
                 const doPush = () => {
+                    const nowTs = Date.now();
+                    const tailMove = moveHistory?.length ? moveHistory[moveHistory.length - 1] : null;
+                    const movePart = tailMove
+                        ? `${moveHistory!.length}-${tailMove.player}-${tailMove.x}-${tailMove.y}`
+                        : `nomove-${gameStatus}`;
+                    const sig = `${movePart}-${anchor.x}-${anchor.y}-${totalPts}`;
+                    if (
+                        sig === lastCaptureFloatSignatureRef.current &&
+                        nowTs - lastCaptureFloatSignatureAtRef.current < 1200
+                    ) {
+                        return;
+                    }
+                    lastCaptureFloatSignatureRef.current = sig;
+                    lastCaptureFloatSignatureAtRef.current = nowTs;
                     const floatId = `cap-${anchor.x}-${anchor.y}-${totalPts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
                     setCaptureScoreFloats((prev) => [
                         ...prev,

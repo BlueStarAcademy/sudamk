@@ -1066,6 +1066,72 @@ input, textarea {
   animation: dice-roll-vivid-inner 0.42s linear infinite;
 }
 
+/* 내 턴 주사위 패널: 회전하는 라이트 림으로 굴리기 유도 (주사위 바둑/도둑·경찰 공통) */
+@keyframes dice-panel-turn-glow-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes dice-panel-turn-glow-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(252, 211, 77, 0.45),
+      0 0 16px 2px rgba(245, 158, 11, 0.28),
+      inset 0 0 18px rgba(251, 191, 36, 0.06);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(253, 230, 138, 0.7),
+      0 0 28px 5px rgba(251, 191, 36, 0.46),
+      inset 0 0 22px rgba(251, 191, 36, 0.1);
+  }
+}
+
+.dice-panel-turn-glow {
+  position: relative;
+  isolation: isolate;
+  animation: dice-panel-turn-glow-pulse 1.5s ease-in-out infinite;
+  overflow: visible;
+}
+
+.dice-panel-turn-glow::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  box-shadow:
+    0 0 0 1px rgba(253, 230, 138, 0.5),
+    0 0 18px 3px rgba(251, 191, 36, 0.35);
+  opacity: 0.9;
+}
+
+.dice-panel-turn-glow::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 3;
+  border: 2px solid transparent;
+  border-top-color: rgba(253, 224, 71, 0.95);
+  border-right-color: rgba(251, 191, 36, 0.9);
+  border-bottom-color: rgba(245, 158, 11, 0.35);
+  border-left-color: rgba(251, 191, 36, 0.2);
+  animation: dice-panel-turn-glow-spin 1.2s linear infinite;
+}
+
+.dice-panel-turn-glow > * {
+  position: relative;
+  z-index: 4;
+}
+
 /* --- Board bonus / 문양·히든 따내기 점수: GoBoard `capture-points-float-inner` + SVG 필터 --- */
 
 /* 문양·히든 따내기 보너스 (+2 / +5): 에메랄드 톤, 팝→부유→소멸 (글로우는 SVG 필터) */

@@ -528,7 +528,7 @@ export const DicePanel: React.FC<{
             <div
                 className={`flex max-w-full min-w-0 flex-col items-center rounded-2xl border bg-gradient-to-b from-slate-900/96 via-gray-950/92 to-black/92 shadow-[0_0_36px_-10px_rgba(251,191,36,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition-shadow duration-300 ${
                     compactMain ? 'gap-1.5 px-3 py-3' : 'gap-2 px-4 py-4'
-                } ${canRoll ? 'border-amber-400/55 ring-2 ring-amber-400/20' : 'border-amber-400/35'}`}
+                } ${canRoll ? 'dice-panel-turn-glow border-amber-300/70 ring-2 ring-amber-300/25' : 'border-amber-400/35'}`}
             >
                 <span className={`font-bold uppercase tracking-[0.2em] text-amber-200/90 ${compactMain ? 'text-[9px]' : 'text-[10px]'}`}>주사위</span>
                 <Dice
@@ -998,7 +998,7 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
         variant === 'mainOnly' ? (
             <div
                 className={`flex flex-col items-center gap-2 rounded-2xl border bg-gradient-to-b from-gray-900/95 via-gray-950/90 to-black/90 px-4 py-4 shadow-[0_0_36px_-10px_rgba(251,191,36,0.45),inset_0_1px_0_0_rgba(255,255,255,0.06)] backdrop-blur-sm transition-shadow duration-300 ${
-                    canRoll ? 'border-amber-400/55 ring-2 ring-amber-400/20' : 'border-amber-400/35'
+                    canRoll ? 'dice-panel-turn-glow border-amber-300/70 ring-2 ring-amber-300/25' : 'border-amber-400/35'
                 }`}
             >
                 <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/85">주사위</span>

@@ -9,6 +9,11 @@ import {
   equipmentGradeRewardIconShellClassNames,
 } from './ResultModalRewardSlot.js';
 
+type DisplaySlot =
+  | AiPregameRewardSlot
+  | { kind: 'xp_compact_total'; xpVariant: 'strategy' | 'playful'; mainXp: number; bonusXp?: number }
+  | { kind: 'gold_compact_total'; amount: number; bonusAmount?: number; highlight?: 'boss' };
+
 const GOLD_BOX_COMPACT = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 const MAT_BOX_COMPACT = `${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 
@@ -53,6 +58,18 @@ const GoldPointSlot: React.FC<{ amount: number; tone: 'win' | 'loss' }> = ({ amo
     </div>
   );
 };
+
+const GoldPointCombinedSlot: React.FC<{ amount: number; bonusAmount?: number }> = ({ amount, bonusAmount }) => (
+  <div className="flex flex-col items-center gap-0.5">
+    <div className={`${GOLD_BOX_COMPACT} ring-1 ring-emerald-400/35`} aria-hidden>
+      <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
+    </div>
+    <span className="text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">
+      {amount.toLocaleString()}
+      {bonusAmount != null && bonusAmount > 0 ? `(+${bonusAmount.toLocaleString()})` : ''}
+    </span>
+  </div>
+);
 
 const MaterialQtySlot: React.FC<{ image: string; qtyMin: number; qtyMax: number }> = ({ image, qtyMin, qtyMax }) => (
   <div className="flex flex-col items-center gap-0.5">
@@ -136,7 +153,7 @@ const VipInlineCompactSlot: React.FC<{ locked: boolean }> = ({ locked }) => {
 };
 
 function renderSlot(
-  slot: AiPregameRewardSlot,
+  slot: DisplaySlot,
   idx: number,
   isMobileSheet: boolean,
   layout: 'card' | 'headerInline' = 'card',
@@ -144,17 +161,18 @@ function renderSlot(
 ): React.ReactNode {
   const density = layout === 'headerInline' ? 'compact' : isMobileSheet ? 'compact' : 'comfortable';
   switch (slot.kind) {
+    case 'xp_compact_total':
+      return (
+        <div key={`xpc-${idx}`} className="flex shrink-0 flex-col items-center justify-end">
+          <ResultModalXpRewardBadge variant={slot.xpVariant} amount={slot.mainXp} density="compact" />
+          {slot.bonusXp != null && slot.bonusXp > 0 ? (
+            <span className="mt-0.5 text-[0.62rem] font-semibold tabular-nums text-emerald-200/90 sm:text-[0.68rem]">
+              (+{slot.bonusXp.toLocaleString()})
+            </span>
+          ) : null}
+        </div>
+      );
     case 'xp_win_loss':
-      if (layout === 'headerInline') {
-        return (
-          <div key={`xp-${idx}`} className="flex shrink-0 items-end gap-1">
-            <ResultModalXpRewardBadge variant={slot.xpVariant} amount={slot.winXp} density="compact" />
-            {slot.lossXp > 0 ? (
-              <ResultModalXpRewardBadge variant={slot.xpVariant} amount={slot.lossXp} density="compact" />
-            ) : null}
-          </div>
-        );
-      }
       return (
         <div key={`xp-${idx}`} className="flex w-full flex-wrap items-end justify-center gap-4 sm:gap-6">
           <div className="rounded-xl p-0.5 ring-2 ring-emerald-400/35 ring-offset-1 ring-offset-zinc-950/80">
@@ -165,6 +183,8 @@ function renderSlot(
           </div>
         </div>
       );
+    case 'gold_compact_total':
+      return <GoldPointCombinedSlot key={`gpc-${idx}`} amount={slot.amount} bonusAmount={slot.bonusAmount} />;
     case 'xp_adventure_win':
       if (layout === 'headerInline') {
         return (
@@ -205,6 +225,36 @@ function renderSlot(
   }
 }
 
+function buildDisplaySlots(slots: AiPregameRewardSlot[]): DisplaySlot[] {
+  const merged: DisplaySlot[] = [];
+  for (let i = 0; i < slots.length; i += 1) {
+    const current = slots[i];
+    if (current.kind === 'xp_win_loss') {
+      merged.push({
+        kind: 'xp_compact_total',
+        xpVariant: current.xpVariant,
+        mainXp: current.winXp,
+        ...(current.lossXp > 0 ? { bonusXp: current.lossXp } : {}),
+      });
+      continue;
+    }
+    if (current.kind === 'gold_point' && current.tone === 'win') {
+      const next = slots[i + 1];
+      if (next?.kind === 'gold_point' && next.tone === 'loss') {
+        merged.push({
+          kind: 'gold_compact_total',
+          amount: current.amount,
+          ...(next.amount > 0 ? { bonusAmount: next.amount } : {}),
+        });
+        i += 1;
+        continue;
+      }
+    }
+    merged.push(current);
+  }
+  return merged;
+}
+
 /** AI 대국 시작 전: 이미지 박스 + 하단 수치·등급 범위(긴 문장 없음) */
 export const AiPregameRewardVisualStrip: React.FC<{
   visual: AiPregameRewardVisual;
@@ -212,11 +262,12 @@ export const AiPregameRewardVisualStrip: React.FC<{
   placement?: 'default' | 'titlePanel' | 'headerInline';
   onVipLockedClick?: () => void;
 }> = ({ visual, isMobileSheet, placement = 'default', onVipLockedClick }) => {
+  const displaySlots = buildDisplaySlots(visual.slots);
   if (placement === 'headerInline') {
     return (
       <div className="flex max-w-full min-w-0 flex-nowrap items-end justify-end overflow-x-auto pb-0.5 [scrollbar-width:thin]">
         <div className="flex shrink-0 flex-nowrap items-end gap-2">
-          {visual.slots.map((s, i) => renderSlot(s, i, isMobileSheet, 'headerInline', onVipLockedClick))}
+          {displaySlots.map((s, i) => renderSlot(s, i, isMobileSheet, 'headerInline', onVipLockedClick))}
         </div>
       </div>
     );
@@ -232,9 +283,17 @@ export const AiPregameRewardVisualStrip: React.FC<{
       isVipText?: boolean;
     };
 
-    const uniformSlots: TitlePanelUniformSlot[] = visual.slots
+    const uniformSlots: TitlePanelUniformSlot[] = displaySlots
       .map((slot, idx): TitlePanelUniformSlot | null => {
       switch (slot.kind) {
+        case 'xp_compact_total':
+          return {
+            key: `xpc-${idx}`,
+            image: null as string | null,
+            isExp: true,
+            expTopLabel: slot.xpVariant === 'playful' ? '놀이' : '전략',
+            line: `+${slot.mainXp.toLocaleString()}${slot.bonusXp != null && slot.bonusXp > 0 ? `(+${slot.bonusXp.toLocaleString()})` : ''}`,
+          };
         case 'xp_win_loss':
           return {
             key: `xpwl-${idx}`,
@@ -264,6 +323,13 @@ export const AiPregameRewardVisualStrip: React.FC<{
             image: '/images/icon/Gold.png',
             isExp: false,
             line: slot.amount.toLocaleString(),
+          };
+        case 'gold_compact_total':
+          return {
+            key: `gpc-${idx}`,
+            image: '/images/icon/Gold.png',
+            isExp: false,
+            line: `${slot.amount.toLocaleString()}${slot.bonusAmount != null && slot.bonusAmount > 0 ? `(+${slot.bonusAmount.toLocaleString()})` : ''}`,
           };
         case 'equipment_grade_box':
           return {
@@ -367,7 +433,7 @@ export const AiPregameRewardVisualStrip: React.FC<{
         획득 가능한 보상
       </h3>
       <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-4 sm:gap-x-4 sm:gap-y-5">
-        {visual.slots.map((s, i) => renderSlot(s, i, isMobileSheet, 'card', onVipLockedClick))}
+        {displaySlots.map((s, i) => renderSlot(s, i, isMobileSheet, 'card', onVipLockedClick))}
       </div>
     </div>
   );

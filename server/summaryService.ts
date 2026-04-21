@@ -848,6 +848,39 @@ const PLAYFUL_GOLD_REWARDS: Record<number, number> = {
     3: 650, 2: 420, 1: 170,
 };
 
+function getPlayfulRoundCount(game: LiveGameSession): number {
+    if (game.mode === GameMode.Dice) return Math.max(1, Number(game.settings.diceGoRounds ?? 3));
+    if (game.mode === GameMode.Curling) return Math.max(1, Number(game.settings.curlingRounds ?? 3));
+    if (game.mode === GameMode.Alkkagi) return Math.max(1, Number(game.settings.alkkagiRounds ?? 1));
+    if (game.mode === GameMode.Thief) return 2;
+    return 1;
+}
+
+function getPlayfulScoreGap(game: LiveGameSession, playerId: string, opponentId: string): number {
+    const finalScores = (game.finalScores ?? {}) as Record<string, number | undefined>;
+    const fallbackScores = (game.scores ?? {}) as Record<string, number | undefined>;
+    const myScore = Number(finalScores[playerId] ?? fallbackScores[playerId] ?? 0);
+    const oppScore = Number(finalScores[opponentId] ?? fallbackScores[opponentId] ?? 0);
+    return Math.max(0, Math.abs(myScore - oppScore));
+}
+
+function getPlayfulRewardMultiplier(
+    game: LiveGameSession,
+    playerId: string,
+    opponentId: string,
+    isWinner: boolean,
+    isDraw: boolean,
+): number {
+    if (isDraw) return 1;
+    const rounds = getPlayfulRoundCount(game);
+    const scoreGap = getPlayfulScoreGap(game, playerId, opponentId);
+    // 완만 튜닝: 라운드/점수차 가중 폭을 낮춰 장기전·대승 보상 과증가를 완화
+    const roundBonus = Math.min(0.35, Math.max(0, rounds - 1) * 0.12);
+    const gapBonus = Math.min(0.28, scoreGap * 0.02);
+    const outcomeMultiplier = isWinner ? 1 : 0.78;
+    return Math.max(0.5, (1 + roundBonus + gapBonus) * outcomeMultiplier);
+}
+
 const getRewardConfig = async (): Promise<RewardConfig> => {
     const stored = await db.getKV<unknown>('rewardConfig');
     return normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
@@ -1161,7 +1194,11 @@ const processPlayerSummary = async (
     const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
     const isStrategicLobbyAi = !isNoContest && isWaitingRoomAiGame(game) && isStrategic;
 
-    let xpGain = isNoContest ? 0 : (isWinner ? 100 : (isDraw ? 0 : 25)); // Loss XP increased to 25
+    let xpGain = isNoContest ? 0 : (isWinner ? 100 : (isDraw ? 0 : 25)); // Strategic defaults
+    if (!isNoContest && isPlayful) {
+        // 놀이바둑은 시간/수순 길이와 무관한 고정 경험치 (승패 차이를 크게 유지)
+        xpGain = isWinner ? 90 : (isDraw ? 0 : 18);
+    }
     if (!isNoContest && isStrategicLobbyAi) {
         xpGain = isWinner ? strategicLobbyAiWinXp(game.settings.boardSize, game.settings.scoringTurnLimit) : 0;
     } else if (!isNoContest && isAdventureGame) {
@@ -1178,7 +1215,7 @@ const processPlayerSummary = async (
     }
 
     // Level difference multiplier
-    if (!isAdventureGame && !isStrategicLobbyAi) {
+    if (!isAdventureGame && !isStrategicLobbyAi && isStrategic) {
         const levelDiff = opponentLevel - initialLevel;
         let levelMultiplier = 1 + (levelDiff * 0.1); // 10% per level difference
         levelMultiplier = Math.max(0.5, Math.min(1.5, levelMultiplier)); // Cap between 50% and 150%
@@ -1207,12 +1244,8 @@ const processPlayerSummary = async (
         // Calculate the reward multiplier, capped at 100%
         rewardMultiplier = Math.min(1, actualMoveCount / baseMoveCount);
     } else if (isPlayful && !isNoContest) {
-        const gameDurationSeconds = (Date.now() - game.createdAt) / 1000;
-        if (gameDurationSeconds < 30) {
-            rewardMultiplier = 0.05;
-        } else {
-            rewardMultiplier = Math.min(1, gameDurationSeconds / 300);
-        }
+        // 시간 기반 보상 제거: 라운드 수/점수차/승패로 보상 배율 결정
+        rewardMultiplier = getPlayfulRewardMultiplier(game, player.id, opponent.id, isWinner, isDraw);
     }
     
     // Apply the multiplier to XP (전략 대기실 AI는 모험 기본 EXP 고정)
