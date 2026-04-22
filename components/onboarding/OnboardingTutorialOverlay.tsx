@@ -38,6 +38,10 @@ import {
     setPhase8TrainingTutorialStep,
     subscribePhase8TrainingTutorialStep,
 } from '../../utils/phase8TrainingTutorialStep.js';
+import {
+    ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS,
+    spotlightDimClipPathFromFraction,
+} from '../../utils/onboardingSpotlightDimClipPath.js';
 
 const ONBOARDING_RING_CLASS = 'onboarding-spotlight-ring';
 
@@ -766,14 +770,14 @@ const OnboardingTutorialOverlay: React.FC = () => {
         layer = (
         <div className="pointer-events-none absolute inset-0 flex flex-col justify-end overflow-hidden">
             {tutorialOverlayNonBlocking && (
-                <div className="pointer-events-none absolute inset-0 bg-black/25" aria-hidden />
+                <div
+                    className="pointer-events-none absolute inset-0 bg-black/50 [transform:translateZ(0)]"
+                    aria-hidden
+                />
             )}
 
             {showBlockingMask && !useHole && (
-                <div
-                    className="pointer-events-auto absolute inset-0 bg-black/50 backdrop-blur-[2px]"
-                    aria-hidden
-                />
+                <div className={`pointer-events-auto ${ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS}`} aria-hidden />
             )}
 
             {intro1DemoArrow && phase === 6 && phase6IngameSubStep === 2 && (
@@ -791,38 +795,14 @@ const OnboardingTutorialOverlay: React.FC = () => {
             )}
 
             {useHole && hole && (
-                <>
-                    <div
-                        className="pointer-events-auto absolute left-0 top-0 w-full bg-black/50 backdrop-blur-[2px]"
-                        style={{ height: `${hole.top}%` }}
-                        aria-hidden
-                    />
-                    <div
-                        className="pointer-events-auto absolute bottom-0 left-0 w-full bg-black/50 backdrop-blur-[2px]"
-                        style={{ height: `${hole.bottom}%` }}
-                        aria-hidden
-                    />
-                    <div
-                        className="pointer-events-auto absolute bg-black/50 backdrop-blur-[2px]"
-                        style={{
-                            top: `${hole.top}%`,
-                            left: 0,
-                            width: `${hole.left}%`,
-                            height: `calc(${100 - hole.top - hole.bottom}%)`,
-                        }}
-                        aria-hidden
-                    />
-                    <div
-                        className="pointer-events-auto absolute bg-black/50 backdrop-blur-[2px]"
-                        style={{
-                            top: `${hole.top}%`,
-                            right: 0,
-                            width: `${hole.right}%`,
-                            height: `calc(${100 - hole.top - hole.bottom}%)`,
-                        }}
-                        aria-hidden
-                    />
-                </>
+                <div
+                    className={`pointer-events-auto ${ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS}`}
+                    style={{
+                        WebkitClipPath: spotlightDimClipPathFromFraction(hole),
+                        clipPath: spotlightDimClipPathFromFraction(hole),
+                    }}
+                    aria-hidden
+                />
             )}
 
             <div

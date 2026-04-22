@@ -507,7 +507,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             <div
                 className={`flex w-full min-h-0 flex-col text-white ${
                     isMobile
-                        ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
+                        ? 'h-0 min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
                         : useBodyScrollSizing
                           ? 'overflow-x-hidden'
                           : 'overflow-x-hidden overflow-y-visible'
@@ -533,8 +533,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             matchLabel="경기 결과"
                             recordLabel="내 정보"
                         />
-                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] [scrollbar-width:thin]">
+                        <div className="flex h-0 min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+                            <div className="h-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
                                 <MobileResultTabPanelStack
                                     active={mobileResultTab}
                                     matchPanel={

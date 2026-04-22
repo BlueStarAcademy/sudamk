@@ -16,6 +16,10 @@ import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersC
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import { isIntro11IngameStepRead, isIntro11TutorialActiveForGame, markIntro11IngameStepRead } from '../../utils/singlePlayerIntro11Tutorial.js';
+import {
+    ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS,
+    spotlightDimClipPathFromPxRect,
+} from '../../utils/onboardingSpotlightDimClipPath.js';
 
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -673,23 +677,91 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const isEnded = session.gameStatus === 'ended' || session.gameStatus === 'no_contest';
     const isScoring = session.gameStatus === 'scoring';
     const scoringEndTime = isScoring ? (session as { endTime?: number }).endTime : undefined;
+    /** 놀이바둑 AI 대국: 경과시간 표시가 벽시계만 쓰이면 AI 생각 중에도 올라가므로, 가상 origin으로 유저 턴에만 흐르게 함 */
+    const elapsedClockSessionIdRef = useRef<string | null>(null);
+    const displayElapsedOriginMs = useRef<number | undefined>(undefined);
+    const playfulAiPauseActiveRef = useRef(false);
+    const playfulAiPauseHeldSecRef = useRef<number | null>(null);
+
     useEffect(() => {
         if (enforceTime) return;
+        if (elapsedClockSessionIdRef.current !== session.id) {
+            elapsedClockSessionIdRef.current = session.id;
+            displayElapsedOriginMs.current = undefined;
+            playfulAiPauseActiveRef.current = false;
+            playfulAiPauseHeldSecRef.current = null;
+        }
         if (!gameStart) {
             setElapsedSec(0);
+            displayElapsedOriginMs.current = undefined;
+            playfulAiPauseActiveRef.current = false;
+            playfulAiPauseHeldSecRef.current = null;
             return;
         }
         // 계가 중이면 타이머 정지: 서버에서 내려준 endTime 기준으로만 표시
         if (isEnded || (isScoring && scoringEndTime != null)) {
             const endMs = isEnded ? (session.turnStartTime ?? Date.now()) : scoringEndTime!;
             setElapsedSec(Math.max(0, Math.floor((endMs - gameStart) / 1000)));
+            displayElapsedOriginMs.current = undefined;
+            playfulAiPauseActiveRef.current = false;
+            playfulAiPauseHeldSecRef.current = null;
             return;
         }
-        const tick = () => setElapsedSec(Math.max(0, Math.floor((Date.now() - gameStart) / 1000)));
-        tick();
-        const id = setInterval(tick, 1000);
+
+        const isPlayfulMode = PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
+        const hasAiSeat = session.blackPlayerId === aiUserId || session.whitePlayerId === aiUserId;
+        const isAiTurnNow =
+            hasAiSeat &&
+            ((session.currentPlayer === Player.Black && session.blackPlayerId === aiUserId) ||
+                (session.currentPlayer === Player.White && session.whitePlayerId === aiUserId));
+        const pausePlayfulElapsedForAiTurn =
+            session.isAiGame && isPlayfulMode && hasAiSeat && isAiTurnNow;
+
+        if (pausePlayfulElapsedForAiTurn) {
+            if (!playfulAiPauseActiveRef.current) {
+                if (displayElapsedOriginMs.current === undefined) {
+                    displayElapsedOriginMs.current = gameStart;
+                }
+                const snap = Math.max(0, Math.floor((Date.now() - displayElapsedOriginMs.current) / 1000));
+                playfulAiPauseHeldSecRef.current = snap;
+                setElapsedSec(snap);
+                playfulAiPauseActiveRef.current = true;
+            } else if (playfulAiPauseHeldSecRef.current != null) {
+                setElapsedSec(playfulAiPauseHeldSecRef.current);
+            }
+            return;
+        }
+
+        playfulAiPauseActiveRef.current = false;
+
+        if (playfulAiPauseHeldSecRef.current != null) {
+            const held = playfulAiPauseHeldSecRef.current;
+            playfulAiPauseHeldSecRef.current = null;
+            displayElapsedOriginMs.current = Date.now() - held * 1000;
+        } else if (displayElapsedOriginMs.current === undefined) {
+            displayElapsedOriginMs.current = gameStart;
+        }
+
+        const runTick = () =>
+            setElapsedSec(Math.max(0, Math.floor((Date.now() - displayElapsedOriginMs.current!) / 1000)));
+        runTick();
+        const id = setInterval(runTick, 1000);
         return () => clearInterval(id);
-    }, [enforceTime, gameStart, session.gameStatus, isEnded, isScoring, scoringEndTime, session.turnStartTime]);
+    }, [
+        enforceTime,
+        gameStart,
+        session.id,
+        session.gameStatus,
+        isEnded,
+        isScoring,
+        scoringEndTime,
+        session.turnStartTime,
+        mode,
+        session.isAiGame,
+        session.blackPlayerId,
+        session.whitePlayerId,
+        session.currentPlayer,
+    ]);
 
     const isScoreMode = [GameMode.Dice, GameMode.Thief, GameMode.Curling].includes(mode);
 
@@ -1215,26 +1287,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             <>
                 {intro11SpotlightRect && (
                     <div className="pointer-events-none absolute inset-0 z-[280]" aria-hidden>
-                        <div className="absolute left-0 top-0 w-full bg-black/55" style={{ height: intro11SpotlightRect.top }} />
                         <div
-                            className="absolute left-0 bg-black/55"
+                            className={ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS}
                             style={{
-                                top: intro11SpotlightRect.top,
-                                width: intro11SpotlightRect.left,
-                                height: intro11SpotlightRect.height,
+                                WebkitClipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
+                                clipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
                             }}
-                        />
-                        <div
-                            className="absolute right-0 bg-black/55"
-                            style={{
-                                top: intro11SpotlightRect.top,
-                                width: `calc(100% - ${intro11SpotlightRect.left + intro11SpotlightRect.width}px)`,
-                                height: intro11SpotlightRect.height,
-                            }}
-                        />
-                        <div
-                            className="absolute bottom-0 left-0 w-full bg-black/55"
-                            style={{ height: `calc(100% - ${intro11SpotlightRect.top + intro11SpotlightRect.height}px)` }}
                         />
                     </div>
                 )}

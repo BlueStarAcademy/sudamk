@@ -570,7 +570,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 data-onboarding-target="onboarding-sp-summary-modal"
                 className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex w-full min-h-0 flex-col ${
                     isMobile
-                        ? 'min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
+                        ? 'h-0 min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
                         : 'h-full flex-1 ' +
                           (useBodyScrollSizing ? 'overflow-x-hidden' : 'overflow-x-hidden overflow-y-visible')
                 } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'} ${
@@ -603,8 +603,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             matchLabel="경기 결과"
                             recordLabel="기록"
                         />
-                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] [scrollbar-width:thin]">
+                        <div className="flex h-0 min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
+                            <div className="h-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
                                 <MobileResultTabPanelStack
                                     active={mobileResultTab}
                                     matchPanel={

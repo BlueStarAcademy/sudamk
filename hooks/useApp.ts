@@ -5552,6 +5552,11 @@ export const useApp = () => {
                                         existingForThrottle.mode === GameMode.Dice ||
                                         existingForThrottle.mode === GameMode.Thief
                                     );
+                                // 2R 등 라운드가 올라간 패킷은 수순·서명이 같아도 반드시 반영 (애니 종료·턴 표시 고착 방지)
+                                const isDiceGoRoundProgress =
+                                    game.mode === GameMode.Dice &&
+                                    !!existingForThrottle &&
+                                    (game.round ?? 1) > (existingForThrottle.round ?? 1);
                                 // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
                                 // 이동 수(moveHistory)가 없더라도 반드시 모달을 닫고 다음 화면으로 넘어가야 함.
                                 const isCaptureBidExitToPlaying =
@@ -5590,6 +5595,7 @@ export const useApp = () => {
                                     !isCaptureBidExitToPlaying &&
                                     !isDiceThiefAnimExitToRolling &&
                                     !isDiceThiefTurnOwnerChanged &&
+                                    !isDiceGoRoundProgress &&
                                     !isScanAnimExitToPlaying &&
                                     !isHiddenPlacingExitToPlaying &&
                                     !isMissileSelectToAnimating &&

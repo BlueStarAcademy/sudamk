@@ -563,6 +563,21 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             break;
         case 'dice_rolling_animating': {
             const rollAnim = game.animation;
+            // 메인 루프가 잠깐 스킵되거나 WS 공백이 있어도 애니 종료·오버샷 처리는 반드시 진행되어야 함 (2R 직후 영구 고착 방지)
+            if (rollAnim?.type === 'dice_roll_main') {
+                const durStuck = Math.max(0, Number(rollAnim.duration) || 1500);
+                const startStuck = Number(rollAnim.startTime) || 0;
+                const endStuck = startStuck + durStuck;
+                if (startStuck > 0 && now > endStuck + 2500) {
+                    updateDiceGoState(game, endStuck + 1);
+                    if (game.gameStatus === 'dice_rolling_animating') {
+                        console.warn(`[updateDiceGoState] Stuck dice_rolling_animating, forcing resolve gameId=${game.id}`);
+                        game.animation = null;
+                        updateDiceGoState(game, now);
+                    }
+                    break;
+                }
+            }
             const animDuration =
                 rollAnim && rollAnim.type === 'dice_roll_main'
                     ? Math.max(0, Number(rollAnim.duration) || 1500)
@@ -813,6 +828,8 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
             }
             const bothConfirmed = game.roundEndConfirmations?.[p1Id] && game.roundEndConfirmations?.[p2Id];
             if ((game.revealEndTime && now > game.revealEndTime) || bothConfirmed) {
+                // 이전 라운드 오버샷/파울 전광판이 남으면 2R 진입 직후 턴 표시·메시지가 충돌해 보일 수 있음
+                game.foulInfo = undefined;
                 const totalRounds = game.settings.diceGoRounds || 3;
                 if (game.round >= totalRounds && !game.isDeathmatch) {
                     const p1Score = game.scores[p1Id] || 0;

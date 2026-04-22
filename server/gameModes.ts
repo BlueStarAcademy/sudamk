@@ -1273,7 +1273,18 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
         }
 
         try {
-            if (game.disconnectionState && (now - game.disconnectionState.timerStartedAt > 90000)) {
+            // PVP 전용: AI/싱글/탑 등에서는 disconnectionState를 쓰지 않으며, 버그·구버전으로 남아 있어도 시간패로 끝내지 않는다.
+            const isPvpDisconnectRecovery =
+                !game.isSinglePlayer &&
+                !game.isAiGame &&
+                game.gameCategory !== 'tower' &&
+                game.gameCategory !== 'singleplayer' &&
+                game.gameCategory !== 'adventure';
+            if (
+                isPvpDisconnectRecovery &&
+                game.disconnectionState &&
+                now - game.disconnectionState.timerStartedAt > 90000
+            ) {
                 // 90초 내에 재접속하지 못하면 시간패배 처리
                 game.winner = game.blackPlayerId === game.disconnectionState.disconnectedPlayerId ? types.Player.White : types.Player.Black;
                 game.winReason = 'timeout';
@@ -1288,6 +1299,8 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 ]).catch((error: any) => {
                     console.error(`[processGame] Error ending game ${game.id}:`, error?.message || error);
                 });
+            } else if (!isPvpDisconnectRecovery && game.disconnectionState) {
+                game.disconnectionState = null;
             }
 
             if (game.lastTimeoutPlayerIdClearTime && now >= game.lastTimeoutPlayerIdClearTime) {

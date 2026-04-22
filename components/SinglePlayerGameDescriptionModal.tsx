@@ -33,6 +33,10 @@ import {
 } from '../shared/constants/onboardingTutorial.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { activateIntro11TutorialForGame } from '../utils/singlePlayerIntro11Tutorial.js';
+import {
+    ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS,
+    spotlightDimClipPathFromPxRect,
+} from '../utils/onboardingSpotlightDimClipPath.js';
 
 const SINGLE_PLAYER_CLEAR_GOLD_BOX = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 const SINGLE_PLAYER_CLEAR_ITEM_BOX = `${RESULT_MODAL_BOX_ITEM_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
@@ -688,26 +692,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     <>
                         {intro11SpotlightRect && (
                             <div className="pointer-events-none absolute inset-0 z-[280]" aria-hidden>
-                                <div className="absolute left-0 top-0 w-full bg-black/55" style={{ height: intro11SpotlightRect.top }} />
                                 <div
-                                    className="absolute left-0 bg-black/55"
+                                    className={ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS}
                                     style={{
-                                        top: intro11SpotlightRect.top,
-                                        width: intro11SpotlightRect.left,
-                                        height: intro11SpotlightRect.height,
+                                        WebkitClipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
+                                        clipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
                                     }}
-                                />
-                                <div
-                                    className="absolute right-0 bg-black/55"
-                                    style={{
-                                        top: intro11SpotlightRect.top,
-                                        width: `calc(100% - ${intro11SpotlightRect.left + intro11SpotlightRect.width}px)`,
-                                        height: intro11SpotlightRect.height,
-                                    }}
-                                />
-                                <div
-                                    className="absolute bottom-0 left-0 w-full bg-black/55"
-                                    style={{ height: `calc(100% - ${intro11SpotlightRect.top + intro11SpotlightRect.height}px)` }}
                                 />
                             </div>
                         )}

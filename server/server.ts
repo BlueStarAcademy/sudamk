@@ -1979,12 +1979,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
                     if (now - volatileState.userConnections[userId] > timeoutDuration) {
                     // User timed out. Check if they are in a local PVE game first.
-                    // 주의: adventure/대기실 AI 대국(isAiGame)은 재접속 복구 대상이므로 여기서 싱글처럼 취급하지 않는다.
+                    // 온라인 AI 대국(isAiGame): WS만으로 오래 대기해도 /api/state가 안 불리면 90초마다 "접속 끊김"이 걸리는 문제가 있어
+                    // 로컬 PVE와 같이 타임스탬프만 갱신한다 (실제 WS 종료 시 applyPvpInGameDisconnect는 AI에서 no-op).
                     const isLocalPveGame =
                         activeGame &&
                         (activeGame.isSinglePlayer ||
                             activeGame.gameCategory === 'tower' ||
-                            activeGame.gameCategory === 'singleplayer');
+                            activeGame.gameCategory === 'singleplayer' ||
+                            activeGame.isAiGame);
                     
                     // 싱글플레이 게임에서는 타임아웃이 발생해도 연결을 유지하고 게임을 계속 진행
                     if (isLocalPveGame) {
@@ -2007,7 +2009,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                             const isNoPenaltyGame =
                                 activeGame.isSinglePlayer ||
                                 activeGame.gameCategory === 'tower' ||
-                                activeGame.gameCategory === 'singleplayer';
+                                activeGame.gameCategory === 'singleplayer' ||
+                                activeGame.isAiGame;
                             if (!activeGame.disconnectionState) {
                                 if (!isNoPenaltyGame) {
                                     // 일반 게임에서만 접속 끊김 카운트 및 패널티 적용
@@ -4185,13 +4188,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             if (!isParticipant) {
                 return res.status(403).json({ error: '해당 게임의 참가자가 아닙니다.' });
             }
-            // 진행 중이거나 종료/계가 중인 게임만 재입장 허용 (미사일/히든/스캔 아이템 사용 중 상태 포함)
-            const rejoinableStatuses = [
-                'pending', 'playing', 'scoring', 'ended', 'no_contest',
-                'hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating',
-                'hidden_reveal_animating', 'hidden_final_reveal',
-            ];
-            if (!rejoinableStatuses.includes(game.gameStatus || '')) {
+            // 재입장: 협상 전·연결 끊김 전용 상태만 제외. 주사위/도둑/알까기/컬링 등은 `playing`이 아닌 전용 gameStatus를 쓰므로
+            // 화이트리스트만 두면 F5·재접속 시 400이 나고 disconnectionState 해제까지 실행되지 않는 버그가 난다.
+            const nonRejoinableGameStatuses = new Set<string>(['negotiating', 'disconnected']);
+            const st = game.gameStatus || '';
+            if (!st || nonRejoinableGameStatuses.has(st)) {
                 return res.status(400).json({ error: '이어하기할 수 없는 게임 상태입니다.' });
             }
             // PVP: 새로고침으로 끊긴 플레이어가 90초 내 재접속 시 disconnectionState 해제하여 경기 재개

@@ -640,7 +640,7 @@ export const DicePanel: React.FC<{
                 {variant === 'all' ? (
                     <>
                         <div
-                            className={`flex shrink-0 flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}
+                            className={`flex shrink-0 flex-col items-center ${canRoll ? 'dice-panel-turn-glow rounded-xl border border-amber-400/30 p-2' : 'rounded-lg border-2 border-transparent p-2'}`}
                         >
                             {mainDice}
                         </div>
@@ -1102,7 +1102,7 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
             >
                 {variant === 'all' ? (
                     <>
-                        <div className={`flex shrink-0 flex-col items-center ${canRoll ? 'animate-pulse-border-yellow' : 'rounded-lg border-2 border-transparent p-2'}`}>
+                        <div className={`flex shrink-0 flex-col items-center ${canRoll ? 'dice-panel-turn-glow rounded-xl border border-amber-400/30 p-2' : 'rounded-lg border-2 border-transparent p-2'}`}>
                             {mainDice}
                         </div>
                         {thiefItemsRow}

@@ -108,26 +108,22 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
             return;
         }
 
-        // 싱글플레이·도전의 탑: AI(서버) 차례에는 클라이언트 데드라인으로 유저 시간이 줄어들지 않도록 서버 값만 표시
-        const isPveVsAi =
-            playingStatuses.includes(session.gameStatus) &&
-            (session.isSinglePlayer || session.gameCategory === 'tower') &&
-            (session.blackPlayerId === aiUserId || session.whitePlayerId === aiUserId);
-        if (isPveVsAi) {
-            const aiIsBlack = session.blackPlayerId === aiUserId;
-            const aiIsWhite = session.whitePlayerId === aiUserId;
-            const isAiTurnNow =
-                (session.currentPlayer === Player.Black && aiIsBlack) ||
-                (session.currentPlayer === Player.White && aiIsWhite);
-            if (isAiTurnNow) {
-                deadlineRef.current = null;
-                byoyomiDeadlineRef.current = null;
-                setClientTimes({
-                    black: coerce(session.blackTimeLeft),
-                    white: coerce(session.whiteTimeLeft),
-                });
-                return;
-            }
+        // AI 대국(대기실·길드전·싱글/탑 등 전부): AI 차례에는 클라이언트 데드라인으로 유저 시간이 줄어들지 않도록 서버 값만 표시
+        const hasAiPlayer =
+            session.blackPlayerId === aiUserId || session.whitePlayerId === aiUserId;
+        const aiIsBlack = session.blackPlayerId === aiUserId;
+        const aiIsWhite = session.whitePlayerId === aiUserId;
+        const isAiTurnNow =
+            (session.currentPlayer === Player.Black && aiIsBlack) ||
+            (session.currentPlayer === Player.White && aiIsWhite);
+        if (playingStatuses.includes(session.gameStatus) && hasAiPlayer && isAiTurnNow) {
+            deadlineRef.current = null;
+            byoyomiDeadlineRef.current = null;
+            setClientTimes({
+                black: coerce(session.blackTimeLeft),
+                white: coerce(session.whiteTimeLeft),
+            });
+            return;
         }
 
         // 턴/게임이 바뀌면 이전 턴 기준 마감 ref·초읽기 ref 초기화
