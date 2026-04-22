@@ -8,6 +8,7 @@ import {
     hasOpponentHiddenScanTargets,
     recordSoftHiddenScanDiscovery,
 } from './hiddenScanShared.js';
+import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -135,8 +136,7 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
                 logPrefix: 'updateSinglePlayerHiddenState',
                 onPostTurnSwitch: async (g) => {
                     if (!g.isSinglePlayer || !g.stageId) return;
-                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                    const stage = SINGLE_PLAYER_STAGES.find(s => s.id === g.stageId);
+                    const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === g.stageId);
                     const autoScoringTurns = stage?.autoScoringTurns;
                     if (autoScoringTurns === undefined) return;
                     const isAiTurn = g.currentPlayer === types.Player.White && g.isSinglePlayer;

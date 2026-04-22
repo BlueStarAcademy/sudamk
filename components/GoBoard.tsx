@@ -3,6 +3,62 @@ import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSe
 import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 
+/** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
+const CAPTURE_SCORE_FLOAT_BASE_EM = 1.42;
+const CAPTURE_SCORE_FLOAT_TIER_STANDARD_MIN = 5;
+const CAPTURE_SCORE_FLOAT_TIER_CRITICAL_MIN = 10;
+
+type CaptureScoreFloatTier = 'low' | 'mid' | 'high';
+
+function captureScoreFloatTierFromPoints(points: number): CaptureScoreFloatTier {
+    if (points >= CAPTURE_SCORE_FLOAT_TIER_CRITICAL_MIN) return 'high';
+    if (points >= CAPTURE_SCORE_FLOAT_TIER_STANDARD_MIN) return 'mid';
+    return 'low';
+}
+
+function parseBonusTextPoints(text: string): number | null {
+    const m = /^\+(\d+)/.exec(text.trim());
+    return m ? Number.parseInt(m[1], 10) : null;
+}
+
+function getCaptureScoreFloatVisual(cellSize: number, points: number) {
+    const tier = captureScoreFloatTierFromPoints(points);
+    const baseFs = cellSize * CAPTURE_SCORE_FLOAT_BASE_EM;
+    const baseSw = Math.max(1.6, cellSize * 0.1);
+    let fontSize: number;
+    let strokeWidth: number;
+    if (tier === 'low') {
+        fontSize = baseFs * 0.82;
+        strokeWidth = Math.max(1.35, cellSize * 0.085);
+    } else if (tier === 'high') {
+        fontSize = baseFs * 1.09;
+        strokeWidth = Math.max(1.8, cellSize * 0.11);
+    } else {
+        fontSize = baseFs;
+        strokeWidth = baseSw;
+    }
+    const stroke = tier === 'high' ? '#422006' : '#022c22';
+    const fillUrl =
+        tier === 'low'
+            ? 'url(#capture-score-gradient-low)'
+            : tier === 'high'
+              ? 'url(#capture-score-gradient-critical)'
+              : 'url(#capture-score-gradient)';
+    const filterUrl =
+        tier === 'low'
+            ? 'url(#capture-score-premium-low)'
+            : tier === 'high'
+              ? 'url(#capture-score-premium-critical)'
+              : 'url(#capture-score-premium)';
+    const innerClassName =
+        tier === 'low'
+            ? 'capture-points-float-inner capture-points-float-inner--low'
+            : tier === 'high'
+              ? 'capture-points-float-inner capture-points-float-inner--critical'
+              : 'capture-points-float-inner';
+    return { tier, fontSize, strokeWidth, stroke, fillUrl, filterUrl, innerClassName };
+}
+
 const AnimatedBonusText: React.FC<{
     animation: Extract<AnimationData, { type: 'bonus_text' }>;
     toSvgCoords: (p: Point) => { cx: number; cy: number };
@@ -11,32 +67,30 @@ const AnimatedBonusText: React.FC<{
 }> = ({ animation, toSvgCoords, cellSize, isRotated }) => {
     const { text, point } = animation;
     const { cx, cy } = toSvgCoords(point);
-    const fontSize = cellSize * 1.5;
+    const parsed = parseBonusTextPoints(text);
+    const vis = getCaptureScoreFloatVisual(cellSize, parsed ?? CAPTURE_SCORE_FLOAT_TIER_STANDARD_MIN);
 
     const durS = Math.max(1.2, (animation.duration ?? 2500) / 1000);
     return (
         <g style={{ pointerEvents: 'none' }} transform={`translate(${cx}, ${cy})`}>
             {/* 회전 시 클래스 전환으로 CSS 애니메이션이 재시작되지 않도록 scale로 Y만 보정 */}
             <g transform={isRotated ? 'scale(1,-1)' : undefined}>
-                <g
-                    className="capture-points-float-inner"
-                    style={{ animationDuration: `${durS}s` }}
-                >
-                <text
-                    x={0}
-                    y={0}
-                    textAnchor="middle"
-                    dy=".35em"
-                    fontSize={fontSize}
-                    className="capture-score-float-text"
-                    fill="url(#capture-score-gradient)"
-                    stroke="#022c22"
-                    strokeWidth={Math.max(1.5, cellSize * 0.09)}
-                    paintOrder="stroke fill"
-                    filter="url(#capture-score-premium)"
-                >
-                    {text}
-                </text>
+                <g className={vis.innerClassName} style={{ animationDuration: `${durS}s` }}>
+                    <text
+                        x={0}
+                        y={0}
+                        textAnchor="middle"
+                        dy=".35em"
+                        fontSize={vis.fontSize}
+                        className="capture-score-float-text"
+                        fill={vis.fillUrl}
+                        stroke={vis.stroke}
+                        strokeWidth={vis.strokeWidth}
+                        paintOrder="stroke fill"
+                        filter={vis.filterUrl}
+                    >
+                        {text}
+                    </text>
                 </g>
             </g>
         </g>
@@ -517,7 +571,7 @@ interface GoBoardProps {
   myRevealedMoveIndices?: readonly number[];
   allRevealedStones?: { [playerId: string]: Point[] };
   newlyRevealed?: { point: Point, player: Player }[];
-  justCaptured?: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[];
+  justCaptured?: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number; capturerId?: string }[];
   permanentlyRevealedStones?: Point[];
   blackPatternStones?: Point[];
   whitePatternStones?: Point[];
@@ -585,7 +639,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const isHiddenRevealStatus =
         gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal';
     const effectiveNewlyRevealed = isHiddenRevealStatus ? newlyRevealed : undefined;
-    const [captureScoreFloats, setCaptureScoreFloats] = useState<{ id: string; point: Point; label: string }[]>([]);
+    const [captureScoreFloats, setCaptureScoreFloats] = useState<
+        { id: string; point: Point; label: string; points: number }[]
+    >([]);
     /** 서버는 justCaptured를 누적하므로, 이번 업데이트에서 새로 추가된 항목만 처리 */
     const processedJustCapturedCountRef = useRef<number>(0);
     /** DOM/Node 타이머 핸들 혼용 — clearTimeout 양쪽 모두 수용 */
@@ -675,7 +731,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 return;
             }
             const list = justCaptured ?? [];
-            const CAPTURE_FLOAT_MS = 2800;
+            const CAPTURE_FLOAT_MS = 2850;
             const minPts = captureScoreFloatMinPoints;
             /** 미공개 히든 포획(+5): 공개 연출 직후 점수 플로트를 분리 */
             const hiddenRevealScoreFloatLagMs = list.some((e) => e.wasHidden) ? 450 : 0;
@@ -715,7 +771,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const floatId = `cap-${anchor.x}-${anchor.y}-${totalPts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
                     setCaptureScoreFloats((prev) => [
                         ...prev,
-                        { id: floatId, point: anchor, label: `+${totalPts}` },
+                        { id: floatId, point: anchor, label: `+${totalPts}`, points: totalPts },
                     ]);
                     const clearT = window.setTimeout(() => {
                         setCaptureScoreFloats((prev) => prev.filter((x) => x.id !== floatId));
@@ -794,8 +850,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     processedJustCapturedCountRef.current = list.length;
                 };
 
+                const capturerIdFromSlice = sliceEntries[0]?.capturerId;
+                const isMyCapture =
+                    mode === GameMode.Dice && typeof capturerIdFromSlice === 'string'
+                        ? currentUser.id === capturerIdFromSlice
+                        : isMyCaptureByPlayer(capturerFromSlice);
                 // 내 캡처가 아니면 내 화면에서 점수 획득 플로트를 띄우지 않는다.
-                if (!isMyCaptureByPlayer(capturerFromSlice)) {
+                if (!isMyCapture) {
                     commitMoveFloatState();
                     return;
                 }
@@ -870,7 +931,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
             const capturer =
                 newEntries[0].player === Player.Black ? Player.White : Player.Black;
-            if (!isMyCaptureByPlayer(capturer)) {
+            const capturerIdFromEntries = newEntries[0]?.capturerId;
+            const isMyCapture =
+                mode === GameMode.Dice && typeof capturerIdFromEntries === 'string'
+                    ? currentUser.id === capturerIdFromEntries
+                    : isMyCaptureByPlayer(capturer);
+            if (!isMyCapture) {
                 if (captures) prevCapturesForFloatRef.current = { ...captures };
                 return;
             }
@@ -955,6 +1021,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const stone_radius = cell_size * 0.47;
     
     const isScoringOrEnded = gameStatus === 'scoring' || gameStatus === 'ended' || gameStatus === 'no_contest';
+    /** 따내기 직후 `ended`여도 +점수 플로트는 재생되게 함(`index.css` 2.85s 애니). 계가·무승부만 숨김 */
+    const hideCaptureScoreFloatOverlay = gameStatus === 'scoring' || gameStatus === 'no_contest';
 
     // 미사일 애니메이션 완료 감지 및 처리
     useEffect(() => {
@@ -1582,12 +1650,52 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <stop offset="78%" stopColor="#059669" />
                         <stop offset="100%" stopColor="#064e3b" />
                     </linearGradient>
+                    <linearGradient id="capture-score-gradient-low" x1="20%" y1="0%" x2="80%" y2="100%">
+                        <stop offset="0%" stopColor="#f0fdfa" />
+                        <stop offset="28%" stopColor="#99f6e4" />
+                        <stop offset="52%" stopColor="#2dd4bf" />
+                        <stop offset="82%" stopColor="#0d9488" />
+                        <stop offset="100%" stopColor="#115e59" />
+                    </linearGradient>
+                    <linearGradient id="capture-score-gradient-critical" x1="12%" y1="0%" x2="88%" y2="100%">
+                        <stop offset="0%" stopColor="#fef9c3" />
+                        <stop offset="22%" stopColor="#fde047" />
+                        <stop offset="48%" stopColor="#facc15" />
+                        <stop offset="72%" stopColor="#eab308" />
+                        <stop offset="100%" stopColor="#a16207" />
+                    </linearGradient>
                     <filter id="capture-score-premium" x="-120%" y="-120%" width="340%" height="340%" colorInterpolationFilters="sRGB">
                         <feGaussianBlur in="SourceAlpha" stdDeviation="5.5" result="blurWide" />
                         <feFlood floodColor="#34d399" floodOpacity="0.42" result="colWide" />
                         <feComposite in="colWide" in2="blurWide" operator="in" result="glowWide" />
                         <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blurCore" />
                         <feFlood floodColor="#6ee7b7" floodOpacity="0.75" result="colCore" />
+                        <feComposite in="colCore" in2="blurCore" operator="in" result="glowCore" />
+                        <feMerge>
+                            <feMergeNode in="glowWide" />
+                            <feMergeNode in="glowCore" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <filter id="capture-score-premium-low" x="-100%" y="-100%" width="300%" height="300%" colorInterpolationFilters="sRGB">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="3.8" result="blurWide" />
+                        <feFlood floodColor="#14b8a6" floodOpacity="0.28" result="colWide" />
+                        <feComposite in="colWide" in2="blurWide" operator="in" result="glowWide" />
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="1.6" result="blurCore" />
+                        <feFlood floodColor="#5eead4" floodOpacity="0.5" result="colCore" />
+                        <feComposite in="colCore" in2="blurCore" operator="in" result="glowCore" />
+                        <feMerge>
+                            <feMergeNode in="glowWide" />
+                            <feMergeNode in="glowCore" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <filter id="capture-score-premium-critical" x="-130%" y="-130%" width="360%" height="360%" colorInterpolationFilters="sRGB">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="6.2" result="blurWide" />
+                        <feFlood floodColor="#f59e0b" floodOpacity="0.55" result="colWide" />
+                        <feComposite in="colWide" in2="blurWide" operator="in" result="glowWide" />
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="2.4" result="blurCore" />
+                        <feFlood floodColor="#fde047" floodOpacity="0.85" result="colCore" />
                         <feComposite in="colCore" in2="blurCore" operator="in" result="glowCore" />
                         <feMerge>
                             <feMergeNode in="glowWide" />
@@ -1928,31 +2036,30 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         </>
                     );
                 })()}
-                {!isScoringOrEnded &&
+                {!hideCaptureScoreFloatOverlay &&
                     captureScoreFloats.map((f) => {
                         const { cx, cy } = toSvgCoords(f.point);
-                        const fs = cell_size * 1.42;
-                        const sw = Math.max(1.6, cell_size * 0.1);
+                        const vis = getCaptureScoreFloatVisual(cell_size, f.points);
                         return (
                             <g key={f.id} transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: 'none' }}>
                                 <g transform={isRotated ? 'scale(1,-1)' : undefined}>
-                                <g className="capture-points-float-inner">
-                                    <text
-                                        x={0}
-                                        y={0}
-                                        textAnchor="middle"
-                                        dy=".35em"
-                                        fontSize={fs}
-                                        className="capture-score-float-text"
-                                        fill="url(#capture-score-gradient)"
-                                        stroke="#022c22"
-                                        strokeWidth={sw}
-                                        paintOrder="stroke fill"
-                                        filter="url(#capture-score-premium)"
-                                    >
-                                        {f.label}
-                                    </text>
-                                </g>
+                                    <g className={vis.innerClassName}>
+                                        <text
+                                            x={0}
+                                            y={0}
+                                            textAnchor="middle"
+                                            dy=".35em"
+                                            fontSize={vis.fontSize}
+                                            className="capture-score-float-text"
+                                            fill={vis.fillUrl}
+                                            stroke={vis.stroke}
+                                            strokeWidth={vis.strokeWidth}
+                                            paintOrder="stroke fill"
+                                            filter={vis.filterUrl}
+                                        >
+                                            {f.label}
+                                        </text>
+                                    </g>
                                 </g>
                             </g>
                         );

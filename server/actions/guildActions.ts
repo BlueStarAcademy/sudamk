@@ -1650,30 +1650,56 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
                 const purchaseRecord = user.dailyShopPurchases[itemId];
                 let purchasesThisPeriod = 0;
-                
+
                 if (purchaseRecord) {
-                    const isNewPeriod = (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(purchaseRecord.lastPurchaseTimestamp, now)) ||
-                                        (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(purchaseRecord.lastPurchaseTimestamp, now));
-                    if (!isNewPeriod) {
+                    if (itemToBuy.limitType === 'account') {
                         purchasesThisPeriod = purchaseRecord.quantity;
+                    } else {
+                        const ts = purchaseRecord.lastPurchaseTimestamp ?? purchaseRecord.date;
+                        const isNewPeriod =
+                            (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(ts, now)) ||
+                            (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(ts, now));
+                        if (!isNewPeriod) {
+                            purchasesThisPeriod = purchaseRecord.quantity;
+                        }
                     }
                 }
-                
+
                 if (purchasesThisPeriod >= itemToBuy.limit) {
-                    return { error: `${itemToBuy.limitType === 'weekly' ? '주간' : '?�간'} 구매 ?�도�?초과?�습?�다.` };
+                    const limitMsg =
+                        itemToBuy.limitType === 'weekly'
+                            ? '주간 구매 한도를 초과했습니다.'
+                            : itemToBuy.limitType === 'monthly'
+                              ? '월간 구매 한도를 초과했습니다.'
+                              : '계정당 구매 한도를 초과했습니다.';
+                    return { error: limitMsg };
                 }
             }
-            
+
             // Deduct cost and update purchase record BEFORE giving the item
             if (!user.isAdmin) {
                 user.guildCoins = (user.guildCoins || 0) - itemToBuy.cost;
-                
+
                 const now = Date.now();
                 if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
                 const record = user.dailyShopPurchases[itemId];
-                if (record) {
-                    const isNewPeriod = (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(record.lastPurchaseTimestamp, now)) ||
-                                        (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(record.lastPurchaseTimestamp, now));
+                if (itemToBuy.limitType === 'account') {
+                    if (record) {
+                        record.quantity = (record.quantity || 0) + 1;
+                        record.lastPurchaseTimestamp = now;
+                        record.date = now;
+                    } else {
+                        user.dailyShopPurchases[itemId] = {
+                            quantity: 1,
+                            date: now,
+                            lastPurchaseTimestamp: now,
+                        };
+                    }
+                } else if (record) {
+                    const ts = record.lastPurchaseTimestamp ?? record.date;
+                    const isNewPeriod =
+                        (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(ts, now)) ||
+                        (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(ts, now));
 
                     if (isNewPeriod) {
                         record.quantity = 1;
@@ -1689,28 +1715,26 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     };
                 }
             }
-            
-            // Special handling for Stat Points
-            if (itemToBuy.itemId === '보너???�탯 +5') {
+
+            // Special handling for Stat Points (길드 상점 소모품)
+            if (itemToBuy.itemId === '보너스 스탯 +5') {
                 user.bonusStatPoints = (user.bonusStatPoints || 0) + 5;
-                
-                // DB ?�데?�트�?비동기로 처리 (?�답 지??최소??
+
                 db.updateUser(user).catch(err => {
-                    console.error(`[BUY_GUILD_SHOP_ITEM] Failed to save user ${user.id}:`, err);
+                    console.error(`[GUILD_BUY_SHOP_ITEM] Failed to save user ${user.id}:`, err);
                 });
 
-                // WebSocket?�로 ?�용???�데?�트 브로?�캐?�트 (최적?�된 ?�수 ?�용)
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(user, ['bonusStatPoints', 'guildCoins', 'dailyShopPurchases']);
-                
+
                 const rewardSummary = {
-                    reward: { bonus: '?�탯+5' },
+                    reward: { bonus: '스탯+5' },
                     items: [],
-                    title: '길드 ?�점 구매'
+                    title: '길드 상점 구매',
                 };
                 return { clientResponse: { updatedUser: user, rewardSummary } };
             }
-            
+
             // Regular item handling
             let itemsToAdd: InventoryItem[] = [];
             if (itemToBuy.type === 'equipment_box') {
@@ -1776,24 +1800,50 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             let purchasesThisPeriod = 0;
 
             if (purchaseRecord) {
-                const isNewPeriod = (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(purchaseRecord.lastPurchaseTimestamp, now)) ||
-                                    (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(purchaseRecord.lastPurchaseTimestamp, now));
-                if (!isNewPeriod) {
+                if (itemToBuy.limitType === 'account') {
                     purchasesThisPeriod = purchaseRecord.quantity;
+                } else {
+                    const ts = purchaseRecord.lastPurchaseTimestamp ?? purchaseRecord.date;
+                    const isNewPeriod =
+                        (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(ts, now)) ||
+                        (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(ts, now));
+                    if (!isNewPeriod) {
+                        purchasesThisPeriod = purchaseRecord.quantity;
+                    }
                 }
             }
 
             if (itemToBuy.limit !== Infinity && (purchasesThisPeriod + quantity) > itemToBuy.limit) {
-                return { error: `${itemToBuy.limitType === 'weekly' ? '주간' : '?�간'} 구매 ?�도�?초과?�습?�다.` };
+                const limitMsg =
+                    itemToBuy.limitType === 'weekly'
+                        ? '주간 구매 한도를 초과했습니다.'
+                        : itemToBuy.limitType === 'monthly'
+                          ? '월간 구매 한도를 초과했습니다.'
+                          : '계정당 구매 한도를 초과했습니다.';
+                return { error: limitMsg };
             }
 
             user.guildCoins = (user.guildCoins || 0) - totalCost;
 
             if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
             const record = user.dailyShopPurchases[itemId];
-            if (record) {
-                const isNewPeriod = (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(record.lastPurchaseTimestamp, now)) ||
-                                    (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(record.lastPurchaseTimestamp, now));
+            if (itemToBuy.limitType === 'account') {
+                if (record) {
+                    record.quantity = (record.quantity || 0) + quantity;
+                    record.lastPurchaseTimestamp = now;
+                    record.date = now;
+                } else {
+                    user.dailyShopPurchases[itemId] = {
+                        quantity,
+                        date: now,
+                        lastPurchaseTimestamp: now,
+                    };
+                }
+            } else if (record) {
+                const ts = record.lastPurchaseTimestamp ?? record.date;
+                const isNewPeriod =
+                    (itemToBuy.limitType === 'weekly' && isDifferentWeekKST(ts, now)) ||
+                    (itemToBuy.limitType === 'monthly' && isDifferentMonthKST(ts, now));
 
                 if (isNewPeriod) {
                     record.quantity = quantity;
@@ -1806,6 +1856,22 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     quantity: quantity,
                     date: now,
                     lastPurchaseTimestamp: now,
+                };
+            }
+
+            if (itemToBuy.itemId === '보너스 스탯 +5') {
+                user.bonusStatPoints = (user.bonusStatPoints || 0) + 5 * quantity;
+                db.updateUser(user).catch(err => {
+                    console.error(`[BUY_GUILD_SHOP_ITEM] Failed to save user ${user.id}:`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['bonusStatPoints', 'guildCoins', 'dailyShopPurchases']);
+                await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                return {
+                    clientResponse: {
+                        updatedUser: user,
+                        rewardSummary: { reward: { bonus: `스탯+${5 * quantity}` }, items: [], title: '길드 상점 구매' },
+                    },
                 };
             }
 

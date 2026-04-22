@@ -1191,6 +1191,74 @@ input, textarea {
   transform-origin: 0 0;
 }
 
+/* 5점 미만: 덜 튀는 팝, 완만한 이징 */
+@keyframes capture-points-float-animation-low {
+  0% {
+    transform: translateY(16px) scale(0.2);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  18% {
+    transform: translateY(-7px) scale(1.06);
+  }
+  28% {
+    transform: translateY(-13px) scale(0.96);
+  }
+  58% {
+    transform: translateY(-42px) scale(1.01);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-80px) scale(0.86);
+    opacity: 0;
+  }
+}
+
+.capture-points-float-inner.capture-points-float-inner--low {
+  animation: capture-points-float-animation-low 2.75s cubic-bezier(0.2, 1, 0.34, 1) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: 0 0;
+}
+
+/* 10점 이상: 크리티컬 팝 + 긴 부유 */
+@keyframes capture-points-float-animation-critical {
+  0% {
+    transform: translateY(18px) scale(0.16);
+    opacity: 0;
+  }
+  7% {
+    opacity: 1;
+  }
+  13% {
+    transform: translateY(-11px) scale(1.22);
+  }
+  21% {
+    transform: translateY(-17px) scale(1.02);
+  }
+  34% {
+    transform: translateY(-28px) scale(1.08);
+    opacity: 1;
+  }
+  56% {
+    transform: translateY(-50px) scale(1.06);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-94px) scale(0.82);
+    opacity: 0;
+  }
+}
+
+.capture-points-float-inner.capture-points-float-inner--critical {
+  animation: capture-points-float-animation-critical 3s cubic-bezier(0.12, 1, 0.28, 1) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: 0 0;
+}
+
 /* 180도 회전(isRotated) 시 SVG <g> 회전 때문에 translateY 부호가 화면에서 반전되어 보이는 문제 보정 */
 @keyframes capture-points-float-animation-rotated {
   0% {

@@ -1,7 +1,7 @@
 
 
 // server/guildService.ts
-import { Guild, GuildMemberRole, GuildMission, ChatMessage, Mail, GuildResearchId, InventoryItem } from '../types/index.js';
+import { Guild, GuildMemberRole, GuildMission, ChatMessage, GuildResearchId, InventoryItem } from '../types/index.js';
 import { ItemGrade } from '../types/enums.js';
 import * as db from './db.js';
 import { GUILD_MISSIONS_POOL, GUILD_XP_PER_LEVEL, GUILD_BOSSES } from '../constants/index.js';
@@ -9,8 +9,7 @@ import {
     clampGuildBossStage,
     getScaledGuildBossMaxHp,
     GUILD_BOSS_MAX_DIFFICULTY_STAGE,
-    type GuildBossSwapMailTier,
-    getGuildBossSwapMailMemberRewards,
+    getWeeklyGuildBossSettlementGuildRewards,
 } from '../utils/guildBossStageUtils.js';
 import { randomUUID } from 'crypto';
 import { calculateGuildMissionXp } from '../utils/guildUtils.js';
@@ -199,56 +198,35 @@ export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
         const prevHpNum = typeof prevHp === 'number' ? prevHp : 0;
         const wasDefeatedWithinWeek = prevHpNum <= 0;
 
-        // 월요일 0시: 이전 주 보스 잔여 체력 비율로 "보스 교체 정산 우편" 발송
-        // - <= 50% : half 보상
-        // - <= 25% : quarter 보상
-        // - 0 : defeated 보상
+        // 월요일 0시: 이전 주 보스 잔여 체력에 따라 길드 경험치·연구 포인트를 길드에 자동 적립 (우편 없음)
         const prevRatio = prevMaxHp > 0 ? Math.max(0, Math.min(1, prevHpNum / prevMaxHp)) : 0;
-        let tier: GuildBossSwapMailTier = 'none';
-        if (wasDefeatedWithinWeek) tier = 'defeated';
-        else if (prevRatio <= 0.25) tier = 'quarter';
-        else if (prevRatio <= 0.5) tier = 'half';
-
-        if (tier !== 'none') {
+        const settlement = getWeeklyGuildBossSettlementGuildRewards({
+            stage: prevStage,
+            remainingHpRatio: prevRatio,
+            wasDefeated: wasDefeatedWithinWeek,
+        });
+        if (settlement) {
             const prevBossTemplate = GUILD_BOSSES.find((b) => b.id === currentBossId) || GUILD_BOSSES[0];
-            const damageLog = guild.guildBossState.totalDamageLog || {};
-            const maxDamage = Math.max(0, ...Object.values(damageLog).map((v) => (typeof v === 'number' ? v : 0)));
+            if (guild.xp === undefined) guild.xp = (guild as any).experience ?? 0;
+            guild.xp = (guild.xp ?? 0) + settlement.guildXp;
+            (guild as any).experience = guild.xp;
+            if (!guild.researchPoints) guild.researchPoints = 0;
+            guild.researchPoints += settlement.researchPoints;
+            checkGuildLevelUp(guild);
+            (guild as any).experience = guild.xp;
 
-            const members = guild.members ?? [];
-            for (const m of members) {
-                const memberUserId = m.userId;
-                const memberDamage = (damageLog as Record<string, number>)[memberUserId] ?? 0;
-                const memberRewards = getGuildBossSwapMailMemberRewards({
-                    stage: prevStage,
-                    tier: tier as Exclude<GuildBossSwapMailTier, 'none'>,
-                    memberDamage,
-                    maxDamage,
-                });
-
-                const user = await db.getUser(memberUserId, { includeEquipment: false, includeInventory: false });
-                if (!user) continue;
-
-                const mailTitle = `[길드 보스 정산] ${prevBossTemplate.name} · 잔여 ${Math.round(prevRatio * 100)}%`;
-                const mailMessage = `월요일 0시 기준 보스 잔여 체력으로 정산 보상이 지급됩니다.\n\n- 보상: 연구소 포인트 +${memberRewards.researchPoints} / 길드코인 +${memberRewards.guildCoins}\n- 추가 보상은 본인의 총 데미지 기여도에 따라 반영됩니다.\n\n5일 이내에 수령해주세요.`;
-
-                const mail: Mail = {
-                    id: `mail-guild-boss-swap-${guild.id}-${currentBossId}-${tier}-${randomUUID()}`,
-                    from: 'System',
-                    title: mailTitle,
-                    message: mailMessage,
-                    attachments: {
-                        researchPoints: memberRewards.researchPoints,
-                        guildCoins: memberRewards.guildCoins,
-                    },
-                    receivedAt: now,
-                    expiresAt: now + 5 * 24 * 60 * 60 * 1000, // 5 days
-                    isRead: false,
-                    attachmentsClaimed: false,
-                };
-
-                if (!user.mail) user.mail = [];
-                user.mail.unshift(mail);
-                await db.updateUser(user);
+            if (!guild.chatHistory) guild.chatHistory = [];
+            const statusLabel = wasDefeatedWithinWeek ? '격파' : `잔여 체력 ${Math.round(prevRatio * 100)}%`;
+            const chatMessage: ChatMessage = {
+                id: `msg-guild-${randomUUID()}`,
+                user: { id: 'system', nickname: '시스템' },
+                system: true,
+                text: `주간 길드 보스 정산(${prevBossTemplate.name}, ${statusLabel}): 길드 경험치 +${settlement.guildXp.toLocaleString()}, 연구 포인트 +${settlement.researchPoints.toLocaleString()}이 길드에 적립되었습니다.`,
+                timestamp: now,
+            };
+            guild.chatHistory.push(chatMessage as any);
+            if (guild.chatHistory.length > 100) {
+                guild.chatHistory.shift();
             }
         }
 

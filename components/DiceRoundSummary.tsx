@@ -5,6 +5,8 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { ArenaDuoNumericCumulativeStrip, arenaMidRoundPrimaryButtonClassName } from './game/arenaRoundEndShared.js';
 
 interface DiceRoundSummaryProps {
     session: LiveGameSession;
@@ -13,8 +15,9 @@ interface DiceRoundSummaryProps {
 }
 
 const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUser, onAction }) => {
-    const { id: gameId, player1, player2, diceRoundSummary, roundEndConfirmations, revealEndTime } = session;
+    const { id: gameId, player1, player2, diceRoundSummary, roundEndConfirmations, revealEndTime, isAiGame } = session;
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
+    const isMobileLayout = useIsHandheldDevice(1024);
 
     if (!diceRoundSummary) return null;
 
@@ -95,7 +98,7 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
 
                 <div className="relative overflow-hidden rounded-xl border border-amber-400/20 bg-gradient-to-b from-zinc-800/90 to-zinc-950/95 p-2 shadow-inner shadow-black/40 sm:p-3">
                     <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" />
-                    <div className="flex min-h-0 items-center justify-between gap-1.5 sm:gap-3">
+                    <div className="flex min-h-0 items-center justify-between gap-3 sm:gap-4">
                         <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
                             <Avatar userId={player1.id} userName={player1.nickname} size={56} avatarUrl={p1AvatarUrl} borderUrl={p1BorderUrl} />
                             <p
@@ -104,26 +107,6 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                             >
                                 {player1.nickname}
                             </p>
-                        </div>
-                        <div className="flex shrink-0 flex-col items-center px-0.5">
-                            <span className="font-mono text-[1.45rem] font-bold tabular-nums tracking-tight text-amber-100 drop-shadow-sm min-[400px]:text-[2.05rem] sm:text-4xl">
-                                {p1Score}
-                                <span className="mx-0.5 text-zinc-500 sm:mx-1">:</span>
-                                {p2Score}
-                            </span>
-                            <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-300 sm:text-xs">
-                                누적
-                            </span>
-                            {lastDummyCaptureBonus && lastDummyCaptureBonus.amount > 0 && (
-                                <span className="mt-1 max-w-[min(92vw,22rem)] text-center text-[11px] font-semibold leading-tight text-amber-200 sm:text-xs">
-                                    마지막 더미 포획 보너스:{' '}
-                                    {(lastDummyCaptureBonus.playerId === player1.id ? player1.nickname : player2.nickname) ??
-                                        '플레이어'}
-                                    <span className="ml-1 font-mono tabular-nums text-amber-200">
-                                        +{lastDummyCaptureBonus.amount}
-                                    </span>
-                                </span>
-                            )}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
                             <Avatar userId={player2.id} userName={player2.nickname} size={56} avatarUrl={p2AvatarUrl} borderUrl={p2BorderUrl} />
@@ -135,9 +118,19 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                             </p>
                         </div>
                     </div>
+                    <div className="mt-2 sm:mt-2.5">
+                        <ArenaDuoNumericCumulativeStrip leftScore={p1Score} rightScore={p2Score} compact={isMobileLayout} scoresOnly />
+                    </div>
+                    {lastDummyCaptureBonus && lastDummyCaptureBonus.amount > 0 && (
+                        <span className="mt-2 block max-w-[min(92vw,22rem)] text-center text-[11px] font-semibold leading-tight text-amber-200 sm:text-xs">
+                            마지막 더미 포획 보너스:{' '}
+                            {(lastDummyCaptureBonus.playerId === player1.id ? player1.nickname : player2.nickname) ?? '플레이어'}
+                            <span className="ml-1 font-mono tabular-nums text-amber-200">+{lastDummyCaptureBonus.amount}</span>
+                        </span>
+                    )}
                 </div>
 
-                {diceStats && (
+                {!isAiGame && diceStats && (
                     <div className="min-h-0 shrink rounded-lg border border-amber-500/15 bg-zinc-900/55 p-2 ring-1 ring-inset ring-white/[0.04] sm:p-2.5">
                         <h3 className="mb-1.5 text-center text-xs font-bold uppercase tracking-wide text-amber-100 sm:mb-2 sm:text-sm">
                             {round}라운드 주사위 분포
@@ -165,26 +158,24 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                     </div>
                 )}
 
-                <div className="mt-auto flex min-h-0 shrink-0 flex-col gap-1.5 pt-0.5">
+                <div className="mt-auto flex min-h-0 shrink-0 flex-col items-center gap-1.5 pt-0.5">
                     <Button
                         bare
                         onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
                         disabled={!!hasConfirmed}
                         title={hasConfirmed ? undefined : buttonText}
-                        className={`w-full rounded-xl border px-2 py-2.5 text-sm font-bold shadow-lg transition sm:py-3 sm:text-base ${
-                            hasConfirmed
-                                ? 'cursor-not-allowed border-zinc-600 bg-zinc-800/80 text-zinc-500'
-                                : 'border-amber-400/40 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 text-zinc-950 shadow-amber-900/30 hover:from-amber-300 hover:to-amber-600 active:scale-[0.99]'
-                        }`}
+                        className={arenaMidRoundPrimaryButtonClassName(isMobileLayout)}
                     >
                         {buttonText}
                     </Button>
-                    <RoundCountdownIndicator
-                        deadline={revealEndTime}
-                        durationSeconds={20}
-                        label={countdownLabel}
-                        labelShort={countdownLabelShort}
-                    />
+                    {!isAiGame && (
+                        <RoundCountdownIndicator
+                            deadline={revealEndTime}
+                            durationSeconds={20}
+                            label={countdownLabel}
+                            labelShort={countdownLabelShort}
+                        />
+                    )}
                 </div>
             </div>
         </DraggableWindow>

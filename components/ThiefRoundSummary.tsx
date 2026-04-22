@@ -5,6 +5,8 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
+import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { ArenaDuoNumericCumulativeStrip, arenaMidRoundPrimaryButtonClassName } from './game/arenaRoundEndShared.js';
 
 interface ThiefRoundSummaryProps {
     session: LiveGameSession;
@@ -44,10 +46,6 @@ const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: Us
                         <span className="ml-0.5 font-sans text-[11px] font-normal text-zinc-300">개</span>
                     </dd>
                 </div>
-                <div className="flex items-baseline justify-between gap-1 border-t border-white/10 pt-1.5">
-                    <dt className="shrink-0 text-zinc-300">누적</dt>
-                    <dd className="font-mono text-[1.05rem] font-bold tabular-nums text-amber-200 sm:text-xl">{summary.cumulativeScore}</dd>
-                </div>
             </dl>
         </div>
     );
@@ -56,6 +54,7 @@ const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: Us
 const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentUser, onAction }) => {
     const { id: gameId, player1, player2, thiefRoundSummary, roundEndConfirmations, revealEndTime } = session;
     const hasConfirmed = !!(roundEndConfirmations?.[currentUser.id]);
+    const isMobileLayout = useIsHandheldDevice(1024);
 
     if (!thiefRoundSummary) return null;
 
@@ -100,17 +99,22 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
                     {renderPlayerSummary(summaryP2, player2)}
                 </div>
 
-                <div className="mt-auto flex min-h-0 shrink-0 flex-col gap-1.5 pt-0.5">
+                <div className="min-h-0 shrink-0">
+                    <ArenaDuoNumericCumulativeStrip
+                        leftScore={summaryP1.cumulativeScore}
+                        rightScore={summaryP2.cumulativeScore}
+                        compact={isMobileLayout}
+                        scoresOnly
+                    />
+                </div>
+
+                <div className="mt-auto flex min-h-0 shrink-0 flex-col items-center gap-1.5 pt-0.5">
                     <Button
                         bare
                         onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
                         disabled={hasConfirmed}
                         title={hasConfirmed ? undefined : btnLabel}
-                        className={`w-full rounded-xl border px-2 py-2.5 text-sm font-bold shadow-lg transition sm:py-3 sm:text-base ${
-                            hasConfirmed
-                                ? 'cursor-not-allowed border-zinc-600 bg-zinc-800/80 text-zinc-500'
-                                : 'border-amber-400/40 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 text-zinc-950 shadow-amber-900/30 hover:from-amber-300 hover:to-amber-600 active:scale-[0.99]'
-                        }`}
+                        className={arenaMidRoundPrimaryButtonClassName(isMobileLayout)}
                     >
                         {btnLabel}
                     </Button>

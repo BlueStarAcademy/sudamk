@@ -368,6 +368,7 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
                     player: types.Player.White,
                     wasHidden: false,
                     capturePoints: bonus,
+                    capturerId: playerId,
                 });
             }
             if (bonus > 0) {
@@ -409,7 +410,7 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
         }
         game.diceRoundSummary = roundSummary;
         game.gameStatus = 'dice_round_end';
-        game.revealEndTime = now + 20000;
+        game.revealEndTime = game.isAiGame ? undefined : now + 20000;
         if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
         if (game.isAiGame) game.roundEndConfirmations[aiUserId] = now;
 
@@ -865,6 +866,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         player: types.Player.White,
                         wasHidden: false,
                         capturePoints: totalCapturesThisTurn,
+                        capturerId: timedOutPlayerId,
                     });
                 }
                 finishPlacingTurn(game, timedOutPlayerId);
@@ -877,7 +879,8 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.roundEndConfirmations[aiUserId] = now;
             }
             const bothConfirmed = game.roundEndConfirmations?.[p1Id] && game.roundEndConfirmations?.[p2Id];
-            if ((game.revealEndTime && now > game.revealEndTime) || bothConfirmed) {
+            const revealTimedOut = !game.isAiGame && !!(game.revealEndTime && now > game.revealEndTime);
+            if (revealTimedOut || bothConfirmed) {
                 // 이전 라운드 오버샷/파울 전광판이 남으면 2R 진입 직후 턴 표시·메시지가 충돌해 보일 수 있음
                 game.foulInfo = undefined;
                 const totalRounds = game.settings.diceGoRounds || 3;
@@ -1125,6 +1128,7 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
                     player: types.Player.White,
                     wasHidden: false,
                     capturePoints: cap,
+                    capturerId: user.id,
                 });
             }
 
@@ -1187,6 +1191,7 @@ export const handleDiceGoAction = async (volatileState: types.VolatileState, gam
                         player: types.Player.White,
                         wasHidden: false,
                         capturePoints: cap,
+                        capturerId: user.id,
                     });
                 }
 

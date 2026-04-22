@@ -386,7 +386,8 @@ export const createWebSocketServer = (server: Server) => {
                     arenaEntranceAvailability,
                     announcementInterval,
                     homeBoardPosts,
-                    guilds
+                    guilds,
+                    singlePlayerStages: await (await import('./singlePlayerStageConfigService.js')).getEffectiveSinglePlayerStages(),
                 };
                 
                 // 전송 전 최종 연결 상태 확인

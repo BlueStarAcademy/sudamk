@@ -6,6 +6,7 @@ import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './Drag
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { ArenaBlackWhiteCumulativeStrip, arenaMidRoundPrimaryButtonClassName } from './game/arenaRoundEndShared.js';
 
 interface CurlingRoundSummaryProps {
     session: LiveGameSession;
@@ -44,7 +45,15 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
     const whiteAvatarUrl = AVATAR_POOL.find(a => a.id === whitePlayer.avatarId)?.url;
     const whiteBorderUrl = BORDER_POOL.find(b => b.id === whitePlayer.borderId)?.url;
 
-    const myPlayerEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
+    const isParticipant = currentUser.id === player1.id || currentUser.id === player2.id;
+    const myPlayerEnum =
+        currentUser.id === blackPlayerId
+            ? Player.Black
+            : currentUser.id === whitePlayerId
+              ? Player.White
+              : Player.Black;
+    /** 실제 대국 `CurlingBoard`와 같이 백은 서버 Y축 반전(내 쪽이 아래로). 관전자는 흑 기준. */
+    const flipBoardForWhitePerspective = isParticipant && myPlayerEnum === Player.White;
 
     const boardSizePx = 840;
     const center = { x: boardSizePx / 2, y: boardSizePx / 2 };
@@ -80,62 +89,59 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                 </filter>
             </defs>
 
-            {houseRadii.map((r, i) => (
-                <circle key={i} cx={center.x} cy={center.y} r={r} fill={houseColors[i]} />
-            ))}
+            <g transform={flipBoardForWhitePerspective ? `translate(0 ${boardSizePx}) scale(1 -1)` : undefined}>
+                {houseRadii.map((r, i) => (
+                    <circle key={i} cx={center.x} cy={center.y} r={r} fill={houseColors[i]} />
+                ))}
 
-            {stonesState.map(stone => {
-                if (!stone.onBoard) return null;
-                const score = scoredStones[stone.id];
-                const isMyStone = stone.player === myPlayerEnum;
-                const displayX = stone.x;
-                let displayY: number;
-                if (isMyStone) {
-                    if (myPlayerEnum === Player.White) {
-                        displayY = boardSizePx - stone.y;
-                    } else {
-                        displayY = stone.y;
-                    }
-                } else {
-                    if (stone.player === Player.White) {
-                        displayY = stone.y;
-                    } else {
-                        displayY = boardSizePx - stone.y;
-                    }
-                }
-                return (
-                    <g key={stone.id}>
-                        <circle cx={displayX} cy={displayY} r={stone.radius} fill={stone.player === Player.Black ? '#111827' : '#f9fafb'} />
-                        <circle cx={displayX} cy={displayY} r={stone.radius} fill={`url(#gloss-curling-summary-${uid}-${stone.player})`} />
-                        {score && (
-                            <g style={{ pointerEvents: 'none' }}>
-                                <circle
-                                    cx={displayX}
-                                    cy={displayY}
-                                    r={stone.radius}
-                                    fill="none"
-                                    stroke={stone.player === Player.Black ? '#67e8f9' : '#facc15'}
-                                    strokeWidth="5"
-                                    filter={`url(#${glowId})`}
-                                />
-                                <text
-                                    x={displayX}
-                                    y={displayY}
-                                    textAnchor="middle"
-                                    dy=".35em"
-                                    fontSize={stone.radius * 0.9}
-                                    fontWeight="bold"
-                                    fill={stone.player === Player.Black ? 'white' : 'black'}
-                                    stroke="rgba(0,0,0,0.5)"
-                                    strokeWidth="0.5px"
-                                >
-                                    +{score}
-                                </text>
-                            </g>
-                        )}
-                    </g>
-                );
-            })}
+                {stonesState.map(stone => {
+                    if (!stone.onBoard) return null;
+                    const score = scoredStones[stone.id];
+                    const cx = stone.x;
+                    const cy = stone.y;
+                    return (
+                        <g key={stone.id}>
+                            <circle cx={cx} cy={cy} r={stone.radius} fill={stone.player === Player.Black ? '#111827' : '#f9fafb'} />
+                            <circle cx={cx} cy={cy} r={stone.radius} fill={`url(#gloss-curling-summary-${uid}-${stone.player})`} />
+                            {score && (
+                                <g style={{ pointerEvents: 'none' }}>
+                                    <circle
+                                        cx={cx}
+                                        cy={cy}
+                                        r={stone.radius}
+                                        fill="none"
+                                        stroke={stone.player === Player.Black ? '#67e8f9' : '#facc15'}
+                                        strokeWidth="5"
+                                        filter={`url(#${glowId})`}
+                                    />
+                                    {/* 보드 전체 반전 시 숫자만 뒤집히지 않도록 */}
+                                    <g
+                                        transform={
+                                            flipBoardForWhitePerspective
+                                                ? `translate(${cx} ${cy}) scale(1 -1) translate(${-cx} ${-cy})`
+                                                : undefined
+                                        }
+                                    >
+                                        <text
+                                            x={cx}
+                                            y={cy}
+                                            textAnchor="middle"
+                                            dy=".35em"
+                                            fontSize={stone.radius * 0.9}
+                                            fontWeight="bold"
+                                            fill={stone.player === Player.Black ? 'white' : 'black'}
+                                            stroke="rgba(0,0,0,0.5)"
+                                            strokeWidth="0.5px"
+                                        >
+                                            +{score}
+                                        </text>
+                                    </g>
+                                </g>
+                            )}
+                        </g>
+                    );
+                })}
+            </g>
         </svg>
     );
 
@@ -294,22 +300,19 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
 
     const cumulativeAndActionsDesktop = (
         <>
-            <div className="rounded-xl border border-amber-500/25 bg-gradient-to-br from-slate-800/80 to-slate-950/90 px-3 py-2 text-center shadow-inner ring-1 ring-inset ring-white/5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">누적 점수</p>
-                <p className="mt-0.5 font-mono text-xl font-bold text-amber-50/95">
-                    <span className="tabular-nums">흑 {cumulativeScores[Player.Black]}</span>
-                    <span className="mx-3 text-slate-500">:</span>
-                    <span className="tabular-nums">백 {cumulativeScores[Player.White]}</span>
-                </p>
-            </div>
+            <ArenaBlackWhiteCumulativeStrip blackScore={cumulativeScores[Player.Black]} whiteScore={cumulativeScores[Player.White]} />
 
-            <Button
-                onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
-                disabled={!isAiGame && !!hasConfirmed}
-                className="mt-3 w-full py-2.5"
-            >
-                {confirmLabel}
-            </Button>
+            <div className="mt-3 flex justify-center">
+                <Button
+                    bare
+                    type="button"
+                    onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
+                    disabled={!isAiGame && !!hasConfirmed}
+                    className={arenaMidRoundPrimaryButtonClassName(false)}
+                >
+                    {confirmLabel}
+                </Button>
+            </div>
             <RoundCountdownIndicator
                 deadline={session.revealEndTime}
                 durationSeconds={10}
@@ -321,14 +324,11 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
 
     const cumulativeAndActionsMobile = (
         <>
-            <div className="rounded-xl border border-amber-500/30 bg-gradient-to-r from-slate-900/95 via-[#141a28] to-slate-900/95 px-3 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-200/55">누적 점수</p>
-                <p className="mt-0.5 font-mono text-lg font-bold leading-tight text-amber-50/95">
-                    <span className="tabular-nums">흑 {cumulativeScores[Player.Black]}</span>
-                    <span className="mx-2 text-slate-500">:</span>
-                    <span className="tabular-nums">백 {cumulativeScores[Player.White]}</span>
-                </p>
-            </div>
+            <ArenaBlackWhiteCumulativeStrip
+                compact
+                blackScore={cumulativeScores[Player.Black]}
+                whiteScore={cumulativeScores[Player.White]}
+            />
 
             <div className="mt-2 flex justify-center">
                 <Button
@@ -336,7 +336,7 @@ const CurlingRoundSummary: React.FC<CurlingRoundSummaryProps> = ({ session, curr
                     type="button"
                     onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
                     disabled={!isAiGame && !!hasConfirmed}
-                    className="min-h-[2.75rem] min-w-[11rem] max-w-[min(20rem,88vw)] rounded-full border border-amber-400/50 bg-gradient-to-b from-amber-500/95 via-amber-700/90 to-amber-950/95 px-7 py-2 text-[13px] font-bold tracking-tight text-amber-50 shadow-[0_4px_24px_-6px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.28)] transition-[transform,box-shadow] active:translate-y-px active:shadow-[0_2px_12px_-4px_rgba(251,191,36,0.4),inset_0_1px_0_rgba(255,255,255,0.2)] disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none"
+                    className={arenaMidRoundPrimaryButtonClassName(true)}
                 >
                     {confirmLabel}
                 </Button>

@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, LiveGameSession, Player, GameMode, Point, BoardState, SinglePlayerStageInfo, SinglePlayerMissionState, UserStatus, SinglePlayerLevel } from '../../types/index.js';
-import { SINGLE_PLAYER_STAGES, SINGLE_PLAYER_MISSIONS } from '../../shared/constants/singlePlayerConstants';
+import { SINGLE_PLAYER_MISSIONS } from '../../shared/constants/singlePlayerConstants';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import {
@@ -17,6 +17,7 @@ import { applyPassiveActionPointRegenToUser } from '../effectService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { ONBOARDING_PHASE_COMPLETE } from '../../shared/constants/onboardingTutorial.js';
 import { updateQuestProgress } from '../questService.js';
+import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -110,12 +111,61 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
         const board: BoardState = Array(bs)
             .fill(null)
             .map(() => Array(bs).fill(Player.None));
+        const fixedBlackPattern: Point[] = [];
+        const fixedWhitePattern: Point[] = [];
         for (const s of stage.fixedOpening) {
             if (s.x >= 0 && s.x < bs && s.y >= 0 && s.y < bs) {
                 board[s.y][s.x] = s.color === 'black' ? Player.Black : Player.White;
+                if (s.kind === 'pattern') {
+                    if (s.color === 'black') fixedBlackPattern.push({ x: s.x, y: s.y });
+                    else fixedWhitePattern.push({ x: s.x, y: s.y });
+                }
             }
         }
-        return { board, blackPattern: [], whitePattern: [] };
+        if (!stage.mergeRandomPlacementsWithFixed) {
+            return { board, blackPattern: fixedBlackPattern, whitePattern: fixedWhitePattern };
+        }
+
+        const center = Math.floor(stage.boardSize / 2);
+        let blackToPlace = stage.placements.black;
+        const whitePlain = Math.max(0, stage.placements.white - singlePlayerPlainWhiteReduction(stage.level));
+        let baseBoard: BoardState | undefined = board;
+
+        if (
+            stage.placements.centerBlackStoneChance !== undefined &&
+            stage.placements.centerBlackStoneChance > 0 &&
+            board[center]?.[center] === Player.None &&
+            Math.random() * 100 < stage.placements.centerBlackStoneChance
+        ) {
+            const template = Array(stage.boardSize).fill(null).map(() => Array(stage.boardSize).fill(Player.None));
+            for (let y = 0; y < stage.boardSize; y++) {
+                for (let x = 0; x < stage.boardSize; x++) {
+                    template[y][x] = board[y][x];
+                }
+            }
+            if (!isInvalidStrategicInitialStonePlacement(template, center, center, Player.Black)) {
+                template[center][center] = Player.Black;
+                baseBoard = template;
+                blackToPlace--;
+            }
+        }
+
+        const generated = generateStrategicRandomBoard(
+            stage.boardSize,
+            {
+                black: blackToPlace,
+                white: whitePlain,
+                blackPattern: stage.placements.blackPattern,
+                whitePattern: stage.placements.whitePattern,
+            },
+            { baseBoard, maxAttempts: 40 }
+        );
+
+        return {
+            board: generated.board,
+            blackPattern: [...fixedBlackPattern, ...generated.blackPattern],
+            whitePattern: [...fixedWhitePattern, ...generated.whitePattern],
+        };
     }
 
     const center = Math.floor(stage.boardSize / 2);
@@ -161,13 +211,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const spGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer', user);
             if (!spGate.ok) return { error: spGate.error };
             const { stageId } = payload;
-            const stage = SINGLE_PLAYER_STAGES.find(s => s.id === stageId);
+            const stages = await getEffectiveSinglePlayerStages();
+            const stage = stages.find(s => s.id === stageId);
 
             if (!stage) {
                 return { error: 'Stage not found.' };
             }
 
-            const currentStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === stageId);
+            const currentStageIndex = stages.findIndex(s => s.id === stageId);
             if (currentStageIndex < 0) {
                 return { error: '스테이지를 찾을 수 없습니다.' };
             }
@@ -181,7 +232,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!user.isAdmin) {
                 // 첫 번째 스테이지가 아니면 이전 스테이지 클리어 여부 확인
                 if (currentStageIndex > 0) {
-                    const previousStage = SINGLE_PLAYER_STAGES[currentStageIndex - 1];
+                    const previousStage = stages[currentStageIndex - 1];
                     
                     if (!clearedStages.includes(previousStage.id)) {
                         console.log(`[START_SINGLE_PLAYER_GAME] Stage ${stageId} locked - previous stage ${previousStage.id} not cleared. Cleared stages: ${JSON.stringify(clearedStages)}`);
@@ -408,8 +459,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const enforcedByoyomiTimeSeconds = isSpeedMode ? (game.settings.byoyomiTime ?? 0) : 0;
             
             // 스테이지 정보 가져오기 (timeIncrement 설정용)
-            const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-            const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+            const stages = await getEffectiveSinglePlayerStages();
+            const stage = stages.find(s => s.id === game.stageId);
             const enforcedIncrement = isSpeedMode && stage ? (stage.timeControl?.increment ?? game.settings.timeIncrement ?? 0) : 0;
 
             // 비스피드 모드는 무제한(시간/초읽기 소리 없음)
@@ -512,7 +563,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
             game.singlePlayerPlacementRefreshesUsed = refreshesUsed + 1;
 
-            const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+            const stages = await getEffectiveSinglePlayerStages();
+            const stage = stages.find(s => s.id === game.stageId);
             if (!stage) {
                 return { error: 'Stage data not found for refresh.' };
             }
@@ -547,7 +599,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!user.singlePlayerMissions) user.singlePlayerMissions = {};
             if (user.singlePlayerMissions[missionId]?.isStarted) return { error: '이미 시작된 미션입니다.' };
 
-            const unlockStageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === missionInfo.unlockStageId);
+            const stages = await getEffectiveSinglePlayerStages();
+            const unlockStageIndex = stages.findIndex(s => s.id === missionInfo.unlockStageId);
             // unlockStageIndex is 0-based; user.singlePlayerProgress tracks highest cleared index (0-based).
             if ((user.singlePlayerProgress ?? -1) < unlockStageIndex) return { error: '미션이 아직 잠겨있습니다.' };
 

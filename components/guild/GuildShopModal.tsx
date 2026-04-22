@@ -36,12 +36,16 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean }> =
     let purchasesThisPeriod = 0;
 
     if (purchaseRecord) {
-        const ts = purchaseRecord.lastPurchaseTimestamp ?? purchaseRecord.date;
-        if (item.limitType === 'weekly' && !isDifferentWeekKST(ts, now)) {
+        if (item.limitType === 'account') {
             purchasesThisPeriod = purchaseRecord.quantity;
-        }
-        if (item.limitType === 'monthly' && !isDifferentMonthKST(ts, now)) {
-            purchasesThisPeriod = purchaseRecord.quantity;
+        } else {
+            const ts = purchaseRecord.lastPurchaseTimestamp ?? purchaseRecord.date;
+            if (item.limitType === 'weekly' && !isDifferentWeekKST(ts, now)) {
+                purchasesThisPeriod = purchaseRecord.quantity;
+            }
+            if (item.limitType === 'monthly' && !isDifferentMonthKST(ts, now)) {
+                purchasesThisPeriod = purchaseRecord.quantity;
+            }
         }
     }
 
@@ -95,7 +99,9 @@ const ShopItemCard: React.FC<{ item: GuildShopItem; isNativeMobile: boolean }> =
                             <span>{item.cost.toLocaleString()}</span>
                         </div>
                         <span className={`text-slate-700/90 tracking-wide ${isNativeMobile ? 'text-[10px]' : 'text-[9px]'}`}>
-                            {item.limitType === 'weekly' ? '주간' : '월간'} {remaining}/{item.limit}
+                            {item.limitType === 'account'
+                                ? `계정당 (${purchasesThisPeriod}/${item.limit})`
+                                : `${item.limitType === 'weekly' ? '주간' : '월간'} ${remaining}/${item.limit}`}
                         </span>
                     </div>
                 </Button>

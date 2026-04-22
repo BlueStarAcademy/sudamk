@@ -57,6 +57,11 @@ import {
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
+/** 따내기 한도로 종료 시 점수 플로트와 동기(GoBoard `DEBOUNCE_MS` / 히든 시 추가 지연 / `index.css` 2.85s). 애니 직후 추가 대기 없음 */
+const CAPTURE_WIN_SCORE_DEBOUNCE_MS = 48;
+const CAPTURE_WIN_HIDDEN_FLOAT_LAG_MS = 450;
+const CAPTURE_WIN_SCORE_FLOAT_CSS_MS = 2850;
+
 /** 로비 Kata AI·모험·길드전 등 서버 전략바둑 AI 대국 (타워/싱글플 제외) */
 const KATA_STYLE_AI_GO_MODES = new Set<GameMode>([
     GameMode.Standard,
@@ -193,6 +198,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const [confirmModalType, setConfirmModalType] = useState<'resign' | null>(null);
     const [showResultModal, setShowResultModal] = useState(false);
+    const delayedResultModalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showFinalTerritory, setShowFinalTerritory] = useState(false);
     const [justScanned, setJustScanned] = useState(false);
     const [pendingMove, setPendingMove] = useState<Point | null>(null);
@@ -409,6 +415,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         ) {
                             return session.boardState;
                         }
+                    }
+                    // 도둑/주사위: 서버가 라운드·역할 전환으로 기보를 비웠는데 sessionStorage에는 예전 수순이 남아 있으면 온 판을 쓰면 2라운드에도 1라운드 돌이 보임
+                    if (
+                        (session.mode === GameMode.Thief || session.mode === GameMode.Dice) &&
+                        (session.moveHistory?.length ?? 0) === 0 &&
+                        Array.isArray(parsed.moveHistory) &&
+                        parsed.moveHistory.length > 0
+                    ) {
+                        if (session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
+                            const hasStone = session.boardState.some((row: Player[]) =>
+                                row.some((c) => c !== Player.None)
+                            );
+                            if (!hasStone) return session.boardState;
+                        }
+                        const bs = session.settings.boardSize;
+                        return Array(bs)
+                            .fill(null)
+                            .map(() => Array(bs).fill(Player.None));
                     }
                     // 서버 moveHistory가 더 길면 서버가 최신(AI 수 등) → 서버 boardState 또는 moveHistory 복원 (AI가 둔 수가 사라지는 버그 방지)
                     const serverMoveCount = session.moveHistory?.length ?? 0;
@@ -867,8 +891,25 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
               (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
               (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
 
+        const shouldDelayCaptureResultModal =
+            gameHasJustEnded &&
+            prevGameStatus === 'playing' &&
+            session.winReason === 'capture_limit';
+
         if (shouldShowModal) {
-            setShowResultModal(true);
+            if (shouldDelayCaptureResultModal) {
+                const jc = session.justCaptured;
+                const hiddenFloatLag =
+                    Array.isArray(jc) && jc.some((e) => e.wasHidden) ? CAPTURE_WIN_HIDDEN_FLOAT_LAG_MS : 0;
+                const captureWinResultModalDelayMs =
+                    CAPTURE_WIN_SCORE_DEBOUNCE_MS + hiddenFloatLag + CAPTURE_WIN_SCORE_FLOAT_CSS_MS;
+                delayedResultModalTimerRef.current = setTimeout(() => {
+                    setShowResultModal(true);
+                    delayedResultModalTimerRef.current = null;
+                }, captureWinResultModalDelayMs);
+            } else {
+                setShowResultModal(true);
+            }
             if (gameStatus === 'ended') {
                 setShowFinalTerritory(true);
             }
@@ -880,7 +921,26 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 setShowFinalTerritory(true);
             }
         }
-    }, [gameStatus, prevGameStatus, session.analysisResult, prevAnalysisResult, isSinglePlayer, isTower]);
+    }, [
+        gameStatus,
+        prevGameStatus,
+        session.analysisResult,
+        prevAnalysisResult,
+        isSinglePlayer,
+        isTower,
+        session.winReason,
+        session.justCaptured,
+    ]);
+
+    /** 다른 대국으로 바뀌거나 화면을 떠날 때만 지연 모달 타이머 정리 (이펙트 재실행마다 지우면 모달이 영원히 안 뜸) */
+    useEffect(() => {
+        return () => {
+            if (delayedResultModalTimerRef.current) {
+                clearTimeout(delayedResultModalTimerRef.current);
+                delayedResultModalTimerRef.current = null;
+            }
+        };
+    }, [session.id]);
     
     const myPlayerEnum = useMemo(() => {
         if (isSpectator) {
@@ -971,9 +1031,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             session.mode === GameMode.Ttamok;
         if (!isStrategicLike) return;
         // playing→scoring 한 번에 오는 경우(자동 계가 직전 AI 수)에도 착점음이 나도록 scoring 직후 한 틱 허용
+        // playing→ended: 따내기 미션 완료 등 한 수에 종료될 때도 마지막 착수음이 나도록 허용
         const stoneSoundOkStatus =
             ['playing', 'hidden_placing'].includes(gameStatus) ||
-            (gameStatus === 'scoring' && prevGameStatus === 'playing');
+            (gameStatus === 'scoring' && prevGameStatus === 'playing') ||
+            (gameStatus === 'ended' && prevGameStatus === 'playing');
         if (!stoneSoundOkStatus) return;
 
         if (strategicPlaceSoundGameIdRef.current !== gameId) {
@@ -3137,6 +3199,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
                         currentUser={currentUserWithStatus}
+                        onAction={handlers.handleAction}
                     />
                 )}
                 <Header compact />
@@ -3305,6 +3368,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         session={sessionWithRestoredPatternStones}
                         onStart={handleStartGame}
                         currentUser={currentUserWithStatus}
+                        onAction={handlers.handleAction}
                         onTowerItemPurchase={async (itemId, quantity) => {
                             const gid = sessionWithRestoredPatternStones?.id;
                             await handlers.handleAction({

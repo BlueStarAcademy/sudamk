@@ -104,7 +104,7 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
 ];
 
 
-const SINGLE_PLAYER_STAGES_BASE: SinglePlayerStageInfo[] = [
+export const SINGLE_PLAYER_STAGES_BASE: SinglePlayerStageInfo[] = [
     // Data from the spreadsheet image
     // 입문 1~10: 따내기 바둑 (흑에게 15턴 제한)
     {
@@ -253,7 +253,7 @@ const SINGLE_PLAYER_STAGES_BASE: SinglePlayerStageInfo[] = [
     { id: '유단자-20', name: '스테이지 20', level: SinglePlayerLevel.유단자, actionPointCost: 5, boardSize: 13, targetScore: { black: 0, white: 0 }, placements: { black: 4, white: 25, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 }, timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 3 }, rewards: { firstClear: { gold: 800, exp: 1000, items: [{itemId: "장비 상자 VI", quantity: 1}] }, repeatClear: { gold: 300, exp: 100 } }, autoScoringTurns: 80, hiddenCount: 1, scanCount: 2 },
 ];
 
-export const SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = SINGLE_PLAYER_STAGES_BASE.map((stage) => ({
+export const DEFAULT_SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = SINGLE_PLAYER_STAGES_BASE.map((stage) => ({
     ...stage,
     actionPointCost: stage.actionPointCost,
     rewards: {
@@ -264,4 +264,16 @@ export const SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = SINGLE_PLAYER_STAGE
         },
     },
 }));
-  
+
+export let SINGLE_PLAYER_STAGES: SinglePlayerStageInfo[] = DEFAULT_SINGLE_PLAYER_STAGES;
+
+export const getSinglePlayerStages = (): SinglePlayerStageInfo[] => SINGLE_PLAYER_STAGES;
+
+export const setSinglePlayerStagesFromServer = (stages: SinglePlayerStageInfo[] | null | undefined): SinglePlayerStageInfo[] => {
+    if (Array.isArray(stages) && stages.length > 0) {
+        SINGLE_PLAYER_STAGES = stages.map((stage) => ({ ...stage }));
+    } else {
+        SINGLE_PLAYER_STAGES = DEFAULT_SINGLE_PLAYER_STAGES.map((stage) => ({ ...stage }));
+    }
+    return SINGLE_PLAYER_STAGES;
+};

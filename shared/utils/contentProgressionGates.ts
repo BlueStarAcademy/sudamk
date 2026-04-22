@@ -4,8 +4,8 @@ import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 
 /** 전략바둑 레벨 — 도전의 탑·모험 입장 */
 export const TOWER_ADVENTURE_MIN_STRATEGY_LEVEL = 3;
-/** 전략·놀이 PVP 대기실: 통합 레벨(전략+놀이 레벨 합) */
-export const PVP_LOBBIES_MIN_COMBINED_LEVEL = 3;
+/** 전략·놀이 PVP 대기실: 시작 레벨(전략 Lv1 + 놀이 Lv1)부터 항상 입장 가능 */
+export const PVP_LOBBIES_MIN_COMBINED_LEVEL = 2;
 /** 챔피언십: 6개 바둑 능력치 합(장비 반영 `calculateTotalStats` 기준) */
 export const CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL = 700;
 /** 퀵 메뉴 퀘스트: 전략 레벨 */

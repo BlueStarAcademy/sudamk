@@ -37,6 +37,7 @@ import {
 } from './kataCaptureSetupEncoding.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from './utils/effectiveBoardSize.js';
+import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
 
 /** 싱글·탑·로비 AI 등: 마지막 AI 수가 판에 보이고 착수음이 난 뒤 계가 — 클라 렌더·오디오 여유 */
 const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 1200;
@@ -68,8 +69,7 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
             g.mode !== types.GameMode.Capture && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns =
             g.isSinglePlayer && g.stageId
-                ? (await import('../constants/singlePlayerConstants.js')).SINGLE_PLAYER_STAGES.find((s) => s.id === g.stageId)
-                      ?.autoScoringTurns
+                ? (await getEffectiveSinglePlayerStages()).find((s) => s.id === g.stageId)?.autoScoringTurns
                 : String((g as any).gameCategory ?? '') === 'tower' ||
                     String((g as any).gameCategory ?? '') === 'singleplayer'
                   ? (g.settings as any)?.autoScoringTurns
@@ -1874,7 +1874,7 @@ export async function makeGoAiBotMove(
         const useScoringLimitAsAuto =
             game.mode !== types.GameMode.Capture && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns = game.isSinglePlayer && game.stageId
-            ? (await import('../constants/singlePlayerConstants.js')).SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns
+            ? (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns
             : (game as any).gameCategory === 'tower'
                 ? (game.settings as any)?.autoScoringTurns
                 : (useScoringLimitAsAuto ? scoringLimit : undefined);
@@ -1968,8 +1968,7 @@ export async function makeGoAiBotMove(
             // 자동 계가 스테이지에서 총 턴 수가 이미 도달했으면 계가로 승패가 갈리므로 턴 제한 패배 적용 안 함
             let skipTurnLimitFail = false;
             if (game.stageId) {
-                const { SINGLE_PLAYER_STAGES } = await import('../constants/singlePlayerConstants.js');
-                const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+                const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
                 const autoScoringTurns = stage?.autoScoringTurns;
                 if (autoScoringTurns != null) {
                     const totalTurnsNow = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;

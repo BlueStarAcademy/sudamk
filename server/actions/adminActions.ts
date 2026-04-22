@@ -25,6 +25,7 @@ import { normalizeLegacyDivineMythicInventoryItem } from '../../shared/utils/inv
 import { nicknameContainsReservedStaffTerms } from '../../shared/utils/staffNicknameDisplay.js';
 import { hashPassword } from '../utils/passwordUtils.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
+import { normalizeSinglePlayerStagesOverride, setSinglePlayerStagesOverride } from '../singlePlayerStageConfigService.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -123,6 +124,12 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
     const payload = (action as { payload?: unknown }).payload as any;
 
     switch (type) {
+        case 'ADMIN_SET_SINGLE_PLAYER_STAGES': {
+            const stages = normalizeSinglePlayerStagesOverride(payload?.stages);
+            const saved = await setSinglePlayerStagesOverride(stages);
+            broadcast({ type: 'SINGLE_PLAYER_STAGES_UPDATE', payload: { singlePlayerStages: saved } });
+            return { clientResponse: { singlePlayerStages: saved } };
+        }
         case 'ADMIN_APPLY_SANCTION': {
             const { targetUserId, sanctionType, durationMinutes, reason, reasonDetail } = payload as {
                 targetUserId: string;

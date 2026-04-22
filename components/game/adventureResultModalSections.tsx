@@ -26,6 +26,7 @@ import {
     RESULT_MODAL_REWARDS_ROW_MOBILE_SIX_COL_CLASS,
 } from './ResultModalRewardSlot.js';
 import { ResultModalVipRewardSlot } from './ResultModalVipRewardSlot.js';
+import AdventureKeyFragmentIcon from '../adventure/AdventureKeyFragmentIcon.js';
 
 const ADVENTURE_DEFAULT_EQUIP_BOX_IMG =
     CONSUMABLE_ITEMS.find((c) => c.name === '장비 상자 I')?.image ?? '/images/Box/EquipmentBox1.png';
@@ -34,22 +35,6 @@ const ADVENTURE_DEFAULT_MAT_BOX_IMG =
 
 const ADVENTURE_REWARD_REVEAL_MS = 3000;
 const ADVENTURE_REWARD_ROLL_MS = 2800;
-
-function HalfKeyEmojiIcon({ compact }: { compact: boolean }) {
-    return (
-        <span
-            className={`relative inline-flex items-center justify-center overflow-hidden ${compact ? 'h-6 w-4' : 'h-9 w-6'}`}
-            aria-label="열쇠 조각"
-        >
-            <span
-                className={`absolute right-0 select-none leading-none ${compact ? 'text-[22px]' : 'text-[34px]'}`}
-                style={{ width: compact ? 22 : 34 }}
-            >
-                🔑
-            </span>
-        </span>
-    );
-}
 
 function normalizeRewardImagePath(src: string | undefined | null): string | null {
     if (!src) return null;
@@ -235,7 +220,7 @@ function AdventureKeyFragmentRewardSlot({
             <div
                 className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} flex-col`}
             >
-                <HalfKeyEmojiIcon compact={compact} />
+                <AdventureKeyFragmentIcon compact={compact} variant="reward" />
             </div>
             <span
                 className={

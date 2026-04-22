@@ -915,7 +915,10 @@ export const ThiefPanel: React.FC<ThiefPanelProps> = ({ session, isMyTurn, onAct
 
     const currentPlayerId = currentPlayer === Player.Black ? blackPlayerId : whitePlayerId;
     const currentPlayerRole = currentPlayerId === thiefPlayerId ? 'thief' : 'police';
-    const diceCount = currentPlayerRole === 'thief' ? 1 : 2;
+    // 도둑/경찰은 롤링 애니 중 currentPlayer 패킷이 먼저 바뀌어도, 굴린 주사위 개수는 animation.dice 기준으로 고정한다.
+    const rollingDiceCount =
+        diceAnimation != null ? ((Number(diceAnimation.dice?.dice2) || 0) > 0 ? 2 : 1) : null;
+    const diceCount = rollingDiceCount ?? (currentPlayerRole === 'thief' ? 1 : 2);
 
     const [lastStableDice1, setLastStableDice1] = React.useState<number | null>(session.dice?.dice1 ?? null);
     const [lastStableDice2, setLastStableDice2] = React.useState<number | null>(

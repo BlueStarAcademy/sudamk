@@ -46,6 +46,16 @@ export function ensureThiefGoItemUses(game: types.LiveGameSession): void {
     }
 }
 
+/** 주사위 기록 맵/행이 누락된 세션(재접속/구버전 데이터)에서도 안전하게 push 가능하도록 보강 */
+function ensureThiefDiceRollHistory(game: types.LiveGameSession, playerId: string): void {
+    if (!game.thiefDiceRollHistory) game.thiefDiceRollHistory = {};
+    const p1Id = game.player1.id;
+    const p2Id = game.player2.id;
+    if (!Array.isArray(game.thiefDiceRollHistory[p1Id])) game.thiefDiceRollHistory[p1Id] = [];
+    if (!Array.isArray(game.thiefDiceRollHistory[p2Id])) game.thiefDiceRollHistory[p2Id] = [];
+    if (!Array.isArray(game.thiefDiceRollHistory[playerId])) game.thiefDiceRollHistory[playerId] = [];
+}
+
 export function rollThiefDiceForRole(
     myRole: 'thief' | 'police',
     itemType?: 'high36' | 'noOne'
@@ -114,7 +124,9 @@ function resetThiefBoardForNewSegment(game: types.LiveGameSession) {
     releaseThiefAiDispatchLocks(game);
 }
 
-function enterThiefRoundEndModal(game: types.LiveGameSession, now: number) {
+/** 라운드 요약 모달 진입 직후 빈 판으로 두어, 역할 교대 전까지 이전 세그먼트 돌이 남지 않게 함 */
+export function enterThiefRoundEndModal(game: types.LiveGameSession, now: number) {
+    resetThiefBoardForNewSegment(game);
     game.gameStatus = 'thief_round_end';
     if (game.isAiGame) {
         game.revealEndTime = undefined;
@@ -125,6 +137,37 @@ function enterThiefRoundEndModal(game: types.LiveGameSession, now: number) {
         if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
         game.roundEndConfirmations[aiUserId] = now;
     }
+}
+
+function appendThiefRoundHistory(
+    game: types.LiveGameSession,
+    round: number,
+    finalThiefStonesLeft: number,
+    capturesThisRound: number,
+    p1Id: string,
+    p2Id: string,
+) {
+    const p1IsThief = game.player1.id === game.thiefPlayerId;
+    if (!game.thiefRoundHistory) game.thiefRoundHistory = [];
+    game.thiefRoundHistory.push({
+        round,
+        player1: {
+            id: p1Id,
+            role: p1IsThief ? 'thief' : 'police',
+            escapedStones: p1IsThief ? finalThiefStonesLeft : 0,
+            capturedStones: p1IsThief ? 0 : capturesThisRound,
+            roundScore: p1IsThief ? finalThiefStonesLeft : capturesThisRound,
+            cumulativeScore: game.scores[p1Id] ?? 0,
+        },
+        player2: {
+            id: p2Id,
+            role: !p1IsThief ? 'thief' : 'police',
+            escapedStones: !p1IsThief ? finalThiefStonesLeft : 0,
+            capturedStones: !p1IsThief ? 0 : capturesThisRound,
+            roundScore: !p1IsThief ? finalThiefStonesLeft : capturesThisRound,
+            cumulativeScore: game.scores[p2Id] ?? 0,
+        },
+    });
 }
 
 export const initializeThief = (game: types.LiveGameSession, neg: types.Negotiation, now: number) => {
@@ -494,6 +537,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                             cumulativeScore: game.scores[game.player2.id] ?? 0,
                         }
                     };
+                    appendThiefRoundHistory(game, game.round, finalThiefStonesLeft, capturesThisRound, p1Id, game.player2.id);
                     const p1Score = game.scores[p1Id]!;
                     const p2Score = game.scores[game.player2.id]!;
                     
@@ -637,7 +681,7 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
             game.turnStartTime = undefined;
             game.dice = undefined; 
         
-            if (!game.thiefDiceRollHistory) game.thiefDiceRollHistory = { [p1Id]: [], [game.player2.id]: [] };
+            ensureThiefDiceRollHistory(game, user.id);
             game.thiefDiceRollHistory[user.id].push(dice1);
             if (dice2 > 0) game.thiefDiceRollHistory[user.id].push(dice2);
             return {};
@@ -700,7 +744,10 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
             game.stonesPlacedThisTurn.push({x, y});
 
             game.boardState = result.newBoardState;
+            game.koInfo = result.newKoInfo;
             game.lastMove = { x, y };
+            if (!game.moveHistory) game.moveHistory = [];
+            game.moveHistory.push({ player: myPlayerEnum, x, y });
         
             if (myRole === 'police' && result.capturedStones.length > 0) {
                 if (!game.thiefCapturesThisRound) game.thiefCapturesThisRound = 0;
@@ -749,6 +796,7 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
                             cumulativeScore: game.scores[game.player2.id] ?? 0,
                         }
                     };
+                    appendThiefRoundHistory(game, game.round, finalThiefStonesLeft, capturesThisRound, p1Id, game.player2.id);
 
                     const p1Score = game.scores[p1Id]!;
                     const p2Score = game.scores[game.player2.id]!;

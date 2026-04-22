@@ -259,9 +259,8 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     /** 말풍선이 잘리지 않게 클램프할 맵 카드(overflow hidden) */
     const mapViewportRef = useRef<HTMLDivElement>(null);
     const monsterBubbleRef = useRef<HTMLDivElement>(null);
-    /** 데스크톱: 지역 열쇠 패널 높이를 획득 가능 보상 패널과 동일하게 맞춤 */
+    /** 데스크톱: 챕터 몬스터 목록 너비를 획득 가능 보상 패널과 맞춤 */
     const desktopRewardBandRef = useRef<HTMLDivElement>(null);
-    const [desktopKeyPanelHeightPx, setDesktopKeyPanelHeightPx] = useState<number | null>(null);
     const [desktopRewardWidthPx, setDesktopRewardWidthPx] = useState<number | null>(null);
     const [monsterBubblePos, setMonsterBubblePos] = useState<{ left: number; top: number } | null>(null);
 
@@ -274,7 +273,6 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
 
     useLayoutEffect(() => {
         if (isNativeMobile) {
-            setDesktopKeyPanelHeightPx(null);
             setDesktopRewardWidthPx(null);
             return;
         }
@@ -284,7 +282,6 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         }
         const sync = () => {
             const r = el.getBoundingClientRect();
-            setDesktopKeyPanelHeightPx(Math.round(r.height));
             setDesktopRewardWidthPx(Math.round(r.width));
         };
         sync();
@@ -824,13 +821,13 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     </div>
                     <div className="mx-1 mt-1.5 flex min-h-0 items-stretch gap-1.5">
                         <aside
-                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-2.5"
                             aria-label="챕터 보상 안내"
                         >
                             <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} compact />
                         </aside>
                         <aside
-                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-1.5 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                            className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-2 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-2.5"
                             aria-label="지역 열쇠"
                         >
                             <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
@@ -1225,25 +1222,16 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 {!isNativeMobile ? (
                     <div className="pointer-events-none absolute bottom-1.5 left-1.5 top-1.5 z-30 flex w-max max-w-[min(96vw,32rem)] flex-col sm:bottom-2 sm:left-2 sm:top-2">
                         <div className="pointer-events-auto flex min-h-0 flex-1 flex-col items-start gap-2">
-                            <div className="flex shrink-0 gap-2">
+                            <div className="flex min-h-0 shrink-0 items-stretch gap-2">
                                 <aside
                                     ref={desktopRewardBandRef}
-                                    className="shrink-0 rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
+                                    className="flex min-h-0 shrink-0 flex-col rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
                                     aria-label="챕터 보상 안내"
                                 >
                                     <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} iconLayout="wrap" />
                                 </aside>
                                 <aside
-                                    className="flex min-h-0 w-[10rem] shrink-0 flex-col overflow-x-hidden overflow-y-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[11.25rem] sm:p-3.5"
-                                    style={
-                                        desktopKeyPanelHeightPx != null
-                                            ? {
-                                                  height: desktopKeyPanelHeightPx,
-                                                  minHeight: desktopKeyPanelHeightPx,
-                                                  maxHeight: desktopKeyPanelHeightPx,
-                                              }
-                                            : undefined
-                                    }
+                                    className="flex min-h-0 w-[12.25rem] shrink-0 flex-col overflow-x-hidden overflow-y-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[13.5rem] sm:p-3.5"
                                     aria-label="지역 열쇠"
                                 >
                                     <div className="flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
@@ -1287,36 +1275,38 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                     </div>
                 ) : null}
                 {!isNativeMobile ? (
-                    <div className="pointer-events-none absolute right-1.5 top-1.5 z-30 w-[min(88vw,17.5rem)] sm:right-2 sm:top-2 sm:w-[18.5rem]">
+                    <div className="pointer-events-none absolute right-1.5 top-1.5 z-30 w-[min(92vw,20rem)] max-w-[20rem] sm:right-2 sm:top-2">
                         <aside
-                            className="pointer-events-auto rounded-xl border border-cyan-500/35 bg-zinc-950/92 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm"
+                            className="pointer-events-auto min-w-0 overflow-visible rounded-xl border border-cyan-500/35 bg-zinc-950/92 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-sm sm:p-3"
                             aria-label="지역 탐험도 효과"
                         >
-                            <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
-                                <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300/90 sm:text-xs">지역 탐험도</p>
-                                <span className="rounded-md border border-cyan-400/30 bg-cyan-950/40 px-1.5 py-0.5 text-[10px] font-bold text-cyan-100 sm:text-xs">
+                            <div className="flex min-w-0 items-start justify-between gap-2 border-b border-white/10 pb-2">
+                                <p className="min-w-0 flex-1 break-words text-[11px] font-bold uppercase leading-snug tracking-wide text-cyan-300/90 sm:text-xs">
+                                    지역 탐험도
+                                </p>
+                                <span className="shrink-0 rounded-md border border-cyan-400/30 bg-cyan-950/40 px-1.5 py-0.5 text-center text-[10px] font-bold leading-tight text-cyan-100 sm:text-xs">
                                     {stageUnderstandingTierLabel}
                                 </span>
                             </div>
                             <p className="mt-1.5 text-[10px] font-mono tabular-nums text-zinc-400 sm:text-[11px]">
                                 XP {stageUnderstandingXp.toLocaleString()}
                             </p>
-                            <ul className="mt-2 space-y-1.5">
+                            <ul className="mt-2 min-w-0 space-y-1.5">
                                 {!stageUnlocked ? (
-                                    <li className="rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-[11px] font-semibold text-zinc-300 sm:text-xs">
+                                    <li className="rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5 text-left text-[11px] font-semibold leading-relaxed text-zinc-300 break-words sm:px-3 sm:text-xs">
                                         슬롯 1 잠김 - 지역 오픈
                                     </li>
                                 ) : stageRegionalBuffEntries.length > 0 ? (
                                     stageRegionalBuffEntries.map((entry, idx) => (
                                         <li
                                             key={`${entry.kind}-${idx}`}
-                                            className="rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-[11px] font-semibold leading-snug text-cyan-100/95 sm:text-xs"
+                                            className="rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5 text-left text-[11px] font-semibold leading-relaxed text-cyan-100/95 break-words [overflow-wrap:anywhere] sm:px-3 sm:text-xs"
                                         >
                                             {labelRegionalSpecialtyBuffEntry(entry)}
                                         </li>
                                     ))
                                 ) : (
-                                    <li className="rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-[11px] text-zinc-500 sm:text-xs">
+                                    <li className="rounded-md border border-white/8 bg-black/25 px-2.5 py-1.5 text-left text-[11px] leading-relaxed text-zinc-500 break-words sm:px-3 sm:text-xs">
                                         적용 중인 지역효과 없음
                                     </li>
                                 )}

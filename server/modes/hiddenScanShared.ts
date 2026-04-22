@@ -42,6 +42,23 @@ export function evaluateHiddenScanBoard(game: types.LiveGameSession, userId: str
     return { moveIndex, isAiInitialHiddenStone, isHiddenCell, alreadyFoundByMyScan, success };
 }
 
+/** 스캔 등으로 `moveHistory` 인덱스가 이미 소프트 공개된 경우(영구 공개 목록과 별개). 계가 직전 최종 공개 연출은 제외한다. */
+export function isHiddenMoveIndexSoftRevealedByAnyPlayer(game: types.LiveGameSession, moveIndex: number): boolean {
+    const rhm = game.revealedHiddenMoves;
+    if (!rhm) return false;
+    for (const idxs of Object.values(rhm)) {
+        if (Array.isArray(idxs) && idxs.includes(moveIndex)) return true;
+    }
+    return false;
+}
+
+/** AI 초기 히든을 누군가 스캔으로 이미 찾은 경우 — 최종 공개 연출 제외 */
+export function isAiInitialHiddenSoftFoundByAnyPlayer(game: types.LiveGameSession): boolean {
+    const scanned = (game as any).scannedAiInitialHiddenByUser as Record<string, boolean> | undefined;
+    if (!scanned) return false;
+    return Object.values(scanned).some(Boolean);
+}
+
 /** 스캔 첫 적중 시 몰래공개만 기록 (permanentlyRevealedStones에는 넣지 않음) */
 export function recordSoftHiddenScanDiscovery(
     game: types.LiveGameSession,

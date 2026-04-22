@@ -12,7 +12,11 @@ interface CurlingBoardProps {
     gameStatus: GameStatus;
     myPlayer: Player;
     currentPlayer: Player;
-    onLaunchAreaInteractionStart: (e: React.MouseEvent | React.TouchEvent, area: { x: number; y: number; player: Player; }) => void;
+    /** `x`,`y`는 서버 좌표계의 돌 **중심** (발사 칸 안에서 클릭 위치 반영) */
+    onLaunchAreaInteractionStart: (
+        e: React.MouseEvent | React.TouchEvent,
+        area: { x: number; y: number; player: Player },
+    ) => void;
     isSpectator: boolean;
     dragStartPoint: Point | null; // Screen coordinates
     dragEndPoint: Point | null; // Screen coordinates
@@ -127,21 +131,70 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
         !isSpectator &&
         (gameStatus === 'curling_playing' || gameStatus === 'curling_tiebreaker_playing') &&
         myPlayer === currentPlayer;
-    const launchAreaCellSize = 1;
-    const launchAreaPx = launchAreaCellSize * cellSize;
-    
+
+    /** 출발 칸은 1×1 그리드 칸 크기(시각적 네모). 돌 중심은 클릭 위치에 두어 원이 칸 밖으로 나갈 수 있음 */
+    const launchAreaWidthPx = cellSize * 1;
+    const launchAreaHeightPx = cellSize * 1;
+
     // 바둑판이 회전하지 않으므로, 각 플레이어의 발사 영역은 항상 화면 하단에 표시
-    // 서버 좌표계에서는 백이 위, 흑이 아래이지만, 각 플레이어의 뷰에서는 자신의 발사 영역이 아래에 보이도록
+    // 서버 좌표계에서는 백이 위, 흑이 아래이지만, 각 플레이어의 뷰에서는 자신의 발사 영역이 아래에 보임
     const launchAreas = useMemo(() => {
-        // 각 플레이어의 발사 영역을 화면 하단에 표시
-        const bottomY = boardSizePx - padding - launchAreaPx;
+        const bottomY = boardSizePx - padding - launchAreaHeightPx;
         return [
-            { x: padding, y: bottomY, player: Player.Black }, // Bottom-left (흑)
-            { x: boardSizePx - padding - launchAreaPx, y: bottomY, player: Player.Black }, // Bottom-right (흑)
-            { x: padding, y: bottomY, player: Player.White }, // Bottom-left (백)
-            { x: boardSizePx - padding - launchAreaPx, y: bottomY, player: Player.White }, // Bottom-right (백)
+            { x: padding, y: bottomY, width: launchAreaWidthPx, height: launchAreaHeightPx, player: Player.Black },
+            {
+                x: boardSizePx - padding - launchAreaWidthPx,
+                y: bottomY,
+                width: launchAreaWidthPx,
+                height: launchAreaHeightPx,
+                player: Player.Black,
+            },
+            { x: padding, y: bottomY, width: launchAreaWidthPx, height: launchAreaHeightPx, player: Player.White },
+            {
+                x: boardSizePx - padding - launchAreaWidthPx,
+                y: bottomY,
+                width: launchAreaWidthPx,
+                height: launchAreaHeightPx,
+                player: Player.White,
+            },
         ];
-    }, [padding, launchAreaPx, boardSizePx]);
+    }, [padding, launchAreaWidthPx, launchAreaHeightPx, boardSizePx]);
+
+    const clientToSvgPoint = (e: React.MouseEvent | React.TouchEvent): { x: number; y: number } | null => {
+        const svg = svgRef.current;
+        const inv = svg?.getScreenCTM()?.inverse();
+        if (!svg || !inv) return null;
+        const client = 'touches' in e && e.touches.length ? e.touches[0] : (e as React.MouseEvent);
+        const pt = svg.createSVGPoint();
+        pt.x = client.clientX;
+        pt.y = client.clientY;
+        const p = pt.matrixTransform(inv);
+        return { x: p.x, y: p.y };
+    };
+
+    /** 포인터를 출발 칸 사각형 안으로만 제한 — 돌 중심은 반지름으로 안쪽 당기지 않음 */
+    const clampLaunchPointToRect = (
+        svgX: number,
+        svgY: number,
+        rect: { x: number; y: number; width: number; height: number },
+    ): { cx: number; cy: number } => {
+        const cx = Math.min(Math.max(svgX, rect.x), rect.x + rect.width);
+        const cy = Math.min(Math.max(svgY, rect.y), rect.y + rect.height);
+        return { cx, cy };
+    };
+
+    const handleLaunchPointerDown = (e: React.MouseEvent | React.TouchEvent, area: (typeof launchAreas)[0]) => {
+        if (!myPlayerEnum) return;
+        const svgPt = clientToSvgPoint(e);
+        if (!svgPt) return;
+        const { cx, cy } = clampLaunchPointToRect(svgPt.x, svgPt.y, area);
+        let serverX = cx;
+        let serverY = cy;
+        if (myPlayerEnum === Player.White) {
+            serverY = boardSizePx - cy;
+        }
+        onLaunchAreaInteractionStart(e, { x: serverX, y: serverY, player: area.player });
+    };
 
     return (
         <div
@@ -174,29 +227,38 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
                 {launchAreas.map((area, i) => {
                     // 각 플레이어는 자신의 발사 영역만 표시
                     if (area.player !== myPlayerEnum) return null;
-                    
+
                     const isMyArea = canLaunch && area.player === myPlayer;
                     const classNames = [
-                        isMyArea ? 'cursor-pointer' : 'cursor-default',
-                        isMyArea ? 'animate-pulse-white' : ''
-                    ].filter(Boolean).join(' ');
+                        isMyArea ? 'cursor-crosshair' : 'cursor-default',
+                        isMyArea ? 'animate-pulse-white' : '',
+                    ]
+                        .filter(Boolean)
+                        .join(' ');
 
                     return (
                         <rect
                             key={`launch-area-${i}`}
                             x={area.x}
                             y={area.y}
-                            width={launchAreaPx}
-                            height={launchAreaPx}
+                            width={area.width}
+                            height={area.height}
                             fill={isMyArea ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.03)'}
                             stroke={isMyArea ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.1)'}
                             strokeWidth={isMyArea ? 3 : 2}
                             rx="5"
                             className={classNames}
-                            onMouseDown={isMyArea ? (e) => onLaunchAreaInteractionStart(e, area) : undefined}
-                            onTouchStart={isMyArea ? (e) => { e.preventDefault(); onLaunchAreaInteractionStart(e, area); } : undefined}
+                            onMouseDown={isMyArea ? (e) => handleLaunchPointerDown(e, area) : undefined}
+                            onTouchStart={
+                                isMyArea
+                                    ? (e) => {
+                                          e.preventDefault();
+                                          handleLaunchPointerDown(e, area);
+                                      }
+                                    : undefined
+                            }
                         />
-                    )
+                    );
                 })}
 
 

@@ -14,6 +14,7 @@ import {
 import { useAiInitialHiddenCellTracking, useTowerStyleHiddenRevealAnimatingResolution } from './hiddenRevealPolicy.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
+import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 import {
     buildHiddenScanAnimation,
     evaluateHiddenScanBoard,
@@ -272,6 +273,14 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     // hidden_reveal 오버레이에서 이미 스파클 연출을 했고, permanentlyRevealed로 표시가 유지되므로
                     // newlyRevealed로 본판에 같은 애니를 한 번 더 붙이지 않는다.
                     game.newlyRevealed = [];
+                    if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
+                        game.animation = null;
+                        game.revealAnimationEndTime = undefined;
+                        game.pendingCapture = null;
+                        (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
+                        game.pausedTurnTimeLeft = undefined;
+                        return;
+                    }
                 }
 
                 game.animation = null;

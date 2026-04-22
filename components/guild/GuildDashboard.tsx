@@ -939,8 +939,17 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                             </div>
                         </div>
                         
-                        {/* 오른쪽: 내 기록 + 입장 버튼(하단 중앙) */}
+                        {/* 오른쪽: 참여길드원 → 내 기록 → 입장 */}
                         <div className={`flex flex-col ${isMobile ? 'w-full' : 'min-w-0 flex-[0.95]'} justify-center gap-2`}>
+                            <div className={`flex justify-center ${isMobile ? 'mb-0' : 'mb-0'}`}>
+                                <button
+                                    type="button"
+                                    onClick={() => setShowBossParticipantsModal(true)}
+                                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 text-xs font-semibold transition-colors"
+                                >
+                                    참여길드원
+                                </button>
+                            </div>
                             <div className={`bg-stone-800/50 rounded-lg ${isMobile ? 'px-1.5 py-0.5' : 'px-3 py-2'}`}>
                                 <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 ${isMobile ? 'mb-0.5' : 'mb-2'} font-semibold`}>나의 기록</div>
                                 <div className={`flex flex-col ${isMobile ? 'gap-0.5' : 'gap-1.5'}`}>
@@ -971,6 +980,7 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                             {/* 입장 버튼: 나의 기록 하단 중앙배열 */}
                             <div className={`flex justify-center ${isMobile ? 'mt-0.5' : 'mt-1'}`}>
                                 <button
+                                    type="button"
                                     onClick={() => window.location.hash = '#/guildboss'}
                                     disabled={!canEnter}
                                     className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
@@ -978,14 +988,6 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                     <img src="/images/guild/ticket.png" alt="보스전 티켓" className="w-4 h-4" />
                                     <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
                                     <span>입장</span>
-                                </button>
-                            </div>
-                            <div className={`flex justify-center ${isMobile ? 'mt-0.5' : 'mt-1'}`}>
-                                <button
-                                    onClick={() => setShowBossParticipantsModal(true)}
-                                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 text-xs font-semibold transition-colors"
-                                >
-                                    참여길드원
                                 </button>
                             </div>
                         </div>

@@ -624,7 +624,8 @@ export type SinglePlayerStageInfo = {
     scanCount?: number; // 스캔 아이템 개수
     // 흑(유저)의 턴 수 제한
     blackTurnLimit?: number; // 유저(흑)의 턴 수 제한
-    fixedOpening?: Array<{ x: number; y: number; color: 'black' | 'white' }>;
+    fixedOpening?: Array<{ x: number; y: number; color: 'black' | 'white'; kind?: 'plain' | 'pattern' }>;
+    mergeRandomPlacementsWithFixed?: boolean;
 };
 
 
@@ -761,6 +762,26 @@ export type ThiefRoundSummary = {
             rolls: { [roll: number]: number };
             totalRolls: number;
         };
+    };
+};
+
+export type ThiefRoundHistoryEntry = {
+    round: number;
+    player1: {
+        id: string;
+        role: 'thief' | 'police';
+        escapedStones: number;
+        capturedStones: number;
+        roundScore: number;
+        cumulativeScore: number;
+    };
+    player2: {
+        id: string;
+        role: 'thief' | 'police';
+        escapedStones: number;
+        capturedStones: number;
+        roundScore: number;
+        cumulativeScore: number;
     };
 };
 
@@ -963,7 +984,7 @@ export type LiveGameSession = {
   hidden_stones_p2?: number;
   revealedHiddenMoves?: { [playerId: string]: number[] };
   newlyRevealed?: { point: Point, player: Player }[];
-  justCaptured?: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[];
+  justCaptured?: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number; capturerId?: string }[];
   hidden_stones_used_p1?: number;
   hidden_stones_used_p2?: number;
   pendingCapture?: { stones: Point[]; move: Move; hiddenContributors: Point[]; capturedHiddenStones?: Point[] } | null;
@@ -1010,6 +1031,7 @@ export type LiveGameSession = {
   roleChoices?: { [userId: string]: 'thief' | 'police' | null };
   roleChoiceWinnerId?: string | null;
   thiefRoundSummary?: ThiefRoundSummary;
+  thiefRoundHistory?: ThiefRoundHistoryEntry[];
   thiefDiceRollHistory?: { [playerId: string]: number[] };
   thiefCapturesThisRound?: number;
   /** 도둑 착수 턴 시작 시 판에 흑(도둑)이 없었으면 true — 한 턴 동안 주사위 개수만큼 어디에나 놓을 수 있음 */

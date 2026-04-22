@@ -12,6 +12,7 @@ import {
     removeCapturedBaseStoneMarkersFromSession,
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
+import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 
 export type TowerStyleHiddenRevealPostTurnHook = (game: types.LiveGameSession, now: number) => Promise<void>;
 
@@ -144,6 +145,14 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
         }
         // hidden_reveal 연출과 본판 newlyRevealed 스파클 이중 재생 방지 (permanentlyRevealed로 충분)
         game.newlyRevealed = [];
+        if (await tryEndGameWhenCaptureTargetReached(game, myP)) {
+            game.animation = null;
+            game.revealAnimationEndTime = undefined;
+            game.pendingCapture = null;
+            (game as any).isAiTurnCancelledAfterReveal = undefined;
+            (game as any).pendingAiMoveAfterUserHiddenFullReveal = undefined;
+            return true;
+        }
     }
 
     game.animation = null;

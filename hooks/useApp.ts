@@ -26,7 +26,7 @@ import {
 } from './useIsMobileLayout.js';
 import { syncDocumentViewportHeightVar } from '../utils/layoutViewportCss.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
-import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import { SINGLE_PLAYER_STAGES, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
@@ -45,7 +45,7 @@ import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
-import { isDiceGoLibertyPlacement } from '../client/logic/goLogic.js';
+import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
@@ -405,7 +405,21 @@ export function getPlayfulPacketStaleMeta(
         // 세그먼트/라운드가 올라가면 서버가 기보를 비우므로 im < em 이 정상인데, 리비전이 한 번만
         // 올라간 레이스에서 오래된 클라이언트가 이 패킷을 버리면 판이 안 비고 AI만 멈춘 것처럼 보인다.
         const roundAdvanced = incomingRound > existingRound;
-        if (!roundAdvanced && im < em) return { ignore: true, reason: 'moves_lt' };
+        if (!roundAdvanced && im < em) {
+            // 서버가 세그먼트/라운드 전환으로 기보를 비운 패킷(im=0) — moves_lt로 버리면 2라운드에도 1라운드 판이 남음
+            const playfulEmptyHistoryReset =
+                im === 0 &&
+                !playfulBoardHasStones(incoming.boardState) &&
+                ((incoming.mode === GameMode.Thief &&
+                    (incoming.gameStatus === 'thief_round_end' ||
+                        incoming.gameStatus === 'thief_rolling' ||
+                        incoming.gameStatus === 'thief_rolling_animating')) ||
+                    (incoming.mode === GameMode.Dice &&
+                        (incoming.gameStatus === 'dice_round_end' ||
+                            incoming.gameStatus === 'dice_rolling' ||
+                            incoming.gameStatus === 'dice_rolling_animating')));
+            if (!playfulEmptyHistoryReset) return { ignore: true, reason: 'moves_lt' };
+        }
         if (!roundAdvanced && incomingPlacing && existingPlacing && im === em) {
             const incomingHasBoard = playfulBoardHasStones(incoming.boardState);
             const existingHasBoard = playfulBoardHasStones(existing.boardState);
@@ -2893,7 +2907,7 @@ export const useApp = () => {
             void audioService.initialize();
 
             dicePlaceGameId =
-                action.type === 'DICE_PLACE_STONE'
+                action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE'
                     ? (action.payload as { gameId?: string })?.gameId
                     : undefined;
             if (action.type === 'DICE_ROLL') {
@@ -2913,7 +2927,7 @@ export const useApp = () => {
                 delete pvpDicePlaceRevertRef.current[gid];
             };
 
-            if (dicePlaceGameId) {
+            if (dicePlaceGameId && action.type === 'DICE_PLACE_STONE') {
                 const gid = dicePlaceGameId;
                 const beforePlaceGame = liveGamesRef.current[gid];
                 const isAiDiceBatchMode = !!(
@@ -3034,6 +3048,66 @@ export const useApp = () => {
                         },
                     } as HandleActionResult;
                 }
+            } else if (dicePlaceGameId && action.type === 'THIEF_PLACE_STONE') {
+                const gid = dicePlaceGameId;
+                flushSync(() => {
+                    setLiveGames((currentGames) => {
+                        const g = currentGames[gid];
+                        if (!g || g.isSinglePlayer || g.gameCategory === 'tower' || g.gameStatus !== 'thief_placing') {
+                            return currentGames;
+                        }
+                        if ((g.stonesToPlace ?? 0) <= 0) return currentGames;
+                        const uid = currentUserRef.current?.id;
+                        if (!uid) return currentGames;
+                        const { x, y } = (action as { payload: { x: number; y: number } }).payload;
+                        if (!isThiefGoValidPlacement(g, x, y, uid)) return currentGames;
+
+                        const myPlayerEnum =
+                            uid === g.blackPlayerId
+                                ? Player.Black
+                                : uid === g.whitePlayerId
+                                  ? Player.White
+                                  : Player.None;
+                        if (myPlayerEnum === Player.None || myPlayerEnum !== g.currentPlayer) return currentGames;
+
+                        const snap = JSON.parse(JSON.stringify(g)) as LiveGameSession;
+                        pvpDicePlaceRevertRef.current[gid] = snap;
+
+                        const prevPlaced = g.stonesPlacedThisTurn || [];
+                        const effectiveMoveLenForKo = (g.moveHistory?.length ?? 0) + prevPlaced.length;
+                        const pm = processMoveClient(
+                            g.boardState,
+                            { x, y, player: myPlayerEnum },
+                            g.koInfo ?? null,
+                            effectiveMoveLenForKo,
+                            { ignoreSuicide: true }
+                        );
+                        if (!pm.isValid) return currentGames;
+
+                        const nextStones = (g.stonesToPlace ?? 1) - 1;
+                        const placed = [...prevPlaced, { x, y }];
+                        const isPolice = myPlayerEnum === Player.White;
+                        const nextThiefCaptures =
+                            isPolice && pm.capturedStones.length > 0
+                                ? (g.thiefCapturesThisRound ?? 0) + pm.capturedStones.length
+                                : (g.thiefCapturesThisRound ?? 0);
+
+                        const blackLeftAfter = pm.newBoardState.flat().filter((c) => c === Player.Black).length;
+                        const allThievesCaptured = blackLeftAfter === 0 && isPolice;
+                        const resolvedStonesToPlace = allThievesCaptured ? 0 : nextStones;
+
+                        const nextThiefSession: LiveGameSession = {
+                            ...g,
+                            boardState: pm.newBoardState.map((row) => [...row]),
+                            koInfo: pm.newKoInfo,
+                            lastMove: { x, y },
+                            stonesToPlace: resolvedStonesToPlace,
+                            stonesPlacedThisTurn: placed,
+                            thiefCapturesThisRound: nextThiefCaptures,
+                        };
+                        return { ...currentGames, [gid]: nextThiefSession };
+                    });
+                });
             }
 
             if (dicePlaceGameId) {
@@ -3111,6 +3185,49 @@ export const useApp = () => {
                         revertPvpDicePlaceSnapshot();
                         rollbackTowerAddTurnOptimistic();
                         return { error: errorMessage } as HandleActionResult;
+                    }
+                    // 장시간 유휴 후 주사위바둑 상태가 어긋난 경우:
+                    // DICE_ROLL 400을 받으면 서버 상태를 1회 동기화한 뒤 자동 재시도한다.
+                    const isDiceRollOutOfSync =
+                        action.type === 'DICE_ROLL' &&
+                        res.status === 400 &&
+                        typeof errorMessage === 'string' &&
+                        (/Not in dice rolling phase/i.test(errorMessage) || /Not your turn to roll/i.test(errorMessage));
+                    const hasRetriedAfterSync = !!(action as { payload?: { __diceRollRetriedAfterSync?: boolean } }).payload
+                        ? !!(action as { payload?: { __diceRollRetriedAfterSync?: boolean } }).payload?.__diceRollRetriedAfterSync
+                        : false;
+                    if (isDiceRollOutOfSync && !hasRetriedAfterSync) {
+                        const payloadGameId = (action as { payload?: { gameId?: string } }).payload?.gameId;
+                        if (payloadGameId) {
+                            const syncResult = await handleAction({
+                                type: 'REQUEST_GAME_STATE_SYNC',
+                                payload: { gameId: payloadGameId },
+                            } as ServerAction);
+                            if (!(syncResult as any)?.error) {
+                                const synced = liveGamesRef.current[payloadGameId];
+                                if (synced?.mode === GameMode.Dice) {
+                                    const me = currentUserRef.current.id;
+                                    const myPlayerEnum =
+                                        synced.blackPlayerId === me
+                                            ? Player.Black
+                                            : synced.whitePlayerId === me
+                                              ? Player.White
+                                              : Player.None;
+                                    const isMyTurnAfterSync = myPlayerEnum !== Player.None && synced.currentPlayer === myPlayerEnum;
+                                    if (synced.gameStatus === 'dice_rolling' && isMyTurnAfterSync) {
+                                        revertPvpDicePlaceSnapshot();
+                                        rollbackTowerAddTurnOptimistic();
+                                        return await handleAction({
+                                            ...action,
+                                            payload: {
+                                                ...((action as { payload?: Record<string, unknown> }).payload ?? {}),
+                                                __diceRollRetriedAfterSync: true,
+                                            },
+                                        } as ServerAction);
+                                    }
+                                }
+                            }
+                        }
                     }
                     console.error(`[handleAction] ${action.type} - HTTP ${res.status} error:`, errorData);
                 } catch (parseError) {
@@ -3941,6 +4058,10 @@ export const useApp = () => {
                         ('payload' in action ? (action as { payload?: { gameId?: string } }).payload?.gameId : undefined) ||
                         (game as any)?.id;
                 }
+                // 응답에 gameId가 없거나 상위 키와 불일치할 때: 세션 객체의 id를 우선 (AI 재대결·WS 선도착 병합 안정화)
+                if (!effectiveGameId && game && typeof (game as any).id === 'string' && (game as any).id) {
+                    effectiveGameId = (game as any).id;
+                }
                 
                 // END_TOWER_GAME / END_SINGLE_PLAYER_GAME / RESIGN_GAME 액션 처리 (서버 응답 병합 시 클라이언트 바둑판 상태 유지)
                 if (action.type === 'END_TOWER_GAME' || (action as ServerAction).type === 'END_SINGLE_PLAYER_GAME' || action.type === 'RESIGN_GAME') {
@@ -4017,18 +4138,30 @@ export const useApp = () => {
                             delete pvpDicePlaceRevertRef.current[placementGameId];
                         }
                     } else {
+                        let appliedThiefPlaceMerge = false;
                         setLiveGames((currentGames) => {
                             const existing = currentGames[placementGameId];
-                            // 도둑과 경찰도 연속 착수 시 HTTP 응답 역전이 발생할 수 있어,
-                            // 같은/낮은 revision의 짧은 수순 응답으로 최신 보드를 덮지 않는다.
+                            if (!game) return currentGames;
+                            if (!existing) {
+                                appliedThiefPlaceMerge = true;
+                                return { ...currentGames, [placementGameId]: { ...game, boardState: cloneBoard(game) } };
+                            }
                             if (shouldIgnoreOutdatedPlayfulUpdate(game, existing, { source: 'http_thief_place_stone' })) {
                                 return currentGames;
                             }
-                            const next = existing
-                                ? { ...existing, ...game, boardState: cloneBoard(game) }
-                                : { ...game, boardState: cloneBoard(game) };
-                            return { ...currentGames, [placementGameId]: next };
+                            appliedThiefPlaceMerge = true;
+                            return {
+                                ...currentGames,
+                                [placementGameId]: {
+                                    ...existing,
+                                    ...game,
+                                    boardState: cloneBoard(game),
+                                },
+                            };
                         });
+                        if (appliedThiefPlaceMerge) {
+                            delete pvpDicePlaceRevertRef.current[placementGameId];
+                        }
                     }
                 }
                 // 주사위 굴리기: HTTP 응답에 game 있으면 즉시 반영 (두 번째 턴부터 굴리기 애니가 안 나오는 버그 방지)
@@ -4155,14 +4288,17 @@ export const useApp = () => {
                             });
                         } else {
                             setLiveGames(currentGames => {
-                                // CONFIRM_AI_GAME_START는 pending -> 실제 시작으로 상태가 바뀌므로 항상 업데이트
-                                if (action.type === 'CONFIRM_AI_GAME_START') {
-                                    return { ...currentGames, [effectiveGameId]: { ...currentGames[effectiveGameId], ...game } };
-                                }
-                                if (currentGames[gameId]) {
-                                    return currentGames;
-                                }
-                                return { ...currentGames, [gameId]: game };
+                                const mergeId =
+                                    (typeof (game as any)?.id === 'string' && (game as any).id) ||
+                                    effectiveGameId ||
+                                    gameId;
+                                if (!mergeId || !game) return currentGames;
+                                const prev = currentGames[mergeId];
+                                // WS가 먼저 슬롯을 채운 경우에도 HTTP 응답으로 병합 (이전: 키 존재 시 무시 → 재대결 등에서 상태 정지)
+                                return {
+                                    ...currentGames,
+                                    [mergeId]: { ...(prev || {}), ...game, id: mergeId } as typeof game,
+                                };
                             });
                         }
                         
@@ -4455,7 +4591,7 @@ export const useApp = () => {
                 }
             }
         } catch (err: any) {
-            if (action.type === 'DICE_PLACE_STONE') {
+            if (action.type === 'DICE_PLACE_STONE' || action.type === 'THIEF_PLACE_STONE') {
                 const gid = (action.payload as { gameId?: string })?.gameId;
                 if (gid) {
                     const snap = pvpDicePlaceRevertRef.current[gid];
@@ -4636,6 +4772,7 @@ export const useApp = () => {
             announcementInterval?: number;
             homeBoardPosts?: any[];
             guilds?: Record<string, any>;
+            singlePlayerStages?: any[];
         }) => {
                 // 이 시점을 기준으로 이후에 도착하는 WAITING_ROOM_CHAT_UPDATE만 과거 메시지를 걸러 냄
                 waitingRoomChatSessionStartRef.current = Date.now();
@@ -4700,6 +4837,9 @@ export const useApp = () => {
                 setUsersMap({});
             }
             if (otherData) {
+                if (otherData.singlePlayerStages !== undefined) {
+                    setSinglePlayerStagesFromServer(otherData.singlePlayerStages as any);
+                }
                 if (otherData.onlineUsers !== undefined) setOnlineUsers(otherData.onlineUsers || []);
                 // liveGames: 전략/놀이바둑 수순 제한 또는 AI봇 대결 시 totalTurns·moveHistory·currentPlayer를 sessionStorage에서 복원 (싱글/탑과 동일)
                 if (otherData.liveGames !== undefined) {
@@ -5380,7 +5520,8 @@ export const useApp = () => {
                                 arenaEntranceAvailability,
                                 announcementInterval,
                                 homeBoardPosts,
-                                guilds
+                                guilds,
+                                singlePlayerStages
                             } = message.payload;
                             processInitialState(users, {
                                 onlineUsers,
@@ -5397,9 +5538,17 @@ export const useApp = () => {
                                 arenaEntranceAvailability,
                                 announcementInterval,
                                 homeBoardPosts,
-                                guilds
+                                guilds,
+                                singlePlayerStages
                             });
                             completeInitialState();
+                            return;
+                        }
+                        case 'SINGLE_PLAYER_STAGES_UPDATE': {
+                            const stages = (message.payload as any)?.singlePlayerStages;
+                            if (stages !== undefined) {
+                                setSinglePlayerStagesFromServer(stages);
+                            }
                             return;
                         }
                         case 'USER_UPDATE': {
@@ -6528,6 +6677,30 @@ export const useApp = () => {
                                             (game.thiefPlayerId !== existingGame.thiefPlayerId ||
                                                 game.policePlayerId !== existingGame.policePlayerId);
                                         /** 도둑/주사위: 서버가 기보를 비운 리셋 패킷인데, 아래 병합이 `isDiceOrThiefMode` 때문에 빈 판을 항상 예전 판으로 덮어쓰던 버그 방지 */
+                                        /** thief_placing → thief_round_end: 서버가 모달 진입 시 판을 비움. 기존 조건은 existing이 이미 round_end일 때만 신뢰해 첫 패킷에서 옛 판으로 덮는 버그가 있었음 */
+                                        const thiefRoundEndEmptyBoardHandshake =
+                                            game.mode === GameMode.Thief &&
+                                            game.gameStatus === 'thief_round_end' &&
+                                            !hasServerBoard &&
+                                            Array.isArray(game.moveHistory) &&
+                                            game.moveHistory.length === 0 &&
+                                            existingMoveCount > 0 &&
+                                            !!existingGame &&
+                                            ['thief_rolling', 'thief_rolling_animating', 'thief_placing'].includes(
+                                                existingGame.gameStatus
+                                            );
+                                        /** 라운드↑ 또는 역할 교대 직후: rolling/placing + 빈 기보 — 같은 라운드 중엔 신뢰하지 않음 */
+                                        const thiefNewRoundEmptyBoardHandshake =
+                                            game.mode === GameMode.Thief &&
+                                            ['thief_rolling', 'thief_rolling_animating', 'thief_placing'].includes(
+                                                game.gameStatus
+                                            ) &&
+                                            !hasServerBoard &&
+                                            Array.isArray(game.moveHistory) &&
+                                            game.moveHistory.length === 0 &&
+                                            existingMoveCount > 0 &&
+                                            !!existingGame &&
+                                            (incomingRound > existingRound || thiefRolesSwappedVsClient);
                                         const playfulTrustEmptyServerBoardSnapshot =
                                             isDiceOrThiefMode &&
                                             serverBoardGridOk &&
@@ -6537,6 +6710,8 @@ export const useApp = () => {
                                             existingMoveCount > 0 &&
                                             (incomingRound > existingRound ||
                                                 thiefRolesSwappedVsClient ||
+                                                thiefRoundEndEmptyBoardHandshake ||
+                                                thiefNewRoundEmptyBoardHandshake ||
                                                 (game.mode === GameMode.Thief &&
                                                     existingGame?.gameStatus === 'thief_round_end' &&
                                                     [

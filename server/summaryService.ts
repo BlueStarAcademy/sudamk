@@ -3,7 +3,7 @@
 import { LiveGameSession, Player, User, GameSummary, StatChange, GameMode, InventoryItem, SpecialStat, WinReason, SinglePlayerStageInfo, QuestReward, Mail } from '../types/index.js';
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
-import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, SINGLE_PLAYER_STAGES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS, ENABLE_PVP_SKILL_REWARD_MULTIPLIER, getPvpSkillRewardMultiplier } from '../constants';
+import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS, ENABLE_PVP_SKILL_REWARD_MULTIPLIER, getPvpSkillRewardMultiplier } from '../constants';
 import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
@@ -47,6 +47,7 @@ import { getAdventureBaseStrategyXp, getAdventureMonsterLevelXpBonus } from '../
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCodex.js';
+import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -148,7 +149,8 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     
     // 디버깅: 승자 판정 로그
     console.log(`[processSinglePlayerGameSummary] Game ${game.id}: game.winner=${game.winner === Player.Black ? 'Black' : game.winner === Player.White ? 'White' : 'None'}, isWinner=${isWinner}, finalScores=${JSON.stringify(game.finalScores)}`);
-    const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+    const stages = await getEffectiveSinglePlayerStages();
+    const stage = stages.find(s => s.id === game.stageId);
 
     if (!stage) {
         console.error(`[SP Summary] Could not find stage with id: ${game.stageId}`);
@@ -164,7 +166,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
         items: [],
     };
     
-    const stageIndex = SINGLE_PLAYER_STAGES.findIndex(s => s.id === stage.id);
+    const stageIndex = stages.findIndex(s => s.id === stage.id);
     const currentProgress = user.singlePlayerProgress ?? 0;
     
     // clearedSinglePlayerStages 배열 초기화 (없는 경우)
@@ -574,8 +576,14 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     } else {
         const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === game.mode);
         const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === game.mode);
-        // 놀이바둑과 전략바둑은 항상 processGameSummary 호출 (statsUpdated 체크 제거)
+        // 정산 스킵 방지: DB/이전 세션에서 statsUpdated만 true이고 summary가 비면 보상이 영구 누락됨
         if (isPlayful || isStrategic) {
+            const summaryEmpty =
+                !game.summary ||
+                (typeof game.summary === 'object' && Object.keys(game.summary as object).length === 0);
+            if (game.statsUpdated && summaryEmpty) {
+                game.statsUpdated = false;
+            }
             if (!game.statsUpdated) {
                 await processGameSummary(game);
             }
@@ -1187,6 +1195,8 @@ const processPlayerSummary = async (
     // --- XP and Level ---
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isPlayful = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+    /** 기권한 쪽만 완주 실패 처리 — 상대(승자)는 놀이바둑도 골드·경험치 정상 지급 */
+    const isPlayfulResignLoser = isPlayful && winReason === 'resign' && !isWinner;
     const initialLevel = isStrategic ? updatedPlayer.strategyLevel : updatedPlayer.playfulLevel;
     const opponentLevel = isStrategic ? opponent.strategyLevel : opponent.playfulLevel;
     const initialXp = isStrategic ? updatedPlayer.strategyXp : updatedPlayer.playfulXp;
@@ -1199,14 +1209,15 @@ const processPlayerSummary = async (
         // 놀이바둑은 시간/수순 길이와 무관한 고정 경험치 (승패 차이를 크게 유지)
         xpGain = isWinner ? 90 : (isDraw ? 0 : 18);
     }
-    if (!isNoContest && isStrategicLobbyAi) {
-        xpGain = isWinner ? strategicLobbyAiWinXp(game.settings.boardSize, game.settings.scoringTurnLimit) : 0;
-    } else if (!isNoContest && isAdventureGame) {
+    // 모험은 `isWaitingRoomAiGame`에서 제외되지만, 분기 순서상 모험을 먼저 고정해 대기실 AI EXP와 겹치지 않게 한다.
+    if (!isNoContest && isAdventureGame) {
         if (isWinner) {
             xpGain = getAdventureBaseStrategyXp(adventureBoardSize) + getAdventureMonsterLevelXpBonus(game.adventureMonsterLevel);
         } else {
             xpGain = 0;
         }
+    } else if (!isNoContest && isStrategicLobbyAi) {
+        xpGain = isWinner ? strategicLobbyAiWinXp(game.settings.boardSize, game.settings.scoringTurnLimit) : 0;
     }
 
     // Apply AI game penalty (모험·전략 대기실 AI는 별도 처리)
@@ -1265,6 +1276,14 @@ const processPlayerSummary = async (
         const step = resolveAiLobbyProfileStepFromSettings(game.settings as any);
         const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
         xpGain = Math.round(xpGain * tierMul);
+    }
+    // 놀이바둑에서 기권한 플레이어만 경험치 없음(승자는 지급)
+    if (isPlayfulResignLoser) {
+        xpGain = 0;
+    }
+    // 모험 몬스터 대전에서 패배한 유저는 전략 경험치·보상 경로가 얽여도 0으로 고정
+    if (!isNoContest && !isDraw && isAdventureGame && player.id !== aiUserId && !isWinner) {
+        xpGain = 0;
     }
     // --- END NEW LOGIC ---
 
@@ -1609,9 +1628,19 @@ const processPlayerSummary = async (
 
     const vipWinEligible =
         qualifiesVipPlayRewardSurface &&
-        (isAdventureWin || (!isAdventureGame && isWinner && !isDraw));
+        !isPlayfulResignLoser &&
+        isWinner &&
+        !isDraw &&
+        (!isAdventureGame || isAdventureWin);
 
     if (isStrategicLobbyAi && player.id !== aiUserId) {
+        rewards.gold = 0;
+        rewards.diamonds = 0;
+        rewards.items = [];
+        delete rewards.adventureGoldUnderstandingBonus;
+    }
+    // 놀이바둑에서 기권한 플레이어만 재화/아이템 없음(승자는 지급)
+    if (isPlayfulResignLoser) {
         rewards.gold = 0;
         rewards.diamonds = 0;
         rewards.items = [];
@@ -1626,6 +1655,19 @@ const processPlayerSummary = async (
         vipGoldBonus = vip.goldBonus;
         vipGrant = vip.inventoryItem;
         vipGrantedDisplay = vip.grantedDisplay;
+    }
+
+    // 모험 패배: 일반 대국 보상 경로에서 붙은 골드·아이템·VIP 보너스는 지급하지 않음(기권패 등)
+    const stripAdventureHumanLossRewards =
+        !isNoContest && !isDraw && isAdventureGame && player.id !== aiUserId && !isWinner;
+    if (stripAdventureHumanLossRewards) {
+        rewards.gold = 0;
+        rewards.diamonds = 0;
+        rewards.items = [];
+        delete rewards.adventureGoldUnderstandingBonus;
+        vipGoldBonus = 0;
+        vipGrant = null;
+        vipGrantedDisplay = undefined;
     }
 
     const itemsForInventory = [...rewards.items, ...(vipGrant ? [vipGrant] : [])];

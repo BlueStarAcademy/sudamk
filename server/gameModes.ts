@@ -16,6 +16,10 @@ import * as effectService from './effectService.js';
 import { endGame } from './summaryService.js';
 import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
 import { TOWER_AI_BOT_DISPLAY_NAME } from '../constants/towerConstants.js';
+import {
+    isAiInitialHiddenSoftFoundByAnyPlayer,
+    isHiddenMoveIndexSoftRevealedByAnyPlayer,
+} from './modes/hiddenScanShared.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -275,7 +279,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             (game as any).aiInitialHiddenStone = undefined;
         }
         
-        // 실제 비공개 상태였던 히든 돌만 공개 대상: hiddenMoves에 true로 등록되고, 아직 permanentlyRevealed에 없는 수만
+        // 최종 공개 연출 대상: 바둑판에 돌이 남아 있고, 영구 공개·스캔 소프트 공개가 아닌 미공개 히든만(따낸 칸은 board가 비어 루프 전에 hiddenMoves 정리됨)
         const stonesToReveal: types.Point[] = [];
         const moveHistoryLen = game.moveHistory.length;
         
@@ -294,6 +298,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 p => p.x === x && p.y === y
             );
             if (isAlreadyRevealed) continue;
+            if (isHiddenMoveIndexSoftRevealedByAnyPlayer(game, moveIndex)) continue;
             
             if (game.boardState[y]?.[x] !== types.Player.None) {
                 stonesToReveal.push({ x, y });
@@ -310,7 +315,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 p => p.x === aiHidden.x && p.y === aiHidden.y
             );
             
-            if (!isAlreadyRevealed) {
+            if (!isAlreadyRevealed && !isAiInitialHiddenSoftFoundByAnyPlayer(game)) {
                 // AI 초기 히든돌이 보드에 남아있는지 확인
                 if (game.boardState[aiHidden.y]?.[aiHidden.x] !== types.Player.None) {
                     stonesToReveal.push({ x: aiHidden.x, y: aiHidden.y });

@@ -270,6 +270,7 @@ export const GameInfoPanel: React.FC<{
                         session={session}
                         readOnly
                         currentUser={currentUser}
+                        onAction={onAction}
                         onClose={() => setMatchGuideOpen(false)}
                         onTowerItemPurchase={
                             session.gameCategory === 'tower' && onAction

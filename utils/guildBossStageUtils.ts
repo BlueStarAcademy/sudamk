@@ -84,6 +84,34 @@ export function getGuildBossSwapMailMemberRewards(args: {
     };
 }
 
+/**
+ * 월요일 0시(KST) 주간 길드 보스 리셋 시 길드에 자동 적립되는 보상.
+ * 1단계 기준: 격파(남은 0%) → 길드 XP 5000 + 연구 3000, 잔여 체력 50% 이하 → 3000 + 2000.
+ * 난이도 단계가 1 올라갈 때마다 배율 1.2배 (`guildBossStatMultiplier`와 동일).
+ */
+export function getWeeklyGuildBossSettlementGuildRewards(args: {
+    stage: number;
+    /** 현재 HP / 최대 HP, [0,1]. 격파 시 0. */
+    remainingHpRatio: number;
+    wasDefeated: boolean;
+}): { guildXp: number; researchPoints: number } | null {
+    const mult = guildBossStatMultiplier(args.stage);
+    if (args.wasDefeated) {
+        return {
+            guildXp: Math.max(0, Math.round(5000 * mult)),
+            researchPoints: Math.max(0, Math.round(3000 * mult)),
+        };
+    }
+    const ratio = Math.max(0, Math.min(1, args.remainingHpRatio));
+    if (ratio <= 0.5) {
+        return {
+            guildXp: Math.max(0, Math.round(3000 * mult)),
+            researchPoints: Math.max(0, Math.round(2000 * mult)),
+        };
+    }
+    return null;
+}
+
 export function getScaledGuildBossMaxHp(baseMaxHp: number, stage: number): number {
     return Math.max(1, Math.round(baseMaxHp * guildBossHpMultiplier(stage)));
 }

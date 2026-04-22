@@ -16,7 +16,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 15,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 2층
@@ -29,7 +29,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 15,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 3층
@@ -42,7 +42,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 15,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 4층
@@ -55,7 +55,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 15,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 5층
@@ -68,7 +68,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 15,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 0, exp: 30, items: [{ itemId: '골드 꾸러미1', quantity: 1 }] }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 6층
@@ -81,7 +81,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 16,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 7층
@@ -94,7 +94,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 17,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 8층
@@ -107,7 +107,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 18,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 9층
@@ -120,7 +120,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 19,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 100, exp: 30 }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 10층
@@ -133,7 +133,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 5, white: 5 },
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 20,
+        blackTurnLimit: 10,
         rewards: { firstClear: { gold: 0, exp: 30, items: [{ itemId: '장비상자1', quantity: 1 }] }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 11층
@@ -146,7 +146,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 25,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 12층
@@ -159,7 +159,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 25,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 13층
@@ -172,7 +172,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 25,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 14층
@@ -185,7 +185,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 25,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 15층
@@ -198,7 +198,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 25,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 0, exp: 50, items: [{ itemId: '재료상자1', quantity: 1 }] }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 16층
@@ -211,7 +211,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 26,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 17층
@@ -224,7 +224,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 27,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 18층
@@ -237,7 +237,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 28,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 19층
@@ -250,7 +250,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 6, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 29,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 150, exp: 50 }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 20층
@@ -263,7 +263,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         targetScore: { black: 7, white: 5 },
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
-        blackTurnLimit: 30,
+        blackTurnLimit: 15,
         rewards: { firstClear: { gold: 0, exp: 50, items: [{ itemId: '다이아꾸러미1', quantity: 1 }] }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 21-30층: 자동계가 턴 40턴, 미사일+히든 합쳐진 형태

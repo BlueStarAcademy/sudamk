@@ -47,7 +47,9 @@ const ThiefGoArena: React.FC<ThiefGoArenaProps> = (props) => {
     const whitePlayer = players.find((p) => p.id === whitePlayerId) || null;
 
     const highlightedPoints = useMemo(() => {
-        if (gameStatus !== 'thief_placing' || !isMyTurn) return [];
+        // 인간 착수 직후 deferHandoff: currentPlayer는 아직 본인인데 stonesToPlace=0.
+        // 이 구간에 활로/전판 링을 그리면 다음 턴(AI) 유효자리가 유저에게 보이는 것처럼 보임.
+        if (gameStatus !== 'thief_placing' || !isMyTurn || (session.stonesToPlace ?? 0) <= 0) return [];
 
         const logic = getGoLogic(session);
         const myRole = currentUser.id === thiefPlayerId ? '도둑' : '경찰';

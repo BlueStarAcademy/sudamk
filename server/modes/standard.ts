@@ -26,6 +26,7 @@ import {
     removeCapturedBaseStoneMarkersFromSession,
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../../shared/utils/guildWarMaxSingleCapturePoints.js';
+import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import {
@@ -35,7 +36,9 @@ import {
     useAiInitialHiddenCellTracking,
     useAiInitialHiddenSyntheticCaptureHistory,
 } from './hiddenRevealPolicy.js';
+import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
+import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 
 const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
     types.GameMode.Standard,
@@ -508,8 +511,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
         } else if (game.gameCategory === GameCategory.Tower) {
             fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
         } else if (game.isSinglePlayer && game.stageId) {
-            const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-            const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+            const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
             fixedScoringTurnLimit = stage?.autoScoringTurns;
         } else {
             fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
@@ -622,8 +624,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         autoScoringTurns = stage?.autoScoringTurns;
                     }
                 } else if (game.isSinglePlayer && game.stageId) {
-                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                    autoScoringTurns = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
+                    autoScoringTurns = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
                 } else {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
                 }
@@ -696,8 +697,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         autoScoringTurnsSync = stage?.autoScoringTurns;
                     }
                 } else if (game.isSinglePlayer && game.stageId) {
-                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                    autoScoringTurnsSync = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
+                    autoScoringTurnsSync = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
                 } else {
                     autoScoringTurnsSync =
                         game.mode === types.GameMode.Capture
@@ -1181,7 +1181,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     let points = 1;
                     let wasHiddenForJustCaptured = false; // default for justCaptured
 
-                    if (game.isSinglePlayer || (game as any).gameCategory === 'guildwar' || (game as any).gameCategory === 'tower') {
+                    if (
+                        game.isSinglePlayer ||
+                        (game as any).gameCategory === 'guildwar' ||
+                        (game as any).gameCategory === 'tower' ||
+                        game.gameCategory === GameCategory.Adventure
+                    ) {
                         const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
@@ -1343,8 +1348,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 } else if (game.gameCategory === GameCategory.Tower) {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else {
-                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                    const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+                    const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
                     autoScoringTurns = stage?.autoScoringTurns;
                 }
                 
@@ -1383,15 +1387,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
             
-            // After move logic (탑은 isSinglePlayer가 false이므로 gameCategory로 포함)
-            if (game.mode === types.GameMode.Capture || game.isSinglePlayer || game.gameCategory === GameCategory.Tower) {
-                const target = game.effectiveCaptureTargets?.[myPlayerEnum];
-                if (target !== undefined && target !== 999 && game.captures[myPlayerEnum] >= target) {
-                    // 따낸 돌 미션을 먼저 적용하여 성공/실패를 확정하고,
-                    // 이후 턴 제한(blackTurnLimit 등)은 더 이상 적용하지 않는다.
-                    await summaryService.endGame(game, myPlayerEnum, 'capture_limit');
-                    return {};
-                }
+            // After move logic: 따내기 목표 달성(모험·탑·싱글·캡처 모드 공통)
+            if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
+                return {};
             }
             
             // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한(blackTurnLimit) 도달 시,
@@ -1508,7 +1506,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                 const move = game.moveHistory[moveIndex];
                                 if (move && move.x !== -1 && game.boardState[move.y]?.[move.x] === move.player) {
                                     const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === move.x && p.y === move.y);
-                                    if (!isPermanentlyRevealed) {
+                                    if (
+                                        !isPermanentlyRevealed &&
+                                        !isHiddenMoveIndexSoftRevealedByAnyPlayer(game, moveIndex)
+                                    ) {
                                         unrevealedStones.push({ point: { x: move.x, y: move.y }, player: move.player });
                                     }
                                 }

@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { LiveGameSession, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
-import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
+import { LiveGameSession, ServerAction, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
+import { SINGLE_PLAYER_STAGES, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
@@ -37,6 +37,7 @@ import {
     ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS,
     spotlightDimClipPathFromPxRect,
 } from '../utils/onboardingSpotlightDimClipPath.js';
+import StageDefinitionEditorShell from './editor/StageDefinitionEditorShell.js';
 
 const SINGLE_PLAYER_CLEAR_GOLD_BOX = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 const SINGLE_PLAYER_CLEAR_ITEM_BOX = `${RESULT_MODAL_BOX_ITEM_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
@@ -48,6 +49,7 @@ interface SinglePlayerGameDescriptionModalProps {
     /** 인게임 경기방법: 시작하기 대신 확인 버튼만 표시 */
     readOnly?: boolean;
     currentUser?: UserWithStatus;
+    onAction?: (action: ServerAction) => Promise<any> | void;
     /** 도전의 탑: 경기정보 모달에서 아이템 상점 구매 */
     onTowerItemPurchase?: (itemId: string, quantity: number) => Promise<void>;
 }
@@ -153,6 +155,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     onClose,
     readOnly = false,
     currentUser,
+    onAction,
     onTowerItemPurchase,
 }) => {
     const isTower = session.gameCategory === 'tower';
@@ -183,6 +186,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const [intro11SpotlightRect, setIntro11SpotlightRect] = useState<SpotlightRect | null>(null);
     const [intro11PanelDragOffset, setIntro11PanelDragOffset] = useState({ x: 0, y: 0 });
     const [intro11PanelDragging, setIntro11PanelDragging] = useState(false);
+    const [editorOpen, setEditorOpen] = useState(false);
     const intro11PanelRef = useRef<HTMLDivElement | null>(null);
     const intro11DragPointerIdRef = useRef<number | null>(null);
     const intro11DragOriginRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
@@ -361,6 +365,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const hasClearRewardToShow = isEligibleForFirstClearRewards && firstClearRewardHasContent(clearReward);
 
     const canOpenTowerShop = isTower && !!currentUser && !!onTowerItemPurchase;
+    const canOpenStageEditor = !isTower && !!currentUser && isClientAdmin(currentUser) && !!onAction;
 
     const resolveItemImage = (itemId: string): string | null => {
         const normalized = normalizeBoxItemName(itemId);
@@ -542,6 +547,15 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 </Button>
             ) : (
                 <>
+            {canOpenStageEditor && (
+                <Button
+                    onClick={() => setEditorOpen(true)}
+                    colorScheme="secondary"
+                    className={compact ? '!flex-1 basis-0 min-w-0 min-h-[3rem] px-5 py-2.5 text-base max-[480px]:px-4' : `!w-auto shrink-0 text-base ${desktopBtnTight}`}
+                >
+                    스테이지 편집
+                </Button>
+            )}
             {onClose && !onboardingPregameFinalSubStep && (
                 <Button
                     onClick={onClose}
@@ -642,6 +656,24 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             }
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
+            {canOpenStageEditor && (
+                <StageDefinitionEditorShell
+                    open={editorOpen}
+                    scope="singleplayer"
+                    stage={stage}
+                    onClose={() => setEditorOpen(false)}
+                    onSave={async (nextStage) => {
+                        if (!onAction) return;
+                        const nextStages = SINGLE_PLAYER_STAGES.map((row) => (row.id === nextStage.id ? nextStage : row));
+                        await onAction({
+                            type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
+                            payload: { stages: nextStages },
+                        } as ServerAction);
+                        setSinglePlayerStagesFromServer(nextStages);
+                        setEditorOpen(false);
+                    }}
+                />
+            )}
             {towerShopPortal}
             <div className={`flex min-h-0 flex-col text-white ${isCompactUi ? 'h-full min-h-0 flex-1' : 'shrink-0'}`}>
                 {isCompactUi ? (

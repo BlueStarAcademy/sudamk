@@ -759,12 +759,8 @@ const makeThiefAiMove = async (game: types.LiveGameSession) => {
                     return;
                 }
                 
-                game.gameStatus = 'thief_round_end';
-                game.thiefFreestyleThiefPlacing = undefined;
-                // AI 대국: PVP 전용 자동 시작 카운트다운 없음 — 유저가 모달에서 확인할 때까지 대기
-                game.revealEndTime = undefined;
-                if (!game.roundEndConfirmations) game.roundEndConfirmations = {};
-                game.roundEndConfirmations[aiUserId] = now;
+                const { enterThiefRoundEndModal } = await import('./modes/thief.js');
+                enterThiefRoundEndModal(game, now);
             } else {
                 game.thiefFreestyleThiefPlacing = undefined;
                 game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
@@ -1015,37 +1011,24 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
         let launchX: number;
         let launchY: number;
         
-        // 클라이언트와 동일한 발사 영역 계산 (cellSize는 이미 위에서 선언됨)
-        const safeBoardSize = 19;
+        // 클라이언트 `CurlingBoard`와 동일: 하단 발사 칸 1×1, 돌 **중심**을 칸 내부에서 균등 랜덤(원이 칸 밖으로 나갈 수 있음)
         const padding = cellSize / 2;
-        const launchAreaCellSize = 1;
-        const launchAreaPx = launchAreaCellSize * cellSize;
-        const stoneRadius = (boardSizePx / safeBoardSize) * 0.47;
-        
-        // 양쪽 모서리에서만 출발 (50% 확률로 왼쪽 또는 오른쪽)
+        const launchAreaPxW = cellSize * 1;
+        const launchAreaPxH = cellSize * 1;
+        const bottomY = boardSizePx - padding - launchAreaPxH;
+
         const launchPositionRand = Math.random();
+        let svgCx: number;
         if (launchPositionRand < 0.5) {
-            // 왼쪽 모서리 (클라이언트의 padding 위치)
-            launchX = padding + Math.random() * launchAreaPx;
+            svgCx = padding + Math.random() * launchAreaPxW;
         } else {
-            // 오른쪽 모서리 (클라이언트의 boardSizePx - padding - launchAreaPx 위치)
-            launchX = (boardSizePx - padding - launchAreaPx) + Math.random() * launchAreaPx;
+            svgCx = boardSizePx - padding - launchAreaPxW + Math.random() * launchAreaPxW;
         }
-        
-        // Y 위치는 플레이어에 따라 결정
-        // 백(White): 서버 좌표계 상단에서 공격 (위에서 아래로)
-        // 흑(Black): 서버 좌표계 하단에서 공격 (아래에서 위로)
-        if (aiPlayerEnum === types.Player.White) {
-            // 백: 서버 좌표계 상단에서 공격 (위에서 아래로)
-            // 클라이언트의 화면 하단 = 서버 좌표계 상단이므로, 상단 근처에서 시작
-            const topY = padding + Math.random() * launchAreaPx; // 상단 발사 영역
-            launchY = topY + stoneRadius;
-        } else {
-            // 흑: 서버 좌표계 하단에서 공격 (아래에서 위로)
-            const bottomY = boardSizePx - padding - launchAreaPx;
-            const areaY = bottomY + Math.random() * launchAreaPx; // 발사 영역 내 랜덤 Y 위치
-            launchY = areaY + stoneRadius;
-        }
+        const svgCy = bottomY + Math.random() * launchAreaPxH;
+
+        launchX = svgCx;
+        // 화면 하단 발사 = 흑은 서버 y 그대로, 백은 서버 y 반전
+        launchY = aiPlayerEnum === types.Player.White ? boardSizePx - svgCy : svgCy;
         
         // 목표 지점과 속도 결정
         let targetX: number;

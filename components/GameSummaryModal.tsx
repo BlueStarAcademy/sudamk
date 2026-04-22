@@ -38,6 +38,7 @@ import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
+import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 
 interface GameSummaryModalProps {
     session: LiveGameSession;
@@ -65,6 +66,35 @@ const getMannerRank = (score: number) => {
     return getMannerRankShared(score).rank;
 };
 
+/** 컬링·알까기 공통: 라벨 없이 돌 + 숫자(·)돌 + 숫자 */
+const CurlingAlkkagiTotalScoreRow: React.FC<{
+    blackPrimary: React.ReactNode;
+    whitePrimary: React.ReactNode;
+    compact?: boolean;
+}> = ({ blackPrimary, whitePrimary, compact }) => {
+    const stoneCls = compact ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-7 w-7 sm:h-8 sm:w-8';
+    const numCls = compact
+        ? 'text-base font-bold tabular-nums tracking-tight text-amber-50 sm:text-lg'
+        : 'text-2xl font-bold tabular-nums tracking-tight text-amber-50 sm:text-3xl';
+    return (
+        <div className="relative overflow-hidden rounded-2xl border border-amber-500/28 bg-gradient-to-b from-slate-900/96 via-slate-950/98 to-black px-3 py-2.5 text-center shadow-[0_16px_44px_-22px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-amber-500/14 sm:px-4 sm:py-3.5">
+            <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/25 to-transparent" aria-hidden />
+            <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-4">
+                <div className="flex items-center gap-2">
+                    <GoStoneIcon color="black" className={stoneCls} />
+                    <span className={`font-mono ${numCls}`}>{blackPrimary}</span>
+                </div>
+                <span className="select-none text-base font-extralight text-slate-600 sm:text-xl" aria-hidden>
+                    ·
+                </span>
+                <div className="flex items-center gap-2">
+                    <GoStoneIcon color="white" className={stoneCls} />
+                    <span className={`font-mono ${numCls}`}>{whitePrimary}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
@@ -344,6 +374,118 @@ const PlayfulScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
 
     const hasBonus = p1Bonus > 0 || p2Bonus > 0;
 
+    if (gameSession.mode === GameMode.Thief) {
+        type ThiefRoundRow = {
+            round: number;
+            p1: { escaped: number; captured: number; total: number };
+            p2: { escaped: number; captured: number; total: number };
+        };
+        const explicitHistory = (gameSession.thiefRoundHistory ?? [])
+            .slice()
+            .sort((a, b) => a.round - b.round)
+            .map<ThiefRoundRow>((h) => ({
+                round: h.round,
+                p1: {
+                    escaped: Math.max(0, Number(h.player1.escapedStones) || 0),
+                    captured: Math.max(0, Number(h.player1.capturedStones) || 0),
+                    total: Math.max(0, Number(h.player1.roundScore) || 0),
+                },
+                p2: {
+                    escaped: Math.max(0, Number(h.player2.escapedStones) || 0),
+                    captured: Math.max(0, Number(h.player2.capturedStones) || 0),
+                    total: Math.max(0, Number(h.player2.roundScore) || 0),
+                },
+            }));
+        const rows: ThiefRoundRow[] = explicitHistory.length > 0
+            ? explicitHistory
+            : (() => {
+                  const rs = gameSession.thiefRoundSummary;
+                  if (!rs) return [];
+                  const r2p1 = Math.max(0, Number(rs.player1.roundScore) || 0);
+                  const r2p2 = Math.max(0, Number(rs.player2.roundScore) || 0);
+                  const c1 = Math.max(0, Number(rs.player1.cumulativeScore) || 0);
+                  const c2 = Math.max(0, Number(rs.player2.cumulativeScore) || 0);
+                  const out: ThiefRoundRow[] = [];
+                  if (rs.round >= 2) {
+                      out.push({
+                          round: 1,
+                          p1: { escaped: 0, captured: 0, total: Math.max(0, c1 - r2p1) },
+                          p2: { escaped: 0, captured: 0, total: Math.max(0, c2 - r2p2) },
+                      });
+                  }
+                  out.push({
+                      round: rs.round,
+                      p1: { escaped: 0, captured: 0, total: r2p1 },
+                      p2: { escaped: 0, captured: 0, total: r2p2 },
+                  });
+                  return out;
+              })();
+
+        return (
+            <div className={`mx-auto w-full max-w-[32rem] ${isMobile ? 'space-y-1.5' : 'space-y-2'}`}>
+                <div className="rounded-lg border border-amber-500/20 bg-gray-900/55 p-1.5 sm:p-2">
+                    <table className="w-full table-fixed border-separate border-spacing-y-1 text-center">
+                        <thead>
+                            <tr className="text-[10px] uppercase tracking-wide text-amber-200/90 sm:text-xs">
+                                <th className="w-[16%]">라운드</th>
+                                <th className="w-[28%]">{player1.nickname}</th>
+                                <th className="w-[28%]">{player2.nickname}</th>
+                                <th className="w-[28%]">합계</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => {
+                                const p1Round = row.p1.total;
+                                const p2Round = row.p2.total;
+                                return (
+                                    <tr key={`thief-round-${row.round}`} className="text-[11px] sm:text-xs">
+                                        <td className="rounded-md bg-black/25 px-1 py-1 font-bold text-zinc-200">{row.round}R</td>
+                                        <td className="rounded-md bg-black/20 px-1 py-1 text-zinc-100">
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-zinc-300">도망</span>
+                                                <span className="font-mono tabular-nums">{row.p1.escaped}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-zinc-300">잡은 돌</span>
+                                                <span className="font-mono tabular-nums">{row.p1.captured}</span>
+                                            </div>
+                                        </td>
+                                        <td className="rounded-md bg-black/20 px-1 py-1 text-zinc-100">
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-zinc-300">도망</span>
+                                                <span className="font-mono tabular-nums">{row.p2.escaped}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className="text-zinc-300">잡은 돌</span>
+                                                <span className="font-mono tabular-nums">{row.p2.captured}</span>
+                                            </div>
+                                        </td>
+                                        <td className="rounded-md bg-black/20 px-1 py-1">
+                                            <div className="flex items-center justify-between gap-1 text-zinc-100">
+                                                <span className="text-zinc-300">P1</span>
+                                                <span className="font-mono tabular-nums">{p1Round}</span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1 text-zinc-100">
+                                                <span className="text-zinc-300">P2</span>
+                                                <span className="font-mono tabular-nums">{p2Round}</span>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="rounded-lg border border-amber-500/30 bg-gradient-to-b from-gray-900/75 to-black/70 px-2 py-1.5 text-center">
+                    <p className="text-[10px] text-gray-300 sm:text-xs">최종 점수</p>
+                    <p className="font-mono text-2xl font-bold tabular-nums text-amber-100 sm:text-3xl">
+                        {p1TotalScore} : {p2TotalScore}
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     if (!hasBonus) {
         return (
             <div className="text-center">
@@ -490,15 +632,17 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
     const blackScore = curlingScores[Player.Black] || 0;
     const whiteScore = curlingScores[Player.White] || 0;
 
-    // 라운드별 점수 히스토리 가져오기
+    // 라운드별 점수 히스토리 — 표시 행은 최소 3라운드(미진행은 "-"), 설정이 3보다 크면 그만큼 표시
     const roundHistory = (gameSession as any).curlingRoundHistory || [];
-    const totalRounds = gameSession.settings?.curlingRounds || 3;
-    const roundNums = Array.from({ length: totalRounds }, (_, i) => i + 1);
+    const configuredCurlingRounds = Math.max(1, Number(gameSession.settings?.curlingRounds) || 3);
+    const displayRoundCount = Math.max(3, configuredCurlingRounds);
+    const roundNums = Array.from({ length: displayRoundCount }, (_, i) => i + 1);
+    const curlingRoundAt = (roundNum: number) => roundHistory.find((r: any) => r.round === roundNum);
 
     /** 상단 MatchPlayersRoster와 중복되지 않도록 아바타 없이 누적 점수만 고급스럽게 표시 */
     const curlingScoreStrip = (
         <div
-            className={`relative mx-auto w-full overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#12151f] via-[#0b0e14] to-[#06080c] shadow-[0_12px_40px_-18px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 ${isMobile ? 'max-w-md px-3 py-3' : 'max-w-lg px-5 py-4'}`}
+            className={`relative mx-auto w-full overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#12151f] via-[#0b0e14] to-[#06080c] shadow-[0_12px_40px_-18px_rgba(0,0,0,0.75),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-amber-400/12 ${isMobile ? 'max-w-md px-3 py-2' : 'max-w-lg px-4 py-2.5'}`}
         >
             <div
                 className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent"
@@ -506,27 +650,22 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
             />
             <div className="pointer-events-none absolute -left-16 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-cyan-500/[0.06] blur-3xl" aria-hidden />
             <div className="pointer-events-none absolute -right-16 top-1/2 h-32 w-32 -translate-y-1/2 rounded-full bg-amber-400/[0.07] blur-3xl" aria-hidden />
-            <div className={`relative flex items-stretch justify-between gap-2 ${isMobile ? 'min-h-[4.25rem]' : 'min-h-[5rem]'}`}>
-                <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-center">
-                    <span
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-stone-600/60 bg-gradient-to-b from-zinc-800 to-black text-[11px] font-black text-stone-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-black/40 sm:h-9 sm:w-9"
-                        aria-hidden
-                    >
-                        흑
-                    </span>
+            <div className={`relative flex items-stretch justify-between gap-2 ${isMobile ? 'min-h-[3.5rem]' : 'min-h-[3.25rem]'}`}>
+                <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
+                    <GoStoneIcon color="black" className={isMobile ? 'h-8 w-8 sm:h-9 sm:w-9' : 'h-7 w-7 sm:h-8 sm:w-8'} />
                     <span className="max-w-full truncate px-0.5 text-[10px] font-medium text-slate-500 sm:text-xs" title={blackPlayer.nickname}>
                         {blackPlayer.nickname}
                     </span>
                 </div>
                 <div className="mx-1 flex w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-amber-500/25 to-transparent sm:mx-2" aria-hidden />
                 <div
-                    className={`flex shrink-0 items-center justify-center gap-1 font-mono tabular-nums tracking-tight ${isMobile ? 'text-[1.65rem] leading-none' : 'text-4xl sm:text-5xl'}`}
+                    className={`flex shrink-0 items-center justify-center gap-0.5 font-mono tabular-nums tracking-tight ${isMobile ? 'text-[1.65rem] leading-none' : 'text-2xl leading-none sm:text-3xl'}`}
                     style={isMobile ? { fontSize: `${26 * mobileTextScale}px` } : undefined}
                 >
                     <span className="bg-gradient-to-b from-white via-amber-50 to-amber-200/90 bg-clip-text font-black text-transparent drop-shadow-[0_2px_18px_rgba(251,191,36,0.22)]">
                         {blackScore}
                     </span>
-                    <span className="px-1 text-lg font-extralight text-slate-600 sm:text-2xl" aria-hidden>
+                    <span className={`font-extralight text-slate-600 ${isMobile ? 'px-1 text-lg sm:text-2xl' : 'px-0.5 text-base sm:text-lg'}`} aria-hidden>
                         :
                     </span>
                     <span className="bg-gradient-to-b from-white via-amber-50 to-amber-200/90 bg-clip-text font-black text-transparent drop-shadow-[0_2px_18px_rgba(251,191,36,0.22)]">
@@ -534,68 +673,95 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                     </span>
                 </div>
                 <div className="mx-1 flex w-px shrink-0 self-stretch bg-gradient-to-b from-transparent via-amber-500/25 to-transparent sm:mx-2" aria-hidden />
-                <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-center">
-                    <span
-                        className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-slate-400/55 bg-gradient-to-b from-slate-100 to-slate-300 text-[11px] font-black text-slate-900 shadow-[inset_0_-1px_0_rgba(0,0,0,0.12)] ring-1 ring-white/30 sm:h-9 sm:w-9"
-                        aria-hidden
-                    >
-                        백
-                    </span>
+                <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-center">
+                    <GoStoneIcon color="white" className={isMobile ? 'h-8 w-8 sm:h-9 sm:w-9' : 'h-7 w-7 sm:h-8 sm:w-8'} />
                     <span className="max-w-full truncate px-0.5 text-[10px] font-medium text-slate-500 sm:text-xs" title={whitePlayer.nickname}>
                         {whitePlayer.nickname}
                     </span>
                 </div>
             </div>
-            <p className="relative mt-2 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/40">누적 점수</p>
+            <p className="relative mt-1.5 text-center text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/40">누적 점수</p>
         </div>
     );
 
     if (isMobile) {
         return (
-            <div className="mx-auto w-full max-w-md space-y-3 text-left sm:space-y-4">
+            <div className="mx-auto w-full max-w-md space-y-2 text-left sm:space-y-2.5">
                 <div className="text-center">{curlingScoreStrip}</div>
                 <p className="text-center text-sm font-bold text-amber-200/95" style={{ fontSize: `${13 * mobileTextScale}px` }}>
                     라운드별 점수
                 </p>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1.5">
                     {roundNums.map((roundNum) => {
-                        const roundData = roundHistory.find((r: any) => r.round === roundNum);
-                        const blackHouse = roundData ? roundData.black.houseScore : 0;
-                        const blackKnockout = roundData ? roundData.black.knockoutScore : 0;
-                        const blackPreviousKnockout = roundData?.black?.previousKnockoutScore ?? 0;
-                        const whiteHouse = roundData ? roundData.white.houseScore : 0;
-                        const whiteKnockout = roundData ? roundData.white.knockoutScore : 0;
-                        const whitePreviousKnockout = roundData?.white?.previousKnockoutScore ?? 0;
+                        const roundData = curlingRoundAt(roundNum);
+                        const played = Boolean(roundData);
+                        const blackHouse = played ? roundData!.black.houseScore : null;
+                        const blackKnockout = played ? roundData!.black.knockoutScore : null;
+                        const blackPreviousKnockout = played ? (roundData!.black?.previousKnockoutScore ?? 0) : 0;
+                        const whiteHouse = played ? roundData!.white.houseScore : null;
+                        const whiteKnockout = played ? roundData!.white.knockoutScore : null;
+                        const whitePreviousKnockout = played ? (roundData!.white?.previousKnockoutScore ?? 0) : 0;
                         return (
                             <div
                                 key={roundNum}
-                                className="rounded-xl border border-slate-600/45 bg-slate-900/88 px-3 py-2.5 ring-1 ring-inset ring-white/[0.05]"
+                                className={`relative overflow-hidden rounded-xl border px-2.5 py-1.5 ring-1 ring-inset ring-white/[0.06] ${
+                                    played
+                                        ? 'border-amber-500/25 bg-gradient-to-br from-slate-900/92 via-slate-950/90 to-zinc-950/95 shadow-[0_12px_36px_-20px_rgba(0,0,0,0.65)]'
+                                        : 'border-slate-600/35 bg-slate-950/55'
+                                }`}
                             >
-                                <div className="mb-2 text-center text-xs font-bold text-slate-200" style={{ fontSize: `${12 * mobileTextScale}px` }}>
-                                    {roundNum}라운드
+                                {!played && (
+                                    <div
+                                        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,transparent_40%,rgba(148,163,184,0.04)_50%,transparent_60%)]"
+                                        aria-hidden
+                                    />
+                                )}
+                                <div
+                                    className="mb-1 text-center font-mono text-xs font-bold tabular-nums text-amber-200/95"
+                                    style={{ fontSize: `${12 * mobileTextScale}px` }}
+                                >
+                                    {roundNum}R
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="min-w-0 rounded-lg border border-stone-600/35 bg-black/25 px-2 py-2">
-                                        <p className="text-[11px] font-bold tracking-wide text-stone-200">흑</p>
-                                        <p className="mt-1 text-xs text-slate-200" style={{ fontSize: `${12 * mobileTextScale}px` }}>
-                                            하우스 <span className="font-mono font-bold tabular-nums">{blackHouse}</span>
+                                <div className="grid grid-cols-2 gap-1.5">
+                                    <div className="min-w-0 rounded-lg border border-stone-600/40 bg-black/30 px-1.5 py-1 ring-1 ring-inset ring-stone-500/10">
+                                        <div className="flex items-center gap-1.5">
+                                            <GoStoneIcon color="black" className="h-3.5 w-3.5 shrink-0" />
+                                            <p className="text-[10px] font-bold tracking-wide text-stone-200">흑</p>
+                                        </div>
+                                        <p className="mt-0.5 text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
+                                            하우스{' '}
+                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
+                                                {played ? blackHouse : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
                                         </p>
-                                        <p className="text-xs text-slate-200" style={{ fontSize: `${12 * mobileTextScale}px` }}>
-                                            넉아웃 <span className="font-mono font-bold tabular-nums">{blackKnockout}</span>
-                                            {blackPreviousKnockout > 0 && (
-                                                <span className="block text-[10px] text-slate-500">(이전 {blackPreviousKnockout})</span>
+                                        <p className="text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
+                                            넉아웃{' '}
+                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
+                                                {played ? blackKnockout : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
+                                            {played && blackPreviousKnockout > 0 && (
+                                                <span className="block text-[9px] text-slate-500">(이전 {blackPreviousKnockout})</span>
                                             )}
                                         </p>
                                     </div>
-                                    <div className="min-w-0 rounded-lg border border-slate-500/35 bg-slate-950/50 px-2 py-2">
-                                        <p className="text-[11px] font-bold tracking-wide text-slate-100">백</p>
-                                        <p className="mt-1 text-xs text-slate-200" style={{ fontSize: `${12 * mobileTextScale}px` }}>
-                                            하우스 <span className="font-mono font-bold tabular-nums">{whiteHouse}</span>
+                                    <div className="min-w-0 rounded-lg border border-slate-500/40 bg-slate-950/55 px-1.5 py-1 ring-1 ring-inset ring-slate-400/10">
+                                        <div className="flex items-center gap-1.5">
+                                            <GoStoneIcon color="white" className="h-3.5 w-3.5 shrink-0" />
+                                            <p className="text-[10px] font-bold tracking-wide text-slate-100">백</p>
+                                        </div>
+                                        <p className="mt-0.5 text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
+                                            하우스{' '}
+                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
+                                                {played ? whiteHouse : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
                                         </p>
-                                        <p className="text-xs text-slate-200" style={{ fontSize: `${12 * mobileTextScale}px` }}>
-                                            넉아웃 <span className="font-mono font-bold tabular-nums">{whiteKnockout}</span>
-                                            {whitePreviousKnockout > 0 && (
-                                                <span className="block text-[10px] text-slate-500">(이전 {whitePreviousKnockout})</span>
+                                        <p className="text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
+                                            넉아웃{' '}
+                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
+                                                {played ? whiteKnockout : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
+                                            {played && whitePreviousKnockout > 0 && (
+                                                <span className="block text-[9px] text-slate-500">(이전 {whitePreviousKnockout})</span>
                                             )}
                                         </p>
                                     </div>
@@ -604,89 +770,131 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                         );
                     })}
                 </div>
-                <div className="rounded-xl border-2 border-amber-500/35 bg-slate-900/90 px-3 py-2 text-center text-sm font-bold tabular-nums text-amber-100">
-                    합계 흑 {blackScore} · 백 {whiteScore}
-                </div>
+                <CurlingAlkkagiTotalScoreRow
+                    compact
+                    blackPrimary={blackScore}
+                    whitePrimary={whiteScore}
+                />
             </div>
         );
     }
 
     return (
-        <div className="mx-auto w-full max-w-lg space-y-3 text-center sm:space-y-4">
-            {curlingScoreStrip}
-
-            {/* 상세 점수 내역 표 */}
-            <div className="mt-1 rounded-xl border border-slate-600/40 bg-slate-950/55 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-white/[0.04] sm:p-4">
-                <h3 className="mb-2.5 text-center text-sm font-bold tracking-wide text-amber-100/90 sm:text-base">상세 점수 내역</h3>
-                <div className="overflow-x-auto text-xs lg:text-sm">
-                    <table className="w-full border-collapse">
-                        <thead>
-                            <tr className="border-b-2 border-gray-600">
-                                <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}>라운드</th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>
-                                    흑
-                                </th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/50 border-l-2 border-gray-600`} colSpan={2}>
-                                    백
-                                </th>
-                            </tr>
-                            <tr className="border-b border-gray-600">
-                                <th className={`text-left ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}></th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>하우스</th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>넉아웃</th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>하우스</th>
-                                <th className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} text-gray-400 bg-gray-700/30`}>넉아웃</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {Array.from({ length: totalRounds }, (_, i) => i + 1).map(roundNum => {
-                                const roundData = roundHistory.find((r: any) => r.round === roundNum);
-                                const blackHouse = roundData ? roundData.black.houseScore : 0;
-                                const blackKnockout = roundData ? roundData.black.knockoutScore : 0;
-                                const blackPreviousKnockout = roundData?.black?.previousKnockoutScore ?? 0;
-                                const blackTotal = roundData ? roundData.black.total : 0;
-                                const whiteHouse = roundData ? roundData.white.houseScore : 0;
-                                const whiteKnockout = roundData ? roundData.white.knockoutScore : 0;
-                                const whitePreviousKnockout = roundData?.white?.previousKnockoutScore ?? 0;
-                                const whiteTotal = roundData ? roundData.white.total : 0;
-                                
-                                return (
-                                    <tr key={roundNum} className="border-b border-gray-700/50">
-                                        <td className={`font-semibold ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/30`}>{roundNum}라운드</td>
-                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20 border-l-2 border-gray-600`}>{blackHouse}</td>
-                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>
-                                            <div className="flex flex-col items-center">
-                                                <span className="font-semibold">{blackKnockout}</span>
-                                                {blackPreviousKnockout > 0 && (
-                                                    <span className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>
-                                                        (이전: {blackPreviousKnockout})
-                                                    </span>
+        <div className="mx-auto w-full max-w-lg space-y-1.5 text-center sm:space-y-2">
+            <div className="relative mt-0.5 overflow-hidden rounded-2xl border border-amber-500/22 bg-gradient-to-b from-slate-900/[0.97] via-slate-950/95 to-zinc-950 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.05]">
+                <div
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_95%_48%_at_50%_-18%,rgba(251,191,36,0.1),transparent_58%)]"
+                    aria-hidden
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
+                <div className="relative p-2 sm:p-2.5">
+                    <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/[0.05]">
+                        <table className="w-full table-fixed border-collapse text-[11px] leading-tight lg:text-xs">
+                            <thead>
+                                <tr className="border-b border-amber-500/12 bg-gradient-to-b from-zinc-800/95 to-zinc-900/98">
+                                    <th className="w-[14%] bg-zinc-900/60 px-0.5 py-1" aria-hidden />
+                                    <th
+                                        className="border-l border-amber-500/18 bg-black/25 px-1 py-1 text-center text-[10px] font-bold tracking-wide text-stone-100 sm:text-[11px]"
+                                        colSpan={2}
+                                    >
+                                        <span className="inline-flex items-center justify-center gap-1">
+                                            <GoStoneIcon color="black" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                            <span>흑</span>
+                                        </span>
+                                    </th>
+                                    <th
+                                        className="border-l border-amber-500/18 bg-slate-800/35 px-1 py-1 text-center text-[10px] font-bold tracking-wide text-slate-50 sm:text-[11px]"
+                                        colSpan={2}
+                                    >
+                                        <span className="inline-flex items-center justify-center gap-1">
+                                            <GoStoneIcon color="white" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                            <span>백</span>
+                                        </span>
+                                    </th>
+                                </tr>
+                                <tr className="border-b border-amber-500/12 bg-black/40">
+                                    <th className="px-1 py-0.5 text-center text-[9px] font-bold uppercase tracking-[0.1em] text-amber-100/90 sm:text-[10px]">
+                                        라운드
+                                    </th>
+                                    <th className="border-l border-amber-500/12 px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                        하우스
+                                    </th>
+                                    <th className="px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                        넉아웃
+                                    </th>
+                                    <th className="border-l border-amber-500/12 px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                        하우스
+                                    </th>
+                                    <th className="px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                        넉아웃
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {roundNums.map((roundNum) => {
+                                    const roundData = curlingRoundAt(roundNum);
+                                    const played = Boolean(roundData);
+                                    const blackHouse = played ? roundData!.black.houseScore : null;
+                                    const blackKnockout = played ? roundData!.black.knockoutScore : null;
+                                    const blackPreviousKnockout = played ? (roundData!.black?.previousKnockoutScore ?? 0) : 0;
+                                    const whiteHouse = played ? roundData!.white.houseScore : null;
+                                    const whiteKnockout = played ? roundData!.white.knockoutScore : null;
+                                    const whitePreviousKnockout = played ? (roundData!.white?.previousKnockoutScore ?? 0) : 0;
+                                    const rowBg = played ? 'bg-transparent' : 'bg-slate-950/45';
+                                    return (
+                                        <tr key={roundNum} className={`border-b border-white/[0.05] last:border-b-0 ${rowBg}`}>
+                                            <td className="align-middle px-1 py-1 text-center">
+                                                <span className="font-mono text-xs font-bold tabular-nums text-amber-200/95 sm:text-sm">
+                                                    {roundNum}R
+                                                </span>
+                                            </td>
+                                            <td className="border-l border-amber-500/10 px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100">
+                                                {played ? (
+                                                    <span className="text-xs font-semibold text-stone-100 sm:text-sm">{blackHouse}</span>
+                                                ) : (
+                                                    <span className="text-sm font-medium text-slate-500 sm:text-base">-</span>
                                                 )}
-                                            </div>
-                                        </td>
-                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20 border-l-2 border-gray-600`}>{whiteHouse}</td>
-                                        <td className={`text-center ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/20`}>
-                                            <div className="flex flex-col items-center">
-                                                <span className="font-semibold">{whiteKnockout}</span>
-                                                {whitePreviousKnockout > 0 && (
-                                                    <span className={`text-gray-400 ${isMobile ? 'text-xs' : 'text-[9px]'}`} style={{ fontSize: isMobile ? `${mx.emptyState * mobileTextScale}px` : undefined }}>
-                                                        (이전: {whitePreviousKnockout})
-                                                    </span>
+                                            </td>
+                                            <td className="px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100">
+                                                {played ? (
+                                                    <div className="flex flex-col items-center justify-center gap-0 leading-none">
+                                                        <span className="text-xs font-semibold text-stone-100 sm:text-sm">{blackKnockout}</span>
+                                                        {blackPreviousKnockout > 0 && (
+                                                            <span className="max-w-[5rem] text-[8px] font-medium leading-tight text-slate-500">(이전: {blackPreviousKnockout})</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm font-medium text-slate-500 sm:text-base">-</span>
                                                 )}
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            <tr className="border-t-2 border-gray-500 font-bold">
-                                <td className={`${isMobile ? 'p-1.5' : 'p-2'} bg-gray-800/50`}>합계</td>
-                                <td className={`text-center text-yellow-300 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30 border-l-2 border-gray-600`} colSpan={2}>{blackScore}</td>
-                                <td className={`text-center text-yellow-300 ${isMobile ? 'p-1.5' : 'p-2'} bg-gray-700/30 border-l-2 border-gray-600`} colSpan={2}>{whiteScore}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                            </td>
+                                            <td className="border-l border-amber-500/10 px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100">
+                                                {played ? (
+                                                    <span className="text-xs font-semibold text-slate-50 sm:text-sm">{whiteHouse}</span>
+                                                ) : (
+                                                    <span className="text-sm font-medium text-slate-500 sm:text-base">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100">
+                                                {played ? (
+                                                    <div className="flex flex-col items-center justify-center gap-0 leading-none">
+                                                        <span className="text-xs font-semibold text-slate-50 sm:text-sm">{whiteKnockout}</span>
+                                                        {whitePreviousKnockout > 0 && (
+                                                            <span className="max-w-[5rem] text-[8px] font-medium leading-tight text-slate-500">(이전: {whitePreviousKnockout})</span>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm font-medium text-slate-500 sm:text-base">-</span>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+            <CurlingAlkkagiTotalScoreRow compact blackPrimary={blackScore} whitePrimary={whiteScore} />
         </div>
     );
 };
@@ -700,84 +908,97 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
     const blackWins = history.filter((r: AlkkagiRoundHistoryEntry) => r.winnerId === blackPlayerId).length;
     const whiteWins = history.filter((r: AlkkagiRoundHistoryEntry) => r.winnerId === whitePlayerId).length;
     const roundNums = Array.from({ length: totalRounds }, (_, i) => i + 1);
+    const alkkagiRoundAt = (roundNum: number) => history.find((r: AlkkagiRoundHistoryEntry) => r.round === roundNum);
 
     if (isMobile) {
-        const nickLine = (nickname: string, stone: string, light: 'stone' | 'slate') => (
-            <div
-                className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                title={`${nickname} (${stone})`}
-            >
-                <span
-                    className={`inline font-semibold ${light === 'stone' ? 'text-stone-200' : 'text-slate-100'}`}
-                    style={{ fontSize: `${10 * mobileTextScale}px` }}
+        const nickRowWithStone = (nickname: string, color: 'black' | 'white', light: 'stone' | 'slate') => (
+            <div className="flex min-w-0 items-center gap-1.5">
+                <GoStoneIcon color={color} className="h-3.5 w-3.5 shrink-0" />
+                <div
+                    className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                    title={nickname}
                 >
-                    {nickname}
-                </span>
-                <span className={`inline font-normal ${light === 'stone' ? 'text-stone-500' : 'text-slate-500'}`} style={{ fontSize: `${10 * mobileTextScale}px` }}>
-                    {' '}
-                    {stone}
-                </span>
+                    <span
+                        className={`inline font-semibold ${light === 'stone' ? 'text-stone-200' : 'text-slate-100'}`}
+                        style={{ fontSize: `${10 * mobileTextScale}px` }}
+                    >
+                        {nickname}
+                    </span>
+                </div>
             </div>
         );
         return (
-            <div className="mx-auto w-full max-w-md space-y-1.5 text-left">
+            <div className="mx-auto w-full max-w-md space-y-2 text-left">
                 <p
                     className="text-center text-xs font-bold leading-none text-amber-200/95"
                     style={{ fontSize: `${12 * mobileTextScale}px` }}
                 >
                     라운드별 결과
                 </p>
-                <div className="flex flex-col gap-1.5">
+                <div className="flex flex-col gap-2">
                     {roundNums.map((roundNum) => {
-                        const roundData = history.find((r: AlkkagiRoundHistoryEntry) => r.round === roundNum);
-                        const blackWin = roundData ? roundData.winnerId === blackPlayerId : false;
-                        const whiteWin = roundData ? roundData.winnerId === whitePlayerId : false;
-                        const blackKnockout = roundData?.blackKnockout ?? 0;
-                        const whiteKnockout = roundData?.whiteKnockout ?? 0;
+                        const roundData = alkkagiRoundAt(roundNum);
+                        const played = Boolean(roundData);
+                        const blackWin = played ? roundData!.winnerId === blackPlayerId : false;
+                        const whiteWin = played ? roundData!.winnerId === whitePlayerId : false;
+                        const blackKnockout = played ? (roundData!.blackKnockout ?? 0) : null;
+                        const whiteKnockout = played ? (roundData!.whiteKnockout ?? 0) : null;
                         return (
                             <div
                                 key={roundNum}
-                                className="rounded-lg border border-slate-600/45 bg-slate-900/88 px-2 py-1.5 shadow-inner ring-1 ring-inset ring-white/[0.05]"
+                                className={`relative overflow-hidden rounded-xl border px-2.5 py-2 shadow-inner ring-1 ring-inset ring-white/[0.06] ${
+                                    played
+                                        ? 'border-amber-500/25 bg-gradient-to-br from-slate-900/92 via-slate-950/90 to-zinc-950/95'
+                                        : 'border-slate-600/35 bg-slate-950/55'
+                                }`}
                             >
                                 <div
-                                    className="mb-1 text-center text-[11px] font-bold leading-none text-slate-200"
-                                    style={{ fontSize: `${11 * mobileTextScale}px` }}
+                                    className="mb-2 text-center font-mono text-sm font-bold tabular-nums text-amber-200/95"
+                                    style={{ fontSize: `${14 * mobileTextScale}px` }}
                                 >
-                                    라운드 {roundNum}
+                                    {roundNum}R
                                 </div>
                                 <div className="grid grid-cols-2 gap-1.5">
-                                    <div className="min-w-0 rounded-md border border-stone-600/35 bg-black/25 px-1.5 py-1">
-                                        {nickLine(blackPlayer.nickname, '흑', 'stone')}
+                                    <div className="min-w-0 rounded-md border border-stone-600/40 bg-black/30 px-1.5 py-1 ring-1 ring-inset ring-stone-500/10">
+                                        {nickRowWithStone(blackPlayer.nickname, 'black', 'stone')}
                                         <p
                                             className="mt-1 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
                                             <span className="shrink-0 text-slate-400">넉아웃</span>
-                                            <span className="font-mono font-bold tabular-nums text-amber-100">{blackKnockout}</span>
+                                            <span className="font-mono font-bold tabular-nums text-amber-100">
+                                                {played ? blackKnockout : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
                                         </p>
                                         <p
                                             className="mt-0.5 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
                                             <span className="shrink-0 text-slate-400">라운드</span>
-                                            <span className="font-mono font-bold tabular-nums text-amber-200">{blackWin ? 1 : 0}</span>
+                                            <span className="font-mono font-bold tabular-nums text-amber-200">
+                                                {played ? (blackWin ? 1 : 0) : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
                                         </p>
                                     </div>
-                                    <div className="min-w-0 rounded-md border border-slate-500/35 bg-slate-950/50 px-1.5 py-1">
-                                        {nickLine(whitePlayer.nickname, '백', 'slate')}
+                                    <div className="min-w-0 rounded-md border border-slate-500/40 bg-slate-950/55 px-1.5 py-1 ring-1 ring-inset ring-slate-400/10">
+                                        {nickRowWithStone(whitePlayer.nickname, 'white', 'slate')}
                                         <p
                                             className="mt-1 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
                                             <span className="shrink-0 text-slate-400">넉아웃</span>
-                                            <span className="font-mono font-bold tabular-nums text-amber-100">{whiteKnockout}</span>
+                                            <span className="font-mono font-bold tabular-nums text-amber-100">
+                                                {played ? whiteKnockout : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
                                         </p>
                                         <p
                                             className="mt-0.5 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
                                             <span className="shrink-0 text-slate-400">라운드</span>
-                                            <span className="font-mono font-bold tabular-nums text-amber-200">{whiteWin ? 1 : 0}</span>
+                                            <span className="font-mono font-bold tabular-nums text-amber-200">
+                                                {played ? (whiteWin ? 1 : 0) : <span className="font-medium text-slate-500">-</span>}
+                                            </span>
                                         </p>
                                     </div>
                                 </div>
@@ -785,84 +1006,176 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
                         );
                     })}
                 </div>
-                <div className="rounded-lg border-2 border-amber-500/40 bg-gradient-to-b from-amber-950/30 to-slate-950/90 px-2 py-2 text-center">
-                    <p className="text-[11px] font-semibold leading-none text-slate-400" style={{ fontSize: `${10 * mobileTextScale}px` }}>
-                        최종 세트 전적
-                    </p>
-                    <p
-                        className="mt-1 text-sm font-bold tabular-nums leading-none text-amber-100"
-                        style={{ fontSize: `${13 * mobileTextScale}px` }}
+                <CurlingAlkkagiTotalScoreRow
+                    compact
+                    blackPrimary={
+                        <>
+                            {blackWins}
+                            <span className="ml-0.5 text-sm font-semibold text-amber-200/90 sm:text-base">승</span>
+                        </>
+                    }
+                    whitePrimary={
+                        <>
+                            {whiteWins}
+                            <span className="ml-0.5 text-sm font-semibold text-amber-200/90 sm:text-base">승</span>
+                        </>
+                    }
+                />
+                {winner !== null && winner !== Player.None && (
+                    <div
+                        className="mt-1.5 min-w-0 px-0.5 text-center text-[11px] font-bold leading-tight text-green-400"
+                        style={{ fontSize: `${11 * mobileTextScale}px` }}
                     >
-                        흑 {blackWins}승 · 백 {whiteWins}승
-                    </p>
-                    {winner !== null && winner !== Player.None && (
                         <div
-                            className="mt-1.5 min-w-0 px-0.5 text-center text-[11px] font-bold leading-tight text-green-400"
-                            style={{ fontSize: `${11 * mobileTextScale}px` }}
+                            className="mx-auto max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                            title={`${winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname} 최종 승리`}
                         >
-                            <div
-                                className="mx-auto max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                title={`${winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname} 최종 승리`}
-                            >
-                                {winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname}
-                            </div>
-                            <span className="mt-0.5 block whitespace-nowrap text-[0.72em] font-semibold text-emerald-300/95">최종 승리</span>
+                            {winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname}
                         </div>
-                    )}
-                </div>
+                        <span className="mt-0.5 block whitespace-nowrap text-[0.72em] font-semibold text-emerald-300/95">최종 승리</span>
+                    </div>
+                )}
             </div>
         );
     }
 
     return (
-        <div className="mx-auto w-full max-w-lg space-y-2 text-center sm:space-y-3">
-            <div className={`overflow-x-auto text-xs lg:text-sm`}>
-                <table className="w-full border-collapse">
-                    <thead>
-                        <tr className="border-b-2 border-gray-600">
-                            <th className={`text-center p-2 bg-gray-800/50`}>라운드</th>
-                            <th className={`text-center p-2 bg-gray-700/50 border-l-2 border-gray-600`} colSpan={3}>{blackPlayer.nickname} (흑)</th>
-                            <th className={`text-center p-2 bg-gray-700/50 border-l-2 border-gray-600`} colSpan={3}>{whitePlayer.nickname} (백)</th>
-                        </tr>
-                        <tr className="border-b border-gray-600">
-                            <th className={`text-center p-2 bg-gray-800/50`}></th>
-                            <th className={`text-center p-2 text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>공격성공</th>
-                            <th className={`text-center p-2 text-gray-400 bg-gray-700/30`}>넉아웃</th>
-                            <th className={`text-center p-2 text-gray-400 bg-gray-700/30`}>점수</th>
-                            <th className={`text-center p-2 text-gray-400 bg-gray-700/30 border-l-2 border-gray-600`}>공격성공</th>
-                            <th className={`text-center p-2 text-gray-400 bg-gray-700/30`}>넉아웃</th>
-                            <th className={`text-center p-2 text-gray-400 bg-gray-700/30`}>점수</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {roundNums.map(roundNum => {
-                            const roundData = history.find((r: AlkkagiRoundHistoryEntry) => r.round === roundNum);
-                            const blackWin = roundData ? roundData.winnerId === blackPlayerId : false;
-                            const whiteWin = roundData ? roundData.winnerId === whitePlayerId : false;
-                            const blackKnockout = roundData?.blackKnockout ?? 0;
-                            const whiteKnockout = roundData?.whiteKnockout ?? 0;
-                            return (
-                                <tr key={roundNum} className="border-b border-gray-700/50">
-                                    <td className={`text-center font-semibold p-2 bg-gray-800/30`}>{roundNum}R</td>
-                                    <td className={`text-center p-2 bg-gray-700/20 border-l-2 border-gray-600 text-gray-500`}>-</td>
-                                    <td className={`text-center p-2 bg-gray-700/20`}>{blackKnockout}</td>
-                                    <td className={`text-center p-2 bg-gray-700/20`}>{blackWin ? 1 : 0}</td>
-                                    <td className={`text-center p-2 bg-gray-700/20 border-l-2 border-gray-600 text-gray-500`}>-</td>
-                                    <td className={`text-center p-2 bg-gray-700/20`}>{whiteKnockout}</td>
-                                    <td className={`text-center p-2 bg-gray-700/20`}>{whiteWin ? 1 : 0}</td>
-                                </tr>
-                            );
-                        })}
-                        <tr className="border-t-2 border-gray-500 font-bold">
-                            <td className={`text-center p-2 bg-gray-800/50`}>최종</td>
-                            <td className={`text-center p-2 bg-gray-700/30 border-l-2 border-gray-600 text-gray-500`} colSpan={2}>-</td>
-                            <td className={`text-center text-yellow-300 p-2 bg-gray-700/30`}>{blackWins}승</td>
-                            <td className={`text-center p-2 bg-gray-700/30 border-l-2 border-gray-600 text-gray-500`} colSpan={2}>-</td>
-                            <td className={`text-center text-yellow-300 p-2 bg-gray-700/30`}>{whiteWins}승</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div className="mx-auto w-full max-w-lg space-y-2.5 text-center sm:space-y-3">
+            <div className="relative overflow-hidden rounded-2xl border border-amber-500/22 bg-gradient-to-b from-slate-900/[0.97] via-slate-950/95 to-zinc-950 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.05]">
+                <div
+                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_95%_48%_at_50%_-18%,rgba(251,191,36,0.09),transparent_58%)]"
+                    aria-hidden
+                />
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
+                <div className="relative p-3 sm:p-3.5">
+                    <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/[0.05]">
+                        <div className="text-xs lg:text-sm">
+                            <table className="w-full table-fixed border-collapse">
+                                <thead>
+                                    <tr className="border-b border-amber-500/12 bg-gradient-to-b from-zinc-800/95 to-zinc-900/98">
+                                        <th className="w-[12%] bg-zinc-900/60 px-1 py-2 sm:py-2.5" aria-hidden />
+                                        <th className="border-l border-amber-500/18 bg-black/25 px-1 py-2.5 text-center sm:px-2 sm:py-3" colSpan={3}>
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    <GoStoneIcon color="black" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                    <span className="text-[11px] font-bold tracking-wide text-stone-100 sm:text-xs">흑</span>
+                                                </div>
+                                                <span
+                                                    className="max-w-[6.5rem] truncate text-[9px] font-medium text-stone-500 sm:max-w-[10rem] sm:text-[10px]"
+                                                    title={blackPlayer.nickname}
+                                                >
+                                                    {blackPlayer.nickname}
+                                                </span>
+                                            </div>
+                                        </th>
+                                        <th className="border-l border-amber-500/18 bg-slate-800/35 px-1 py-2.5 text-center sm:px-2 sm:py-3" colSpan={3}>
+                                            <div className="flex flex-col items-center justify-center gap-1">
+                                                <div className="flex items-center justify-center gap-1.5">
+                                                    <GoStoneIcon color="white" className="h-4 w-4 sm:h-5 sm:w-5" />
+                                                    <span className="text-[11px] font-bold tracking-wide text-slate-50 sm:text-xs">백</span>
+                                                </div>
+                                                <span
+                                                    className="max-w-[6.5rem] truncate text-[9px] font-medium text-slate-500 sm:max-w-[10rem] sm:text-[10px]"
+                                                    title={whitePlayer.nickname}
+                                                >
+                                                    {whitePlayer.nickname}
+                                                </span>
+                                            </div>
+                                        </th>
+                                    </tr>
+                                    <tr className="border-b border-amber-500/12 bg-black/40">
+                                        <th className="px-1 py-1.5 text-center text-[9px] font-bold uppercase tracking-[0.1em] text-amber-100/90 sm:text-[10px]">
+                                            라운드
+                                        </th>
+                                        <th className="border-l border-amber-500/12 px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            공격성공
+                                        </th>
+                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            넉아웃
+                                        </th>
+                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            점수
+                                        </th>
+                                        <th className="border-l border-amber-500/12 px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            공격성공
+                                        </th>
+                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            넉아웃
+                                        </th>
+                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            점수
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {roundNums.map((roundNum) => {
+                                        const roundData = alkkagiRoundAt(roundNum);
+                                        const played = Boolean(roundData);
+                                        const blackWin = played ? roundData!.winnerId === blackPlayerId : false;
+                                        const whiteWin = played ? roundData!.winnerId === whitePlayerId : false;
+                                        const blackKnockout = played ? (roundData!.blackKnockout ?? 0) : null;
+                                        const whiteKnockout = played ? (roundData!.whiteKnockout ?? 0) : null;
+                                        const rowBg = played ? 'bg-transparent' : 'bg-slate-950/45';
+                                        return (
+                                            <tr key={roundNum} className={`border-b border-white/[0.05] last:border-b-0 ${rowBg}`}>
+                                                <td className="align-middle px-1 py-2.5 text-center sm:py-3">
+                                                    <span className="font-mono text-sm font-bold tabular-nums text-amber-200/95 sm:text-base">
+                                                        {roundNum}R
+                                                    </span>
+                                                </td>
+                                                <td className="border-l border-amber-500/10 px-0.5 py-2.5 text-center align-middle text-slate-500 sm:py-3">-</td>
+                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                    {played ? (
+                                                        <span className="text-sm font-semibold sm:text-base">{blackKnockout}</span>
+                                                    ) : (
+                                                        <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                    {played ? (
+                                                        <span className="text-sm font-semibold sm:text-base">{blackWin ? 1 : 0}</span>
+                                                    ) : (
+                                                        <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="border-l border-amber-500/10 px-0.5 py-2.5 text-center align-middle text-slate-500 sm:py-3">-</td>
+                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                    {played ? (
+                                                        <span className="text-sm font-semibold sm:text-base">{whiteKnockout}</span>
+                                                    ) : (
+                                                        <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                    {played ? (
+                                                        <span className="text-sm font-semibold sm:text-base">{whiteWin ? 1 : 0}</span>
+                                                    ) : (
+                                                        <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
+            <CurlingAlkkagiTotalScoreRow
+                blackPrimary={
+                    <>
+                        {blackWins}
+                        <span className="ml-0.5 text-lg font-semibold text-amber-200/90 sm:text-xl">승</span>
+                    </>
+                }
+                whitePrimary={
+                    <>
+                        {whiteWins}
+                        <span className="ml-0.5 text-lg font-semibold text-amber-200/90 sm:text-xl">승</span>
+                    </>
+                }
+            />
             {winner !== null && winner !== Player.None && (
                 <p className={`text-base font-bold text-green-400`}>
                     {winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname} 승리!
@@ -2082,7 +2395,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 mobileTextScale={mobileTextScale}
                                 mobileImageScale={mobileImageScale}
                             />
-                            <div className="flex w-full flex-col items-center overflow-visible">
+                            <div className="flex w-full min-h-0 max-h-[min(46vh,22rem)] flex-col items-center overflow-x-hidden overflow-y-auto overscroll-y-contain pr-0.5 [scrollbar-width:thin] min-[1100px]:max-h-[min(50vh,24rem)]">
                                 {renderGameContent()}
                             </div>
                         </div>

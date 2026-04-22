@@ -268,16 +268,11 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
 
         isDraggingRef.current = true;
         const stoneRadius = (840 / 19) * 0.47;
-        const boardSizePx = 840;
-        
-        // 바둑판이 회전하지 않으므로, 발사 위치를 서버 좌표계로 변환
-        // 각 플레이어의 발사 영역은 화면 하단에 있지만, 서버 좌표계에서는:
-        // - 흑 플레이어: 화면 하단 = 서버 좌표계 하단 (그대로)
-        // - 백 플레이어: 화면 하단 = 서버 좌표계 상단 (y축만 반전, x축은 그대로)
-        // 화면에서 오른쪽 아래 클릭 = 서버 좌표계에서 오른쪽 위
-        const serverX = area.x + stoneRadius; // x축은 그대로
-        const serverY = myPlayerEnum === Player.White ? boardSizePx - (area.y + stoneRadius) : (area.y + stoneRadius);
-        
+
+        // `CurlingBoard`에서 클릭 위치를 반영한 서버 좌표계 돌 중심
+        const serverX = Math.min(Math.max(area.x, stoneRadius), 840 - stoneRadius);
+        const serverY = Math.min(Math.max(area.y, stoneRadius), 840 - stoneRadius);
+
         const newStone: AlkkagiStone = {
             id: Date.now(),
             player: myPlayer,
@@ -296,7 +291,7 @@ const CurlingArena = forwardRef<CurlingBoardHandle, CurlingArenaProps>((props, r
         setDragEndPoint(point);
         setIsRenderingPreviewStone(true);
         startPowerGauge();
-    }, [startPowerGauge, myPlayerEnum]);
+    }, [startPowerGauge]);
     
     useEffect(() => {
         const handleInteractionMove = (e: MouseEvent | TouchEvent) => {

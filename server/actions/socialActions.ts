@@ -9,6 +9,7 @@ import * as summaryService from '../summaryService.js';
 import { broadcast } from '../socket.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/index.js';
 import { clearAiSession } from '../aiSessionManager.js';
+import { aiUserId } from '../aiPlayer.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
@@ -467,7 +468,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             
             // If the user leaves before the game is officially over (e.g. resigns), end the game.
             if (!['ended', 'no_contest'].includes(game.gameStatus)) {
-                 await summaryService.endGame(game, types.Player.White, 'disconnect'); // AI is always P2/White and wins on disconnect
+                const aiWinsEnum =
+                    game.blackPlayerId === aiUserId ? types.Player.Black : types.Player.White;
+                await summaryService.endGame(game, aiWinsEnum, 'disconnect');
             } else {
                 // 게임이 이미 종료된 경우, 싱글플레이·도전의 탑이면 사용자 데이터를 다시 가져와서 브로드캐스트 (클리어 상태·towerFloor 반영)
                 if (game.isSinglePlayer || game.gameCategory === 'tower') {

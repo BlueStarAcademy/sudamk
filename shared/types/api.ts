@@ -1,7 +1,7 @@
 import {
     User, LiveGameSession, Negotiation, KomiBid,
     AdminLog, Announcement, OverrideAnnouncement, InventoryItem, Equipment,
-    QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost,
+    QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost, SinglePlayerStageInfo,
 } from './entities.js';
 import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move } from './enums.js';
 import type { WinReason } from './enums.js';
@@ -332,6 +332,7 @@ export type ServerAction =
     | { type: 'ADMIN_CREATE_HOME_BOARD_POST', payload: { title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_UPDATE_HOME_BOARD_POST', payload: { postId: string; title: string; content: string; isPinned: boolean } }
     | { type: 'ADMIN_DELETE_HOME_BOARD_POST', payload: { postId: string } }
+    | { type: 'ADMIN_SET_SINGLE_PLAYER_STAGES', payload: { stages: SinglePlayerStageInfo[] } }
     | { type: 'ADMIN_SAVE_USER_INVENTORY_EQUIPMENT', payload: { targetUserId: string; inventory: InventoryItem[]; equipment: Equipment } }
     | { type: 'ADMIN_APPEND_INVENTORY_ITEMS', payload: { targetUserId: string; equipmentAdds?: { name: string; quantity: number }[]; stackableAdds?: { name: string; quantity: number; type: InventoryItemType }[] } }
     | {

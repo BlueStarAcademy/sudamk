@@ -30,7 +30,10 @@ import {
     treatAsPveLikeForHiddenOpponentReveal,
     useAiInitialHiddenCellTracking,
 } from './hiddenRevealPolicy.js';
+import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
+import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
+import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
 
 const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
 
@@ -354,8 +357,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (game.gameCategory === 'tower') {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else if (game.isSinglePlayer && game.stageId) {
-                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                    autoScoringTurns = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
+                    autoScoringTurns = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
                 } else {
                     autoScoringTurns =
                         game.mode === types.GameMode.Capture
@@ -420,8 +422,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (game.gameCategory === 'tower') {
                     autoScoringTurnsSync = (game.settings as any)?.autoScoringTurns;
                 } else if (game.isSinglePlayer && game.stageId) {
-                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                    autoScoringTurnsSync = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId)?.autoScoringTurns;
+                    autoScoringTurnsSync = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns;
                 } else {
                     autoScoringTurnsSync =
                         game.mode === types.GameMode.Capture
@@ -1083,8 +1084,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 if (game.gameCategory === 'tower') {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else {
-                    const { SINGLE_PLAYER_STAGES } = await import('../../constants/singlePlayerConstants.js');
-                    const stage = SINGLE_PLAYER_STAGES.find(s => s.id === game.stageId);
+                    const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId);
                     autoScoringTurns = stage?.autoScoringTurns;
                 }
                 
@@ -1165,12 +1165,8 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                 }
             }
 
-            // After move logic (도전의 탑 따내기: isSinglePlayer false)
-            if (game.mode === types.GameMode.Capture || game.isSinglePlayer || game.gameCategory === 'tower') {
-                const target = game.effectiveCaptureTargets?.[myPlayerEnum];
-                if (target !== undefined && target !== 999 && game.captures[myPlayerEnum] >= target) {
-                    await summaryService.endGame(game, myPlayerEnum, 'capture_limit');
-                }
+            if (await tryEndGameWhenCaptureTargetReached(game, myPlayerEnum)) {
+                return {};
             }
             
             return {};
@@ -1208,7 +1204,10 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                                 const move = game.moveHistory[moveIndex];
                                 if (move && move.x !== -1 && game.boardState[move.y]?.[move.x] === move.player) {
                                     const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === move.x && p.y === move.y);
-                                    if (!isPermanentlyRevealed) {
+                                    if (
+                                        !isPermanentlyRevealed &&
+                                        !isHiddenMoveIndexSoftRevealedByAnyPlayer(game, moveIndex)
+                                    ) {
                                         unrevealedStones.push({ point: { x: move.x, y: move.y }, player: move.player });
                                     }
                                 }
