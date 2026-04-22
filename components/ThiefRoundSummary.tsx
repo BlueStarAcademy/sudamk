@@ -17,17 +17,17 @@ const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: Us
     const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
     const isThief = summary.role === 'thief';
     return (
-        <div className="flex min-h-0 min-w-0 flex-col items-stretch rounded-lg border border-white/[0.06] bg-gradient-to-b from-zinc-800/75 to-zinc-950/90 p-1.5 shadow-inner shadow-black/30 ring-1 ring-inset ring-amber-500/10 sm:p-2">
+        <div className="flex min-h-0 min-w-0 flex-col items-stretch rounded-lg border border-white/[0.09] bg-gradient-to-b from-zinc-800/75 to-zinc-950/90 p-2 shadow-inner shadow-black/30 ring-1 ring-inset ring-amber-500/15 sm:p-2.5">
             <div className="flex flex-col items-center gap-1">
                 <Avatar userId={user.id} userName={user.nickname} size={52} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                 <p
-                    className="line-clamp-2 w-full max-w-full px-0.5 text-center text-[11px] font-semibold leading-tight text-amber-50 break-words sm:text-xs"
+                    className="line-clamp-2 w-full max-w-full px-0.5 text-center text-[13px] font-semibold leading-tight text-amber-50 break-words sm:text-base"
                     title={user.nickname}
                 >
                     {user.nickname}
                 </p>
                 <span
-                    className={`rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide ring-1 sm:text-[10px] ${
+                    className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ring-1 sm:text-xs ${
                         isThief
                             ? 'bg-amber-500/25 text-amber-100 ring-amber-400/35'
                             : 'bg-sky-600/35 text-sky-100 ring-sky-400/30'
@@ -36,17 +36,17 @@ const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: Us
                     {isThief ? '도둑' : '경찰'}
                 </span>
             </div>
-            <dl className="mt-1.5 space-y-1 border-t border-white/10 pt-1.5 text-[10px] leading-tight text-zinc-300 sm:mt-2 sm:space-y-1.5 sm:text-[11px]">
+            <dl className="mt-2 space-y-1.5 border-t border-white/15 pt-2 text-xs leading-tight text-zinc-200 sm:text-sm">
                 <div className="flex items-baseline justify-between gap-1">
-                    <dt className="shrink-0 text-zinc-500">{isThief ? '생존' : '검거'}</dt>
-                    <dd className="min-w-0 text-right font-mono font-bold tabular-nums text-amber-100">
+                    <dt className="shrink-0 text-zinc-300">{isThief ? '생존' : '검거'}</dt>
+                    <dd className="min-w-0 text-right font-mono text-[15px] font-bold tabular-nums text-amber-100 sm:text-base">
                         {summary.roundScore}
-                        <span className="font-sans text-[9px] font-normal text-zinc-500">개</span>
+                        <span className="ml-0.5 font-sans text-[11px] font-normal text-zinc-300">개</span>
                     </dd>
                 </div>
-                <div className="flex items-baseline justify-between gap-1 border-t border-white/5 pt-1">
-                    <dt className="shrink-0 text-zinc-500">누적</dt>
-                    <dd className="font-mono text-sm font-bold tabular-nums text-amber-300 sm:text-base">{summary.cumulativeScore}</dd>
+                <div className="flex items-baseline justify-between gap-1 border-t border-white/10 pt-1.5">
+                    <dt className="shrink-0 text-zinc-300">누적</dt>
+                    <dd className="font-mono text-[1.05rem] font-bold tabular-nums text-amber-200 sm:text-xl">{summary.cumulativeScore}</dd>
                 </div>
             </dl>
         </div>
@@ -93,7 +93,7 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
             <div className="relative flex h-full min-h-0 flex-col gap-2 text-amber-50/95 sm:gap-3">
                 <div className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-[radial-gradient(ellipse_at_30%_0%,rgba(251,191,36,0.12),transparent_50%),radial-gradient(ellipse_at_100%_80%,rgba(56,189,248,0.1),transparent_42%)]" />
 
-                <p className="text-center text-[11px] leading-snug text-zinc-300 sm:text-xs">{description}</p>
+                <p className="text-center text-sm font-medium leading-snug text-zinc-200 sm:text-[15px]">{description}</p>
 
                 <div className="grid min-h-0 shrink grid-cols-2 gap-1.5 sm:gap-2">
                     {renderPlayerSummary(summaryP1, player1)}
@@ -106,7 +106,7 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
                         onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
                         disabled={hasConfirmed}
                         title={hasConfirmed ? undefined : btnLabel}
-                        className={`w-full rounded-xl border px-2 py-2 text-[13px] font-bold shadow-lg transition sm:py-2.5 sm:text-sm ${
+                        className={`w-full rounded-xl border px-2 py-2.5 text-sm font-bold shadow-lg transition sm:py-3 sm:text-base ${
                             hasConfirmed
                                 ? 'cursor-not-allowed border-zinc-600 bg-zinc-800/80 text-zinc-500'
                                 : 'border-amber-400/40 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 text-zinc-950 shadow-amber-900/30 hover:from-amber-300 hover:to-amber-600 active:scale-[0.99]'

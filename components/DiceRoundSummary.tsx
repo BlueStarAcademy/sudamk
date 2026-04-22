@@ -18,7 +18,7 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
 
     if (!diceRoundSummary) return null;
 
-    const { round, scores, diceStats } = diceRoundSummary;
+    const { round, scores, diceStats, lastDummyCaptureBonus } = diceRoundSummary;
     const p1Score = scores[player1.id] || 0;
     const p2Score = scores[player2.id] || 0;
 
@@ -32,17 +32,17 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
         if (!diceStats || !diceStats[playerId]) return null;
         const stats = diceStats[playerId];
         if (stats.totalRolls === 0) {
-            return <p className="text-center text-[10px] leading-tight text-zinc-400 sm:text-xs">굴림 없음</p>;
+            return <p className="text-center text-xs leading-tight text-zinc-300 sm:text-sm">굴림 없음</p>;
         }
         return (
-            <div className="flex flex-wrap justify-center gap-x-1 gap-y-0.5 font-mono text-[9px] leading-none text-amber-100/90 tabular-nums sm:gap-x-1.5 sm:text-[11px]">
+            <div className="flex flex-wrap justify-center gap-x-1.5 gap-y-1 font-mono text-[11px] leading-none text-amber-50 tabular-nums sm:gap-x-2 sm:text-xs">
                 {Array.from({ length: 6 }, (_, i) => i + 1).map(num => {
                     const count = stats.rolls[num] || 0;
                     const pct = ((count / stats.totalRolls) * 100).toFixed(0);
                     return (
-                        <span key={num} className="whitespace-nowrap rounded bg-black/35 px-1 py-0.5 ring-1 ring-amber-500/15">
+                        <span key={num} className="whitespace-nowrap rounded bg-black/45 px-1.5 py-0.5 ring-1 ring-amber-400/25">
                             {num}:{count}
-                            <span className="text-amber-200/70">·{pct}%</span>
+                            <span className="text-amber-200/90">·{pct}%</span>
                         </span>
                     );
                 })}
@@ -89,7 +89,7 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
             <div className="relative flex h-full min-h-0 flex-col gap-2 text-amber-50/95 sm:gap-3">
                 <div className="pointer-events-none absolute inset-0 -z-10 rounded-xl bg-[radial-gradient(ellipse_at_50%_0%,rgba(251,191,36,0.14),transparent_55%),radial-gradient(ellipse_at_80%_100%,rgba(59,130,246,0.08),transparent_45%)]" />
 
-                <p className="text-center text-[11px] leading-snug text-zinc-300 sm:text-xs">
+                <p className="text-center text-sm font-medium leading-snug text-zinc-200 sm:text-[15px]">
                     백을 모두 포획해 라운드가 끝났습니다.
                 </p>
 
@@ -99,26 +99,36 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                         <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
                             <Avatar userId={player1.id} userName={player1.nickname} size={56} avatarUrl={p1AvatarUrl} borderUrl={p1BorderUrl} />
                             <p
-                                className="w-full max-w-[31vw] text-center text-[11px] font-semibold leading-tight text-amber-50 break-words sm:max-w-[9rem] sm:text-sm"
+                                className="w-full max-w-[31vw] text-center text-[13px] font-semibold leading-tight text-amber-50 break-words sm:max-w-[9rem] sm:text-base"
                                 title={player1.nickname}
                             >
                                 {player1.nickname}
                             </p>
                         </div>
                         <div className="flex shrink-0 flex-col items-center px-0.5">
-                            <span className="font-mono text-[1.25rem] font-bold tabular-nums tracking-tight text-amber-200 drop-shadow-sm min-[400px]:text-3xl sm:text-3xl">
+                            <span className="font-mono text-[1.45rem] font-bold tabular-nums tracking-tight text-amber-100 drop-shadow-sm min-[400px]:text-[2.05rem] sm:text-4xl">
                                 {p1Score}
                                 <span className="mx-0.5 text-zinc-500 sm:mx-1">:</span>
                                 {p2Score}
                             </span>
-                            <span className="mt-0.5 text-[9px] font-medium uppercase tracking-wider text-zinc-500 sm:text-[10px]">
+                            <span className="mt-0.5 text-[11px] font-semibold uppercase tracking-wider text-zinc-300 sm:text-xs">
                                 누적
                             </span>
+                            {lastDummyCaptureBonus && lastDummyCaptureBonus.amount > 0 && (
+                                <span className="mt-1 max-w-[min(92vw,22rem)] text-center text-[11px] font-semibold leading-tight text-amber-200 sm:text-xs">
+                                    마지막 더미 포획 보너스:{' '}
+                                    {(lastDummyCaptureBonus.playerId === player1.id ? player1.nickname : player2.nickname) ??
+                                        '플레이어'}
+                                    <span className="ml-1 font-mono tabular-nums text-amber-200">
+                                        +{lastDummyCaptureBonus.amount}
+                                    </span>
+                                </span>
+                            )}
                         </div>
                         <div className="flex min-w-0 flex-1 flex-col items-center gap-1">
                             <Avatar userId={player2.id} userName={player2.nickname} size={56} avatarUrl={p2AvatarUrl} borderUrl={p2BorderUrl} />
                             <p
-                                className="w-full max-w-[31vw] text-center text-[11px] font-semibold leading-tight text-amber-50 break-words sm:max-w-[9rem] sm:text-sm"
+                                className="w-full max-w-[31vw] text-center text-[13px] font-semibold leading-tight text-amber-50 break-words sm:max-w-[9rem] sm:text-base"
                                 title={player2.nickname}
                             >
                                 {player2.nickname}
@@ -129,13 +139,13 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
 
                 {diceStats && (
                     <div className="min-h-0 shrink rounded-lg border border-amber-500/15 bg-zinc-900/55 p-2 ring-1 ring-inset ring-white/[0.04] sm:p-2.5">
-                        <h3 className="mb-1.5 text-center text-[10px] font-bold uppercase tracking-wide text-amber-200/90 sm:mb-2 sm:text-xs">
-                            1라운드 주사위 분포
+                        <h3 className="mb-1.5 text-center text-xs font-bold uppercase tracking-wide text-amber-100 sm:mb-2 sm:text-sm">
+                            {round}라운드 주사위 분포
                         </h3>
                         <div className="grid min-h-0 grid-cols-2 gap-1.5 sm:gap-2">
                             <div className="min-w-0 rounded-md border border-white/5 bg-black/25 p-1.5 sm:p-2">
                                 <p
-                                    className="mb-1 line-clamp-2 text-center text-[10px] font-semibold leading-tight text-zinc-300 break-words sm:text-xs"
+                                    className="mb-1 line-clamp-2 text-center text-xs font-semibold leading-tight text-zinc-200 break-words sm:text-sm"
                                     title={player1.nickname}
                                 >
                                     {player1.nickname}
@@ -144,7 +154,7 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                             </div>
                             <div className="min-w-0 rounded-md border border-white/5 bg-black/25 p-1.5 sm:p-2">
                                 <p
-                                    className="mb-1 line-clamp-2 text-center text-[10px] font-semibold leading-tight text-zinc-300 break-words sm:text-xs"
+                                    className="mb-1 line-clamp-2 text-center text-xs font-semibold leading-tight text-zinc-200 break-words sm:text-sm"
                                     title={player2.nickname}
                                 >
                                     {player2.nickname}
@@ -161,7 +171,7 @@ const DiceRoundSummary: React.FC<DiceRoundSummaryProps> = ({ session, currentUse
                         onClick={() => onAction({ type: 'CONFIRM_ROUND_END', payload: { gameId } })}
                         disabled={!!hasConfirmed}
                         title={hasConfirmed ? undefined : buttonText}
-                        className={`w-full rounded-xl border px-2 py-2 text-[13px] font-bold shadow-lg transition sm:py-2.5 sm:text-sm ${
+                        className={`w-full rounded-xl border px-2 py-2.5 text-sm font-bold shadow-lg transition sm:py-3 sm:text-base ${
                             hasConfirmed
                                 ? 'cursor-not-allowed border-zinc-600 bg-zinc-800/80 text-zinc-500'
                                 : 'border-amber-400/40 bg-gradient-to-b from-amber-400 via-amber-500 to-amber-700 text-zinc-950 shadow-amber-900/30 hover:from-amber-300 hover:to-amber-600 active:scale-[0.99]'

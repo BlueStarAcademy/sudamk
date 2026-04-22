@@ -325,6 +325,99 @@ function shouldSuppressModalForKoPlaceStone(action: ServerAction, errorMessage: 
     );
 }
 
+/**
+ * 주사위/도둑 등 놀이바둑: HTTP·WS 패킷 역전 시 로그 수집용.
+ * 켜기: `localStorage.setItem('SUDAMR_DEBUG_PLAYFUL_PACKET_ORDER','1')` 후 새로고침
+ * 또는 URL `?sudamrDebugPlayfulPackets=1`
+ */
+export const SUDAMR_DEBUG_PLAYFUL_PACKET_ORDER_KEY = 'SUDAMR_DEBUG_PLAYFUL_PACKET_ORDER';
+
+function isSudamrPlayfulPacketOrderDebugEnabled(): boolean {
+    if (typeof window === 'undefined') return false;
+    try {
+        const q = new URLSearchParams(window.location.search).get('sudamrDebugPlayfulPackets');
+        if (q === '1' || String(q).toLowerCase() === 'true') return true;
+        const v = window.localStorage.getItem(SUDAMR_DEBUG_PLAYFUL_PACKET_ORDER_KEY);
+        return v === '1' || String(v).toLowerCase() === 'true';
+    } catch {
+        return false;
+    }
+}
+
+function playfulBoardHasStones(board: LiveGameSession['boardState']): boolean {
+    return !!(
+        board &&
+        Array.isArray(board) &&
+        board.length > 0 &&
+        board.some((row) => Array.isArray(row) && row.some((c) => c !== 0 && c != null))
+    );
+}
+
+function playfulPacketSnapshot(g: LiveGameSession) {
+    return {
+        mode: g.mode,
+        gameStatus: g.gameStatus,
+        round: g.round ?? 1,
+        serverRevision: g.serverRevision ?? 0,
+        moveHistoryLen: g.moveHistory?.length ?? 0,
+        stonesToPlace: g.stonesToPlace ?? 0,
+        currentPlayer: g.currentPlayer,
+        boardHasStones: playfulBoardHasStones(g.boardState),
+    };
+}
+
+export type PlayfulPacketStaleReason =
+    | 'rev_lt'
+    | 'round_lt'
+    | 'moves_lt'
+    | 'board_regress'
+    | 'stones_regress';
+
+export function getPlayfulPacketStaleMeta(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | null | undefined,
+): { ignore: boolean; reason?: PlayfulPacketStaleReason } {
+    if (!existing) return { ignore: false };
+
+    const incomingIsPlayful =
+        incoming.mode === GameMode.Dice ||
+        incoming.mode === GameMode.Thief ||
+        existing.mode === GameMode.Dice ||
+        existing.mode === GameMode.Thief;
+    if (!incomingIsPlayful) return { ignore: false };
+
+    const ir = incoming.serverRevision ?? 0;
+    const er = existing.serverRevision ?? 0;
+    if (ir < er) return { ignore: true, reason: 'rev_lt' };
+
+    const incomingRound = incoming.round ?? 1;
+    const existingRound = existing.round ?? 1;
+    if (incomingRound < existingRound) return { ignore: true, reason: 'round_lt' };
+
+    const im = incoming.moveHistory?.length ?? 0;
+    const em = existing.moveHistory?.length ?? 0;
+    const incomingPlacing =
+        incoming.gameStatus === 'dice_placing' || incoming.gameStatus === 'thief_placing';
+    const existingPlacing =
+        existing.gameStatus === 'dice_placing' || existing.gameStatus === 'thief_placing';
+
+    if (ir === er) {
+        // 세그먼트/라운드가 올라가면 서버가 기보를 비우므로 im < em 이 정상인데, 리비전이 한 번만
+        // 올라간 레이스에서 오래된 클라이언트가 이 패킷을 버리면 판이 안 비고 AI만 멈춘 것처럼 보인다.
+        const roundAdvanced = incomingRound > existingRound;
+        if (!roundAdvanced && im < em) return { ignore: true, reason: 'moves_lt' };
+        if (!roundAdvanced && incomingPlacing && existingPlacing && im === em) {
+            const incomingHasBoard = playfulBoardHasStones(incoming.boardState);
+            const existingHasBoard = playfulBoardHasStones(existing.boardState);
+            if (!incomingHasBoard && existingHasBoard) return { ignore: true, reason: 'board_regress' };
+            if ((incoming.stonesToPlace ?? 0) > (existing.stonesToPlace ?? 0)) {
+                return { ignore: true, reason: 'stones_regress' };
+            }
+        }
+    }
+    return { ignore: false };
+}
+
 export const useApp = () => {
     // --- State Management ---
     const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -768,6 +861,39 @@ export const useApp = () => {
     const aiDicePlaceBatchRef = useRef<Record<string, Array<{ x: number; y: number }>>>({});
     /** 같은 턴에서 stonesToPlace는 착수마다 줄어들므로, 배치 flush 기준은 턴 시작 시점의 남은 돌 수로 고정한다. */
     const aiDiceTurnPlaceQuotaRef = useRef<Record<string, number>>({});
+    /** 디버그 플래그 시 동일 키 로그 과다 출력 방지 (ms) */
+    const playfulPacketOrderLogThrottleMs = 1500;
+    const playfulPacketOrderLogThrottleRef = useRef<Record<string, number>>({});
+    const shouldIgnoreOutdatedPlayfulUpdate = useCallback(
+        (
+            incoming: LiveGameSession,
+            existing?: LiveGameSession | null,
+            meta?: { source: string },
+        ) => {
+            const source = meta?.source ?? 'unknown';
+            const stale = getPlayfulPacketStaleMeta(incoming, existing);
+            if (!stale.ignore) return false;
+
+            if (isSudamrPlayfulPacketOrderDebugEnabled()) {
+                const gameId = incoming.id || existing?.id || '?';
+                const throttleKey = `${gameId}:${stale.reason}:${source}`;
+                const now = Date.now();
+                const last = playfulPacketOrderLogThrottleRef.current[throttleKey] ?? 0;
+                if (now - last >= playfulPacketOrderLogThrottleMs) {
+                    playfulPacketOrderLogThrottleRef.current[throttleKey] = now;
+                    console.warn('[SUDAMR][PlayfulPacketOrder] stale packet ignored', {
+                        gameId,
+                        source,
+                        reason: stale.reason,
+                        incoming: playfulPacketSnapshot(incoming),
+                        existing: existing ? playfulPacketSnapshot(existing) : null,
+                    });
+                }
+            }
+            return true;
+        },
+        [],
+    );
     const [negotiations, setNegotiations] = useState<Record<string, Negotiation>>({});
     const [waitingRoomChats, setWaitingRoomChats] = useState<Record<string, ChatMessage[]>>({});
     /** 대기실(전체/전략/놀이) 채팅: 재접속·INITIAL_STATE 수신 시점 이후 메시지만 표시 (서버는 채널 전체 배열을 브로드캐스트함) */
@@ -3873,13 +3999,8 @@ export const useApp = () => {
                                 appliedDicePlaceMerge = true;
                                 return { ...currentGames, [placementGameId]: { ...game, boardState: cloneBoard(game) } };
                             }
-                            const srvRev = game.serverRevision ?? 0;
-                            const locRev = existing.serverRevision ?? 0;
-                            const srvMoves = game.moveHistory?.length ?? 0;
-                            const locMoves = existing.moveHistory?.length ?? 0;
-                            const bothPlacing = existing.gameStatus === 'dice_placing' && game.gameStatus === 'dice_placing';
                             // 빠른 연속 착수 시 이전 HTTP 응답이 늦게 도착하면 낙관적 수순이 덮여 돌이 사라진 것처럼 보임 → 낡은 응답 무시
-                            if (srvRev < locRev || (bothPlacing && srvMoves < locMoves)) {
+                            if (shouldIgnoreOutdatedPlayfulUpdate(game, existing, { source: 'http_dice_place_stone' })) {
                                 return currentGames;
                             }
                             appliedDicePlaceMerge = true;
@@ -3898,6 +4019,11 @@ export const useApp = () => {
                     } else {
                         setLiveGames((currentGames) => {
                             const existing = currentGames[placementGameId];
+                            // 도둑과 경찰도 연속 착수 시 HTTP 응답 역전이 발생할 수 있어,
+                            // 같은/낮은 revision의 짧은 수순 응답으로 최신 보드를 덮지 않는다.
+                            if (shouldIgnoreOutdatedPlayfulUpdate(game, existing, { source: 'http_thief_place_stone' })) {
+                                return currentGames;
+                            }
                             const next = existing
                                 ? { ...existing, ...game, boardState: cloneBoard(game) }
                                 : { ...game, boardState: cloneBoard(game) };
@@ -3910,6 +4036,9 @@ export const useApp = () => {
                 if (game && rollGameId && action.type === 'DICE_ROLL' && !game.isSinglePlayer && game.gameCategory !== 'tower') {
                     setLiveGames(currentGames => {
                         const existing = currentGames[rollGameId];
+                        if (shouldIgnoreOutdatedPlayfulUpdate(game, existing, { source: 'http_dice_roll' })) {
+                            return currentGames;
+                        }
                         const next = existing ? { ...existing, ...game, boardState: game.boardState && Array.isArray(game.boardState) ? game.boardState.map((row: number[]) => [...row]) : game.boardState } : game;
                         return { ...currentGames, [rollGameId]: next };
                     });
@@ -6348,23 +6477,9 @@ export const useApp = () => {
                                 } else {
                                     setLiveGames(currentGames => {
                                         const existingGame = currentGames[gameId];
-                                        // 주사위 바둑 착수: 소켓 패킷이 HTTP보다 늦거나 순서가 뒤바뀌면 낡은 상태로 덮어쓰지 않음
-                                        if (
-                                            game.gameStatus === 'dice_placing' &&
-                                            existingGame?.gameStatus === 'dice_placing'
-                                        ) {
-                                            const ir = game.serverRevision ?? 0;
-                                            const er = existingGame.serverRevision ?? 0;
-                                            if (ir < er) {
-                                                return currentGames;
-                                            }
-                                            if (ir === er) {
-                                                const im = game.moveHistory?.length ?? 0;
-                                                const em = existingGame.moveHistory?.length ?? 0;
-                                                if (im < em) {
-                                                    return currentGames;
-                                                }
-                                            }
+                                        // 주사위/도둑: 소켓 패킷이 HTTP보다 늦거나 순서가 뒤바뀌면 낡은 상태로 덮어쓰지 않음
+                                        if (shouldIgnoreOutdatedPlayfulUpdate(game, existingGame, { source: 'ws_game_update' })) {
+                                            return currentGames;
                                         }
                                         const incomingMoveCount = (game.moveHistory && Array.isArray(game.moveHistory)) ? game.moveHistory.length : 0;
                                         const existingMoveCount = (existingGame?.moveHistory && Array.isArray(existingGame.moveHistory)) ? existingGame.moveHistory.length : 0;
@@ -6405,13 +6520,51 @@ export const useApp = () => {
                                             serverBoardGridOk;
                                         const hasServerBoard = game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0 &&
                                             game.boardState.some((row: any[]) => row && Array.isArray(row) && row.some((c: any) => c !== 0 && c != null));
+                                        const isDiceOrThiefMode =
+                                            game.mode === GameMode.Dice || game.mode === GameMode.Thief;
+                                        const thiefRolesSwappedVsClient =
+                                            game.mode === GameMode.Thief &&
+                                            !!existingGame &&
+                                            (game.thiefPlayerId !== existingGame.thiefPlayerId ||
+                                                game.policePlayerId !== existingGame.policePlayerId);
+                                        /** 도둑/주사위: 서버가 기보를 비운 리셋 패킷인데, 아래 병합이 `isDiceOrThiefMode` 때문에 빈 판을 항상 예전 판으로 덮어쓰던 버그 방지 */
+                                        const playfulTrustEmptyServerBoardSnapshot =
+                                            isDiceOrThiefMode &&
+                                            serverBoardGridOk &&
+                                            !hasServerBoard &&
+                                            Array.isArray(game.moveHistory) &&
+                                            game.moveHistory.length === 0 &&
+                                            existingMoveCount > 0 &&
+                                            (incomingRound > existingRound ||
+                                                thiefRolesSwappedVsClient ||
+                                                (game.mode === GameMode.Thief &&
+                                                    existingGame?.gameStatus === 'thief_round_end' &&
+                                                    [
+                                                        'thief_rolling',
+                                                        'thief_rolling_animating',
+                                                        'thief_placing',
+                                                    ].includes(game.gameStatus)) ||
+                                                (game.mode === GameMode.Dice &&
+                                                    existingGame?.gameStatus === 'dice_round_end' &&
+                                                    [
+                                                        'dice_rolling',
+                                                        'dice_rolling_animating',
+                                                        'dice_placing',
+                                                    ].includes(game.gameStatus)));
                                         const moveHistoryToDerive = (game.moveHistory && Array.isArray(game.moveHistory) && game.moveHistory.length > 0)
                                             ? game.moveHistory
                                             : ((game.gameStatus === 'scoring' || game.gameStatus === 'ended') && existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : null);
 
                                         // 낙관적 업데이트(유저 착수) 후 서버보다 오래된 GAME_UPDATE가 도착하면 보드/수순만 유지하고, 턴은 수순 기준으로 설정 (착수 위치 바뀜/사라짐 + 봇 턴 미인식 → 시간승 버그 방지)
                                         const existingBoardValid = existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0;
-                                        if (incomingMoveCount < existingMoveCount && existingBoardValid && existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
+                                        if (
+                                            incomingMoveCount < existingMoveCount &&
+                                            existingBoardValid &&
+                                            existingGame?.moveHistory &&
+                                            Array.isArray(existingGame.moveHistory) &&
+                                            existingGame.moveHistory.length > 0 &&
+                                            !playfulTrustEmptyServerBoardSnapshot
+                                        ) {
                                             const lastMove = existingGame.moveHistory[existingGame.moveHistory.length - 1];
                                             const nextPlayer = lastMove && (lastMove as any).player === Player.Black ? Player.White : Player.Black;
                                             mergedGame = {
@@ -6428,9 +6581,14 @@ export const useApp = () => {
 
                                         // IMPORTANT: 서버가 boardState를 생략한 경우 moveHistory로 "단순 복원"하면 포획이 반영되지 않아 없던 돌이 생길 수 있음.
                                         // 가능한 한 기존 보드(boardState)를 보존하되, 서버 수순이 이미 늘어난 업데이트(AI 착수 등)에서는 기존 짧은 moveHistory로 덮어쓰면 안 됨(돌 사라짐·착수 불가).
-                                        if (!hasServerBoard && existingBoardValid && incomingMoveCount <= existingMoveCount) {
+                                        if (
+                                            !hasServerBoard &&
+                                            existingBoardValid &&
+                                            !playfulTrustEmptyServerBoardSnapshot &&
+                                            (incomingMoveCount <= existingMoveCount || isDiceOrThiefMode)
+                                        ) {
                                             mergedGame = { ...game, boardState: existingGame!.boardState, moveHistory: existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : game.moveHistory };
-                                        } else if (!hasServerBoard && moveHistoryToDerive && moveHistoryToDerive.length > 0 && game.settings?.boardSize) {
+                                        } else if (!isDiceOrThiefMode && !hasServerBoard && moveHistoryToDerive && moveHistoryToDerive.length > 0 && game.settings?.boardSize) {
                                             const boardSize = game.settings.boardSize;
                                             const derivedBoard: number[][] = Array(boardSize).fill(null).map(() => Array(boardSize).fill(Player.None));
                                             for (const move of moveHistoryToDerive) {
@@ -6439,7 +6597,7 @@ export const useApp = () => {
                                                 }
                                             }
                                             mergedGame = { ...game, boardState: derivedBoard, moveHistory: game.moveHistory && game.moveHistory.length > 0 ? game.moveHistory : moveHistoryToDerive };
-                                        } else if (incomingMoveCount <= existingMoveCount && existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && !hasServerBoard) {
+                                        } else if (!isDiceOrThiefMode && incomingMoveCount <= existingMoveCount && existingGame?.boardState && Array.isArray(existingGame.boardState) && existingGame.boardState.length > 0 && !hasServerBoard) {
                                             // 서버가 boardState를 보내지 않았고, 서버 수가 기존보다 많지 않을 때만 기존 보드 유지 (AI 수 업데이트 덮어쓰기 방지)
                                             mergedGame = { ...game, boardState: existingGame.boardState };
                                             if (existingGame.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0) {
@@ -6474,10 +6632,12 @@ export const useApp = () => {
                                                 mergedGame = { ...mergedGame, revealedHiddenMoves: clientRevealed };
                                             }
                                         }
-                                        // 주사위/도둑 착수: 낙관적은 moveHistory를 늘리지 않아 수순 길이가 같을 때 서버의 낡은 보드가 오면 돌만 사라지고 lastMove만 바뀌는 현상(소리만 남)이 난다.
+                                        // 주사위 착수: 낙관적은 moveHistory를 늘리지 않아 수순 길이가 같을 때 서버의 낡은 보드가 오면 돌만 사라지고 lastMove만 바뀌는 현상(소리만 남)이 난다.
+                                        // NOTE: 도둑과 경찰은 백(경찰) 착수로 백돌 수가 "정상적으로 증가"할 수 있어 이 비교식을 공유하면 최신 패킷을 낡은 보드로 되돌린다.
+                                        //       (유저 화면에서는 빈칸인데 서버는 이미 착수됨 → "이미 돌이 놓인 자리입니다.")
                                         if (
-                                            (game.mode === GameMode.Dice || game.mode === GameMode.Thief) &&
-                                            (game.gameStatus === 'dice_placing' || game.gameStatus === 'thief_placing') &&
+                                            game.mode === GameMode.Dice &&
+                                            game.gameStatus === 'dice_placing' &&
                                             incomingMoveCount === existingMoveCount &&
                                             existingBoardValid &&
                                             hasServerBoard
@@ -6571,7 +6731,25 @@ export const useApp = () => {
                                                 hiddenMoves: game.hiddenMoves ?? mergedGame.hiddenMoves,
                                             };
                                         }
+                                        const isThiefNewSegmentFromRoundEnd =
+                                            game.mode === GameMode.Thief &&
+                                            !!existingGame &&
+                                            existingGame.gameStatus === 'thief_round_end' &&
+                                            ['thief_rolling', 'thief_rolling_animating', 'thief_placing'].includes(
+                                                game.gameStatus,
+                                            ) &&
+                                            (incomingRound > existingRound || thiefRolesSwappedVsClient) &&
+                                            serverBoardGridOk;
                                         if (isDiceGoNewRoundFromRoundEnd) {
+                                            mergedGame = {
+                                                ...mergedGame,
+                                                boardState: game.boardState.map((row: number[]) => [...row]),
+                                                moveHistory: Array.isArray(game.moveHistory)
+                                                    ? game.moveHistory.map((m: any) => ({ ...m }))
+                                                    : [],
+                                            };
+                                        }
+                                        if (isThiefNewSegmentFromRoundEnd) {
                                             mergedGame = {
                                                 ...mergedGame,
                                                 boardState: game.boardState.map((row: number[]) => [...row]),

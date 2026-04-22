@@ -2705,7 +2705,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     zIndex={78}
                     variant="store"
                     initialWidth={400}
-                    initialHeight={320}
+                    initialHeight={344}
                     mobileViewportFit
                     mobileViewportMaxHeightCss="min(88dvh, calc(100dvh - 16px))"
                     bodyPaddingClassName="!p-2 sm:!p-3"
@@ -2724,15 +2724,15 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 }}
                                 aria-hidden
                             />
-                            <div className="relative px-4 pb-5 pt-5 sm:px-5 sm:pb-6 sm:pt-6">
-                                <div className="mx-auto mb-4 h-px w-2/3 max-w-[14rem] bg-gradient-to-r from-transparent via-amber-400/45 to-transparent" aria-hidden />
+                            <div className="relative px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5">
+                                <div className="mx-auto mb-3 h-px w-2/3 max-w-[14rem] bg-gradient-to-r from-transparent via-amber-400/45 to-transparent" aria-hidden />
                                 <h2
                                     id="preset-rename-heading"
                                     className="mb-1 text-center text-sm font-bold tracking-wide text-amber-100/95 sm:text-base"
                                 >
                                     프리셋 이름
                                 </h2>
-                                <p className="mb-4 text-center text-[11px] leading-relaxed text-slate-400 sm:text-xs">
+                                <p className="mb-3 text-center text-[11px] leading-relaxed text-slate-400 sm:text-xs">
                                     저장할 프리셋의 표시 이름을 입력하세요. (최대 20자)
                                 </p>
                                 <label htmlFor="preset-rename-input" className="sr-only">
@@ -2745,24 +2745,24 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     onChange={e => setNewPresetName(e.target.value)}
                                     maxLength={20}
                                     autoFocus
-                                    className="mb-1 w-full rounded-xl border border-amber-500/25 bg-black/45 px-3 py-2.5 text-center text-sm font-semibold text-slate-100 shadow-inner outline-none ring-0 transition placeholder:text-slate-500 focus:border-amber-400/55 focus:bg-black/55 focus:shadow-[0_0_0_1px_rgba(251,191,36,0.25),inset_0_1px_0_rgba(255,255,255,0.06)] sm:py-3 sm:text-base"
+                                    className="mb-1 w-full rounded-xl border border-amber-500/25 bg-black/45 px-3 py-2.5 text-center text-sm font-semibold text-slate-100 shadow-inner outline-none ring-0 transition placeholder:text-slate-500 focus:border-amber-400/55 focus:bg-black/55 focus:shadow-[0_0_0_1px_rgba(251,191,36,0.25),inset_0_1px_0_rgba(255,255,255,0.06)] sm:py-2.5 sm:text-base"
                                     placeholder="예: 공격 세트"
                                 />
-                                <p className="mb-4 text-center text-[10px] tabular-nums text-slate-500">
+                                <p className="mb-3 text-center text-[10px] tabular-nums text-slate-500">
                                     {newPresetName.length} / 20
                                 </p>
-                                <div className="flex flex-col gap-2 sm:flex-row sm:justify-center sm:gap-3">
+                                <div className="flex items-center justify-center gap-2.5 sm:gap-3">
                                     <button
                                         type="button"
                                         onClick={handleSavePreset}
-                                        className="w-full rounded-xl border border-amber-400/35 bg-gradient-to-b from-emerald-500/95 via-emerald-600/95 to-emerald-800/90 py-2.5 text-sm font-bold text-white shadow-[0_10px_24px_-10px_rgba(16,185,129,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition hover:border-amber-300/50 hover:from-emerald-400 hover:via-emerald-500 hover:to-emerald-700 active:scale-[0.98] sm:flex-1 sm:max-w-[11rem] sm:py-3"
+                                        className="w-[44%] max-w-[9.5rem] min-w-[7.25rem] rounded-xl border border-amber-300/45 bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 py-2.5 text-sm font-bold tracking-[0.01em] text-white shadow-[0_12px_28px_-12px_rgba(16,185,129,0.6),inset_0_1px_0_rgba(255,255,255,0.26)] transition hover:-translate-y-[1px] hover:border-amber-200/60 hover:from-emerald-300 hover:via-emerald-500 hover:to-emerald-650 hover:shadow-[0_14px_30px_-12px_rgba(16,185,129,0.7)] active:translate-y-0 active:scale-[0.98] sm:py-2.5"
                                     >
                                         저장
                                     </button>
                                     <button
                                         type="button"
                                         onClick={() => setIsRenameModalOpen(false)}
-                                        className="w-full rounded-xl border border-slate-500/55 bg-gradient-to-b from-slate-700/90 to-slate-900/95 py-2.5 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-slate-400/60 hover:from-slate-600/90 hover:to-slate-800/95 active:scale-[0.98] sm:flex-1 sm:max-w-[11rem] sm:py-3"
+                                        className="w-[44%] max-w-[9.5rem] min-w-[7.25rem] rounded-xl border border-slate-400/55 bg-gradient-to-b from-slate-600/95 via-slate-700/95 to-slate-900/95 py-2.5 text-sm font-bold tracking-[0.01em] text-slate-100 shadow-[0_10px_22px_-12px_rgba(15,23,42,0.85),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-[1px] hover:border-slate-300/70 hover:from-slate-500/95 hover:via-slate-650/95 hover:to-slate-800/95 hover:shadow-[0_12px_26px_-12px_rgba(15,23,42,0.92)] active:translate-y-0 active:scale-[0.98] sm:py-2.5"
                                     >
                                         취소
                                     </button>

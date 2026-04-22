@@ -232,24 +232,89 @@ const makeDiceGoAiMove = async (game: types.LiveGameSession) => {
         // AI는 한 번 호출에 한 수씩 두는 연출이라 호출 간 누적 포획값을 유지해야 한다.
         let totalCaptures = game.diceCapturesThisTurn || 0;
         let lastCaptureStones: types.Point[] = game.diceLastCaptureStones || [];
-        
-        while (stonesToPlace > 0 && liberties.length > 0) {
-            // 최대한 많은 돌을 따낼 수 있는 위치 선택 (백돌 활로 중)
-            let bestMove: types.Point | null = null;
-            let maxCaptures = 0;
-            
-            for (const liberty of liberties) {
-                const result = processMove(game.boardState, { ...liberty, player: types.Player.Black }, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
-                if (result.isValid && result.capturedStones.length > maxCaptures) {
-                    maxCaptures = result.capturedStones.length;
-                    bestMove = liberty;
+
+        type DiceCandidate = { move: types.Point; immediateCaptures: number; projectedCaptures: number };
+        const baseMoveLen = (game.moveHistory?.length ?? 0) + (game.stonesPlacedThisTurn?.length ?? 0);
+
+        const estimateProjectedCaptures = (
+            firstResult: Awaited<ReturnType<typeof processMove>>,
+            remainingStonesAfterFirst: number,
+        ): number => {
+            let projected = firstResult.capturedStones.length;
+            if (remainingStonesAfterFirst <= 0) return projected;
+
+            let simBoard = firstResult.newBoardState;
+            let simKo = firstResult.newKoInfo;
+            let simMoveLen = baseMoveLen + 1;
+            let simRemaining = remainingStonesAfterFirst;
+
+            // 깊은 탐색 대신 "남은 주사위 수 동안 매 수 최대 포획" 그리디 롤아웃으로 연쇄 포획 잠재력을 반영.
+            while (simRemaining > 0) {
+                const simLogic = getGoLogic({ ...game, boardState: simBoard } as types.LiveGameSession);
+                const simLiberties = simLogic.getAllLibertiesOfPlayer(types.Player.White, simBoard);
+                if (simLiberties.length === 0) break;
+
+                let bestStepResult: Awaited<ReturnType<typeof processMove>> | null = null;
+                for (const simMove of simLiberties) {
+                    const simResult = processMove(
+                        simBoard,
+                        { ...simMove, player: types.Player.Black },
+                        simKo,
+                        simMoveLen,
+                        { ignoreSuicide: true },
+                    );
+                    if (!simResult.isValid) continue;
+                    if (
+                        !bestStepResult ||
+                        simResult.capturedStones.length > bestStepResult.capturedStones.length
+                    ) {
+                        bestStepResult = simResult;
+                    }
                 }
+                if (!bestStepResult) break;
+
+                projected += bestStepResult.capturedStones.length;
+                simBoard = bestStepResult.newBoardState;
+                simKo = bestStepResult.newKoInfo;
+                simMoveLen++;
+                simRemaining--;
             }
-            
-            if (!bestMove) {
-                bestMove = liberties[Math.floor(Math.random() * liberties.length)];
+            return projected;
+        };
+
+        const chooseBestMove = (candidates: types.Point[], stonesLeftThisTurn: number): types.Point | null => {
+            const evaluated: DiceCandidate[] = [];
+            for (const liberty of candidates) {
+                const firstResult = processMove(
+                    game.boardState,
+                    { ...liberty, player: types.Player.Black },
+                    game.koInfo,
+                    baseMoveLen,
+                    { ignoreSuicide: true },
+                );
+                if (!firstResult.isValid) continue;
+                evaluated.push({
+                    move: liberty,
+                    immediateCaptures: firstResult.capturedStones.length,
+                    projectedCaptures: estimateProjectedCaptures(firstResult, Math.max(0, stonesLeftThisTurn - 1)),
+                });
             }
-            
+            if (evaluated.length === 0) return null;
+
+            // 요구사항: "지금 따낼 수 있으면 우선 따낸다"
+            const immediateCaptureCandidates = evaluated.filter((e) => e.immediateCaptures > 0);
+            const pool = immediateCaptureCandidates.length > 0 ? immediateCaptureCandidates : evaluated;
+            pool.sort((a, b) => {
+                if (b.projectedCaptures !== a.projectedCaptures) return b.projectedCaptures - a.projectedCaptures;
+                if (b.immediateCaptures !== a.immediateCaptures) return b.immediateCaptures - a.immediateCaptures;
+                return Math.random() < 0.5 ? -1 : 1;
+            });
+            return pool[0]?.move ?? null;
+        };
+
+        while (stonesToPlace > 0 && liberties.length > 0) {
+            const bestMove = chooseBestMove(liberties, stonesToPlace) ?? liberties[Math.floor(Math.random() * liberties.length)];
+
             const result = processMove(game.boardState, { ...bestMove, player: types.Player.Black }, game.koInfo, game.moveHistory.length, { ignoreSuicide: true });
             if (result.isValid) {
                 game.boardState = result.newBoardState;

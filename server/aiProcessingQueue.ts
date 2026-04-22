@@ -210,8 +210,13 @@ class AiProcessingQueue {
             });
 
             // 브로드캐스트 (게임 참가자에게만 전송)
+            // 비동기 경합에서 직후 game 객체가 다시 변해 "보낸 패킷"과 화면이 어긋나는 것을 줄이기 위해 스냅샷 전송
             const { broadcastToGameParticipants } = await import('./socket.js');
-            broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
+            const payloadGame =
+                game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                    ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                    : game;
+            broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: payloadGame } }, game);
 
             // 히든 아이템 연출(6초) 동안 makeGoAiBotMove가 대기 반환한 경우,
             // 연출 종료 후 실제 AI 착수를 위해 같은 게임을 다시 큐에 넣는다.

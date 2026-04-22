@@ -741,6 +741,8 @@ export type CurlingRoundSummary = {
 export type DiceRoundSummary = {
     round: number;
     scores: { [playerId: string]: number };
+    /** 해당 라운드 종료 시 마지막 백(더미) 포획으로만 부여된 보너스(누적 점수에는 이미 반영됨) */
+    lastDummyCaptureBonus?: { playerId: string; amount: number } | null;
     diceStats?: {
         [playerId: string]: {
             rolls: { [roll: number]: number };

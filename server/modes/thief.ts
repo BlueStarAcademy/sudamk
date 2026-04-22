@@ -6,7 +6,27 @@ import { DICE_GO_MAIN_ROLL_TIME, DICE_GO_MAIN_PLACE_TIME, THIEF_NIGHTS_PER_SEGME
 import { DICE_HUMAN_PLACE_SETTLE_MS } from './diceGo.js';
 import { endGame } from '../summaryService.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
-import { cancelAiProcessing } from '../aiSessionManager.js';
+import { cancelAiProcessing, clearAiSession } from '../aiSessionManager.js';
+
+/** 세그먼트 리셋·역할 전 직후: 디스패치 락·AI 세션 정리 (주사위바둑 kickDiceGoAiForNewRound와 동일 계열) */
+function releaseThiefAiDispatchLocks(game: types.LiveGameSession) {
+    (game as any)._aiMoveDispatching = false;
+    (game as any)._aiMoveDispatchingAt = undefined;
+    cancelAiProcessing(game.id);
+    clearAiSession(game.id);
+    game.aiTurnStartTime = undefined;
+}
+
+/** thief_rolling 진입 직후: 봇이 첫 주사위를 바로 굴리도록 (지연 스케줄은 애니메이션 종료 후 placing에서 막힐 수 있음) */
+function kickThiefAiForThiefRolling(game: types.LiveGameSession, now: number) {
+    releaseThiefAiDispatchLocks(game);
+    if (!game.isAiGame || game.gameStatus !== 'thief_rolling') return;
+    const currentPlayerId =
+        game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    if (currentPlayerId === aiUserId) {
+        game.aiTurnStartTime = now;
+    }
+}
 
 const THIEF_POOL_HIGH36 = [3, 4, 5, 6] as const;
 const THIEF_POOL_NO_ONE = [2, 3, 4, 5] as const;
@@ -91,11 +111,7 @@ function resetThiefBoardForNewSegment(game: types.LiveGameSession) {
     game.captures = { [types.Player.None]: 0, [types.Player.Black]: 0, [types.Player.White]: 0 };
     game.thiefFreestyleThiefPlacing = undefined;
 
-    // 세그먼트(역할) 전환 직전 setImmediate(makeAiMove) 락·세션 잠금이 남으면 processGame이 조기 return 하거나
-    // 다음 턴 makeAiMove가 startAiProcessing에서 막혀 봇이 멈춤 (주사위바둑 라운드 전환과 동일 이슈).
-    (game as any)._aiMoveDispatching = false;
-    (game as any)._aiMoveDispatchingAt = undefined;
-    cancelAiProcessing(game.id);
+    releaseThiefAiDispatchLocks(game);
 }
 
 function enterThiefRoundEndModal(game: types.LiveGameSession, now: number) {
@@ -545,18 +561,7 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
                      game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                      game.turnStartTime = now;
                  }
-                 
-                 // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime을 현재 시간으로 설정
-                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
-                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                     if (currentPlayerId === aiUserId) {
-                         scheduleAiTurnStartForFreshUi(game, now);
-                         console.log(`[updateThiefState] AI turn at round start, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
-                     } else {
-                         game.aiTurnStartTime = undefined;
-                         console.log(`[updateThiefState] User turn at round start, game ${game.id}, clearing aiTurnStartTime`);
-                     }
-                 }
+                 kickThiefAiForThiefRolling(game, now);
              }
          }
     }

@@ -5,6 +5,7 @@ import { handleSharedAction, updateSharedGameState, shouldEnforceTimeControl } f
 import { DICE_GO_INITIAL_WHITE_STONES_BY_ROUND, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS, DICE_GO_MAIN_PLACE_TIME, DICE_GO_MAIN_ROLL_TIME, DICE_GO_MIN_WHITE_GROUPS, DICE_GO_TURN_CHOICE_TIME, DICE_GO_TURN_ROLL_TIME, PLAYFUL_MODE_FOUL_LIMIT } from '../../constants';
 import { endGame } from '../summaryService.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
+import { cancelAiProcessing, clearAiSession } from '../aiSessionManager.js';
 
 /** AI 대국: 인간 착수 직후 상대(봇) 주사위 단계로 바로 넘어가면 마지막 돌·따내기 연출이 밀림 → 1초 대기 (도둑과 경찰에서도 동일 상수 사용) */
 export const DICE_HUMAN_PLACE_SETTLE_MS = 1000;
@@ -231,6 +232,47 @@ function patchDiceGoItemUsesRow(game: types.LiveGameSession, userId: string): vo
     if (typeof u.high !== 'number') u.high = s.highDiceCount ?? 0;
 }
 
+/**
+ * 라운드(또는 데스매치) 보드 리셋 직후: 이전 라운드에서 남은 AI 디스패치 락·`isProcessing`·세션 카운터가
+ * `makeAiMove`를 막아 첫 턴이 멈추는 것을 방지한다. (주사위 바둑은 moveHistory를 쓰지 않아 세션 동기화가 약함)
+ */
+function kickDiceGoAiForNewRound(game: types.LiveGameSession, now: number): void {
+    (game as any)._aiMoveDispatching = false;
+    (game as any)._aiMoveDispatchingAt = undefined;
+    if (!game.isAiGame) {
+        game.aiTurnStartTime = undefined;
+        return;
+    }
+    cancelAiProcessing(game.id);
+    clearAiSession(game.id);
+    const currentPlayerId =
+        game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    if (currentPlayerId === aiUserId) {
+        game.aiTurnStartTime = now;
+    } else {
+        game.aiTurnStartTime = undefined;
+    }
+}
+
+/** 라운드 시작 선공: 누적 점수가 낮은 쪽(동점이면 기존 흑, 없으면 p1) */
+function pickDiceGoRoundStarterByLowerScore(game: types.LiveGameSession): types.Player {
+    const p1Id = game.player1.id;
+    const p2Id = game.player2.id;
+    const p1Score = game.scores?.[p1Id] ?? 0;
+    const p2Score = game.scores?.[p2Id] ?? 0;
+
+    const starterId =
+        p1Score < p2Score
+            ? p1Id
+            : p2Score < p1Score
+              ? p2Id
+              : (game.blackPlayerId ?? p1Id);
+
+    if (starterId === game.blackPlayerId) return types.Player.Black;
+    if (starterId === game.whitePlayerId) return types.Player.White;
+    return types.Player.Black;
+}
+
 /** 오버샷 시 전광판 안내용. 착수 단계 진입 시 서버에서 해제한다. */
 export function syncDiceGoOvershotTicker(game: types.LiveGameSession, libertiesCount: number, isOvershot: boolean) {
     const whiteLeft = game.boardState.flat().filter(s => s === types.Player.White).length;
@@ -299,9 +341,13 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
         // 마지막 백돌 제거로 라운드 종료로 진입할 때, 이전 턴의 유효자리 안내가 남지 않도록 즉시 초기화
         game.lastWhiteGroupInfo = null;
         game.diceGoOvershotTicker = undefined;
-        if (totalCapturesThisTurn > 0) { // Check if the last action was a capture
-            const totalRounds = game.settings.diceGoRounds ?? 1;
-            const bonus = DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[totalRounds - 1];
+        let lastDummyCaptureBonus: { playerId: string; amount: number } | undefined;
+        if (totalCapturesThisTurn > 0) {
+            const totalRoundsCfg = game.settings.diceGoRounds ?? 1;
+            const bonus =
+                DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[
+                    Math.max(0, Math.min(totalRoundsCfg, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS.length) - 1)
+                ] ?? 0;
             game.scores[playerId] = (game.scores[playerId] || 0) + bonus;
             if (!game.diceGoBonuses) game.diceGoBonuses = {};
             game.diceGoBonuses[playerId] = (game.diceGoBonuses[playerId] || 0) + bonus;
@@ -324,6 +370,9 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
                     capturePoints: bonus,
                 });
             }
+            if (bonus > 0) {
+                lastDummyCaptureBonus = { playerId, amount: bonus };
+            }
         }
 
         const totalRounds = game.settings.diceGoRounds ?? 3;
@@ -337,10 +386,11 @@ export function finishPlacingTurn(game: types.LiveGameSession, playerId: string)
                 return;
             }
         }
-        
+
         const roundSummary: types.DiceRoundSummary = {
             round: game.round,
-            scores: { ...game.scores }
+            scores: { ...game.scores },
+            ...(lastDummyCaptureBonus ? { lastDummyCaptureBonus } : {}),
         };
         if (game.round === 1 && game.diceRollHistory) {
             roundSummary.diceStats = {};
@@ -841,7 +891,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         const center = Math.floor(game.settings.boardSize / 2);
                         game.boardState[center][center] = types.Player.White;
                         game.gameStatus = 'dice_rolling';
-                        game.currentPlayer = types.Player.Black;
+                        game.currentPlayer = pickDiceGoRoundStarterByLowerScore(game);
                         if (shouldEnforceTimeControl(game)) {
                             game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                             game.turnStartTime = now;
@@ -860,19 +910,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                         game.lastTurnStones = [];
                         game.lastMove = null;
                         game.justCaptured = [];
-                        // 라운드 전환 시 이전 틱의 AI 디스패치 락이 남으면 첫 턴 AI가 멈출 수 있어 초기화
-                        (game as any)._aiMoveDispatching = false;
-                        (game as any)._aiMoveDispatchingAt = undefined;
-                        if (game.isAiGame) {
-                            const currentPlayerId =
-                                game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                            if (currentPlayerId === aiUserId) {
-                                // 라운드 시작 첫 굴림은 지연 없이 즉시 시작하도록 보장
-                                game.aiTurnStartTime = now;
-                            } else {
-                                game.aiTurnStartTime = undefined;
-                            }
-                        }
+                        kickDiceGoAiForNewRound(game, now);
                         return;
                     } else {
                         const winnerId = p1Score > p2Score ? p1Id : p2Id;
@@ -893,7 +931,8 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 const initialStoneCount = DICE_GO_INITIAL_WHITE_STONES_BY_ROUND[roundIdx];
                 placeDiceGoInitialWhiteStones(game.boardState, game.settings.boardSize, initialStoneCount);
                 game.gameStatus = 'dice_rolling';
-                game.currentPlayer = types.Player.Black; // Black (first player) always starts the round
+                // 사용자 요청: 라운드 전환 시 누적 점수가 낮은 쪽이 선공
+                game.currentPlayer = pickDiceGoRoundStarterByLowerScore(game);
                 if (shouldEnforceTimeControl(game)) {
                     game.turnDeadline = now + DICE_GO_MAIN_ROLL_TIME * 1000;
                     game.turnStartTime = now;
@@ -913,19 +952,7 @@ export const updateDiceGoState = (game: types.LiveGameSession, now: number) => {
                 game.lastTurnStones = [];
                 game.lastMove = null;
                 game.justCaptured = [];
-                // 라운드 전환 시 이전 틱의 AI 디스패치 락이 남으면 첫 턴 AI가 멈출 수 있어 초기화
-                (game as any)._aiMoveDispatching = false;
-                (game as any)._aiMoveDispatchingAt = undefined;
-                if (game.isAiGame) {
-                    const currentPlayerId =
-                        game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-                    if (currentPlayerId === aiUserId) {
-                        // 라운드 시작 첫 굴림은 지연 없이 즉시 시작하도록 보장
-                        game.aiTurnStartTime = now;
-                    } else {
-                        game.aiTurnStartTime = undefined;
-                    }
-                }
+                kickDiceGoAiForNewRound(game, now);
             }
             break;
     }

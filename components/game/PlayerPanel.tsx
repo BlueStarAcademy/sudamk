@@ -1040,11 +1040,20 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         (mode === GameMode.Dice && ['dice_rolling', 'dice_rolling_animating', 'dice_placing'].includes(session.gameStatus)) ||
         (mode === GameMode.Thief && ['thief_rolling', 'thief_rolling_animating', 'thief_placing'].includes(session.gameStatus));
     const showPlayfulStonesBox = isPlayfulDiceStonesBoxPhase;
+    /** 주사위바둑·도둑/경찰: 메인 주사위 굴림 애니 중에는 stonesToPlace 숫자를 숨김(애니 종료 후 표시, UX 통일) */
+    const hidePlayfulStonesCountDuringRollAnim =
+        (mode === GameMode.Dice && session.gameStatus === 'dice_rolling_animating') ||
+        (mode === GameMode.Thief && session.gameStatus === 'thief_rolling_animating');
+    const playfulRollAnimAriaHint = '주사위 굴림 중. 남은 돌 수는 굴림이 끝난 뒤 표시됩니다.';
     /** 도둑 1턴+경찰 1턴=1라운드. turnInRound는 턴 종료 시마다 +1 */
     const thiefUiRound =
         mode === GameMode.Thief
             ? Math.min(THIEF_NIGHTS_PER_SEGMENT, Math.ceil((session.turnInRound ?? 1) / 2))
             : null;
+    const playfulStonesCountDisplay = Math.max(
+        0,
+        typeof session.stonesToPlace === 'number' ? session.stonesToPlace : 0,
+    );
     const playfulStonesBoxSize =
         mode === GameMode.Thief
             ? compactPlayerBar
@@ -1227,9 +1236,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     role="status"
                     aria-live="polite"
                     aria-label={
-                        thiefUiRound != null
-                            ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}, 남은 착수 ${Math.max(0, session.stonesToPlace ?? 0)}개`
-                            : `남은 착수 ${Math.max(0, session.stonesToPlace ?? 0)}개`
+                        hidePlayfulStonesCountDuringRollAnim
+                            ? thiefUiRound != null
+                                ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}. ${playfulRollAnimAriaHint}`
+                                : playfulRollAnimAriaHint
+                            : thiefUiRound != null
+                              ? `라운드 ${thiefUiRound} / ${THIEF_NIGHTS_PER_SEGMENT}, 남은 착수 ${playfulStonesCountDisplay}개`
+                              : `남은 착수 ${playfulStonesCountDisplay}개`
                     }
                 >
                     {thiefUiRound != null && (
@@ -1245,9 +1258,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                         남은 돌
                     </span>
                     <span
-                        className={`font-mono font-bold tabular-nums text-amber-300 ${compactPlayerBar ? 'text-3xl' : 'text-3xl md:text-4xl'} mt-0.5 leading-none`}
+                        className={`font-mono font-bold tabular-nums text-amber-300 ${compactPlayerBar ? 'text-3xl' : 'text-3xl md:text-4xl'} mt-0.5 leading-none min-w-[1.25em] text-center`}
                     >
-                        {Math.max(0, typeof session.stonesToPlace === 'number' ? session.stonesToPlace : 0)}
+                        {hidePlayfulStonesCountDuringRollAnim ? (
+                            <span className="inline-block text-amber-200/25 select-none" aria-hidden>
+                                —
+                            </span>
+                        ) : (
+                            playfulStonesCountDisplay
+                        )}
                     </span>
                 </div>
             )}

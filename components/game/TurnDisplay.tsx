@@ -64,7 +64,7 @@ const getGameStatusText = (session: LiveGameSession): string => {
             maxDice > 0
                 ? `오버샷! 주사위가 ${maxDice} 이하여야 마지막 더미를 따낼 수 있습니다.`
                 : `오버샷! 지금은 백의 유효 자리가 없어 마지막 더미를 따낼 수 없습니다. 다음 굴림을 기다려 주세요.`;
-        if (session.round === totalRounds && totalRounds > 0 && lastCaptureBonus > 0) {
+        if (totalRounds > 0 && lastCaptureBonus > 0) {
             message += ` (마지막 더미 보너스 +${lastCaptureBonus}점)`;
         }
         return message;
@@ -73,10 +73,10 @@ const getGameStatusText = (session: LiveGameSession): string => {
     if (session.mode === GameMode.Dice && session.lastWhiteGroupInfo && session.lastWhiteGroupInfo.liberties <= 6) {
         const totalRounds = session.settings.diceGoRounds ?? 1;
         let message = `마지막 승부! 유효자리 ${session.lastWhiteGroupInfo.liberties}개`;
-        if (session.round === totalRounds && totalRounds > 0) {
-            const bonus = DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[totalRounds - 1];
+        if (totalRounds > 0) {
+            const bonus = DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS[Math.max(0, Math.min(totalRounds, DICE_GO_LAST_CAPTURE_BONUS_BY_TOTAL_ROUNDS.length) - 1)];
             if (bonus) {
-                message += ` (마지막 포획 보너스 +${bonus}점)`;
+                message += ` (마지막 더미 포획 시 +${bonus}점)`;
             }
         }
         return message;

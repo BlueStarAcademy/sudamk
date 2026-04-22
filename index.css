@@ -525,6 +525,14 @@ html.sudamr-handheld-portrait-lock.sudamr-handheld-portrait-secondary #root > .a
     animation: none !important;
 }
 
+/* 폰 세로 역방향(portrait-secondary)에서도 화면이 뒤집혀 보이지 않도록 시각적으로 고정한다. */
+html.sudamr-handheld-upside-down-block:not(.sudamr-handheld-portrait-lock) #root > .app-container {
+    transform: rotate(180deg);
+    transform-origin: center center;
+    transition: none !important;
+    animation: none !important;
+}
+
 /*
   폰 물리 가로 + portrait-lock: App.tsx·DraggableWindow가 쓰는 vw/dvh는 “짧은 변”에 걸려
   모달이 세로 화면과 다르게 잘리고, Chrome 에뮬과 실기기(주소창·dvh) 차도 커진다.

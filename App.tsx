@@ -236,6 +236,7 @@ const AppContent: React.FC = () => {
             return undefined;
         }
 
+        const el = document.documentElement;
         const so = typeof screen !== 'undefined' ? screen.orientation : undefined;
 
         const tryPortraitPrimaryLock = () => {
@@ -247,9 +248,30 @@ const AppContent: React.FC = () => {
             }
         };
 
+        const isPortraitSecondary = () => {
+            const type = so?.type ?? '';
+            if (type === 'portrait-secondary') return true;
+            if (typeof so?.angle === 'number' && Math.abs(so.angle) === 180) return true;
+            const legacyOrientation = (window as Window & { orientation?: unknown }).orientation;
+            return typeof legacyOrientation === 'number' && Math.abs(legacyOrientation) === 180;
+        };
+
+        const syncUpsideDownClass = () => {
+            const shouldBlockUpsideDown = isPortraitSecondary();
+            const hasClass = el.classList.contains('sudamr-handheld-upside-down-block');
+            if (shouldBlockUpsideDown === hasClass) return;
+            if (shouldBlockUpsideDown) {
+                el.classList.add('sudamr-handheld-upside-down-block');
+            } else {
+                el.classList.remove('sudamr-handheld-upside-down-block');
+            }
+            window.dispatchEvent(new Event('sudamr-portrait-lock-change'));
+        };
+
         const syncUpsideDownAndLock = () => {
             requestAnimationFrame(() => {
                 tryPortraitPrimaryLock();
+                syncUpsideDownClass();
             });
         };
 
@@ -270,6 +292,7 @@ const AppContent: React.FC = () => {
             window.removeEventListener('orientationchange', syncUpsideDownAndLock);
             window.removeEventListener('resize', syncUpsideDownAndLock);
             document.removeEventListener('visibilitychange', onVisibility);
+            el.classList.remove('sudamr-handheld-upside-down-block');
         };
     }, [isPhoneHandheldTouch]);
 
