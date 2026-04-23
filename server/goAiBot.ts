@@ -42,6 +42,7 @@ import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService
 /** 싱글·탑·로비 AI 등: 마지막 AI 수가 판에 보이고 착수음이 난 뒤 계가 — 클라 렌더·오디오 여유 */
 const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 1200;
 const pveDeferredAutoScoringTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const singlePlayerBlackTurnLimitFailTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
     const gc = String((game as any).gameCategory ?? '');
@@ -115,6 +116,42 @@ function scheduleDeferredPveAutoScoring(gameId: string | number | undefined, del
         void runDeferredPveAutoScoring(key);
     }, delayMs);
     pveDeferredAutoScoringTimers.set(key, tid);
+}
+
+function scheduleSinglePlayerBlackTurnLimitFail(gameId: string | number | undefined, delayMs = 1000): void {
+    const key = String(gameId ?? '');
+    if (!key) return;
+    const prev = singlePlayerBlackTurnLimitFailTimers.get(key);
+    if (prev) clearTimeout(prev);
+    const tid = setTimeout(async () => {
+        singlePlayerBlackTurnLimitFailTimers.delete(key);
+        try {
+            const { getCachedGame } = await import('./gameCache.js');
+            let g: types.LiveGameSession | null = await getCachedGame(key);
+            if (!g) g = await db.getLiveGame(key);
+            if (!g || !g.isSinglePlayer || (g.gameStatus as string) === 'ended') return;
+
+            const blackTurnLimit = Number((g.settings as any)?.blackTurnLimit ?? 0);
+            if (!(blackTurnLimit > 0)) return;
+            const markedRemaining = Number((g as any).blackTurnLimitRemaining);
+            const hasMarkedZeroRemaining = Number.isFinite(markedRemaining) && markedRemaining <= 0;
+            const blackMoves = (g.moveHistory ?? []).filter(
+                (m) => m.player === types.Player.Black && m.x !== -1 && m.y !== -1
+            ).length;
+            if (!hasMarkedZeroRemaining && blackMoves < blackTurnLimit) return;
+
+            const targetForBlack = getCaptureTarget(g, Player.Black);
+            const hasBlackTarget = targetForBlack !== undefined && targetForBlack !== NO_CAPTURE_TARGET;
+            const blackCaptures = g.captures[Player.Black] ?? 0;
+            if (hasBlackTarget && blackCaptures >= (targetForBlack as number)) return;
+
+            console.log(`[GoAiBot] delayed single-player blackTurnLimit fail: blackMoves=${blackMoves}, limit=${blackTurnLimit}, game=${g.id}`);
+            await summaryService.endGame(g, types.Player.White, 'timeout');
+        } catch (e: any) {
+            console.error(`[scheduleSinglePlayerBlackTurnLimitFail][GoAiBot] game=${key}:`, e?.message ?? e);
+        }
+    }, Math.max(1, Math.floor(delayMs)));
+    singlePlayerBlackTurnLimitFailTimers.set(key, tid);
 }
 
 /** AI 히든 연출 종료 직후 착수에만 쓰는 Kata 좌표 캐시(프로세스 메모리; 구 세이브의 animation.pendingHiddenMove로 재주입) */
@@ -1984,6 +2021,13 @@ export async function makeGoAiBotMove(
                 // 이전에 처리된 capture_limit 결과(또는 이후 계가 결과)를 그대로 따른다.
                 if (!(hasBlackTarget && blackCaptures >= (targetForBlack as number))) {
                     console.log(`[GoAiBot] blackTurnLimit reached after AI move: blackMoves=${blackMoves}, limit=${blackTurnLimit}, gameCategory=${(game as any).gameCategory}`);
+                    if (game.isSinglePlayer) {
+                        // 0/N 상태를 먼저 보여주고 1초 뒤 실패 처리.
+                        (game as any).blackTurnLimitRemaining = 0;
+                        scheduleSinglePlayerBlackTurnLimitFail(game.id, 1000);
+                        game.aiTurnStartTime = undefined;
+                        return;
+                    }
                     const loseReason: types.WinReason = isGuildWarCapture ? 'capture_limit' : 'timeout';
                     await summaryService.endGame(game, types.Player.White, loseReason);
                     return;

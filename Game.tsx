@@ -2922,6 +2922,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             } as ServerAction);
                             const responseGame = ((result as any)?.game ||
                                 (result as any)?.clientResponse?.game) as LiveGameSession | undefined;
+                            const skippedReason =
+                                (result as any)?.skippedReason ||
+                                (result as any)?.clientResponse?.skippedReason;
                             const hasGamePayload =
                                 !!responseGame;
                             if (!hasGamePayload) {
@@ -2935,12 +2938,41 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 lastAiMoveRef.current = null;
                             }
                             // 서버가 game payload를 주더라도 실제 착수가 없으면(동일 수순·동일 차례) 잠금을 풀어 재시도한다.
+                            const responseStatus = String((responseGame as any)?.gameStatus ?? '');
+                            const responseAnimType = String(((responseGame as any)?.animation as { type?: string } | undefined)?.type ?? '');
+                            const isServerWaitingState =
+                                skippedReason === 'SERVER_AI_WAITING_STATE' ||
+                                skippedReason === 'AI_MOVE_STALLED_REQUEUED' ||
+                                skippedReason === 'AI_MOVE_FAILED_RETRYING' ||
+                                responseStatus === 'missile_animating' ||
+                                responseStatus === 'hidden_reveal_animating' ||
+                                responseStatus === 'scanning' ||
+                                responseStatus === 'scanning_animating' ||
+                                responseStatus === 'hidden_final_reveal' ||
+                                responseStatus === 'scoring' ||
+                                responseStatus === 'ended' ||
+                                responseAnimType === 'missile' ||
+                                responseAnimType === 'hidden_missile' ||
+                                responseAnimType === 'ai_thinking';
                             if (
                                 responseGame &&
                                 Array.isArray(responseGame.moveHistory) &&
                                 responseGame.moveHistory.length <= moveHistoryLengthAtCalculation &&
                                 responseGame.currentPlayer === currentPlayerAtCalculation
                             ) {
+                                if (isServerWaitingState) {
+                                    // 미사일/히든 연출 중 no-progress는 정상 대기 상태다.
+                                    // 잠금을 즉시 풀면 REQUEST_SERVER_AI_MOVE가 루프를 돌며 애니/사운드가 무한 재생된다.
+                                    if (process.env.NODE_ENV === 'development') {
+                                        console.log('[Game] PVE server AI waiting state detected, keeping lock:', {
+                                            gameId: currentGameId,
+                                            skippedReason,
+                                            responseStatus,
+                                            responseAnimType,
+                                        });
+                                    }
+                                    return;
+                                }
                                 console.warn('[Game] PVE server AI response made no progress, retrying soon:', {
                                     gameId: currentGameId,
                                     responseMoveHistoryLength: responseGame.moveHistory.length,

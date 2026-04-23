@@ -636,6 +636,8 @@ export type SinglePlayerStageInfo = {
     scanCount?: number; // 스캔 아이템 개수
     // 흑(유저)의 턴 수 제한
     blackTurnLimit?: number; // 유저(흑)의 턴 수 제한
+    // 베이스 바둑 모드: 베이스 돌 개수
+    baseStones?: number;
     /** 고정 초기 배치(좌표는 x,y / boardState[y][x]). */
     fixedOpening?: Array<{ x: number; y: number; color: 'black' | 'white'; kind?: 'plain' | 'pattern' }>;
     /** fixedOpening이 있어도 placements 랜덤을 baseBoard 위에 추가 적용 */
@@ -1128,6 +1130,8 @@ export type LiveGameSession = {
   /** 문양돌이 따인 교차점(1회 소모). 같은 대국에서 해당 좌표는 다시 문양이 되지 않음 */
   consumedPatternIntersections?: Point[];
   whiteTurnsPlayed?: number; // 살리기 바둑 모드: 백(AI)이 둔 턴 수
+  /** 싱글 따내기: 턴 제한 실패 대기 상태에서 UI 0/N 고정용 남은 턴 스냅샷 */
+  blackTurnLimitRemaining?: number;
   singlePlayerPlacementRefreshesUsed?: number;
   /** 이번 대국 입장 시 차감된 행동력(재도전 라벨·클라 stale 보정용). 0이면 재도전도 무료로 표시 */
   singlePlayerStartActionPointCost?: number;

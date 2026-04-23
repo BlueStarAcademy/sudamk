@@ -286,6 +286,10 @@ export const rowToGame = (row: any): types.LiveGameSession | null => {
             blackPatternStones: safeParse(row.blackPatternStones, null, row.id, 'blackPatternStones'),
             whitePatternStones: safeParse(row.whitePatternStones, null, row.id, 'whitePatternStones'),
             singlePlayerPlacementRefreshesUsed: row.singlePlayerPlacementRefreshesUsed,
+            blackTurnLimitRemaining:
+                row.blackTurnLimitRemaining != null && row.blackTurnLimitRemaining !== ''
+                    ? Number(row.blackTurnLimitRemaining)
+                    : undefined,
             aiHiddenItemAnimationEndTime:
                 row.aiHiddenItemAnimationEndTime != null && row.aiHiddenItemAnimationEndTime !== ''
                     ? Number(row.aiHiddenItemAnimationEndTime)

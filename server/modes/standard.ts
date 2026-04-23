@@ -49,6 +49,45 @@ const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
     types.GameMode.Missile,
     types.GameMode.Mix,
 ];
+const singlePlayerBlackTurnLimitFailTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function scheduleSinglePlayerBlackTurnLimitFail(gameId: string, delayMs = 1000): void {
+    const key = String(gameId || '');
+    if (!key) return;
+    const prev = singlePlayerBlackTurnLimitFailTimers.get(key);
+    if (prev) clearTimeout(prev);
+    const tid = setTimeout(async () => {
+        singlePlayerBlackTurnLimitFailTimers.delete(key);
+        try {
+            const { getCachedGame } = await import('../gameCache.js');
+            let g: types.LiveGameSession | null = await getCachedGame(key);
+            if (!g) g = await db.getLiveGame(key);
+            if (!g || !g.isSinglePlayer || (g.gameStatus as string) === 'ended') return;
+
+            const blackTurnLimit = Number((g.settings as any)?.blackTurnLimit ?? 0);
+            if (!(blackTurnLimit > 0)) return;
+            const markedRemaining = Number((g as any).blackTurnLimitRemaining);
+            const hasMarkedZeroRemaining = Number.isFinite(markedRemaining) && markedRemaining <= 0;
+            const blackMoves = (g.moveHistory ?? []).filter(
+                (m) => m.player === types.Player.Black && m.x !== -1 && m.y !== -1
+            ).length;
+            if (!hasMarkedZeroRemaining && blackMoves < blackTurnLimit) return;
+
+            const blackTarget = g.effectiveCaptureTargets?.[types.Player.Black];
+            const hasBlackTarget = blackTarget !== undefined && blackTarget !== 999;
+            const blackCaptures = g.captures[types.Player.Black] ?? 0;
+            if (hasBlackTarget && blackCaptures >= blackTarget) return;
+
+            console.log(
+                `[handleStandardAction] Delayed single-player blackTurnLimit fail: blackMoves=${blackMoves}, limit=${blackTurnLimit}, game=${g.id}`
+            );
+            await summaryService.endGame(g, types.Player.White, 'timeout');
+        } catch (e: any) {
+            console.error(`[scheduleSinglePlayerBlackTurnLimitFail] game=${key}:`, e?.message ?? e);
+        }
+    }, Math.max(1, Math.floor(delayMs)));
+    singlePlayerBlackTurnLimitFailTimers.set(key, tid);
+}
 
 /**
  * 모험/길드전 서버 Kata AI: 유저 착수·패스 직후 메인 루프가 인라인 makeAiMove와 동시에 잠금만 잡고
@@ -1410,8 +1449,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
                     // 흑이 목표 따낸 돌을 이미 달성했다면 턴 제한 패배를 적용하지 않는다.
                     if (!(hasBlackTarget && blackCaptures >= blackTarget)) {
-                        console.log(`[handleStandardAction] SinglePlayer blackTurnLimit reached: blackMoves=${blackMoves}, limit=${blackTurnLimit}, mission fail (no scoring)`);
-                        await summaryService.endGame(game, types.Player.White, 'timeout');
+                        console.log(
+                            `[handleStandardAction] SinglePlayer blackTurnLimit reached: blackMoves=${blackMoves}, limit=${blackTurnLimit}, delaying fail by 1s`
+                        );
+                        // UI에서 0/N을 먼저 확인할 수 있도록 1초 지연 후 실패 처리.
+                        (game as any).blackTurnLimitRemaining = 0;
+                        scheduleSinglePlayerBlackTurnLimitFail(game.id, 1000);
+                        game.aiTurnStartTime = undefined;
                         return {};
                     }
                 }

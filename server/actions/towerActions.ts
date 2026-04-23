@@ -202,8 +202,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                     byoyomiTime: enforcedByoyomiTimeSeconds,
                     byoyomiCount: enforcedByoyomiCount,
                     timeIncrement: enforcedIncrement,
+                    // 캡처 모드가 아닌 탑 스테이지(자동계가/히든/미사일/믹스)는 captureTarget을 비워 즉시 종료(capture_limit) 오작동을 막는다.
                     captureTarget:
-                        gameMode === GameMode.Capture ? towerBlackCaptureTarget : stage.targetScore?.black,
+                        gameMode === GameMode.Capture ? towerBlackCaptureTarget : undefined,
                     aiDifficulty: kataProfileStep,
                     kataServerLevel,
                     goAiBotLevel: kataProfileStep,

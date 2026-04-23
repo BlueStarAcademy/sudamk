@@ -779,10 +779,44 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const { aiUserId } = await import('./aiPlayer.js');
             const isAiTurn = currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'));
+            const isPveLikeAiGame =
+                game.gameCategory === 'tower' || game.isSinglePlayer || game.gameCategory === 'adventure';
+            const transitionalStatusesForPve = new Set([
+                'hidden_reveal_animating',
+                'scanning',
+                'scanning_animating',
+                'missile_animating',
+                'hidden_final_reveal',
+                'scoring',
+                'ended',
+                'no_contest',
+                'pending',
+            ]);
+            const pveNonErrorNoop = (): { clientResponse: { serverAiMoveDone: boolean; skippedReason: string; game: types.LiveGameSession } } => ({
+                clientResponse: {
+                    serverAiMoveDone: false,
+                    skippedReason: 'SERVER_AI_WAITING_STATE',
+                    game,
+                },
+            });
+            // 도전의 탑/싱글/모험 PVE는 클라 복구 요청이 중복으로 들어와도 절대 400을 내지 않는다.
+            if (isPveLikeAiGame && transitionalStatusesForPve.has(String(game.gameStatus))) {
+                return pveNonErrorNoop();
+            }
             if (!isAiTurn) {
+                // 탑/싱글/모험 PVE는 클라이언트가 복구성 요청을 중복 전송할 수 있다.
+                // 이미 유저 턴으로 넘어간 상태를 400으로 내리면 클라이언트가 오류로 간주해 재연결 루프가 날 수 있으므로 무해 응답.
+                if (isPveLikeAiGame) {
+                    return pveNonErrorNoop();
+                }
                 return { error: 'Not AI turn.' };
             }
             if (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing') {
+                // 히든/스캔/미사일 애니 전환 중에는 AI 착수를 바로 처리할 수 없다.
+                // PVE에서는 이 상태를 정상 대기 상태로 돌려 400을 피한다.
+                if (isPveLikeAiGame && transitionalStatusesForPve.has(String(game.gameStatus))) {
+                    return pveNonErrorNoop();
+                }
                 return { error: 'Game not in playing state.' };
             }
             const { makeAiMove } = await import('./aiPlayer.js');
@@ -806,6 +840,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 // 즉시 실패하더라도 큐 재시도를 예약해 AI 턴 영구 정지를 방지한다.
                 const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
                 aiProcessingQueue.enqueue(game.id);
+                if (isPveLikeAiGame) {
+                    return {
+                        clientResponse: {
+                            serverAiMoveDone: false,
+                            skippedReason: 'AI_MOVE_FAILED_RETRYING',
+                            game,
+                        },
+                    };
+                }
                 return { error: `AI_MOVE_FAILED_RETRYING: ${e?.message ?? 'unknown_error'}` };
             }
             const afterMoveLen = game.moveHistory?.length ?? 0;
@@ -824,6 +867,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     console.error(`[REQUEST_SERVER_AI_MOVE] second makeAiMove failed for ${game.id}:`, e?.message ?? e);
                     const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
                     aiProcessingQueue.enqueue(game.id);
+                    if (isPveLikeAiGame) {
+                        return {
+                            clientResponse: {
+                                serverAiMoveDone: false,
+                                skippedReason: 'AI_MOVE_FAILED_RETRYING',
+                                game,
+                            },
+                        };
+                    }
                     return { error: `AI_MOVE_FAILED_RETRYING: ${e?.message ?? 'unknown_error'}` };
                 }
             }
@@ -837,6 +889,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 // makeAiMove 내부 조기 return(히든 연출/동기화 지연 등)로 무진행이면 요청 단위에서 즉시 재큐잉해 교착을 줄인다.
                 const { aiProcessingQueue } = await import('./aiProcessingQueue.js');
                 aiProcessingQueue.enqueue(game.id);
+                if (isPveLikeAiGame) {
+                    return {
+                        clientResponse: {
+                            serverAiMoveDone: false,
+                            skippedReason: 'AI_MOVE_STALLED_REQUEUED',
+                            game,
+                        },
+                    };
+                }
                 return { error: 'AI_MOVE_STALLED_REQUEUED' };
             }
             updateGameCache(game);

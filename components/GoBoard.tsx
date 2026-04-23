@@ -1781,8 +1781,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                             moveIndex === -1 &&
                             actualPlayer !== myPlayerEnum &&
                             currentPlayer !== myPlayerEnum);
-                    // 방금 내가 둔 돌은 일시적인 hiddenMoves 인덱스 어긋남이 있어도 히든 문양을 붙이지 않는다.
-                    const effectiveHiddenMoveForRender = isMyJustPlacedStone ? false : isHiddenMoveForRender;
+                    // 방금 둔 돌 보호 로직은 "실제 히든 착수"에는 적용하지 않는다.
+                    // 그래야 히든 아이템 착수 순간부터 즉시 히든 문양으로 보인다.
+                    const effectiveHiddenMoveForRender =
+                        isMyJustPlacedStone && !isHiddenMove ? false : isHiddenMoveForRender;
                     // 서버의 영구 공개 목록 또는 현재 히든 공개 애니메이션에 포함된 돌은 공개된 것으로 표시 (반투명 해제)
                     // 히든 돌 표시 규칙 (모든 히든 사용 경기 공통): 상대에게는 기본 비공개, 스캔 시 반투명, 착수/포착 시 전체 공개
                     let isVisible = true;

@@ -661,6 +661,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     open={editorOpen}
                     scope="singleplayer"
                     stage={stage}
+                    swapStageOptions={SINGLE_PLAYER_STAGES}
                     onClose={() => setEditorOpen(false)}
                     onSave={async (nextStage) => {
                         if (!onAction) return;
@@ -671,6 +672,26 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                         } as ServerAction);
                         setSinglePlayerStagesFromServer(nextStages);
                         setEditorOpen(false);
+                    }}
+                    onSwapStageInfo={async (targetStageId) => {
+                        if (!onAction) return;
+                        const source = SINGLE_PLAYER_STAGES.find((row) => row.id === stage.id);
+                        const target = SINGLE_PLAYER_STAGES.find((row) => row.id === targetStageId);
+                        if (!source || !target || source.id === target.id) return;
+
+                        const { id: sourceId, ...sourceRest } = source;
+                        const { id: targetId, ...targetRest } = target;
+                        const nextStages = SINGLE_PLAYER_STAGES.map((row) => {
+                            if (row.id === sourceId) return { id: sourceId, ...targetRest } as SinglePlayerStageInfo;
+                            if (row.id === targetId) return { id: targetId, ...sourceRest } as SinglePlayerStageInfo;
+                            return row;
+                        });
+
+                        await onAction({
+                            type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
+                            payload: { stages: nextStages },
+                        } as ServerAction);
+                        setSinglePlayerStagesFromServer(nextStages);
                     }}
                 />
             )}

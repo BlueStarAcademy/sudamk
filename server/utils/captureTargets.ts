@@ -8,11 +8,15 @@ export const NO_CAPTURE_TARGET = 999;
 export function getCaptureTarget(game: LiveGameSession, player: Player): number | undefined {
     const effective = game.effectiveCaptureTargets;
     if (effective && typeof effective[player] === 'number') {
-        return effective[player]!;
+        const target = Number(effective[player]);
+        if (!Number.isFinite(target) || target <= 0 || target === NO_CAPTURE_TARGET) return undefined;
+        return target;
     }
 
     const baseTarget = game.settings?.captureTarget;
-    return typeof baseTarget === 'number' ? baseTarget : undefined;
+    if (typeof baseTarget !== 'number') return undefined;
+    if (!Number.isFinite(baseTarget) || baseTarget <= 0 || baseTarget === NO_CAPTURE_TARGET) return undefined;
+    return baseTarget;
 }
 
 export function hasCaptureTarget(game: LiveGameSession, player: Player): boolean {
@@ -25,6 +29,15 @@ export function hasCaptureTarget(game: LiveGameSession, player: Player): boolean
  */
 export async function tryEndGameWhenCaptureTargetReached(game: LiveGameSession, scorer: Player): Promise<boolean> {
     if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') return false;
+    // 도전의 탑 21~100층은 자동계가 전용 모드다.
+    // 이 구간에서 capture_limit이 발동하면 안 되므로, autoScoringTurns가 설정된 탑 경기는 모두 제외한다.
+    if (
+        game.gameCategory === GameCategory.Tower &&
+        typeof (game.settings as any)?.autoScoringTurns === 'number' &&
+        (game.settings as any).autoScoringTurns > 0
+    ) {
+        return false;
+    }
     const captureScoringContext =
         game.mode === GameMode.Capture ||
         game.isSinglePlayer ||

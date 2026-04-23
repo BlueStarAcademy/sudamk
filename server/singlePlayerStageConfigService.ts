@@ -104,6 +104,7 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
                 items: normalizeItemRewardList((row.rewards as any)?.repeatClear?.items) ?? fallback.rewards.repeatClear.items,
             },
         },
+        baseStones: clampInt((row as any).baseStones, 0, 20, (fallback as any).baseStones ?? 0),
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,
         mergeRandomPlacementsWithFixed: Boolean(row.mergeRandomPlacementsWithFixed),
     };

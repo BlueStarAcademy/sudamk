@@ -322,6 +322,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     missileCount: stage.missileCount, // 미사일바둑: 미사일 아이템 개수
                     autoScoringTurns: stage.autoScoringTurns, // 자동 계가 턴 수
                     blackTurnLimit: stage.blackTurnLimit, // 따내기 바둑: 흑(유저) 턴 수 제한
+                    baseStones: stage.baseStones, // 베이스바둑: 베이스 돌 개수
                     ...(gameMode === GameMode.Mix ? { mixedModes: resolveSinglePlayerMixedModes(stage) } : {}),
                 } as any,
                 player1: user,

@@ -907,10 +907,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const rightShowElapsedOnly = isGuildWarAi ? isRightAi : session.gameCategory === 'adventure' ? isRightAi : !enforceTime;
     
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
+    const blackRemainingMonotonicRef = useRef<{ gameId: string; value: number | null }>({ gameId: '', value: null });
+    if (blackRemainingMonotonicRef.current.gameId !== session.id) {
+        blackRemainingMonotonicRef.current = { gameId: session.id, value: null };
+    }
 
     // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → 0/N ~ N/N
     const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
-    const strategicLobbyTurnInfo = useMemo(() => {
+    const strategicLobbyTurnInfoRaw = useMemo(() => {
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower') return null;
         // 모험 스테이지는 stageId가 있어도 상단 수순 박스를 표시(도감 스테이지 id와 전략 로비 수순 표시가 겹치지 않음)
         if (session.stageId && session.gameCategory !== 'adventure') return null;
@@ -950,9 +954,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         mode,
         session.settings,
     ]);
+    const strategicLobbyTurnInfo = useMemo(() => {
+        if (strategicLobbyTurnInfoRaw?.type !== 'capture_limit') return strategicLobbyTurnInfoRaw;
+        const prev = blackRemainingMonotonicRef.current.value;
+        const next = Math.max(0, strategicLobbyTurnInfoRaw.current);
+        const clamped = prev == null ? next : Math.min(prev, next);
+        blackRemainingMonotonicRef.current.value = clamped;
+        return { ...strategicLobbyTurnInfoRaw, current: clamped };
+    }, [strategicLobbyTurnInfoRaw]);
 
     // 싱글플레이/도전의 탑 턴 안내 패널 계산
-    const turnInfo = useMemo(() => {
+    const turnInfoRaw = useMemo(() => {
         // 모험은 adventureStageId만 쓰며 stageId가 다른 모드와 겹칠 수 있어 싱글/탑 턴 박스 비표시
         if (session.gameCategory === 'adventure') return null;
         // 초기 동기화 payload에서 moveHistory가 생략될 수 있으므로 방어
@@ -968,11 +980,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         
         // 따내기바둑: 흑의 남은 턴 (blackTurnLimit이 있는 경우)
         if (stage.blackTurnLimit) {
-            const blackMovesCount = moveHistory.filter(m => m.player === Player.Black && m.x !== -1).length;
+            const blackMovesCount = moveHistory.filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
             // 도전의 탑에서 턴 추가 아이템으로 증가한 턴을 반영
             const blackTurnLimitBonus = (session as any).blackTurnLimitBonus || 0;
-            const effectiveBlackTurnLimit = stage.blackTurnLimit + blackTurnLimitBonus;
-            const remainingTurns = Math.max(0, effectiveBlackTurnLimit - blackMovesCount);
+            const settingsTurnLimit = Number((session.settings as any)?.blackTurnLimit ?? 0);
+            const effectiveBlackTurnLimit = settingsTurnLimit > 0 ? settingsTurnLimit : (stage.blackTurnLimit + blackTurnLimitBonus);
+            const markedRemainingRaw = Number((session as any).blackTurnLimitRemaining);
+            const markedRemaining = Number.isFinite(markedRemainingRaw) ? Math.max(0, Math.floor(markedRemainingRaw)) : null;
+            const calculatedRemaining = Math.max(0, effectiveBlackTurnLimit - blackMovesCount);
+            const remainingTurns = markedRemaining != null ? Math.min(markedRemaining, calculatedRemaining) : calculatedRemaining;
             return {
                 type: 'capture' as const,
                 label: '흑 남은 턴',
@@ -1024,6 +1040,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.gameCategory,
         (session as any).blackTurnLimitBonus,
     ]);
+    const turnInfo = useMemo(() => {
+        if (turnInfoRaw?.type !== 'capture') return turnInfoRaw;
+        const prev = blackRemainingMonotonicRef.current.value;
+        const next = Math.max(0, turnInfoRaw.remaining);
+        const clamped = prev == null ? next : Math.min(prev, next);
+        blackRemainingMonotonicRef.current.value = clamped;
+        return { ...turnInfoRaw, remaining: clamped };
+    }, [turnInfoRaw]);
     
     /** 컴팩트 바: 행(stretch) 높이에 맞춤 — 대국자 패널과 동일 높이 */
     const turnInfoShellClass = compactPlayerBar
