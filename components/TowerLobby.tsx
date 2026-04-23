@@ -24,14 +24,30 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 // 월간 보상 구간 (매월 1일 0시 KST 지급, 역대 최고 층수 아님 월간 최고 층수 기준)
 // 서버 `processTowerRankingRewards`의 구간·수치와 반드시 동기화할 것
 const TOWER_MONTHLY_REWARD_TIERS = [
-    { floor: 100, gold: 100_000, diamonds: 300, items: [{ itemId: '장비상자6', quantity: 2 }] },
-    { floor: 90, gold: 75_000, diamonds: 225, items: [{ itemId: '장비상자6', quantity: 1 }] },
-    { floor: 80, gold: 50_000, diamonds: 150, items: [{ itemId: '장비상자5', quantity: 2 }] },
-    { floor: 65, gold: 25_000, diamonds: 75, items: [{ itemId: '장비상자5', quantity: 1 }] },
-    { floor: 50, gold: 15_000, diamonds: 60, items: [{ itemId: '장비상자4', quantity: 1 }] },
-    { floor: 35, gold: 10_000, diamonds: 45, items: [{ itemId: '장비상자3', quantity: 1 }] },
-    { floor: 20, gold: 5_000, diamonds: 30, items: [{ itemId: '장비상자2', quantity: 1 }] },
-    { floor: 10, gold: 3_000, diamonds: 15, items: [{ itemId: '장비상자1', quantity: 1 }] },
+    {
+        floor: 100,
+        gold: 50_000,
+        diamonds: 150,
+        items: [
+            { itemId: '장비상자6', quantity: 1 },
+            { itemId: '장비상자5', quantity: 1 }
+        ]
+    },
+    { floor: 90, gold: 35_000, diamonds: 100, items: [{ itemId: '장비상자5', quantity: 2 }] },
+    {
+        floor: 80,
+        gold: 30_000,
+        diamonds: 75,
+        items: [
+            { itemId: '장비상자5', quantity: 1 },
+            { itemId: '장비상자4', quantity: 1 }
+        ]
+    },
+    { floor: 65, gold: 20_000, diamonds: 50, items: [{ itemId: '장비상자4', quantity: 2 }] },
+    { floor: 50, gold: 15_000, diamonds: 35, items: [{ itemId: '장비상자4', quantity: 1 }] },
+    { floor: 35, gold: 10_000, diamonds: 25, items: [{ itemId: '장비상자3', quantity: 1 }] },
+    { floor: 20, gold: 5_000, diamonds: 15, items: [{ itemId: '장비상자2', quantity: 1 }] },
+    { floor: 10, gold: 3_000, diamonds: 10, items: [{ itemId: '장비상자1', quantity: 1 }] },
 ] as const;
 
 /** 보상정보 모달 층 라벨 색 (TOWER_MONTHLY_REWARD_TIERS 순서와 동일) */

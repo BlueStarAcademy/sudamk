@@ -2195,54 +2195,60 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Reset ${resetCount} users' towerFloor to 0 and monthlyTowerFloor to 0`);
     
     // 최고 층수 기반 보상 정의
-    // 클라이언트 TowerLobby TOWER_MONTHLY_REWARD_TIERS와 동기화 (골드 10배·다이아 3배 조정 시 함께 수정)
+    // 클라이언트 TowerLobby TOWER_MONTHLY_REWARD_TIERS와 동기화
     const getRewardForFloor = (floor: number): { gold: number; diamonds: number; items: { itemId: string; quantity: number }[] } | null => {
         if (floor >= 100) {
             return {
-                gold: 100_000,
-                diamonds: 300,
-                items: [{ itemId: '장비상자6', quantity: 2 }]
+                gold: 50_000,
+                diamonds: 150,
+                items: [
+                    { itemId: '장비상자6', quantity: 1 },
+                    { itemId: '장비상자5', quantity: 1 }
+                ]
             };
         } else if (floor >= 90) {
             return {
-                gold: 75_000,
-                diamonds: 225,
-                items: [{ itemId: '장비상자6', quantity: 1 }]
+                gold: 35_000,
+                diamonds: 100,
+                items: [{ itemId: '장비상자5', quantity: 2 }]
             };
         } else if (floor >= 80) {
             return {
-                gold: 50_000,
-                diamonds: 150,
-                items: [{ itemId: '장비상자5', quantity: 2 }]
+                gold: 30_000,
+                diamonds: 75,
+                items: [
+                    { itemId: '장비상자5', quantity: 1 },
+                    { itemId: '장비상자4', quantity: 1 }
+                ]
             };
         } else if (floor >= 65) {
             return {
-                gold: 25_000,
-                diamonds: 75,
-                items: [{ itemId: '장비상자5', quantity: 1 }]
+                gold: 20_000,
+                diamonds: 50,
+                items: [{ itemId: '장비상자4', quantity: 2 }]
             };
         } else if (floor >= 50) {
             return {
                 gold: 15_000,
-                diamonds: 60,
+                diamonds: 35,
                 items: [{ itemId: '장비상자4', quantity: 1 }]
             };
         } else if (floor >= 35) {
             return {
                 gold: 10_000,
-                diamonds: 45,
+                diamonds: 25,
                 items: [{ itemId: '장비상자3', quantity: 1 }]
             };
         } else if (floor >= 20) {
             return {
                 gold: 5_000,
-                diamonds: 30,
+                diamonds: 15,
                 items: [{ itemId: '장비상자2', quantity: 1 }]
             };
         } else if (floor >= 10) {
             return {
                 gold: 3_000,
-                diamonds: 15,
+                diamonds: 10,
                 items: [{ itemId: '장비상자1', quantity: 1 }]
             };
         }
