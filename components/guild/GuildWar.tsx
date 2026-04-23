@@ -587,7 +587,7 @@ const GuildWar = () => {
 
     useEffect(() => {
         const onWarUpdate = () => {
-            void fetchWarDataRef.current?.(true);
+            void fetchWarDataRef.current?.(false);
         };
         window.addEventListener(GUILD_WAR_LOBBY_REFRESH_EVENT, onWarUpdate);
         return () => window.removeEventListener(GUILD_WAR_LOBBY_REFRESH_EVENT, onWarUpdate);

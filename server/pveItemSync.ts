@@ -15,6 +15,12 @@ function reconcileMoveHistoryCoordsToBoardState(game: LiveGameSession): void {
     const pveLike =
         game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer' || gc === 'guildwar' || gc === 'adventure';
     if (!pveLike) return;
+    const isMissileLikeMode =
+        game.mode === 'missile' ||
+        (game.mode === 'mix' && Array.isArray((game.settings as any)?.mixedModes) && (game.settings as any).mixedModes.includes('missile'));
+    // 이 좌표 보정은 "미사일 이동 후 수순-보드 불일치" 전용 복구다.
+    // 히든 대국에 적용하면 방금 둔 히든 착수가 다른 칸으로 재매핑되는 부작용이 생길 수 있어 제한한다.
+    if (!isMissileLikeMode) return;
 
     for (let pass = 0; pass < mh.length + 2; pass++) {
         let changed = false;

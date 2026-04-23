@@ -871,25 +871,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             prevGameStatus !== 'rematch_pending';
 
         // 분석 결과가 도착했을 때만 모달 표시 (바둑판 초기화 방지)
-        // scoring 상태일 때는 모달을 열지 않고(싱글은 Arena의 ScoringOverlay), 계가 결과(analysisResult) 도착 시 결과 모달 표시
+        // scoring 상태에서는 반드시 ScoringOverlay를 먼저 보여주고, ended 전환 후에만 결과 모달을 연다.
         // 기권/접속 끊김 등 즉시 종료되는 경우에는 analysisResult 없이도 모달 표시
         const currentAnalysisResult = session.analysisResult?.['system'];
         const analysisResultJustArrived = currentAnalysisResult && !prevAnalysisResult;
         const isImmediateEnd = gameHasJustEnded && (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
-        // 싱글: ended 직후 결과 모달(입문 등 analysisResult 지연 시 빈 화면 방지). scoring 진입 시에는 모달을 열지 않음 —
-        // SinglePlayerArena의 ScoringOverlay(스캔·약 3초)가 먼저 보이고, system 분석 도착 시 아래 분기로 모달 연다.
+        // 싱글: ended 직후 결과 모달(입문 등 analysisResult 지연 시 빈 화면 방지).
+        // scoring 진입 시에는 모달을 절대 열지 않음 — ScoringOverlay 연출을 완료한 뒤 ended에서 모달 표시.
         // 도전의 탑: 따내기 승·패 등 analysisResult 없이 ended 되는 경우가 많아 종료 직후 바로 결과 모달을 연다.
         const pveAutoResultModal =
             isImmediateEnd ||
             (isTower && gameHasJustEnded) ||
             (isSinglePlayer && gameHasJustEnded) ||
-            (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
-            (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
+            (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended');
         const shouldShowModal = (isSinglePlayer || isTower)
             ? pveAutoResultModal
             : gameHasJustEnded ||
-              (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended') ||
-              (gameStatus === 'scoring' && currentAnalysisResult && analysisResultJustArrived);
+              (gameStatus === 'ended' && currentAnalysisResult && prevGameStatus !== 'ended');
 
         const shouldDelayCaptureResultModal =
             gameHasJustEnded &&
@@ -1016,10 +1014,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const moveHistoryTail = useMemo(() => {
         const h = session.moveHistory;
         if (!h?.length) return undefined;
-        const t = h[h.length - 1];
+        const tailIndex = h.length - 1;
+        const t = h[tailIndex];
         if (t.x < 0 || t.y < 0) return undefined;
-        return t;
-    }, [session.moveHistory]);
+        return {
+            x: t.x,
+            y: t.y,
+            player: t.player,
+            isHidden: !!session.hiddenMoves?.[tailIndex],
+        };
+    }, [session.moveHistory, session.hiddenMoves]);
     const prevMoveHistoryTail = usePrevious(moveHistoryTail);
 
     // 전략바둑·오목·따목: 착점 소리는 moveHistory 꼬리 변화 기준 (낙관적 갱신·모바일 확정·서버 응답 모두 커버)
@@ -1068,7 +1072,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             strategicPlaceHistoryLenRef.current = len;
             return;
         }
-        const key = `${session.moveHistory?.length ?? 0}:${moveHistoryTail.x},${moveHistoryTail.y}`;
+        // len 기반 키는 히든 모드에서 낙관적/서버 동기화 순서 차이로 같은 착점을 다른 수로 오인할 수 있다.
+        // 좌표+착수자+히든 여부 기준 fingerprint로 중복음을 차단한다.
+        const key = `${moveHistoryTail.x},${moveHistoryTail.y}:${moveHistoryTail.player}:${moveHistoryTail.isHidden ? 1 : 0}`;
         if (strategicPlaceSoundKeyRef.current === key) {
             strategicPlaceHistoryLenRef.current = len;
             return;
@@ -1241,10 +1247,50 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [session.gameStatus, session.revealAnimationEndTime, session.id, isSinglePlayer, isTower, isGuildWarHiddenClientEffects, handlers.handleAction]);
 
     useEffect(() => {
-        if (prevGameStatus === 'hidden_reveal_animating' && gameStatus === 'playing' && currentPlayer === Player.White) {
-            lastAiMoveRef.current = null;
-        }
-    }, [prevGameStatus, gameStatus, currentPlayer]);
+        const revealedToPlaying = prevGameStatus === 'hidden_reveal_animating' && gameStatus === 'playing';
+        if (!revealedToPlaying) return;
+        lastAiMoveRef.current = null;
+
+        const isPveLikeGame =
+            session.gameCategory === 'tower' ||
+            session.gameCategory === 'singleplayer' ||
+            session.gameCategory === 'guildwar' ||
+            session.gameCategory === 'adventure' ||
+            session.isSinglePlayer;
+        if (!isPveLikeGame) return;
+        if (currentPlayer !== Player.White && currentPlayer !== Player.Black) return;
+        const aiSeatId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
+        const isAiTurn =
+            aiSeatId === AI_USER_ID ||
+            (session.isAiGame && aiSeatId === 'ai-player-01') ||
+            (!!aiSeatId && String(aiSeatId).startsWith('dungeon-bot-'));
+        if (!isAiTurn) return;
+
+        // 히든 공개 애니 직후에는 클라/서버 상태 반영 타이밍 경합이 있어 AI 착수가 누락될 수 있음.
+        // 애니 종료→playing 전환 순간에 1회 kick을 보내 멈춤을 방지한다.
+        const kickTimer = window.setTimeout(() => {
+            const latestSession = sessionRefForPveAiHiddenFollowup.current;
+            const clientSync = buildPveItemActionClientSync(latestSession);
+            void handleActionRef.current({
+                type: 'REQUEST_SERVER_AI_MOVE',
+                payload: clientSync
+                    ? { gameId: latestSession.id, clientSync }
+                    : { gameId: latestSession.id },
+            } as ServerAction);
+        }, 120);
+
+        return () => window.clearTimeout(kickTimer);
+    }, [
+        prevGameStatus,
+        gameStatus,
+        currentPlayer,
+        session.id,
+        session.gameCategory,
+        session.isSinglePlayer,
+        session.isAiGame,
+        session.blackPlayerId,
+        session.whitePlayerId,
+    ]);
 
     // 게임이 바뀌면 히든 연출 실행 여부 ref 초기화 (새 게임에서 1회 히든 턴이 동작하도록)
     useEffect(() => {
@@ -2521,13 +2567,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             clearTimeout(aiStuckPostSyncFallbackRef.current);
             aiStuckPostSyncFallbackRef.current = null;
         }
+        const kataServerAiCategories = new Set(['tower', 'singleplayer', 'guildwar', 'adventure']);
+        const isKataServerAiContext =
+            !!session.isAiGame &&
+            (session.isSinglePlayer || kataServerAiCategories.has(String(session.gameCategory ?? '')));
         const eligibleKataContext =
             session.isAiGame &&
-            (!session.isSinglePlayer || session.gameCategory === 'adventure') &&
             KATA_STYLE_AI_GO_MODES.has(mode) &&
-            session.gameCategory !== 'tower' &&
-            session.gameCategory !== 'singleplayer';
+            (isKataServerAiContext || session.gameCategory !== 'tower');
         if (!eligibleKataContext || !STRATEGIC_AI_STUCK_RECOVERABLE_STATUSES.has(gameStatus)) return;
+        if (isKataServerAiContext && gameStatus === 'hidden_reveal_animating') return;
 
         const manuallyPausedAi =
             session.isAiGame &&
@@ -2561,10 +2610,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             const w = aiStuckWatchRef.current;
             if (w.id !== gameIdForSync) return;
             const moveLenBeforeSync = w.moveHistoryLength;
-            void handleActionRef.current({
-                type: 'REQUEST_GAME_STATE_SYNC',
-                payload: { gameId: gameIdForSync },
-            } as ServerAction);
+            const useServerAiKick =
+                w.isAiGame &&
+                (sessionRefForPveAiHiddenFollowup.current.isSinglePlayer ||
+                    kataServerAiCategories.has(
+                        String(sessionRefForPveAiHiddenFollowup.current.gameCategory ?? ''),
+                    ));
+            if (useServerAiKick) {
+                const latestSession = sessionRefForPveAiHiddenFollowup.current;
+                const clientSync = buildPveItemActionClientSync(latestSession);
+                void handleActionRef.current({
+                    type: 'REQUEST_SERVER_AI_MOVE',
+                    payload: clientSync
+                        ? { gameId: gameIdForSync, clientSync }
+                        : { gameId: gameIdForSync },
+                } as ServerAction);
+            } else {
+                void handleActionRef.current({
+                    type: 'REQUEST_GAME_STATE_SYNC',
+                    payload: { gameId: gameIdForSync },
+                } as ServerAction);
+            }
 
             if (aiStuckPostSyncFallbackRef.current) {
                 clearTimeout(aiStuckPostSyncFallbackRef.current);
@@ -2584,10 +2650,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         pid === 'ai-player-01' ||
                         (!!pid && String(pid).startsWith('dungeon-bot-')));
                 if (!stillAi) return;
-                if (w2.useClientSideAi) {
+                if (useServerAiKick || w2.useClientSideAi) {
+                    const latestSession = sessionRefForPveAiHiddenFollowup.current;
+                    const clientSync = buildPveItemActionClientSync(latestSession);
                     void handleActionRef.current({
                         type: 'REQUEST_SERVER_AI_MOVE',
-                        payload: { gameId: gameIdForSync },
+                        payload: clientSync
+                            ? { gameId: gameIdForSync, clientSync }
+                            : { gameId: gameIdForSync },
                     } as ServerAction);
                 } else {
                     void handleActionRef.current({

@@ -811,6 +811,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
                 return { error: 'Not AI turn.' };
             }
+            if (game.gameStatus === 'hidden_reveal_animating') {
+                // 히든 전체공개 연출 중 요청은 정상적인 과도기 상태다.
+                // 에러를 내면 클라이언트 복구 루프가 400을 반복하며 "AI 멈춤"으로 보일 수 있으므로 no-op 처리한다.
+                return { success: true, clientResponse: { waitingForHiddenReveal: true } } as any;
+            }
             if (game.gameStatus !== 'playing' && game.gameStatus !== 'hidden_placing') {
                 // 히든/스캔/미사일 애니 전환 중에는 AI 착수를 바로 처리할 수 없다.
                 // PVE에서는 이 상태를 정상 대기 상태로 돌려 400을 피한다.

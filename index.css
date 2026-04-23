@@ -1191,6 +1191,38 @@ input, textarea {
   transform-origin: 0 0;
 }
 
+/* 5~9점: 녹색 특별 연출 (기본보다 더 강한 팝과 체공) */
+@keyframes capture-points-float-animation-mid {
+  0% {
+    transform: translateY(17px) scale(0.2);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  14% {
+    transform: translateY(-10px) scale(1.2);
+  }
+  24% {
+    transform: translateY(-16px) scale(1.02);
+  }
+  56% {
+    transform: translateY(-48px) scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-90px) scale(0.86);
+    opacity: 0;
+  }
+}
+
+.capture-points-float-inner.capture-points-float-inner--mid {
+  animation: capture-points-float-animation-mid 3.05s cubic-bezier(0.14, 1, 0.26, 1) forwards;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform-origin: 0 0;
+}
+
 /* 5점 미만: 덜 튀는 팝, 완만한 이징 */
 @keyframes capture-points-float-animation-low {
   0% {

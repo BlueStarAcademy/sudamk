@@ -3,11 +3,26 @@ import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { gradeBackgrounds, gradeStyles } from '../constants';
 import { getMailEquipmentDisplayStars, isMailAttachmentEquipment } from '../shared/utils/equipmentEnhancementStars.js';
+import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
+import { isActionPointConsumable } from '../constants/items.js';
 
 function resolveItemImageSrc(path: string | undefined): string {
     if (!path) return '/images/icon/Reward.png';
     if (path.startsWith('http') || path.startsWith('/')) return path;
     return `/${path}`;
+}
+
+function resolveMailAttachmentImage(item: InventoryItem): string {
+    const lookupKey = item.name ?? (item as { itemId?: string }).itemId;
+    const fallbackTemplate = lookupKey ? getItemTemplateByName(lookupKey) : null;
+    // 행동력 회복제는 상점/가방과 동일한 lightning 아이콘으로 강제 통일
+    if (isActionPointConsumable(lookupKey)) {
+        return resolveItemImageSrc(fallbackTemplate?.image);
+    }
+    if (item.image && item.image.trim().length > 0) {
+        return resolveItemImageSrc(item.image);
+    }
+    return resolveItemImageSrc(fallbackTemplate?.image);
 }
 
 export type MailRewardItemTileVariant = 'sm' | 'md' | 'lg';
@@ -46,7 +61,7 @@ const MailRewardItemTile: React.FC<{
                         aria-hidden
                     />
                     <img
-                        src={resolveItemImageSrc(item.image)}
+                    src={resolveMailAttachmentImage(item)}
                         alt=""
                         className="pointer-events-none absolute left-1/2 top-1/2 max-h-full max-w-full -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-md"
                         style={{ width: iconPct, height: iconPct }}
@@ -73,7 +88,7 @@ const MailRewardItemTile: React.FC<{
                 className={`relative flex shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-b from-zinc-800/90 to-zinc-950/90 shadow-inner ${box}`}
             >
                 <img
-                    src={resolveItemImageSrc(item.image)}
+                    src={resolveMailAttachmentImage(item)}
                     alt=""
                     className="max-h-[88%] max-w-[88%] object-contain drop-shadow"
                     aria-hidden

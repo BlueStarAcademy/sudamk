@@ -3310,7 +3310,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // (위의 체크에서 이미 null이 아님을 확인했으므로 안전함)
             let userForLogin: types.User = user;
             const loginNow = Date.now();
-            if (userForLogin.connectionBanUntil && userForLogin.connectionBanUntil > loginNow) {
+            if (!userForLogin.isAdmin && userForLogin.connectionBanUntil && userForLogin.connectionBanUntil > loginNow) {
                 const remainingMs = userForLogin.connectionBanUntil - loginNow;
                 const remainingMinutes = Math.max(1, Math.ceil(remainingMs / 1000 / 60));
                 sendResponse(403, {

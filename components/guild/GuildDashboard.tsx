@@ -1335,9 +1335,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         };
         document.addEventListener('visibilitychange', onVisibilityChange);
 
-        /** 서버 `GUILD_WAR_UPDATE` → `sudamr:guild-war-update` (useApp). 대시보드도 길드전 화면처럼 즉시 GET_GUILD_WAR_DATA */
+        /** 서버 `GUILD_WAR_UPDATE` → `sudamr:guild-war-update` (useApp). 과호출 방지를 위해 기존 쿨다운 준수 */
         const onGuildWarSocketRefresh = () => {
-            lastFetchTimeRef.current = 0;
             void fetchWarData();
         };
         if (typeof window !== 'undefined') {

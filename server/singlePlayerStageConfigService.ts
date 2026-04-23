@@ -40,6 +40,42 @@ const normalizeItemRewardList = (value: unknown): { itemId: string; quantity: nu
     return out.length ? out : undefined;
 };
 
+const normalizeTimeControl = (
+    value: unknown,
+    fallback: SinglePlayerStageInfo['timeControl']
+): SinglePlayerStageInfo['timeControl'] => {
+    const row = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+    const fallbackRow = (fallback && typeof fallback === 'object' ? fallback : { type: 'byoyomi' }) as Record<string, unknown>;
+    const type = row.type === 'fischer' || row.type === 'byoyomi'
+        ? row.type
+        : (fallbackRow.type === 'fischer' || fallbackRow.type === 'byoyomi' ? fallbackRow.type : 'byoyomi');
+
+    if (type === 'fischer') {
+        return {
+            type: 'fischer',
+            mainTime: clampInt(row.mainTime, 0, 120, clampInt(fallbackRow.mainTime, 0, 120, 5)),
+            increment: clampInt(row.increment, 0, 120, clampInt(fallbackRow.increment, 0, 120, 0)),
+        };
+    }
+
+    return {
+        type: 'byoyomi',
+        mainTime: clampInt(row.mainTime, 0, 120, clampInt(fallbackRow.mainTime, 0, 120, 5)),
+        byoyomiTime: clampInt(row.byoyomiTime, 0, 300, clampInt(fallbackRow.byoyomiTime, 0, 300, 30)),
+        byoyomiCount: clampInt(row.byoyomiCount, 0, 20, clampInt(fallbackRow.byoyomiCount, 0, 20, 3)),
+    };
+};
+
+const normalizeOptionalPositiveInt = (
+    value: unknown,
+    fallback: number | undefined,
+    max: number
+): number | undefined => {
+    if (value == null) return fallback;
+    const n = clampInt(value, 0, max, fallback ?? 0);
+    return n > 0 ? n : undefined;
+};
+
 const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo | null => {
     if (!raw || typeof raw !== 'object') return null;
     const row = raw as Record<string, unknown>;
@@ -84,6 +120,13 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
                 fallback.placements.centerBlackStoneChance ?? 0
             ),
         },
+        timeControl: normalizeTimeControl(row.timeControl, fallback.timeControl),
+        blackTurnLimit: normalizeOptionalPositiveInt(row.blackTurnLimit, fallback.blackTurnLimit, 999),
+        survivalTurns: normalizeOptionalPositiveInt(row.survivalTurns, fallback.survivalTurns, 999),
+        hiddenCount: normalizeOptionalPositiveInt(row.hiddenCount, fallback.hiddenCount, 99),
+        scanCount: normalizeOptionalPositiveInt(row.scanCount, fallback.scanCount, 99),
+        missileCount: normalizeOptionalPositiveInt(row.missileCount, fallback.missileCount, 99),
+        autoScoringTurns: normalizeOptionalPositiveInt(row.autoScoringTurns, fallback.autoScoringTurns, 999),
         rewards: {
             firstClear: {
                 gold: clampInt((row.rewards as any)?.firstClear?.gold, 0, 9999999, fallback.rewards.firstClear.gold),

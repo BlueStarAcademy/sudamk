@@ -1531,9 +1531,6 @@ export const useApp = () => {
         //   클라가 «전쟁 없음»으로 오인·#/guild 로 튕기는 버그가 남 (서버는 실제로는 정상 응답)
         if (
             action.type !== 'COMPLETE_TOURNAMENT_SIMULATION' &&
-            action.type !== 'GET_GUILD_WAR_DATA' &&
-            action.type !== 'GET_MY_GUILD_WAR_ATTEMPT_LOG' &&
-            action.type !== 'GET_GUILD_INFO' &&
             action.type !== 'REQUEST_SERVER_AI_MOVE'
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
@@ -1541,6 +1538,15 @@ export const useApp = () => {
             const now = Date.now();
             const lastCallTime = actionDebounceRef.current.get(actionKey);
             if (lastCallTime && (now - lastCallTime) < ACTION_DEBOUNCE_MS) {
+                if (action.type === 'GET_GUILD_INFO') {
+                    const gid = currentUserRef.current?.guildId;
+                    if (gid && guilds[gid]) {
+                        return { clientResponse: { guild: guilds[gid] } };
+                    }
+                }
+                if (action.type === 'GET_GUILD_WAR_DATA' || action.type === 'GET_MY_GUILD_WAR_ATTEMPT_LOG') {
+                    return { clientResponse: { guilds } };
+                }
                 if (process.env.NODE_ENV === 'development') {
                     console.log(`[handleAction] Action debounced: ${action.type} (${now - lastCallTime}ms since last call)`);
                 }
@@ -4642,7 +4648,7 @@ export const useApp = () => {
                 else pvpDicePlaceInFlightRef.current[gid] = n;
             }
         }
-    }, [currentUser?.id, applyOptimisticTowerClearOnBlackWin]);
+    }, [currentUser?.id, applyOptimisticTowerClearOnBlackWin, guilds]);
 
     const handleLogout = useCallback(async () => {
         if (!currentUser) return;
@@ -7583,11 +7589,23 @@ export const useApp = () => {
             return;
         }
         const gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
+        const gameCategoryInStore = gameInStore?.gameCategory || (gameInStore?.isSinglePlayer ? 'singleplayer' : 'normal');
+        const isPveGameInStore = gameCategoryInStore === 'singleplayer' || gameCategoryInStore === 'tower';
         const isLiveMatchNow =
             !!gameInStore &&
             !['ended', 'no_contest', 'scoring', 'hidden_final_reveal', 'rematch_pending'].includes(
                 gameInStore.gameStatus || '',
             );
+        // 싱글/타워는 서버 DB 스냅샷이 로컬 최신판보다 늦을 수 있어,
+        // 종료 직후 rejoin으로 다시 덮어쓰면 "맵 초기화"처럼 보이는 회귀가 난다.
+        if (
+            isPveGameInStore &&
+            !!gameInStore &&
+            ['ended', 'no_contest', 'scoring', 'hidden_final_reveal'].includes(gameInStore.gameStatus || '')
+        ) {
+            setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            return;
+        }
         // 경기 중에는 현재 판이 비지 않았더라도 강제 rejoin 재요청을 막아 불필요한 상태 재병합을 피한다.
         if (isLiveMatchNow) {
             setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));

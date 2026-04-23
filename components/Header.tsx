@@ -177,16 +177,28 @@ function useGuildWarTicketsRemaining(
     handleAction: (action: ServerAction) => Promise<{ error?: string; clientResponse?: Record<string, unknown> } | void>,
 ): { remaining: number; max: number } {
     const max = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
+    const EVENT_REFRESH_COOLDOWN_MS = 30000;
     const [remaining, setRemaining] = useState(max);
+    const handleActionRef = useRef(handleAction);
+    const lastFetchAtRef = useRef(0);
+
+    useEffect(() => {
+        handleActionRef.current = handleAction;
+    }, [handleAction]);
+
     useEffect(() => {
         if (!guildId) {
             setRemaining(max);
+            lastFetchAtRef.current = 0;
             return;
         }
         let cancelled = false;
-        const fetchWar = async () => {
+        const fetchWar = async (force = false) => {
+            const now = Date.now();
+            if (!force && now - lastFetchAtRef.current < EVENT_REFRESH_COOLDOWN_MS) return;
+            lastFetchAtRef.current = now;
             try {
-                const r = (await handleAction({ type: 'GET_GUILD_WAR_DATA' })) as {
+                const r = (await handleActionRef.current({ type: 'GET_GUILD_WAR_DATA' })) as {
                     error?: string;
                     clientResponse?: {
                         activeWar?: { status?: string };
@@ -206,14 +218,14 @@ function useGuildWarTicketsRemaining(
                 /* ignore */
             }
         };
-        void fetchWar();
-        const onEv = () => void fetchWar();
+        void fetchWar(true);
+        const onEv = () => void fetchWar(false);
         if (typeof window !== 'undefined') window.addEventListener('sudamr:guild-war-update', onEv);
         return () => {
             cancelled = true;
             if (typeof window !== 'undefined') window.removeEventListener('sudamr:guild-war-update', onEv);
         };
-    }, [guildId, max, handleAction]);
+    }, [guildId, max, EVENT_REFRESH_COOLDOWN_MS]);
     return { remaining, max };
 }
 

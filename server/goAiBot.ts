@@ -3,7 +3,7 @@
  * 싱글플레이, 도전의탑, 전략·모험 AI 대국 등에서 사용하는 1단계~10단계 바둑 AI.
  * 전략 goAi 경로는 KataServer만 사용한다. KATA_SERVER_URL 미설정·API 오류·무효 응답은 모두 예외로 전파한다(휴리스틱 폴백 없음).
  * 한 턴당 Kata 응답 좌표만 착수에 사용한다(히든 규칙으로 재질의·다른 좌표로 바꾸지 않음).
- * Kata가 PASS/빈 좌표만 주는 경우 `kataServerService`에서 예외로 끝나며, 그 경로에서는 기권·패스 폴백으로 가리지 않는다.
+ * Kata가 PASS/빈 좌표만 주는 경우에도 예외로 끊지 않고, 서버 합법수/종료 폴백으로 안전 처리한다.
  */
 
 import { LiveGameSession, Player, Point } from '../types/index.js';
@@ -1062,14 +1062,51 @@ function isUserUnrevealedHiddenPosition(
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
     if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.hiddenMoves || !game.moveHistory) return false;
     const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
-    for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
-        if (!game.hiddenMoves[moveIndex]) continue;
-        const move = game.moveHistory[moveIndex];
-        if (!move || move.player !== userPlayerEnum || move.x !== x || move.y !== y) continue;
-        const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
-        return !isRevealed;
+    return isCurrentUnrevealedHiddenStoneAt(game, x, y, userPlayerEnum);
+}
+
+function getLatestMoveIndexAt(
+    game: types.LiveGameSession,
+    x: number,
+    y: number,
+    player?: Player
+): number {
+    const history = game.moveHistory || [];
+    for (let i = history.length - 1; i >= 0; i--) {
+        const m = history[i];
+        if (!m || m.x !== x || m.y !== y) continue;
+        if (player != null && m.player !== player) continue;
+        return i;
     }
-    return false;
+    return -1;
+}
+
+function isCurrentUnrevealedHiddenStoneAt(
+    game: types.LiveGameSession,
+    x: number,
+    y: number,
+    owner: Player
+): boolean {
+    const stone = game.boardState?.[y]?.[x];
+    if (stone !== owner) return false;
+    const latestMoveIndex = getLatestMoveIndexAt(game, x, y, owner);
+    if (latestMoveIndex === -1) return false;
+    if (!game.hiddenMoves?.[latestMoveIndex]) return false;
+    const isRevealed = game.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
+    return !isRevealed;
+}
+
+function isCurrentUnrevealedHiddenMoveEntry(
+    game: types.LiveGameSession,
+    moveIndex: number,
+    owner: Player
+): boolean {
+    const move = game.moveHistory?.[moveIndex];
+    if (!move || move.player !== owner || move.x < 0 || move.y < 0) return false;
+    if (!game.hiddenMoves?.[moveIndex]) return false;
+    const latestMoveIndex = getLatestMoveIndexAt(game, move.x, move.y, owner);
+    if (latestMoveIndex !== moveIndex) return false;
+    return isCurrentUnrevealedHiddenStoneAt(game, move.x, move.y, owner);
 }
 
 /**
@@ -1080,9 +1117,8 @@ function revealAllUnrevealedHiddensForPlayerEnum(game: types.LiveGameSession, pl
     if (!game.moveHistory || !game.hiddenMoves) return;
     if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
     for (let i = 0; i < game.moveHistory.length; i++) {
-        if (!game.hiddenMoves[i]) continue;
-        const m = game.moveHistory[i];
-        if (!m || m.player !== playerEnum || m.x < 0 || m.y < 0) continue;
+        if (!isCurrentUnrevealedHiddenMoveEntry(game, i, playerEnum)) continue;
+        const m = game.moveHistory[i]!;
         if (!game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) {
             game.permanentlyRevealedStones.push({ x: m.x, y: m.y });
         }
@@ -1107,9 +1143,8 @@ function startUserHiddenFullRevealAnimationForAi(
 
     const stones: { point: types.Point; player: Player }[] = [];
     for (let i = 0; i < game.moveHistory.length; i++) {
-        if (!game.hiddenMoves[i]) continue;
-        const m = game.moveHistory[i];
-        if (!m || m.player !== userPlayerEnum || m.x < 0 || m.y < 0) continue;
+        if (!isCurrentUnrevealedHiddenMoveEntry(game, i, userPlayerEnum)) continue;
+        const m = game.moveHistory[i]!;
         if (game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) continue;
         stones.push({ point: { x: m.x, y: m.y }, player: userPlayerEnum });
     }
@@ -1152,11 +1187,9 @@ function getUserUnrevealedHiddenPoints(
     if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.hiddenMoves || !game.moveHistory) return points;
     const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
     for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
-        if (!game.hiddenMoves[moveIndex]) continue;
-        const move = game.moveHistory[moveIndex];
-        if (!move || move.player !== userPlayerEnum || move.x < 0 || move.y < 0) continue;
-        const isRevealed = game.permanentlyRevealedStones?.some(p => p.x === move.x && p.y === move.y);
-        if (!isRevealed) points.push({ x: move.x, y: move.y });
+        if (!isCurrentUnrevealedHiddenMoveEntry(game, moveIndex, userPlayerEnum)) continue;
+        const move = game.moveHistory[moveIndex]!;
+        points.push({ x: move.x, y: move.y });
     }
     return points;
 }
@@ -1227,17 +1260,11 @@ function getBoardStateForAi(
     // 유저의 히든 돌은 AI에게 비공개: 보드에서 빈 칸으로 보이게 함 (유저가 둔 히든 위치를 AI가 알 수 없음)
     if (game.hiddenMoves && game.moveHistory) {
         for (let moveIndex = 0; moveIndex < game.moveHistory.length; moveIndex++) {
-            if (game.hiddenMoves[moveIndex]) {
-                const move = game.moveHistory[moveIndex];
-                if (move && move.player === userPlayerEnum) {
-                    const { x, y } = move;
-                    const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(
-                        p => p.x === x && p.y === y
-                    );
-                    if (!isPermanentlyRevealed && aiBoardState[y]?.[x] === userPlayerEnum) {
-                        aiBoardState[y][x] = Player.None;
-                    }
-                }
+            if (!isCurrentUnrevealedHiddenMoveEntry(game, moveIndex, userPlayerEnum)) continue;
+            const move = game.moveHistory[moveIndex]!;
+            const { x, y } = move;
+            if (aiBoardState[y]?.[x] === userPlayerEnum) {
+                aiBoardState[y][x] = Player.None;
             }
         }
     }
@@ -1575,8 +1602,8 @@ export async function makeGoAiBotMove(
                 kataCandidates[0]!.x === -1 &&
                 kataCandidates[0]!.y === -1)
         ) {
-            throw new Error(
-                `[makeGoAiBotMove] KataServerMoveCandidates returned empty or PASS-only (unexpected after kataServerService hardening); game=${game.id}`,
+            console.warn(
+                `[makeGoAiBotMove] KataServerMoveCandidates returned empty or PASS-only; fallback to server legal move search, game=${game.id}`,
             );
         }
 
@@ -1596,13 +1623,7 @@ export async function makeGoAiBotMove(
             // Kata는 마스킹 수순으로 빈 칸으로 본 착점이, 실제 판에서는 유저 미공개 히든 → 아래 isTargetHiddenOpponentStone과 동일하게 공개 연출로 처리
             if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
                 const stoneAt = game.boardState[cand.y]?.[cand.x];
-                const moveIndexAtTarget = game.moveHistory.findIndex(m => m.x === cand.x && m.y === cand.y);
-                if (
-                    stoneAt === opponentPlayerEnum &&
-                    moveIndexAtTarget !== -1 &&
-                    game.hiddenMoves?.[moveIndexAtTarget] &&
-                    !game.permanentlyRevealedStones?.some(p => p.x === cand.x && p.y === cand.y)
-                ) {
+                if (stoneAt === opponentPlayerEnum && isCurrentUnrevealedHiddenStoneAt(game, cand.x, cand.y, opponentPlayerEnum)) {
                     pickedFromKata = cand;
                     break;
                 }
@@ -1624,7 +1645,7 @@ export async function makeGoAiBotMove(
                 );
             }
             if (legalFb.length === 0) {
-                console.warn(`[makeGoAiBotMove] no legal move after invalid Kata coords → resign, game=${game.id}`);
+                console.warn(`[makeGoAiBotMove] no legal move after Kata PASS/invalid coords → resign, game=${game.id}`);
                 await summaryService.endGame(game, opponentPlayerEnum, 'resign');
                 return;
             }
@@ -1648,12 +1669,9 @@ export async function makeGoAiBotMove(
     if (isHiddenMode && shouldMaskUserHiddenFromAi(game)) {
         const { x, y } = selectedMove;
         const stoneAtTarget = game.boardState[y][x];
-        const moveIndexAtTarget = game.moveHistory.findIndex(m => m.x === x && m.y === y);
         const isTargetHiddenOpponentStone =
             stoneAtTarget === opponentPlayerEnum &&
-            moveIndexAtTarget !== -1 &&
-            game.hiddenMoves?.[moveIndexAtTarget] &&
-            !game.permanentlyRevealedStones?.some(p => p.x === x && p.y === y);
+            isCurrentUnrevealedHiddenStoneAt(game, x, y, opponentPlayerEnum);
 
         if (isTargetHiddenOpponentStone) {
             if (shouldApplyHiddenOnThisMove) {
@@ -1691,8 +1709,8 @@ export async function makeGoAiBotMove(
                     kataCandidatesReveal[0]!.x === -1 &&
                     kataCandidatesReveal[0]!.y === -1)
             ) {
-                throw new Error(
-                    `[makeGoAiBotMove] Kata re-query returned empty or PASS-only (unexpected); game=${game.id}`,
+                console.warn(
+                    `[makeGoAiBotMove] Kata re-query returned empty or PASS-only; fallback to server legal move search, game=${game.id}`,
                 );
             }
 
@@ -1792,6 +1810,11 @@ export async function makeGoAiBotMove(
                 selectedMove = fb;
                 result = retry;
             }
+        }
+        if (legalEmergency.length === 0) {
+            console.warn(`[makeGoAiBotMove] no legal move in emergency fallback → resign, game=${game.id}`);
+            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+            return;
         }
         if (!result.isValid) {
             throw new Error(

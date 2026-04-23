@@ -43,19 +43,19 @@ function getCaptureScoreFloatVisual(cellSize: number, points: number) {
             ? 'url(#capture-score-gradient-low)'
             : tier === 'high'
               ? 'url(#capture-score-gradient-critical)'
-              : 'url(#capture-score-gradient)';
+              : 'url(#capture-score-gradient-mid)';
     const filterUrl =
         tier === 'low'
             ? 'url(#capture-score-premium-low)'
             : tier === 'high'
               ? 'url(#capture-score-premium-critical)'
-              : 'url(#capture-score-premium)';
+              : 'url(#capture-score-premium-mid)';
     const innerClassName =
         tier === 'low'
             ? 'capture-points-float-inner capture-points-float-inner--low'
             : tier === 'high'
               ? 'capture-points-float-inner capture-points-float-inner--critical'
-              : 'capture-points-float-inner';
+              : 'capture-points-float-inner capture-points-float-inner--mid';
     return { tier, fontSize, strokeWidth, stroke, fillUrl, filterUrl, innerClassName };
 }
 
@@ -1650,6 +1650,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <stop offset="78%" stopColor="#059669" />
                         <stop offset="100%" stopColor="#064e3b" />
                     </linearGradient>
+                    <linearGradient id="capture-score-gradient-mid" x1="12%" y1="0%" x2="88%" y2="100%">
+                        <stop offset="0%" stopColor="#f0fdf4" />
+                        <stop offset="20%" stopColor="#86efac" />
+                        <stop offset="45%" stopColor="#22c55e" />
+                        <stop offset="72%" stopColor="#16a34a" />
+                        <stop offset="100%" stopColor="#14532d" />
+                    </linearGradient>
                     <linearGradient id="capture-score-gradient-low" x1="20%" y1="0%" x2="80%" y2="100%">
                         <stop offset="0%" stopColor="#f0fdfa" />
                         <stop offset="28%" stopColor="#99f6e4" />
@@ -1670,6 +1677,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <feComposite in="colWide" in2="blurWide" operator="in" result="glowWide" />
                         <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blurCore" />
                         <feFlood floodColor="#6ee7b7" floodOpacity="0.75" result="colCore" />
+                        <feComposite in="colCore" in2="blurCore" operator="in" result="glowCore" />
+                        <feMerge>
+                            <feMergeNode in="glowWide" />
+                            <feMergeNode in="glowCore" />
+                            <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                    </filter>
+                    <filter id="capture-score-premium-mid" x="-130%" y="-130%" width="360%" height="360%" colorInterpolationFilters="sRGB">
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="6.3" result="blurWide" />
+                        <feFlood floodColor="#10b981" floodOpacity="0.5" result="colWide" />
+                        <feComposite in="colWide" in2="blurWide" operator="in" result="glowWide" />
+                        <feGaussianBlur in="SourceAlpha" stdDeviation="2.5" result="blurCore" />
+                        <feFlood floodColor="#6ee7b7" floodOpacity="0.88" result="colCore" />
                         <feComposite in="colCore" in2="blurCore" operator="in" result="glowCore" />
                         <feMerge>
                             <feMergeNode in="glowWide" />

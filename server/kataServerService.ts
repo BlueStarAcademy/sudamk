@@ -136,7 +136,7 @@ export interface GenerateKataServerMoveParams {
 
 /**
  * Kata 한 번 호출로 후보 좌표 목록 반환 (move → bestMove 순, PASS 제외).
- * PASS·빈 응답·전부 파싱 실패 시 `[-1,-1]` 폴백 없이 예외를 던져 원인 추적이 가능하게 한다.
+ * PASS·빈 응답이면 빈 배열을 반환하고, 호출 측 폴백(합법수 탐색/종료 판단)으로 넘긴다.
  */
 export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {
     if (!KATA_SERVER_URL) {
@@ -155,7 +155,6 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
     }
     const moves = toKataServerMoves(moveHistory, boardSize);
     const isFirstMove = moves.length < 2;
-    const historyHasPass = moveHistory.some((m) => m.x < 0 || m.y < 0);
 
     const body: Record<string, unknown> = {
         level,
@@ -166,10 +165,9 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
         moves,
         firstMove: isFirstMove,
         player,
+        // 수순 내 PASS 유무와 무관하게 항상 PASS 금지 요청
+        allowPass: false,
     };
-    if (!historyHasPass) {
-        (body as any).allowPass = false;
-    }
 
     const url = `${KATA_SERVER_URL}/move`;
     const headers: Record<string, string> = {
@@ -217,9 +215,11 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
         }
 
         if (gtps.length === 0) {
-            throw new Error(
+            console.warn(
                 `[KataServer] /move returned no board coordinate (PASS or empty). move=${reported ?? 'n/a'} bestMove=${best ?? 'n/a'} strategy=${data.strategy ?? 'n/a'} level=${level} boardSize=${boardSize} moves=${moves.length} player=${player} gameId=${gameId ?? 'n/a'}`,
             );
+            await sleep(KATA_APPLY_MOVE_DELAY_MS);
+            return [];
         }
 
         const points: Point[] = [];

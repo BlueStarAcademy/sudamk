@@ -81,6 +81,13 @@ function runGuildKvExclusive<T>(guildId: string, fn: () => Promise<T>): Promise<
     return m.run(fn);
 }
 
+type GuildWarDataCacheEntry = {
+    expiresAt: number;
+    response?: HandleActionResult;
+};
+const guildWarDataCacheByUser = new Map<string, GuildWarDataCacheEntry>();
+const GUILD_WAR_DATA_CACHE_MS = 5000;
+
 /**
  * GET_GUILD_INFO는 요청 시작 시점의 guilds 스냅샷으로 멤버만 동기화한 뒤 저장한다.
  * 그 사이 출석 마일스톤 수령·보스전·체크인 등으로 KV가 갱신되면 오래된 객체로 덮어써
@@ -2221,6 +2228,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         
         case 'GET_GUILD_WAR_DATA': {
             if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
+            const cacheKey = effectiveUserId;
+            const cached = guildWarDataCacheByUser.get(cacheKey);
+            const cacheNow = Date.now();
+            if (cached?.response && cached.expiresAt > cacheNow) {
+                return cached.response;
+            }
             
             let guilds = await db.getKV<Record<string, Guild>>('guilds') || {};
             let guild = guilds[user.guildId];
@@ -2466,7 +2479,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
             }
 
-            return {
+            const response: HandleActionResult = {
                 clientResponse: {
                     activeWar,
                     guilds: guildsForResponse,
@@ -2484,6 +2497,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     guildWarRewardClaimable,
                 },
             };
+            guildWarDataCacheByUser.set(cacheKey, {
+                expiresAt: Date.now() + GUILD_WAR_DATA_CACHE_MS,
+                response,
+            });
+            return response;
         }
 
         case 'GET_MY_GUILD_WAR_ATTEMPT_LOG': {
