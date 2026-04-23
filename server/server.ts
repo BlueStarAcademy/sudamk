@@ -121,10 +121,15 @@ const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 10000 : 8000; // 8~10
 const SERVER_MAINTENANCE_KV_KEY = 'serverMaintenanceMode';
 const DEFAULT_MAINTENANCE_MESSAGE = '서버 점검 중입니다. 점검 종료 후 다시 접속해주세요.';
 
-async function rejectIfMaintenanceModeEnabled(res: express.Response, endpointLabel: string): Promise<boolean> {
+async function rejectIfMaintenanceModeEnabled(
+    res: express.Response,
+    endpointLabel: string,
+    options?: { allowDuringMaintenance?: boolean }
+): Promise<boolean> {
     try {
         const maintenance = await db.getKV<{ enabled?: boolean; message?: string }>(SERVER_MAINTENANCE_KV_KEY);
         if (!maintenance?.enabled) return false;
+        if (options?.allowDuringMaintenance) return false;
         res.status(503).json({
             message: typeof maintenance.message === 'string' && maintenance.message.trim()
                 ? maintenance.message.trim()
@@ -2967,8 +2972,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             console.log('[/api/auth/register] Creating default user...');
             let newUser = createDefaultUser(`user-${randomUUID()}`, trimmedUsername, tempNickname, false);
             (newUser as { email?: string | null }).email = trimmedEmail;
-            (newUser as { onboardingTutorialPendingFirstHome?: boolean }).onboardingTutorialPendingFirstHome = true;
-            delete (newUser as { onboardingTutorialPhase?: number }).onboardingTutorialPhase;
 
             console.log('[/api/auth/register] Resetting and generating quests...');
             newUser = await resetAndGenerateQuests(newUser);
@@ -3058,9 +3061,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     app.post('/api/auth/login', (req, res, next) => {
         (async () => {
-        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/login')) {
-            return;
-        }
         let responseSent = false;
         console.log('[/api/auth/login] Received request');
         console.log('[/api/auth/login] Request body type:', typeof req.body, req.body ? '(present)' : '(missing)');
@@ -3309,6 +3309,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // TypeScript가 user가 null이 아님을 인식하도록 타입 단언
             // (위의 체크에서 이미 null이 아님을 확인했으므로 안전함)
             let userForLogin: types.User = user;
+            if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/login', { allowDuringMaintenance: !!userForLogin.isAdmin })) {
+                return;
+            }
             const loginNow = Date.now();
             if (!userForLogin.isAdmin && userForLogin.connectionBanUntil && userForLogin.connectionBanUntil > loginNow) {
                 const remainingMs = userForLogin.connectionBanUntil - loginNow;
@@ -3806,9 +3809,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     // 카카오 로그인 URL 생성
     app.get('/api/auth/kakao/url', async (req, res) => {
-        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/kakao/url')) {
-            return;
-        }
         try {
             const url = getKakaoAuthUrl();
             res.json({ url });
@@ -3820,9 +3820,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     // 카카오 로그인 콜백 처리
     app.post('/api/auth/kakao/callback', async (req, res) => {
-        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/kakao/callback')) {
-            return;
-        }
         try {
             const { code } = req.body;
             if (!code) {
@@ -3845,7 +3842,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 if (!user) {
                     return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
                 }
+                if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/kakao/callback', { allowDuringMaintenance: !!user.isAdmin })) {
+                    return;
+                }
             } else {
+                if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/kakao/callback')) {
+                    return;
+                }
                 // 신규 사용자 회원가입
                 // 임시 닉네임 생성 (나중에 변경 가능)
                 const tempNickname = `user_${randomUUID().slice(0, 8)}`;
@@ -3890,9 +3893,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     // 구글 로그인 URL 생성
     app.get('/api/auth/google/url', async (req, res) => {
-        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/google/url')) {
-            return;
-        }
         try {
             const url = getGoogleAuthUrl();
             res.json({ url });
@@ -3904,9 +3904,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     // 구글 로그인 콜백 처리
     app.post('/api/auth/google/callback', async (req, res) => {
-        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/google/callback')) {
-            return;
-        }
         try {
             const { code } = req.body;
             if (!code) {
@@ -3929,7 +3926,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 if (!user) {
                     return res.status(404).json({ message: '사용자를 찾을 수 없습니다.' });
                 }
+                if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/google/callback', { allowDuringMaintenance: !!user.isAdmin })) {
+                    return;
+                }
             } else {
+                if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/google/callback')) {
+                    return;
+                }
                 // 신규 사용자 회원가입
                 const tempNickname = `user_${randomUUID().slice(0, 8)}`;
                 const username = `google_${googleUserInfo.id}`;
@@ -4098,8 +4101,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 user.staffNicknameDisplayEligibility = false;
             }
             if (!user.isAdmin && hadTemporaryNickname) {
-                // 최초 가입 닉네임 확정 직후 홈 진입 시 튜토리얼을 바로 시작한다.
-                (user as types.User & { onboardingTutorialPendingFirstHome?: boolean }).onboardingTutorialPendingFirstHome = true;
+                // 튜토리얼 비활성화 상태: 닉네임 확정 시 추가 튜토리얼 플래그를 세팅하지 않는다.
             }
 
             if (bodyAvatarId != null && String(bodyAvatarId).trim() !== '') {

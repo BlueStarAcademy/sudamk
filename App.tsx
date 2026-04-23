@@ -14,7 +14,6 @@ import AdInterstitial from './components/ads/AdInterstitial.js';
 import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
 import QuickAccessSidebar from './components/QuickAccessSidebar.js';
-import OnboardingTutorialOverlay from './components/onboarding/OnboardingTutorialOverlay.js';
 import MainBackgroundLayer from './components/MainBackgroundLayer.js';
 import {
     NATIVE_MOBILE_SHELL_MAX_WIDTH,
@@ -437,7 +436,6 @@ const AppContent: React.FC = () => {
                     </div>
                 </div>
             )}
-            {currentUser ? <OnboardingTutorialOverlay /> : null}
 
             {usePortraitFirstShell ? (
                 <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">

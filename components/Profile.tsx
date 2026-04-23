@@ -635,6 +635,7 @@ const Profile: React.FC<ProfileProps> = () => {
     useEffect(() => {
         if (beginOnboardingFirstHomeRef.current) return;
         if (!handlers?.handleAction || !currentUserWithStatus) return;
+        if (!isOnboardingTutorialActive(currentUserWithStatus)) return;
         if (currentRoute.view !== 'profile' || profileTab !== 'home') return;
         const pending = (currentUserWithStatus as User & { onboardingTutorialPendingFirstHome?: boolean })
             .onboardingTutorialPendingFirstHome;

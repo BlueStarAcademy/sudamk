@@ -42,10 +42,8 @@ export function parseOnboardingTutorialPhase(raw: unknown): number | null {
     return null;
 }
 
-export function isOnboardingTutorialActive(user: User | null | undefined): boolean {
-    if (!user) return false;
-    const p = parseOnboardingTutorialPhase(user.onboardingTutorialPhase as unknown);
-    return p != null && p >= 0 && p < ONBOARDING_PHASE_COMPLETE;
+export function isOnboardingTutorialActive(_user: User | null | undefined): boolean {
+    return false;
 }
 
 export function getOnboardingCombinedLevel(user: User): number {
@@ -342,31 +340,9 @@ export function canAdvanceOnboardingTutorialPhase(user: User, target: number): b
  */
 export function applyOnboardingArenaEntranceTutorialLocks(
     merged: Record<ArenaEntranceKey, boolean>,
-    user: User,
+    _user: User,
 ): Record<ArenaEntranceKey, boolean> {
-    if (!isOnboardingTutorialActive(user)) return merged;
-    const p = user.onboardingTutorialPhase ?? 0;
-    const out: Record<ArenaEntranceKey, boolean> = { ...merged };
-
-    const lockTowerStrategicPlayfulAdventure = () => {
-        out.tower = false;
-        out.strategicLobby = false;
-        out.playfulLobby = false;
-        out.adventure = false;
-    };
-
-    if (p < 9) {
-        lockTowerStrategicPlayfulAdventure();
-        out.championship = false;
-    } else if (p < 14) {
-        lockTowerStrategicPlayfulAdventure();
-        out.championship = merged.championship;
-    } else {
-        return { ...merged };
-    }
-
-    out.singleplayer = merged.singleplayer;
-    return out;
+    return { ...merged };
 }
 
 export type OnboardingTutorialStepCopy = {
