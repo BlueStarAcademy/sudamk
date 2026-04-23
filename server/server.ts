@@ -118,6 +118,26 @@ const GET_ALL_ACTIVE_GAMES_INTERVAL_MS = isRailwayOrProd ? 45000 : 30000; // Rai
 const MAINLOOP_DB_TIMEOUT_MS = isRailwayOrProd ? 18000 : 5000;
 // updateGameStates: 사이클당 1게임 처리, 내부 2.5초 데드라인. 이벤트 루프 지연 시를 위해 메인루프 타임아웃은 여유있게
 const MAINLOOP_UPDATE_GAMES_TIMEOUT_MS = isRailwayOrProd ? 10000 : 8000; // 8~10초 (updateGameStates 내부 2.5초와 조화, 타임아웃 방지)
+const SERVER_MAINTENANCE_KV_KEY = 'serverMaintenanceMode';
+const DEFAULT_MAINTENANCE_MESSAGE = '서버 점검 중입니다. 점검 종료 후 다시 접속해주세요.';
+
+async function rejectIfMaintenanceModeEnabled(res: express.Response, endpointLabel: string): Promise<boolean> {
+    try {
+        const maintenance = await db.getKV<{ enabled?: boolean; message?: string }>(SERVER_MAINTENANCE_KV_KEY);
+        if (!maintenance?.enabled) return false;
+        res.status(503).json({
+            message: typeof maintenance.message === 'string' && maintenance.message.trim()
+                ? maintenance.message.trim()
+                : DEFAULT_MAINTENANCE_MESSAGE,
+            maintenance: true,
+            endpoint: endpointLabel,
+        });
+        return true;
+    } catch (err) {
+        console.warn(`[${endpointLabel}] Failed to read maintenance mode state:`, (err as Error)?.message || err);
+        return false;
+    }
+}
 
 // 타임아웃 연속 발생 추적 (크래시 방지)
 let consecutiveTimeouts = 0;
@@ -2859,6 +2879,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     });
 
     app.post('/api/auth/register', async (req, res) => {
+        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/register')) {
+            return;
+        }
         try {
             // 데이터베이스 연결 상태 확인
             const dbConnected = await db.isDatabaseConnected();
@@ -3035,6 +3058,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     app.post('/api/auth/login', (req, res, next) => {
         (async () => {
+        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/login')) {
+            return;
+        }
         let responseSent = false;
         console.log('[/api/auth/login] Received request');
         console.log('[/api/auth/login] Request body type:', typeof req.body, req.body ? '(present)' : '(missing)');
@@ -3779,7 +3805,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     });
 
     // 카카오 로그인 URL 생성
-    app.get('/api/auth/kakao/url', (req, res) => {
+    app.get('/api/auth/kakao/url', async (req, res) => {
+        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/kakao/url')) {
+            return;
+        }
         try {
             const url = getKakaoAuthUrl();
             res.json({ url });
@@ -3791,6 +3820,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     // 카카오 로그인 콜백 처리
     app.post('/api/auth/kakao/callback', async (req, res) => {
+        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/kakao/callback')) {
+            return;
+        }
         try {
             const { code } = req.body;
             if (!code) {
@@ -3857,7 +3889,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     });
 
     // 구글 로그인 URL 생성
-    app.get('/api/auth/google/url', (req, res) => {
+    app.get('/api/auth/google/url', async (req, res) => {
+        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/google/url')) {
+            return;
+        }
         try {
             const url = getGoogleAuthUrl();
             res.json({ url });
@@ -3869,6 +3904,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
     // 구글 로그인 콜백 처리
     app.post('/api/auth/google/callback', async (req, res) => {
+        if (await rejectIfMaintenanceModeEnabled(res, '/api/auth/google/callback')) {
+            return;
+        }
         try {
             const { code } = req.body;
             if (!code) {

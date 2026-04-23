@@ -31,7 +31,7 @@ import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { calculateUserEffects } from '../services/effectService.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
-import { aiUserId, OTHER_DEVICE_LOGIN_SHARED_PC_REASON } from '../constants/auth.js';
+import { aiUserId, OTHER_DEVICE_LOGIN_MAINTENANCE_REASON, OTHER_DEVICE_LOGIN_SHARED_PC_REASON } from '../constants/auth.js';
 import {
     mergeArenaEntranceAvailability,
     ARENA_ENTRANCE_CLOSED_MESSAGE,
@@ -2629,8 +2629,11 @@ export const useApp = () => {
                                   ).length;
                         const remainingTurns = survivalTurns - whiteTurnsPlayed;
 
-                        const whiteTarget = updatedGame.effectiveCaptureTargets?.[Player.White];
-                        const hasWhiteTarget = whiteTarget !== undefined && whiteTarget !== 999;
+                        const whiteTargetRaw = Number(updatedGame.effectiveCaptureTargets?.[Player.White]);
+                        const hasWhiteTarget =
+                            Number.isFinite(whiteTargetRaw) &&
+                            whiteTargetRaw > 0 &&
+                            whiteTargetRaw !== 999;
                         const whiteCaptures = updatedGame.captures?.[Player.White] ?? 0;
                         
                         console.log(`[handleAction] ${actionTypeName} - Survival Go check: whiteTurnsPlayed=${whiteTurnsPlayed}, survivalTurns=${survivalTurns}, remaining=${remainingTurns}, whiteCaptures=${whiteCaptures}, whiteTarget=${whiteTarget}`);
@@ -2697,8 +2700,11 @@ export const useApp = () => {
                                 : blackTurnLimit;
 
                         if (blackMoves >= effectiveLimit) {
-                            const blackTarget = updatedGame.effectiveCaptureTargets?.[Player.Black];
-                            const hasBlackTarget = blackTarget !== undefined && blackTarget !== 999;
+                            const blackTargetRaw = Number(updatedGame.effectiveCaptureTargets?.[Player.Black]);
+                            const hasBlackTarget =
+                                Number.isFinite(blackTargetRaw) &&
+                                blackTargetRaw > 0 &&
+                                blackTargetRaw !== 999;
                             const blackCaptures = updatedGame.captures?.[Player.Black] ?? 0;
 
                             // 흑이 목표 따낸 돌을 이미 달성한 경우에는 턴 제한 패배를 적용하지 않고,
@@ -7018,6 +7024,22 @@ export const useApp = () => {
                                 }
                                 setCurrentUser(null);
                                 setShowOtherDeviceLoginModal(false);
+                                replaceAppHash('#/login');
+                                return;
+                            }
+                            if (message.payload?.reason === OTHER_DEVICE_LOGIN_MAINTENANCE_REASON) {
+                                try {
+                                    sessionStorage.removeItem('currentUser');
+                                } catch {
+                                    // ignore
+                                }
+                                setCurrentUser(null);
+                                setShowOtherDeviceLoginModal(false);
+                                const maintenanceMsg =
+                                    typeof message.payload?.message === 'string' && message.payload.message.trim()
+                                        ? message.payload.message
+                                        : '서버 점검 중입니다. 잠시 후 다시 접속해주세요.';
+                                setServerReconnectNotice(maintenanceMsg);
                                 replaceAppHash('#/login');
                                 return;
                             }

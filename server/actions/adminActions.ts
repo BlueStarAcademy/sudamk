@@ -15,7 +15,7 @@ import { getStartOfDayKST, getTodayKSTDateString } from '../../utils/timeUtils.j
 import { clearAiSession } from '../aiSessionManager.js';
 import { getCachedUser, updateUserCache, removeUserFromCache } from '../gameCache.js';
 import { invalidateUserCache } from '../db.js';
-import { ADMIN_USER_ID } from '../../shared/constants/auth.js';
+import { ADMIN_USER_ID, OTHER_DEVICE_LOGIN_MAINTENANCE_REASON } from '../../shared/constants/auth.js';
 import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
 import { applyVipDurationExtensionToUser } from '../../shared/utils/vipDurationGrant.js';
 import { mergeArenaEntranceAvailability, type ArenaEntranceKey, ARENA_ENTRANCE_KEYS } from '../../constants/arenaEntrance.js';
@@ -34,6 +34,7 @@ type HandleActionResult = {
 
 const ADMIN_MAX_INVENTORY_ITEMS = 220;
 const ADMIN_EQUIPMENT_SLOTS: EquipmentSlot[] = ['fan', 'board', 'top', 'bottom', 'bowl', 'stones'];
+const SERVER_MAINTENANCE_KV_KEY = 'serverMaintenanceMode';
 
 function sanitizeAdminInventoryList(raw: unknown): InventoryItem[] {
     if (!Array.isArray(raw)) return [];
@@ -415,6 +416,60 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             
             await createAdminLog(user, 'force_logout', targetUser, backupData);
             return {};
+        }
+        case 'ADMIN_SET_MAINTENANCE_MODE': {
+            const enabled = payload?.enabled === true;
+            const kickAllUsers = payload?.kickAllUsers !== false;
+            const message =
+                typeof payload?.message === 'string' && payload.message.trim()
+                    ? payload.message.trim().slice(0, 200)
+                    : '서버 점검 중입니다. 잠시 후 다시 접속해주세요.';
+
+            await db.setKV(SERVER_MAINTENANCE_KV_KEY, {
+                enabled,
+                message,
+                updatedAt: Date.now(),
+                updatedByUserId: user.id,
+                updatedByNickname: user.nickname,
+            });
+
+            if (enabled && kickAllUsers) {
+                const logoutTargetUserIds = Object.keys(volatileState.userConnections).filter((uid) => uid !== user.id);
+                try {
+                    const { sendToUser } = await import('../socket.js');
+                    for (const uid of logoutTargetUserIds) {
+                        sendToUser(uid, {
+                            type: 'OTHER_DEVICE_LOGIN',
+                            payload: {
+                                reason: OTHER_DEVICE_LOGIN_MAINTENANCE_REASON,
+                                message,
+                            },
+                        });
+                    }
+                } catch (socketErr) {
+                    console.warn('[ADMIN_SET_MAINTENANCE_MODE] Failed to notify users:', socketErr);
+                }
+
+                for (const uid of logoutTargetUserIds) {
+                    releaseIpBindingForUser(volatileState, uid);
+                    delete volatileState.userConnections[uid];
+                    delete volatileState.userStatuses[uid];
+                }
+                broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+            }
+
+            await createAdminLog(user, 'set_maintenance_mode', { id: '__maintenance__', nickname: 'server' }, {
+                maintenanceEnabled: enabled,
+                kickAllUsers: enabled && kickAllUsers,
+                message,
+            });
+            return {
+                clientResponse: {
+                    maintenanceEnabled: enabled,
+                    kickedUsers: enabled && kickAllUsers,
+                    message,
+                },
+            };
         }
         case 'ADMIN_SEND_MAIL': {
             const { targetSpecifier, targetUserIds, title, message, expiresInDays, attachments } = payload as {

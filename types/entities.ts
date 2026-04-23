@@ -1199,6 +1199,7 @@ export type AdminLog = {
     | 'update_user_inventory'
     | 'append_inventory_items'
     | 'update_reward_config'
+    | 'set_maintenance_mode'
     | 'grant_vip_duration';
   backupData:
     | Partial<User>
@@ -1210,6 +1211,7 @@ export type AdminLog = {
     | { postId: string; title: string }
     | { oldGuildId: string | undefined }
     | { before: Record<string, number>; after: Record<string, number> }
+    | { maintenanceEnabled: boolean; kickAllUsers: boolean; message: string }
     | {
           scope: 'single' | 'all';
           durationDays: number;

@@ -1,6 +1,7 @@
 import { AVATAR_POOL } from './ui.js';
 
 export const OTHER_DEVICE_LOGIN_SHARED_PC_REASON = 'shared_pc_ip' as const;
+export const OTHER_DEVICE_LOGIN_MAINTENANCE_REASON = 'maintenance_mode' as const;
 
 export const aiUserId = 'ai-player-01';
 

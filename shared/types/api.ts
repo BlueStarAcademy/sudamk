@@ -335,6 +335,7 @@ export type ServerAction =
     | { type: 'ADMIN_SET_SINGLE_PLAYER_STAGES', payload: { stages: SinglePlayerStageInfo[] } }
     | { type: 'ADMIN_SAVE_USER_INVENTORY_EQUIPMENT', payload: { targetUserId: string; inventory: InventoryItem[]; equipment: Equipment } }
     | { type: 'ADMIN_APPEND_INVENTORY_ITEMS', payload: { targetUserId: string; equipmentAdds?: { name: string; quantity: number }[]; stackableAdds?: { name: string; quantity: number; type: InventoryItemType }[] } }
+    | { type: 'ADMIN_SET_MAINTENANCE_MODE', payload: { enabled: boolean; kickAllUsers?: boolean; message?: string } }
     | {
           type: 'ADMIN_GRANT_VIP_DURATION';
           payload: {

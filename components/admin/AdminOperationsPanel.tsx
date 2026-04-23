@@ -21,6 +21,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
     const [isGameManagerOpen, setIsGameManagerOpen] = useState(false);
     const [gameSearchQuery, setGameSearchQuery] = useState('');
     const [mobileTab, setMobileTab] = useState<OpsMobileTab>('ops');
+    const [maintenanceEnabled, setMaintenanceEnabled] = useState(false);
 
     const activeLiveGames = liveGames.filter((game) => game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest');
     const searchedLiveGames = useMemo(() => {
@@ -93,6 +94,38 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
         }
     };
 
+    const handleEnableMaintenance = () => {
+        if (
+            window.confirm(
+                '점검 모드를 시작하면 현재 접속 유저(관리자 본인 제외)가 즉시 로그아웃되고 신규 로그인도 차단됩니다. 계속할까요?'
+            )
+        ) {
+            onAction({
+                type: 'ADMIN_SET_MAINTENANCE_MODE',
+                payload: {
+                    enabled: true,
+                    kickAllUsers: true,
+                    message: '서버 점검 중입니다. 점검 종료 후 다시 접속해주세요.',
+                },
+            });
+            setMaintenanceEnabled(true);
+        }
+    };
+
+    const handleDisableMaintenance = () => {
+        if (window.confirm('점검 모드를 해제하고 로그인 차단을 풀까요?')) {
+            onAction({
+                type: 'ADMIN_SET_MAINTENANCE_MODE',
+                payload: {
+                    enabled: false,
+                    kickAllUsers: false,
+                    message: '',
+                },
+            });
+            setMaintenanceEnabled(false);
+        }
+    };
+
     const sectionClass = `${adminCard} space-y-4`;
     const recentLogs = useMemo(() => adminLogs.slice(0, 20), [adminLogs]);
     const rewardConfigLogs = useMemo(
@@ -150,6 +183,24 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
             <Button onClick={handleGuildWarRechargeToday} colorScheme="orange" variant="outline" className="w-full sm:w-auto">
                 내 길드전 오늘 도전횟수 충전
             </Button>
+        </section>
+    );
+
+    const maintenanceSection = (
+        <section className={sectionClass}>
+            <h2 className={adminCardTitle}>서버 점검 모드</h2>
+            <p className="text-sm text-gray-400">점검 모드 ON 시 현재 접속 유저를 로그아웃하고 신규 로그인(일반/소셜)을 차단합니다.</p>
+            <div className="flex flex-wrap gap-2">
+                <Button onClick={handleEnableMaintenance} colorScheme="red" className="w-full sm:w-auto">
+                    전체 로그아웃 + 점검 모드 시작
+                </Button>
+                <Button onClick={handleDisableMaintenance} colorScheme="green" variant="outline" className="w-full sm:w-auto">
+                    점검 모드 해제
+                </Button>
+            </div>
+            <p className={`text-xs ${maintenanceEnabled ? 'text-red-300' : 'text-emerald-300'}`}>
+                현재 패널 상태: {maintenanceEnabled ? '점검 모드 ON' : '점검 모드 OFF'}
+            </p>
         </section>
     );
 
@@ -244,6 +295,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
                         <>
                             {championshipSection}
                             {tournamentSection}
+                            {maintenanceSection}
                             {liveGamesSection}
                             {logsSection}
                         </>
@@ -255,6 +307,7 @@ const AdminOperationsPanel: React.FC<AdminOperationsPanelProps> = ({ liveGames, 
             <div className={`hidden lg:flex lg:flex-col ${adminSectionGap}`}>
                 {championshipSection}
                 {tournamentSection}
+                {maintenanceSection}
                 {guildWarTestSection}
                 {liveGamesSection}
                 {logsSection}
