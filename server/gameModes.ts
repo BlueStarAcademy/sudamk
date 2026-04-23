@@ -1093,7 +1093,31 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                     game.gameStatus === 'capture_bidding' ||
                     game.gameStatus === 'capture_reveal' ||
                     game.gameStatus === 'capture_tiebreaker');
-            if (!isPVEGame || needsRevealTransition || needsMissileOrScanTransition || needsPveServerGoAiTick) {
+            // 싱글/타워 등 PVE는 기본적으로 메인 루프에서 제외되나, 주사위·도둑은 update*State / AI 턴이
+            // 여기서 돌지 않으면 새로고침·WS 공백 시 굴림 애니·연속 착수가 영구 정지한다.
+            const pveDiceThiefCurrentPid =
+                game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            const pveDiceThiefIsAiTurn =
+                pveDiceThiefCurrentPid === aiUserId ||
+                (!!pveDiceThiefCurrentPid && String(pveDiceThiefCurrentPid).startsWith('dungeon-bot-'));
+            const needsPveDiceThiefPlayfulTick =
+                isPVEGame &&
+                ((game.mode === types.GameMode.Dice &&
+                    (game.gameStatus === 'dice_rolling_animating' ||
+                        game.gameStatus === 'dice_turn_rolling_animating' ||
+                        (pveDiceThiefIsAiTurn &&
+                            (game.gameStatus === 'dice_rolling' || game.gameStatus === 'dice_placing')))) ||
+                    (game.mode === types.GameMode.Thief &&
+                        (game.gameStatus === 'thief_rolling_animating' ||
+                            (pveDiceThiefIsAiTurn &&
+                                (game.gameStatus === 'thief_rolling' || game.gameStatus === 'thief_placing')))));
+            if (
+                !isPVEGame ||
+                needsRevealTransition ||
+                needsMissileOrScanTransition ||
+                needsPveServerGoAiTick ||
+                needsPveDiceThiefPlayfulTick
+            ) {
                 multiPlayerGames.push(game);
             }
         }

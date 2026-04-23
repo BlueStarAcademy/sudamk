@@ -1268,36 +1268,38 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                             Object.assign(game, freshForInline);
                         }
                         const pidBeforeInline = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                        const currentAfterRefresh = game.currentPlayer;
                         const aiStillTurn =
-                            game.currentPlayer !== types.Player.None &&
-                            (pidBeforeInline === aiUserIdInline || (pidBeforeInline && String(pidBeforeInline).startsWith('dungeon-bot-')));
+                            (currentAfterRefresh === types.Player.Black || currentAfterRefresh === types.Player.White) &&
+                            (pidBeforeInline === aiUserIdInline ||
+                                (pidBeforeInline && String(pidBeforeInline).startsWith('dungeon-bot-')));
                         const stillPlayable =
                             game.gameStatus === 'playing' ||
                             game.gameStatus === 'hidden_placing';
-                        if (!aiStillTurn || !stillPlayable) {
-                            game.aiTurnStartTime = undefined;
-                            return;
-                        }
-                        const moveBeforeInline = game.moveHistory?.length ?? 0;
-                        await makeAiMove(game);
-                        const aiAdvanced = (game.moveHistory?.length ?? 0) > moveBeforeInline;
-                        if (aiAdvanced) {
-                            game.aiTurnStartTime = undefined;
-                            if (!game.turnStartTime) game.turnStartTime = Date.now();
+                        if (aiStillTurn && stillPlayable) {
+                            const moveBeforeInline = game.moveHistory?.length ?? 0;
+                            await makeAiMove(game);
+                            const aiAdvanced = (game.moveHistory?.length ?? 0) > moveBeforeInline;
+                            if (aiAdvanced) {
+                                game.aiTurnStartTime = undefined;
+                                if (!game.turnStartTime) game.turnStartTime = Date.now();
+                            } else {
+                                game.aiTurnStartTime = Date.now() + 50;
+                            }
+                            updateGameCache(game);
+                            await db.saveGame(game);
+                            const payloadAfterAi =
+                                game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                                    ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                                    : game;
+                            broadcastToGameParticipants(
+                                gameIdInlineAi,
+                                { type: 'GAME_UPDATE', payload: { [gameIdInlineAi]: payloadAfterAi } },
+                                game
+                            );
                         } else {
-                            game.aiTurnStartTime = Date.now() + 50;
+                            game.aiTurnStartTime = undefined;
                         }
-                        updateGameCache(game);
-                        await db.saveGame(game);
-                        const payloadAfterAi =
-                            game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
-                                ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
-                                : game;
-                        broadcastToGameParticipants(
-                            gameIdInlineAi,
-                            { type: 'GAME_UPDATE', payload: { [gameIdInlineAi]: payloadAfterAi } },
-                            game
-                        );
                     } catch (e: any) {
                         console.error('[GameActions] Inline adventure/guildwar AI move failed:', e?.message);
                         game.aiTurnStartTime = Date.now() + 1000;

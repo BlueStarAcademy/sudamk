@@ -19,11 +19,11 @@ const createMissionLevels = (
 export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
     {
         id: 'mission_attendance',
-        name: '출석하기',
-        description: '바둑학원에 등원하기',
+        name: '[공통] 출석하기',
+        description: '즐거운 바둑학원에 출석',
         unlockStageId: '입문-1',
         rewardType: 'gold',
-        image: '/images/single/Mission1.png',
+        image: '/images/single/Mission1.webp',
         levels: createMissionLevels(
             [5, 5, 5, 5, 5, 5, 4.5, 4, 3.5, 3], // 생산속도 (분)
             [5, 5, 5, 5, 5, 10, 10, 10, 10, 10], // 생산량
@@ -33,11 +33,11 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
     },
     {
         id: 'mission_complete_game',
-        name: '바둑한판 완성',
-        description: '계가까지 바둑두기',
+        name: '[입문반] 바둑한판',
+        description: '바둑한판을 끝까지 두는 실력',
         unlockStageId: '입문-20',
         rewardType: 'gold',
-        image: '/images/single/Mission2.png',
+        image: '/images/single/Mission2.webp',
         levels: createMissionLevels(
             [5, 5, 5, 5, 5, 5, 4.5, 4, 3.5, 3],
             [10, 10, 10, 10, 10, 20, 20, 20, 20, 20],
@@ -47,11 +47,11 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
     },
     {
         id: 'mission_rival_match',
-        name: '맞수와 대국',
-        description: '최선을 다해 승부하기',
+        name: '[초급반] 라이벌대국',
+        description: '라이벌과 경쟁하며 성장',
         unlockStageId: '초급-20',
         rewardType: 'gold',
-        image: '/images/single/Mission3.png',
+        image: '/images/single/Mission3.webp',
         levels: createMissionLevels(
             [5, 5, 5, 5, 5, 5, 4.5, 4, 3.5, 3],
             [20, 20, 20, 20, 20, 20, 30, 30, 30, 30],
@@ -61,11 +61,11 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
     },
     {
         id: 'mission_study_joseki',
-        name: '정석/포석 공부',
-        description: '정석/포석 익히기',
+        name: '[중급반] 심화학습',
+        description: '깊이있는 수를 배우는 실력',
         unlockStageId: '중급-20',
         rewardType: 'diamonds',
-        image: '/images/single/Mission4.png',
+        image: '/images/single/Mission4.webp',
         levels: createMissionLevels(
             [60, 58, 56, 54, 52, 50, 47, 44, 41, 35],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -75,11 +75,11 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
     },
     {
         id: 'mission_league',
-        name: '리그전참가',
-        description: '집중하여 연속 바둑두기',
+        name: '[고급반] 리그전참여',
+        description: '시합방식을 익히며 대회참여',
         unlockStageId: '고급-20',
         rewardType: 'gold',
-        image: '/images/single/Mission5.png',
+        image: '/images/single/Mission5.webp',
         levels: createMissionLevels(
             [5, 5, 5, 5, 5, 5, 4.5, 4, 3.5, 3],
             [50, 50, 50, 50, 50, 50, 50, 50, 100, 100],
@@ -89,11 +89,11 @@ export const SINGLE_PLAYER_MISSIONS: SinglePlayerMissionInfo[] = [
     },
     {
         id: 'mission_ai_match',
-        name: '인공지능대국',
-        description: '배울점을 끊임없이 찾기',
+        name: '[유단자] 인공지능대국',
+        description: 'AI 수읽기와 대응연습',
         unlockStageId: '유단자-20',
         rewardType: 'diamonds',
-        image: '/images/single/Mission6.png',
+        image: '/images/single/Mission6.webp',
         levels: createMissionLevels(
             [60, 58, 56, 54, 52, 50, 47, 44, 41, 35],
             [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],

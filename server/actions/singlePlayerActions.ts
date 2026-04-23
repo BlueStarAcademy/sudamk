@@ -18,6 +18,13 @@ import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/const
 import { ONBOARDING_PHASE_COMPLETE } from '../../shared/constants/onboardingTutorial.js';
 import { updateQuestProgress } from '../questService.js';
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
+import {
+    resolveSinglePlayerHasAutoScoringTurns,
+    resolveSinglePlayerMixedModes,
+    resolveSinglePlayerSpeedTimeMode,
+    resolveSinglePlayerStrategicGameMode,
+    resolveSinglePlayerSurvivalMode,
+} from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -252,28 +259,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 user.lastActionPointUpdate = now;
             }
             
-            // 게임 모드 결정
-            // 우선순위: Hidden > Missile > Speed (autoScoringTurns) > Capture > Speed (fischer) > Standard
-            let gameMode: GameMode;
-            const isSpeedMode = stage.timeControl.type === 'fischer';
-
-            if (stage.hiddenCount !== undefined) {
-                // 히든바둑 모드 (최우선)
-                gameMode = GameMode.Hidden;
-            } else if (stage.missileCount !== undefined) {
-                // 미사일바둑 모드 (중급 1~20 스테이지)
-                gameMode = GameMode.Missile;
-            } else if (stage.autoScoringTurns !== undefined) {
-                // 자동 계가 턴 수가 있으면 스피드 바둑 (초급반 등)
-                gameMode = GameMode.Speed;
-            } else if (stage.blackTurnLimit !== undefined || stage.targetScore) {
-                // 따내기 바둑: blackTurnLimit이 있거나 targetScore가 있는 경우
-                gameMode = GameMode.Capture;
-            } else if (isSpeedMode) {
-                gameMode = GameMode.Speed;
-            } else {
-                gameMode = GameMode.Standard;
-            }
+            // 게임 모드: strategicRulePreset이 있으면 우선, 없으면 기존 필드 조합 추론
+            const gameMode: GameMode = resolveSinglePlayerStrategicGameMode(stage);
+            const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
 
             // 싱글플레이용 AI: 반별 프로필 1~5 + KataServer levelbot (`kataServerLevel`)
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
@@ -294,8 +282,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             
             const { board, blackPattern, whitePattern } = generateSinglePlayerBoard(stage);
 
-            // 살리기 바둑 모드 확인 (survivalTurns > 0일 때만 살리기 바둑 모드)
-            const isSurvivalMode = stage.survivalTurns !== undefined && stage.survivalTurns > 0;
+            const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
 
             // 시간룰 설정: 스피드바둑은 피셔, 비스피드 싱글플레이는 무제한(제한시간/초읽기 없음, 소리 없음)
             const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl?.mainTime ?? 5) : 0;
@@ -306,7 +293,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             const gameId = `sp-game-${randomUUID()}`;
             // autoScoringTurns가 있으면 따내기 바둑이 아니므로 captureTarget 설정하지 않음
-            const hasAutoScoring = stage.autoScoringTurns !== undefined;
+            const hasAutoScoring = resolveSinglePlayerHasAutoScoringTurns(stage);
             const baseCaptureTargetBlack = hasAutoScoring ? 999 : (stage.targetScore.black > 0 ? stage.targetScore.black : 999);
             const baseCaptureTargetWhite = hasAutoScoring ? 999 : (stage.targetScore.white > 0 ? stage.targetScore.white : 999);
 
@@ -335,6 +322,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     missileCount: stage.missileCount, // 미사일바둑: 미사일 아이템 개수
                     autoScoringTurns: stage.autoScoringTurns, // 자동 계가 턴 수
                     blackTurnLimit: stage.blackTurnLimit, // 따내기 바둑: 흑(유저) 턴 수 제한
+                    ...(gameMode === GameMode.Mix ? { mixedModes: resolveSinglePlayerMixedModes(stage) } : {}),
                 } as any,
                 player1: user,
                 player2: aiUser,
@@ -398,6 +386,18 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 initializeSinglePlayerMissile(game);
             }
 
+            if (gameMode === GameMode.Mix) {
+                const mix = resolveSinglePlayerMixedModes(stage);
+                if (mix.includes(GameMode.Hidden)) {
+                    const { initializeSinglePlayerHidden } = await import('../modes/singlePlayerHidden.js');
+                    initializeSinglePlayerHidden(game);
+                }
+                if (mix.includes(GameMode.Missile)) {
+                    const { initializeSinglePlayerMissile } = await import('../modes/singlePlayerMissile.js');
+                    initializeSinglePlayerMissile(game);
+                }
+            }
+
             // pending은 기본 save가 스킵되므로 force — 모달 장시간·캐시 정리 후에도 DB에서 복구
             await db.saveGame(game, true);
             const { updateGameCache } = await import('../gameCache.js');
@@ -445,13 +445,47 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
             console.log(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Starting game:`, { gameId, currentStatus: game.gameStatus });
 
-            // 게임 상태를 playing으로 변경하고 시간 시작
             const now = Date.now();
+            const mixModes = ((game.settings as any)?.mixedModes ?? []) as GameMode[];
+            const isSpeedMode =
+                game.mode === GameMode.Speed ||
+                (game.mode === GameMode.Mix && Array.isArray(mixModes) && mixModes.includes(GameMode.Speed));
+
+            if (game.mode === GameMode.Base) {
+                const { initializeBase } = await import('../modes/base.js');
+                initializeBase(game, now);
+                await db.saveGame(game, true);
+                updateGameCache(game);
+                const { broadcastToGameParticipants } = await import('../socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+
+                const persistedForOnboarding = await db.getUser(user.id);
+                const ob = persistedForOnboarding?.onboardingTutorialPhase ?? user.onboardingTutorialPhase;
+                let updatedUserForClient: typeof user | undefined;
+                if (typeof ob === 'number' && ob === 5 && ob < ONBOARDING_PHASE_COMPLETE) {
+                    user.onboardingTutorialPhase = 6;
+                    await db.updateUser(user);
+                    const { broadcastUserUpdate } = await import('../socket.js');
+                    broadcastUserUpdate(user, ['onboardingTutorialPhase']);
+                    updatedUserForClient = user;
+                }
+
+                const gameCopy = JSON.parse(JSON.stringify(game));
+                return {
+                    clientResponse: {
+                        success: true,
+                        gameId: game.id,
+                        game: gameCopy,
+                        ...(updatedUserForClient ? { updatedUser: updatedUserForClient } : {}),
+                    },
+                };
+            }
+
+            // 게임 상태를 playing으로 변경하고 시간 시작
             game.gameStatus = 'playing';
             game.turnStartTime = now;
             (game as any).startTime = now;
             (game as any).gameStartTime = now; // 경과 시간은 실제 시작 시점부터 (pending 시 0 표시)
-            const isSpeedMode = game.mode === GameMode.Speed;
             
             // 싱글플레이 시간 설정: 비스피드 모드는 무제한(제한시간/초읽기 0, 초읽기 소리 없음)
             const enforcedMainTimeMinutes = isSpeedMode ? (game.settings.timeLimit || 5) : 0;

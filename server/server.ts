@@ -1674,7 +1674,19 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         (g.mode === types.GameMode.Dice &&
                             (g.gameStatus === 'dice_rolling_animating' || g.gameStatus === 'dice_turn_rolling_animating')) ||
                         (g.mode === types.GameMode.Thief && g.gameStatus === 'thief_rolling_animating');
-                    return playfulRollAnimNeedsTick;
+                    // 새로고침 직후 짧은 오프라인: AI 주사위 굴림·연속 착수 중에도 메인 루프가 돌아야 함 (그렇지 않으면 클라만 멈춘 것처럼 보임)
+                    const curPid =
+                        g.currentPlayer === Player.Black ? g.blackPlayerId : g.whitePlayerId;
+                    const isAiTurnNow =
+                        curPid === aiPlayer.aiUserId ||
+                        (!!curPid && String(curPid).startsWith('dungeon-bot-'));
+                    const playfulAiRollingPlacingNeedsTick =
+                        isAiTurnNow &&
+                        ((g.mode === types.GameMode.Dice &&
+                            (g.gameStatus === 'dice_rolling' || g.gameStatus === 'dice_placing')) ||
+                            (g.mode === types.GameMode.Thief &&
+                                (g.gameStatus === 'thief_rolling' || g.gameStatus === 'thief_placing')));
+                    return playfulRollAnimNeedsTick || playfulAiRollingPlacingNeedsTick;
                 }
                 return onlineUserIdsSet.has(g.player1?.id ?? '') || onlineUserIdsSet.has(g.player2?.id ?? '');
             });

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 // FIX: The main types barrel file now exports settings types. Use it for consistency.
 import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiation, ChatMessage, UserStatus, UserStatusInfo, AdminLog, Announcement, OverrideAnnouncement, InventoryItem, AppState, InventoryItemType, AppRoute, QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle, CoreStat, SpecialStat, MythicStat, EquipmentSlot, EquipmentPreset, Player, HomeBoardPost, GameRecord, Guild } from '../types.js';
@@ -992,7 +992,8 @@ export const useApp = () => {
         [currentUser?.id],
     );
 
-    useEffect(() => {
+    // useLayoutEffect: 복원을 paint·저장 effect보다 먼저 적용해, 초기 []가 localStorage를 덮어쓰는 레이스를 막음
+    useLayoutEffect(() => {
         try {
             const raw = localStorage.getItem(homeBoardReadStorageKey);
             if (!raw) {
@@ -1015,6 +1016,8 @@ export const useApp = () => {
     }, [homeBoardReadStorageKey, readHomeBoardPostIds]);
 
     useEffect(() => {
+        // 게시글이 아직 로드되지 않은 []에서는 정리하지 않음 — 그렇지 않으면 복원한 읽음 목록이 전부 지워짐
+        if (homeBoardPosts.length === 0) return;
         const currentIds = new Set(homeBoardPosts.map((p) => p.id));
         setReadHomeBoardPostIds((prev) => {
             const next = prev.filter((id) => currentIds.has(id));
@@ -3220,6 +3223,7 @@ export const useApp = () => {
                                         return await handleAction({
                                             ...action,
                                             payload: {
+                                                gameId: payloadGameId,
                                                 ...((action as { payload?: Record<string, unknown> }).payload ?? {}),
                                                 __diceRollRetriedAfterSync: true,
                                             },

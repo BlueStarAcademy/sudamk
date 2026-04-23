@@ -377,6 +377,28 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
 
             const p1Done = p1PlacedThisRound >= targetStones;
             const p2Done = p2PlacedThisRound >= targetStones;
+
+            // 라운드 리필에서 한쪽이 먼저 목표치를 채우면 자동으로 상대 턴으로 넘긴다.
+            if (!p1Done || !p2Done) {
+                if (game.gameStatus === 'alkkagi_placement' && game.currentPlayer !== types.Player.None) {
+                    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                    const isCurrentDone =
+                        currentPlayerId === p1Id ? p1Done :
+                        currentPlayerId === p2Id ? p2Done :
+                        false;
+                    if (isCurrentDone) {
+                        game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
+                        if (shouldEnforceTimeControl(game)) {
+                            game.alkkagiPlacementDeadline = now + ALKKAGI_PLACEMENT_TIME_LIMIT * 1000;
+                        }
+                        if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                            const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                            if (nextPlayerId === aiUserId) scheduleAiTurnStartForFreshUi(game, now);
+                            else game.aiTurnStartTime = undefined;
+                        }
+                    }
+                }
+            }
             
             if (p1Done && p2Done) {
                 if (!game.alkkagiStones) game.alkkagiStones = [];

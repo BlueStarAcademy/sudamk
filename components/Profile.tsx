@@ -35,6 +35,8 @@ import {
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { isOnboardingTutorialActive, ONBOARDING_PHASE_COMPLETE } from '../shared/constants/onboardingTutorial.js';
+import TrainingQuestModal from './singleplayer/TrainingQuestModal.js';
+import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import {
     userMeetsGuildFeatureLevelRequirement,
@@ -567,6 +569,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const championshipScore = championshipMyEntry?.score ?? currentUserWithStatus?.cumulativeTournamentScore ?? 0;
     const championshipRank = championshipMyEntry?.rank ?? null;
     const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | null>(null);
+    const [trainingQuestModalOpen, setTrainingQuestModalOpen] = useState(false);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
     const [selectedPreset, setSelectedPreset] = useState(0);
     const [showMannerRankModal, setShowMannerRankModal] = useState(false);
@@ -1605,6 +1608,8 @@ const Profile: React.FC<ProfileProps> = () => {
         'grid w-full min-w-0 grid-cols-[minmax(4.25rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] leading-snug';
     const infoLabelClass = 'min-w-0 text-center font-semibold text-slate-300/95';
     const infoValueClass = 'min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
+    const hasPcHomeTrainingQuestReward =
+        !isNativeMobile && userHasFullTrainingQuestReward(currentUserWithStatus);
     const LobbyCards = (
         <div className={lobbyGridShell}>
             <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -1637,6 +1642,28 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className={infoRowClass}><span className={infoLabelClass}>진행도</span><span className={infoValueClass}>{singleProgress} / {SINGLE_PLAYER_STAGES.length}</span></div>
                                 <div className={infoRowClass}><span className={infoLabelClass}>클리어</span><span className={infoValueClass}>{Math.max(0, singleProgress)}</span></div>
                             </div>
+                            {!isNativeMobile && (
+                                <Button
+                                    type="button"
+                                    onClick={() => setTrainingQuestModalOpen(true)}
+                                    colorScheme="none"
+                                    aria-label={
+                                        hasPcHomeTrainingQuestReward
+                                            ? '수련과제, 수령 가능한 보상이 있습니다'
+                                            : '수련과제'
+                                    }
+                                    className="relative w-full shrink-0 !justify-center rounded-lg border border-emerald-400/45 bg-gradient-to-b from-emerald-900/55 via-zinc-900/80 to-black/90 !px-2 !py-1.5 !text-[12px] !font-bold !text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_18px_-10px_rgba(16,185,129,0.45)] hover:border-emerald-300/55 hover:from-emerald-800/65 hover:to-zinc-900"
+                                >
+                                    수련과제
+                                    {hasPcHomeTrainingQuestReward && (
+                                        <span
+                                            className="absolute right-2 top-1/2 z-[1] h-2 w-2 -translate-y-1/2 rounded-full border-2 border-slate-950 bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
+                                            aria-hidden
+                                            title="수령 가능한 보상"
+                                        />
+                                    )}
+                                </Button>
+                            )}
                         </div>
                     </div>
                 )}
@@ -2272,6 +2299,13 @@ const Profile: React.FC<ProfileProps> = () => {
                         setIsGuildJoinModalOpen(false);
                         window.location.hash = '#/guild';
                     }}
+                />
+            )}
+            {trainingQuestModalOpen && (
+                <TrainingQuestModal
+                    open={trainingQuestModalOpen}
+                    onClose={() => setTrainingQuestModalOpen(false)}
+                    currentUser={currentUserWithStatus}
                 />
             )}
         </div>

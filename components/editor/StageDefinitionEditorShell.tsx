@@ -1,6 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { SinglePlayerStageInfo } from '../../types/index.js';
+import { SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../../types/index.js';
+import {
+    inferSinglePlayerStrategicRulePreset,
+} from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import Button from '../Button.js';
+
+const RULE_PRESET_OPTIONS: { value: Exclude<SinglePlayerStrategicRulePreset, 'auto'>; label: string }[] = [
+    { value: 'classic', label: '클래식' },
+    { value: 'capture', label: '따내기' },
+    { value: 'survival', label: '살리기' },
+    { value: 'speed', label: '스피드' },
+    { value: 'base', label: '베이스' },
+    { value: 'hidden', label: '히든' },
+    { value: 'missile', label: '미사일' },
+    { value: 'mix', label: '믹스룰' },
+];
 
 type Scope = 'singleplayer' | 'tower' | 'guildWar';
 type StoneCell = '' | 'black' | 'white' | 'blackPattern' | 'whitePattern';
@@ -63,11 +77,18 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     const [cells, setCells] = useState<StoneCell[][]>(fixedOpeningToCells(stage));
     const [saving, setSaving] = useState(false);
     const [brush, setBrush] = useState<BrushStone>('black');
+    const [rulePreset, setRulePreset] = useState<SinglePlayerStrategicRulePreset>(() => stage.strategicRulePreset ?? 'auto');
 
     useEffect(() => {
         setDraft(stage);
         setCells(fixedOpeningToCells(stage));
+        setRulePreset(stage.strategicRulePreset ?? 'auto');
     }, [stage]);
+
+    const inferredRuleLabel = useMemo(() => {
+        const id = inferSinglePlayerStrategicRulePreset({ ...draft, strategicRulePreset: undefined });
+        return RULE_PRESET_OPTIONS.find((o) => o.value === id)?.label ?? id;
+    }, [draft]);
 
     const boardSize = draft.boardSize;
     const rowIndices = useMemo(() => Array.from({ length: boardSize }, (_, i) => i), [boardSize]);
@@ -125,6 +146,21 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, exp: Number(e.target.value) || 0 } } }))} />
                             </label>
                         </div>
+                        <label className="block text-xs">
+                            게임 룰
+                            <select
+                                className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                value={rulePreset}
+                                onChange={(e) => setRulePreset(e.target.value as SinglePlayerStrategicRulePreset)}
+                            >
+                                <option value="auto">자동 (필드 조합 — 현재 추론: {inferredRuleLabel})</option>
+                                {RULE_PRESET_OPTIONS.map((o) => (
+                                    <option key={o.value} value={o.value}>
+                                        {o.label}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
                         <div className="grid grid-cols-2 gap-2">
                             <label className="text-xs">랜덤 흑돌
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.black}
@@ -133,6 +169,16 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             <label className="text-xs">랜덤 백돌
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.white}
                                     onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, white: Number(e.target.value) || 0 } }))} />
+                            </label>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <label className="text-xs">랜덤 흑 문양돌
+                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.blackPattern}
+                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, blackPattern: Number(e.target.value) || 0 } }))} />
+                            </label>
+                            <label className="text-xs">랜덤 백 문양돌
+                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1" type="number" value={draft.placements.whitePattern}
+                                    onChange={(e) => setDraft((p) => ({ ...p, placements: { ...p.placements, whitePattern: Number(e.target.value) || 0 } }))} />
                             </label>
                         </div>
                         <label className="flex items-center gap-2 text-sm">
@@ -205,6 +251,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             try {
                                 await onSave({
                                     ...draft,
+                                    strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
                                     fixedOpening: cellsToFixedOpening(cells),
                                 });
                             } finally {

@@ -588,6 +588,18 @@ export type StageInfo = {
     };
 };
 
+/** 관리자 스테이지 편집: 미지정·auto면 기존 필드(hiddenCount 등)로 룰 추론 */
+export type SinglePlayerStrategicRulePreset =
+    | 'auto'
+    | 'classic'
+    | 'capture'
+    | 'survival'
+    | 'speed'
+    | 'base'
+    | 'hidden'
+    | 'missile'
+    | 'mix';
+
 export type SinglePlayerStageInfo = {
     id: string;
     name: string;
@@ -626,6 +638,9 @@ export type SinglePlayerStageInfo = {
     blackTurnLimit?: number; // 유저(흑)의 턴 수 제한
     fixedOpening?: Array<{ x: number; y: number; color: 'black' | 'white'; kind?: 'plain' | 'pattern' }>;
     mergeRandomPlacementsWithFixed?: boolean;
+    strategicRulePreset?: SinglePlayerStrategicRulePreset;
+    /** strategicRulePreset이 mix일 때만 사용. 2~5개, 비어 있으면 서버 기본 믹스 조합 */
+    mixedStrategicModes?: GameMode[];
 };
 
 

@@ -105,10 +105,10 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
         skipTimerRef.current = null;
       }
       shopAdRewardOnCloseRef.current = onClosed;
-      const skipDelay = SHOP_AD_REWARD_INTERSTITIAL_SECONDS;
+      const skipDelay: number = SHOP_AD_REWARD_INTERSTITIAL_SECONDS;
       setInterstitial({
         isVisible: true,
-        canSkip: skipDelay === 0,
+        canSkip: skipDelay <= 0,
         skipCountdown: skipDelay,
         trigger: 'shop_ad_reward',
       });

@@ -2,7 +2,7 @@ import * as db from './db.js';
 import {
     DEFAULT_SINGLE_PLAYER_STAGES,
 } from '../shared/constants/singlePlayerConstants.js';
-import { SinglePlayerStageInfo } from '../types/index.js';
+import { GameMode, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../types/index.js';
 
 const SINGLE_PLAYER_STAGE_OVERRIDE_KV_KEY = 'singlePlayerStagesOverride';
 
@@ -13,6 +13,18 @@ const clampInt = (value: unknown, min: number, max: number, fallback: number): n
     if (!Number.isFinite(n)) return fallback;
     return Math.max(min, Math.min(max, Math.floor(n)));
 };
+
+const RULE_PRESETS: SinglePlayerStrategicRulePreset[] = [
+    'auto',
+    'classic',
+    'capture',
+    'survival',
+    'speed',
+    'base',
+    'hidden',
+    'missile',
+    'mix',
+];
 
 const normalizeItemRewardList = (value: unknown): { itemId: string; quantity: number }[] | undefined => {
     if (!Array.isArray(value)) return undefined;
@@ -35,18 +47,19 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         ? (Number(row.boardSize) as SinglePlayerStageInfo['boardSize'])
         : fallback.boardSize;
     const fixedOpeningRaw = Array.isArray(row.fixedOpening) ? row.fixedOpening : fallback.fixedOpening;
+    type FixedOpeningStone = NonNullable<SinglePlayerStageInfo['fixedOpening']>[number];
     const fixedOpening = fixedOpeningRaw
-        ?.map((entry) => {
+        ?.map((entry): FixedOpeningStone | null => {
             if (!entry || typeof entry !== 'object') return null;
             const s = entry as Record<string, unknown>;
             const color = s.color === 'black' || s.color === 'white' ? s.color : null;
             if (!color) return null;
             const x = clampInt(s.x, 0, boardSize - 1, 0);
             const y = clampInt(s.y, 0, boardSize - 1, 0);
-            const kind = s.kind === 'pattern' ? 'pattern' : 'plain';
+            const kind: FixedOpeningStone['kind'] = s.kind === 'pattern' ? 'pattern' : 'plain';
             return { x, y, color, kind };
         })
-        .filter((entry): entry is NonNullable<typeof entry> => !!entry);
+        .filter((entry): entry is FixedOpeningStone => !!entry);
 
     const out: SinglePlayerStageInfo = {
         ...fallback,
@@ -94,6 +107,22 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,
         mergeRandomPlacementsWithFixed: Boolean(row.mergeRandomPlacementsWithFixed),
     };
+
+    const presetRaw = (row as Record<string, unknown>).strategicRulePreset;
+    if (typeof presetRaw === 'string' && (RULE_PRESETS as readonly string[]).includes(presetRaw)) {
+        out.strategicRulePreset = presetRaw as SinglePlayerStrategicRulePreset;
+    }
+    const mixRaw = (row as Record<string, unknown>).mixedStrategicModes;
+    if (Array.isArray(mixRaw) && mixRaw.length >= 2) {
+        const allowed = new Set(Object.values(GameMode));
+        const cleaned = mixRaw
+            .map((m) => (typeof m === 'string' && allowed.has(m as GameMode) ? (m as GameMode) : null))
+            .filter((m): m is GameMode => m != null);
+        if (cleaned.length >= 2) {
+            out.mixedStrategicModes = cleaned.slice(0, 5);
+        }
+    }
+
     return out;
 };
 

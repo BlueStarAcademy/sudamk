@@ -3,7 +3,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import ClassNavigationPanel from './singleplayer/ClassNavigationPanel.js';
 import StageGrid from './singleplayer/StageGrid.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
-import { SinglePlayerLevel } from '../types.js';
+import { SinglePlayerLevel, UserWithStatus } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
@@ -18,6 +18,43 @@ function defaultSinglePlayerLevelFromProgress(progress: number): SinglePlayerLev
 }
 
 const SINGLE_PLAYER_LOBBY_TITLE = '바둑학원';
+
+/** PC: 수련과제는 프로필 홈 모달로 이동. 온보딩 phase 8(수련과제 튜토) 중에는 타깃 요소가 필요해 기존 3열 유지 */
+const DesktopSinglePlayerLobbyLayout: React.FC<{
+    selectedClass: SinglePlayerLevel;
+    onClassSelect: (level: SinglePlayerLevel | null) => void;
+    onBackToProfile: () => void;
+    currentUserWithStatus: UserWithStatus;
+}> = ({ selectedClass, onClassSelect, onBackToProfile, currentUserWithStatus }) => {
+    const phase8TrainingSpotlight =
+        isOnboardingTutorialActive(currentUserWithStatus) &&
+        (currentUserWithStatus.onboardingTutorialPhase ?? 0) === 8;
+
+    return (
+        <div className="grid min-h-0 flex-1 grid-cols-12 gap-2 sm:gap-3 xl:gap-4">
+            <div className="col-span-4 flex min-h-0 flex-col">
+                <ClassNavigationPanel
+                    selectedClass={selectedClass}
+                    onClassSelect={onClassSelect}
+                    lobbyChrome={{
+                        onBack: onBackToProfile,
+                        screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
+                        compactTitleBar: false,
+                    }}
+                />
+            </div>
+
+            <div className={`flex min-h-0 flex-col ${phase8TrainingSpotlight ? 'col-span-5' : 'col-span-8'}`}>
+                <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} />
+            </div>
+            {phase8TrainingSpotlight && (
+                <div className="col-span-3 flex min-h-0 flex-col">
+                    <TrainingQuestPanel currentUser={currentUserWithStatus} />
+                </div>
+            )}
+        </div>
+    );
+};
 
 const SinglePlayerLobby: React.FC = () => {
     const { currentUser, currentUserWithStatus } = useAppContext();
@@ -141,31 +178,12 @@ const SinglePlayerLobby: React.FC = () => {
                     </div>
                 </div>
             ) : (
-            <div className="grid min-h-0 flex-1 grid-cols-12 gap-2 sm:gap-3 xl:gap-4">
-                <div className="col-span-4 flex min-h-0 flex-col">
-                    <ClassNavigationPanel
-                        selectedClass={selectedClass}
-                        onClassSelect={setOverrideClass}
-                        lobbyChrome={{
-                            onBack: onBackToProfile,
-                            screenTitle: SINGLE_PLAYER_LOBBY_TITLE,
-                            compactTitleBar: false,
-                        }}
-                    />
-                </div>
-
-                <div className="col-span-5 flex flex-col min-h-0">
-                    <StageGrid 
-                        selectedClass={selectedClass}
-                        currentUser={currentUserWithStatus}
-                    />
-                </div>
-                <div className="col-span-3 flex flex-col min-h-0">
-                    <TrainingQuestPanel 
-                        currentUser={currentUserWithStatus}
-                    />
-                </div>
-            </div>
+            <DesktopSinglePlayerLobbyLayout
+                selectedClass={selectedClass}
+                onClassSelect={setOverrideClass}
+                onBackToProfile={onBackToProfile}
+                currentUserWithStatus={currentUserWithStatus}
+            />
             )}
         </div>
     );

@@ -49,14 +49,6 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactUi = isHandheld || isNativeMobile;
 
-    /** PC: 내용이 짧은 모달이라 과도한 세로 여백이 생기지 않도록 높이를 더 타이트하게 잡는다. */
-    const panelInitialHeight = useMemo(() => {
-        if (typeof window === 'undefined') return 620;
-        const vh = window.innerHeight;
-        const cap = Math.floor(vh * 0.88);
-        return Math.min(Math.max(560, Math.floor(vh * 0.74)), cap);
-    }, []);
-
     const compactPanelRef = useRef<HTMLDivElement | null>(null);
     const [compactMeasuredTotalHeight, setCompactMeasuredTotalHeight] = useState<number | null>(null);
 
@@ -306,7 +298,8 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
             onClose={onClose}
             windowId={`training-quest-levelup-${mission.id}`}
             initialWidth={isCompactUi ? 340 : 540}
-            initialHeight={isCompactUi ? (compactMeasuredTotalHeight ?? 380) : panelInitialHeight}
+            initialHeight={isCompactUi ? (compactMeasuredTotalHeight ?? 380) : undefined}
+            shrinkHeightToContent
             isTopmost
             modal
             closeOnOutsideClick
@@ -502,9 +495,9 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                         </div>
                     </div>
 
-                    <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-                        <div className="mx-auto flex w-full max-w-md flex-col gap-2">
-                            <div className="flex min-h-[2.75rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-2">
+                    <div className="shrink-0 overflow-visible px-4 py-2">
+                        <div className="mx-auto flex w-full max-w-md flex-col gap-1.5">
+                            <div className="flex min-h-[2.35rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-1.5">
                                 <img src="/images/icon/timer.png" alt="" className="h-7 w-7 shrink-0 opacity-95" />
                                 <span className="w-12 shrink-0 text-sm font-medium text-slate-400">생산</span>
                                 <div className="min-w-0 flex-1 text-right text-lg tabular-nums leading-snug">
@@ -521,7 +514,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex min-h-[2.75rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-2">
+                            <div className="flex min-h-[2.35rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-1.5">
                                 <img
                                     src={mission.rewardType === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                     alt=""
@@ -542,7 +535,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex min-h-[2.75rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-2">
+                            <div className="flex min-h-[2.35rem] items-center gap-2 rounded-lg border border-white/[0.08] bg-slate-900/50 px-3 py-1.5">
                                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-violet-500/40 text-xs font-bold text-violet-50 ring-1 ring-violet-400/30">
                                     M
                                 </span>
@@ -563,7 +556,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                         </div>
 
                         {nextLevelUnlockStage && (
-                            <div className="mx-auto mt-3 flex w-full max-w-md items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-950/35 px-3 py-2.5 text-base leading-snug text-amber-50">
+                            <div className="mx-auto mt-2 flex w-full max-w-md items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-950/35 px-3 py-2 text-[15px] leading-snug text-amber-50">
                                 <span className="shrink-0 text-xl" aria-hidden>
                                     ⚠️
                                 </span>
@@ -575,7 +568,7 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                         )}
                     </div>
 
-                    <div className="relative flex shrink-0 flex-col gap-2.5 rounded-b-2xl border-t border-white/[0.08] bg-[#080b10]/95 px-4 py-3 backdrop-blur-sm">
+                    <div className="relative flex shrink-0 flex-col gap-2 rounded-b-2xl border-t border-white/[0.08] bg-[#080b10]/95 px-4 py-2.5 backdrop-blur-sm">
                         <div className="flex gap-3">
                             <Button
                                 onClick={onClose}

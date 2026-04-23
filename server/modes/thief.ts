@@ -682,8 +682,9 @@ export const handleThiefAction = async (volatileState: types.VolatileState, game
             game.dice = undefined; 
         
             ensureThiefDiceRollHistory(game, user.id);
-            game.thiefDiceRollHistory[user.id].push(dice1);
-            if (dice2 > 0) game.thiefDiceRollHistory[user.id].push(dice2);
+            const thiefRolls = game.thiefDiceRollHistory![user.id]!;
+            thiefRolls.push(dice1);
+            if (dice2 > 0) thiefRolls.push(dice2);
             return {};
         }
         case 'THIEF_PLACE_STONE': {

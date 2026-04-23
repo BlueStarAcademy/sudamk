@@ -1597,9 +1597,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const canManageResearch =
                 isLeaderById ||
                 myMemberInfo?.role === GuildMemberRole.Master ||
-                myMemberInfo?.role === GuildMemberRole.Vice ||
-                myMemberInfo?.role === 'leader' ||
-                myMemberInfo?.role === 'officer';
+                myMemberInfo?.role === GuildMemberRole.Vice;
             if (!guild || !canManageResearch) {
                 return { error: '권한이 없습니다.' };
             }

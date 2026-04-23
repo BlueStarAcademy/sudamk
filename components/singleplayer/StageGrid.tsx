@@ -127,6 +127,20 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
 
     const isMobile = compact;
     const tabShelf = isMobile && mobileTabShelf;
+    /** PC 바둑학원 대기실: 스테이지 맵을 더 읽기 쉽게 */
+    const usePremiumDesktop = !isMobile && !tabShelf;
+
+    const classStageProgress = useMemo(() => {
+        const total = stages.length;
+        if (total === 0) return { cleared: 0, total: 0, pct: 0 };
+        let cleared = 0;
+        for (const s of stages) {
+            const g = getGlobalStageIndex(s.id);
+            const done = clearedStages.includes(s.id) || (g >= 0 && singlePlayerProgress > g);
+            if (done) cleared += 1;
+        }
+        return { cleared, total, pct: Math.round((cleared / total) * 100) };
+    }, [stages, clearedStages, singlePlayerProgress]);
     
     const classLabel =
         selectedClass === SinglePlayerLevel.입문
@@ -141,7 +155,11 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
 
     return (
         <div
-            className={`relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-panel shadow-lg ${tabShelf ? 'p-2.5' : isMobile ? 'p-2.5' : 'p-4'}`}
+            className={`relative flex h-full min-h-0 flex-col overflow-hidden shadow-lg ${
+                usePremiumDesktop
+                    ? 'rounded-xl border border-emerald-500/20 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black ring-1 ring-white/[0.06]'
+                    : 'rounded-lg bg-panel'
+            } ${tabShelf ? 'p-2.5' : isMobile ? 'p-2.5' : usePremiumDesktop ? 'p-4 sm:p-5' : 'p-4'}`}
         >
             <div
                 className={`flex flex-shrink-0 items-start justify-between gap-2 border-b border-color ${tabShelf ? 'mb-1.5 pb-1' : isMobile ? 'mb-2 pb-1' : 'mb-4 pb-2'}`}
@@ -160,6 +178,26 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                     보상표
                 </button>
             </div>
+
+            {usePremiumDesktop && (
+                <div className="mb-3 flex flex-shrink-0 flex-col gap-1.5 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                    <div className="flex items-center justify-between gap-2 text-[11px] font-semibold tracking-tight text-slate-200/95">
+                        <span className="text-emerald-100/90">{classLabel} 클리어</span>
+                        <span className="tabular-nums text-amber-100/95">
+                            {classStageProgress.cleared} / {classStageProgress.total}
+                        </span>
+                    </div>
+                    <div className="h-2 w-full overflow-hidden rounded-full border border-white/10 bg-black/45">
+                        <div
+                            className="h-full rounded-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 shadow-[0_0_12px_rgba(52,211,153,0.35)] transition-all duration-500"
+                            style={{ width: `${classStageProgress.pct}%` }}
+                        />
+                    </div>
+                    <p className="text-[10px] leading-snug text-slate-400/90">
+                        카드를 눌러 입장 · 잠긴 스테이지는 이전 단계를 먼저 클리어하세요.
+                    </p>
+                </div>
+            )}
 
             <SinglePlayerRewardsModal
                 open={rewardsModalOpen}
@@ -206,12 +244,16 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                             ? ({ 'data-onboarding-target': 'onboarding-sp-stage-1' } as const)
                             : {};
 
+                        const cardSurface = usePremiumDesktop
+                            ? 'relative flex min-h-0 min-w-0 flex-col items-center justify-between overflow-hidden rounded-2xl border border-emerald-500/30 bg-gradient-to-b from-zinc-800/95 via-zinc-900 to-black/95 px-2.5 py-3 shadow-[0_14px_34px_-18px_rgba(0,0,0,0.88)] ring-1 ring-white/[0.06]'
+                            : 'relative bg-tertiary/90 rounded-lg border border-color/40 px-2.5 py-3 flex flex-col items-center justify-between min-h-0 min-w-0';
+
                         return (
                             <div
                                 key={stage.id}
                                 {...stage1OnboardingTargetAttrs}
                                 className={`
-                                    relative bg-tertiary/90 rounded-lg border border-color/40 px-2.5 py-3 flex flex-col items-center justify-between min-h-0 min-w-0
+                                    ${cardSurface}
                                     transition-transform duration-150
                                     ${tutorialBlockStage1Enter ? 'cursor-not-allowed z-[1]' : ''}
                                     ${tutorialBlockStage1Enter ? 'brightness-[1.18] saturate-110 shadow-[inset_0_0_0_2px_rgba(253,224,71,0.85),0_0_28px_6px_rgba(251,191,36,0.4)]' : ''}
@@ -220,10 +262,10 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                         : isCleared
                                             ? tutorialBlockStage1Enter
                                                 ? 'ring-1 ring-green-500/70'
-                                                : 'cursor-pointer ring-1 ring-green-500/70 hover:scale-[1.02]'
+                                                : `cursor-pointer ring-1 ${usePremiumDesktop ? 'ring-emerald-400/55 hover:shadow-[0_0_22px_rgba(52,211,153,0.22)]' : 'ring-green-500/70'} hover:scale-[1.02]`
                                             : tutorialBlockStage1Enter
                                               ? ''
-                                              : 'cursor-pointer hover:scale-[1.03] hover:shadow-md'
+                                              : `cursor-pointer hover:scale-[1.03] ${usePremiumDesktop ? 'hover:shadow-[0_12px_28px_-12px_rgba(245,158,11,0.25)]' : 'hover:shadow-md'}`
                                     }
                                 `}
                                 onClick={() =>
@@ -235,7 +277,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                             >
                                 {tutorialBlockStage1Enter && (
                                     <div
-                                        className="pointer-events-auto absolute inset-0 z-[35] rounded-lg bg-transparent"
+                                        className={`pointer-events-auto absolute inset-0 z-[35] bg-transparent ${usePremiumDesktop ? 'rounded-2xl' : 'rounded-lg'}`}
                                         aria-hidden
                                         onClick={(e) => {
                                             e.preventDefault();
@@ -248,8 +290,10 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     />
                                 )}
                                 {isLocked && (
-                                    <div className="absolute inset-0 bg-black/60 rounded-lg flex items-center justify-center z-10">
-                                        <span className="text-white font-bold text-lg">🔒</span>
+                                    <div
+                                        className={`absolute inset-0 z-10 flex items-center justify-center bg-gradient-to-b from-black/55 to-black/80 ${usePremiumDesktop ? 'rounded-2xl' : 'rounded-lg'}`}
+                                    >
+                                        <span className="text-2xl font-bold text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">🔒</span>
                                     </div>
                                 )}
 
@@ -259,15 +303,41 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                     </div>
                                 )}
 
-                                <div className="text-center w-full mb-1">
-                                    <div className={`font-black text-primary drop-shadow [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] ${isMobile ? 'text-2xl' : 'text-2xl sm:text-3xl'}`}>
-                                        {stageNumber}
-                                    </div>
+                                <div className={`mb-1 w-full text-center ${usePremiumDesktop ? 'mt-0.5' : ''}`}>
+                                    {usePremiumDesktop ? (
+                                        <div className="flex w-full justify-center">
+                                            <div
+                                                className={`relative flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full border-2 bg-gradient-to-b shadow-[0_6px_18px_-8px_rgba(0,0,0,0.75)] ${
+                                                    isCleared
+                                                        ? 'border-emerald-400/70 from-emerald-800/50 to-black/80'
+                                                        : 'border-amber-400/50 from-amber-900/45 to-black/85'
+                                                }`}
+                                            >
+                                                <span className="font-black tabular-nums text-[1.35rem] leading-none text-white drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)]">
+                                                    {stageNumber}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div
+                                            className={`font-black text-primary drop-shadow [text-shadow:0_1px_2px_rgba(0,0,0,0.5)] ${isMobile ? 'text-2xl' : 'text-2xl sm:text-3xl'}`}
+                                        >
+                                            {stageNumber}
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="w-full mb-1.5">
-                                    <div className="rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                                        <div className={`font-semibold text-center text-amber-200/95 truncate ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : 'text-xs sm:text-sm'}`}>
+                                <div className="mb-1.5 w-full">
+                                    <div
+                                        className={`shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                                            usePremiumDesktop
+                                                ? 'rounded-full border border-amber-400/40 bg-black/35 px-2.5 py-1'
+                                                : 'rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1'
+                                        }`}
+                                    >
+                                        <div
+                                            className={`truncate text-center font-semibold tracking-tight text-amber-100/95 ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : usePremiumDesktop ? 'text-[11px]' : 'text-xs sm:text-sm'}`}
+                                        >
                                             {gameModeName}
                                         </div>
                                     </div>

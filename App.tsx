@@ -237,7 +237,12 @@ const AppContent: React.FC = () => {
         }
 
         const el = document.documentElement;
-        const so = typeof screen !== 'undefined' ? screen.orientation : undefined;
+        const so =
+            typeof screen !== 'undefined'
+                ? (screen.orientation as ScreenOrientation & {
+                      lock?: (orientation: string) => Promise<void>;
+                  })
+                : undefined;
 
         const tryPortraitPrimaryLock = () => {
             try {

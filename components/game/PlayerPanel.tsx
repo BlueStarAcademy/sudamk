@@ -719,10 +719,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
         if (pausePlayfulElapsedForAiTurn) {
             if (!playfulAiPauseActiveRef.current) {
-                if (displayElapsedOriginMs.current === undefined) {
-                    displayElapsedOriginMs.current = gameStart;
-                }
-                const snap = Math.max(0, Math.floor((Date.now() - displayElapsedOriginMs.current) / 1000));
+                const originMs = displayElapsedOriginMs.current ?? gameStart;
+                displayElapsedOriginMs.current = originMs;
+                const snap = Math.max(0, Math.floor((Date.now() - originMs) / 1000));
                 playfulAiPauseHeldSecRef.current = snap;
                 setElapsedSec(snap);
                 playfulAiPauseActiveRef.current = true;

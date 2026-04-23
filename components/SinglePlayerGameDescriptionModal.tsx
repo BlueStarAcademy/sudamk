@@ -550,7 +550,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             {canOpenStageEditor && (
                 <Button
                     onClick={() => setEditorOpen(true)}
-                    colorScheme="secondary"
+                    colorScheme="gray"
                     className={compact ? '!flex-1 basis-0 min-w-0 min-h-[3rem] px-5 py-2.5 text-base max-[480px]:px-4' : `!w-auto shrink-0 text-base ${desktopBtnTight}`}
                 >
                     스테이지 편집
