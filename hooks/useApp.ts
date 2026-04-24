@@ -2429,6 +2429,53 @@ export const useApp = () => {
                     }
                 }
 
+                // 빠른 연속 클릭 레이스 방지:
+                // 수순 제한(autoScoringTurns)에 이미 도달한 상태라면 추가 착수를 로컬에 반영하지 않는다.
+                if (
+                    !payloadIsPass &&
+                    typeof px === 'number' &&
+                    typeof py === 'number' &&
+                    px >= 0 &&
+                    py >= 0
+                ) {
+                    let moveLimit: number | undefined =
+                        gameType === 'singleplayer' && game.stageId
+                            ? SINGLE_PLAYER_STAGES.find((s: any) => s.id === game.stageId)?.autoScoringTurns
+                            : (game.settings as any)?.autoScoringTurns;
+                    if (
+                        gameType === 'tower' &&
+                        (moveLimit === undefined || moveLimit === null) &&
+                        (game.stageId || game.towerFloor != null)
+                    ) {
+                        const stage = game.stageId
+                            ? TOWER_STAGES.find((s: any) => s.id === game.stageId)
+                            : (game.towerFloor != null && Number(game.towerFloor) >= 1 ? TOWER_STAGES[Number(game.towerFloor) - 1] : undefined);
+                        moveLimit = stage?.autoScoringTurns;
+                    }
+
+                    if (moveLimit != null && moveLimit > 0) {
+                        const currentValidMoves = (game.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1).length;
+                        if (currentValidMoves >= moveLimit) {
+                            if (process.env.NODE_ENV === 'development') {
+                                console.warn(`[handleAction] ${actionTypeName} blocked move after turn limit reached`, {
+                                    gameId,
+                                    currentValidMoves,
+                                    moveLimit,
+                                    gameStatus: game.gameStatus,
+                                });
+                            }
+                            return {
+                                ...currentGames,
+                                [gameId]: {
+                                    ...game,
+                                    totalTurns: currentValidMoves,
+                                    gameStatus: 'scoring' as const,
+                                }
+                            };
+                        }
+                    }
+                }
+
                 // 공통 유틸리티 함수를 사용하여 게임 상태 업데이트
                 const updateResult = updateGameStateAfterMove(game, payload, gameType);
                 finalUpdatedGame = updateResult.updatedGame;
@@ -2616,6 +2663,13 @@ export const useApp = () => {
                     }, 500);
                 }
                 
+                // 히든 공개 연출 중에는 updatedGame.captures가 직전 값으로 유지될 수 있어
+                // 종료 판정(목표 달성/턴 제한)에는 checkInfo.newCaptures를 우선 사용한다.
+                const capturesForOutcome: { [key: number]: number } = {
+                    ...((updateResult.updatedGame.captures || {}) as Record<number, number>),
+                    ...((updateResult.checkInfo?.newCaptures || {}) as Record<number, number>),
+                };
+
                 // 살리기 바둑 모드: 백이 수를 둔 경우 목표 돌/남은 턴 체크
                 const movePlayer = game.currentPlayer; // 수를 둔 플레이어
                 
@@ -2640,7 +2694,7 @@ export const useApp = () => {
                             Number.isFinite(whiteTargetRaw) &&
                             whiteTargetRaw > 0 &&
                             whiteTargetRaw !== 999;
-                        const whiteCaptures = updatedGame.captures?.[Player.White] ?? 0;
+                        const whiteCaptures = capturesForOutcome[Player.White] ?? 0;
                         
                         console.log(`[handleAction] ${actionTypeName} - Survival Go check: whiteTurnsPlayed=${whiteTurnsPlayed}, survivalTurns=${survivalTurns}, remaining=${remainingTurns}, whiteCaptures=${whiteCaptures}, whiteTarget=${whiteTargetRaw}`);
 
@@ -2711,7 +2765,7 @@ export const useApp = () => {
                                 Number.isFinite(blackTargetRaw) &&
                                 blackTargetRaw > 0 &&
                                 blackTargetRaw !== 999;
-                            const blackCaptures = updatedGame.captures?.[Player.Black] ?? 0;
+                            const blackCaptures = capturesForOutcome[Player.Black] ?? 0;
 
                             // 흑이 목표 따낸 돌을 이미 달성한 경우에는 턴 제한 패배를 적용하지 않고,
                             // 아래의 승리 조건 체크(checkVictoryCondition)를 통해 미션 성공을 처리한다.
@@ -2725,6 +2779,47 @@ export const useApp = () => {
                     }
                 }
                 
+                // 안전장치: checkInfo 비생성/지연 상황에서도 따낸돌 목표 달성 시 즉시 종료를 보장한다.
+                if ((gameType === 'singleplayer' || gameType === 'tower') && game.gameStatus === 'playing') {
+                    const blackTargetRaw = Number(updateResult.updatedGame.effectiveCaptureTargets?.[Player.Black] ?? game.effectiveCaptureTargets?.[Player.Black]);
+                    const whiteTargetRaw = Number(updateResult.updatedGame.effectiveCaptureTargets?.[Player.White] ?? game.effectiveCaptureTargets?.[Player.White]);
+                    const hasBlackTarget = Number.isFinite(blackTargetRaw) && blackTargetRaw > 0 && blackTargetRaw !== 999;
+                    const hasWhiteTarget = Number.isFinite(whiteTargetRaw) && whiteTargetRaw > 0 && whiteTargetRaw !== 999;
+                    const blackCaptures = capturesForOutcome[Player.Black] ?? 0;
+                    const whiteCaptures = capturesForOutcome[Player.White] ?? 0;
+
+                    if (hasBlackTarget && blackCaptures >= blackTargetRaw) {
+                        shouldEndGameSurvival = false;
+                        shouldEndGameTurnLimit = false;
+                        endGameWinnerSurvival = null;
+                        endGameWinnerTurnLimit = null;
+                        return {
+                            ...currentGames,
+                            [gameId]: {
+                                ...updateResult.updatedGame,
+                                gameStatus: 'ended' as const,
+                                winner: Player.Black,
+                                winReason: 'capture_limit'
+                            }
+                        };
+                    }
+                    if (hasWhiteTarget && whiteCaptures >= whiteTargetRaw) {
+                        shouldEndGameSurvival = false;
+                        shouldEndGameTurnLimit = false;
+                        endGameWinnerSurvival = null;
+                        endGameWinnerTurnLimit = null;
+                        return {
+                            ...currentGames,
+                            [gameId]: {
+                                ...updateResult.updatedGame,
+                                gameStatus: 'ended' as const,
+                                winner: Player.White,
+                                winReason: 'capture_limit'
+                            }
+                        };
+                    }
+                }
+
                 // 승리 조건 체크 (도전의 탑 및 싱글플레이)
                 if (updateResult.shouldCheckVictory && updateResult.checkInfo) {
                     const victoryCheckInfo = updateResult.checkInfo;
