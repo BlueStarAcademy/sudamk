@@ -140,7 +140,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
 			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
 				isMobile
 					? 'flex h-[164px] w-full min-w-0 flex-row items-stretch gap-3 p-2'
-					: 'flex min-h-[112px] max-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
+					: 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
 			}`}
 		>
             {isMobile ? (

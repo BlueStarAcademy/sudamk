@@ -263,7 +263,11 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             isCurrentStageAlreadyCleared || isWinner ? 0 : (currentStage?.actionPointCost ?? 0);
         const retryActionPointCost =
             session.singlePlayerStartActionPointCost === 0 ? 0 : inferredRetryAp;
-        const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
+        const nextStageIndex = currentStageIndex + 1;
+        const isNextStageAlreadyCleared =
+            !!nextStage &&
+            (clearedStages.includes(nextStage.id) || singlePlayerProgress > nextStageIndex);
+        const nextStageActionPointCost = isNextStageAlreadyCleared ? 0 : (nextStage?.actionPointCost ?? 0);
 
         const handleRetry = async () => {
             try {
@@ -442,7 +446,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
             className={`${arenaGameRoomIngameBottomBarShellClass} w-full ${
                 isMobile
                     ? 'flex h-[164px] w-full min-w-0 flex-row items-stretch gap-3 p-2'
-                    : 'flex min-h-[112px] max-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
+                    : 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
             }`}
         >
             {isMobile ? (

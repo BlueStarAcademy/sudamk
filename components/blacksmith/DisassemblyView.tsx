@@ -27,8 +27,8 @@ const GRADE_NAMES_KO: Record<ItemGrade, string> = {
     transcendent: '초월',
 };
 
-/** 하단 장비 인벤토리 그리드와 동일한 별 표시 */
-const renderStarDisplay = (stars: number) => {
+/** 하단 장비 인벤토리 그리드와 동일한 별 표시 (`compact`: 44px 선택 칸용) */
+const renderStarDisplay = (stars: number, compact?: boolean) => {
     if (stars === 0) return null;
 
     let starImage = '';
@@ -50,14 +50,21 @@ const renderStarDisplay = (stars: number) => {
 
     return (
         <div
-            className="absolute left-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-br-md bg-black/40 px-1 py-0.5"
+            className={`absolute z-10 flex items-center rounded-br-md bg-black/40 ${
+                compact
+                    ? 'left-0.5 top-0.5 gap-0 px-0.5 py-0'
+                    : 'left-1.5 top-0.5 gap-0.5 px-1 py-0.5'
+            }`}
             style={{ textShadow: '1px 1px 2px black' }}
         >
-            <img src={starImage} alt="" className="h-3 w-3" />
-            <span className={`text-xs font-bold leading-none ${numberColor}`}>{stars}</span>
+            <img src={starImage} alt="" className={compact ? 'h-2 w-2' : 'h-3 w-3'} />
+            <span className={`font-bold leading-none ${compact ? 'text-[9px]' : 'text-xs'} ${numberColor}`}>{stars}</span>
         </div>
     );
 };
+
+/** 하단 대장간 장비 인벤(10열·130px 높이) 셀과 비슷하게 맞춘 고정 크기 */
+const SELECTED_DISASSEMBLY_CELL_PX = 52;
 
 /** 인벤토리 슬롯과 동일: 등급 배경판 + 장비 이미지(+초월 오버레이·강화 별) */
 const DisassemblySelectedInventoryCell: React.FC<{
@@ -66,14 +73,15 @@ const DisassemblySelectedInventoryCell: React.FC<{
 }> = ({ item, onToggleDisassemblySelection }) => {
     const styles = gradeStyles[item.grade];
     const iconBoxPct = '88%';
+    const cellPx = SELECTED_DISASSEMBLY_CELL_PX;
     return (
         <button
             type="button"
             onClick={() => onToggleDisassemblySelection(item.id)}
             title="선택 해제"
             aria-label={`${item.name} 선택 해제`}
-            className="relative aspect-square h-full max-h-full min-h-[2.75rem] shrink-0 cursor-pointer rounded-md border-2 border-black/20 transition-all duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
-            style={{ width: 'auto', minWidth: 0, maxWidth: '100%' }}
+            className="relative mx-auto aspect-square w-full cursor-pointer rounded-md border-2 border-black/20 transition-all duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+            style={{ maxWidth: cellPx }}
         >
             <img
                 src={styles.background}
@@ -100,7 +108,7 @@ const DisassemblySelectedInventoryCell: React.FC<{
             {item.grade === ItemGrade.Transcendent && (
                 <div className="pointer-events-none absolute inset-0 z-[2] rounded-md transcendent-inventory-slot-overlay" aria-hidden />
             )}
-            {renderStarDisplay(item.stars ?? 0)}
+            {renderStarDisplay(item.stars ?? 0, true)}
         </button>
     );
 };
@@ -127,7 +135,7 @@ const SelectedDisassemblyItemsPanel: React.FC<{
                         인벤토리에서 분해할 장비를 선택하세요
                     </div>
                 ) : (
-                    <div className="flex h-full min-h-0 flex-row items-stretch gap-1.5 overflow-x-auto overflow-y-hidden p-1.5 [scrollbar-gutter:stable]">
+                    <div className="grid h-full min-h-0 auto-rows-max grid-cols-5 justify-items-center gap-1.5 overflow-y-auto overflow-x-hidden p-1.5 [scrollbar-gutter:stable]">
                         {items.map(item => (
                             <DisassemblySelectedInventoryCell
                                 key={item.id}
@@ -150,7 +158,20 @@ const DisassemblyPreviewPanel: React.FC<{
     nativeMobile?: boolean;
     /** 장비 선택을 모달에서만 하는 모바일 대장간 플로우 */
     modalEquipmentSelectionFlow?: boolean;
-}> = ({ selectedIds, inventory, blacksmithLevel, nativeMobile, modalEquipmentSelectionFlow }) => {
+    onDisassemble: () => void;
+    selectedCount: number;
+}> = ({
+    selectedIds,
+    inventory,
+    blacksmithLevel,
+    nativeMobile,
+    modalEquipmentSelectionFlow,
+    onDisassemble,
+    selectedCount,
+}) => {
+    const jackpotRatePct = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)];
+    const jackpotHint = `${jackpotRatePct}%확률로 대박 발생(재료2배)`;
+
     const { rangeMap, totalMaterials, itemCount } = useMemo(() => {
         const selectedItems = inventory.filter(item => selectedIds.has(item.id));
         const materials: Record<string, number> = {};
@@ -188,12 +209,12 @@ const DisassemblyPreviewPanel: React.FC<{
         };
     }, [selectedIds, inventory]);
 
-    const mobileSubline =
+    const mobileEmptyHint =
         itemCount === 0
             ? modalEquipmentSelectionFlow
                 ? '「장비 다시 선택」으로 모달을 열어 분해할 장비를 고르세요.'
                 : '아래 장비 인벤토리에서 분해할 장비를 선택(체크)하세요.'
-            : '재료별 최소~최대(같은 이름은 합산)';
+            : null;
 
     return (
         <div
@@ -201,25 +222,17 @@ const DisassemblyPreviewPanel: React.FC<{
                 nativeMobile ? 'gap-2 p-2.5' : 'gap-2 p-3'
             }`}
         >
-            <div className="flex-shrink-0 space-y-1">
-                {nativeMobile ? (
-                    <>
-                        <p className="text-base font-bold text-cyan-100">예상 획득 재료</p>
-                        <p className="text-[13px] leading-snug text-slate-300/95">
-                            {itemCount > 0 && (
-                                <span className="font-semibold text-cyan-200/95">선택 {itemCount.toLocaleString()}개 · </span>
-                            )}
-                            {mobileSubline}
-                        </p>
-                    </>
-                ) : (
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                        <p className="text-sm font-semibold text-amber-100">예상 획득 재료</p>
-                        <span className="text-[11px] text-slate-400">
-                            대상 {itemCount.toLocaleString()}개 · 범위(최소~최대)
-                        </span>
-                    </div>
-                )}
+            <div className="flex-shrink-0 space-y-1.5 text-center">
+                <p
+                    className={`font-semibold ${
+                        nativeMobile ? 'text-base font-bold text-cyan-100' : 'text-sm text-amber-100'
+                    }`}
+                >
+                    예상 획득 재료
+                </p>
+                {nativeMobile && mobileEmptyHint ? (
+                    <p className="text-[13px] leading-snug text-slate-300/95">{mobileEmptyHint}</p>
+                ) : null}
             </div>
 
             <div
@@ -283,13 +296,24 @@ const DisassemblyPreviewPanel: React.FC<{
                 )}
             </div>
 
-            <div
-                className={`flex-shrink-0 rounded-xl border border-amber-400/20 bg-[#0f172a] text-center text-amber-100/90 ${
-                    nativeMobile ? 'px-2.5 py-2 text-[11px] leading-snug' : 'px-3 py-2 text-[11px]'
-                }`}
-            >
-                분해 시 <span className="font-semibold text-emerald-300">{BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)]}%</span> 확률로
-                <span className="font-semibold text-amber-200"> 대박</span>이 나면 모든 재료가 2배입니다.
+            <div className={`flex flex-shrink-0 flex-col items-stretch ${nativeMobile ? 'gap-2 pt-2' : 'gap-2.5 pt-2.5'}`}>
+                <p
+                    className={`text-center font-semibold leading-snug text-amber-100/95 ${
+                        nativeMobile ? 'rounded-md border border-amber-400/25 bg-[#0f172a]/90 px-2 py-2 text-[11px]' : 'text-xs'
+                    }`}
+                    title="분해 대박 시 획득 재료 2배"
+                >
+                    {jackpotHint}
+                </p>
+                <ResourceActionButton
+                    type="button"
+                    onClick={onDisassemble}
+                    disabled={selectedCount === 0}
+                    variant="materials"
+                    className={`w-full min-h-[44px] !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
+                >
+                    분해({selectedCount})
+                </ResourceActionButton>
             </div>
         </div>
     );
@@ -297,7 +321,43 @@ const DisassemblyPreviewPanel: React.FC<{
 
 const GRADES_FOR_SELECTION: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary];
 
-const AutoSelectModal: React.FC<{ onClose: () => void; onConfirm: (selectedGrades: ItemGrade[]) => void; }> = ({ onClose, onConfirm }) => {
+/** 대장간·피커 등에서 공통으로 사용: 등급 조건에 맞는 분해 대상을 토글로 반영 */
+export function applyDisassemblyAutoSelectByGrades(
+    grades: ItemGrade[],
+    inventory: InventoryItem[],
+    equipmentPresets: { equipment?: Record<string, string | null | undefined> }[] | undefined,
+    onToggleDisassemblySelection: (itemId: string) => void
+): void {
+    const presetItemIds = new Set<string>();
+    if (equipmentPresets) {
+        equipmentPresets.forEach(preset => {
+            if (preset.equipment) {
+                Object.values(preset.equipment).forEach(itemId => {
+                    if (itemId) presetItemIds.add(itemId);
+                });
+            }
+        });
+    }
+
+    const itemsToSelect = inventory
+        .filter(
+            item =>
+                item.type === 'equipment' &&
+                !item.isEquipped &&
+                !presetItemIds.has(item.id) &&
+                grades.includes(item.grade)
+        )
+        .map(item => item.id);
+
+    itemsToSelect.forEach(id => onToggleDisassemblySelection(id));
+}
+
+export const DisassemblyAutoSelectModal: React.FC<{
+    onClose: () => void;
+    onConfirm: (selectedGrades: ItemGrade[]) => void;
+    isTopmost?: boolean;
+    zIndex?: number;
+}> = ({ onClose, onConfirm, isTopmost = true, zIndex = 70 }) => {
     const [selectedGrades, setSelectedGrades] = useState<ItemGrade[]>([]);
 
     const handleToggleGrade = (grade: ItemGrade) => {
@@ -312,7 +372,15 @@ const AutoSelectModal: React.FC<{ onClose: () => void; onConfirm: (selectedGrade
     };
 
     return (
-        <DraggableWindow title="분해 자동 선택" onClose={onClose} windowId="disassembly-auto-select" initialWidth={400} isTopmost variant="store">
+        <DraggableWindow
+            title="분해 자동 선택"
+            onClose={onClose}
+            windowId="disassembly-auto-select"
+            initialWidth={400}
+            isTopmost={isTopmost}
+            zIndex={zIndex}
+            variant="store"
+        >
             <div className="text-on-panel">
                 <p className="text-sm text-tertiary mb-4 text-center">분해할 장비 등급을 선택하세요. 신화 등급은 제외됩니다.</p>
                 <div className="grid grid-cols-2 gap-3">
@@ -358,7 +426,6 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
 }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus } = useAppContext();
-    const [isAutoSelectOpen, setIsAutoSelectOpen] = useState(false);
     const [viewportNarrow, setViewportNarrow] = useState(
         () => typeof window !== 'undefined' && window.innerWidth < 1025
     );
@@ -406,90 +473,32 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
         }
     };
 
-    const handleAutoSelectConfirm = (grades: ItemGrade[]) => {
-        // 프리셋에 등록된 장비 ID 수집
-        const presetItemIds = new Set<string>();
-        if (currentUserWithStatus.equipmentPresets) {
-            currentUserWithStatus.equipmentPresets.forEach(preset => {
-                if (preset.equipment) {
-                    Object.values(preset.equipment).forEach(itemId => {
-                        if (itemId) presetItemIds.add(itemId);
-                    });
-                }
-            });
-        }
-
-        const itemsToSelect = inventory.filter(item =>
-            item.type === 'equipment' &&
-            !item.isEquipped &&
-            !presetItemIds.has(item.id) &&
-            grades.includes(item.grade)
-        ).map(item => item.id);
-
-        itemsToSelect.forEach(id => onToggleDisassemblySelection(id)); // Use the prop function
-
-        setIsAutoSelectOpen(false);
-    };
-
     return (
         <div className="flex h-full min-h-0 flex-col">
-            {isAutoSelectOpen && (
-                <AutoSelectModal
-                    onClose={() => setIsAutoSelectOpen(false)}
-                    onConfirm={handleAutoSelectConfirm}
-                />
-            )}
             <div
-                className={`flex min-h-0 flex-1 gap-3 ${
-                    useStackedDisassemblyLayout ? 'flex-col' : 'flex-row sm:items-stretch'
+                className={`grid min-h-0 w-full min-w-0 flex-1 gap-2 ${
+                    useStackedDisassemblyLayout
+                        ? '[grid-template-rows:repeat(2,minmax(0,1fr))]'
+                        : '[grid-template-columns:minmax(0,1fr)_minmax(0,1fr)]'
                 }`}
             >
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-                    <div className="grid min-h-0 w-full flex-1 gap-2 [grid-template-rows:repeat(2,minmax(0,1fr))]">
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-                            <SelectedDisassemblyItemsPanel
-                                selectedIds={selectedForDisassembly}
-                                inventory={inventory}
-                                onToggleDisassemblySelection={onToggleDisassemblySelection}
-                            />
-                        </div>
-                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
-                            <DisassemblyPreviewPanel
-                                selectedIds={selectedForDisassembly}
-                                inventory={inventory}
-                                blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
-                                nativeMobile={useStackedDisassemblyLayout}
-                                modalEquipmentSelectionFlow={modalEquipmentSelectionFlow}
-                            />
-                        </div>
-                    </div>
+                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                    <SelectedDisassemblyItemsPanel
+                        selectedIds={selectedForDisassembly}
+                        inventory={inventory}
+                        onToggleDisassemblySelection={onToggleDisassemblySelection}
+                    />
                 </div>
-                <div
-                    className={`flex flex-shrink-0 gap-2 ${
-                        useStackedDisassemblyLayout
-                            ? 'w-full flex-row'
-                            : 'w-full flex-col justify-center sm:w-[9.5rem]'
-                    }`}
-                >
-                    <ResourceActionButton
-                        onClick={() => setIsAutoSelectOpen(true)}
-                        variant="accent"
-                        className={`${
-                            useStackedDisassemblyLayout ? 'min-h-[44px] flex-1' : '!w-full'
-                        } !rounded-lg !border !border-amber-300/40 !bg-gradient-to-r !from-amber-600/90 !via-amber-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-amber-50 !shadow-[0_14px_26px_-18px_rgba(251,191,36,0.8)] hover:!from-amber-500 hover:!via-amber-400 hover:!to-orange-400`}
-                    >
-                        자동 선택
-                    </ResourceActionButton>
-                    <ResourceActionButton
-                        onClick={handleDisassemble}
-                        disabled={selectedForDisassembly.size === 0}
-                        variant="materials"
-                        className={`${
-                            useStackedDisassemblyLayout ? 'min-h-[44px] flex-1' : '!w-full'
-                        } !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
-                    >
-                        선택 분해 ({selectedForDisassembly.size})
-                    </ResourceActionButton>
+                <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                    <DisassemblyPreviewPanel
+                        selectedIds={selectedForDisassembly}
+                        inventory={inventory}
+                        blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
+                        nativeMobile={useStackedDisassemblyLayout}
+                        modalEquipmentSelectionFlow={modalEquipmentSelectionFlow}
+                        onDisassemble={handleDisassemble}
+                        selectedCount={selectedForDisassembly.size}
+                    />
                 </div>
             </div>
         </div>

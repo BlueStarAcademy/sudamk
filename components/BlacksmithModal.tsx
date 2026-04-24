@@ -2,7 +2,10 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import DraggableWindow from './DraggableWindow.js';
 import EnhancementView from './blacksmith/EnhancementView.js';
 import CombinationView from './blacksmith/CombinationView.js';
-import DisassemblyView from './blacksmith/DisassemblyView.js';
+import DisassemblyView, {
+    applyDisassemblyAutoSelectByGrades,
+    DisassemblyAutoSelectModal,
+} from './blacksmith/DisassemblyView.js';
 import ConversionView from './blacksmith/ConversionView.js';
 import RefinementView from './blacksmith/RefinementView.js';
 import InventoryGrid from './blacksmith/InventoryGrid.js';
@@ -89,6 +92,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     const [combinationItems, setCombinationItems] = useState<(InventoryItem | null)[]>([null, null, null]);
     const [selectedForDisassembly, setSelectedForDisassembly] = useState<Set<string>>(new Set()); // New state
     const [sortOption, setSortOption] = useState<SortOption>('grade');
+    const [disassemblyAutoSelectOpen, setDisassemblyAutoSelectOpen] = useState(false);
 
     // 좁은 가로 화면에서는 PC 레이아웃을 그대로 축소해서 사용
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
@@ -111,6 +115,10 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
 
     useEffect(() => {
         setCombinationItems([null, null, null]);
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab !== 'disassemble') setDisassemblyAutoSelectOpen(false);
     }, [activeTab]);
 
     // Sync selected item with inventory (for enhancement updates)
@@ -319,6 +327,29 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         });
     }, []);
 
+    const handleDisassemblyAutoSelectConfirm = useCallback(
+        (grades: ItemGrade[]) => {
+            const toggler =
+                equipmentPickerOpen && activeTab === 'disassemble'
+                    ? handlePickerToggleDisassembly
+                    : handleToggleDisassemblySelection;
+            applyDisassemblyAutoSelectByGrades(
+                grades,
+                inventory,
+                currentUserWithStatus.equipmentPresets,
+                toggler
+            );
+        },
+        [
+            equipmentPickerOpen,
+            activeTab,
+            inventory,
+            currentUserWithStatus.equipmentPresets,
+            handlePickerToggleDisassembly,
+            handleToggleDisassemblySelection,
+        ]
+    );
+
     const handleMobileEquipmentBack = useCallback(() => {
         if (activeTab === 'enhance' || activeTab === 'refine') {
             setSelectedItem(null);
@@ -525,6 +556,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 }
                 isTopmost={
                     isTopmost &&
+                    !disassemblyAutoSelectOpen &&
                     !equipmentPickerOpen &&
                     !equipmentFeatureModalOpen &&
                     !modals.isBlacksmithHelpOpen &&
@@ -737,18 +769,29 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             {renderContent()}
                         </div>
                         <div className="mt-4 flex flex-col rounded-xl border border-white/10 bg-black/25 p-3">
-                            <div className="mb-2 flex items-center justify-between">
-                                <h3 className="text-lg font-black tracking-tight text-amber-100">{bagHeaderText}</h3>
-                                <select
-                                    value={sortOption}
-                                    onChange={(e) => setSortOption(e.target.value as SortOption)}
-                                    className="rounded-md border border-amber-400/30 bg-slate-900/85 px-2.5 py-1.5 text-xs font-semibold text-amber-100 outline-none transition focus:border-amber-300/60"
-                                >
-                                    <option value="grade">등급순</option>
-                                    <option value="stars">강화순</option>
-                                    <option value="name">이름순</option>
-                                    <option value="date">최신순</option>
-                                </select>
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                                <h3 className="min-w-0 shrink text-lg font-black tracking-tight text-amber-100">{bagHeaderText}</h3>
+                                <div className="flex shrink-0 items-center gap-2">
+                                    {activeTab === 'disassemble' && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setDisassemblyAutoSelectOpen(true)}
+                                            className="whitespace-nowrap rounded-md border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-2.5 py-1.5 text-xs font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400"
+                                        >
+                                            자동 선택
+                                        </button>
+                                    )}
+                                    <select
+                                        value={sortOption}
+                                        onChange={(e) => setSortOption(e.target.value as SortOption)}
+                                        className="rounded-md border border-amber-400/30 bg-slate-900/85 px-2.5 py-1.5 text-xs font-semibold text-amber-100 outline-none transition focus:border-amber-300/60"
+                                    >
+                                        <option value="grade">등급순</option>
+                                        <option value="stars">강화순</option>
+                                        <option value="name">이름순</option>
+                                        <option value="date">최신순</option>
+                                    </select>
+                                </div>
                             </div>
                             <div className="h-[130px] overflow-y-auto pr-1">
                                 <InventoryGrid 
@@ -787,6 +830,10 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     onSelectForCombine={handlePickerSelectForCombine}
                     pickerDisassemble={pickerDisassemble}
                     onToggleDisassembly={handlePickerToggleDisassembly}
+                    onOpenDisassemblyAutoSelect={
+                        activeTab === 'disassemble' ? () => setDisassemblyAutoSelectOpen(true) : undefined
+                    }
+                    disassemblyAutoSelectOpen={disassemblyAutoSelectOpen}
                 />
             )}
 
@@ -800,6 +847,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                         windowId={`blacksmith-work-${activeTab}`}
                         isTopmost={
                             isTopmost &&
+                            !disassemblyAutoSelectOpen &&
                             !equipmentPickerOpen &&
                             !modals.isBlacksmithHelpOpen &&
                             !modals.isBlacksmithEffectsModalOpen &&
@@ -830,6 +878,15 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                         </div>
                     </DraggableWindow>
                 )}
+
+            {disassemblyAutoSelectOpen && activeTab === 'disassemble' && (
+                <DisassemblyAutoSelectModal
+                    onClose={() => setDisassemblyAutoSelectOpen(false)}
+                    onConfirm={handleDisassemblyAutoSelectConfirm}
+                    isTopmost={isTopmost}
+                    zIndex={useStackedBlacksmithLayout ? 150 : 90}
+                />
+            )}
         </>
     );
 };

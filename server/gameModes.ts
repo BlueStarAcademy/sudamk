@@ -1067,10 +1067,13 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
                 game.gameCategory === 'guildwar' ||
                 game.gameCategory === 'adventure';
             const needsRevealTransition = isPVEGame && (game.gameStatus === 'hidden_final_reveal' || game.gameStatus === 'hidden_reveal_animating');
-            const needsMissileOrScanTransition =
+            const needsItemModeTransition =
                 isPVEGame &&
                 (game.gameStatus === 'missile_animating' ||
                     game.gameStatus === 'scanning_animating' ||
+                    // 히든/스캔 아이템 선택 중에도 updateHiddenState가 돌아야 30초 타임아웃 복귀가 처리됨
+                    game.gameStatus === 'hidden_placing' ||
+                    game.gameStatus === 'scanning' ||
                     // 도전의 탑: 미사일 선택 중에도 updateMissileState(아이템 데드라인 등)가 돌아야 함
                     game.gameStatus === 'missile_selecting');
             const needsPveServerGoAiTick =
@@ -1114,7 +1117,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             if (
                 !isPVEGame ||
                 needsRevealTransition ||
-                needsMissileOrScanTransition ||
+                needsItemModeTransition ||
                 needsPveServerGoAiTick ||
                 needsPveDiceThiefPlayfulTick
             ) {

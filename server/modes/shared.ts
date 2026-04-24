@@ -596,9 +596,12 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             
             // 싱글플레이 게임 또는 도전의 탑 게임인 경우 특별 처리
             if (game.isSinglePlayer || game.gameCategory === 'tower') {
-                // 싱글플레이/도전의 탑에서 기권하면 AI(White)가 승리, 유저(Black)가 패배
-                // 유저는 항상 Black이므로 White가 승리
-                await summaryService.endGame(game, types.Player.White, 'resign');
+                if (myPlayerEnum === types.Player.None) {
+                    return { error: 'Only participants can resign.' };
+                }
+                // 기권한 플레이어의 반대 색이 승리해야 하므로, 색 고정 가정 없이 상대를 승자로 처리한다.
+                const winner = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+                await summaryService.endGame(game, winner, 'resign');
                 
                 if (volatileState.userStatuses[user.id]) {
                     volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: game.mode };

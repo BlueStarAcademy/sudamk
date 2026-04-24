@@ -50,6 +50,28 @@ function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
     return isLobbyAiStrategicGoGame(game);
 }
 
+/**
+ * 실제 진행 턴수(유효 착수 수).
+ * - 히든 마스킹/카타 정렬용 synthetic PASS는 `game.moveHistory`에 저장되지 않아야 하며,
+ * - 혹시 -1/-1 이력이 섞여 있어도 진행 턴수 계산에서는 제외한다.
+ */
+function getProgressTurnCount(game: types.LiveGameSession): number {
+    return (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
+}
+
+/** PvP 전략바둑만 scoringTurnLimit에서 PASS를 턴으로 포함한다. */
+function shouldCountPassAsTurnForScoring(game: types.LiveGameSession): boolean {
+    const scoringLimit = Number((game.settings as any)?.scoringTurnLimit ?? 0);
+    const gc = String((game as any).gameCategory ?? '');
+    return (
+        scoringLimit > 0 &&
+        !game.isSinglePlayer &&
+        !game.isAiGame &&
+        gc !== 'tower' &&
+        gc !== 'adventure'
+    );
+}
+
 async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
     try {
         const { getCachedGame } = await import('./gameCache.js');
@@ -78,10 +100,8 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
                     ? scoringLimit
                     : undefined;
         if (!autoScoringTurns) return;
-        const countPassAsTurn =
-            scoringLimit != null && scoringLimit > 0 && !g.isSinglePlayer && (g as any).gameCategory !== 'tower';
-        const validMoves = (g.moveHistory || []).filter((m) => m.x !== -1 && m.y !== -1);
-        const totalTurns = countPassAsTurn ? (g.moveHistory || []).length : validMoves.length;
+        const countPassAsTurn = shouldCountPassAsTurnForScoring(g);
+        const totalTurns = countPassAsTurn ? (g.moveHistory || []).length : getProgressTurnCount(g);
         if (totalTurns < autoScoringTurns) return;
 
         const gameType = g.isSinglePlayer ? 'SinglePlayer' : 'PVE';
@@ -1539,8 +1559,8 @@ export async function makeGoAiBotMove(
         !game.isSinglePlayer &&
         (game as any).gameCategory !== 'tower'
     ) {
-        // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
-        const totalTurnsSoFar = (game.moveHistory || []).length;
+        // 모험/AI 계열은 PASS를 허용하지 않으므로 유효 착수 수만 기준으로 삼는다.
+        const totalTurnsSoFar = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
         if (totalTurnsSoFar >= scoringTurnLimit) {
             console.log(
                 `[makeGoAiBotMove] Game ${game.id} at or over scoringTurnLimit (${totalTurnsSoFar} >= ${scoringTurnLimit}), triggering getGameResult without making a move`,
@@ -1940,11 +1960,10 @@ export async function makeGoAiBotMove(
                 : (useScoringLimitAsAuto ? scoringLimit : undefined);
         
         if (autoScoringTurns !== undefined || (game.isSinglePlayer && game.stageId)) {
-            // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
-            const countPassAsTurn =
-                (scoringLimit != null && scoringLimit > 0 && !game.isSinglePlayer && (game as any).gameCategory !== 'tower');
+            // AI/PvE 계열은 PASS를 허용하지 않으므로 유효 착수 수만 카운트한다.
+            const countPassAsTurn = shouldCountPassAsTurnForScoring(game);
             const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-            const totalTurns = countPassAsTurn ? game.moveHistory.length : validMoves.length;
+            const totalTurns = countPassAsTurn ? game.moveHistory.length : getProgressTurnCount(game);
             game.totalTurns = totalTurns;
         
         if (autoScoringTurns) {

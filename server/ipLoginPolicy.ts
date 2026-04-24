@@ -119,7 +119,8 @@ export function releaseIpBindingForUser(volatileState: VolatileState, userId: st
 }
 
 /**
- * 동일 IP에서 다른 일반 계정이 로그인하면 기존 일반 세션을 끊는다. 관리자는 regular 슬롯에 없으므로 여기서 제거되지 않는다.
+ * 같은 클라이언트 바인딩(공인 IP + `sudamr_device_id` 쿠키) 슬롯에 다른 일반 계정이 들어오면
+ * 기존 일반 세션을 끊는다. 관리자는 regular 슬롯이 아니므로 여기서 제거되지 않는다.
  */
 async function preemptSharedPcRegularUser(
     volatileState: VolatileState,
@@ -175,9 +176,9 @@ async function preemptSharedPcRegularUser(
 }
 
 /**
- * 동일 IP에서 일반 계정은 1명만 세션 점유. 다른 일반 계정이 들어오면 기존 일반 세션은 강제 로그아웃된다.
- * 관리자는 별도 슬롯이라 일반 계정과 동시 접속 가능하며, 일반 계정이 관리자를 끊지 않는다.
- * 비밀번호 로그인 직후(/api/state 전) IP만 예약한 상태에서도 동일 IP로 재호출되면 성공 처리한다.
+ * 바인딩 키(공인 IP + 기기 쿠키)당 일반 계정은 1명만 세션 점유. 다른 일반 계정이 선점하면 기존 일반 세션은 강제 로그아웃된다.
+ * 관리자는 별도 슬롯이라 일반과 동시 접속 가능하며, 일반 계정이 관리자를 끊지 않는다.
+ * 쿠키가 브라우저마다 달라지므로 “동일 PC·다른 브라우저”까지 항상 막으려면 정책 추가가 필요하다.
  */
 export async function ensureClientIpAllowsSession(
     volatileState: VolatileState,

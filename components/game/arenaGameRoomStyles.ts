@@ -6,10 +6,19 @@ import { arenaPostGameButtonClass } from './arenaPostGameButtonStyles.js';
 
 /**
  * 싱글플레이·도전의 탑·길드전 PVE 타워 등 하단 조작 바 예약 높이.
- * 경기 종료 후 버튼 구성이 달라져도 상단 바둑판(`flex-1`)이 늘거나 줄지 않도록, 진행 중 푸터와 동일한 높이를 유지한다.
+ * 경기 종료 후 버튼 구성이 달라져도 상단 바둑판(`flex-1`)이 늘거나 줄지 않도록, 진행 중 푸터와 동일한 **최소** 높이를 유지한다.
+ * (`max-h` 제거 — 종료 버튼이 많을 때 잘리지 않게 하되, 대부분은 동일 높이로 유지)
  */
 export function pveIngameFooterReservedHeightClass(isMobile: boolean): string {
-    return isMobile ? 'h-[164px]' : 'min-h-[112px] max-h-[124px]';
+    return isMobile ? 'min-h-[164px]' : 'min-h-[124px]';
+}
+
+/**
+ * 온라인/PvP `GameControls` compact 푸터(매너 + 2열 조작 vs 종료 버튼 행 + 선택적 관리자 줄).
+ * `gameStatus` 전후로 하단 블록 높이가 달라져도 바둑판 영역이 밀리지 않도록 **충분한 min-height**를 둔다.
+ */
+export function onlineGameControlsCompactFooterMinHeightClass(isMobile: boolean): string {
+    return isMobile ? 'min-h-[17rem]' : 'min-h-[12.25rem]';
 }
 
 /** 인게임 하단 조작 바 외곽 — PC/모바일 공통 불투명 딥 네이비 슬레이트 */

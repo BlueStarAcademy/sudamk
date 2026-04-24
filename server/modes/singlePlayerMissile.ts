@@ -201,6 +201,21 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
         return false;
     }
 
+    // 방어 로직: 미사일 선택 모드인데 deadline이 비어 있으면 상태 고착을 방지하기 위해 즉시 복귀
+    if (game.gameStatus === 'missile_selecting' && !game.itemUseDeadline) {
+        const timedOutPlayerEnum = game.currentPlayer;
+        game.gameStatus = 'playing';
+        game.currentPlayer = timedOutPlayerEnum;
+        const resumed = resumeGameTimer(game, now, timedOutPlayerEnum);
+        if (!resumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+        }
+        return true;
+    }
+
     // 아이템 사용 시간 초과 처리
     if (game.gameStatus === 'missile_selecting' && game.itemUseDeadline && now > game.itemUseDeadline) {
         const timedOutPlayerEnum = game.currentPlayer;
@@ -213,16 +228,23 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
             expiry: now + 4000 
         };
         game.gameStatus = 'playing';
+        game.currentPlayer = timedOutPlayerEnum;
         
         // 미사일 아이템 소멸
         const missileKey = timedOutPlayerId === game.player1.id ? 'missiles_p1' : 'missiles_p2';
-        const currentMissiles = game[missileKey] ?? 0;
+        const currentMissiles = game[missileKey] ?? game.settings.missileCount ?? 0;
         if (currentMissiles > 0) {
             game[missileKey] = currentMissiles - 1;
         }
         
         // 원래 경기 시간 복원 (턴 유지)
-        resumeGameTimer(game, now, timedOutPlayerEnum);
+        const resumed = resumeGameTimer(game, now, timedOutPlayerEnum);
+        if (!resumed) {
+            game.itemUseDeadline = undefined;
+            game.pausedTurnTimeLeft = undefined;
+            game.turnDeadline = undefined;
+            game.turnStartTime = undefined;
+        }
         return true; // 게임 상태가 변경되었음을 반환
     }
     

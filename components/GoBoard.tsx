@@ -73,8 +73,8 @@ const AnimatedBonusText: React.FC<{
     const durS = Math.max(1.2, (animation.duration ?? 2500) / 1000);
     return (
         <g style={{ pointerEvents: 'none' }} transform={`translate(${cx}, ${cy})`}>
-            {/* 회전 시 클래스 전환으로 CSS 애니메이션이 재시작되지 않도록 scale로 Y만 보정 */}
-            <g transform={isRotated ? 'scale(1,-1)' : undefined}>
+            {/* 보드 180도 회전 시에도 텍스트가 좌우 반전되지 않도록 전체를 역회전 보정 */}
+            <g transform={isRotated ? 'rotate(180)' : undefined}>
                 <g className={vis.innerClassName} style={{ animationDuration: `${durS}s` }}>
                     <text
                         x={0}
@@ -455,7 +455,7 @@ const RecommendedMoveMarker: React.FC<{
     );
 };
 
-const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isPending?: boolean, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isPending, isBaseStone, isPatternStone, radius, isFaint }) => {
+const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boolean, isSelectedMissile?: boolean, isHoverSelectableMissile?: boolean, isKnownHidden?: boolean, isNewlyRevealed?: boolean, animationClass?: string, isPending?: boolean, isBaseStone?: boolean, isPatternStone?: boolean, radius: number, isFaint?: boolean, keepUpright?: boolean }> = ({ player, cx, cy, isLastMove, isSelectedMissile, isHoverSelectableMissile, isKnownHidden, isNewlyRevealed, animationClass, isPending, isBaseStone, isPatternStone, radius, isFaint, keepUpright }) => {
     const specialImageSize = radius * 2 * 0.7;
     const specialImageOffset = specialImageSize / 2;
 
@@ -466,7 +466,11 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
     const strokeWidth = isSelectedMissile || isPending ? 3.5 : 0;
 
     return (
-        <g className={`${animationClass || ''} ${isHoverSelectableMissile ? 'missile-selectable-stone' : ''}`} opacity={isPending ? 0.6 : (isFaint ? 0.52 : 1)}>
+        <g
+            className={`${animationClass || ''} ${isHoverSelectableMissile ? 'missile-selectable-stone' : ''}`}
+            opacity={isPending ? 0.6 : (isFaint ? 0.52 : 1)}
+            transform={keepUpright ? `rotate(180 ${cx} ${cy})` : undefined}
+        >
             <circle
                 cx={cx}
                 cy={cy}
@@ -1866,7 +1870,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                     const stonePlayerForRender = actualPlayer;
 
-                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} />;
+                    return <Stone key={`${x}-${y}`} player={stonePlayerForRender} cx={cx} cy={cy} isLastMove={isLast} isKnownHidden={isKnownHidden as boolean} isBaseStone={hasBaseStoneHere} isPatternStone={isPatternStone} isNewlyRevealed={isNewlyRevealedForAnim} animationClass={isNewlyRevealedForAnim ? 'sparkle-animation' : ''} isSelectedMissile={isSelectedMissileForRender} isHoverSelectableMissile={isHoverSelectableMissile} radius={stone_radius} isFaint={isFaint} keepUpright={!!isRotated} />;
                 }))}
                 {myBaseStonesForPlacement?.map((stone, i) => {
                     const { cx, cy } = toSvgCoords(stone);
@@ -2051,6 +2055,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                             isNewlyRevealed
                                             animationClass="sparkle-animation"
                                             radius={stone_radius}
+                                            keepUpright={!!isRotated}
                                         />
                                     );
                                 })}
@@ -2064,7 +2069,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         const vis = getCaptureScoreFloatVisual(cell_size, f.points);
                         return (
                             <g key={f.id} transform={`translate(${cx}, ${cy})`} style={{ pointerEvents: 'none' }}>
-                                <g transform={isRotated ? 'scale(1,-1)' : undefined}>
+                                <g transform={isRotated ? 'rotate(180)' : undefined}>
                                     <g className={vis.innerClassName}>
                                         <text
                                             x={0}

@@ -95,6 +95,10 @@ export interface BlacksmithEquipmentPickerModalProps {
     onSelectForCombine: (item: InventoryItem) => void;
     pickerDisassemble: Set<string>;
     onToggleDisassembly: (itemId: string) => void;
+    /** 장비 분해: 정렬 드롭다운 왼쪽 자동 선택 버튼 */
+    onOpenDisassemblyAutoSelect?: () => void;
+    /** 분해 자동 선택 모달이 열려 있을 때 피커가 위로 덮이지 않도록 */
+    disassemblyAutoSelectOpen?: boolean;
 }
 
 const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalProps> = ({
@@ -115,6 +119,8 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
     onSelectForCombine,
     pickerDisassemble,
     onToggleDisassembly,
+    onOpenDisassemblyAutoSelect,
+    disassemblyAutoSelectOpen = false,
 }) => {
     const canCombine =
         pickerCombine.every(i => i !== null) &&
@@ -152,7 +158,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
             title="장비 선택"
             onClose={onClose}
             windowId="blacksmith-equipment-picker"
-            isTopmost
+            isTopmost={!disassemblyAutoSelectOpen}
             zIndex={135}
             variant="store"
             mobileViewportFit
@@ -180,17 +186,28 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                     )}
 
                     <div className="mb-2 flex items-center justify-between gap-2">
-                        <span className="text-sm font-bold text-on-panel">장비</span>
-                        <select
-                            value={sortOption}
-                            onChange={e => onSortChange(e.target.value as SortOption)}
-                            className="rounded border border-color bg-secondary px-2 py-1 text-xs text-on-panel"
-                        >
-                            <option value="grade">등급순</option>
-                            <option value="stars">강화순</option>
-                            <option value="name">이름순</option>
-                            <option value="date">최신순</option>
-                        </select>
+                        <span className="min-w-0 shrink text-sm font-bold text-on-panel">장비</span>
+                        <div className="flex shrink-0 items-center gap-2">
+                            {mode === 'disassemble' && onOpenDisassemblyAutoSelect && (
+                                <button
+                                    type="button"
+                                    onClick={onOpenDisassemblyAutoSelect}
+                                    className="whitespace-nowrap rounded border border-amber-300/40 bg-gradient-to-r from-amber-600/90 via-amber-500/90 to-orange-500/85 px-2 py-1 text-[11px] font-bold text-amber-50 shadow-[0_10px_22px_-14px_rgba(251,191,36,0.75)] transition hover:from-amber-500 hover:via-amber-400 hover:to-orange-400"
+                                >
+                                    자동 선택
+                                </button>
+                            )}
+                            <select
+                                value={sortOption}
+                                onChange={e => onSortChange(e.target.value as SortOption)}
+                                className="rounded border border-color bg-secondary px-2 py-1 text-xs text-on-panel"
+                            >
+                                <option value="grade">등급순</option>
+                                <option value="stars">강화순</option>
+                                <option value="name">이름순</option>
+                                <option value="date">최신순</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div className="max-h-[min(52dvh,24rem)] min-h-[12rem] overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable]">

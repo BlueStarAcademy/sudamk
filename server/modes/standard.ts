@@ -554,9 +554,14 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             fixedScoringTurnLimit = stage?.autoScoringTurns;
         } else {
             fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit;
-            // 전략바둑 scoringTurnLimit은 PASS(-1, -1)도 턴으로 계산한다.
+            // scoringTurnLimit에서 PASS를 턴으로 포함할지 결정.
+            // - PvP 전략바둑: PASS 포함(기존 규칙 유지)
+            // - 모험/AI/PvE 계열: PASS 제외(실제 착수 수 기준으로 종료)
             countPassAsTurn =
-                !game.isSinglePlayer && String(game.gameCategory ?? '') !== String(GameCategory.Tower);
+                !game.isSinglePlayer &&
+                !game.isAiGame &&
+                String(game.gameCategory ?? '') !== String(GameCategory.Tower) &&
+                String(game.gameCategory ?? '') !== String(GameCategory.Adventure);
         }
         const currentTurnCount = countPassAsTurn
             ? (game.moveHistory || []).length
@@ -644,7 +649,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 // 0/N 도달 검증: 싱글/탑은 유효 착수 수, 온라인(PVP 등)은 moveHistory 길이(PASS 포함) — strategic.ts·scoringTurnLimit와 동일
                 const validMoves = (game.moveHistory || []).filter((m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1);
                 const useMoveHistoryCountForLimit =
-                    !game.isSinglePlayer && game.gameCategory !== 'tower';
+                    !game.isSinglePlayer &&
+                    !game.isAiGame &&
+                    game.gameCategory !== 'tower' &&
+                    game.gameCategory !== GameCategory.Adventure;
                 const totalTurns = useMoveHistoryCountForLimit
                     ? (game.moveHistory || []).length
                     : validMoves.length;
@@ -717,7 +725,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 const validMovesSync = (game.moveHistory || []).filter(
                     (m: { x: number; y: number }) => m && m.x !== -1 && m.y !== -1
                 );
-                const useMoveHistoryCountForLimitSync = !game.isSinglePlayer && game.gameCategory !== 'tower';
+                const useMoveHistoryCountForLimitSync =
+                    !game.isSinglePlayer &&
+                    !game.isAiGame &&
+                    game.gameCategory !== 'tower' &&
+                    game.gameCategory !== GameCategory.Adventure;
                 const totalTurnsSync = useMoveHistoryCountForLimitSync
                     ? (game.moveHistory || []).length
                     : validMovesSync.length;

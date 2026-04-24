@@ -1,8 +1,7 @@
-import { AVATAR_POOL } from './ui.js';
-
-export const OTHER_DEVICE_LOGIN_SHARED_PC_REASON = 'shared_pc_ip' as const;
-export const OTHER_DEVICE_LOGIN_MAINTENANCE_REASON = 'maintenance_mode' as const;
-
-export const aiUserId = 'ai-player-01';
-
-export const BOT_NAMES = ['알파고', '카타고', '절예', '신의한수', '딥젠고', '바둑도사', '묘수타파', '기성'];
+/** 클라·레거시 import용 — 값은 `shared/constants/auth` 단일 출처 */
+export {
+    aiUserId,
+    OTHER_DEVICE_LOGIN_SHARED_PC_REASON,
+    OTHER_DEVICE_LOGIN_MAINTENANCE_REASON,
+    BOT_NAMES,
+} from '../shared/constants/auth.js';

@@ -32,6 +32,8 @@ import {
     arenaGameRoomSinglePlayerOuterBarClass,
     arenaGameRoomSinglePlayerSplitPanelAccentClass,
     arenaGameRoomSinglePlayerSplitPanelClass,
+    onlineGameControlsCompactFooterMinHeightClass,
+    pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
 
@@ -1528,7 +1530,11 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             isCurrentStageAlreadyCleared || isWinner ? 0 : (currentStage?.actionPointCost ?? 0);
         const retryActionPointCost =
             session.singlePlayerStartActionPointCost === 0 ? 0 : inferredRetryAp;
-        const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
+        const nextStageIndex = currentStageIndex + 1;
+        const isNextStageAlreadyCleared =
+            !!nextStage &&
+            (clearedStages.includes(nextStage.id) || singlePlayerProgress > nextStageIndex);
+        const nextStageActionPointCost = isNextStageAlreadyCleared ? 0 : (nextStage?.actionPointCost ?? 0);
 
         const refreshCosts = [0, 50, 75, 100, 200];
         const refreshesUsed = session.singlePlayerPlacementRefreshesUsed ?? 0;
@@ -1644,7 +1650,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
             return (
                 <>
-                <footer className={`${arenaGameRoomControlsFooterClass} min-h-0 sm:min-h-[120px]`}>
+                <footer className={`${arenaGameRoomControlsFooterClass} ${pveIngameFooterReservedHeightClass(!!isMobile)}`}>
                     <div className={arenaPostGamePanelShellClass}>
                         <div className={arenaPostGameIngameEndedRowClass}>
                         <Button bare onClick={handleShowResults} colorScheme="none" className={endedIngameRowBtn()}>
@@ -1831,7 +1837,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         );
 
         return (
-            <footer className={`${arenaGameRoomControlsFooterClass} min-h-0 min-[1025px]:min-h-[96px]`}>
+            <footer className={`${arenaGameRoomControlsFooterClass} ${pveIngameFooterReservedHeightClass(!!isMobile)}`}>
                 <div
                     className={`${arenaGameRoomSinglePlayerOuterBarClass} w-full ${
                         isMobile && (isHiddenMode || isMissileMode)
@@ -2062,7 +2068,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     );
 
     return (
-        <footer className={arenaGameRoomControlsFooterCompactClass}>
+        <footer
+            className={`${arenaGameRoomControlsFooterCompactClass} ${onlineGameControlsCompactFooterMinHeightClass(!!isMobile)}`}
+        >
             {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
             {!isSinglePlayer && !session.isAiGame ? (
                 <div

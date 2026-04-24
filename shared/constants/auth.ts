@@ -1,10 +1,13 @@
-import { AVATAR_POOL } from './ui.js';
-
 export const aiUserId = 'ai-player-01';
 
-/** WebSocket OTHER_DEVICE_LOGIN payload.reason — 동일 IP에서 새 일반 로그인 시 기존 탭 즉시 로그아웃 */
+/**
+ * WebSocket OTHER_DEVICE_LOGIN `payload.reason` — `ipLoginPolicy`에서만 사용.
+ * 공인 IP(X-Forwarded-For) + 기기 쿠키(`sudamr_device_id`)로 잡은 슬롯에 다른 일반 계정이 들어올 때,
+ * 기존 일반 세션을 끊으며 보낸다. (관리자는 별도 슬롯·일반 계정에 의해 밀리지 않음)
+ * 동일 아이디 재로그인(다른 기기/탭)은 `reason` 없이 `server.ts` 로그인 경로에서 처리한다.
+ */
 export const OTHER_DEVICE_LOGIN_SHARED_PC_REASON = 'shared_pc_ip' as const;
-/** WebSocket OTHER_DEVICE_LOGIN payload.reason — 서버 점검 모드 강제 로그아웃 */
+/** WebSocket OTHER_DEVICE_LOGIN `payload.reason` — 점검 모드에서 비관리자 일괄 강제 로그아웃 */
 export const OTHER_DEVICE_LOGIN_MAINTENANCE_REASON = 'maintenance_mode' as const;
 
 /** 관리자 계정 ID (서버 initialData/db와 동일해야 함) */

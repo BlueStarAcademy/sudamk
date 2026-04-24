@@ -234,7 +234,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         isCurrentStageAlreadyCleared || isWinner ? 0 : (currentStage?.actionPointCost ?? 0);
     const retryActionPointCost =
         session.singlePlayerStartActionPointCost === 0 ? 0 : inferredRetryAp;
-    const nextStageActionPointCost = nextStage?.actionPointCost ?? 0;
+    const nextStageIndex = currentStageIndex + 1;
+    const isNextStageAlreadyCleared =
+        !!nextStage &&
+        (clearedStagesForNext.includes(nextStage.id) || singlePlayerProgressForNext > nextStageIndex);
+    const nextStageActionPointCost = isNextStageAlreadyCleared ? 0 : (nextStage?.actionPointCost ?? 0);
 
     const failureReason = useMemo(() => {
         if (isWinner) return null;

@@ -3655,7 +3655,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 }
                 const pendingMutualMsg = volatileState.pendingMutualDisconnectByUser?.[userForLogin.id];
                 if (pendingMutualMsg) delete volatileState.pendingMutualDisconnectByUser![userForLogin.id];
-                // 다른 기기에서 로그인 시 기존 연결된 클라이언트(다른 PC/탭)에 자동 로그아웃 알림
+                // 동일 아이디로 새 로그인 시 기존 WS 세션에 알림(`reason` 없음 → 클라는 모달 분기)
                 try {
                     sendToUser(userForLogin.id, {
                         type: 'OTHER_DEVICE_LOGIN',
