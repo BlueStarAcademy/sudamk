@@ -2307,7 +2307,7 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
 }
 
-// 길드전 매칭: 월·목 23:00~23:59 KST 짝 매칭 + 화·금 0:00~0:34 캐치업. 비데모에서는 짝 길드끼리 매칭 후 홀수 1팀만 봇과 매칭.
+// 길드전 매칭: 월·목 23:00~23:59 KST 짝 매칭 + 화·금 0:00~0:59 캐치업. 비데모에서는 짝 길드끼리 매칭 후 홀수 1팀만 봇과 매칭.
 // 예약 시간 외 매칭 큐가 있으면 매 분(메인 루프)에서 동일 규칙으로 처리(짝·홀수 봇). 데모만 큐 전체를 봇과 즉시 매칭.
 /** `processGuildWarMatching` 두 번째 인자 — `GUILD_WAR_MATCH_TEST_MODE=1` 일 때만 test 옵션이 적용된다. */
 export type ProcessGuildWarMatchingOptions = {
@@ -2327,7 +2327,7 @@ export async function processGuildWarMatching(
     const kstMinutes = getKSTMinutes(now);
     const isPrimeMatchWindow = (kstDay === 1 || kstDay === 4) && kstHours === 23 && kstMinutes < 60; // 월·목 23:00~23:59
     const isCatchUpWindow =
-        (kstDay === 2 || kstDay === 5) && kstHours === 0 && kstMinutes < 35; // 화·금 0:00~0:34
+        (kstDay === 2 || kstDay === 5) && kstHours === 0 && kstMinutes < 60; // 화·금 0:00~0:59
     const inScheduledWindow = isPrimeMatchWindow || isCatchUpWindow;
 
     const bootstrapOnce = await consumeGuildWarBootstrapMatchOnce();

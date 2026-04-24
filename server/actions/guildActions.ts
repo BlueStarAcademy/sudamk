@@ -3554,6 +3554,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
         
         case 'CLAIM_GUILD_WAR_REWARD': {
             if (!user.guildId) return { error: '길드에 가입되어 있지 않습니다.' };
+            try {
+                const { processGuildWarEnd } = await import('../scheduledTasks.js');
+                await processGuildWarEnd();
+            } catch (e: any) {
+                console.warn('[CLAIM_GUILD_WAR_REWARD] processGuildWarEnd (non-fatal):', e?.message);
+            }
             
             const guilds = await db.getKV<Record<string, Guild>>('guilds') || {};
             const guild = guilds[user.guildId];
