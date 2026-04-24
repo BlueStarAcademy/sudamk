@@ -583,15 +583,15 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             case 'consumables':
             default: {
                 const baseConsumableItems = [
-                    { itemId: 'condition_potion_small', name: "컨디션회복제(소)", description: "컨디션 1~10회복", price: { gold: 100 }, image: "/images/use/con1.png", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_medium', name: "컨디션회복제(중)", description: "컨디션 10~20회복", price: { gold: 150 }, image: "/images/use/con2.png", dailyLimit: 3, type: 'consumable' as const },
-                    { itemId: 'condition_potion_large', name: "컨디션회복제(대)", description: "컨디션 20~30회복", price: { gold: 200 }, image: "/images/use/con3.png", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_small', name: "컨디션회복제(소)", description: "긴장감을 완화시켜주는 컨디션 회복제", price: { gold: 100 }, image: "/images/use/con1.png", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_medium', name: "컨디션회복제(중)", description: "머리가 맑아지는 느낌의 컨디션 회복제", price: { gold: 150 }, image: "/images/use/con2.png", dailyLimit: 3, type: 'consumable' as const },
+                    { itemId: 'condition_potion_large', name: "컨디션회복제(대)", description: "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제", price: { gold: 200 }, image: "/images/use/con3.png", dailyLimit: 3, type: 'consumable' as const },
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '가방으로 지급', dailyLimit: 1, prices: [100], badge: '+10' },
-                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '가방으로 지급', dailyLimit: 1, prices: [300], badge: '+20' },
-                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '가방으로 지급', dailyLimit: 1, prices: [1000], badge: '+30' },
+                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '행동력을 회복시키는 기묘한 번개', dailyLimit: 1, prices: [100], badge: '+10' },
+                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '행동력을 회복시키는 기묘한 번개', dailyLimit: 1, prices: [300], badge: '+20' },
+                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '행동력을 회복시키는 기묘한 번개', dailyLimit: 1, prices: [1000], badge: '+30' },
                 ];
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
                     const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];

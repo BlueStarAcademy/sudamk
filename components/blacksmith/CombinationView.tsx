@@ -44,14 +44,22 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; sho
     return (
         <div className={`${isCompact ? 'h-24 w-full p-1.5' : 'h-28 w-1/3 p-2'} relative rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#191e2b]/80 via-[#121724]/90 to-[#0c1018]/95 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] flex flex-col items-center justify-center`}>
             {showRemoveButton && (
-                <button onClick={onRemove} className="absolute top-1 right-1 text-red-500 hover:text-red-400 z-10">
+                <button type="button" onClick={onRemove} className="absolute top-1 right-1 z-10 text-red-500 hover:text-red-400" aria-label="재료 빼기">
                     &times;
                 </button>
             )}
-            <div className={`relative ${isCompact ? 'w-12 h-12' : 'w-14 h-14'} rounded-lg flex-shrink-0 overflow-hidden border border-slate-500/50 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}>
-                <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
-            </div>
+            <button
+                type="button"
+                onClick={onRemove}
+                title="재료 빼기"
+                aria-label={`${item.name} 재료 빼기`}
+                className={`relative ${isCompact ? 'h-12 w-12' : 'h-14 w-14'} flex-shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-500/50 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+            >
+                <img src={styles.background} alt="" className="absolute inset-0 h-full w-full rounded-lg object-cover" />
+                {item.image && (
+                    <img src={item.image} alt="" className="pointer-events-none absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                )}
+            </button>
             <p className={`${isCompact ? 'text-[10px]' : 'text-xs'} font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>
             <p className={`${isCompact ? 'text-[10px]' : 'text-[11px]'} text-slate-400`}>{SLOT_NAMES_KO[item.slot!] || '기타'}</p>
         </div>

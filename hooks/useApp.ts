@@ -2642,11 +2642,11 @@ export const useApp = () => {
                             whiteTargetRaw !== 999;
                         const whiteCaptures = updatedGame.captures?.[Player.White] ?? 0;
                         
-                        console.log(`[handleAction] ${actionTypeName} - Survival Go check: whiteTurnsPlayed=${whiteTurnsPlayed}, survivalTurns=${survivalTurns}, remaining=${remainingTurns}, whiteCaptures=${whiteCaptures}, whiteTarget=${whiteTarget}`);
+                        console.log(`[handleAction] ${actionTypeName} - Survival Go check: whiteTurnsPlayed=${whiteTurnsPlayed}, survivalTurns=${survivalTurns}, remaining=${remainingTurns}, whiteCaptures=${whiteCaptures}, whiteTarget=${whiteTargetRaw}`);
 
                         // 1) 백이 목표 돌을 이미 따낸 경우 → 백 승리(유저 미션 실패)
-                        if (hasWhiteTarget && whiteCaptures >= whiteTarget && updatedGame.gameStatus === 'playing') {
-                            console.log(`[handleAction] ${actionTypeName} - White reached capture target (${whiteCaptures}/${whiteTarget}), White wins - ENDING GAME`);
+                        if (hasWhiteTarget && whiteCaptures >= whiteTargetRaw && updatedGame.gameStatus === 'playing') {
+                            console.log(`[handleAction] ${actionTypeName} - White reached capture target (${whiteCaptures}/${whiteTargetRaw}), White wins - ENDING GAME`);
                             shouldEndGameSurvival = true;
                             endGameWinnerSurvival = Player.White;
                             return {
@@ -2664,7 +2664,7 @@ export const useApp = () => {
                         if (remainingTurns <= 0 && game.gameStatus === 'playing') {
                             // 백이 따낸 돌 미션을 이미 완수한 경우에는
                             // 살리기 턴 제한 패배를 적용하지 않고 위의 capture_limit 결과를 그대로 따른다.
-                            if (!(hasWhiteTarget && whiteCaptures >= whiteTarget)) {
+                            if (!(hasWhiteTarget && whiteCaptures >= whiteTargetRaw)) {
                                 console.log(`[handleAction] ${actionTypeName} - White ran out of turns (${whiteTurnsPlayed}/${survivalTurns}), Black wins - ENDING GAME`);
                                 shouldEndGameSurvival = true;
                                 endGameWinnerSurvival = Player.Black;
@@ -2715,7 +2715,7 @@ export const useApp = () => {
 
                             // 흑이 목표 따낸 돌을 이미 달성한 경우에는 턴 제한 패배를 적용하지 않고,
                             // 아래의 승리 조건 체크(checkVictoryCondition)를 통해 미션 성공을 처리한다.
-                            if (!(hasBlackTarget && blackCaptures >= blackTarget)) {
+                            if (!(hasBlackTarget && blackCaptures >= blackTargetRaw)) {
                                 console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${effectiveLimit}), mission fail - ENDING GAME`);
                                 shouldEndGameTurnLimit = true;
                                 endGameWinnerTurnLimit = Player.White;

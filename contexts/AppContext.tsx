@@ -40,7 +40,13 @@ class AppErrorBoundary extends Component<{ children: ReactNodeType }, { hasError
 
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error('[AppProvider] Error caught by boundary:', error);
-        console.error('[AppProvider] Error info:', errorInfo);
+        // ErrorInfo는 객체이라 콘솔에 "Object"만 보이기 쉬움 — 스택은 문자열로 따로 출력
+        if (errorInfo?.componentStack) {
+            console.error('[AppProvider] React component stack:', errorInfo.componentStack);
+        }
+        if (import.meta.env.DEV && errorInfo && typeof errorInfo === 'object') {
+            console.error('[AppProvider] ErrorInfo (dev):', { ...errorInfo });
+        }
     }
 
     render() {

@@ -2110,7 +2110,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 </div>
             ) : isMobile ? (
                 isGameEnded ? (
-                    <div className={`flex w-full min-w-0 ${arenaGameRoomControlsInnerPanelClass}`}>
+                    <div
+                        className={`flex min-h-[5.35rem] w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
+                    >
                         <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
                     </div>
                 ) : (
@@ -2133,7 +2135,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     </div>
                 )
             ) : isGameEnded ? (
-                <div className={`w-full min-w-0 ${arenaGameRoomControlsInnerPanelClass}`}>
+                <div
+                    className={`flex min-h-[4.75rem] w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
+                >
                     <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
                 </div>
             ) : (

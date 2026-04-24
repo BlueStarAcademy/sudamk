@@ -59,6 +59,13 @@ const BOX_ITEM = RESULT_MODAL_BOX_ITEM_CLASS;
 export const RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS =
     'h-10 w-10 min-[360px]:h-11 min-[360px]:w-11 min-[400px]:h-12 min-[400px]:w-12 sm:h-14 sm:w-14';
 
+/** 단일·일괄 획득 모달: 아이콘 아래 +n / ×n (모험 결과 compact 골드 수치와 동일 계열) */
+export const ITEM_OBTAIN_UNDER_ICON_AMOUNT_CLASS =
+    'max-w-full text-center text-[0.72rem] font-bold tabular-nums leading-tight sm:text-[0.8rem]';
+export const ITEM_OBTAIN_UNDER_ICON_AMOUNT_AMBER = `${ITEM_OBTAIN_UNDER_ICON_AMOUNT_CLASS} text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`;
+export const ITEM_OBTAIN_UNDER_ICON_AMOUNT_SKY = `${ITEM_OBTAIN_UNDER_ICON_AMOUNT_CLASS} text-sky-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`;
+export const ITEM_OBTAIN_UNDER_ICON_AMOUNT_SLATE = `${ITEM_OBTAIN_UNDER_ICON_AMOUNT_CLASS} text-slate-200/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`;
+
 function imageBoxClass(compact: boolean): string {
     return compact
         ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS

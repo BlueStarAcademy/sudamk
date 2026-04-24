@@ -13,6 +13,7 @@ import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDi
 import { getTowerKataServerLevelByFloor } from '../../shared/utils/towerKataServerLevel.js';
 import {
     resolveTowerCaptureBlackTarget,
+    resolveTowerPlainBlackCount,
     resolveTowerPlainWhiteCount,
 } from '../../shared/utils/towerStageRules.js';
 import { isTowerLobbyInventorySource } from '../modes/towerPlayerHidden.js';
@@ -72,7 +73,7 @@ const generateTowerBoard = (
     floor: number
 ): { board: BoardState; blackPattern: Point[]; whitePattern: Point[] } => {
     const p = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
-    const blackPlain = p.black ?? 0;
+    const blackPlain = resolveTowerPlainBlackCount(floor, p.black ?? 0);
     const blackPattern = p.blackPattern ?? 0;
     const whitePat = p.whitePattern ?? 0;
     const whitePlain = resolveTowerPlainWhiteCount(floor, blackPlain, blackPattern, whitePat, p.white ?? 0);

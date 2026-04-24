@@ -13,6 +13,18 @@ export function resolveTowerCaptureBlackTarget(floor: number, stageBlack: number
 }
 
 /**
+ * 초기 무작위 배치용 일반 흑돌 수 (`TOWER_STAGES`의 `placements.black` 기준).
+ * 60~90층: 정의값 −1, 91~100층: 정의값 −2. 그 외 층은 정의값 그대로.
+ */
+export function resolveTowerPlainBlackCount(floor: number, stageBlack: number): number {
+    const base = Math.max(0, Math.floor(Number(stageBlack) || 0));
+    const f = Math.max(1, Math.min(100, Math.floor(floor)));
+    if (f >= 91) return Math.max(0, base - 2);
+    if (f >= 60) return Math.max(0, base - 1);
+    return base;
+}
+
+/**
  * 미리 배치되는 일반 백돌 수(placements.white).
  * 도전의 탑 1~100층: `TOWER_STAGES`에 적힌 `white`를 그대로 쓴다.
  * (예전 21~100층에서는 JSON의 `white`와 달리 (흑일반+흑무)+구간상수−백무 로만 계산했기 때문에,

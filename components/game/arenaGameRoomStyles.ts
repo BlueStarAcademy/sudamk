@@ -4,6 +4,14 @@
 
 import { arenaPostGameButtonClass } from './arenaPostGameButtonStyles.js';
 
+/**
+ * 싱글플레이·도전의 탑·길드전 PVE 타워 등 하단 조작 바 예약 높이.
+ * 경기 종료 후 버튼 구성이 달라져도 상단 바둑판(`flex-1`)이 늘거나 줄지 않도록, 진행 중 푸터와 동일한 높이를 유지한다.
+ */
+export function pveIngameFooterReservedHeightClass(isMobile: boolean): string {
+    return isMobile ? 'h-[164px]' : 'min-h-[112px] max-h-[124px]';
+}
+
 /** 인게임 하단 조작 바 외곽 — PC/모바일 공통 불투명 딥 네이비 슬레이트 */
 const INGAME_BOTTOM_BAR_SHELL =
     'rounded-xl border border-slate-500/45 ' +

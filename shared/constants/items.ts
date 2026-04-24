@@ -121,18 +121,18 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
     { name: '다이아 꾸러미2', description: '10 ~ 30 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox2.png', grade: ItemGrade.Epic },
     { name: '다이아 꾸러미3', description: '20 ~ 50 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox3.png', grade: ItemGrade.Legendary },
     { name: '다이아 꾸러미4', description: '30 ~ 100 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox4.png', grade: ItemGrade.Mythic },
-    { name: '컨디션회복제(소)', description: '컨디션을 1~10 회복합니다.', type: 'consumable', slot: null, image: '/images/use/con1.png', grade: ItemGrade.Normal },
-    { name: '컨디션회복제(중)', description: '컨디션을 10~20 회복합니다.', type: 'consumable', slot: null, image: '/images/use/con2.png', grade: ItemGrade.Uncommon },
-    { name: '컨디션회복제(대)', description: '컨디션을 20~30 회복합니다.', type: 'consumable', slot: null, image: '/images/use/con3.png', grade: ItemGrade.Rare },
+    { name: '컨디션회복제(소)', description: '긴장감을 완화시켜주는 컨디션 회복제', type: 'consumable', slot: null, image: '/images/use/con1.png', grade: ItemGrade.Normal },
+    { name: '컨디션회복제(중)', description: '머리가 맑아지는 느낌의 컨디션 회복제', type: 'consumable', slot: null, image: '/images/use/con2.png', grade: ItemGrade.Uncommon },
+    { name: '컨디션회복제(대)', description: '오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제', type: 'consumable', slot: null, image: '/images/use/con3.png', grade: ItemGrade.Rare },
     { name: '턴 추가', description: '도전의 탑에서 사용할 수 있는 턴 추가 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/addturn.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '미사일', description: '도전의 탑에서 사용할 수 있는 미사일 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/missile.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '히든', description: '도전의 탑에서 사용할 수 있는 히든 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/hidden.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '스캔', description: '도전의 탑에서 사용할 수 있는 스캔 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/scan.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '배치변경', description: '도전의 탑에서 사용할 수 있는 배치변경 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/reflesh.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     // 아이콘: 번개 — 헤더「행동력 충전」버튼 전용은 applus(resourceIcons.actionPlus), 아이템·우편·가방은 lightning
-    { name: '행동력 회복제(+10)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Normal, usable: true, sellable: false },
-    { name: '행동력 회복제(+20)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Uncommon, usable: true, sellable: false },
-    { name: '행동력 회복제(+30)', description: '가방으로 지급', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Rare, usable: true, sellable: false },
+    { name: '행동력 회복제(+10)', description: '행동력을 회복시키는 기묘한 번개', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Normal, usable: true, sellable: false },
+    { name: '행동력 회복제(+20)', description: '행동력을 회복시키는 기묘한 번개', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Uncommon, usable: true, sellable: false },
+    { name: '행동력 회복제(+30)', description: '행동력을 회복시키는 기묘한 번개', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Rare, usable: true, sellable: false },
 ];
 
 export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = {
@@ -161,6 +161,13 @@ const REFINEMENT_TICKET_NAMES = new Set([
 export function isActionPointConsumable(name: string | undefined): boolean {
     if (!name) return false;
     return name.startsWith('행동력 회복제');
+}
+
+/** 챔피언십 등 전용 UI로 사용 — 가방에서는 사용·일괄 사용 버튼을 숨김 */
+export function isConditionPotionConsumable(name: string | undefined): boolean {
+    if (!name) return false;
+    const compact = name.replace(/\s+/g, '');
+    return compact.startsWith('컨디션회복제');
 }
 
 export function isTowerOnlyConsumable(name: string | undefined): boolean {

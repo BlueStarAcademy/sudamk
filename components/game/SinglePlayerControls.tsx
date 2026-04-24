@@ -19,6 +19,7 @@ import {
     arenaGameRoomIngameBottomBarShellClass,
     arenaGameRoomIngameInnerItemSurfaceClass,
     arenaGameRoomIngameInnerNeutralSurfaceClass,
+    pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
 
 interface SinglePlayerControlsProps extends Pick<GameProps, 'session' | 'onAction' | 'currentUser'> {
@@ -330,7 +331,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
 
         return (
             <footer
-                className={`responsive-controls flex w-full min-h-0 flex-shrink-0 flex-col items-stretch justify-center gap-2 p-2 ${arenaGameRoomIngameBottomBarShellClass}`}
+                className={`responsive-controls flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-2 p-2 ${pveIngameFooterReservedHeightClass(isMobile)} ${arenaGameRoomIngameBottomBarShellClass}`}
             >
                 <div className={arenaPostGamePanelShellClass}>
                     <div className={arenaPostGameIngameEndedRowClass}>

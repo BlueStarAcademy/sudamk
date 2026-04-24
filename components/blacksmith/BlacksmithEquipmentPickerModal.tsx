@@ -50,21 +50,25 @@ const CombineSlotPreview: React.FC<{
             >
                 ×
             </button>
-            <div
-                className={`relative h-10 w-10 overflow-hidden rounded-lg border border-slate-500/50 ${
+            <button
+                type="button"
+                onClick={onRemove}
+                title="재료 빼기"
+                aria-label={`${item.name} 재료 빼기`}
+                className={`relative h-10 w-10 cursor-pointer overflow-hidden rounded-lg border border-slate-500/50 bg-transparent p-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 ${
                     isTranscendent ? 'transcendent-grade-slot' : ''
                 }`}
             >
-                <img src={styles.background} alt="" className="absolute inset-0 h-full w-full rounded-lg object-cover" />
+                <img src={styles.background} alt="" className="pointer-events-none absolute inset-0 h-full w-full rounded-lg object-cover" />
                 {item.image && (
                     <img
                         src={item.image}
                         alt=""
-                        className="absolute left-1/2 top-1/2 object-contain p-0.5"
+                        className="pointer-events-none absolute left-1/2 top-1/2 object-contain p-0.5"
                         style={{ width: '80%', height: '80%', transform: 'translate(-50%, -50%)' }}
                     />
                 )}
-            </div>
+            </button>
             <p className={`mt-0.5 w-full truncate px-0.5 text-center text-[9px] font-bold ${styles.color}`} title={item.name}>
                 {item.name}
             </p>

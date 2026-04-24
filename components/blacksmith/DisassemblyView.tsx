@@ -27,67 +27,117 @@ const GRADE_NAMES_KO: Record<ItemGrade, string> = {
     transcendent: '초월',
 };
 
+/** 하단 장비 인벤토리 그리드와 동일한 별 표시 */
+const renderStarDisplay = (stars: number) => {
+    if (stars === 0) return null;
+
+    let starImage = '';
+    let numberColor = '';
+
+    if (stars >= 10) {
+        starImage = '/images/equipments/Star4.png';
+        numberColor = 'prism-text-effect';
+    } else if (stars >= 7) {
+        starImage = '/images/equipments/Star3.png';
+        numberColor = 'text-purple-400';
+    } else if (stars >= 4) {
+        starImage = '/images/equipments/Star2.png';
+        numberColor = 'text-amber-400';
+    } else if (stars >= 1) {
+        starImage = '/images/equipments/Star1.png';
+        numberColor = 'text-white';
+    }
+
+    return (
+        <div
+            className="absolute left-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-br-md bg-black/40 px-1 py-0.5"
+            style={{ textShadow: '1px 1px 2px black' }}
+        >
+            <img src={starImage} alt="" className="h-3 w-3" />
+            <span className={`text-xs font-bold leading-none ${numberColor}`}>{stars}</span>
+        </div>
+    );
+};
+
+/** 인벤토리 슬롯과 동일: 등급 배경판 + 장비 이미지(+초월 오버레이·강화 별) */
+const DisassemblySelectedInventoryCell: React.FC<{
+    item: InventoryItem;
+    onToggleDisassemblySelection: (itemId: string) => void;
+}> = ({ item, onToggleDisassemblySelection }) => {
+    const styles = gradeStyles[item.grade];
+    const iconBoxPct = '88%';
+    return (
+        <button
+            type="button"
+            onClick={() => onToggleDisassemblySelection(item.id)}
+            title="선택 해제"
+            aria-label={`${item.name} 선택 해제`}
+            className="relative aspect-square h-full max-h-full min-h-[2.75rem] shrink-0 cursor-pointer rounded-md border-2 border-black/20 transition-all duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+            style={{ width: 'auto', minWidth: 0, maxWidth: '100%' }}
+        >
+            <img
+                src={styles.background}
+                alt=""
+                className="absolute inset-0 z-0 rounded-sm object-cover"
+                style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }}
+            />
+            {item.image && (
+                <img
+                    src={item.image}
+                    alt=""
+                    className="absolute z-[1] object-contain p-0.5"
+                    style={{
+                        width: iconBoxPct,
+                        height: iconBoxPct,
+                        maxWidth: iconBoxPct,
+                        maxHeight: iconBoxPct,
+                        left: '50%',
+                        top: '50%',
+                        transform: 'translate(-50%, -50%)',
+                    }}
+                />
+            )}
+            {item.grade === ItemGrade.Transcendent && (
+                <div className="pointer-events-none absolute inset-0 z-[2] rounded-md transcendent-inventory-slot-overlay" aria-hidden />
+            )}
+            {renderStarDisplay(item.stars ?? 0)}
+        </button>
+    );
+};
+
 const SelectedDisassemblyItemsPanel: React.FC<{
     selectedIds: Set<string>;
     inventory: InventoryItem[];
-}> = ({ selectedIds, inventory }) => {
+    onToggleDisassemblySelection: (itemId: string) => void;
+}> = ({ selectedIds, inventory, onToggleDisassemblySelection }) => {
     const items = useMemo(
         () => inventory.filter(item => selectedIds.has(item.id)),
         [inventory, selectedIds]
     );
 
     return (
-        <div className="min-h-0 flex-shrink-0 rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171d2b]/85 via-[#101524]/92 to-[#0a0e17]/95 p-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="flex h-full min-h-0 w-full flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#171d2b]/85 via-[#101524]/92 to-[#0a0e17]/95 p-2">
+            <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2 px-0.5">
                 <p className="text-xs font-semibold text-cyan-200/90">선택된 장비</p>
                 <span className="text-[11px] text-slate-400">{items.length.toLocaleString()}개</span>
             </div>
-            {items.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-600/50 bg-[#0b1120]/80 py-6 text-center text-xs text-slate-500">
-                    인벤토리에서 분해할 장비를 선택하세요
-                </div>
-            ) : (
-                <ul className="max-h-[min(32dvh,240px)] space-y-2 overflow-y-auto pr-1">
-                    {items.map(item => {
-                        const styles = gradeStyles[item.grade];
-                        const isTranscendent = item.grade === ItemGrade.Transcendent;
-                        return (
-                            <li
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-600/35 bg-tertiary/30 pr-1">
+                {items.length === 0 ? (
+                    <div className="flex flex-1 items-center justify-center px-2 py-2 text-center text-xs text-slate-500">
+                        인벤토리에서 분해할 장비를 선택하세요
+                    </div>
+                ) : (
+                    <div className="flex h-full min-h-0 flex-row items-stretch gap-1.5 overflow-x-auto overflow-y-hidden p-1.5 [scrollbar-gutter:stable]">
+                        {items.map(item => (
+                            <DisassemblySelectedInventoryCell
                                 key={item.id}
-                                className="flex items-center gap-3 rounded-lg border border-slate-600/30 bg-slate-900/50 px-2 py-1.5"
-                            >
-                                <div
-                                    className={`relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg border border-slate-500/40 ${
-                                        isTranscendent ? 'transcendent-grade-slot' : ''
-                                    }`}
-                                >
-                                    <img
-                                        src={styles.background}
-                                        alt=""
-                                        className="absolute inset-0 h-full w-full rounded-lg object-cover"
-                                    />
-                                    {item.image && (
-                                        <img
-                                            src={item.image}
-                                            alt=""
-                                            className="absolute left-1/2 top-1/2 object-contain p-0.5"
-                                            style={{ width: '78%', height: '78%', transform: 'translate(-50%, -50%)' }}
-                                        />
-                                    )}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                    <p className={`truncate text-sm font-bold ${styles.color}`} title={item.name}>
-                                        {item.name}
-                                    </p>
-                                    <p className="text-[11px] text-slate-400">
-                                        {GRADE_NAMES_KO[item.grade]} · +{item.stars ?? 0}
-                                    </p>
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            )}
+                                item={item}
+                                onToggleDisassemblySelection={onToggleDisassemblySelection}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -147,8 +197,8 @@ const DisassemblyPreviewPanel: React.FC<{
 
     return (
         <div
-            className={`flex h-full min-h-0 flex-col rounded-2xl border border-amber-400/20 bg-gradient-to-br from-[#1d243b] via-[#121a2d] to-[#0b1120] ${
-                nativeMobile ? 'gap-2 p-3' : 'gap-3 p-4'
+            className={`flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-amber-400/20 bg-gradient-to-br from-[#1d243b] via-[#121a2d] to-[#0b1120] ${
+                nativeMobile ? 'gap-2 p-2.5' : 'gap-2 p-3'
             }`}
         >
             <div className="flex-shrink-0 space-y-1">
@@ -173,8 +223,8 @@ const DisassemblyPreviewPanel: React.FC<{
             </div>
 
             <div
-                className={`flex min-h-0 flex-1 flex-col overflow-y-auto rounded-xl border border-slate-600/30 bg-[#0f1627] shadow-inner ${
-                    nativeMobile ? 'gap-2 p-2.5' : 'gap-3 p-3'
+                className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-xl border border-slate-600/30 bg-[#0f1627] shadow-inner [scrollbar-gutter:stable] ${
+                    nativeMobile ? 'gap-2 p-2' : 'gap-2 p-2.5'
                 }`}
             >
                 {totalMaterials.length > 0 ? (
@@ -395,17 +445,23 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
                 }`}
             >
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-                    {!useStackedDisassemblyLayout && (
-                        <SelectedDisassemblyItemsPanel selectedIds={selectedForDisassembly} inventory={inventory} />
-                    )}
-                    <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]">
-                        <DisassemblyPreviewPanel
-                            selectedIds={selectedForDisassembly}
-                            inventory={inventory}
-                            blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
-                            nativeMobile={useStackedDisassemblyLayout}
-                            modalEquipmentSelectionFlow={modalEquipmentSelectionFlow}
-                        />
+                    <div className="grid min-h-0 w-full flex-1 gap-2 [grid-template-rows:repeat(2,minmax(0,1fr))]">
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                            <SelectedDisassemblyItemsPanel
+                                selectedIds={selectedForDisassembly}
+                                inventory={inventory}
+                                onToggleDisassemblySelection={onToggleDisassemblySelection}
+                            />
+                        </div>
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden">
+                            <DisassemblyPreviewPanel
+                                selectedIds={selectedForDisassembly}
+                                inventory={inventory}
+                                blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
+                                nativeMobile={useStackedDisassemblyLayout}
+                                modalEquipmentSelectionFlow={modalEquipmentSelectionFlow}
+                            />
+                        </div>
                     </div>
                 </div>
                 <div

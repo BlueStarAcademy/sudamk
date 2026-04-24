@@ -157,6 +157,12 @@ const SETTINGS_KEY = 'draggableWindowSettings';
  */
 export const SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS = 'sudamr-modal-mobile-sticky-footer';
 
+/** 획득·보상 수령 모달: 확인 버튼을 가운데·적당 폭으로 */
+export const ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS = `${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex justify-center px-2 pb-2.5 pt-2.5 sm:px-3 sm:pb-3 sm:pt-3`;
+
+export const ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS =
+    'inline-flex min-w-[6.5rem] shrink-0 items-center justify-center rounded-2xl border border-amber-400/45 bg-gradient-to-b from-emerald-500/98 via-emerald-600/96 to-emerald-950/92 px-8 py-2.5 text-[13px] font-semibold tracking-[0.05em] text-white shadow-[0_8px_26px_-14px_rgba(16,185,129,0.52),inset_0_1px_0_rgba(255,255,255,0.22),inset_0_-1px_0_rgba(0,0,0,0.2)] ring-1 ring-white/10 transition-[transform,box-shadow,colors,border-color] hover:border-amber-300/55 hover:from-emerald-400 hover:via-emerald-500 hover:to-emerald-900 hover:shadow-[0_12px_32px_-12px_rgba(16,185,129,0.42)] active:scale-[0.97] sm:min-w-[7.25rem] sm:px-10 sm:py-3 sm:text-sm';
+
 function childHasStickyFooterClassName(node: React.ReactNode): boolean {
     if (!React.isValidElement(node)) return false;
     const cn = (node.props as { className?: unknown }).className;

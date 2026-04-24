@@ -5,7 +5,11 @@ import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
-import { resolveTowerCaptureBlackTarget, resolveTowerPlainWhiteCount } from '../shared/utils/towerStageRules.js';
+import {
+    resolveTowerCaptureBlackTarget,
+    resolveTowerPlainBlackCount,
+    resolveTowerPlainWhiteCount,
+} from '../shared/utils/towerStageRules.js';
 import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
@@ -295,6 +299,7 @@ const TowerLobby: React.FC = () => {
                             if (!stage) return null;
 
                             const p = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+                            const towerDisplayBlackPlain = resolveTowerPlainBlackCount(floor, p.black ?? 0);
                             const towerDisplayBlackTarget = resolveTowerCaptureBlackTarget(floor, stage.targetScore?.black);
                             const towerDisplayWhitePlain = resolveTowerPlainWhiteCount(
                                 floor,
@@ -422,7 +427,7 @@ const TowerLobby: React.FC = () => {
                                                             <div className="flex items-center gap-3 flex-wrap">
                                                                 <div className="flex items-center gap-1">
                                                                     <img src="/images/single/Black.png" alt="흑" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">{stage.placements.black}</span>
+                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <img src="/images/single/White.png" alt="백" className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
@@ -462,7 +467,7 @@ const TowerLobby: React.FC = () => {
                                                         <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-x-3">
                                                             <div className="flex items-center gap-1">
                                                                 <img src="/images/single/Black.png" alt="흑" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-amber-200 font-bold tabular-nums">{stage.placements.black}</span>
+                                                                <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
                                                             </div>
                                                             <div className="flex items-center gap-1">
                                                                 <img src="/images/single/White.png" alt="백" className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />

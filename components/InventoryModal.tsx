@@ -3,7 +3,7 @@ import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGra
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
-import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial } from '../constants/items';
+import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial } from '../constants/items';
 
 import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
@@ -64,9 +64,90 @@ const inventoryTypeRank: Record<InventoryItemType, number> = {
     material: 2,
 };
 
+/** 가방·인벤 모달 내 스크롤 영역 — 매우 얇은 스크롤바 (Firefox `thin` + WebKit 3px) */
+const BAG_SCROLLBAR_Y_CLASS =
+    '[scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/48';
+
 /** PC 가방 등: 옵션 패널 고정 높이(스크롤) — `expandOptionsToFill`이 아닐 때만 사용 */
 function bagPcOptionsBlockHeightPx(scaleFactor: number): number {
     return Math.max(128, Math.round(164 * scaleFactor));
+}
+
+/** 연속 강화 단계(1~10)를 구간으로 묶음 */
+function mergeConsecutiveStarLevels(levels: number[]): [number, number][] {
+    const unique = [...new Set(levels)].sort((a, b) => a - b);
+    if (unique.length === 0) return [];
+    const ranges: [number, number][] = [];
+    let start = unique[0];
+    let end = unique[0];
+    for (let i = 1; i < unique.length; i++) {
+        if (unique[i] === end + 1) {
+            end = unique[i];
+        } else {
+            ranges.push([start, end]);
+            start = end = unique[i];
+        }
+    }
+    ranges.push([start, end]);
+    return ranges;
+}
+
+function formatEnhancementRangeLabel(min: number, max: number): string {
+    if (min === max) return `${min}강화`;
+    return `${min}~${max}강화`;
+}
+
+/** 재료가 장비 강화 비용표에 등장하는 위치(가방 뷰어·모바일 상세 공통) — 예: [일반] 장비 : 8~9강화 */
+function getEnhancementMaterialUsageLinesForBag(materialName: string): string[] {
+    const groupedDetails: Record<ItemGrade, number[]> = {
+        [ItemGrade.Normal]: [],
+        [ItemGrade.Uncommon]: [],
+        [ItemGrade.Rare]: [],
+        [ItemGrade.Epic]: [],
+        [ItemGrade.Legendary]: [],
+        [ItemGrade.Mythic]: [],
+        [ItemGrade.Transcendent]: [],
+    };
+
+    for (const grade in ENHANCEMENT_COSTS) {
+        const costsForGrade = ENHANCEMENT_COSTS[grade as ItemGrade];
+        costsForGrade.forEach((costArray, starIndex) => {
+            costArray.forEach((cost) => {
+                if (cost.name === materialName) {
+                    groupedDetails[grade as ItemGrade].push(starIndex + 1);
+                }
+            });
+        });
+    }
+
+    const gradeKeys = Object.keys(groupedDetails) as ItemGrade[];
+    gradeKeys.sort((a, b) => gradeOrder[a] - gradeOrder[b]);
+
+    const details: string[] = [];
+    for (const grade of gradeKeys) {
+        const starLevels = groupedDetails[grade];
+        if (starLevels.length === 0) continue;
+        const label = gradeStyles[grade].name;
+        for (const [lo, hi] of mergeConsecutiveStarLevels(starLevels)) {
+            details.push(`[${label}] 장비 : ${formatEnhancementRangeLabel(lo, hi)}`);
+        }
+    }
+    return details;
+}
+
+/** 변경권 + 강화석 등 재료 사용처 한 줄·여러 줄 */
+function getMaterialBagUsageLines(materialName: string): string[] {
+    if (isRefinementTicketMaterial(materialName)) {
+        const ticketAction: Record<string, string> = {
+            '옵션 종류 변경권': '옵션 종류변경',
+            '옵션 수치 변경권': '옵션 수치변경',
+            '스페셜 옵션 변경권': '스페셜 옵션변경',
+            '신화 옵션 변경권': '신화 옵션변경',
+        };
+        const action = ticketAction[materialName] ?? '옵션 변경';
+        return [`[대장간 - 장비제련] ${action}`];
+    }
+    return getEnhancementMaterialUsageLinesForBag(materialName);
 }
 
 const getStarDisplayInfo = (stars: number) => {
@@ -364,7 +445,7 @@ const LocalItemDetailDisplay: React.FC<{
 
                 {/* Bottom Section: Sub Options - 비워둠 */}
                 <div
-                    className={`w-full space-y-1 bg-gray-900/50 p-2 text-left ${
+                    className={`w-full space-y-1 bg-gray-900/50 p-2 text-left ${BAG_SCROLLBAR_Y_CLASS} ${
                         expandOptionsToFill
                             ? 'min-h-0 flex-1 overflow-y-auto rounded-t-lg rounded-b-none'
                             : 'flex-shrink-0 overflow-y-auto rounded-lg'
@@ -663,7 +744,7 @@ const LocalItemDetailDisplay: React.FC<{
                         )}
                         {renderStarDisplay(item.stars)}
                     </div>
-                    <div className="mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-900/50 p-2">
+                    <div className={`mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-900/50 p-2 ${BAG_SCROLLBAR_Y_CLASS}`}>
                         <h3 className={`break-words font-bold ${styles.color}`} style={{ fontSize: `${Math.max(12, Math.round(14 * scaleFactor * mobileTextScale))}px` }}>
                             {item.name}
                         </h3>
@@ -709,7 +790,7 @@ const LocalItemDetailDisplay: React.FC<{
                         <span className="text-cyan-200">현재 장착</span>
                         <span className="text-right text-amber-200">선택 장비</span>
                     </div>
-                    <div className="min-h-0 flex-1 overflow-y-auto space-y-1 pr-0.5">
+                    <div className={`min-h-0 flex-1 overflow-y-auto space-y-1 pr-0.5 ${BAG_SCROLLBAR_Y_CLASS}`}>
                         {compactCompareTab === 'info' && (
                             <>
                                 <div className="rounded-md bg-black/25 px-1.5 py-1 text-[10px]">
@@ -751,6 +832,147 @@ const LocalItemDetailDisplay: React.FC<{
         );
     }
 
+    if (item.type === 'consumable' || item.type === 'material') {
+        const imagePath = resolveBagItemDetailImagePath(item);
+        const usageLines = item.type === 'material' ? getMaterialBagUsageLines(item.name) : [];
+        const usageHint = item.type === 'consumable' ? getBagConsumableUsageHint(item.name) : null;
+        const usageFallback = item.type === 'consumable' ? '가방에서 사용할 수 있습니다.' : '이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.';
+        const hasOptionContent = optionRows.some(Boolean);
+        /** 장비 뷰어와 동일: 본문(주옵션 줄)과 같은 기준 */
+        const descBlockPx = Math.max(11, Math.round(12 * scaleFactor * mobileTextScale));
+
+        return (
+            <div
+                className={`flex min-h-0 w-full min-w-0 flex-1 flex-col ${expandOptionsToFill ? 'h-full' : ''}`}
+                style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+            >
+                <div
+                    className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${BAG_SCROLLBAR_Y_CLASS}`}
+                >
+                    <div className="w-1/2 min-w-0 max-w-[50%] shrink-0 self-center">
+                        {/* 좌측 이미지, 우측 이름·등급·보유 수량 — 뷰어 가로의 절반 */}
+                        <div className="flex shrink-0 items-start justify-between pb-2">
+                            <div
+                                className="relative flex-shrink-0 rounded-lg ring-1 ring-amber-400/25"
+                                style={{
+                                    width: `${imgBox}px`,
+                                    height: `${imgBox}px`,
+                                    aspectRatio: '1 / 1',
+                                }}
+                            >
+                                <img src={styles.background} alt={item.grade} className="absolute inset-0 h-full w-full rounded-lg object-cover" />
+                                {isActionPointConsumable(item.name) ? (
+                                    (() => {
+                                        const match = item.name.match(/\+(\d+)/);
+                                        const apValue = match ? match[1] : null;
+                                        return (
+                                            <span
+                                                className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-[1.35rem] leading-none"
+                                                aria-hidden
+                                            >
+                                                <span className="leading-none">⚡</span>
+                                                {apValue && (
+                                                    <span className="mt-0.5 max-w-full truncate text-[10px] font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)] sm:text-xs">
+                                                        +{apValue}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        );
+                                    })()
+                                ) : imagePath ? (
+                                    <img
+                                        src={imagePath}
+                                        alt={item.name}
+                                        className="absolute object-contain"
+                                        style={{
+                                            width: '80%',
+                                            height: '80%',
+                                            padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`,
+                                            left: '50%',
+                                            top: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                        }}
+                                        onError={(e) => {
+                                            console.error(`[LocalItemDetailDisplay] Failed to load image: ${imagePath} for item:`, item);
+                                            (e.target as HTMLImageElement).style.display = 'none';
+                                        }}
+                                    />
+                                ) : null}
+                                {renderStarDisplay(item.stars)}
+                            </div>
+                            <div className="min-w-0 flex-grow text-right ml-2">
+                                <h3
+                                    className={`break-words font-bold leading-snug ${styles.color}`}
+                                    style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}
+                                >
+                                    {item.name}
+                                </h3>
+                                <div
+                                    className="mt-0.5 flex flex-wrap items-center justify-end gap-x-1.5 gap-y-0"
+                                    style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
+                                >
+                                    <span className={styles.color}>[{styles.name}]</span>
+                                </div>
+                                <p
+                                    className="mt-1 text-gray-300"
+                                    style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}
+                                >
+                                    보유 수량: {item.quantity ?? 0}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div
+                            className={`mt-1 w-full text-left ${BAG_SIMPLE_DETAIL_CARD_CLASS} ${
+                                expandOptionsToFill ? 'min-h-0 flex-1 overflow-y-auto' : 'flex-shrink-0'
+                            } ${expandOptionsToFill ? BAG_SCROLLBAR_Y_CLASS : ''}`}
+                            style={{ fontSize: `${descBlockPx}px` }}
+                        >
+                            <p className="leading-relaxed text-gray-300">{item.description || '—'}</p>
+                            <div className={BAG_SIMPLE_DETAIL_DIVIDER_CLASS} aria-hidden />
+                            {item.type === 'material' ? (
+                                <div className="space-y-1">
+                                    {usageLines.length > 0 ? (
+                                        usageLines.map((line, i) => (
+                                            <p key={i} className="leading-relaxed text-gray-300">
+                                                {line}
+                                            </p>
+                                        ))
+                                    ) : (
+                                        <p className="leading-relaxed text-gray-400">{usageFallback}</p>
+                                    )}
+                                </div>
+                            ) : (
+                                <p className="leading-relaxed text-gray-300">{usageHint ?? usageFallback}</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                {hasOptionContent ? (
+                    <div
+                        className={`mt-2 w-full space-y-1 text-left ${BAG_SIMPLE_DETAIL_OPTION_CARD_CLASS} ${BAG_SCROLLBAR_Y_CLASS} ${
+                            expandOptionsToFill
+                                ? 'min-h-0 flex-1 overflow-y-auto'
+                                : 'flex-shrink-0 overflow-y-auto'
+                        }`}
+                        style={{
+                            fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px`,
+                            ...(expandOptionsToFill
+                                ? {}
+                                : {
+                                      height: `${optionsBlockHeightPx}px`,
+                                      minHeight: `${optionsBlockHeightPx}px`,
+                                      maxHeight: `${optionsBlockHeightPx}px`,
+                                  }),
+                        }}
+                    >
+                        {optionRows}
+                    </div>
+                ) : null}
+            </div>
+        );
+    }
+
     return (
         <div
             className={`flex min-h-0 w-full flex-col ${expandOptionsToFill ? 'h-full' : ''}`}
@@ -769,54 +991,8 @@ const LocalItemDetailDisplay: React.FC<{
                 >
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                     {(() => {
-                        // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
-                        let imagePath: string | undefined = item.image;
-                        
-                        if (!imagePath && item.type === 'consumable') {
-                            const consumableItem = findConsumableItem(item.name);
-                            imagePath = consumableItem?.image;
-                        }
-                        
-                        // MATERIAL_ITEMS에서 찾기
-                        if (!imagePath) {
-                            // 숫자를 로마숫자로 변환하는 맵
-                            const numToRoman: Record<string, string> = {
-                                '1': 'I', '2': 'II', '3': 'III', '4': 'IV', '5': 'V', '6': 'VI'
-                            };
-                            
-                            // 다양한 이름 변형으로 시도
-                            const nameVariations: string[] = [
-                                item.name,
-                                item.name.replace('꾸러미', ' 꾸러미'),
-                                item.name.replace(' 꾸러미', '꾸러미'),
-                                item.name.replace('상자', ' 상자'),
-                                item.name.replace(' 상자', '상자'),
-                            ];
-                            
-                            // 숫자를 로마숫자로 변환한 변형들 추가
-                            for (const [num, roman] of Object.entries(numToRoman)) {
-                                nameVariations.push(
-                                    item.name.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
-                                    item.name.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
-                                    item.name.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
-                                    item.name.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
-                                    item.name.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
-                                    item.name.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`)
-                                );
-                            }
-                            
-                            // 정규화된 이름도 추가
-                            nameVariations.push(normalizeConsumableName(item.name));
-                            
-                            // 각 변형으로 MATERIAL_ITEMS에서 찾기
-                            for (const nameVar of nameVariations) {
-                                if (MATERIAL_ITEMS[nameVar]?.image) {
-                                    imagePath = MATERIAL_ITEMS[nameVar].image;
-                                    break;
-                                }
-                            }
-                        }
-                        
+                        const imagePath = resolveBagItemDetailImagePath(item);
+
                         if (isActionPointConsumable(item.name)) {
                             const match = item.name.match(/\+(\d+)/);
                             const apValue = match ? match[1] : null;
@@ -898,7 +1074,7 @@ const LocalItemDetailDisplay: React.FC<{
 
             {/* Bottom Section: Sub Options — fill 모드면 세로 최대 사용, 아니면 고정 높이+스크롤 */}
             <div
-                className={`w-full space-y-1 bg-gray-900/50 p-2 text-left ${
+                className={`w-full space-y-1 bg-gray-900/50 p-2 text-left ${BAG_SCROLLBAR_Y_CLASS} ${
                     expandOptionsToFill
                         ? 'min-h-0 flex-1 overflow-y-auto rounded-t-lg rounded-b-none'
                         : 'flex-shrink-0 overflow-y-auto rounded-lg'
@@ -1026,6 +1202,127 @@ const findConsumableItem = (itemName: string) => {
         uniqueVariations.some(variation => ci.name === variation)
     );
 };
+
+/** 가방 뷰어: 소모품·재료 아이콘 경로 (LocalItemDetailDisplay·데스크톱 패널 공통) */
+function resolveBagItemDetailImagePath(item: InventoryItem): string | undefined {
+    let imagePath: string | undefined = item.image;
+
+    if (!imagePath && item.type === 'consumable') {
+        const consumableItem = findConsumableItem(item.name);
+        imagePath = consumableItem?.image;
+    }
+
+    if (!imagePath) {
+        const numToRoman: Record<string, string> = {
+            '1': 'I',
+            '2': 'II',
+            '3': 'III',
+            '4': 'IV',
+            '5': 'V',
+            '6': 'VI',
+        };
+
+        const nameVariations: string[] = [
+            item.name,
+            item.name.replace('꾸러미', ' 꾸러미'),
+            item.name.replace(' 꾸러미', '꾸러미'),
+            item.name.replace('상자', ' 상자'),
+            item.name.replace(' 상자', '상자'),
+        ];
+
+        for (const [num, roman] of Object.entries(numToRoman)) {
+            nameVariations.push(
+                item.name.replace(new RegExp(`장비상자${num}`, 'g'), `장비 상자 ${roman}`),
+                item.name.replace(new RegExp(`재료상자${num}`, 'g'), `재료 상자 ${roman}`),
+                item.name.replace(new RegExp(`장비 상자${num}`, 'g'), `장비 상자 ${roman}`),
+                item.name.replace(new RegExp(`재료 상자${num}`, 'g'), `재료 상자 ${roman}`),
+                item.name.replace(new RegExp(`장비 상자 ${num}`, 'g'), `장비 상자 ${roman}`),
+                item.name.replace(new RegExp(`재료 상자 ${num}`, 'g'), `재료 상자 ${roman}`),
+            );
+        }
+
+        nameVariations.push(normalizeConsumableName(item.name));
+
+        for (const nameVar of nameVariations) {
+            if (MATERIAL_ITEMS[nameVar]?.image) {
+                imagePath = MATERIAL_ITEMS[nameVar].image;
+                break;
+            }
+        }
+    }
+
+    return imagePath;
+}
+
+/** 가방 뷰어 소모품: 사용처 안내(설명과 구분) */
+function getBagConsumableUsageHint(name: string): string | null {
+    if (isConditionPotionConsumable(name)) {
+        const compact = name.replace(/\s+/g, '');
+        let lo = 1;
+        let hi = 10;
+        if (compact.includes('(중)')) {
+            lo = 10;
+            hi = 20;
+        } else if (compact.includes('(대)')) {
+            lo = 20;
+            hi = 30;
+        }
+        return `[챔피언십] 경기시작 전 컨디션 ${lo}~${hi}회복`;
+    }
+    if (isActionPointConsumable(name)) {
+        const m = name.match(/\+(\d+)/);
+        const n = m ? m[1] : '';
+        return n ? `[즉시사용] 행동력 회복 +${n}` : '[즉시사용] 행동력 회복';
+    }
+    const compact = name.replace(/\s+/g, '');
+    if (compact.includes('꾸러미') || compact.includes('상자')) {
+        return '가방에서 사용하면 보상을 획득합니다.';
+    }
+    return null;
+}
+
+/** 가방 뷰어: 소모품·재료 상세 — 카드·구분선 공통 스타일 */
+const BAG_SIMPLE_DETAIL_CARD_CLASS =
+    'rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#1e2436]/98 via-[#141b2a]/96 to-[#0b0f18]/98 p-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_52px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-400/12';
+const BAG_SIMPLE_DETAIL_DIVIDER_CLASS =
+    'my-3 h-px w-full shrink-0 bg-gradient-to-r from-transparent via-amber-400/40 to-transparent';
+const BAG_SIMPLE_DETAIL_OPTION_CARD_CLASS =
+    'rounded-xl border border-slate-500/45 bg-gradient-to-b from-[#111827]/95 to-[#070b12]/98 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-slate-400/10';
+
+/** 가방 뷰어 하단: 버튼 한 줄(좁으면 가로 스크롤) */
+const BAG_INVENTORY_FOOTER_ROW_CLASS =
+    'mx-auto flex w-full max-w-full flex-nowrap items-stretch justify-center gap-2 overflow-x-auto overscroll-x-contain px-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38';
+
+const BAG_INVENTORY_FOOTER_BTN_BASE =
+    'inline-flex min-h-[2.35rem] min-w-[3.35rem] flex-1 shrink basis-0 items-center justify-center rounded-xl border px-1.5 text-xs font-semibold tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_6px_18px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/10 transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-px hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.48)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-45 sm:min-w-[4.1rem] sm:px-2 sm:text-sm';
+
+const BAG_INVENTORY_FOOTER_BTN = {
+    /** 사용 — 시안 면 */
+    info: `${BAG_INVENTORY_FOOTER_BTN_BASE} ring-0 border-cyan-800/50 bg-gradient-to-b from-cyan-500 via-cyan-700 to-cyan-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_4px_16px_-2px_rgba(6,182,212,0.55)] hover:border-cyan-400/55 hover:from-cyan-400 hover:via-cyan-600 hover:to-cyan-900 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_22px_-2px_rgba(34,211,238,0.55)]`,
+    /** 일괄 사용 — 바이올렛 면 */
+    accent: `${BAG_INVENTORY_FOOTER_BTN_BASE} ring-0 border-violet-900/50 bg-gradient-to-b from-violet-500 via-violet-700 to-violet-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(139,92,246,0.5)] hover:border-violet-400/50 hover:from-violet-400 hover:via-violet-600 hover:to-violet-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(167,139,250,0.55)]`,
+    /** 판매·해제 — 로즈 면 */
+    danger: `${BAG_INVENTORY_FOOTER_BTN_BASE} ring-0 border-rose-900/50 bg-gradient-to-b from-rose-500 via-rose-700 to-rose-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(244,63,94,0.45)] hover:border-rose-400/50 hover:from-rose-400 hover:via-rose-600 hover:to-rose-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(251,113,133,0.5)]`,
+    /** 강화·일괄 판매 — 앰버 면 */
+    warning: `${BAG_INVENTORY_FOOTER_BTN_BASE} ring-0 border-amber-900/45 bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 text-amber-950 shadow-[inset_0_1px_0_rgba(255,251,235,0.45),0_4px_16px_-2px_rgba(217,119,6,0.45)] hover:border-amber-300/50 hover:from-amber-300 hover:via-amber-500 hover:to-amber-800 hover:text-amber-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_6px_22px_-2px_rgba(251,191,36,0.5)]`,
+    /** 장착 — 에메랄드 면 */
+    success: `${BAG_INVENTORY_FOOTER_BTN_BASE} ring-0 border-emerald-900/50 bg-gradient-to-b from-emerald-500 via-emerald-700 to-emerald-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(16,185,129,0.5)] hover:border-emerald-400/50 hover:from-emerald-400 hover:via-emerald-600 hover:to-emerald-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(52,211,153,0.55)]`,
+} as const;
+
+/** 소모품·재료 가방 푸터: 장비 버튼보다는 좁게(`flex-1` 없음), 다만 최소 높이·패딩은 장비와 동일 계열 */
+const BAG_INVENTORY_FOOTER_ITEM_ROW_CLASS =
+    'mx-auto flex w-full max-w-full flex-nowrap items-stretch justify-center gap-2 overflow-x-auto overscroll-x-contain px-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38';
+
+const BAG_INVENTORY_FOOTER_ITEM_BTN_BASE =
+    'inline-flex min-h-[2.35rem] w-auto min-w-[3.15rem] shrink-0 items-center justify-center rounded-xl border px-2.5 text-xs font-semibold tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_6px_18px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/10 transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-px hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.48)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-45 sm:min-w-[3.5rem] sm:px-3 sm:text-sm';
+
+const BAG_INVENTORY_FOOTER_ITEM_BTN = {
+    info: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-cyan-800/50 bg-gradient-to-b from-cyan-500 via-cyan-700 to-cyan-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_4px_16px_-2px_rgba(6,182,212,0.55)] hover:border-cyan-400/55 hover:from-cyan-400 hover:via-cyan-600 hover:to-cyan-900 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_22px_-2px_rgba(34,211,238,0.55)]`,
+    accent: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-violet-900/50 bg-gradient-to-b from-violet-500 via-violet-700 to-violet-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(139,92,246,0.5)] hover:border-violet-400/50 hover:from-violet-400 hover:via-violet-600 hover:to-violet-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(167,139,250,0.55)]`,
+    danger: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-rose-900/50 bg-gradient-to-b from-rose-500 via-rose-700 to-rose-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(244,63,94,0.45)] hover:border-rose-400/50 hover:from-rose-400 hover:via-rose-600 hover:to-rose-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(251,113,133,0.5)]`,
+    warning: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-amber-900/45 bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 text-amber-950 shadow-[inset_0_1px_0_rgba(255,251,235,0.45),0_4px_16px_-2px_rgba(217,119,6,0.45)] hover:border-amber-300/50 hover:from-amber-300 hover:via-amber-500 hover:to-amber-800 hover:text-amber-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_6px_22px_-2px_rgba(251,191,36,0.5)]`,
+    success: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-emerald-900/50 bg-gradient-to-b from-emerald-500 via-emerald-700 to-emerald-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(16,185,129,0.5)] hover:border-emerald-400/50 hover:from-emerald-400 hover:via-emerald-600 hover:to-emerald-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(52,211,153,0.55)]`,
+} as const;
 
 const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, onStartEnhance, enhancementAnimationTarget, onAnimationComplete, isTopmost }) => {
     const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels } = useAppContext();
@@ -1220,38 +1517,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
 
     const enhancementMaterialDetails = useMemo(() => {
         if (!selectedItem || selectedItem.type !== 'material') return [];
-        const groupedDetails: Record<ItemGrade, number[]> = {
-            normal: [],
-            uncommon: [],
-            rare: [],
-            epic: [],
-            legendary: [],
-            mythic: [],
-            transcendent: [],
-        };
-
-        for (const grade in ENHANCEMENT_COSTS) {
-            const costsForGrade = ENHANCEMENT_COSTS[grade as ItemGrade];
-            costsForGrade.forEach((costArray, starIndex) => {
-                costArray.forEach(cost => {
-                    if (cost.name === selectedItem.name) {
-                        if (!groupedDetails[grade as ItemGrade]) {
-                            groupedDetails[grade as ItemGrade] = [];
-                        }
-                        groupedDetails[grade as ItemGrade].push(starIndex + 1);
-                    }
-                });
-            });
-        }
-
-        const details: string[] = [];
-        for (const grade in groupedDetails) {
-            const starLevels = groupedDetails[grade as ItemGrade].sort((a, b) => a - b);
-            if (starLevels.length > 0) {
-                details.push(`${gradeStyles[grade as ItemGrade].name} 등급 장비 강화: +${starLevels.join('강/+')}강`);
-            }
-        }
-        return details;
+        return getMaterialBagUsageLines(selectedItem.name);
     }, [selectedItem]);
 
     const handleExpand = () => {
@@ -1523,7 +1789,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         <>
                             {/* 데스크톱: 좌 1/3 장착+스탯, 우측 상세 */}
                             <div
-                                className="flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-y-auto border-r border-gray-700"
+                                className={`flex h-full min-h-0 w-1/3 flex-shrink-0 flex-col overflow-y-auto border-r border-gray-700 ${BAG_SCROLLBAR_Y_CLASS}`}
                                 style={{ paddingRight: `${Math.max(12, Math.round(16 * scaleFactor))}px` }}
                                 {...(showObEquippedStatsPreset && !narrowInventoryLayout
                                     ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
@@ -1650,23 +1916,25 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         expandOptionsToFill
                                     />
                                 </div>
-                                <div className="flex shrink-0 flex-wrap justify-center gap-1.5 px-0 pt-0">
+                                <div className={`${BAG_INVENTORY_FOOTER_ROW_CLASS} pt-1`}>
                                     {selectedItem.id === correspondingEquippedItem?.id ? (
                                         <Button
+                                            bare
+                                            colorScheme="none"
                                             onClick={() => handleEquipToggle(selectedItem.id)}
-                                            colorScheme="red"
-                                            className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`}
-                                            style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                            className={BAG_INVENTORY_FOOTER_BTN.danger}
+                                            style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                         >
                                             해제
                                         </Button>
                                     ) : (
                                         <Button
+                                            bare
+                                            colorScheme="none"
                                             onClick={() => handleEquipToggle(selectedItem.id)}
-                                            colorScheme="green"
-                                            className={`flex-1 !py-1 ${viewerActionButtonClass.success}`}
+                                            className={BAG_INVENTORY_FOOTER_BTN.success}
                                             disabled={!canEquip}
-                                            style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                            style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                             {...(onboardingPhase9 && bagTutorialStep === 2
                                                 ? { 'data-onboarding-target': 'onboarding-inv-equip-button' }
                                                 : {})}
@@ -1675,15 +1943,22 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </Button>
                                     )}
                                     <Button
+                                        bare
+                                        colorScheme="none"
                                         onClick={() => onStartEnhance(selectedItem)}
                                         disabled={selectedItem.stars >= 10}
-                                        colorScheme="yellow"
-                                        className={`flex-1 !py-1 ${viewerActionButtonClass.warning}`}
-                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                        className={BAG_INVENTORY_FOOTER_BTN.warning}
+                                        style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                     >
                                         {selectedItem.stars >= 10 ? '최대' : '강화'}
                                     </Button>
-                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`flex-1 !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                    <Button
+                                        bare
+                                        colorScheme="none"
+                                        onClick={() => setItemToSell(selectedItem)}
+                                        className={BAG_INVENTORY_FOOTER_BTN.danger}
+                                        style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
+                                    >
                                         판매
                                     </Button>
                                 </div>
@@ -1691,79 +1966,162 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         </div>
                     ) : (
                         /* Single right panel for non-equipment items or no selection */
-                        <div className="relative ml-4 flex h-full min-h-0 w-2/3 flex-col overflow-hidden rounded-lg bg-panel-secondary p-3">
+                        <div className="ml-4 flex h-full min-h-0 w-2/3 flex-col overflow-hidden rounded-lg bg-panel-secondary p-3">
                             {selectedItem ? (
                                 (selectedItem.type === 'consumable' || selectedItem.type === 'material') ? (
                                     <>
-                                        <h3 className="font-bold text-on-panel mb-2 flex-shrink-0" style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>
-                                            선택 {selectedItem.type === 'consumable' ? '소모품' : '재료'}
-                                        </h3>
-                                        <div className={`flex-1 min-h-0 ${effectiveIsCompactViewport ? 'overflow-visible' : 'overflow-y-auto'}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px`, WebkitOverflowScrolling: 'touch' }}>
-                                            <div className="flex items-start justify-between mb-2">
-                                                <div 
-                                                    className="relative rounded-lg flex-shrink-0 aspect-square"
-                                                    style={{
-                                                        width: `${Math.max(60, Math.round(80 * scaleFactor))}px`,
-                                                        height: `${Math.max(60, Math.round(80 * scaleFactor))}px`
-                                                    }}
-                                                >
-                                                    <img src={gradeBackgrounds[selectedItem.grade]} alt={selectedItem.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                                                    {isActionPointConsumable(selectedItem.name) ? (
-                                                        <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-amber-300" style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }}>
-                                                            <span className="text-xl leading-none sm:text-2xl" aria-hidden>⚡</span>
-                                                            <span className="mt-0.5 max-w-full truncate font-bold leading-none text-amber-200" style={{ fontSize: `${Math.max(9, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                                                                +{selectedItem.name.replace(/.*\(\+(\d+)\)/, '$1')}
-                                                            </span>
-                                                        </div>
-                                                    ) : selectedItem.image ? (
-                                                        <img src={selectedItem.image} alt={selectedItem.name} className="absolute object-contain" style={{ width: '80%', height: '80%', padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
-                                                    ) : null}
-                                                </div>
-                                                <div className="flex-grow text-right ml-2">
-                                                    <h3 className={`font-bold ${gradeStyles[selectedItem.grade].color}`} style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.name}</h3>
-                                                    <p className={gradeStyles[selectedItem.grade].color} style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>[{gradeStyles[selectedItem.grade].name}]</p>
-                                                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>{selectedItem.description}</p>
-                                                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>보유 수량: {selectedItem.quantity}</p>
-                                                </div>
-                                            </div>
-                                            {selectedItem.type === 'material' && (
-                                                <div className="mt-2 p-2 bg-gray-800/50 rounded-lg">
-                                                    <p className="font-semibold text-secondary mb-1" style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>강화 필요 정보:</p>
-                                                    {enhancementMaterialDetails.length > 0 ? (
-                                                        enhancementMaterialDetails.slice(0, 2).map((detail, index) => (
-                                                            <p key={index} className="text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
-                                                                {detail}
-                                                            </p>
-                                                        ))
-                                                    ) : (
-                                                        <p className="text-gray-300" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.</p>
-                                                    )}
-                                                    {enhancementMaterialDetails.length > 2 && (
-                                                        <p className="text-gray-400 mt-1" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>...</p>
-                                                    )}
-                                                </div>
-                                            )}
+                                        <div className="mb-3 flex-shrink-0 rounded-lg border border-amber-500/20 bg-gradient-to-r from-amber-950/25 via-transparent to-amber-950/25 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                                            <h3
+                                                className="text-center font-bold tracking-tight text-on-panel"
+                                                style={{ fontSize: `${Math.max(15, Math.round(19 * scaleFactor * detailTextScale))}px` }}
+                                            >
+                                                선택 {selectedItem.type === 'consumable' ? '소모품' : '재료'}
+                                            </h3>
                                         </div>
-                                        <div className={`absolute bottom-2 left-0 right-0 flex justify-center gap-2 px-4 flex-shrink-0`}>
+                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                                            <div
+                                                className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${BAG_SCROLLBAR_Y_CLASS}`}
+                                                style={{
+                                                    fontSize: `${Math.max(11, Math.round(12 * scaleFactor * detailTextScale))}px`,
+                                                    WebkitOverflowScrolling: 'touch',
+                                                }}
+                                            >
+                                                {(() => {
+                                                    const bagDetailImg = resolveBagItemDetailImagePath(selectedItem);
+                                                    const imgBoxPc = Math.max(60, Math.round(80 * scaleFactor));
+                                                    const g = gradeStyles[selectedItem.grade];
+                                                    const descFs = Math.max(11, Math.round(12 * scaleFactor * detailTextScale));
+                                                    const titleFs = Math.max(14, Math.round(18 * scaleFactor * detailTextScale));
+                                                    const metaFs = Math.max(10, Math.round(11 * scaleFactor * detailTextScale));
+                                                    const usageLines =
+                                                        selectedItem.type === 'material' ? enhancementMaterialDetails : [];
+                                                    const usageHint =
+                                                        selectedItem.type === 'consumable' ? getBagConsumableUsageHint(selectedItem.name) : null;
+                                                    const usageFallbackConsumable = '가방에서 사용할 수 있습니다.';
+                                                    const usageFallbackMaterial = '이 재료는 현재 어떤 장비 강화에도 사용되지 않습니다.';
+
+                                                    return (
+                                                        <div className="w-1/2 min-w-0 max-w-[50%] shrink-0 self-center px-0.5 pb-1">
+                                                            <div className="flex shrink-0 items-start justify-between pb-2">
+                                                                <div
+                                                                    className="relative flex-shrink-0 rounded-lg ring-1 ring-amber-400/25"
+                                                                    style={{
+                                                                        width: `${imgBoxPc}px`,
+                                                                        height: `${imgBoxPc}px`,
+                                                                        aspectRatio: '1 / 1',
+                                                                    }}
+                                                                >
+                                                                    <img
+                                                                        src={gradeBackgrounds[selectedItem.grade]}
+                                                                        alt={selectedItem.grade}
+                                                                        className="absolute inset-0 h-full w-full rounded-lg object-cover"
+                                                                    />
+                                                                    {isActionPointConsumable(selectedItem.name) ? (
+                                                                        <div
+                                                                            className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-amber-300"
+                                                                            style={{ padding: `${Math.max(2, Math.round(4 * scaleFactor))}px` }}
+                                                                        >
+                                                                            <span className="text-2xl leading-none sm:text-[1.65rem]" aria-hidden>
+                                                                                ⚡
+                                                                            </span>
+                                                                            <span
+                                                                                className="mt-0.5 max-w-full truncate font-bold leading-none text-amber-200"
+                                                                                style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * detailTextScale))}px` }}
+                                                                            >
+                                                                                +{selectedItem.name.replace(/.*\(\+(\d+)\)/, '$1')}
+                                                                            </span>
+                                                                        </div>
+                                                                    ) : bagDetailImg ? (
+                                                                        <img
+                                                                            src={bagDetailImg}
+                                                                            alt={selectedItem.name}
+                                                                            className="absolute object-contain"
+                                                                            style={{
+                                                                                width: '80%',
+                                                                                height: '80%',
+                                                                                padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`,
+                                                                                left: '50%',
+                                                                                top: '50%',
+                                                                                transform: 'translate(-50%, -50%)',
+                                                                            }}
+                                                                        />
+                                                                    ) : null}
+                                                                </div>
+                                                                <div className="min-w-0 flex-grow text-right ml-2">
+                                                                    <h3 className={`break-words font-bold leading-snug ${g.color}`} style={{ fontSize: `${titleFs}px` }}>
+                                                                        {selectedItem.name}
+                                                                    </h3>
+                                                                    <div
+                                                                        className="mt-0.5 flex flex-wrap items-center justify-end gap-x-1.5"
+                                                                        style={{ fontSize: `${metaFs}px` }}
+                                                                    >
+                                                                        <span className={g.color}>[{g.name}]</span>
+                                                                    </div>
+                                                                    <p className="mt-1 text-gray-300" style={{ fontSize: `${metaFs}px` }}>
+                                                                        보유 수량: {selectedItem.quantity ?? 0}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
+                                                            <div className={`mt-1 w-full text-left ${BAG_SIMPLE_DETAIL_CARD_CLASS}`} style={{ fontSize: `${descFs}px` }}>
+                                                                <p className="leading-relaxed text-gray-300">{selectedItem.description || '—'}</p>
+                                                                <div className={BAG_SIMPLE_DETAIL_DIVIDER_CLASS} aria-hidden />
+                                                                {selectedItem.type === 'material' ? (
+                                                                    <div className="space-y-1">
+                                                                        {usageLines.length > 0 ? (
+                                                                            usageLines.map((line, i) => (
+                                                                                <p key={i} className="leading-relaxed text-gray-300">
+                                                                                    {line}
+                                                                                </p>
+                                                                            ))
+                                                                        ) : (
+                                                                            <p className="leading-relaxed text-gray-400">{usageFallbackMaterial}</p>
+                                                                        )}
+                                                                    </div>
+                                                                ) : (
+                                                                    <p className="leading-relaxed text-gray-300">
+                                                                        {usageHint ?? usageFallbackConsumable}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
+                                            <div className="shrink-0 border-t border-amber-500/15 bg-gradient-to-t from-panel-secondary to-transparent pt-2 pb-0.5">
+                                                <div className={`${BAG_INVENTORY_FOOTER_ITEM_ROW_CLASS} px-1`}>
                                             {selectedItem.type === 'consumable' && (() => {
                                                 const consumableItem = findConsumableItem(selectedItem.name);
                                                 const isUsable = consumableItem?.usable !== false; // 기본값은 true
                                                 const isSellable = consumableItem?.sellable !== false; // 기본값은 true
                                                 const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
-                                                
+                                                const hideBagUse = isConditionPotionConsumable(selectedItem.name);
+                                                const fs = Math.max(12, Math.round(13 * scaleFactor * mobileTextScale));
+
                                                 return (
                                                     <>
-                                                        {isUsable && (
+                                                        {isUsable && !hideBagUse && (
                                                             <>
-                                                                <Button onClick={() => { void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } }); }} colorScheme="blue" className={`w-full !py-1 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button
+                                                                    bare
+                                                                    colorScheme="none"
+                                                                    onClick={() => {
+                                                                        void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
+                                                                    }}
+                                                                    className={BAG_INVENTORY_FOOTER_ITEM_BTN.info}
+                                                                    style={{ fontSize: `${fs}px` }}
+                                                                >
                                                                     사용
                                                                 </Button>
                                                                 {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
                                                                     <Button
-                                                                        onClick={() => { setItemToUseBulk(selectedItem); setShowUseQuantityModal(true); }}
-                                                                        colorScheme="purple"
-                                                                        className={`w-full !py-1 ${viewerActionButtonClass.accent}`}
-                                                                        style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}
+                                                                        bare
+                                                                        colorScheme="none"
+                                                                        onClick={() => {
+                                                                            setItemToUseBulk(selectedItem);
+                                                                            setShowUseQuantityModal(true);
+                                                                        }}
+                                                                        className={BAG_INVENTORY_FOOTER_ITEM_BTN.accent}
+                                                                        style={{ fontSize: `${fs}px` }}
                                                                     >
                                                                         일괄 사용
                                                                     </Button>
@@ -1772,11 +2130,23 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         )}
                                                         {isSellable && (
                                                             <>
-                                                                <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                <Button
+                                                                    bare
+                                                                    colorScheme="none"
+                                                                    onClick={() => setItemToSell(selectedItem)}
+                                                                    className={BAG_INVENTORY_FOOTER_ITEM_BTN.danger}
+                                                                    style={{ fontSize: `${fs}px` }}
+                                                                >
                                                                     판매
                                                                 </Button>
                                                                 {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1 ${viewerActionButtonClass.warning}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                                    <Button
+                                                                        bare
+                                                                        colorScheme="none"
+                                                                        onClick={() => setItemToSellBulk(selectedItem)}
+                                                                        className={BAG_INVENTORY_FOOTER_ITEM_BTN.warning}
+                                                                        style={{ fontSize: `${fs}px` }}
+                                                                    >
                                                                         일괄 판매
                                                                     </Button>
                                                                 )}
@@ -1787,24 +2157,28 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             })()}
                                             {selectedItem.type === 'material' && (
                                                 <>
-                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button
+                                                        bare
+                                                        colorScheme="none"
+                                                        onClick={() => setItemToSell(selectedItem)}
+                                                        className={BAG_INVENTORY_FOOTER_ITEM_BTN.danger}
+                                                        style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
+                                                    >
                                                         판매
                                                     </Button>
-                                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={`w-full !py-1 ${viewerActionButtonClass.warning}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
+                                                    <Button
+                                                        bare
+                                                        colorScheme="none"
+                                                        onClick={() => setItemToSellBulk(selectedItem)}
+                                                        className={BAG_INVENTORY_FOOTER_ITEM_BTN.warning}
+                                                        style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
+                                                    >
                                                         일괄 판매
                                                     </Button>
                                                 </>
                                             )}
-                                            {selectedItem.type !== 'material' && selectedItem.type !== 'consumable' && (() => {
-                                                const consumableItem = selectedItem.type === 'consumable' ? CONSUMABLE_ITEMS.find(ci => ci.name === selectedItem.name || ci.name === selectedItem.name.replace('꾸러미', ' 꾸러미') || ci.name === selectedItem.name.replace(' 꾸러미', '꾸러미')) : null;
-                                                const isSellable = consumableItem?.sellable !== false; // 기본값은 true
-                                                
-                                                return isSellable ? (
-                                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={`w-full !py-1 ${viewerActionButtonClass.danger}`} style={{ fontSize: `${Math.max(11, Math.round(12 * scaleFactor * mobileTextScale))}px` }}>
-                                                        판매
-                                                    </Button>
-                                                ) : null;
-                                            })()}
+                                                </div>
+                                            </div>
                                         </div>
                                     </>
                                 ) : (
@@ -1880,7 +2254,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             </div>
                         )}
                     </div>
-                    <div className="overflow-y-auto flex-1 min-h-0" style={{ width: '100%', minWidth: 0, paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
+                    <div className={`overflow-y-auto flex-1 min-h-0 ${BAG_SCROLLBAR_Y_CLASS}`} style={{ width: '100%', minWidth: 0, paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
                         <div 
                             className="grid gap-2" 
                             style={{ 
@@ -1966,7 +2340,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     bodyPaddingClassName="p-2 sm:p-3"
                 >
                     <div
-                        className="flex max-h-[min(78dvh,720px)] min-h-0 flex-col gap-2 overflow-y-auto"
+                        className={`flex max-h-[min(78dvh,720px)] min-h-0 flex-col gap-2 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS}`}
                         style={{ WebkitOverflowScrolling: 'touch' }}
                         {...(showObEquippedStatsPreset && narrowInventoryLayout
                             ? { 'data-onboarding-target': 'onboarding-inv-equipped-stats-preset' }
@@ -2083,16 +2457,23 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 expandOptionsToFill={selectedItem.type === 'equipment'}
                             />
                         </div>
-                        <div className="grid shrink-0 grid-cols-2 gap-2 pt-1.5 sm:grid-cols-3">
+                        <div
+                            className={`shrink-0 pt-1.5 ${
+                                selectedItem.type === 'equipment' ? BAG_INVENTORY_FOOTER_ROW_CLASS : BAG_INVENTORY_FOOTER_ITEM_ROW_CLASS
+                            }`}
+                        >
                             {selectedItem.type === 'equipment' && (
                                 <>
                                     {selectedItem.id === correspondingEquippedItem?.id ? (
-                                        <Button onClick={() => handleEquipToggle(selectedItem.id)} colorScheme="red" className={viewerActionButtonClass.danger}>해제</Button>
+                                        <Button bare colorScheme="none" onClick={() => handleEquipToggle(selectedItem.id)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
+                                            해제
+                                        </Button>
                                     ) : (
                                         <Button
+                                            bare
+                                            colorScheme="none"
                                             onClick={() => handleEquipToggle(selectedItem.id)}
-                                            colorScheme="green"
-                                            className={viewerActionButtonClass.success}
+                                            className={BAG_INVENTORY_FOOTER_BTN.success}
                                             disabled={!canEquip}
                                             {...(onboardingPhase9 && bagTutorialStep === 2
                                                 ? { 'data-onboarding-target': 'onboarding-inv-equip-button' }
@@ -2102,34 +2483,65 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </Button>
                                     )}
                                     {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
-                                        <Button
-                                            type="button"
-                                            onClick={() => setIsEquipCompareOpen(true)}
-                                            colorScheme="blue"
-                                            className={viewerActionButtonClass.info}
-                                        >
+                                        <Button type="button" bare colorScheme="none" onClick={() => setIsEquipCompareOpen(true)} className={BAG_INVENTORY_FOOTER_BTN.info}>
                                             장비 비교
                                         </Button>
                                     )}
-                                    <Button onClick={() => onStartEnhance(selectedItem)} disabled={selectedItem.stars >= 10} colorScheme="yellow" className={viewerActionButtonClass.warning}>
+                                    <Button bare colorScheme="none" onClick={() => onStartEnhance(selectedItem)} disabled={selectedItem.stars >= 10} className={BAG_INVENTORY_FOOTER_BTN.warning}>
                                         {selectedItem.stars >= 10 ? '최대 강화' : '강화'}
                                     </Button>
-                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={viewerActionButtonClass.danger}>판매</Button>
+                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
+                                        판매
+                                    </Button>
                                 </>
                             )}
                             {selectedItem.type === 'consumable' && (
                                 <>
-                                    <Button onClick={() => { void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } }); }} colorScheme="blue" className={viewerActionButtonClass.info}>사용</Button>
-                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={viewerActionButtonClass.danger}>판매</Button>
+                                    {!isConditionPotionConsumable(selectedItem.name) && (
+                                        <>
+                                            <Button
+                                                bare
+                                                colorScheme="none"
+                                                onClick={() => {
+                                                    void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
+                                                }}
+                                                className={BAG_INVENTORY_FOOTER_ITEM_BTN.info}
+                                            >
+                                                사용
+                                            </Button>
+                                            {selectedItem.quantity && selectedItem.quantity > 1 && (
+                                                <Button
+                                                    bare
+                                                    colorScheme="none"
+                                                    onClick={() => {
+                                                        setItemToUseBulk(selectedItem);
+                                                        setShowUseQuantityModal(true);
+                                                    }}
+                                                    className={BAG_INVENTORY_FOOTER_ITEM_BTN.accent}
+                                                >
+                                                    일괄 사용
+                                                </Button>
+                                            )}
+                                        </>
+                                    )}
+                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_ITEM_BTN.danger}>
+                                        판매
+                                    </Button>
                                     {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                        <Button onClick={() => { setItemToUseBulk(selectedItem); setShowUseQuantityModal(true); }} colorScheme="purple" className={viewerActionButtonClass.accent}>일괄 사용</Button>
+                                        <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_ITEM_BTN.warning}>
+                                            일괄 판매
+                                        </Button>
                                     )}
                                 </>
                             )}
                             {selectedItem.type === 'material' && (
                                 <>
-                                    <Button onClick={() => setItemToSell(selectedItem)} colorScheme="red" className={viewerActionButtonClass.danger}>판매</Button>
-                                    <Button onClick={() => setItemToSellBulk(selectedItem)} colorScheme="orange" className={viewerActionButtonClass.warning}>일괄 판매</Button>
+                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_ITEM_BTN.danger}>
+                                        판매
+                                    </Button>
+                                    <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_ITEM_BTN.warning}>
+                                        일괄 판매
+                                    </Button>
                                 </>
                             )}
                         </div>
@@ -2153,7 +2565,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         bodyPaddingClassName="p-2 sm:p-3"
                     >
                         <div
-                            className="flex h-[min(78dvh,720px)] min-h-[min(50dvh,360px)] flex-col gap-1 overscroll-y-contain rounded-b-xl"
+                            className={`flex h-[min(78dvh,720px)] min-h-[min(50dvh,360px)] flex-col gap-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-b-xl ${BAG_SCROLLBAR_Y_CLASS}`}
                             style={{ WebkitOverflowScrolling: 'touch' }}
                         >
                             {narrowInventoryLayout ? (
@@ -2227,7 +2639,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 </div>
                                             </div>
                                             <div className="flex min-h-0 min-w-0 flex-1 flex-col rounded-md bg-gray-900/50 p-1">
-                                                <div className="min-h-0 flex-1 text-[11px]">
+                                                <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden text-[11px] ${BAG_SCROLLBAR_Y_CLASS}`}>
                                                     {(() => {
                                                         const currentEquip = correspondingEquippedItem ?? null;
                                                         const selectedEquip = selectedItem;
@@ -2307,7 +2719,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                             body: React.ReactNode,
                                                         ) => (
                                                             <div className={`flex min-h-0 flex-1 basis-0 flex-col rounded-md border bg-black/20 p-0.5 ${tone === 'cyan' ? 'border-cyan-500/35' : 'border-amber-500/35'}`}>
-                                                                <div className="min-h-0 flex-1 overflow-hidden pr-0.5">
+                                                                <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-0.5 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                                                     {!itemRef ? (
                                                                         <p className="text-stone-500">장비 없음</p>
                                                                     ) : (
@@ -2393,7 +2805,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         >
                                             현재 장착
                                         </h4>
-                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                        <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-1.5 ${BAG_SCROLLBAR_Y_CLASS}`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                             <LocalItemDetailDisplay
                                                 item={correspondingEquippedItem}
                                                 title="장착된 장비 없음"
@@ -2414,7 +2826,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         >
                                             선택 장비
                                         </h4>
-                                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden p-1.5" style={{ WebkitOverflowScrolling: 'touch' }}>
+                                        <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-1.5 ${BAG_SCROLLBAR_Y_CLASS}`} style={{ WebkitOverflowScrolling: 'touch' }}>
                                             <LocalItemDetailDisplay
                                                 item={selectedItem}
                                                 title="선택된 아이템 없음"
@@ -2430,7 +2842,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 </div>
                             )}
                             {equipSwapStatPreview && (
-                                <div className="min-h-0 flex-[0.85_1_0%] overflow-y-auto rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/40 via-gray-900/90 to-gray-950/95 p-1.5 shadow-inner">
+                                <div className={`min-h-0 flex-[0.85_1_0%] overflow-y-auto rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/40 via-gray-900/90 to-gray-950/95 p-1.5 shadow-inner ${BAG_SCROLLBAR_Y_CLASS}`}>
                                     <h4
                                         className="mb-0.5 font-bold text-amber-100/95 leading-tight"
                                         style={{ fontSize: `${Math.max(13, Math.round(14 * scaleFactor * compareModalTextScale))}px` }}
