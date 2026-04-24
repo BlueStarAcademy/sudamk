@@ -81,6 +81,8 @@ export type QuestReward = {
   xp?: { type: 'strategy' | 'playful' | 'blacksmith'; amount: number };
   items?: (InventoryItem | { itemId: string; quantity: number })[];
   actionPoints?: number;
+  guildCoins?: number;
+  guildXp?: number;
 };
 
 export type Quest = {

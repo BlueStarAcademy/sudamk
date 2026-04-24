@@ -275,24 +275,10 @@ const GuildMissionsPanel: React.FC<GuildMissionsPanelProps> = ({ guild, onClose 
                                 />
                             </div>
                             <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                                    <p
-                                        className={`font-semibold tracking-wide text-amber-200/85 ${isNativeMobile ? 'text-[10px] leading-tight' : 'text-[11px]'}`}
-                                    >
-                                        주간 길드 미션
-                                    </p>
-                                    <p
-                                        className={`shrink-0 font-mono tabular-nums text-amber-100/90 ${isNativeMobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`}
-                                    >
-                                        {resetCountdown}
-                                    </p>
-                                </div>
                                 <p
-                                    className={`mt-0.5 font-medium leading-snug text-stone-300 ${isNativeMobile ? 'text-[10px] leading-snug' : 'text-xs sm:text-sm'}`}
+                                    className={`shrink-0 font-mono tabular-nums text-amber-100/90 ${isNativeMobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`}
                                 >
-                                    길드원이 함께 채우는 주간 목표입니다. 달성 시{' '}
-                                    <span className="text-amber-200/95">길드 코인</span>과{' '}
-                                    <span className="text-emerald-300/95">길드 경험치</span>를 받을 수 있습니다.
+                                    {resetCountdown}
                                 </p>
                             </div>
                         </div>

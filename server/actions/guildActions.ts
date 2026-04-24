@@ -1444,6 +1444,15 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             // Mark as claimed by the current user
             if (!mission.claimedBy) mission.claimedBy = [];
             mission.claimedBy.push(effectiveUserId);
+            const gainedGuildXp = calculateGuildMissionXp(mission.guildReward?.guildXp ?? 0, guild.level ?? 1);
+            const rewardSummary = {
+                reward: {
+                    guildCoins: gainedGuildCoins,
+                    guildXp: gainedGuildXp,
+                },
+                items: [],
+                title: '주간 길드 미션 보상 수령',
+            };
             
             await db.setKV('guilds', guilds);
             
@@ -1457,7 +1466,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             broadcastUserUpdate(freshUser, ['guildCoins']);
             
             await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
-            return { clientResponse: { updatedUser: freshUser, guilds } };
+            return { clientResponse: { updatedUser: freshUser, guilds, rewardSummary } };
         }
         case 'GUILD_DONATE_GOLD':
         case 'GUILD_DONATE_DIAMOND': {
@@ -1495,6 +1504,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             
             let gainedGuildCoins = 0;
             let gainedResearchPoints = 0;
+            let gainedGuildXp = 0;
             const rewards = isGold ? GUILD_DONATION_GOLD_REWARDS : GUILD_DONATION_DIAMOND_REWARDS;
 
             for (let i = 0; i < actualCount; i++) {
@@ -1512,6 +1522,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 user.guildCoins = (user.guildCoins || 0) + coins;
                 guild.researchPoints = (guild.researchPoints || 0) + research;
                 guild.xp = (guild.xp || 0) + rewards.guildXp;
+                gainedGuildXp += rewards.guildXp;
                 guildService.addContribution(guild, effectiveUserId, rewards.contribution);
                 guildRepo.incrementGuildMemberContribution(user.guildId!, user.id, rewards.contribution).catch(() => {});
             } else {
@@ -1529,6 +1540,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 user.guildCoins = (user.guildCoins || 0) + coins2;
                 guild.researchPoints = (guild.researchPoints || 0) + research2;
                 guild.xp = (guild.xp || 0) + rewards.guildXp;
+                gainedGuildXp += rewards.guildXp;
                 guildService.addContribution(guild, effectiveUserId, rewards.contribution);
                 guildRepo.incrementGuildMemberContribution(user.guildId!, user.id, rewards.contribution).catch(() => {});
             }
@@ -1586,7 +1598,15 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     donationResult: {
                         coins: gainedGuildCoins,
                         research: gainedResearchPoints,
-                    }
+                    },
+                    rewardSummary: {
+                        reward: {
+                            guildCoins: gainedGuildCoins,
+                            guildXp: gainedGuildXp,
+                        },
+                        items: [],
+                        title: '길드 기부 보상 수령',
+                    },
                 }
             };
         }

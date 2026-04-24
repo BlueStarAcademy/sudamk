@@ -693,6 +693,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                         } as ServerAction);
                         setSinglePlayerStagesFromServer(nextStages);
                     }}
+                    onResetAllToDefault={async () => {
+                        if (!onAction) return;
+                        await onAction({
+                            type: 'ADMIN_RESET_SINGLE_PLAYER_STAGES',
+                        } as ServerAction);
+                    }}
                 />
             )}
             {towerShopPortal}

@@ -30,6 +30,7 @@ interface Props {
     onClose: () => void;
     onSave: (next: SinglePlayerStageInfo) => Promise<void>;
     onSwapStageInfo?: (targetStageId: string) => Promise<void>;
+    onResetAllToDefault?: () => Promise<void>;
 }
 
 const cloneStageInfo = (value: SinglePlayerStageInfo): SinglePlayerStageInfo =>
@@ -87,7 +88,7 @@ const MIX_MODE_OPTIONS: { mode: GameMode; label: string }[] = [
     { mode: GameMode.Missile, label: '미사일' },
 ];
 
-const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapStageOptions, onClose, onSave, onSwapStageInfo }) => {
+const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapStageOptions, onClose, onSave, onSwapStageInfo, onResetAllToDefault }) => {
     const [draft, setDraft] = useState<SinglePlayerStageInfo>(() => cloneStageInfo(stage));
     const [cells, setCells] = useState<StoneCell[][]>(() => fixedOpeningToCells(stage));
     const [saving, setSaving] = useState(false);
@@ -608,8 +609,26 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                         colorScheme="gray"
                         disabled={saving}
                     >
-                        초기화
+                        편집값 되돌리기
                     </Button>
+                    {scope === 'singleplayer' && onResetAllToDefault && (
+                        <Button
+                            onClick={async () => {
+                                if (!window.confirm('싱글 스테이지 전체를 기본값으로 복구할까요? 저장된 오버라이드가 모두 초기화됩니다.')) return;
+                                setSaving(true);
+                                try {
+                                    await onResetAllToDefault();
+                                    onClose();
+                                } finally {
+                                    setSaving(false);
+                                }
+                            }}
+                            colorScheme="gray"
+                            disabled={saving || swapping}
+                        >
+                            기본값 복구(전체)
+                        </Button>
+                    )}
                     <Button
                         colorScheme="accent"
                         disabled={saving || swapping || isMixSelectionInvalid}

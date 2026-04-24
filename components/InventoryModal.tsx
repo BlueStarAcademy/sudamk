@@ -1311,10 +1311,10 @@ const BAG_INVENTORY_FOOTER_BTN = {
 
 /** 소모품·재료 가방 푸터: 장비 버튼보다는 좁게(`flex-1` 없음), 다만 최소 높이·패딩은 장비와 동일 계열 */
 const BAG_INVENTORY_FOOTER_ITEM_ROW_CLASS =
-    'mx-auto flex w-full max-w-full flex-nowrap items-stretch justify-center gap-2 overflow-x-auto overscroll-x-contain px-0.5 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38';
+    'mx-auto flex w-full max-w-full flex-nowrap items-stretch justify-center gap-2.5 overflow-x-auto overscroll-x-contain px-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38';
 
 const BAG_INVENTORY_FOOTER_ITEM_BTN_BASE =
-    'inline-flex min-h-[2.35rem] w-auto min-w-[3.15rem] shrink-0 items-center justify-center rounded-xl border px-2.5 text-xs font-semibold tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_6px_18px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/10 transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-px hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.48)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-45 sm:min-w-[3.5rem] sm:px-3 sm:text-sm';
+    'inline-flex min-h-[2.6rem] w-auto min-w-[4.25rem] shrink-0 items-center justify-center rounded-xl border px-3.5 text-[13px] font-semibold tracking-wide shadow-[inset_0_1px_0_rgba(255,255,255,0.16),0_6px_18px_-8px_rgba(0,0,0,0.55)] ring-1 ring-inset ring-white/10 transition-[transform,box-shadow,border-color] duration-150 hover:-translate-y-px hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.48)] active:translate-y-0 disabled:pointer-events-none disabled:opacity-45 sm:min-w-[4.8rem] sm:px-4 sm:text-[15px]';
 
 const BAG_INVENTORY_FOOTER_ITEM_BTN = {
     info: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-cyan-800/50 bg-gradient-to-b from-cyan-500 via-cyan-700 to-cyan-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_4px_16px_-2px_rgba(6,182,212,0.55)] hover:border-cyan-400/55 hover:from-cyan-400 hover:via-cyan-600 hover:to-cyan-900 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_6px_22px_-2px_rgba(34,211,238,0.55)]`,
@@ -1990,7 +1990,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                     const bagDetailImg = resolveBagItemDetailImagePath(selectedItem);
                                                     const imgBoxPc = Math.max(60, Math.round(80 * scaleFactor));
                                                     const g = gradeStyles[selectedItem.grade];
-                                                    const descFs = Math.max(11, Math.round(12 * scaleFactor * detailTextScale));
+                                                    const descFs = Math.max(10, Math.round(11 * scaleFactor * detailTextScale));
                                                     const titleFs = Math.max(14, Math.round(18 * scaleFactor * detailTextScale));
                                                     const metaFs = Math.max(10, Math.round(11 * scaleFactor * detailTextScale));
                                                     const usageLines =
@@ -2063,25 +2063,29 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                 </div>
                                                             </div>
                                                             <div className={`mt-1 w-full text-left ${BAG_SIMPLE_DETAIL_CARD_CLASS}`} style={{ fontSize: `${descFs}px` }}>
-                                                                <p className="leading-relaxed text-gray-300">{selectedItem.description || '—'}</p>
+                                                                <div className={BAG_SIMPLE_DETAIL_OPTION_CARD_CLASS}>
+                                                                    <p className="leading-relaxed text-gray-300">{selectedItem.description || '—'}</p>
+                                                                </div>
                                                                 <div className={BAG_SIMPLE_DETAIL_DIVIDER_CLASS} aria-hidden />
-                                                                {selectedItem.type === 'material' ? (
-                                                                    <div className="space-y-1">
-                                                                        {usageLines.length > 0 ? (
-                                                                            usageLines.map((line, i) => (
-                                                                                <p key={i} className="leading-relaxed text-gray-300">
-                                                                                    {line}
-                                                                                </p>
-                                                                            ))
-                                                                        ) : (
-                                                                            <p className="leading-relaxed text-gray-400">{usageFallbackMaterial}</p>
-                                                                        )}
-                                                                    </div>
-                                                                ) : (
-                                                                    <p className="leading-relaxed text-gray-300">
-                                                                        {usageHint ?? usageFallbackConsumable}
-                                                                    </p>
-                                                                )}
+                                                                <div className={BAG_SIMPLE_DETAIL_OPTION_CARD_CLASS}>
+                                                                    {selectedItem.type === 'material' ? (
+                                                                        <div className="space-y-1">
+                                                                            {usageLines.length > 0 ? (
+                                                                                usageLines.map((line, i) => (
+                                                                                    <p key={i} className="leading-relaxed text-gray-300">
+                                                                                        {line}
+                                                                                    </p>
+                                                                                ))
+                                                                            ) : (
+                                                                                <p className="leading-relaxed text-gray-400">{usageFallbackMaterial}</p>
+                                                                            )}
+                                                                        </div>
+                                                                    ) : (
+                                                                        <p className="leading-relaxed text-gray-300">
+                                                                            {usageHint ?? usageFallbackConsumable}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     );

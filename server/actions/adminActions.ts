@@ -26,6 +26,7 @@ import { nicknameContainsReservedStaffTerms } from '../../shared/utils/staffNick
 import { hashPassword } from '../utils/passwordUtils.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { normalizeSinglePlayerStagesOverride, setSinglePlayerStagesOverride } from '../singlePlayerStageConfigService.js';
+import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlayerConstants.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -128,6 +129,11 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
         case 'ADMIN_SET_SINGLE_PLAYER_STAGES': {
             const stages = normalizeSinglePlayerStagesOverride(payload?.stages);
             const saved = await setSinglePlayerStagesOverride(stages);
+            broadcast({ type: 'SINGLE_PLAYER_STAGES_UPDATE', payload: { singlePlayerStages: saved } });
+            return { clientResponse: { singlePlayerStages: saved } };
+        }
+        case 'ADMIN_RESET_SINGLE_PLAYER_STAGES': {
+            const saved = await setSinglePlayerStagesOverride(DEFAULT_SINGLE_PLAYER_STAGES);
             broadcast({ type: 'SINGLE_PLAYER_STAGES_UPDATE', payload: { singlePlayerStages: saved } });
             return { clientResponse: { singlePlayerStages: saved } };
         }

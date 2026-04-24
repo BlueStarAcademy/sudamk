@@ -18,14 +18,37 @@ interface RewardSummaryModalProps {
 const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClose, isTopmost }) => {
     const { reward, items, title } = summary;
 
-    const hasAnyReward =
+    const fallbackRewardItems = useMemo<InventoryItem[]>(() => {
+        if (!Array.isArray(reward.items) || reward.items.length === 0) return [];
+        return (reward.items as Array<InventoryItem | { itemId: string; quantity: number }>).map((entry, index) => {
+            if ('itemId' in entry && !('name' in entry)) {
+                const itemId = entry.itemId;
+                const quantity = Number(entry.quantity ?? 1) || 1;
+                return {
+                    id: `reward-item-${itemId}-${index}`,
+                    type: 'consumable' as InventoryItem['type'],
+                    name: itemId,
+                    quantity,
+                } as InventoryItem;
+            }
+            return entry as InventoryItem;
+        });
+    }, [reward.items]);
+
+    // 서버가 실제 아이템 인스턴스를 주면 우선 사용하고, 없을 때는 reward.items 정의를 fallback으로 표시
+    const displayItems = items.length > 0 ? items : fallbackRewardItems;
+
+    const hasAnyCurrencyReward =
         (reward.gold ?? 0) > 0 ||
         (reward.diamonds ?? 0) > 0 ||
         (reward.actionPoints ?? 0) > 0 ||
+        (reward.guildCoins ?? 0) > 0 ||
+        (reward.guildXp ?? 0) > 0 ||
         (reward.xp?.type === 'blacksmith' && (reward.xp?.amount ?? 0) > 0);
+    const hasAnyItemReward = displayItems.length > 0;
 
     const bestItemGrade = useMemo(() => {
-        if (!items.length) return null;
+        if (!displayItems.length) return null;
         const order: ItemGrade[] = [
             ItemGrade.Normal,
             ItemGrade.Uncommon,
@@ -35,15 +58,15 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
             ItemGrade.Mythic,
             ItemGrade.Transcendent,
         ];
-        return items.reduce<ItemGrade | null>((best, cur) => {
+        return displayItems.reduce<ItemGrade | null>((best, cur) => {
             const g = cur.grade ?? ItemGrade.Normal;
             if (!best) return g;
             return order.indexOf(g) > order.indexOf(best) ? g : best;
         }, null);
-    }, [items]);
+    }, [displayItems]);
 
     useEffect(() => {
-        if (!hasAnyReward && items.length === 0) return;
+        if (!hasAnyCurrencyReward && !hasAnyItemReward) return;
         let cancelled = false;
         const high = [ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic, ItemGrade.Transcendent];
         void (async () => {
@@ -58,7 +81,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
         return () => {
             cancelled = true;
         };
-    }, [hasAnyReward, items.length, bestItemGrade]);
+    }, [hasAnyCurrencyReward, hasAnyItemReward, bestItemGrade]);
 
     const frame =
         'rounded-2xl border border-amber-500/20 bg-gradient-to-b from-zinc-950/95 via-zinc-900/90 to-black shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
@@ -76,6 +99,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                     </div>
 
                     <div className="space-y-4 p-5">
+                        {hasAnyCurrencyReward && (
                         <div className="rounded-xl border border-white/5 bg-black/40 p-4 shadow-inner">
                             <h3 className="mb-3 text-center text-[11px] font-bold uppercase tracking-wider text-zinc-500">획득 재화</h3>
                             <div className="flex flex-col items-center gap-2.5 text-sm">
@@ -108,6 +132,22 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                         </span>
                                     </div>
                                 )}
+                                {(reward.guildCoins ?? 0) > 0 && (
+                                    <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-amber-500/20 bg-amber-950/25 px-4 py-2.5 shadow-inner">
+                                        <img src="/images/guild/tokken.png" alt="" className="h-6 w-6 shrink-0 object-contain" title="길드 코인" />
+                                        <span className="text-lg font-bold tabular-nums text-amber-200 sm:text-xl">
+                                            +{reward.guildCoins!.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
+                                {(reward.guildXp ?? 0) > 0 && (
+                                    <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-blue-500/20 bg-blue-950/25 px-4 py-2.5 shadow-inner">
+                                        <img src="/images/guild/button/guildlab.png" alt="" className="h-6 w-6 shrink-0 object-contain" title="길드 경험치" />
+                                        <span className="text-lg font-bold tabular-nums text-blue-200 sm:text-xl">
+                                            +{reward.guildXp!.toLocaleString()}
+                                        </span>
+                                    </div>
+                                )}
                                 {reward.xp?.type === 'blacksmith' && (reward.xp?.amount ?? 0) > 0 && (
                                     <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-orange-500/20 bg-orange-950/25 px-4 py-2.5 shadow-inner">
                                         <img src="/images/equipments/moru.png" alt="" className="h-6 w-6 shrink-0 object-contain" title="대장간 경험치" />
@@ -116,16 +156,11 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                         </span>
                                     </div>
                                 )}
-                                {(reward.gold ?? 0) <= 0 &&
-                                    (reward.diamonds ?? 0) <= 0 &&
-                                    (reward.actionPoints ?? 0) <= 0 &&
-                                    !(reward.xp?.type === 'blacksmith' && (reward.xp?.amount ?? 0) > 0) && (
-                                        <p className="py-2 text-center text-xs text-zinc-600">재화 보상 없음</p>
-                                    )}
                             </div>
                         </div>
+                        )}
 
-                        {items.length > 0 && (
+                        {hasAnyItemReward && (
                             <div className="rounded-xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/80 to-black/80 p-4">
                                 <h3 className="mb-4 flex items-center justify-center gap-2 text-sm font-bold text-amber-100/90">
                                     <span className="h-px w-6 bg-gradient-to-r from-transparent to-amber-500/50" aria-hidden />
@@ -133,7 +168,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                     <span className="h-px w-6 bg-gradient-to-l from-transparent to-amber-500/50" aria-hidden />
                                 </h3>
                                 <div className="flex flex-wrap justify-center gap-x-4 gap-y-4 sm:gap-x-3 sm:gap-y-3">
-                                    {items.map((item, index) => (
+                                    {displayItems.map((item, index) => (
                                         <MailRewardItemTile key={index} item={item} variant="md" />
                                     ))}
                                 </div>
