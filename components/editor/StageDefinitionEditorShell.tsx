@@ -65,6 +65,22 @@ const cellsToFixedOpening = (cells: StoneCell[][]): NonNullable<SinglePlayerStag
     return out;
 };
 
+const resizeCells = (cells: StoneCell[][], nextSize: number): StoneCell[][] => {
+    const next: StoneCell[][] = Array(nextSize).fill(null).map(() => Array(nextSize).fill(''));
+    for (let y = 0; y < Math.min(cells.length, nextSize); y++) {
+        for (let x = 0; x < Math.min(cells[y]?.length ?? 0, nextSize); x++) {
+            next[y][x] = cells[y][x];
+        }
+    }
+    return next;
+};
+
+const getErrorMessage = (error: unknown): string => {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === 'string' && error.trim()) return error;
+    return '작업 중 오류가 발생했습니다.';
+};
+
 const cellClassName = (cell: StoneCell): string => {
     if (!cell) return 'bg-zinc-900/80 border-zinc-700/80';
     if (cell === 'black') return 'bg-black border-zinc-300';
@@ -93,6 +109,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
     const [cells, setCells] = useState<StoneCell[][]>(() => fixedOpeningToCells(stage));
     const [saving, setSaving] = useState(false);
     const [swapping, setSwapping] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
     const [brush, setBrush] = useState<BrushStone>('black');
     const [rulePreset, setRulePreset] = useState<SinglePlayerStrategicRulePreset>(() => stage.strategicRulePreset ?? 'auto');
     const [resetBaseline, setResetBaseline] = useState<SinglePlayerStageInfo>(() => cloneStageInfo(stage));
@@ -111,6 +128,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
         setDraft(snapshot);
         setCells(fixedOpeningToCells(snapshot));
         setRulePreset(snapshot.strategicRulePreset ?? 'auto');
+        setErrorMessage('');
     }, [open, stage]);
     useEffect(() => {
         if (!open) return;
@@ -171,6 +189,28 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
     const showHiddenCounts = effectiveRulePreset === 'hidden' || (isMixPreset && mixHasHidden);
     const showMissileCount = effectiveRulePreset === 'missile' || (isMixPreset && mixHasMissile);
     const isMixSelectionInvalid = isMixPreset && mixedModes.length < 2;
+    const validationErrors = useMemo(() => {
+        const errors: string[] = [];
+        if (isMixSelectionInvalid) {
+            errors.push('믹스룰은 모드를 2개 이상 선택해야 저장할 수 있습니다.');
+        }
+        const fixedStoneCount = cellsToFixedOpening(cells).length;
+        const randomStoneCount =
+            Math.max(0, Number(draft.placements.black) || 0)
+            + Math.max(0, Number(draft.placements.white) || 0)
+            + Math.max(0, Number(draft.placements.blackPattern) || 0)
+            + Math.max(0, Number(draft.placements.whitePattern) || 0);
+        const boardCapacity = draft.boardSize * draft.boardSize;
+        const randomCapacity = boardCapacity - (draft.mergeRandomPlacementsWithFixed ? fixedStoneCount : 0);
+        if (fixedStoneCount > boardCapacity) {
+            errors.push('수동 배치 돌 수가 보드 칸 수를 초과했습니다.');
+        }
+        if (randomStoneCount > randomCapacity) {
+            errors.push(`랜덤 배치 돌 수가 가능한 칸 수(${randomCapacity})를 초과했습니다.`);
+        }
+        return errors;
+    }, [cells, draft.boardSize, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid]);
+    const hasValidationErrors = validationErrors.length > 0;
 
     const boardSize = draft.boardSize;
     const rowIndices = useMemo(() => Array.from({ length: boardSize }, (_, i) => i), [boardSize]);
@@ -287,7 +327,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                                     onChange={(e) => {
                                         const nextSize = Number(e.target.value) as SinglePlayerStageInfo['boardSize'];
                                         setDraft((p) => ({ ...p, boardSize: nextSize }));
-                                        setCells(Array(nextSize).fill(null).map(() => Array(nextSize).fill('')));
+                                        setCells((prev) => resizeCells(prev, nextSize));
                                     }}>
                                     {[7, 9, 11, 13].map((s) => <option key={s} value={s}>{s}</option>)}
                                 </select>
@@ -525,7 +565,10 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                                             if (!swapTargetStageId) return;
                                             setSwapping(true);
                                             try {
+                                                setErrorMessage('');
                                                 await onSwapStageInfo(swapTargetStageId);
+                                            } catch (error) {
+                                                setErrorMessage(getErrorMessage(error));
                                             } finally {
                                                 setSwapping(false);
                                             }
@@ -599,12 +642,21 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                     </label>
                     <div className="flex items-center gap-2">
                     <Button onClick={onClose} colorScheme="gray">취소</Button>
+                    {(errorMessage || validationErrors.length > 0) && (
+                        <div className="max-w-lg rounded border border-rose-500/50 bg-rose-950/40 px-3 py-2 text-xs text-rose-100">
+                            {errorMessage && <p>{errorMessage}</p>}
+                            {validationErrors.map((message) => (
+                                <p key={message}>{message}</p>
+                            ))}
+                        </div>
+                    )}
                     <Button
                         onClick={() => {
                             const snapshot = cloneStageInfo(resetBaseline);
                             setDraft(snapshot);
                             setCells(fixedOpeningToCells(snapshot));
                             setRulePreset(snapshot.strategicRulePreset ?? 'auto');
+                            setErrorMessage('');
                         }}
                         colorScheme="gray"
                         disabled={saving}
@@ -617,8 +669,11 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                                 if (!window.confirm('싱글 스테이지 전체를 기본값으로 복구할까요? 저장된 오버라이드가 모두 초기화됩니다.')) return;
                                 setSaving(true);
                                 try {
+                                    setErrorMessage('');
                                     await onResetAllToDefault();
                                     onClose();
+                                } catch (error) {
+                                    setErrorMessage(getErrorMessage(error));
                                 } finally {
                                     setSaving(false);
                                 }
@@ -631,16 +686,19 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                     )}
                     <Button
                         colorScheme="accent"
-                        disabled={saving || swapping || isMixSelectionInvalid}
+                        disabled={saving || swapping || hasValidationErrors}
                         onClick={async () => {
-                            if (isMixSelectionInvalid) return;
+                            if (hasValidationErrors) return;
                             setSaving(true);
                             try {
+                                setErrorMessage('');
                                 await onSave({
                                     ...draft,
                                     strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
                                     fixedOpening: cellsToFixedOpening(cells),
                                 });
+                            } catch (error) {
+                                setErrorMessage(getErrorMessage(error));
                             } finally {
                                 setSaving(false);
                             }

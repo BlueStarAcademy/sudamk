@@ -666,10 +666,11 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     onSave={async (nextStage) => {
                         if (!onAction) return;
                         const nextStages = SINGLE_PLAYER_STAGES.map((row) => (row.id === nextStage.id ? nextStage : row));
-                        await onAction({
+                        const result = await onAction({
                             type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
                             payload: { stages: nextStages },
-                        } as ServerAction);
+                        } as ServerAction) as any;
+                        if (result?.error) throw new Error(result.error);
                         setSinglePlayerStagesFromServer(nextStages);
                         setEditorOpen(false);
                     }}
@@ -687,17 +688,19 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                             return row;
                         });
 
-                        await onAction({
+                        const result = await onAction({
                             type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
                             payload: { stages: nextStages },
-                        } as ServerAction);
+                        } as ServerAction) as any;
+                        if (result?.error) throw new Error(result.error);
                         setSinglePlayerStagesFromServer(nextStages);
                     }}
                     onResetAllToDefault={async () => {
                         if (!onAction) return;
-                        await onAction({
+                        const result = await onAction({
                             type: 'ADMIN_RESET_SINGLE_PLAYER_STAGES',
-                        } as ServerAction);
+                        } as ServerAction) as any;
+                        if (result?.error) throw new Error(result.error);
                     }}
                 />
             )}

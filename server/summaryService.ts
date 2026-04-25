@@ -48,6 +48,7 @@ import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCodex.js';
 import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
+import { reconcileSinglePlayerProgress } from '../shared/utils/singlePlayerProgress.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -154,6 +155,14 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
 
     if (!stage) {
         console.error(`[SP Summary] Could not find stage with id: ${game.stageId}`);
+        if (!game.summary) game.summary = {};
+        game.summary[user.id] = {
+            xp: { initial: user.strategyXp, change: 0, final: user.strategyXp },
+            rating: { initial: 1200, change: 0, final: 1200 },
+            manner: { initial: user.mannerScore, change: 0, final: user.mannerScore },
+            gold: 0,
+            items: [],
+        };
         return;
     }
 
@@ -169,16 +178,19 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     const stageIndex = stages.findIndex(s => s.id === stage.id);
     const currentProgress = user.singlePlayerProgress ?? 0;
     
-    // clearedSinglePlayerStages 배열 초기화 (없는 경우)
-    if (!user.clearedSinglePlayerStages) {
-        user.clearedSinglePlayerStages = [];
+    const reconciledProgress = reconcileSinglePlayerProgress(
+        stages,
+        user.clearedSinglePlayerStages,
+        user.singlePlayerProgress
+    );
+    if (
+        !Array.isArray(user.clearedSinglePlayerStages) ||
+        user.clearedSinglePlayerStages.length !== reconciledProgress.effectiveClearedStageIds.length ||
+        user.clearedSinglePlayerStages.some((id, index) => id !== reconciledProgress.effectiveClearedStageIds[index])
+    ) {
+        user.clearedSinglePlayerStages = [...reconciledProgress.effectiveClearedStageIds];
     }
-    
-    // 배열이 아닌 경우 배열로 변환 (데이터 무결성 보장)
-    if (!Array.isArray(user.clearedSinglePlayerStages)) {
-        console.warn(`[SP Summary] clearedSinglePlayerStages is not an array for user ${user.id}, resetting to empty array`);
-        user.clearedSinglePlayerStages = [];
-    }
+    user.singlePlayerProgress = reconciledProgress.progress;
     
     // 최초 클리어 여부 확인: clearedSinglePlayerStages에 스테이지 ID가 없으면 최초 클리어
     const isFirstClear = !user.clearedSinglePlayerStages.includes(stage.id);

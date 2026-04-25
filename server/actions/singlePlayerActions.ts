@@ -25,6 +25,11 @@ import {
     resolveSinglePlayerStrategicGameMode,
     resolveSinglePlayerSurvivalMode,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import {
+    isSinglePlayerStageCleared,
+    isSinglePlayerStageUnlocked,
+    reconcileSinglePlayerProgress,
+} from '../../shared/utils/singlePlayerProgress.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -153,7 +158,7 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
             if (!isInvalidStrategicInitialStonePlacement(template, center, center, Player.Black)) {
                 template[center][center] = Player.Black;
                 baseBoard = template;
-                blackToPlace--;
+                blackToPlace = Math.max(0, blackToPlace - 1);
             }
         }
 
@@ -192,7 +197,7 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
         if (!isInvalidStrategicInitialStonePlacement(template, center, center, Player.Black)) {
             template[center][center] = Player.Black;
             baseBoard = template;
-            blackToPlace--;
+            blackToPlace = Math.max(0, blackToPlace - 1);
         }
     }
 
@@ -230,9 +235,12 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: '스테이지를 찾을 수 없습니다.' };
             }
 
-            const clearedStages = user.clearedSinglePlayerStages || [];
-            const singlePlayerProgress = user.singlePlayerProgress ?? 0;
-            const isCleared = clearedStages.includes(stageId) || singlePlayerProgress > currentStageIndex;
+            const progress = reconcileSinglePlayerProgress(
+                stages,
+                user.clearedSinglePlayerStages,
+                user.singlePlayerProgress
+            );
+            const isCleared = isSinglePlayerStageCleared(stages, progress, stageId);
             const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
             
             // 관리자가 아닌 경우 스테이지 잠금 확인
@@ -240,9 +248,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 // 첫 번째 스테이지가 아니면 이전 스테이지 클리어 여부 확인
                 if (currentStageIndex > 0) {
                     const previousStage = stages[currentStageIndex - 1];
-                    
-                    if (!clearedStages.includes(previousStage.id)) {
-                        console.log(`[START_SINGLE_PLAYER_GAME] Stage ${stageId} locked - previous stage ${previousStage.id} not cleared. Cleared stages: ${JSON.stringify(clearedStages)}`);
+
+                    if (!isSinglePlayerStageUnlocked(stages, progress, stageId)) {
+                        console.log(`[START_SINGLE_PLAYER_GAME] Stage ${stageId} locked - previous stage ${previousStage.id} not cleared. Effective cleared stages: ${JSON.stringify(progress.effectiveClearedStageIds)}`);
                         return { error: '이전 스테이지를 먼저 클리어해야 합니다.' };
                     }
                 }
@@ -280,7 +288,18 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 playfulLevel: botLevel,
             };
             
-            const { board, blackPattern, whitePattern } = generateSinglePlayerBoard(stage);
+            let board: BoardState;
+            let blackPattern: Point[];
+            let whitePattern: Point[];
+            try {
+                const generatedBoard = generateSinglePlayerBoard(stage);
+                board = generatedBoard.board;
+                blackPattern = generatedBoard.blackPattern;
+                whitePattern = generatedBoard.whitePattern;
+            } catch (error) {
+                console.error(`[START_SINGLE_PLAYER_GAME] Failed to generate board for stage ${stageId}`, error);
+                return { error: '스테이지 맵 설정이 올바르지 않아 게임을 시작할 수 없습니다. 관리자에게 문의해주세요.' };
+            }
 
             const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
 

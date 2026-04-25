@@ -5,6 +5,11 @@ import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { isOnboardingTutorialActive } from '../../shared/constants/onboardingTutorial.js';
+import {
+    isSinglePlayerStageCleared,
+    isSinglePlayerStageUnlocked,
+    reconcileSinglePlayerProgress,
+} from '../../shared/utils/singlePlayerProgress.js';
 import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
@@ -51,13 +56,13 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
             });
     }, [selectedClass]);
 
-    // 클리어한 스테이지 확인 (서버 clearedSinglePlayerStages + singlePlayerProgress로 대기실에서도 동기화)
-    const clearedStages = useMemo(() => {
-        return (currentUser as any).clearedSinglePlayerStages || [];
+    const progress = useMemo(() => {
+        return reconcileSinglePlayerProgress(
+            SINGLE_PLAYER_STAGES,
+            (currentUser as any).clearedSinglePlayerStages,
+            (currentUser as any).singlePlayerProgress
+        );
     }, [currentUser]);
-
-    // 다음에 플레이 가능한 스테이지 인덱스(0-based). 클리어 직후 서버 반영 전에도 대기실에서 열린 층 공유
-    const singlePlayerProgress = (currentUser as any).singlePlayerProgress ?? 0;
 
     const handleStageEnter = (stageId: string) => {
         console.log('[StageGrid] handleStageEnter called with stageId:', stageId);
@@ -79,13 +84,8 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         }
     };
 
-    // 전역 스테이지 인덱스 (SINGLE_PLAYER_STAGES 기준)
-    const getGlobalStageIndex = (stageId: string) => SINGLE_PLAYER_STAGES.findIndex(s => s.id === stageId);
-
     const isStageCleared = (stageId: string) => {
-        const g = getGlobalStageIndex(stageId);
-        // 서버 clearedStages에 있거나, singlePlayerProgress로 이미 다음 단계까지 열린 경우 클리어로 간주
-        return clearedStages.includes(stageId) || (g >= 0 && singlePlayerProgress > g);
+        return isSinglePlayerStageCleared(SINGLE_PLAYER_STAGES, progress, stageId);
     };
 
     const isStageLocked = (stageIndex: number) => {
@@ -93,16 +93,7 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         if (currentUser.isAdmin) return false;
         
         const stage = stages[stageIndex];
-        const globalIndex = getGlobalStageIndex(stage.id);
-        // 첫 번째 스테이지(전역 0 = 입문-1)는 항상 열림
-        if (globalIndex <= 0) return false;
-        // singlePlayerProgress: 다음에 플레이 가능한 스테이지 인덱스. progress > globalIndex 이면 이 스테이지 이미 언락
-        if (singlePlayerProgress > globalIndex) return false;
-        
-        // 전역 순서상 이전 스테이지 클리어 여부로 잠금 판단 (입문-20 클리어 시 초급-1 열림)
-        const previousStageGlobal = SINGLE_PLAYER_STAGES[globalIndex - 1];
-        if (!previousStageGlobal) return false;
-        return !isStageCleared(previousStageGlobal.id);
+        return !isSinglePlayerStageUnlocked(SINGLE_PLAYER_STAGES, progress, stage.id);
     };
 
     // 스테이지의 게임 모드 이름 결정 (살리기 바둑과 따내기 바둑 구분)

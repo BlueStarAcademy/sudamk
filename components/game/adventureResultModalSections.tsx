@@ -210,10 +210,35 @@ function AdventureMissedRewardSlot({
 function AdventureKeyFragmentRewardSlot({
     compact,
     amount,
+    obtained = true,
 }: {
     compact: boolean;
     amount: number;
+    obtained?: boolean;
 }) {
+    if (!obtained) {
+        return (
+            <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
+                <div
+                    className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} flex-col`}
+                >
+                    <div className="opacity-45 grayscale">
+                        <AdventureKeyFragmentIcon compact={compact} variant="reward" />
+                    </div>
+                </div>
+                <span
+                    className={
+                        compact
+                            ? 'text-center text-[0.72rem] font-bold tabular-nums text-slate-500'
+                            : 'text-center text-sm font-bold tabular-nums text-slate-500 min-[1024px]:text-base'
+                    }
+                >
+                    미획득
+                </span>
+            </div>
+        );
+    }
+
     const qty = Math.max(1, Math.floor(amount));
     return (
         <div className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''}`}>
@@ -440,6 +465,7 @@ export function AdventureBattleFixedRewardRow({
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
     onVipLockedClick?: () => void;
 }) {
+    const keyFragmentObtained = !!slots.keyFragment?.obtained;
     const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
     const xpOk = xpChange > 0;
     const rowClass = compact
@@ -516,7 +542,11 @@ export function AdventureBattleFixedRewardRow({
             ) : (
                 <AdventureMissedRewardSlot compact={compact} iconSrc="/images/icon/Gold.png" />
             )}
-            <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} />
+            <AdventureKeyFragmentRewardSlot
+                compact={compact}
+                amount={keyFragmentAmount}
+                obtained={keyFragmentObtained}
+            />
             {slots.equipment.obtained && slots.equipment.displayName ? (
                 <ResultModalItemRewardSlot
                     imageSrc={adventureRewardSlotItemImage(slots.equipment.displayName)}
@@ -572,6 +602,7 @@ export function AdventureBattleRewardRowWithReveal({
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
     onVipLockedClick?: () => void;
 }) {
+    const keyFragmentObtained = !!slots.keyFragment?.obtained;
     const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
     const [revealed, setRevealed] = useState(false);
     useEffect(() => {
@@ -662,7 +693,11 @@ export function AdventureBattleRewardRowWithReveal({
                 xpMissedBox
             )}
             <GoldRollingPlaceholder compact={compact} obtained={slots.gold.obtained} targetAmount={slots.gold.amount} />
-            <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} />
+            <AdventureKeyFragmentRewardSlot
+                compact={compact}
+                amount={keyFragmentAmount}
+                obtained={keyFragmentObtained}
+            />
             {slots.equipment.obtained && equipName ? (
                 <EquipmentRollingPlaceholder
                     compact={compact}

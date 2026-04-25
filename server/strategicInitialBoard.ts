@@ -250,5 +250,17 @@ export function generateStrategicRandomBoard(
     for (const p of whitePattern) {
         board[p.y][p.x] = Player.White;
     }
+    const expectedStones = blackCount + whiteCount + blackPatternCount + whitePatternCount + (baseBoard?.flat().filter(c => c !== Player.None).length ?? 0);
+    const actualStones = board.flat().filter(c => c !== Player.None).length;
+    if (
+        blackStones.length !== blackCount ||
+        whiteStones.length !== whiteCount ||
+        blackPattern.length !== blackPatternCount ||
+        whitePattern.length !== whitePatternCount ||
+        actualStones !== expectedStones ||
+        strategicBoardHasDeadGroup(board, boardSize)
+    ) {
+        throw new Error('Invalid strategic board placement settings.');
+    }
     return { board, blackPattern, whitePattern };
 }

@@ -76,6 +76,28 @@ const normalizeOptionalPositiveInt = (
     return n > 0 ? n : undefined;
 };
 
+const clampPlacementsToCapacity = (
+    placements: SinglePlayerStageInfo['placements'],
+    capacity: number
+): SinglePlayerStageInfo['placements'] => {
+    let remaining = Math.max(0, capacity);
+    const black = Math.min(placements.black, remaining);
+    remaining -= black;
+    const white = Math.min(placements.white, remaining);
+    remaining -= white;
+    const blackPattern = Math.min(placements.blackPattern, remaining);
+    remaining -= blackPattern;
+    const whitePattern = Math.min(placements.whitePattern, remaining);
+
+    return {
+        ...placements,
+        black,
+        white,
+        blackPattern,
+        whitePattern,
+    };
+};
+
 const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo | null => {
     if (!raw || typeof raw !== 'object') return null;
     const row = raw as Record<string, unknown>;
@@ -84,6 +106,7 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         : fallback.boardSize;
     const fixedOpeningRaw = Array.isArray(row.fixedOpening) ? row.fixedOpening : fallback.fixedOpening;
     type FixedOpeningStone = NonNullable<SinglePlayerStageInfo['fixedOpening']>[number];
+    const usedFixedCells = new Set<string>();
     const fixedOpening = fixedOpeningRaw
         ?.map((entry): FixedOpeningStone | null => {
             if (!entry || typeof entry !== 'object') return null;
@@ -95,7 +118,29 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             const kind: FixedOpeningStone['kind'] = s.kind === 'pattern' ? 'pattern' : 'plain';
             return { x, y, color, kind };
         })
-        .filter((entry): entry is FixedOpeningStone => !!entry);
+        .filter((entry): entry is FixedOpeningStone => {
+            if (!entry) return false;
+            const key = `${entry.x}:${entry.y}`;
+            if (usedFixedCells.has(key)) return false;
+            usedFixedCells.add(key);
+            return true;
+        });
+
+    const normalizedPlacements = clampPlacementsToCapacity(
+        {
+            black: clampInt((row.placements as any)?.black, 0, boardSize * boardSize, fallback.placements.black),
+            white: clampInt((row.placements as any)?.white, 0, boardSize * boardSize, fallback.placements.white),
+            blackPattern: clampInt((row.placements as any)?.blackPattern, 0, boardSize * boardSize, fallback.placements.blackPattern),
+            whitePattern: clampInt((row.placements as any)?.whitePattern, 0, boardSize * boardSize, fallback.placements.whitePattern),
+            centerBlackStoneChance: clampInt(
+                (row.placements as any)?.centerBlackStoneChance,
+                0,
+                100,
+                fallback.placements.centerBlackStoneChance ?? 0
+            ),
+        },
+        boardSize * boardSize - (Boolean(row.mergeRandomPlacementsWithFixed) ? (fixedOpening?.length ?? 0) : 0)
+    );
 
     const out: SinglePlayerStageInfo = {
         ...fallback,
@@ -108,18 +153,7 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             black: clampInt((row.targetScore as any)?.black, 0, 999, fallback.targetScore.black),
             white: clampInt((row.targetScore as any)?.white, 0, 999, fallback.targetScore.white),
         },
-        placements: {
-            black: clampInt((row.placements as any)?.black, 0, boardSize * boardSize, fallback.placements.black),
-            white: clampInt((row.placements as any)?.white, 0, boardSize * boardSize, fallback.placements.white),
-            blackPattern: clampInt((row.placements as any)?.blackPattern, 0, boardSize * boardSize, fallback.placements.blackPattern),
-            whitePattern: clampInt((row.placements as any)?.whitePattern, 0, boardSize * boardSize, fallback.placements.whitePattern),
-            centerBlackStoneChance: clampInt(
-                (row.placements as any)?.centerBlackStoneChance,
-                0,
-                100,
-                fallback.placements.centerBlackStoneChance ?? 0
-            ),
-        },
+        placements: normalizedPlacements,
         timeControl: normalizeTimeControl(row.timeControl, fallback.timeControl),
         blackTurnLimit: normalizeOptionalPositiveInt(row.blackTurnLimit, fallback.blackTurnLimit, 999),
         survivalTurns: normalizeOptionalPositiveInt(row.survivalTurns, fallback.survivalTurns, 999),
@@ -171,21 +205,22 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
 };
 
 export const normalizeSinglePlayerStagesOverride = (raw: unknown): SinglePlayerStageInfo[] => {
-    if (!Array.isArray(raw)) return [];
+    if (!Array.isArray(raw)) return DEFAULT_SINGLE_PLAYER_STAGES.map((stage) => ({ ...stage }));
     const fallbackById = new Map(DEFAULT_SINGLE_PLAYER_STAGES.map((row) => [row.id, row]));
-    const out: SinglePlayerStageInfo[] = [];
+    const overrideById = new Map<string, unknown>();
     const used = new Set<string>();
     for (const row of raw) {
         if (!row || typeof row !== 'object') continue;
         const id = typeof (row as any).id === 'string' ? (row as any).id : '';
         const fallback = fallbackById.get(id);
         if (!fallback || used.has(id)) continue;
-        const normalized = normalizeStage(row, fallback);
-        if (!normalized) continue;
         used.add(id);
-        out.push(normalized);
+        overrideById.set(id, row);
     }
-    return out.length ? out : DEFAULT_SINGLE_PLAYER_STAGES.map((stage) => ({ ...stage }));
+    return DEFAULT_SINGLE_PLAYER_STAGES.map((fallback) => {
+        const normalized = normalizeStage(overrideById.get(fallback.id) ?? fallback, fallback);
+        return normalized ?? ({ ...fallback } as SinglePlayerStageInfo);
+    });
 };
 
 export const getEffectiveSinglePlayerStages = async (): Promise<SinglePlayerStageInfo[]> => {
