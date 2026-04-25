@@ -126,12 +126,10 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         if (total === 0) return { cleared: 0, total: 0, pct: 0 };
         let cleared = 0;
         for (const s of stages) {
-            const g = getGlobalStageIndex(s.id);
-            const done = clearedStages.includes(s.id) || (g >= 0 && singlePlayerProgress > g);
-            if (done) cleared += 1;
+            if (isStageCleared(s.id)) cleared += 1;
         }
         return { cleared, total, pct: Math.round((cleared / total) * 100) };
-    }, [stages, clearedStages, singlePlayerProgress]);
+    }, [stages, progress]);
     
     const classLabel =
         selectedClass === SinglePlayerLevel.입문
