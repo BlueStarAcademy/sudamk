@@ -136,7 +136,7 @@ const AppModalLayer: React.FC = () => {
             {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}
             {modals.isInventoryOpen && (
                 <Suspense fallback={ModalLoadingFallback()}>
-                    <InventoryModal currentUser={currentUserWithStatus} onClose={onInventoryCloseForTutorial} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
+                    <InventoryModal currentUser={currentUserWithStatus} onClose={onInventoryCloseForTutorial} onAction={handlers.handleAction} onStartEnhance={handlers.openEnhancingItem} onOpenBlacksmithTab={handlers.openBlacksmithTabFromInventory} enhancementAnimationTarget={modals.enhancementAnimationTarget} onAnimationComplete={handlers.clearEnhancementAnimation} isTopmost={topmostModalId === 'inventory'} />
                 </Suspense>
             )}
             {modals.isMailboxOpen && (

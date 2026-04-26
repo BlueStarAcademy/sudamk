@@ -57,7 +57,8 @@ const StageDescriptionScroll: React.FC<{
     compact?: boolean;
     collapsed?: boolean;
     onToggleCollapsed?: () => void;
-}> = ({ stage, compact = false, collapsed = false, onToggleCollapsed }) => {
+    mobileOverlay?: boolean;
+}> = ({ stage, compact = false, collapsed = false, onToggleCollapsed, mobileOverlay = false }) => {
     const description = getStageDescriptionText(stage);
     const canCollapse = !compact && !!onToggleCollapsed;
     return (
@@ -66,7 +67,9 @@ const StageDescriptionScroll: React.FC<{
             className={`pointer-events-auto relative overflow-hidden border border-amber-900/35 bg-[#ead8aa] text-amber-950 shadow-[0_12px_34px_rgba(0,0,0,0.35),inset_0_0_38px_rgba(120,53,15,0.14)] transition-[max-height,border-radius,opacity] duration-300 ease-out ${
                 compact
                     ? 'max-h-[70dvh] w-full rounded-2xl p-4'
-                    : `w-[230px] shrink-0 xl:w-[260px] ${collapsed ? 'max-h-[58px] cursor-pointer rounded-full px-4 py-2 hover:brightness-105' : 'max-h-[calc(100dvh-8rem)] cursor-pointer rounded-2xl p-4'}`
+                    : mobileOverlay
+                        ? `w-full ${collapsed ? 'max-h-[38px] cursor-pointer rounded-full px-3 py-1 hover:brightness-105' : 'max-h-[calc(58dvh)] cursor-pointer rounded-2xl p-4'}`
+                        : `w-[230px] shrink-0 xl:w-[260px] ${collapsed ? 'max-h-[58px] cursor-pointer rounded-full px-4 py-2 hover:brightness-105' : 'max-h-[calc(100dvh-8rem)] cursor-pointer rounded-2xl p-4'}`
             }`}
             role={canCollapse ? 'button' : undefined}
             tabIndex={canCollapse ? 0 : undefined}
@@ -163,7 +166,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         }
     });
     const [showScoringOverlay, setShowScoringOverlay] = useState(false);
-    const [stageDescriptionOpen, setStageDescriptionOpen] = useState(false);
     const [stageDescriptionCollapsed, setStageDescriptionCollapsed] = useState(false);
     const arenaFrameRef = useRef<HTMLDivElement | null>(null);
     const [leftGutterWidth, setLeftGutterWidth] = useState(0);
@@ -323,15 +325,37 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         };
     }, [isMobile, singlePlayerStage]);
 
+    useEffect(() => {
+        if (isMobile && singlePlayerStage) {
+            // 모바일 인게임 진입 시 두루마리를 기본 펼침 상태로 시작
+            setStageDescriptionCollapsed(false);
+        }
+    }, [isMobile, singlePlayerStage?.id, session.id]);
+
+    const shouldShowMobileStageDescription =
+        isMobile &&
+        !!singlePlayerStage &&
+        (gameStatus === 'playing' || gameStatus === 'hidden_placing' || gameStatus === 'scoring');
+    const isMobileStageDescriptionExpanded = shouldShowMobileStageDescription && !stageDescriptionCollapsed;
+
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
             {/* 계가 중: 바둑판 위 오버레이. 결과 수신 시 즉시 숨김(연출 즉시 종료) */}
             {gameStatus === 'scoring' && showScoringOverlay && (
                 <ScoringOverlay variant="fullscreen" />
             )}
-            <div className={`relative w-full h-full transition-opacity duration-500 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            <div
+                className={`relative w-full h-full transition-opacity duration-500 ${
+                    isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'
+                } ${isMobile ? 'flex flex-col' : ''}`}
+            >
                 {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
-                <div ref={arenaFrameRef} className="relative w-full h-full flex items-center justify-center rounded-lg min-w-0 min-h-0 overflow-hidden">
+                <div
+                    ref={arenaFrameRef}
+                    className={`relative w-full flex items-center justify-center rounded-lg min-w-0 overflow-hidden ${
+                        isMobile ? 'flex-1 min-h-0' : 'h-full'
+                    }`}
+                >
                 {!isMobile && singlePlayerStage && leftGutterWidth > 0 && (
                     <div
                         className="pointer-events-none absolute left-0 top-2 z-[12] flex justify-center px-2"
@@ -344,7 +368,27 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         />
                     </div>
                 )}
-                <div className="relative w-full h-full max-w-full max-h-full aspect-square min-w-0 min-h-0">
+                {shouldShowMobileStageDescription && stageDescriptionCollapsed && (
+                    <div className="absolute left-2 right-2 top-2 z-[14]">
+                        <StageDescriptionScroll
+                            stage={singlePlayerStage}
+                            collapsed={stageDescriptionCollapsed}
+                            onToggleCollapsed={() => setStageDescriptionCollapsed((prev) => !prev)}
+                            mobileOverlay
+                        />
+                    </div>
+                )}
+                <div className="relative w-full flex-1 max-w-full max-h-full aspect-square min-w-0 min-h-0">
+                {shouldShowMobileStageDescription && !stageDescriptionCollapsed && (
+                    <div className="absolute left-2 right-2 top-2 z-[14]">
+                        <StageDescriptionScroll
+                            stage={singlePlayerStage}
+                            collapsed={stageDescriptionCollapsed}
+                            onToggleCollapsed={() => setStageDescriptionCollapsed((prev) => !prev)}
+                            mobileOverlay
+                        />
+                    </div>
+                )}
                 <GoBoard
                     boardState={boardState}
                     boardSize={settings.boardSize}
@@ -364,7 +408,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     }}
                     lastMove={displayLastMove}
                     lastTurnStones={lastTurnStones}
-                    isBoardDisabled={!isMyTurn || isSpectator || isPaused || isBoardLocked || isBoardDisabledDueToTurnLimit}
+                    isBoardDisabled={!isMyTurn || isSpectator || isPaused || isBoardLocked || isBoardDisabledDueToTurnLimit || isMobileStageDescriptionExpanded}
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}
                     mode={session.mode}
@@ -407,15 +451,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     highlightedPoints={intro1TutorialHighlight ? [intro1TutorialHighlight] : undefined}
                     highlightStyle="ring"
                 />
-                {isMobile && singlePlayerStage && (
-                    <button
-                        type="button"
-                        onClick={() => setStageDescriptionOpen(true)}
-                        className="absolute left-2 top-2 z-[9] rounded-full border border-amber-300/70 bg-amber-950/80 px-3 py-1.5 text-xs font-black text-amber-100 shadow-lg backdrop-blur-sm"
-                    >
-                        설명
-                    </button>
-                )}
                 {showBoardGlow && (
                     <div
                         className="pointer-events-none absolute inset-0 z-[8] rounded-lg ring-[6px] ring-amber-300/95 shadow-[0_0_38px_rgba(251,191,36,0.8),0_0_74px_rgba(244,114,182,0.52),inset_0_0_24px_rgba(251,191,36,0.18)] animate-[pulse_1.05s_cubic-bezier(0.4,0,0.2,1)_infinite]"
@@ -425,20 +460,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                 </div>
                 </div>
             </div>
-            {isMobile && singlePlayerStage && stageDescriptionOpen && (
-                <div className="fixed inset-0 z-[320] flex items-center justify-center bg-black/70 p-4">
-                    <div className="w-full max-w-md">
-                        <StageDescriptionScroll stage={singlePlayerStage} compact />
-                        <button
-                            type="button"
-                            onClick={() => setStageDescriptionOpen(false)}
-                            className="mt-3 w-full rounded-xl border border-amber-300/55 bg-amber-950 px-4 py-3 text-sm font-black text-amber-100 shadow-lg"
-                        >
-                            닫기
-                        </button>
-                    </div>
-                </div>
-            )}
             {isPaused && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none text-white drop-shadow-lg">
                     <h2 className="text-3xl font-bold tracking-wide">일시 정지</h2>

@@ -1,5 +1,5 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { UserWithStatus, GameMode, ServerAction } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import DraggableWindow from './DraggableWindow.js';
@@ -7,7 +7,7 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 interface DetailedStatsModalProps {
     currentUser: UserWithStatus;
-    statsType: 'strategic' | 'playful';
+    statsType: 'strategic' | 'playful' | 'both';
     onClose: () => void;
     onAction: (action: ServerAction) => void;
 }
@@ -35,9 +35,12 @@ const DiamondPrice: React.FC<{ amount: number; className?: string; iconClassName
 );
 
 const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, statsType, onClose, onAction }) => {
-    const isStrategic = statsType === 'strategic';
+    const [combinedTab, setCombinedTab] = useState<'strategic' | 'playful'>('strategic');
+    const activeCategory = statsType === 'both' ? combinedTab : statsType;
+    const isStrategic = activeCategory === 'strategic';
     const { isNativeMobile } = useNativeMobileShell();
-    const title = isStrategic ? '전략 바둑 상세 전적' : '놀이 바둑 상세 전적';
+    const title =
+        statsType === 'both' ? 'PVP 경기장 상세 전적' : isStrategic ? '전략 바둑 상세 전적' : '놀이 바둑 상세 전적';
     const modes = isStrategic ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const { stats, diamonds } = currentUser;
 
@@ -78,7 +81,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
 
     /** 카테고리당 하나의 통합 시즌 점수 (프로필·대기실과 동일 로직) */
     const unifiedRanking = useMemo(() => {
-        const drKey = isStrategic ? 'strategic' : 'playful';
+        const drKey = activeCategory === 'strategic' ? 'strategic' : 'playful';
         const dr = currentUser.dailyRankings?.[drKey];
         const modeList = isStrategic ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
         let totalGames = 0;
@@ -110,7 +113,7 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
             rank: null as number | null,
             totalGames,
         };
-    }, [currentUser.dailyRankings, currentUser.stats, isStrategic]);
+    }, [currentUser.dailyRankings, currentUser.stats, activeCategory]);
 
     const handleResetSingle = (mode: GameMode, displayName: string) => {
         if (!canAffordSingle) return;
@@ -125,13 +128,13 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
 
     const handleResetAll = () => {
         if (!canAffordCategory) return;
-        const categoryName = isStrategic ? '전략' : '놀이';
+        const categoryName = activeCategory === 'strategic' ? '전략' : '놀이';
         if (
             window.confirm(
                 `다이아 ${CATEGORY_RESET_COST.toLocaleString()}개를 사용하여 모든 「${categoryName}」 바둑 모드의 전적을 한 번에 초기화할까요?\n\n각 모드의 승·패와 이 카테고리의 통합 랭킹(시즌) 점수가 함께 초기화됩니다.`
             )
         ) {
-            onAction({ type: 'RESET_STATS_CATEGORY', payload: { category: statsType } });
+            onAction({ type: 'RESET_STATS_CATEGORY', payload: { category: activeCategory } });
         }
     };
 
@@ -147,6 +150,36 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
             bodyPaddingClassName={isNativeMobile ? 'p-2.5' : 'p-3 sm:p-4'}
         >
             <div className="space-y-3 text-primary">
+                {statsType === 'both' && (
+                    <div className="flex gap-1 rounded-lg border border-white/10 bg-black/30 p-1" role="tablist" aria-label="상세 전적 구분">
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={combinedTab === 'strategic'}
+                            onClick={() => setCombinedTab('strategic')}
+                            className={`min-h-0 min-w-0 flex-1 rounded-md px-2 py-2 text-xs font-bold transition-all sm:text-sm ${
+                                combinedTab === 'strategic'
+                                    ? 'border border-cyan-400/50 bg-cyan-950/60 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                                    : 'border border-transparent text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
+                            }`}
+                        >
+                            전략 바둑
+                        </button>
+                        <button
+                            type="button"
+                            role="tab"
+                            aria-selected={combinedTab === 'playful'}
+                            onClick={() => setCombinedTab('playful')}
+                            className={`min-h-0 min-w-0 flex-1 rounded-md px-2 py-2 text-xs font-bold transition-all sm:text-sm ${
+                                combinedTab === 'playful'
+                                    ? 'border border-amber-400/50 bg-amber-950/55 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                                    : 'border border-transparent text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
+                            }`}
+                        >
+                            놀이 바둑
+                        </button>
+                    </div>
+                )}
                 <div
                     className={`relative overflow-hidden rounded-xl border px-3 py-2.5 sm:px-3.5 sm:py-3 ${theme.unifiedBg}`}
                 >

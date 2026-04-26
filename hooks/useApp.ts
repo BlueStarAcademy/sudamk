@@ -8095,6 +8095,12 @@ export const useApp = () => {
         setIsBlacksmithModalOpen(true);
     }, []);
 
+    const openBlacksmithTabFromInventory = useCallback((tab: 'convert' | 'refine') => {
+        setBlacksmithSelectedItemForEnhancement(null);
+        setBlacksmithActiveTab(tab);
+        setIsBlacksmithModalOpen(true);
+    }, []);
+
     const openViewingItem = useCallback((item: InventoryItem, isOwnedByCurrentUser: boolean) => {
         setViewingItem({ item, isOwnedByCurrentUser });
     }, []);
@@ -8384,6 +8390,7 @@ export const useApp = () => {
             startEnhancement,
             openEnhancementFromDetail,
             openRefinementFromDetail,
+            openBlacksmithTabFromInventory,
             clearEnhancementOutcome,
             clearRefinementResult,
             clearEnhancementAnimation: () => setEnhancementAnimationTarget(null),

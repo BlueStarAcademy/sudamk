@@ -38,26 +38,6 @@ const WAITING_LOBBY_PANEL_GLASS =
 
 const ROW_HEIGHT_REM = 2.5;
 
-const WAITING_LOBBY_SWITCH_COOLDOWN_MS = 3000;
-const WAITING_LOBBY_SWITCH_KEY = 'sudamr_waitingLobbySwitchUntil';
-
-function readLobbySwitchDisabledUntil(): number {
-  try {
-    const s = sessionStorage.getItem(WAITING_LOBBY_SWITCH_KEY);
-    return s ? parseInt(s, 10) : 0;
-  } catch {
-    return 0;
-  }
-}
-
-function armLobbySwitchCooldown(): void {
-  try {
-    sessionStorage.setItem(WAITING_LOBBY_SWITCH_KEY, String(Date.now() + WAITING_LOBBY_SWITCH_COOLDOWN_MS));
-  } catch {
-    /* ignore */
-  }
-}
-
 /** 전략/놀이 집계 대기실에 속하는지 (서버 waitingLobby 우선, 구버전 호환으로 mode 카테고리) */
 function userMatchesAggregateWaitingLobby(u: UserWithStatus, strategic: boolean): boolean {
   if (strategic) {
@@ -152,6 +132,32 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
     );
 };
 
+const AiChallengePanel: React.FC<{ mode: GameMode | 'strategic' | 'playful'; onOpenModal: () => void }> = ({ mode, onOpenModal }) => {
+  const isStrategic = mode === 'strategic' || SPECIAL_GAME_MODES.some((m) => m.mode === mode);
+  const isPlayful = mode === 'playful' || PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
+
+  if (!isStrategic && !isPlayful) return null;
+
+  const botName = mode === 'strategic' ? '전략바둑 AI' : '놀이바둑 AI';
+
+  return (
+    <div className="rounded-xl border border-fuchsia-400/45 bg-gradient-to-r from-fuchsia-950/55 via-purple-950/55 to-indigo-950/55 p-3 shadow-[0_14px_32px_rgba(192,38,211,0.3)] ring-1 ring-fuchsia-300/20">
+      <div className="flex min-h-[58px] items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <Avatar userId={aiUserId} userName="AI" size={40} className="border-2 border-fuchsia-400/80 shadow-[0_0_14px_rgba(217,70,239,0.5)]" />
+          <div className="min-w-0">
+            <h3 className="truncate text-base font-extrabold tracking-tight text-fuchsia-100 drop-shadow-[0_0_10px_rgba(217,70,239,0.35)]">AI와 대결하기</h3>
+            <p className="truncate text-xs font-medium text-fuchsia-200/90">{botName}와 즉시 대국 시작</p>
+          </div>
+        </div>
+        <Button onClick={onOpenModal} colorScheme="purple" className="!px-3.5 !py-2 !text-sm !font-bold shadow-[0_6px_16px_rgba(139,92,246,0.45)]">
+          설정 및 시작
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 
 const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { 
@@ -167,23 +173,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const [rankedMatchingStartTime, setRankedMatchingStartTime] = useState(0);
   const [matchFoundData, setMatchFoundData] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
   const desktopContainerRef = useRef<HTMLDivElement>(null);
-  const [lobbySwitchCooldownTick, setLobbySwitchCooldownTick] = useState(0);
-
-  const lobbySwitchDisabledUntil = readLobbySwitchDisabledUntil();
-  const isLobbySwitchDisabled = Date.now() < lobbySwitchDisabledUntil;
-
-  useEffect(() => {
-    const until = readLobbySwitchDisabledUntil();
-    const rem = until - Date.now();
-    if (rem <= 0) return;
-    const id = window.setTimeout(() => setLobbySwitchCooldownTick((t) => t + 1), rem + 25);
-    return () => clearTimeout(id);
-  }, [mode, lobbySwitchCooldownTick]);
-
-  const navigateToOtherWaitingLobby = useCallback(() => {
-    if (Date.now() < readLobbySwitchDisabledUntil()) return;
-    armLobbySwitchCooldown();
-    const targetMode = mode === 'strategic' ? 'playful' : 'strategic';
+  const navigateToWaitingLobby = useCallback((targetMode: 'strategic' | 'playful') => {
+    if (mode === targetMode) return;
     window.location.hash = `#/waiting/${targetMode}`;
   }, [mode]);
 
@@ -392,38 +383,33 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       ? 'relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold sm:text-lg lg:text-xl bg-gradient-to-r from-cyan-100 via-sky-100 to-cyan-200 bg-clip-text text-transparent drop-shadow-[0_0_18px_rgba(34,211,238,0.22)]'
       : 'relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold text-amber-50 sm:text-lg lg:text-xl drop-shadow-[0_0_14px_rgba(251,191,36,0.2)]';
 
-  const lobbySwitchButton = (compact?: boolean) => (
-    <button
-      type="button"
-      aria-label={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
-      title={
-        isLobbySwitchDisabled
-          ? '잠시 후 다시 사용할 수 있습니다'
-          : mode === 'strategic'
-            ? '놀이바둑 대기실로 이동'
-            : '전략바둑 대기실로 이동'
-      }
-      disabled={isLobbySwitchDisabled}
-      onClick={navigateToOtherWaitingLobby}
-      className={`relative z-[1] group flex shrink-0 items-center justify-center overflow-hidden rounded-lg text-on-panel transition-all duration-300 ${
-        compact ? 'h-7 w-7 sm:h-8 sm:w-8' : 'h-8 w-8 sm:h-9 sm:w-9'
-      } ${isLobbySwitchDisabled ? 'cursor-not-allowed opacity-40' : 'hover:scale-105 active:scale-95'}`}
-      style={{
-        background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)',
-        border: '1px solid rgba(139, 92, 246, 0.4)',
-        boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-      }}
-    >
-      <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-purple-500/20 to-indigo-500/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-      <span
-        className={`relative z-10 flex flex-col items-center justify-center font-bold leading-none drop-shadow-sm ${
-          compact ? 'text-[10px] sm:text-[11px]' : 'text-xs sm:text-sm'
+  const lobbySwitchTabs = (compact?: boolean) => (
+    <div className={`relative z-[1] grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-violet-400/35 bg-black/30 p-1 ${compact ? 'h-7' : 'h-9'}`}>
+      <button
+        type="button"
+        onClick={() => navigateToWaitingLobby('strategic')}
+        aria-pressed={mode === 'strategic'}
+        className={`rounded-md px-2 font-bold transition-all ${compact ? 'text-[10px]' : 'text-xs'} ${
+          mode === 'strategic'
+            ? 'bg-cyan-600/80 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]'
+            : 'text-cyan-100/80 hover:bg-cyan-700/30'
         }`}
       >
-        <span className="-mb-1 transition-transform duration-300 group-hover:-translate-x-0.5">←</span>
-        <span className="-mt-1 transition-transform duration-300 group-hover:translate-x-0.5">→</span>
-      </span>
-    </button>
+        전략
+      </button>
+      <button
+        type="button"
+        onClick={() => navigateToWaitingLobby('playful')}
+        aria-pressed={mode === 'playful'}
+        className={`rounded-md px-2 font-bold transition-all ${compact ? 'text-[10px]' : 'text-xs'} ${
+          mode === 'playful'
+            ? 'bg-amber-600/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]'
+            : 'text-amber-100/80 hover:bg-amber-700/30'
+        }`}
+      >
+        놀이
+      </button>
+    </div>
   );
 
   return (
@@ -460,7 +446,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 >
                   {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
                 </h1>
-                {lobbySwitchButton(true)}
+                {lobbySwitchTabs(true)}
               </div>
               <div className="w-10 shrink-0" aria-hidden />
             </div>
@@ -482,35 +468,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                 <h1 className="truncate text-base font-bold sm:text-xl lg:text-2xl">
                   {mode === 'strategic' ? '전략바둑 대기실' : mode === 'playful' ? '놀이바둑 대기실' : `${mode} 대기실`}
                 </h1>
-                {(mode === 'strategic' || mode === 'playful') && (
-                  <button
-                    type="button"
-                    aria-label={mode === 'strategic' ? '놀이바둑 대기실로 이동' : '전략바둑 대기실로 이동'}
-                    title={
-                      isLobbySwitchDisabled
-                        ? '잠시 후 다시 사용할 수 있습니다'
-                        : mode === 'strategic'
-                          ? '놀이바둑 대기실로 이동'
-                          : '전략바둑 대기실로 이동'
-                    }
-                    disabled={isLobbySwitchDisabled}
-                    onClick={navigateToOtherWaitingLobby}
-                    className={`pointer-events-auto group relative flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-lg text-on-panel transition-all duration-300 sm:h-9 sm:w-9 ${
-                      isLobbySwitchDisabled ? 'cursor-not-allowed opacity-40' : 'hover:scale-110 active:scale-95'
-                    }`}
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(139, 92, 246, 0.3) 100%)',
-                      border: '1px solid rgba(139, 92, 246, 0.4)',
-                      boxShadow: '0 2px 8px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-                    }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-purple-500/20 to-indigo-500/0 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                    <span className="relative z-10 flex flex-col items-center justify-center gap-0 text-sm font-bold leading-none drop-shadow-sm sm:text-base">
-                      <span className="-mb-2 transition-transform duration-300 group-hover:-translate-x-0.5">←</span>
-                      <span className="-mt-2 transition-transform duration-300 group-hover:translate-x-0.5">→</span>
-                    </span>
-                  </button>
-                )}
+                {(mode === 'strategic' || mode === 'playful') && lobbySwitchTabs(false)}
               </div>
             </div>
             <div className="w-10 shrink-0 sm:w-12" aria-hidden />
@@ -556,20 +514,26 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               </div>
               <div className="flex min-h-0 flex-1 flex-col overflow-hidden" role="tabpanel">
                 {nativeWaitingTab === 'users' && (
-                  <div
-                    className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
-                  >
-                    <PlayerList
-                      users={usersInThisRoom}
-                      mode={mode}
-                      onAction={handlers.handleAction}
-                      currentUser={currentUserWithStatus}
-                      negotiations={Object.values(negotiations)}
-                      onViewUser={handlers.openViewingUser}
-                      lobbyType={isStrategic ? 'strategic' : 'playful'}
-                      userCount={usersInThisRoom.length}
-                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
-                    />
+                  <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                    <div
+                      className={`shrink-0 rounded-lg border border-color bg-panel p-2 shadow-lg ${waitingLobbyGlass}`}
+                    >
+                      <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                    </div>
+                    <div
+                      className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                    >
+                      <PlayerList
+                        users={usersInThisRoom}
+                        mode={mode}
+                        onAction={handlers.handleAction}
+                        currentUser={currentUserWithStatus}
+                        negotiations={Object.values(negotiations)}
+                        onViewUser={handlers.openViewingUser}
+                        lobbyType={isStrategic ? 'strategic' : 'playful'}
+                        userCount={usersInThisRoom.length}
+                      />
+                    </div>
                   </div>
                 )}
                 {nativeWaitingTab === 'games' && (
@@ -640,7 +604,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   <h1 className={waitingLobbyTitleH1Class}>
                     {mode === 'strategic' ? '전략바둑 대기실' : '놀이바둑 대기실'}
                   </h1>
-                  {lobbySwitchButton(true)}
+                  {lobbySwitchTabs(true)}
                 </div>
                 <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
                   <RankedMatchPanel
@@ -689,18 +653,22 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               {/* 우: 유저 목록(하단까지) + 퀵 메뉴 — shrink-0으로 중앙 대국 열이 유저 폭을 과도하게 잡아먹지 않도록 */}
               <div className="flex h-full min-h-0 shrink-0 flex-row gap-1.5 overflow-hidden sm:gap-2">
                 <div className="flex h-full min-h-0 min-w-0 w-[min(100%,40rem)] max-w-2xl flex-1 flex-col overflow-hidden sm:min-w-[30rem]">
-                  <div className={`flex h-full min-h-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
-                    <PlayerList
-                      users={usersInThisRoom}
-                      mode={mode}
-                      onAction={handlers.handleAction}
-                      currentUser={currentUserWithStatus}
-                      negotiations={Object.values(negotiations)}
-                      onViewUser={handlers.openViewingUser}
-                      lobbyType={isStrategic ? 'strategic' : 'playful'}
-                      userCount={usersInThisRoom.length}
-                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
-                    />
+                  <div className="flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden">
+                    <div className={`shrink-0 overflow-hidden ${waitingLobbyPcShellClass}`}>
+                      <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                    </div>
+                    <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
+                      <PlayerList
+                        users={usersInThisRoom}
+                        mode={mode}
+                        onAction={handlers.handleAction}
+                        currentUser={currentUserWithStatus}
+                        negotiations={Object.values(negotiations)}
+                        onViewUser={handlers.openViewingUser}
+                        lobbyType={isStrategic ? 'strategic' : 'playful'}
+                        userCount={usersInThisRoom.length}
+                      />
+                    </div>
                   </div>
                 </div>
                 <div
@@ -762,20 +730,26 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
               </div>
               <div className="col-span-2 flex min-h-0 flex-col gap-4 overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-row items-stretch gap-4 overflow-hidden">
-                  <div
-                    className={`min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
-                  >
-                    <PlayerList
-                      users={usersInThisRoom}
-                      mode={mode}
-                      onAction={handlers.handleAction}
-                      currentUser={currentUserWithStatus}
-                      negotiations={Object.values(negotiations)}
-                      onViewUser={handlers.openViewingUser}
-                      lobbyType={isStrategic ? 'strategic' : 'playful'}
-                      userCount={usersInThisRoom.length}
-                      onOpenAiModal={() => setIsAiChallengeModalOpen(true)}
-                    />
+                  <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
+                    <div
+                      className={`shrink-0 overflow-hidden rounded-lg border border-color bg-panel p-2 shadow-lg ${waitingLobbyGlass}`}
+                    >
+                      <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
+                    </div>
+                    <div
+                      className={`min-h-0 min-w-0 flex-1 overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
+                    >
+                      <PlayerList
+                        users={usersInThisRoom}
+                        mode={mode}
+                        onAction={handlers.handleAction}
+                        currentUser={currentUserWithStatus}
+                        negotiations={Object.values(negotiations)}
+                        onViewUser={handlers.openViewingUser}
+                        lobbyType={isStrategic ? 'strategic' : 'playful'}
+                        userCount={usersInThisRoom.length}
+                      />
+                    </div>
                   </div>
                   <div className={`${PC_QUICK_RAIL_COLUMN_CLASS} flex flex-col overflow-hidden`}>
                     <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">

@@ -38,6 +38,26 @@ const AI_CHALLENGE_HIDDEN_STONE_COUNTS = (HIDDEN_STONE_COUNTS as readonly number
 /** 전략바둑 대기실 「AI와 대결하기」: 미사일 아이템 최대 10개 */
 const AI_CHALLENGE_MISSILE_COUNTS = (MISSILE_COUNTS as readonly number[]).filter((count) => count <= 10);
 
+function getAiChallengeBoardSizes(mode: GameMode, lobbyType: 'strategic' | 'playful'): number[] {
+    if (lobbyType === 'strategic') {
+        const restrictedStrategicModes: GameMode[] = [
+            GameMode.Capture,
+            GameMode.Base,
+            GameMode.Hidden,
+            GameMode.Missile,
+            GameMode.Mix,
+        ];
+        if (restrictedStrategicModes.includes(mode)) {
+            return [9, 13];
+        }
+        return [9, 13, 19];
+    }
+
+    if (mode === GameMode.Omok || mode === GameMode.Ttamok) return [...OMOK_BOARD_SIZES];
+    if (mode === GameMode.Thief) return [9, 13, 19];
+    return [...getStrategicBoardSizesByMode(mode)];
+}
+
 /** 종료된 대국 session.settings → AI 도전 모달 초기값 (NegotiationModal과 유사 검증) */
 function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSettings): GameSettings {
     let newSettings: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...sessionSettings };
@@ -219,11 +239,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
 
     useEffect(() => {
         if (!selectedGameMode) return;
-        const boardSizeOptions = getStrategicBoardSizesByMode(selectedGameMode);
+        const boardSizeOptions = getAiChallengeBoardSizes(selectedGameMode, lobbyType);
         if (!boardSizeOptions.includes(settings.boardSize)) {
             handleSettingChange('boardSize', boardSizeOptions[0] as GameSettings['boardSize']);
         }
-    }, [selectedGameMode, settings.boardSize]);
+    }, [selectedGameMode, settings.boardSize, lobbyType]);
 
     useEffect(() => {
         if (selectedGameMode === GameMode.Capture) return;
@@ -392,7 +412,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             { value: 5,   label: '10단계' },
         ];
 
-        const boardSizeOptions = selectedGameMode != null ? getStrategicBoardSizesByMode(selectedGameMode) : BOARD_SIZES;
+        const boardSizeOptions = selectedGameMode != null ? getAiChallengeBoardSizes(selectedGameMode, lobbyType) : BOARD_SIZES;
         const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
         const nonZeroScoringTurnLimitOptions = scoringTurnLimitOptions.filter(l => l > 0);
 
@@ -423,9 +443,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                         >
-                            {(selectedGameMode === GameMode.Omok || selectedGameMode === GameMode.Ttamok ? OMOK_BOARD_SIZES : 
-                                selectedGameMode === GameMode.Thief ? [9, 13, 19] : 
-                                boardSizeOptions).map(size => (
+                            {boardSizeOptions.map(size => (
                                 <option key={size} value={size}>{size}줄</option>
                             ))}
                         </select>

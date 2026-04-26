@@ -28,6 +28,7 @@ interface InventoryModalProps {
     onClose: () => void;
     onAction: (action: ServerAction) => void | Promise<void | { gameId?: string; claimAllTrainingQuestRewards?: any }>;
     onStartEnhance: (item: InventoryItem) => void;
+    onOpenBlacksmithTab: (tab: 'convert' | 'refine') => void;
     enhancementAnimationTarget: { itemId: string; stars: number } | null;
     onAnimationComplete: () => void;
     isTopmost?: boolean;
@@ -1324,7 +1325,7 @@ const BAG_INVENTORY_FOOTER_ITEM_BTN = {
     success: `${BAG_INVENTORY_FOOTER_ITEM_BTN_BASE} ring-0 border-emerald-900/50 bg-gradient-to-b from-emerald-500 via-emerald-700 to-emerald-950 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_4px_16px_-2px_rgba(16,185,129,0.5)] hover:border-emerald-400/50 hover:from-emerald-400 hover:via-emerald-600 hover:to-emerald-950 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.3),0_6px_22px_-2px_rgba(52,211,153,0.55)]`,
 } as const;
 
-const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, onStartEnhance, enhancementAnimationTarget, onAnimationComplete, isTopmost }) => {
+const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurrentUser, onClose, onAction, onStartEnhance, onOpenBlacksmithTab, enhancementAnimationTarget, onAnimationComplete, isTopmost }) => {
     const { presets, handlers, currentUserWithStatus, updateTrigger, modalLayerUsesDesignPixels } = useAppContext();
     
     // useAppContext의 currentUserWithStatus를 우선 사용 (최신 상태 보장)
@@ -2160,13 +2161,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                 );
                                             })()}
                                             {selectedItem.type === 'material' && (
+                                                (() => {
+                                                    const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
+                                                    const isEnhancementMaterial = !isRefinementTicket && getEnhancementMaterialUsageLinesForBag(selectedItem.name).length > 0;
+                                                    const fs = Math.max(12, Math.round(13 * scaleFactor * mobileTextScale));
+                                                    return (
                                                 <>
                                                     <Button
                                                         bare
                                                         colorScheme="none"
                                                         onClick={() => setItemToSell(selectedItem)}
                                                         className={BAG_INVENTORY_FOOTER_ITEM_BTN.danger}
-                                                        style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
+                                                        style={{ fontSize: `${fs}px` }}
                                                     >
                                                         판매
                                                     </Button>
@@ -2175,11 +2181,35 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                         colorScheme="none"
                                                         onClick={() => setItemToSellBulk(selectedItem)}
                                                         className={BAG_INVENTORY_FOOTER_ITEM_BTN.warning}
-                                                        style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
+                                                        style={{ fontSize: `${fs}px` }}
                                                     >
                                                         일괄 판매
                                                     </Button>
+                                                    {isEnhancementMaterial && (
+                                                        <Button
+                                                            bare
+                                                            colorScheme="none"
+                                                            onClick={() => onOpenBlacksmithTab('convert')}
+                                                            className={BAG_INVENTORY_FOOTER_ITEM_BTN.info}
+                                                            style={{ fontSize: `${fs}px` }}
+                                                        >
+                                                            재료변환
+                                                        </Button>
+                                                    )}
+                                                    {isRefinementTicket && (
+                                                        <Button
+                                                            bare
+                                                            colorScheme="none"
+                                                            onClick={() => onOpenBlacksmithTab('refine')}
+                                                            className={BAG_INVENTORY_FOOTER_ITEM_BTN.info}
+                                                            style={{ fontSize: `${fs}px` }}
+                                                        >
+                                                            사용
+                                                        </Button>
+                                                    )}
                                                 </>
+                                                    );
+                                                })()
                                             )}
                                                 </div>
                                             </div>
@@ -2546,6 +2576,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_ITEM_BTN.warning}>
                                         일괄 판매
                                     </Button>
+                                    {!isRefinementTicketMaterial(selectedItem.name) && getEnhancementMaterialUsageLinesForBag(selectedItem.name).length > 0 && (
+                                        <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('convert')} className={BAG_INVENTORY_FOOTER_ITEM_BTN.info}>
+                                            재료변환
+                                        </Button>
+                                    )}
+                                    {isRefinementTicketMaterial(selectedItem.name) && (
+                                        <Button bare colorScheme="none" onClick={() => onOpenBlacksmithTab('refine')} className={BAG_INVENTORY_FOOTER_ITEM_BTN.info}>
+                                            사용
+                                        </Button>
+                                    )}
                                 </>
                             )}
                         </div>

@@ -411,6 +411,38 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
     );
 };
 
+const UnifiedPvpSymbolCard: React.FC<{ onClick?: () => void }> = ({ onClick }) => {
+    const symbols = useMemo(() => {
+        const strategic = SPECIAL_GAME_MODES.slice(0, 2).map((m) => ({ key: `s-${m.mode}`, name: m.name, image: m.image }));
+        const playful = PLAYFUL_GAME_MODES.slice(0, 2).map((m) => ({ key: `p-${m.mode}`, name: m.name, image: m.image }));
+        return [...strategic, ...playful];
+    }, []);
+
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            className="group relative flex h-full min-h-0 w-full cursor-pointer flex-col overflow-hidden rounded-xl border border-amber-400/35 text-on-panel transition-all hover:-translate-y-1 hover:shadow-fuchsia-500/30"
+            aria-label="PVP경기장 입장"
+        >
+            <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/45 via-black/55 to-amber-950/45" />
+            <div className="relative z-[1] grid h-full w-full grid-cols-2 grid-rows-2 gap-1.5 p-2.5">
+                {symbols.map((symbol) => (
+                    <div key={symbol.key} className="flex min-h-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/35 p-1.5">
+                        <img
+                            src={symbol.image}
+                            alt={symbol.name}
+                            className="h-full w-full max-h-[85%] max-w-[85%] object-contain opacity-90 transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                        />
+                    </div>
+                ))}
+            </div>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+        </button>
+    );
+};
+
 const formatMythicStat = (stat: MythicStat, _data: { count: number, totalValue: number }): React.ReactNode => {
     const row = MYTHIC_STATS_DATA[stat];
     if (!row) return <span className="w-full">알 수 없는 스페셜 옵션</span>;
@@ -568,7 +600,7 @@ const Profile: React.FC<ProfileProps> = () => {
     }, [championshipRankings, currentUserWithStatus]);
     const championshipScore = championshipMyEntry?.score ?? currentUserWithStatus?.cumulativeTournamentScore ?? 0;
     const championshipRank = championshipMyEntry?.rank ?? null;
-    const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | null>(null);
+    const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | 'both' | null>(null);
     const [trainingQuestModalOpen, setTrainingQuestModalOpen] = useState(false);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
     const [selectedPreset, setSelectedPreset] = useState(0);
@@ -925,10 +957,41 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const onSelectLobby = (type: 'strategic' | 'playful') => {
         const key: ArenaEntranceKey = type === 'strategic' ? 'strategicLobby' : 'playfulLobby';
+        try {
+            sessionStorage.setItem('sudamr_pvp_lobby_pref', type);
+        } catch {
+            // ignore
+        }
         tryArenaEnter(key, () => { window.location.hash = `#/waiting/${type}`; });
+    };
+    const onSelectUnifiedPvpLobby = () => {
+        let preferred: 'strategic' | 'playful' = 'strategic';
+        try {
+            const saved = sessionStorage.getItem('sudamr_pvp_lobby_pref');
+            if (saved === 'strategic' || saved === 'playful') preferred = saved;
+            else if (currentUserWithStatus.waitingLobby === 'strategic' || currentUserWithStatus.waitingLobby === 'playful') preferred = currentUserWithStatus.waitingLobby;
+        } catch {
+            // ignore
+        }
+        const fallback: 'strategic' | 'playful' = preferred === 'strategic' ? 'playful' : 'strategic';
+        const key = preferred === 'strategic' ? 'strategicLobby' : 'playfulLobby';
+        const fallbackKey = fallback === 'strategic' ? 'strategicLobby' : 'playfulLobby';
+        if (arenaAdminBypass || mergedArena[key]) {
+            onSelectLobby(preferred);
+            return;
+        }
+        if (arenaAdminBypass || mergedArena[fallbackKey]) {
+            onSelectLobby(fallback);
+            return;
+        }
+        const reason = getArenaLobbyLockReason('strategicLobby') || getArenaLobbyLockReason('playfulLobby') || '입장 불가';
+        window.alert(`PVP경기장 입장 불가: ${reason}`);
     };
     const onSelectTournamentLobby = () => tryArenaEnter('championship', () => { window.location.hash = '#/tournament'; });
     const onSelectSinglePlayerLobby = () => tryArenaEnter('singleplayer', () => { window.location.hash = '#/singleplayer'; });
+    const onSelectPairLobby = () => {
+        window.alert('페어경기장은 준비 중입니다.');
+    };
 
     const handlePresetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const presetIndex = Number(event.target.value);
@@ -1575,10 +1638,6 @@ const Profile: React.FC<ProfileProps> = () => {
         : '입문반';
     const towerCurrentFloor = Math.max(1, (currentUserWithStatus as User)?.towerFloor ?? 0);
     const towerCurrentRank = (currentUserWithStatus as any)?.monthlyTowerRank ?? (currentUserWithStatus as any)?.towerRank ?? null;
-    const strategicTotal = aggregatedStats.strategic.wins + aggregatedStats.strategic.losses;
-    const playfulTotal = aggregatedStats.playful.wins + aggregatedStats.playful.losses;
-    const strategicWinRate = strategicTotal > 0 ? Math.round((aggregatedStats.strategic.wins / strategicTotal) * 100) : 0;
-    const playfulWinRate = playfulTotal > 0 ? Math.round((aggregatedStats.playful.wins / playfulTotal) * 100) : 0;
     const dungeonProgress = (currentUserWithStatus as any)?.dungeonProgress ?? {};
     const adventureCodexBreakdown = getAdventureCodexCompletionBreakdown(currentUserWithStatus.adventureProfile);
     const adventureCodexOverallPercentText =
@@ -1698,63 +1757,43 @@ const Profile: React.FC<ProfileProps> = () => {
                 }
                 data-onboarding-target="onboarding-home-pvp-arenas"
             >
-            <div className="flex h-full min-h-0 min-w-0 flex-col">
-                {isNativeMobile && profileTab !== 'home' ? (
-                    <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={true} locked={!!getArenaLobbyLockReason('strategicLobby')} lockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined} />
-                ) : (
-                    <div className={mergedCardClass}>
-                        <div className={imagePaneClass}>
-                            <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('strategicLobby')} lockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined} />
-                        </div>
-                        <div className={`${infoPanelShellClass} border-cyan-300/20`}>
-                            <div className={`${infoTitleClass} text-cyan-100`}>전략 바둑</div>
-                            <div className={infoPanelMiddleClass}>
-                                <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-950/30 px-2.5 py-2">
-                                    {overallTiers.strategicTier?.icon && <img src={overallTiers.strategicTier.icon} alt={overallTiers.strategicTier.name} className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/20" />}
-                                    <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-                                        <span className="min-w-0 truncate text-left text-[12px] font-semibold text-cyan-100/90">{overallTiers.strategicTier.name}</span>
-                                        <span className="shrink-0 text-sm font-bold tabular-nums text-cyan-50">Lv.{currentUserWithStatus.strategyLevel}</span>
-                                    </div>
-                                </div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.strategic.wins}승{aggregatedStats.strategic.losses}패({strategicWinRate}%)</span></div>
-                            </div>
-                            <Button onClick={() => setDetailedStatsType('strategic')} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-cyan-300/35 bg-cyan-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-cyan-50 hover:bg-cyan-900/55">
-                                상세보기
-                            </Button>
-                        </div>
+                <div className={mergedCardClass}>
+                    <div className={imagePaneClass}>
+                        <UnifiedPvpSymbolCard onClick={onSelectUnifiedPvpLobby} />
                     </div>
-                )}
-            </div>
-
-            <div className="flex h-full min-h-0 min-w-0 flex-col">
-                {isNativeMobile && profileTab !== 'home' ? (
-                    <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={true} locked={!!getArenaLobbyLockReason('playfulLobby')} lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined} />
-                ) : (
-                    <div className={mergedCardClass}>
-                        <div className={imagePaneClass}>
-                            <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('playfulLobby')} lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined} />
+                    <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
+                        <div className={`${infoTitleClass} text-fuchsia-100`}>PVP경기장</div>
+                        <div className={infoPanelMiddleClass}>
+                            <div className={infoRowClass}><span className={infoLabelClass}>전략 점수</span><span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>놀이 점수</span><span className={`${infoValueClass} font-mono text-amber-200`}>{overallTiers.playfulIntegratedScore}점</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>통합 전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.strategic.wins + aggregatedStats.playful.wins}승{aggregatedStats.strategic.losses + aggregatedStats.playful.losses}패</span></div>
                         </div>
-                        <div className={`${infoPanelShellClass} border-amber-300/20`}>
-                            <div className={`${infoTitleClass} text-amber-100`}>놀이 바둑</div>
-                            <div className={infoPanelMiddleClass}>
-                                <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-amber-300/20 bg-amber-950/30 px-2.5 py-2">
-                                    {overallTiers.playfulTier?.icon && <img src={overallTiers.playfulTier.icon} alt={overallTiers.playfulTier.name} className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/20" />}
-                                    <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-                                        <span className="min-w-0 truncate text-left text-[12px] font-semibold text-amber-100/90">{overallTiers.playfulTier.name}</span>
-                                        <span className="shrink-0 text-sm font-bold tabular-nums text-amber-50">Lv.{currentUserWithStatus.playfulLevel}</span>
-                                    </div>
-                                </div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-amber-200`}>{overallTiers.playfulIntegratedScore}점</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>전적</span><span className={`${infoValueClass} font-mono whitespace-nowrap`}>{aggregatedStats.playful.wins}승{aggregatedStats.playful.losses}패({playfulWinRate}%)</span></div>
-                            </div>
-                            <Button onClick={() => setDetailedStatsType('playful')} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-amber-300/35 bg-amber-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-amber-50 hover:bg-amber-900/55">
-                                상세보기
-                            </Button>
-                        </div>
+                        <Button
+                            type="button"
+                            onClick={() => setDetailedStatsType('both')}
+                            colorScheme="none"
+                            className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-amber-950/50 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-amber-900/55"
+                        >
+                            상세전적
+                        </Button>
                     </div>
-                )}
-            </div>
+                </div>
+                <div className={mergedCardClass}>
+                    <div className={imagePaneClass}>
+                        <PveCard title="페어경기장" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText />
+                    </div>
+                    <div className={`${infoPanelShellClass} border-violet-300/25`}>
+                        <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
+                        <div className={infoPanelMiddleClass}>
+                            <div className={infoRowClass}><span className={infoLabelClass}>모드</span><span className={infoValueClass}>2인 고정 팀 대전</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>진행 상태</span><span className={`${infoValueClass} font-semibold text-violet-200`}>준비 중</span></div>
+                            <div className={infoRowClass}><span className={infoLabelClass}>오픈</span><span className={infoValueClass}>추후 업데이트</span></div>
+                        </div>
+                        <Button onClick={onSelectPairLobby} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-violet-300/40 bg-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:bg-violet-900/55">
+                            입장 안내
+                        </Button>
+                    </div>
+                </div>
             </div>
 
             <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -2118,49 +2157,40 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className="flex w-full max-w-3xl min-h-0 flex-col gap-2.5">
                                     <div className={mergedCardClass}>
                                         <div className={imagePaneClass}>
-                                            <LobbyCard type="strategic" stats={aggregatedStats.strategic} onEnter={() => onSelectLobby('strategic')} onViewStats={() => setDetailedStatsType('strategic')} level={currentUserWithStatus.strategyLevel} title="전략 바둑" imageUrl={STRATEGIC_GO_LOBBY_IMG} tier={overallTiers.strategicTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('strategicLobby')} lockReason={getArenaLobbyLockReason('strategicLobby') ?? undefined} />
+                                            <UnifiedPvpSymbolCard onClick={onSelectUnifiedPvpLobby} />
                                         </div>
-                                        <div className={`${infoPanelShellClass} border-cyan-300/20`}>
-                                            <div className={`${infoTitleClass} text-cyan-100`}>전략 바둑</div>
+                                        <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
+                                            <div className={`${infoTitleClass} text-fuchsia-100`}>PVP경기장</div>
                                             <div className={infoPanelMiddleClass}>
-                                                <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-cyan-300/20 bg-cyan-950/30 px-2.5 py-2">
-                                                    {overallTiers.strategicTier?.icon && <img src={overallTiers.strategicTier.icon} alt={overallTiers.strategicTier.name} className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/20" />}
-                                                    <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-                                                        <span className="min-w-0 truncate text-left text-[12px] font-semibold text-cyan-100/90">{overallTiers.strategicTier.name}</span>
-                                                        <span className="shrink-0 text-sm font-bold tabular-nums text-cyan-50">Lv.{currentUserWithStatus.strategyLevel}</span>
-                                                    </div>
-                                                </div>
-                                                <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span></div>
+                                                <div className={infoRowClass}><span className={infoLabelClass}>전략 점수</span><span className={`${infoValueClass} font-mono text-cyan-200`}>{overallTiers.strategicIntegratedScore}점</span></div>
+                                                <div className={infoRowClass}><span className={infoLabelClass}>놀이 점수</span><span className={`${infoValueClass} font-mono text-amber-200`}>{overallTiers.playfulIntegratedScore}점</span></div>
                                                 <div className="flex w-full min-w-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] leading-snug">
-                                                    <span className={`${infoValueClass} font-mono`}>{aggregatedStats.strategic.wins}승{aggregatedStats.strategic.losses}패({strategicWinRate}%)</span>
+                                                    <span className={`${infoValueClass} font-mono`}>{aggregatedStats.strategic.wins + aggregatedStats.playful.wins}승{aggregatedStats.strategic.losses + aggregatedStats.playful.losses}패</span>
                                                 </div>
                                             </div>
-                                            <Button onClick={() => setDetailedStatsType('strategic')} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-cyan-300/35 bg-cyan-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-cyan-50 hover:bg-cyan-900/55">
-                                                상세보기
+                                            <Button
+                                                type="button"
+                                                onClick={() => setDetailedStatsType('both')}
+                                                colorScheme="none"
+                                                className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-amber-950/50 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-amber-900/55"
+                                            >
+                                                상세전적
                                             </Button>
                                         </div>
                                     </div>
                                     <div className={mergedCardClass}>
                                         <div className={imagePaneClass}>
-                                            <LobbyCard type="playful" stats={aggregatedStats.playful} onEnter={() => onSelectLobby('playful')} onViewStats={() => setDetailedStatsType('playful')} level={currentUserWithStatus.playfulLevel} title="놀이 바둑" imageUrl={PLAYFUL_GO_LOBBY_IMG} tier={overallTiers.playfulTier} compact={false} hideOverlayText={true} hideOverlayFooter={true} locked={!!getArenaLobbyLockReason('playfulLobby')} lockReason={getArenaLobbyLockReason('playfulLobby') ?? undefined} />
+                                            <PveCard title="페어경기장" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText />
                                         </div>
-                                        <div className={`${infoPanelShellClass} border-amber-300/20`}>
-                                            <div className={`${infoTitleClass} text-amber-100`}>놀이 바둑</div>
+                                        <div className={`${infoPanelShellClass} border-violet-300/25`}>
+                                            <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
                                             <div className={infoPanelMiddleClass}>
-                                                <div className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-amber-300/20 bg-amber-950/30 px-2.5 py-2">
-                                                    {overallTiers.playfulTier?.icon && <img src={overallTiers.playfulTier.icon} alt={overallTiers.playfulTier.name} className="h-7 w-7 shrink-0 rounded-md object-contain ring-1 ring-white/20" />}
-                                                    <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
-                                                        <span className="min-w-0 truncate text-left text-[12px] font-semibold text-amber-100/90">{overallTiers.playfulTier.name}</span>
-                                                        <span className="shrink-0 text-sm font-bold tabular-nums text-amber-50">Lv.{currentUserWithStatus.playfulLevel}</span>
-                                                    </div>
-                                                </div>
-                                                <div className={infoRowClass}><span className={infoLabelClass}>통합 점수</span><span className={`${infoValueClass} font-mono text-amber-200`}>{overallTiers.playfulIntegratedScore}점</span></div>
-                                                <div className="flex w-full min-w-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] leading-snug">
-                                                    <span className={`${infoValueClass} font-mono`}>{aggregatedStats.playful.wins}승{aggregatedStats.playful.losses}패({playfulWinRate}%)</span>
-                                                </div>
+                                                <div className={infoRowClass}><span className={infoLabelClass}>모드</span><span className={infoValueClass}>2인 고정 팀 대전</span></div>
+                                                <div className={infoRowClass}><span className={infoLabelClass}>진행 상태</span><span className={`${infoValueClass} font-semibold text-violet-200`}>준비 중</span></div>
+                                                <div className={infoRowClass}><span className={infoLabelClass}>오픈</span><span className={infoValueClass}>추후 업데이트</span></div>
                                             </div>
-                                            <Button onClick={() => setDetailedStatsType('playful')} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-amber-300/35 bg-amber-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-amber-50 hover:bg-amber-900/55">
-                                                상세보기
+                                            <Button onClick={onSelectPairLobby} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-violet-300/40 bg-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:bg-violet-900/55">
+                                                입장 안내
                                             </Button>
                                         </div>
                                     </div>
