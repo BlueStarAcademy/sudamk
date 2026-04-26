@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import { LiveGameSession, AnalysisResult, Player, Point, RecommendedMove } from '../types/index.js';
 import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
+import { getGongbaeEmptyPointKeys } from '../shared/utils/koreanTerritoryFromBoard.js';
 import * as types from '../types/index.js';
 import { fileURLToPath } from 'url';
 import https from 'https';
@@ -127,15 +128,24 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
     let blackTerritory = 0;
     let whiteTerritory = 0;
 
+    const bs = session.boardState;
+    const canKorean =
+        bs &&
+        Array.isArray(bs) &&
+        bs.length === boardSize &&
+        (bs[0]?.length ?? 0) === boardSize;
+    const gongbaeEmptyKeys = canKorean ? getGongbaeEmptyPointKeys(bs, boardSize) : new Set<string>();
+
     if (ownership && Array.isArray(ownership) && ownership.length > 0) {
         const ownershipBoardSize = Math.sqrt(ownership.length);
 
         // Check if the returned ownership map is a perfect square and large enough.
         // This handles cases where KataGo might incorrectly return a 19x19 map for a smaller board.
         if (Number.isInteger(ownershipBoardSize) && ownershipBoardSize >= boardSize) {
-            // 영역 판정: 이 값 이상이면 해당 색의 확정 집으로 간주
+            // 빈 점: Kata 소유권 임계값(기존과 동일, 미완성 집·형세 유지).
+            // 공배: BFS로 '흑·백에 모두 닿는' 빈 연결 성분 안에서만, 소유권이 애매한 칸(|prob|≤임계)만 집·오버레이에서 제외.
+            // (성분 전체를 무조건 공배로 두면 큰 빈 공간이 흑·백에 한 번씩 닿을 때 전부 0이 되어 영토 표시가 사라짐)
             const TERRITORY_THRESHOLD = 0.75;
-            // 사석 판정: 상대 소유 확률이 이 값 이상이면 해당 돌을 사석으로 표시 (0.55 = 소유권 50% 이상일 때 사석 처리)
             const DEAD_STONE_THRESHOLD = parseFloat(process.env.KATAGO_DEAD_STONE_THRESHOLD || '0.55');
             for (let y = 0; y < boardSize; y++) {
                 for (let x = 0; x < boardSize; x++) {
@@ -151,24 +161,32 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
                     
                     const stoneOnBoard = session.boardState[y][x];
 
-                    // Score empty points based on ownership probability
                     if (stoneOnBoard === Player.None) {
-                        if (ownerProb > TERRITORY_THRESHOLD) {
+                        const inGongbaeComponent = gongbaeEmptyKeys.has(`${x},${y}`);
+                        const strongBlack = ownerProb > TERRITORY_THRESHOLD;
+                        const strongWhite = ownerProb < -TERRITORY_THRESHOLD;
+                        if (inGongbaeComponent && !strongBlack && !strongWhite) {
+                            ownershipMap[y][x] = 0;
+                        } else if (strongBlack) {
                             blackTerritory += 1;
-                        } else if (ownerProb < -TERRITORY_THRESHOLD) {
+                        } else if (strongWhite) {
                             whiteTerritory += 1;
                         }
-                    }
-                    
-                    // Identify dead stones for capture count and visualization, based on high ownership certainty
-                    if (stoneOnBoard !== Player.None) {
-                         if ((stoneOnBoard === Player.Black && ownerProb < -DEAD_STONE_THRESHOLD) || (stoneOnBoard === Player.White && ownerProb > DEAD_STONE_THRESHOLD)) {
-                            deadStones.push({ x, y });
-                        }
+                    } else if (
+                        (stoneOnBoard === Player.Black && ownerProb < -DEAD_STONE_THRESHOLD) ||
+                        (stoneOnBoard === Player.White && ownerProb > DEAD_STONE_THRESHOLD)
+                    ) {
+                        deadStones.push({ x, y });
                     }
                 }
             }
         }
+    }
+
+    for (const p of deadStones) {
+        const c = session.boardState?.[p.y]?.[p.x];
+        if (c === types.Player.White) ownershipMap[p.y][p.x] = 10;
+        else if (c === types.Player.Black) ownershipMap[p.y][p.x] = -10;
     }
     
     const blackDeadScore = deadStones
@@ -177,13 +195,18 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
     const whiteDeadScore = deadStones
         .filter((s) => session.boardState[s.y][s.x] === Player.White)
         .reduce((acc, s) => acc + getStoneCapturePointValueForScoring(session, s, Player.White), 0);
+    const whiteDeadCount = deadStones.filter((s) => session.boardState[s.y][s.x] === Player.White).length;
+    const blackDeadCount = deadStones.filter((s) => session.boardState[s.y][s.x] === Player.Black).length;
 
     const blackLiveCaptures = session.captures[Player.Black] || 0;
     const whiteLiveCaptures = session.captures[Player.White] || 0;
 
     const komi = session.finalKomi ?? session.settings.komi;
 
-    // Korean/Territory scoring: Territory (empty points) + Captured stones (live + dead).
+    // territory 필드는 빈 집만 (finalizeAnalysisResult가 사석 칸 수를 더함).
+    // 한국식 집 계가 총점: (빈 집+상대 사석 자리) + 따낸 돌(사석) + …
+    const blackTerritoryWithDeadCells = Math.round(blackTerritory) + whiteDeadCount;
+    const whiteTerritoryWithDeadCells = Math.round(whiteTerritory) + blackDeadCount;
     const scoreDetails = {
         black: { 
             territory: Math.round(blackTerritory), 
@@ -191,7 +214,7 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
             liveCaptures: blackLiveCaptures, 
             deadStones: whiteDeadScore, 
             baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, 
-            total: Math.round(blackTerritory) + blackLiveCaptures + whiteDeadScore 
+            total: blackTerritoryWithDeadCells + blackLiveCaptures + whiteDeadScore 
         },
         white: { 
             territory: Math.round(whiteTerritory), 
@@ -199,7 +222,7 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
             liveCaptures: whiteLiveCaptures, 
             deadStones: blackDeadScore, 
             komi, baseStoneBonus: 0, hiddenStoneBonus: 0, timeBonus: 0, itemBonus: 0, 
-            total: Math.round(whiteTerritory) + whiteLiveCaptures + blackDeadScore + komi
+            total: whiteTerritoryWithDeadCells + whiteLiveCaptures + blackDeadScore + komi
         },
     };
     
@@ -236,7 +259,8 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
         winRateChange: winRateChange,
         scoreLead: finalScoreLead,
         deadStones,
-        ownershipMap: (ownership && ownership.length > 0) ? ownershipMap : null,
+        ownershipMap:
+            canKorean || (ownership && Array.isArray(ownership) && ownership.length > 0) ? ownershipMap : null,
         recommendedMoves,
         areaScore: { black: scoreDetails.black.total, white: scoreDetails.white.total },
         scoreDetails,

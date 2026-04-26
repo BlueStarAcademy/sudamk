@@ -566,9 +566,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.stonesToPlace,
     ]);
     
-    // 게임 상태를 sessionStorage에 저장 (매 수마다). 종료 후에는 삭제/덮어쓰지 않아 결과 모달에서 바둑판 유지
+    // 게임 상태를 sessionStorage에 저장 (매 수마다).
+    // 종료 직전 마지막 착수(문양 소모/재착수 포함)도 결과창에서 일치하도록 종료 상태에서도 최신 스냅샷을 저장한다.
     useEffect(() => {
-        if (['ended', 'no_contest', 'scoring'].includes(gameStatus)) return;
         if (restoredBoardState && Array.isArray(restoredBoardState) && restoredBoardState.length > 0) {
             try {
                 // totalTurns: 서버가 비워 보낸 경우(새로고침 직후) 기존 sessionStorage 값 유지 (자동계가까지 남은 턴이 Max로 초기화되는 버그 방지)
@@ -693,7 +693,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     const hasPattern = (session.blackPatternStones?.length ?? 0) > 0 || (session.whitePatternStones?.length ?? 0) > 0;
                     const serverHasPatternField =
                         Array.isArray(next.blackPatternStones) || Array.isArray(next.whitePatternStones);
-                    if ((!hasPattern || canPreferStoredVisualState) && !serverHasPatternField) {
+                    const isFinalizedStatus = ['ended', 'no_contest', 'scoring'].includes(next.gameStatus);
+                    // 종료/결과 상태에서는 오래된 sessionStorage 문양 좌표를 우선하면
+                    // 따낸 뒤 재착수한 돌이 다시 문양으로 보일 수 있으므로 복원을 비활성화한다.
+                    if (!isFinalizedStatus && (!hasPattern || canPreferStoredVisualState) && !serverHasPatternField) {
                         const storedBlack = Array.isArray(parsed.blackPatternStones) ? parsed.blackPatternStones : null;
                         const storedWhite = Array.isArray(parsed.whitePatternStones) ? parsed.whitePatternStones : null;
                         if (storedBlack || storedWhite) {
@@ -1568,6 +1571,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         audioService.unlockFromUserGesture();
         audioService.stopTimerWarning();
         if (isSpectator || gameStatus === 'missile_animating') return;
+        if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring') {
+            setPendingMove(null);
+            return;
+        }
         const isPausableAiGame =
             session.isAiGame &&
             !session.isSinglePlayer &&
@@ -2092,6 +2099,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const handleConfirmMove = useCallback(() => {
         audioService.stopTimerWarning();
         if (!pendingMove) return;
+        if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring') {
+            setPendingMove(null);
+            return;
+        }
         const x = pendingMove.x;
         const y = pendingMove.y;
 

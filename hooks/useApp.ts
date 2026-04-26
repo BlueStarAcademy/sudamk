@@ -52,6 +52,33 @@ import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
 import { getMannerRank, MANNER_RANKS } from '../services/manner.js';
 
+type ConnectionStatusKind = 'ok' | 'connecting' | 'reconnecting' | 'degraded' | 'requestFailed';
+type ConnectionStatusSeverity = 'info' | 'success' | 'warning' | 'error';
+
+type AppConnectionStatus = {
+    kind: ConnectionStatusKind;
+    message: string | null;
+    severity: ConnectionStatusSeverity;
+    updatedAt: number;
+};
+
+type GameRejoinFailureReason = 'network' | 'notFound';
+
+type GameRejoinFailure = {
+    gameId: string;
+    reason: GameRejoinFailureReason;
+    message: string;
+};
+
+const CONNECTION_OK_STATUS: AppConnectionStatus = {
+    kind: 'ok',
+    message: null,
+    severity: 'success',
+    updatedAt: 0,
+};
+
+const isTransientServerStatus = (status: number): boolean => status === 0 || status === 503 || status === 504;
+
 /** 플레이어별 누적치(따내기 점수 등): 더 큰 값만 유지 — 서버·클라 중 한쪽만 갱신된 경우에도 감소하지 않게 함 */
 function mergeMonotonicCountRecord<T extends LiveGameSession['captures'] | LiveGameSession['baseStoneCaptures']>(
     a: T,
@@ -467,7 +494,8 @@ export const useApp = () => {
     // CONFIRM_AI_GAME_START 응답의 게임을 보관해 'Game not found after max attempts' 시에도 라우팅 가능하게 함
     const pendingAiGameEntryRef = useRef<{ gameId: string; until: number; game?: LiveGameSession } | null>(null);
     // 새로고침(F5) 후 재입장: 재입장 API 실패 시에만 게임 페이지에서 나가기
-    const [rejoinFailedForGameId, setRejoinFailedForGameId] = useState<string | null>(null);
+    const [gameRejoinFailure, setGameRejoinFailure] = useState<GameRejoinFailure | null>(null);
+    const [gameRejoinRetryNonce, setGameRejoinRetryNonce] = useState(0);
     const rejoinRequestedRef = useRef<Set<string>>(new Set());
 
     const mergeUserState = useCallback((prev: User | null, updates: Partial<User>) => {
@@ -965,6 +993,9 @@ export const useApp = () => {
     const [serverReconnectNotice, setServerReconnectNotice] = useState<string | null>(null);
     const serverReconnectTimerRef = useRef<number | null>(null);
     const wsReconnectAttemptRef = useRef(0);
+    const [connectionStatus, setConnectionStatus] = useState<AppConnectionStatus>(CONNECTION_OK_STATUS);
+    const connectionNoticeTimerRef = useRef<number | null>(null);
+    const connectionIssueSeenRef = useRef(false);
     const [isProfileEditModalOpen, setIsProfileEditModalOpen] = useState(false);
     const [moderatingUser, setModeratingUser] = useState<UserWithStatus | null>(null);
     const [isMbtiInfoModalOpen, setIsMbtiInfoModalOpen] = useState(false);
@@ -1505,6 +1536,66 @@ export const useApp = () => {
         setError(displayMessage);
         setTimeout(() => setError(null), 5000);
     };
+
+    const setConnectionNotice = useCallback((next: Omit<AppConnectionStatus, 'updatedAt'>, autoClearMs?: number) => {
+        if (connectionNoticeTimerRef.current !== null) {
+            window.clearTimeout(connectionNoticeTimerRef.current);
+            connectionNoticeTimerRef.current = null;
+        }
+
+        if (next.kind !== 'ok') {
+            connectionIssueSeenRef.current = true;
+        }
+
+        setConnectionStatus({
+            ...next,
+            updatedAt: Date.now(),
+        });
+
+        if (autoClearMs && autoClearMs > 0) {
+            connectionNoticeTimerRef.current = window.setTimeout(() => {
+                connectionIssueSeenRef.current = false;
+                setConnectionStatus({ ...CONNECTION_OK_STATUS, updatedAt: Date.now() });
+                connectionNoticeTimerRef.current = null;
+            }, autoClearMs);
+        }
+    }, []);
+
+    const markConnectionRestored = useCallback(() => {
+        if (!connectionIssueSeenRef.current) {
+            setConnectionStatus(prev => (prev.kind === 'ok' && !prev.message ? prev : { ...CONNECTION_OK_STATUS, updatedAt: Date.now() }));
+            return;
+        }
+
+        connectionIssueSeenRef.current = false;
+        setConnectionNotice(
+            {
+                kind: 'ok',
+                message: '서버 연결이 복구되었습니다.',
+                severity: 'success',
+            },
+            3000,
+        );
+    }, [setConnectionNotice]);
+
+    const requestGameRejoinRetry = useCallback((gameId: string) => {
+        setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
+        setGameRejoinRetryNonce(n => n + 1);
+        setConnectionNotice({
+            kind: 'connecting',
+            message: '게임 정보를 다시 동기화하는 중입니다.',
+            severity: 'info',
+        });
+    }, [setConnectionNotice]);
+
+    useEffect(() => {
+        return () => {
+            if (connectionNoticeTimerRef.current !== null) {
+                window.clearTimeout(connectionNoticeTimerRef.current);
+                connectionNoticeTimerRef.current = null;
+            }
+        };
+    }, []);
     
     useEffect(() => {
         if (currentUser) {
@@ -1527,11 +1618,13 @@ export const useApp = () => {
         
         // 디바운싱: 같은 액션이 짧은 시간 내에 여러 번 호출되면 무시
         // - 챔피언싱 시뮬 완료: 5회차 종료 직후 보상 UI·DB 동기화에 필수
-        // - GET_GUILD_WAR_DATA / GET_GUILD_INFO: 길드홈 WarPanel + 길드전 화면이 동시에 부르면 둘째가 `undefined`만 반환되어
-        //   클라가 «전쟁 없음»으로 오인·#/guild 로 튕기는 버그가 남 (서버는 실제로는 정상 응답)
+        // - GET_GUILD_WAR_DATA / GET_MY_GUILD_WAR_ATTEMPT_LOG: 길드홈과 길드전 화면이 동시에 호출될 수 있음.
+        //   디바운스 시 `{ guilds }`만 돌려주면 activeWar 등이 빠져 «전쟁 없음»으로 오인·#/guild 로 튕김 → 디바운스 제외.
         if (
             action.type !== 'COMPLETE_TOURNAMENT_SIMULATION' &&
-            action.type !== 'REQUEST_SERVER_AI_MOVE'
+            action.type !== 'REQUEST_SERVER_AI_MOVE' &&
+            action.type !== 'GET_GUILD_WAR_DATA' &&
+            action.type !== 'GET_MY_GUILD_WAR_ATTEMPT_LOG'
         ) {
             const debouncePayload = 'payload' in action ? (action as { payload?: unknown }).payload : undefined;
             const actionKey = `${action.type}_${JSON.stringify(debouncePayload ?? {})}`;
@@ -1543,9 +1636,6 @@ export const useApp = () => {
                     if (gid && guilds[gid]) {
                         return { clientResponse: { guild: guilds[gid] } };
                     }
-                }
-                if (action.type === 'GET_GUILD_WAR_DATA' || action.type === 'GET_MY_GUILD_WAR_ATTEMPT_LOG') {
-                    return { clientResponse: { guilds } };
                 }
                 if (process.env.NODE_ENV === 'development') {
                     console.log(`[handleAction] Action debounced: ${action.type} (${now - lastCallTime}ms since last call)`);
@@ -2379,6 +2469,8 @@ export const useApp = () => {
             let endGameWinnerSurvival: Player | null = null;
             let shouldEndGameTurnLimit = false;
             let endGameWinnerTurnLimit: Player | null = null;
+            let shouldEndGameCaptureTarget = false;
+            let endGameWinnerCaptureTarget: Player | null = null;
             let finalUpdatedGame: LiveGameSession | null = null;
             
             updateGameState((currentGames) => {
@@ -2455,11 +2547,12 @@ export const useApp = () => {
 
                     if (moveLimit != null && moveLimit > 0) {
                         const currentValidMoves = (game.moveHistory || []).filter((m: any) => m.x !== -1 && m.y !== -1).length;
-                        if (currentValidMoves >= moveLimit) {
+                        const currentScoringTurns = Math.max(currentValidMoves, game.totalTurns ?? 0);
+                        if (currentScoringTurns >= moveLimit) {
                             if (process.env.NODE_ENV === 'development') {
                                 console.warn(`[handleAction] ${actionTypeName} blocked move after turn limit reached`, {
                                     gameId,
-                                    currentValidMoves,
+                                    currentValidMoves: currentScoringTurns,
                                     moveLimit,
                                     gameStatus: game.gameStatus,
                                 });
@@ -2468,7 +2561,7 @@ export const useApp = () => {
                                 ...currentGames,
                                 [gameId]: {
                                     ...game,
-                                    totalTurns: currentValidMoves,
+                                    totalTurns: currentScoringTurns,
                                     gameStatus: 'scoring' as const,
                                 }
                             };
@@ -2703,6 +2796,7 @@ export const useApp = () => {
                             console.log(`[handleAction] ${actionTypeName} - White reached capture target (${whiteCaptures}/${whiteTargetRaw}), White wins - ENDING GAME`);
                             shouldEndGameSurvival = true;
                             endGameWinnerSurvival = Player.White;
+                            finalUpdatedGame = { ...updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'capture_limit' };
                             return {
                                 ...currentGames,
                                 [gameId]: {
@@ -2722,6 +2816,7 @@ export const useApp = () => {
                                 console.log(`[handleAction] ${actionTypeName} - White ran out of turns (${whiteTurnsPlayed}/${survivalTurns}), Black wins - ENDING GAME`);
                                 shouldEndGameSurvival = true;
                                 endGameWinnerSurvival = Player.Black;
+                                finalUpdatedGame = { ...updatedGame, gameStatus: 'ended' as const, winner: Player.Black, winReason: 'capture_limit' };
                                 // 게임 상태를 즉시 ended로 업데이트
                                 return {
                                     ...currentGames,
@@ -2740,7 +2835,12 @@ export const useApp = () => {
                 // 싱글플레이/도전의 탑 따내기 바둑:
                 // 흑(유저) 제한 턴이 0이 되더라도, 같은 수에서 따낸 돌 미션을 완수했다면
                 // 미션 성공(흑 승리)을 우선 적용하고 턴 제한 패배는 적용하지 않는다.
-                if ((gameType === 'singleplayer' || gameType === 'tower') && game.stageId && game.gameStatus === 'playing') {
+                if (
+                    (gameType === 'singleplayer' || gameType === 'tower') &&
+                    game.stageId &&
+                    game.gameStatus === 'playing' &&
+                    !(gameType === 'singleplayer' && (game.settings as any)?.isSurvivalMode === true)
+                ) {
                     const stages = gameType === 'tower' ? TOWER_STAGES : SINGLE_PLAYER_STAGES;
                     const stage = stages.find((s: { id: string }) => s.id === game.stageId) as { blackTurnLimit?: number } | undefined;
                     const blackTurnLimit = stage?.blackTurnLimit;
@@ -2773,6 +2873,7 @@ export const useApp = () => {
                                 console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${effectiveLimit}), mission fail - ENDING GAME`);
                                 shouldEndGameTurnLimit = true;
                                 endGameWinnerTurnLimit = Player.White;
+                                finalUpdatedGame = { ...updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' };
                                 return { ...currentGames, [gameId]: { ...updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' } };
                             }
                         }
@@ -2793,6 +2894,9 @@ export const useApp = () => {
                         shouldEndGameTurnLimit = false;
                         endGameWinnerSurvival = null;
                         endGameWinnerTurnLimit = null;
+                        shouldEndGameCaptureTarget = true;
+                        endGameWinnerCaptureTarget = Player.Black;
+                        finalUpdatedGame = { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.Black, winReason: 'capture_limit' };
                         return {
                             ...currentGames,
                             [gameId]: {
@@ -2808,6 +2912,9 @@ export const useApp = () => {
                         shouldEndGameTurnLimit = false;
                         endGameWinnerSurvival = null;
                         endGameWinnerTurnLimit = null;
+                        shouldEndGameCaptureTarget = true;
+                        endGameWinnerCaptureTarget = Player.White;
+                        finalUpdatedGame = { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'capture_limit' };
                         return {
                             ...currentGames,
                             [gameId]: {
@@ -2869,6 +2976,9 @@ export const useApp = () => {
                     const GAME_STATE_STORAGE_KEY = `gameState_${gameId}`;
                     const gameStateToSave = {
                         gameId,
+                        round: game.round ?? 1,
+                        gameStatus: game.gameStatus,
+                        currentPlayer: game.currentPlayer,
                         boardState: game.boardState,
                         moveHistory: game.moveHistory || [],
                         captures: game.captures || { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
@@ -2920,6 +3030,21 @@ export const useApp = () => {
                     }
                 } as any).catch(err => {
                     console.error(`[handleAction] Failed to end ${gameType} game (turn limit):`, err);
+                });
+            }
+
+            // 목표 따낸 돌 달성 안전장치 경로도 서버에 종료를 반영해야 새로고침 후 playing으로 되살아나지 않는다.
+            if (shouldEndGameCaptureTarget && endGameWinnerCaptureTarget !== null && finalUpdatedGame) {
+                const endGameActionType = gameType === 'tower' ? 'END_TOWER_GAME' : 'END_SINGLE_PLAYER_GAME';
+                handleAction({
+                    type: endGameActionType,
+                    payload: {
+                        gameId,
+                        winner: endGameWinnerCaptureTarget,
+                        winReason: 'capture_limit'
+                    }
+                } as any).catch(err => {
+                    console.error(`[handleAction] Failed to end ${gameType} game (capture target):`, err);
                 });
             }
             
@@ -3272,6 +3397,13 @@ export const useApp = () => {
                 try {
                     const errorData = await res.json();
                     errorMessage = errorData.message || errorData.error || errorMessage;
+                    if (isTransientServerStatus(res.status)) {
+                        setConnectionNotice({
+                            kind: 'degraded',
+                            message: '서버 응답이 지연되고 있습니다. 연결이 복구되면 데이터가 자동으로 동기화됩니다.',
+                            severity: 'warning',
+                        });
+                    }
                     const isStaleGameStateSync =
                         action.type === 'REQUEST_GAME_STATE_SYNC' &&
                         res.status === 400 &&
@@ -3374,6 +3506,7 @@ export const useApp = () => {
                 // Return error object so components can handle it
                 return { error: errorMessage } as HandleActionResult;
             } else {
+                markConnectionRestored();
                 const result = await res.json();
                 if (result.error || result.message) {
                     const errorMessage = result.message || result.error || '서버 오류가 발생했습니다.';
@@ -4716,6 +4849,11 @@ export const useApp = () => {
             rollbackTowerAddTurnOptimistic();
             console.error(`[handleAction] ${action.type} - Exception:`, err);
             console.error(`[handleAction] Error stack:`, err.stack);
+            setConnectionNotice({
+                kind: 'requestFailed',
+                message: '요청을 완료하지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                severity: 'error',
+            });
             showError(err.message || '요청 처리 중 오류가 발생했습니다.');
         } finally {
             const finalActionGameId = ((action as any).payload as { gameId?: string } | undefined)?.gameId;
@@ -4743,7 +4881,7 @@ export const useApp = () => {
                 else pvpDicePlaceInFlightRef.current[gid] = n;
             }
         }
-    }, [currentUser?.id, applyOptimisticTowerClearOnBlackWin, guilds]);
+    }, [currentUser?.id, applyOptimisticTowerClearOnBlackWin, guilds, markConnectionRestored, setConnectionNotice]);
 
     const handleLogout = useCallback(async () => {
         if (!currentUser) return;
@@ -5361,6 +5499,11 @@ export const useApp = () => {
             const attempt = wsReconnectAttemptRef.current;
             const delay = Math.min(30000, Math.round(1500 * Math.pow(1.55, attempt)));
             wsReconnectAttemptRef.current = attempt + 1;
+            setConnectionNotice({
+                kind: 'reconnecting',
+                message: '서버와 다시 연결하는 중입니다. 잠시만 기다려주세요.',
+                severity: 'warning',
+            });
             if (process.env.NODE_ENV === 'development') {
                 console.log(`[WebSocket] ${reason}, reconnect in ${delay}ms (attempt ${wsReconnectAttemptRef.current})`);
             }
@@ -5379,6 +5522,14 @@ export const useApp = () => {
             if (isConnecting) {
                 console.log('[WebSocket] Connection already in progress, skipping...');
                 return;
+            }
+
+            if (wsReconnectAttemptRef.current > 0) {
+                setConnectionNotice({
+                    kind: 'connecting',
+                    message: '서버 연결을 다시 확인하는 중입니다.',
+                    severity: 'info',
+                });
             }
             
             // 이미 열려있는 연결이 있으면 재연결하지 않음
@@ -5441,6 +5592,7 @@ export const useApp = () => {
                     wsReconnectAttemptRef.current = 0;
                     isIntentionalClose = false;
                     isConnecting = false; // 연결 완료
+                    markConnectionRestored();
                     if (connectionTimeout) {
                         clearTimeout(connectionTimeout);
                         connectionTimeout = null;
@@ -7473,7 +7625,7 @@ export const useApp = () => {
                 softCloseWebSocket(s);
             }
         };
-    }, [currentUser?.id]); // Only depend on currentUser.id to avoid unnecessary reconnections
+    }, [currentUser?.id, markConnectionRestored, setConnectionNotice]); // Only user changes or stable connection helpers reconnect
 
     // --- Navigation Logic ---
     const initialRedirectHandled = useRef(false);
@@ -7570,8 +7722,8 @@ export const useApp = () => {
                 }
                 return;
             }
-            // 새로고침(F5) 후 재입장 API 실패 시에만 리다이렉트 (AI/PVP 공통, 성공 시 activeGame 폴백으로 이어하기)
-            if (rejoinFailedForGameId === urlGameId) {
+            // 새로고침(F5) 후 서버가 게임 없음/권한 없음으로 확정한 경우에만 리다이렉트한다.
+            if (gameRejoinFailure?.gameId === urlGameId && gameRejoinFailure.reason === 'notFound') {
                 let targetHash = '#/profile';
                 if (currentUserWithStatus?.status === 'waiting' && currentUserWithStatus?.mode) {
                     targetHash = `#/waiting/${encodeURIComponent(currentUserWithStatus.mode)}`;
@@ -7598,7 +7750,7 @@ export const useApp = () => {
             }
             // 기존: AI 게임이거나 pending entry면 리다이렉트하지 않음 (게임 페이지 유지)
         }
-    }, [currentUser, activeGame, currentUserWithStatus, liveGames, singlePlayerGames, towerGames, rejoinFailedForGameId]);
+    }, [currentUser, activeGame, currentUserWithStatus, liveGames, singlePlayerGames, towerGames, gameRejoinFailure]);
 
     /**
      * 서버 userStatuses는 in-game인데 INITIAL_STATE의 liveGames 등에 해당 방이 없을 때(목록 상한·타이밍 등).
@@ -7661,7 +7813,7 @@ export const useApp = () => {
                     } else {
                         setLiveGames(prev => ({ ...prev, [g.id]: g }));
                     }
-                    setRejoinFailedForGameId(prev => (prev === gid ? null : prev));
+                    setGameRejoinFailure(prev => (prev?.gameId === gid ? null : prev));
                 }
             } catch {
                 /* 게임 URL 재입장 effect가 이어서 시도 */
@@ -7681,7 +7833,7 @@ export const useApp = () => {
         const view = currentRoute?.view;
         const gameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
         if (!currentUser || view !== 'game' || !gameId) {
-            if (gameId) setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            if (gameId) setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
         const gameInStore = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
@@ -7699,16 +7851,16 @@ export const useApp = () => {
             !!gameInStore &&
             ['ended', 'no_contest', 'scoring', 'hidden_final_reveal'].includes(gameInStore.gameStatus || '')
         ) {
-            setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
         // 경기 중에는 현재 판이 비지 않았더라도 강제 rejoin 재요청을 막아 불필요한 상태 재병합을 피한다.
         if (isLiveMatchNow) {
-            setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
         if (gameInStore && hasHydratedBoardGridForRejoin(gameInStore)) {
-            setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+            setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
             return;
         }
         if (rejoinRequestedRef.current.has(gameId)) return;
@@ -7732,18 +7884,43 @@ export const useApp = () => {
                     } else {
                         setLiveGames(prev => ({ ...prev, [g.id]: g }));
                     }
-                    setRejoinFailedForGameId(prev => (prev === gameId ? null : prev));
+                    setGameRejoinFailure(prev => (prev?.gameId === gameId ? null : prev));
+                    markConnectionRestored();
                     return;
                 }
-                setRejoinFailedForGameId(gameId);
+                const reason: GameRejoinFailureReason = isTransientServerStatus(res.status) ? 'network' : 'notFound';
+                setGameRejoinFailure({
+                    gameId,
+                    reason,
+                    message:
+                        reason === 'network'
+                            ? '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.'
+                            : '게임을 찾을 수 없습니다. 프로필로 이동합니다...',
+                });
+                if (reason === 'network') {
+                    setConnectionNotice({
+                        kind: 'requestFailed',
+                        message: '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                        severity: 'error',
+                    });
+                }
             } catch {
-                setRejoinFailedForGameId(gameId);
+                setGameRejoinFailure({
+                    gameId,
+                    reason: 'network',
+                    message: '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                });
+                setConnectionNotice({
+                    kind: 'requestFailed',
+                    message: '게임 정보를 불러오지 못했습니다. 연결 상태를 확인한 뒤 다시 시도해주세요.',
+                    severity: 'error',
+                });
             } finally {
                 rejoinRequestedRef.current.delete(gameId);
             }
         }, 2500);
         return () => clearTimeout(t);
-    }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames]);
+    }, [currentUser, currentRoute?.view, currentRoute?.params?.id, liveGames, singlePlayerGames, towerGames, gameRejoinRetryNonce, markConnectionRestored, setConnectionNotice]);
 
     // 계가 중(scoring) 새로고침 시 KataGo 결과 수신: scoring 상태인 활성 게임이 있으면 rejoin 폴링하여 결과 반영
     useEffect(() => {
@@ -8090,6 +8267,8 @@ export const useApp = () => {
         activeNegotiation,
         showExitToast,
         serverReconnectNotice,
+        connectionStatus,
+        gameRejoinFailure,
         enhancementResult,
         enhancementOutcome,
         unreadMailCount,
@@ -8144,6 +8323,7 @@ export const useApp = () => {
             handleAction,
             handleLogout,
             handleEnterWaitingRoom,
+            requestGameRejoinRetry,
             applyPreset,
             openSettingsModal: () => setIsSettingsModalOpen(true),
             closeSettingsModal: () => setIsSettingsModalOpen(false),

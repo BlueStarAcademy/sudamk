@@ -76,6 +76,13 @@ const normalizeOptionalPositiveInt = (
     return n > 0 ? n : undefined;
 };
 
+const normalizeOptionalText = (value: unknown, fallback: string | undefined, maxLength: number): string | undefined => {
+    if (value == null) return fallback;
+    if (typeof value !== 'string') return fallback;
+    const text = value.trim();
+    return text ? text.slice(0, maxLength) : undefined;
+};
+
 const clampPlacementsToCapacity = (
     placements: SinglePlayerStageInfo['placements'],
     capacity: number
@@ -142,10 +149,42 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         boardSize * boardSize - (Boolean(row.mergeRandomPlacementsWithFixed) ? (fixedOpening?.length ?? 0) : 0)
     );
 
+    const forcedAiResponsesRaw = Array.isArray((row as Record<string, unknown>).forcedAiResponses)
+        ? ((row as Record<string, unknown>).forcedAiResponses as unknown[])
+        : Array.isArray(fallback.forcedAiResponses)
+          ? (fallback.forcedAiResponses as unknown[])
+          : [];
+    const normalizePointInBoard = (value: unknown): { x: number; y: number } | null => {
+        if (!value || typeof value !== 'object') return null;
+        const v = value as Record<string, unknown>;
+        return {
+            x: clampInt(v.x, 0, boardSize - 1, 0),
+            y: clampInt(v.y, 0, boardSize - 1, 0),
+        };
+    };
+    const forcedAiResponses = forcedAiResponsesRaw
+        .map((entry) => {
+            if (!entry || typeof entry !== 'object') return null;
+            const obj = entry as Record<string, unknown>;
+            const move = normalizePointInBoard(obj.move);
+            if (!move) return null;
+            const whenOpponentStoneAt = normalizePointInBoard(obj.whenOpponentStoneAt);
+            return { move, whenOpponentStoneAt: whenOpponentStoneAt ?? undefined };
+        })
+        .filter(
+            (
+                entry
+            ): entry is {
+                move: { x: number; y: number };
+                whenOpponentStoneAt?: { x: number; y: number };
+            } => entry != null
+        );
+
     const out: SinglePlayerStageInfo = {
         ...fallback,
         ...row,
         id: fallback.id,
+        description: normalizeOptionalText(row.description, fallback.description, 1200),
         level: fallback.level,
         boardSize,
         actionPointCost: clampInt(row.actionPointCost, 0, 99, fallback.actionPointCost),
@@ -184,6 +223,15 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         baseStones: clampInt((row as any).baseStones, 0, 20, (fallback as any).baseStones ?? 0),
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,
         mergeRandomPlacementsWithFixed: Boolean(row.mergeRandomPlacementsWithFixed),
+        allowPlacementRefresh: row.allowPlacementRefresh === false ? false : fallback.allowPlacementRefresh !== false,
+        kataServerLevel: clampInt((row as any).kataServerLevel, -31, 9, (fallback as any).kataServerLevel ?? -31),
+        forcedAiResponses: forcedAiResponses.length > 0 ? forcedAiResponses : undefined,
+        strictForcedAiResponses:
+            row.strictForcedAiResponses === true
+                ? true
+                : fallback.strictForcedAiResponses === true
+                  ? true
+                  : undefined,
     };
 
     const presetRaw = (row as Record<string, unknown>).strategicRulePreset;

@@ -109,7 +109,11 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     // 게임 모드별 아이템 로직 (hooks 규칙 준수를 위해 early return 전에 선언)
     const refreshesUsed = session.singlePlayerPlacementRefreshesUsed || 0;
     const remainingRefreshes = Math.max(0, 5 - refreshesUsed);
-    const canRefresh = (session.moveHistory?.length || 0) === 0 && refreshesUsed < 5;
+    const currentStageConfig = session.stageId ? SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId) : undefined;
+    const placementRefreshAllowed =
+        session.settings.singlePlayerPlacementRefreshAllowed !== false &&
+        currentStageConfig?.allowPlacementRefresh !== false;
+    const canRefresh = placementRefreshAllowed && (session.moveHistory?.length || 0) === 0 && refreshesUsed < 5;
     const costs = [0, 50, 75, 100, 200]; // 서버와 일치
     const nextCost = costs[refreshesUsed] || 0;
     const canAfford = currentUser.gold >= nextCost;
@@ -220,7 +224,11 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     }, [gameStatus, session, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     const handleRefresh = React.useCallback(() => {
-        if (canRefresh && canAfford) {
+        if (!placementRefreshAllowed) {
+            setAlertModal({ message: '이 스테이지에서는 배치변경을 사용할 수 없습니다.' });
+            return;
+        }
+        if (!refreshDisabled && canAfford) {
             const priceLine = nextCost > 0 ? `이용 가격: ${nextCost.toLocaleString()} 골드` : '이용 가격: 무료';
             const confirmationMessage = nextCost > 0
                 ? `${priceLine}\n\n${nextCost.toLocaleString()} 골드를 사용하여 배치를 다시 섞으시겠습니까? (남은 재배치 ${remainingRefreshes}/5)`
@@ -233,7 +241,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                 }
             });
         }
-    }, [canRefresh, canAfford, nextCost, remainingRefreshes, session.id, onAction]);
+    }, [placementRefreshAllowed, refreshDisabled, canAfford, nextCost, remainingRefreshes, session.id, onAction]);
 
     const handleForfeit = React.useCallback(() => {
         setConfirmModal({
@@ -379,7 +387,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
                     alt="배치 새로고침"
                     onClick={handleRefresh}
                     disabled={refreshDisabled}
-                    title={refreshDisabled ? (usedMissileBeforeFirstMove ? '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.' : !canAfford ? '골드가 부족합니다.' : '배치 새로고침 불가') : `배치 새로고침 (비용: ${nextCost}골드, 남은 횟수: ${remainingRefreshes}/5)`}
+                    title={refreshDisabled ? (!placementRefreshAllowed ? '이 스테이지에서는 배치변경을 사용할 수 없습니다.' : usedMissileBeforeFirstMove ? '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.' : !canAfford ? '골드가 부족합니다.' : '배치 새로고침 불가') : `배치 새로고침 (비용: ${nextCost}골드, 남은 횟수: ${remainingRefreshes}/5)`}
                     count={remainingRefreshes}
                     compact={isMobile}
                 />

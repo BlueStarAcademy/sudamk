@@ -605,6 +605,7 @@ export type SinglePlayerStrategicRulePreset =
 export type SinglePlayerStageInfo = {
     id: string;
     name: string;
+    description?: string;
     level: SinglePlayerLevel;
     actionPointCost: number;
     boardSize: 7 | 9 | 11 | 13;
@@ -644,9 +645,22 @@ export type SinglePlayerStageInfo = {
     fixedOpening?: Array<{ x: number; y: number; color: 'black' | 'white'; kind?: 'plain' | 'pattern' }>;
     /** fixedOpening이 있어도 placements 랜덤을 baseBoard 위에 추가 적용 */
     mergeRandomPlacementsWithFixed?: boolean;
+    /** false면 해당 싱글 스테이지에서 첫 수 전 배치변경 버튼/액션 사용 불가 */
+    allowPlacementRefresh?: boolean;
+    /** 싱글 스테이지별 KataServer 레벨 오버라이드(-31~9). 미지정 시 반(level) 기본값 사용 */
+    kataServerLevel?: number;
     strategicRulePreset?: SinglePlayerStrategicRulePreset;
     /** strategicRulePreset이 mix일 때만 사용. 2~5개, 비어 있으면 서버 기본 믹스 조합 */
     mixedStrategicModes?: GameMode[];
+    /** 싱글플레이 스테이지 전용: AI 응수를 강제하고 싶을 때 조건→착점 규칙을 순서대로 적용 */
+    forcedAiResponses?: Array<{
+        /** 이 좌표에 상대 돌(유저 돌)이 있을 때만 규칙 발동. 생략하면 항상 발동 */
+        whenOpponentStoneAt?: Point;
+        /** 규칙 발동 시 AI가 두려는 좌표 */
+        move: Point;
+    }>;
+    /** true면 강제 규칙이 모두 불가능할 때 일반 Kata/합법수 폴백 대신 즉시 기권 처리 */
+    strictForcedAiResponses?: boolean;
 };
 
 
@@ -679,8 +693,16 @@ export type GameSettings = {
   hiddenStoneCount?: number;
   scanCount?: number;
   missileCount?: number;
+  /** 싱글플레이 스테이지별 배치변경 허용 여부 */
+  singlePlayerPlacementRefreshAllowed?: boolean;
   mixedModes?: GameMode[];
   autoScoring?: boolean;
+  /** START_SINGLE_PLAYER_GAME 시 stage.forcedAiResponses를 runtime으로 복사해 AI 착수에서 사용 */
+  singlePlayerForcedAiResponses?: Array<{
+    whenOpponentStoneAt?: Point;
+    move: Point;
+  }>;
+  singlePlayerStrictForcedAiResponses?: boolean;
   
   // Omok settings
   has33Forbidden?: boolean;
@@ -1124,6 +1146,8 @@ export type LiveGameSession = {
   adventureEncounterDurationMultiplier?: number;
   adventureRegionalHumanFlatScoreBonus?: number;
   stageId?: string;
+  /** 싱글: 서버가 적용한 최신 스테이지(KV). 두루마리·모드 표시에 번들 상수보다 우선 */
+  singlePlayerStageDisplay?: SinglePlayerStageInfo;
   towerFloor?: number;  // 도전의 탑 층수
   /** 이번 탑 대국 입장 시 차감된 행동력(재도전 라벨·장비 할인 반영·클라 towerFloor stale 보정) */
   towerStartActionPointCost?: number;

@@ -2,6 +2,7 @@ import * as types from '../types/index.js';
 import type { LiveGameSession, Point, BoardState, AnalysisResult } from '../types/index.js';
 import { Player } from '../types/index.js';
 import { getStoneCapturePointValueForScoring } from '../shared/utils/scoringStonePoints.js';
+import { classifyKoreanTerritoryFromBoard } from '../shared/utils/koreanTerritoryFromBoard.js';
 
 /**
  * 자체 계가 프로그램
@@ -15,72 +16,18 @@ interface GroupInfo {
     isAlive: boolean;
 }
 
-/**
- * 빈 점의 영역을 계산합니다 (한국식 계가)
- * 영토 점 좌표도 함께 반환 (보드 시각화용)
- */
+/** 빈 점의 영역 — 공배 제외 한국식 (shared `classifyKoreanTerritoryFromBoard`) */
 function calculateTerritory(
     boardState: BoardState,
     boardSize: number
 ): { black: number; white: number; blackTerritoryPoints: Point[]; whiteTerritoryPoints: Point[] } {
-    const visited = Array(boardSize).fill(0).map(() => Array(boardSize).fill(false));
-    let blackTerritory = 0;
-    let whiteTerritory = 0;
-    const blackTerritoryPoints: Point[] = [];
-    const whiteTerritoryPoints: Point[] = [];
-
-    const getNeighbors = (x: number, y: number): Point[] => {
-        const neighbors: Point[] = [];
-        if (x > 0) neighbors.push({ x: x - 1, y });
-        if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
-        if (y > 0) neighbors.push({ x, y: y - 1 });
-        if (y < boardSize - 1) neighbors.push({ x, y: y + 1 });
-        return neighbors;
+    const k = classifyKoreanTerritoryFromBoard(boardState, boardSize);
+    return {
+        black: k.blackEmptyCount,
+        white: k.whiteEmptyCount,
+        blackTerritoryPoints: k.blackTerritoryPoints,
+        whiteTerritoryPoints: k.whiteTerritoryPoints,
     };
-
-    for (let y = 0; y < boardSize; y++) {
-        for (let x = 0; x < boardSize; x++) {
-            if (boardState[y][x] !== Player.None) continue;
-            if (visited[y][x]) continue;
-
-            // BFS로 연결된 빈 영역 찾기
-            const region: Point[] = [];
-            const q: Point[] = [{ x, y }];
-            visited[y][x] = true;
-            let touchesBlack = false;
-            let touchesWhite = false;
-
-            while (q.length > 0) {
-                const current = q.shift()!;
-                region.push(current);
-
-                for (const neighbor of getNeighbors(current.x, current.y)) {
-                    const neighborContent = boardState[neighbor.y][neighbor.x];
-
-                    if (neighborContent === Player.None && !visited[neighbor.y][neighbor.x]) {
-                        visited[neighbor.y][neighbor.x] = true;
-                        q.push(neighbor);
-                    } else if (neighborContent === Player.Black) {
-                        touchesBlack = true;
-                    } else if (neighborContent === Player.White) {
-                        touchesWhite = true;
-                    }
-                }
-            }
-
-            // 영역이 한쪽 색상만 접촉하면 그 색상의 영역
-            if (touchesBlack && !touchesWhite) {
-                blackTerritory += region.length;
-                blackTerritoryPoints.push(...region);
-            } else if (touchesWhite && !touchesBlack) {
-                whiteTerritory += region.length;
-                whiteTerritoryPoints.push(...region);
-            }
-            // 양쪽 모두 접촉하거나 아무것도 접촉하지 않으면 중립 (계산하지 않음)
-        }
-    }
-
-    return { black: blackTerritory, white: whiteTerritory, blackTerritoryPoints, whiteTerritoryPoints };
 }
 
 /**
@@ -214,10 +161,12 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
     const whiteCaptures = captures[Player.White] || 0;
     console.log(`[ScoringService] Captures: Black=${blackCaptures}, White=${whiteCaptures}`);
 
-    // 4. 최종 점수 계산 (한국식 계가)
-    // 영역 + 사석 + 캡처된 돌
-    const blackScore = territory.black + whiteDeadScore + blackCaptures;
-    const whiteScore = territory.white + blackDeadScore + whiteCaptures + komi;
+    // 4. 최종 점수 계산 (한국식 집 계가)
+    // 빈 집 + 상대 사석이 앉은 집 칸(교차점)을 영토로 세고, 사석(따낸 돌 가중치)은 따로 더한다.
+    const blackTerritoryWithDeadCells = territory.black + whiteDeadStones.length;
+    const whiteTerritoryWithDeadCells = territory.white + blackDeadStones.length;
+    const blackScore = blackTerritoryWithDeadCells + whiteDeadScore + blackCaptures;
+    const whiteScore = whiteTerritoryWithDeadCells + blackDeadScore + whiteCaptures + komi;
 
     console.log(`[ScoringService] Final scores: Black=${blackScore}, White=${whiteScore} (komi=${komi})`);
 
@@ -242,6 +191,12 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
             for (const p of territory.whiteTerritoryPoints) {
                 if (p.x >= 0 && p.x < boardSize && p.y >= 0 && p.y < boardSize) map[p.y][p.x] = -10;
             }
+            for (const p of blackDeadStones) {
+                if (p.x >= 0 && p.x < boardSize && p.y >= 0 && p.y < boardSize) map[p.y][p.x] = -10;
+            }
+            for (const p of whiteDeadStones) {
+                if (p.x >= 0 && p.x < boardSize && p.y >= 0 && p.y < boardSize) map[p.y][p.x] = 10;
+            }
             return map;
         })(),
         recommendedMoves: [], // 수동 계산에서는 추천 수 없음
@@ -251,7 +206,7 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
         },
         scoreDetails: {
             black: {
-                territory: territory.black,
+                territory: blackTerritoryWithDeadCells,
                 captures: blackCaptures,
                 liveCaptures: blackCaptures,
                 deadStones: whiteDeadScore,
@@ -262,7 +217,7 @@ export function calculateScoreManually(session: LiveGameSession): AnalysisResult
                 total: blackScore
             },
             white: {
-                territory: territory.white,
+                territory: whiteTerritoryWithDeadCells,
                 captures: whiteCaptures,
                 liveCaptures: whiteCaptures,
                 deadStones: blackDeadScore,

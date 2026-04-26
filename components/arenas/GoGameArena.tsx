@@ -215,7 +215,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 ? TOWER_STAGES.find(s => s.id === session.stageId)
                 : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
             if (stage?.autoScoringTurns) {
-                const totalTurns = validMovesCount;
+                const totalTurns = Math.max(validMovesCount, session.totalTurns ?? 0);
                 const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
                 if (remainingTurns <= 0) return true;
             }

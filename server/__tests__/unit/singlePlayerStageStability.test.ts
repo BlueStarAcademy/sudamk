@@ -43,6 +43,31 @@ describe('single-player stage stability', () => {
         expect(progress.effectiveClearedStageIds).toEqual([stages[1].id]);
     });
 
+    it('preserves editable stage descriptions through normalization', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                description: '  이 스테이지에서는 축과 단수를 연습합니다.  ',
+            },
+        ]);
+
+        expect(normalized[0].description).toBe('이 스테이지에서는 축과 단수를 연습합니다.');
+    });
+
+    it('preserves disabled placement refresh through normalization', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                allowPlacementRefresh: false,
+            },
+        ]);
+
+        expect(normalized[0].allowPlacementRefresh).toBe(false);
+        expect(normalized[1].allowPlacementRefresh).toBe(true);
+    });
+
     it('deduplicates fixed openings and clamps random placements to available board capacity', () => {
         const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
         const normalized = normalizeSinglePlayerStagesOverride([

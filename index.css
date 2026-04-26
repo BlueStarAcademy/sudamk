@@ -1328,6 +1328,23 @@ input, textarea {
   font-weight: 800;
   letter-spacing: 0.06em;
   font-variant-numeric: tabular-nums;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  paint-order: stroke fill;
+}
+
+.sudamr-stable-gradient-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .sudamr-stable-gradient-text {
+    transform: translateZ(0);
+  }
 }
 
 

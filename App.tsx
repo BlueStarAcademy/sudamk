@@ -66,6 +66,7 @@ const AppContent: React.FC = () => {
         currentRoute,
         showExitToast,
         serverReconnectNotice,
+        connectionStatus,
         hasClaimableQuest,
         settings,
         isNativeMobile,
@@ -80,6 +81,16 @@ const AppContent: React.FC = () => {
     const [showQuestToast, setShowQuestToast] = useState(false);
     
     const prevHasClaimableQuest = usePrevious(hasClaimableQuest);
+    const connectionBannerMessage = serverReconnectNotice || connectionStatus.message;
+    const connectionBannerSeverity = serverReconnectNotice ? 'warning' : connectionStatus.severity;
+    const connectionBannerClass =
+        connectionBannerSeverity === 'success'
+            ? 'border-emerald-500/40 text-emerald-100'
+            : connectionBannerSeverity === 'error'
+              ? 'border-red-500/45 text-red-100'
+              : connectionBannerSeverity === 'info'
+                ? 'border-sky-500/40 text-sky-100'
+                : 'border-amber-500/40 text-amber-100';
 
     useEffect(() => {
         if (settings.features.questNotifications && hasClaimableQuest && !prevHasClaimableQuest) {
@@ -420,7 +431,7 @@ const AppContent: React.FC = () => {
                     </div>
                 </div>
             )}
-            {serverReconnectNotice && (
+            {connectionBannerMessage && (
                 <div
                     className="fixed inset-0 z-[199] flex items-start justify-center px-4 py-6 pointer-events-none"
                     style={{
@@ -430,8 +441,8 @@ const AppContent: React.FC = () => {
                     aria-live="polite"
                 >
                     <div className="pointer-events-auto mt-2 w-full max-w-md animate-fade-in">
-                        <div className="rounded-xl border border-amber-500/40 bg-zinc-900/95 p-3 text-center text-sm font-medium leading-snug text-amber-100 shadow-2xl backdrop-blur-sm">
-                            {serverReconnectNotice}
+                        <div className={`rounded-xl border bg-zinc-900/95 p-3 text-center text-sm font-medium leading-snug shadow-2xl backdrop-blur-sm ${connectionBannerClass}`}>
+                            {connectionBannerMessage}
                         </div>
                     </div>
                 </div>

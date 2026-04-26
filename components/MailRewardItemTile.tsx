@@ -15,14 +15,24 @@ function resolveItemImageSrc(path: string | undefined): string {
 function resolveMailAttachmentImage(item: InventoryItem): string {
     const lookupKey = item.name ?? (item as { itemId?: string }).itemId;
     const fallbackTemplate = lookupKey ? getItemTemplateByName(lookupKey) : null;
-    // 행동력 회복제는 상점/가방과 동일한 lightning 아이콘으로 강제 통일
-    if (isActionPointConsumable(lookupKey)) {
+    // 행동력 회복제는 저장된 우편 이미지보다 템플릿 아이콘을 우선한다.
+    if (isActionPointConsumable(lookupKey) || isActionPointConsumable(fallbackTemplate?.name)) {
         return resolveItemImageSrc(fallbackTemplate?.image);
     }
     if (item.image && item.image.trim().length > 0) {
         return resolveItemImageSrc(item.image);
     }
     return resolveItemImageSrc(fallbackTemplate?.image);
+}
+
+function getActionPointBadge(item: InventoryItem): string | null {
+    const raw = (item.name ?? (item as { itemId?: string }).itemId ?? '').trim();
+    const template = raw ? getItemTemplateByName(raw) : null;
+    const name = template?.name ?? raw;
+    if (!isActionPointConsumable(name)) return null;
+
+    const match = name.match(/\+(\d+)/);
+    return match ? `+${match[1]}` : null;
 }
 
 export type MailRewardItemTileVariant = 'sm' | 'md' | 'lg';
@@ -45,6 +55,7 @@ const MailRewardItemTile: React.FC<{
     const qty = item.quantity ?? 1;
     const stars = getMailEquipmentDisplayStars(item);
     const displayName = item.name ?? (item as { itemId?: string }).itemId ?? '보상';
+    const actionPointBadge = getActionPointBadge(item);
 
     if (isMailAttachmentEquipment(item)) {
         const g = item.grade ?? ItemGrade.Normal;
@@ -87,12 +98,26 @@ const MailRewardItemTile: React.FC<{
             <div
                 className={`relative flex shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-b from-zinc-800/90 to-zinc-950/90 shadow-inner ${box}`}
             >
-                <img
-                    src={resolveMailAttachmentImage(item)}
-                    alt=""
-                    className="max-h-[88%] max-w-[88%] object-contain drop-shadow"
-                    aria-hidden
-                />
+                {actionPointBadge ? (
+                    <>
+                        <span
+                            className="flex h-full w-full items-center justify-center text-[1.9rem] leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]"
+                            aria-hidden
+                        >
+                            ⚡
+                        </span>
+                        <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
+                            {actionPointBadge}
+                        </span>
+                    </>
+                ) : (
+                    <img
+                        src={resolveMailAttachmentImage(item)}
+                        alt=""
+                        className="max-h-[88%] max-w-[88%] object-contain drop-shadow"
+                        aria-hidden
+                    />
+                )}
             </div>
             <span className={`max-w-[6.5rem] leading-tight line-clamp-2 text-gray-200 ${label}`}>{displayName}</span>
             {qty > 1 ? <span className="text-[10px] font-medium text-gray-400">×{qty}</span> : null}

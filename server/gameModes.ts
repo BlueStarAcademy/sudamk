@@ -98,7 +98,14 @@ function finalizeHiddenStonesForScoring(game: types.LiveGameSession): void {
 export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, session: types.LiveGameSession, preservedTimeInfo?: { blackTimeLeft?: number, whiteTimeLeft?: number, blackInitialTimeLeft?: number, whiteInitialTimeLeft?: number }): types.AnalysisResult => {
     const finalAnalysis = JSON.parse(JSON.stringify(baseAnalysis)); // Deep copy
 
-    // 사석 점수 동기화: deadStones 배열과 scoreDetails가 항상 일치하도록 (보드 마커와 모달 점수 불일치 방지)
+    // 엔진(Kata/수동)이 넣은 territory는 「빈 교차점」만 센 값.
+    // 한국식 집 계가: 상대 사석이 앉은 교차점도 집(영토) 1점으로 세고, 그 돌은 사석(따낸 돌)으로 또 점수에 넣는다
+    // → scoreDetails.territory = 빈 집 + 상대 사석 개수(집 칸), deadStones = 가중 사석 점수, total = 영토+따낸+… .
+    const emptyBlackT = Math.round(finalAnalysis.scoreDetails.black.territory);
+    const emptyWhiteT = Math.round(finalAnalysis.scoreDetails.white.territory);
+
+    let whiteDeadCount = 0;
+    let blackDeadCount = 0;
     const boardState = session.boardState;
     if (finalAnalysis.deadStones && Array.isArray(finalAnalysis.deadStones) && boardState && Array.isArray(boardState) && boardState.length > 0) {
         let whiteDeadScore = 0;
@@ -106,14 +113,19 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
         for (const p of finalAnalysis.deadStones as { x: number; y: number }[]) {
             const c = boardState[p.y]?.[p.x];
             if (c === types.Player.White) {
+                whiteDeadCount += 1;
                 whiteDeadScore += getStoneCapturePointValueForScoring(session, p, types.Player.White);
             } else if (c === types.Player.Black) {
+                blackDeadCount += 1;
                 blackDeadScore += getStoneCapturePointValueForScoring(session, p, types.Player.Black);
             }
         }
         finalAnalysis.scoreDetails.black.deadStones = Math.round(whiteDeadScore);
         finalAnalysis.scoreDetails.white.deadStones = Math.round(blackDeadScore);
     }
+
+    finalAnalysis.scoreDetails.black.territory = emptyBlackT + whiteDeadCount;
+    finalAnalysis.scoreDetails.white.territory = emptyWhiteT + blackDeadCount;
 
     // Base stone bonus
     finalAnalysis.scoreDetails.black.baseStoneBonus = 0;
@@ -169,9 +181,24 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
 
     // 모험 지역 이해도 시작 가산점은 `session.captures`에 이미 포함되어 scoreDetails.captures로 들어옴 (이중 가산 방지)
 
-    // Recalculate totals
-    const blackTotal = finalAnalysis.scoreDetails.black.territory + finalAnalysis.scoreDetails.black.captures + (finalAnalysis.scoreDetails.black.deadStones ?? 0) + finalAnalysis.scoreDetails.black.baseStoneBonus + finalAnalysis.scoreDetails.black.hiddenStoneBonus + finalAnalysis.scoreDetails.black.timeBonus + finalAnalysis.scoreDetails.black.itemBonus;
-    const whiteTotal = finalAnalysis.scoreDetails.white.territory + finalAnalysis.scoreDetails.white.captures + finalAnalysis.scoreDetails.white.komi + (finalAnalysis.scoreDetails.white.deadStones ?? 0) + finalAnalysis.scoreDetails.white.baseStoneBonus + finalAnalysis.scoreDetails.white.hiddenStoneBonus + finalAnalysis.scoreDetails.white.timeBonus + finalAnalysis.scoreDetails.white.itemBonus;
+    // Recalculate totals: 집(영토) + 따낸 돌(사석) + … (집 칸과 사석 점수를 각각 가산)
+    const blackTotal =
+        finalAnalysis.scoreDetails.black.territory +
+        finalAnalysis.scoreDetails.black.captures +
+        (finalAnalysis.scoreDetails.black.deadStones ?? 0) +
+        finalAnalysis.scoreDetails.black.baseStoneBonus +
+        finalAnalysis.scoreDetails.black.hiddenStoneBonus +
+        finalAnalysis.scoreDetails.black.timeBonus +
+        finalAnalysis.scoreDetails.black.itemBonus;
+    const whiteTotal =
+        finalAnalysis.scoreDetails.white.territory +
+        finalAnalysis.scoreDetails.white.captures +
+        finalAnalysis.scoreDetails.white.komi +
+        (finalAnalysis.scoreDetails.white.deadStones ?? 0) +
+        finalAnalysis.scoreDetails.white.baseStoneBonus +
+        finalAnalysis.scoreDetails.white.hiddenStoneBonus +
+        finalAnalysis.scoreDetails.white.timeBonus +
+        finalAnalysis.scoreDetails.white.itemBonus;
     
     finalAnalysis.scoreDetails.black.total = blackTotal;
     finalAnalysis.scoreDetails.white.total = whiteTotal;
@@ -181,8 +208,12 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     
     // 디버깅: 점수 계산 상세 로그
     console.log(`[finalizeAnalysisResult] Score calculation for game ${session.id}:`);
-    console.log(`  Black: territory=${finalAnalysis.scoreDetails.black.territory}, captures=${finalAnalysis.scoreDetails.black.captures}, deadStones=${finalAnalysis.scoreDetails.black.deadStones ?? 0}, total=${blackTotal}`);
-    console.log(`  White: territory=${finalAnalysis.scoreDetails.white.territory}, captures=${finalAnalysis.scoreDetails.white.captures}, komi=${finalAnalysis.scoreDetails.white.komi}, deadStones=${finalAnalysis.scoreDetails.white.deadStones ?? 0}, total=${whiteTotal}`);
+    console.log(
+        `  Black: emptyTerritory=${emptyBlackT}, territoryDisplay=${finalAnalysis.scoreDetails.black.territory}, captures=${finalAnalysis.scoreDetails.black.captures}, deadStones=${finalAnalysis.scoreDetails.black.deadStones ?? 0}, total=${blackTotal}`
+    );
+    console.log(
+        `  White: emptyTerritory=${emptyWhiteT}, territoryDisplay=${finalAnalysis.scoreDetails.white.territory}, captures=${finalAnalysis.scoreDetails.white.captures}, komi=${finalAnalysis.scoreDetails.white.komi}, deadStones=${finalAnalysis.scoreDetails.white.deadStones ?? 0}, total=${whiteTotal}`
+    );
     
     return finalAnalysis;
 };

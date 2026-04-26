@@ -986,6 +986,46 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             });
         }
 
+        if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') {
+            const blockedAfterEndActions = new Set([
+                'PLACE_STONE',
+                'PASS_TURN',
+                'PLACE_BASE_STONE',
+                'PLACE_REMAINING_BASE_STONES_RANDOMLY',
+                'RESET_MY_BASE_STONE_PLACEMENTS',
+                'UNDO_LAST_BASE_STONE_PLACEMENT',
+                'CONFIRM_BASE_PLACEMENT_COMPLETE',
+                'START_HIDDEN_PLACEMENT',
+                'START_SCANNING',
+                'SCAN_BOARD',
+                'START_MISSILE_SELECTION',
+                'LAUNCH_MISSILE',
+                'MISSILE_INVALID_SELECTION',
+                'CANCEL_MISSILE_SELECTION',
+                'MISSILE_ANIMATION_COMPLETE',
+                'REQUEST_SCORING',
+                'OMOK_PLACE_STONE',
+                'DICE_READY_FOR_TURN_ROLL',
+                'DICE_CHOOSE_TURN',
+                'DICE_CONFIRM_START',
+                'DICE_ROLL',
+                'DICE_PLACE_STONE',
+                'DICE_PLACE_STONES_BATCH',
+                'THIEF_UPDATE_ROLE_CHOICE',
+                'CONFIRM_THIEF_ROLE',
+                'THIEF_ROLL_DICE',
+                'THIEF_PLACE_STONE',
+                'ALKKAGI_PLACE_STONE',
+                'SINGLE_PLAYER_REFRESH_PLACEMENT',
+                'TOWER_REFRESH_PLACEMENT',
+                'TOWER_ADD_TURNS',
+                'REQUEST_SERVER_AI_MOVE',
+            ]);
+            if (blockedAfterEndActions.has(type)) {
+                return { error: '이미 종료된 경기에서는 진행할 수 없습니다.' };
+            }
+        }
+
         // 일반 AI 대국의 수동 일시정지 중에는 착수/통과 등 주요 게임 액션을 차단
         const isManuallyPausedAi = game.isAiGame && !game.isSinglePlayer && game.gameCategory !== 'tower' && game.gameCategory !== 'singleplayer'
             && game.pausedTurnTimeLeft !== undefined && !game.turnDeadline && !game.itemUseDeadline;
@@ -1170,8 +1210,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     return {};
                 }
             }
-            // 싱글플레이 배치변경은 singlePlayerActions에서 처리 (골드 차감·보드 갱신·updatedUser/game 반환)
-            if (type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' && game.isSinglePlayer) {
+            // 싱글플레이 배치변경/대기 세션 동기화는 singlePlayerActions에서 처리
+            if ((type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE') && game.isSinglePlayer) {
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 return handleSinglePlayerAction(volatileState, action, userData);
             }

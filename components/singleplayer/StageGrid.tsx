@@ -10,6 +10,7 @@ import {
     isSinglePlayerStageUnlocked,
     reconcileSinglePlayerProgress,
 } from '../../shared/utils/singlePlayerProgress.js';
+import { inferSinglePlayerStrategicRulePreset } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
@@ -96,23 +97,28 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         return !isSinglePlayerStageUnlocked(SINGLE_PLAYER_STAGES, progress, stage.id);
     };
 
-    // 스테이지의 게임 모드 이름 결정 (살리기 바둑과 따내기 바둑 구분)
+    // 스테이지 프리셋(명시/auto 추론) 기준으로 대기실 모드명을 표시
     const getStageGameModeName = (stage: typeof stages[0]): string => {
-        if (stage.hiddenCount !== undefined) {
-            return '히든 바둑';
-        } else if (stage.missileCount !== undefined) {
-            return '미사일 바둑';
-        } else if (stage.autoScoringTurns !== undefined) {
-            // 자동 계가 턴 수가 있으면 스피드 바둑 (초급반 등)
-            return '스피드 바둑';
-        } else if (stage.blackTurnLimit !== undefined) {
-            return '따내기 바둑';
-        } else if (stage.survivalTurns !== undefined) {
-            return '살리기 바둑';
-        } else if (stage.timeControl.type === 'fischer') {
-            return '스피드 바둑';
-        } else {
-            return '정통 바둑';
+        const preset = inferSinglePlayerStrategicRulePreset(stage);
+        switch (preset) {
+            case 'classic':
+                return '클래식 바둑';
+            case 'capture':
+                return '따내기 바둑';
+            case 'survival':
+                return '살리기 바둑';
+            case 'speed':
+                return '스피드 바둑';
+            case 'base':
+                return '베이스 바둑';
+            case 'hidden':
+                return '히든 바둑';
+            case 'missile':
+                return '미사일 바둑';
+            case 'mix':
+                return '믹스룰 바둑';
+            default:
+                return '클래식 바둑';
         }
     };
 

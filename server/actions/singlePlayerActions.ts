@@ -24,6 +24,7 @@ import {
     resolveSinglePlayerSpeedTimeMode,
     resolveSinglePlayerStrategicGameMode,
     resolveSinglePlayerSurvivalMode,
+    resolveSinglePlayerSurvivalTurnCount,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import {
     isSinglePlayerStageCleared,
@@ -104,20 +105,6 @@ const singlePlayerPlainWhiteReduction = (level: SinglePlayerLevel): number => {
 };
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
-    // 입문-11 튜토리얼 스테이지는 항상 동일한 2돌 배치로 시작한다.
-    if (stage.id === '입문-11') {
-        const bs = stage.boardSize;
-        const center = Math.floor(bs / 2);
-        const board: BoardState = Array(bs)
-            .fill(null)
-            .map(() => Array(bs).fill(Player.None));
-        board[center][center] = Player.Black;
-        if (center + 1 < bs) {
-            board[center][center + 1] = Player.White;
-        }
-        return { board, blackPattern: [], whitePattern: [] };
-    }
-
     if (stage.fixedOpening?.length) {
         const bs = stage.boardSize;
         const board: BoardState = Array(bs)
@@ -213,6 +200,119 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
     );
 };
 
+const applyLatestPendingSinglePlayerStage = async (
+    game: LiveGameSession,
+    stage: SinglePlayerStageInfo
+): Promise<void> => {
+    const gameMode: GameMode = resolveSinglePlayerStrategicGameMode(stage);
+    const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];
+    const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
+    const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
+    const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
+    const survivalTurnsResolved = isSurvivalMode ? resolveSinglePlayerSurvivalTurnCount(stage) : undefined;
+    const hasAutoScoring = resolveSinglePlayerHasAutoScoringTurns(stage);
+    const { board, blackPattern, whitePattern } = generateSinglePlayerBoard(stage);
+
+    const baseCaptureTargetBlack =
+        !isCaptureGoalMode || hasAutoScoring ? 999 : (stage.targetScore.black > 0 ? stage.targetScore.black : 999);
+    const baseCaptureTargetWhite =
+        !isCaptureGoalMode || hasAutoScoring ? 999 : (stage.targetScore.white > 0 ? stage.targetScore.white : 999);
+    const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl?.mainTime ?? 5) : 0;
+    const enforcedByoyomiTimeSeconds = isSpeedMode ? (stage.timeControl?.byoyomiTime ?? 0) : 0;
+    const enforcedIncrement = isSpeedMode ? (stage.timeControl?.increment ?? 0) : 0;
+
+    game.mode = gameMode;
+    game.currentPlayer = Player.Black;
+    game.boardState = board;
+    game.blackPatternStones = blackPattern;
+    game.whitePatternStones = whitePattern;
+    game.moveHistory = [];
+    game.captures = { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
+    game.baseStoneCaptures = { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
+    game.hiddenStoneCaptures = { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
+    game.lastMove = null;
+    game.passCount = 0;
+    game.koInfo = null;
+    game.totalTurns = 0;
+    game.blackTimeLeft = enforcedMainTimeMinutes * 60;
+    game.whiteTimeLeft = enforcedMainTimeMinutes * 60;
+    game.blackByoyomiPeriodsLeft = 0;
+    game.whiteByoyomiPeriodsLeft = 0;
+    game.turnStartTime = undefined;
+    game.turnDeadline = undefined;
+    game.pendingCapture = null;
+    game.newlyRevealed = [];
+    game.revealedHiddenMoves = {};
+    game.permanentlyRevealedStones = [];
+    game.justCaptured = [];
+    (game as any).consumedPatternIntersections = [];
+    game.effectiveCaptureTargets = {
+        [Player.None]: 0,
+        [Player.Black]: !isCaptureGoalMode || hasAutoScoring ? 999 : (isSurvivalMode ? 999 : baseCaptureTargetBlack),
+        [Player.White]:
+            !isCaptureGoalMode || hasAutoScoring ? 999 : (isSurvivalMode ? stage.targetScore.black : baseCaptureTargetWhite),
+    };
+    game.whiteTurnsPlayed = isSurvivalMode ? 0 : undefined;
+    game.singlePlayerPlacementRefreshesUsed = 0;
+    (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
+    (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
+
+    game.settings = {
+        ...game.settings,
+        boardSize: stage.boardSize,
+        timeLimit: enforcedMainTimeMinutes,
+        byoyomiTime: enforcedByoyomiTimeSeconds,
+        byoyomiCount: 0,
+        timeIncrement: enforcedIncrement,
+        captureTarget: isCaptureGoalMode && !hasAutoScoring ? stage.targetScore.black : undefined,
+        survivalTurns: survivalTurnsResolved,
+        isSurvivalMode: isSurvivalMode,
+        hiddenStoneCount: stage.hiddenCount,
+        scanCount: stage.scanCount,
+        missileCount: stage.missileCount,
+        singlePlayerPlacementRefreshAllowed: stage.allowPlacementRefresh !== false,
+        autoScoringTurns: stage.autoScoringTurns,
+        // 따내기/살리기에서만 턴 제한을 사용한다.
+        blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
+        baseStones: stage.baseStones,
+        singlePlayerForcedAiResponses: stage.forcedAiResponses,
+        singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
+        ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
+    } as any;
+
+    if (gameMode !== GameMode.Hidden && gameMode !== GameMode.Mix) {
+        game.hiddenMoves = {};
+        (game as any).scans_p1 = 0;
+        (game as any).scans_p2 = 0;
+    }
+    if (gameMode !== GameMode.Missile && gameMode !== GameMode.Mix) {
+        (game as any).missiles_p1 = 0;
+        (game as any).missiles_p2 = 0;
+        (game as any).missileUsedThisTurn = false;
+    }
+    if (gameMode === GameMode.Hidden) {
+        const { initializeSinglePlayerHidden } = await import('../modes/singlePlayerHidden.js');
+        initializeSinglePlayerHidden(game);
+    }
+    if (gameMode === GameMode.Missile) {
+        const { initializeSinglePlayerMissile } = await import('../modes/singlePlayerMissile.js');
+        initializeSinglePlayerMissile(game);
+    }
+    if (gameMode === GameMode.Mix) {
+        const mix = mixModes;
+        if (mix.includes(GameMode.Hidden)) {
+            const { initializeSinglePlayerHidden } = await import('../modes/singlePlayerHidden.js');
+            initializeSinglePlayerHidden(game);
+        }
+        if (mix.includes(GameMode.Missile)) {
+            const { initializeSinglePlayerMissile } = await import('../modes/singlePlayerMissile.js');
+            initializeSinglePlayerMissile(game);
+        }
+    }
+
+    (game as any).singlePlayerStageDisplay = JSON.parse(JSON.stringify(stage)) as SinglePlayerStageInfo;
+};
+
 
 export const handleSinglePlayerAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     const { type, payload } = action as any;
@@ -269,11 +369,16 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             
             // 게임 모드: strategicRulePreset이 있으면 우선, 없으면 기존 필드 조합 추론
             const gameMode: GameMode = resolveSinglePlayerStrategicGameMode(stage);
+            const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];
+            const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
             const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
 
             // 싱글플레이용 AI: 반별 프로필 1~5 + KataServer levelbot (`kataServerLevel`)
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
-            const kataServerLevel = getSinglePlayerKataServerLevel(stage.level);
+            const kataServerLevel =
+                typeof stage.kataServerLevel === 'number' && Number.isFinite(stage.kataServerLevel)
+                    ? Math.max(-31, Math.min(9, Math.floor(stage.kataServerLevel)))
+                    : getSinglePlayerKataServerLevel(stage.level);
             const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
                              stage.level === SinglePlayerLevel.초급 ? '초급' :
                              stage.level === SinglePlayerLevel.중급 ? '중급' :
@@ -302,6 +407,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
 
             const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
+            const survivalTurnsResolved = isSurvivalMode ? resolveSinglePlayerSurvivalTurnCount(stage) : undefined;
 
             // 시간룰 설정: 스피드바둑은 피셔, 비스피드 싱글플레이는 무제한(제한시간/초읽기 없음, 소리 없음)
             const enforcedMainTimeMinutes = isSpeedMode ? (stage.timeControl?.mainTime ?? 5) : 0;
@@ -311,10 +417,12 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
 
             const gameId = `sp-game-${randomUUID()}`;
-            // autoScoringTurns가 있으면 따내기 바둑이 아니므로 captureTarget 설정하지 않음
+            // 따내기 계열(따내기/살리기/믹스-따내기 포함)에서만 목표점수를 적용한다.
             const hasAutoScoring = resolveSinglePlayerHasAutoScoringTurns(stage);
-            const baseCaptureTargetBlack = hasAutoScoring ? 999 : (stage.targetScore.black > 0 ? stage.targetScore.black : 999);
-            const baseCaptureTargetWhite = hasAutoScoring ? 999 : (stage.targetScore.white > 0 ? stage.targetScore.white : 999);
+            const baseCaptureTargetBlack =
+                !isCaptureGoalMode || hasAutoScoring ? 999 : (stage.targetScore.black > 0 ? stage.targetScore.black : 999);
+            const baseCaptureTargetWhite =
+                !isCaptureGoalMode || hasAutoScoring ? 999 : (stage.targetScore.white > 0 ? stage.targetScore.white : 999);
 
             const game: LiveGameSession = {
                 id: gameId,
@@ -330,19 +438,22 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     byoyomiTime: enforcedByoyomiTimeSeconds,
                     byoyomiCount: enforcedByoyomiCount,
                     timeIncrement: enforcedIncrement,
-                    captureTarget: hasAutoScoring ? undefined : stage.targetScore.black, // autoScoringTurns가 있으면 captureTarget 설정하지 않음
+                    captureTarget: isCaptureGoalMode && !hasAutoScoring ? stage.targetScore.black : undefined,
                     aiDifficulty: kataProfileStep, // makeGoAiBotMove 프로필 단계(1~5) → Kata 레벨봇 매핑
                     kataServerLevel,
                     goAiBotLevel: kataProfileStep,
-                    survivalTurns: stage.survivalTurns, // 살리기 바둑 모드: AI가 살아남아야 하는 턴 수
+                    survivalTurns: survivalTurnsResolved, // 살리기 바둑 모드: AI가 살아남아야 하는 턴 수
                     isSurvivalMode: isSurvivalMode, // 살리기 바둑 모드 플래그
                     hiddenStoneCount: stage.hiddenCount, // 히든바둑: 히든 아이템 개수
                     scanCount: stage.scanCount, // 히든바둑: 스캔 아이템 개수
                     missileCount: stage.missileCount, // 미사일바둑: 미사일 아이템 개수
+                    singlePlayerPlacementRefreshAllowed: stage.allowPlacementRefresh !== false,
                     autoScoringTurns: stage.autoScoringTurns, // 자동 계가 턴 수
-                    blackTurnLimit: stage.blackTurnLimit, // 따내기 바둑: 흑(유저) 턴 수 제한
+                    blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
                     baseStones: stage.baseStones, // 베이스바둑: 베이스 돌 개수
-                    ...(gameMode === GameMode.Mix ? { mixedModes: resolveSinglePlayerMixedModes(stage) } : {}),
+                    singlePlayerForcedAiResponses: stage.forcedAiResponses,
+                    singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
+                    ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
                 } as any,
                 player1: user,
                 player2: aiUser,
@@ -377,12 +488,11 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 turnDeadline: undefined,
                 effectiveCaptureTargets: {
                     [Player.None]: 0,
-                    // autoScoringTurns가 있으면 따내기 바둑이 아니므로 목표점수 없음
-                    // 살리기 바둑: 백(봇)이 목표점수를 달성해야 함, 흑(유저)은 목표점수 없음
-                    [Player.Black]: hasAutoScoring ? 999 : (isSurvivalMode ? 999 : baseCaptureTargetBlack),
-                    // autoScoringTurns가 있으면 따내기 바둑이 아니므로 목표점수 없음
+                    // 따내기 계열이 아니면 목표점수 비활성화
+                    [Player.Black]: !isCaptureGoalMode || hasAutoScoring ? 999 : (isSurvivalMode ? 999 : baseCaptureTargetBlack),
                     // 살리기 바둑: 백(봇)이 목표점수를 달성해야 함 (백의 목표점수는 black 값 사용)
-                    [Player.White]: hasAutoScoring ? 999 : (isSurvivalMode ? stage.targetScore.black : baseCaptureTargetWhite),
+                    [Player.White]:
+                        !isCaptureGoalMode || hasAutoScoring ? 999 : (isSurvivalMode ? stage.targetScore.black : baseCaptureTargetWhite),
                 },
                 // 살리기 바둑: 백의 턴 수 추적
                 whiteTurnsPlayed: isSurvivalMode ? 0 : undefined,
@@ -407,7 +517,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
 
             if (gameMode === GameMode.Mix) {
-                const mix = resolveSinglePlayerMixedModes(stage);
+                const mix = mixModes;
                 if (mix.includes(GameMode.Hidden)) {
                     const { initializeSinglePlayerHidden } = await import('../modes/singlePlayerHidden.js');
                     initializeSinglePlayerHidden(game);
@@ -417,6 +527,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     initializeSinglePlayerMissile(game);
                 }
             }
+
+            (game as any).singlePlayerStageDisplay = JSON.parse(JSON.stringify(stage)) as SinglePlayerStageInfo;
 
             // pending은 기본 save가 스킵되므로 force — 모달 장시간·캐시 정리 후에도 DB에서 복구
             await db.saveGame(game, true);
@@ -463,6 +575,12 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 console.error(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Game not pending:`, { gameId, gameStatus: game.gameStatus });
                 return { error: '게임이 이미 시작되었거나 시작할 수 없는 상태입니다.' };
             }
+            const stages = await getEffectiveSinglePlayerStages();
+            const latestStage = stages.find(s => s.id === game.stageId);
+            if (!latestStage) {
+                return { error: 'Stage data not found.' };
+            }
+            await applyLatestPendingSinglePlayerStage(game, latestStage);
             console.log(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Starting game:`, { gameId, currentStatus: game.gameStatus });
 
             const now = Date.now();
@@ -512,10 +630,10 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const enforcedByoyomiCount = isSpeedMode ? 0 : 0;
             const enforcedByoyomiTimeSeconds = isSpeedMode ? (game.settings.byoyomiTime ?? 0) : 0;
             
-            // 스테이지 정보 가져오기 (timeIncrement 설정용)
-            const stages = await getEffectiveSinglePlayerStages();
-            const stage = stages.find(s => s.id === game.stageId);
-            const enforcedIncrement = isSpeedMode && stage ? (stage.timeControl?.increment ?? game.settings.timeIncrement ?? 0) : 0;
+            // 최신 스테이지 동기화 직후 상태 기준으로 increment 사용
+            const enforcedIncrement = isSpeedMode
+                ? (latestStage.timeControl?.increment ?? game.settings.timeIncrement ?? 0)
+                : 0;
 
             // 비스피드 모드는 무제한(시간/초읽기 소리 없음)
             if (!isSpeedMode) {
@@ -600,6 +718,15 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: '배치는 첫 수 전에만 새로고침할 수 있습니다.' };
             }
 
+            const stages = await getEffectiveSinglePlayerStages();
+            const stage = stages.find(s => s.id === game.stageId);
+            if (!stage) {
+                return { error: 'Stage data not found for refresh.' };
+            }
+            if (stage.allowPlacementRefresh === false || game.settings.singlePlayerPlacementRefreshAllowed === false) {
+                return { error: '이 스테이지에서는 배치변경을 사용할 수 없습니다.' };
+            }
+
             const refreshesUsed = game.singlePlayerPlacementRefreshesUsed || 0;
             if (refreshesUsed >= 5) {
                 return { error: '새로고침 횟수를 모두 사용했습니다.' };
@@ -616,12 +743,6 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 user.gold -= cost;
             }
             game.singlePlayerPlacementRefreshesUsed = refreshesUsed + 1;
-
-            const stages = await getEffectiveSinglePlayerStages();
-            const stage = stages.find(s => s.id === game.stageId);
-            if (!stage) {
-                return { error: 'Stage data not found for refresh.' };
-            }
 
             const { board, blackPattern, whitePattern } = generateSinglePlayerBoard(stage);
             game.boardState = board;
@@ -642,6 +763,35 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             console.log(`[handleSinglePlayerAction] SINGLE_PLAYER_REFRESH_PLACEMENT: Success - refreshesUsed=${game.singlePlayerPlacementRefreshesUsed}`);
             return { clientResponse: { updatedUser: user, game } };
+        }
+        case 'SINGLE_PLAYER_SYNC_PENDING_STAGE': {
+            const { gameId } = payload;
+            const { getCachedGame, updateGameCache } = await import('../gameCache.js');
+            let game = await getCachedGame(gameId);
+            if (!game) game = await db.getLiveGame(gameId);
+            if (!game || !game.isSinglePlayer || !game.stageId) {
+                return { error: 'Invalid single player game.' };
+            }
+            if (game.blackPlayerId !== user.id) {
+                return { error: '게임 소유자가 아닙니다.' };
+            }
+            if (game.gameStatus !== 'pending') {
+                return { error: '게임 시작 전(pending) 상태에서만 동기화할 수 있습니다.' };
+            }
+
+            const stages = await getEffectiveSinglePlayerStages();
+            const stage = stages.find((s) => s.id === game.stageId);
+            if (!stage) {
+                return { error: 'Stage data not found.' };
+            }
+
+            await applyLatestPendingSinglePlayerStage(game, stage);
+
+            await db.saveGame(game, true);
+            updateGameCache(game);
+            const { broadcastToGameParticipants } = await import('../socket.js');
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            return { clientResponse: { gameId: game.id, game } };
         }
         case 'START_SINGLE_PLAYER_MISSION': {
             const spMissionGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer', user);

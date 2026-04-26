@@ -11,6 +11,7 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { getPreGameSummaryFour } from '../utils/preGameSummaryFour.js';
+import { resolveSinglePlayerSurvivalModeForSession } from '../shared/utils/singlePlayerStrategicRulePreset.js';
 import { getItemTemplateByName, normalizeBoxItemName } from '../utils/itemTemplateLookup.js';
 import { getTowerSessionFloor, isTowerFirstClearAttemptOnFloor } from '../utils/towerPreGameDisplay.js';
 import {
@@ -32,11 +33,6 @@ import {
     ONBOARDING_PREGAME_DESC_STEP_EVENT,
 } from '../shared/constants/onboardingTutorial.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
-import { activateIntro11TutorialForGame } from '../utils/singlePlayerIntro11Tutorial.js';
-import {
-    ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS,
-    spotlightDimClipPathFromPxRect,
-} from '../utils/onboardingSpotlightDimClipPath.js';
 import StageDefinitionEditorShell from './editor/StageDefinitionEditorShell.js';
 
 const SINGLE_PLAYER_CLEAR_GOLD_BOX = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
@@ -95,55 +91,6 @@ const IN_MODAL_FOOTER_RESERVE_PX = 50;
 /** 내용에 맞춤 */
 const DRAG_FRAME_H_MIN = 320;
 const DRAG_FRAME_H_MAX = 1200;
-type SpotlightRect = { top: number; left: number; width: number; height: number };
-
-function pickVisibleOnboardingTarget(targetId: string): HTMLElement | null {
-    if (typeof document === 'undefined') return null;
-    const modalRoots = Array.from(
-        document.querySelectorAll('[data-draggable-window="game-description-modal"]'),
-    ) as HTMLElement[];
-    const preferredRoot = modalRoots
-        .map((el) => ({ el, rect: el.getBoundingClientRect() }))
-        .filter(({ rect }) => rect.width > 16 && rect.height > 16 && rect.bottom > 0 && rect.right > 0)
-        .sort((a, b) => b.rect.width * b.rect.height - a.rect.width * a.rect.height)[0]?.el;
-    const scopedNodes = preferredRoot
-        ? (Array.from(preferredRoot.querySelectorAll(`[data-onboarding-target="${targetId}"]`)) as HTMLElement[])
-        : [];
-    const nodes = scopedNodes.length
-        ? scopedNodes
-        : (Array.from(document.querySelectorAll(`[data-onboarding-target="${targetId}"]`)) as HTMLElement[]);
-    if (!nodes.length) return null;
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const cx = vw / 2;
-    const cy = vh / 2;
-    const scored = nodes
-        .map((el) => {
-            const rect = el.getBoundingClientRect();
-            if (rect.width <= 4 || rect.height <= 4) return null;
-            const left = Math.max(0, rect.left);
-            const top = Math.max(0, rect.top);
-            const right = Math.min(vw, rect.right);
-            const bottom = Math.min(vh, rect.bottom);
-            const visibleW = Math.max(0, right - left);
-            const visibleH = Math.max(0, bottom - top);
-            const visibleArea = visibleW * visibleH;
-            if (visibleArea <= 16) return null;
-            const rcx = rect.left + rect.width / 2;
-            const rcy = rect.top + rect.height / 2;
-            const dist2 = (rcx - cx) * (rcx - cx) + (rcy - cy) * (rcy - cy);
-            return { el, visibleArea, dist2 };
-        })
-        .filter((v): v is { el: HTMLElement; visibleArea: number; dist2: number } => v != null);
-    if (!scored.length) return null;
-    // 1) 화면에 더 많이 보이는 요소 우선, 2) 동률이면 화면 중심에 가까운 요소 선택
-    scored.sort((a, b) => b.visibleArea - a.visibleArea || a.dist2 - b.dist2);
-    return scored[0].el;
-}
-
-const INTRO11_WINLOSE_TARGET = 'intro11-pregame-winlose';
-const INTRO11_START_TARGET = 'intro11-pregame-start';
-
 function firstClearRewardHasContent(reward: { gold?: number; exp?: number; items?: readonly unknown[] } | undefined): boolean {
     if (!reward) return false;
     return (reward.gold ?? 0) > 0 || (reward.exp ?? 0) > 0 || (reward.items?.length ?? 0) > 0;
@@ -182,14 +129,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const [towerShopOpen, setTowerShopOpen] = useState(false);
     const [towerShopInitialItemId, setTowerShopInitialItemId] = useState<string | undefined>(undefined);
     const [pregameDescSubStep, setPregameDescSubStep] = useState(-1);
-    const [intro11TutorialStep, setIntro11TutorialStep] = useState<number | null>(null);
-    const [intro11SpotlightRect, setIntro11SpotlightRect] = useState<SpotlightRect | null>(null);
-    const [intro11PanelDragOffset, setIntro11PanelDragOffset] = useState({ x: 0, y: 0 });
-    const [intro11PanelDragging, setIntro11PanelDragging] = useState(false);
     const [editorOpen, setEditorOpen] = useState(false);
-    const intro11PanelRef = useRef<HTMLDivElement | null>(null);
-    const intro11DragPointerIdRef = useRef<number | null>(null);
-    const intro11DragOriginRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -226,131 +166,17 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         (currentUser?.onboardingTutorialPhase ?? 0) === 5;
     const onboardingPregameFinalSubStep = onboardingPhase5Active && pregameDescSubStep >= 2;
 
-    const intro11Stage = stage?.id === '입문-11' && !isTower && !readOnly;
-    const isAdminUser = isClientAdmin(currentUser);
-    const isIntro11AlreadyCleared = (currentUser?.clearedSinglePlayerStages ?? []).includes('입문-11');
-    const shouldAutoOpenIntro11Tutorial = intro11Stage && !isIntro11AlreadyCleared;
-    const isIntro11TutorialOpen = intro11TutorialStep !== null;
-
-    useEffect(() => {
-        if (shouldAutoOpenIntro11Tutorial) {
-            setIntro11TutorialStep((prev) => (prev == null ? 0 : prev));
-            return;
-        }
-        setIntro11TutorialStep(null);
-    }, [shouldAutoOpenIntro11Tutorial, session.id]);
-
-    useEffect(() => {
-        if (!(intro11Stage && isIntro11TutorialOpen)) return;
-        let rafId = 0;
-        let lastRectKey = '';
-        const run = () => {
-            const portalRoot = document.getElementById('sudamr-onboarding-root') ?? document.body;
-            const rootRect = portalRoot.getBoundingClientRect();
-            const targetId = intro11TutorialStep === 0 ? INTRO11_WINLOSE_TARGET : INTRO11_START_TARGET;
-            const target =
-                pickVisibleOnboardingTarget(targetId) ??
-                (intro11TutorialStep === 0 ? pickVisibleOnboardingTarget('onboarding-sp-pregame-body') : null);
-            if (!target) {
-                if (lastRectKey !== 'none') {
-                    lastRectKey = 'none';
-                    setIntro11SpotlightRect(null);
-                }
-                return;
-            }
-            const tr = target.getBoundingClientRect();
-            const pad = 10;
-            const left = tr.left - rootRect.left;
-            const top = tr.top - rootRect.top;
-            const right = tr.right - rootRect.left;
-            const bottom = tr.bottom - rootRect.top;
-            const nextRect = {
-                top: Math.max(0, top - pad),
-                left: Math.max(0, left - pad),
-                width: Math.max(0, Math.min(rootRect.width, right + pad) - Math.max(0, left - pad)),
-                height: Math.max(0, Math.min(rootRect.height, bottom + pad) - Math.max(0, top - pad)),
-            };
-            const key = `${Math.round(nextRect.top)}:${Math.round(nextRect.left)}:${Math.round(nextRect.width)}:${Math.round(nextRect.height)}`;
-            if (key !== lastRectKey) {
-                lastRectKey = key;
-                setIntro11SpotlightRect(nextRect);
-            }
-        };
-        const tick = () => {
-            run();
-            rafId = requestAnimationFrame(tick);
-        };
-        rafId = requestAnimationFrame(tick);
-        window.addEventListener('resize', run);
-        window.addEventListener('scroll', run, true);
-        return () => {
-            cancelAnimationFrame(rafId);
-            window.removeEventListener('resize', run);
-            window.removeEventListener('scroll', run, true);
-        };
-    }, [intro11Stage, isIntro11TutorialOpen, intro11TutorialStep, session.id]);
-
-    useEffect(() => {
-        setIntro11PanelDragOffset({ x: 0, y: 0 });
-        setIntro11PanelDragging(false);
-        intro11DragPointerIdRef.current = null;
-        intro11DragOriginRef.current = null;
-    }, [intro11TutorialStep, session.id, intro11Stage]);
-
-    const clampIntro11PanelOffset = (nextX: number, nextY: number) => {
-        const el = intro11PanelRef.current;
-        if (!el) return { x: nextX, y: nextY };
-        const rect = el.getBoundingClientRect();
-        const maxX = Math.max(0, window.innerWidth / 2 - rect.width / 2 - 8);
-        const maxY = Math.max(0, window.innerHeight / 2 - rect.height / 2 - 8);
-        return {
-            x: Math.max(-maxX, Math.min(maxX, nextX)),
-            y: Math.max(-maxY, Math.min(maxY, nextY)),
-        };
-    };
-
-    useEffect(() => {
-        if (!intro11PanelDragging) return;
-        const onMove = (ev: PointerEvent) => {
-            if (intro11DragPointerIdRef.current !== ev.pointerId) return;
-            const origin = intro11DragOriginRef.current;
-            if (!origin) return;
-            const next = clampIntro11PanelOffset(origin.offsetX + (ev.clientX - origin.x), origin.offsetY + (ev.clientY - origin.y));
-            setIntro11PanelDragOffset(next);
-        };
-        const onUp = (ev: PointerEvent) => {
-            if (intro11DragPointerIdRef.current !== ev.pointerId) return;
-            intro11DragPointerIdRef.current = null;
-            intro11DragOriginRef.current = null;
-            setIntro11PanelDragging(false);
-        };
-        window.addEventListener('pointermove', onMove);
-        window.addEventListener('pointerup', onUp);
-        window.addEventListener('pointercancel', onUp);
-        return () => {
-            window.removeEventListener('pointermove', onMove);
-            window.removeEventListener('pointerup', onUp);
-            window.removeEventListener('pointercancel', onUp);
-        };
-    }, [intro11PanelDragging]);
-
     if (!stage) {
         return null;
     }
 
-    const gameModeName = stage.survivalTurns ? '살리기 바둑' : getGameModeName(session.mode);
+    const gameModeName = resolveSinglePlayerSurvivalModeForSession(session, stage)
+        ? '살리기 바둑'
+        : getGameModeName(session.mode);
     const stageDisplayName = formatStageDisplayName(stage, isTower);
     const compactTitleLines = getCompactStageTitleLines(stage, isTower);
     const modeMeta =
         SPECIAL_GAME_MODES.find((m) => m.mode === session.mode) ?? PLAYFUL_GAME_MODES.find((m) => m.mode === session.mode);
-    const intro11ViewportHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
-    const intro11SpotlightCenterY =
-        intro11SpotlightRect != null
-            ? intro11SpotlightRect.top + intro11SpotlightRect.height / 2
-            : null;
-    const intro11PanelPlacementTop =
-        intro11SpotlightCenterY == null ? true : intro11SpotlightCenterY > intro11ViewportHeight * 0.5;
-    const intro11PortalMount = typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') ?? document.body : null;
 
     /** 서버와 동일: 최초 클리어 보상만 표시(재도전·이미 클리어한 층/스테이지는 없음). */
     const sessionFloorTower = isTower ? getTowerSessionFloor(session) : 0;
@@ -521,9 +347,9 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                           }
                         : undefined
                 }
-                embedOnboardingSpotlightTargets={onboardingPhase5Active || intro11Stage}
-                spotlightWinLoseTargetId={intro11Stage ? INTRO11_WINLOSE_TARGET : 'onboarding-sp-pregame-winlose'}
-                spotlightRestTargetId={intro11Stage ? 'intro11-pregame-rest' : 'onboarding-sp-pregame-rest'}
+                embedOnboardingSpotlightTargets={onboardingPhase5Active}
+                spotlightWinLoseTargetId="onboarding-sp-pregame-winlose"
+                spotlightRestTargetId="onboarding-sp-pregame-rest"
             />
         </div>
     );
@@ -570,20 +396,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 </Button>
             )}
             <Button
-                data-onboarding-target={
-                    onboardingPregameFinalSubStep || (intro11Stage && isIntro11TutorialOpen && intro11TutorialStep === 1)
-                        ? (intro11Stage ? INTRO11_START_TARGET : 'onboarding-sp-game-start')
-                        : undefined
-                }
+                data-onboarding-target={onboardingPregameFinalSubStep ? 'onboarding-sp-game-start' : undefined}
                 onClick={() => {
-                    if (intro11Stage && isIntro11TutorialOpen && intro11TutorialStep === 0) return;
-                    if (intro11Stage && isIntro11TutorialOpen) {
-                        activateIntro11TutorialForGame(session.id);
-                    }
                     onStart?.();
                 }}
                 colorScheme="accent"
-                disabled={!onStart || (intro11Stage && isIntro11TutorialOpen && intro11TutorialStep === 0)}
+                disabled={!onStart}
                 className={
                     compact
                         ? onClose
@@ -594,15 +412,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             >
                 시작하기
             </Button>
-            {intro11Stage && isAdminUser && (
-                <button
-                    type="button"
-                    className="text-[11px] text-amber-200/80 hover:text-amber-100 underline underline-offset-2"
-                    onClick={() => setIntro11TutorialStep(0)}
-                >
-                    튜토리얼2
-                </button>
-            )}
                 </>
             )}
         </>
@@ -623,6 +432,47 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     onBuy={onTowerItemPurchase!}
                 />
             </div>,
+            document.body
+        );
+
+    /** DraggableWindow 본문이 overflow-hidden이라 fixed 편집기가 창 안에 갇히지 않도록 body로 포털 */
+    const stageEditorPortal =
+        canOpenStageEditor &&
+        createPortal(
+            <StageDefinitionEditorShell
+                open={editorOpen}
+                scope="singleplayer"
+                stage={stage}
+                onClose={() => setEditorOpen(false)}
+                onSave={async (nextStage) => {
+                    if (!onAction) return;
+                    const nextStages = SINGLE_PLAYER_STAGES.map((row) => (row.id === nextStage.id ? nextStage : row));
+                    const result = (await onAction({
+                        type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
+                        payload: { stages: nextStages },
+                    } as ServerAction)) as any;
+                    if (result?.error) throw new Error(result.error);
+                    setSinglePlayerStagesFromServer(nextStages);
+                    if (session.gameCategory === 'singleplayer' && session.gameStatus === 'pending') {
+                        try {
+                            await onAction({
+                                type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
+                                payload: { gameId: session.id },
+                            } as ServerAction);
+                        } catch (error) {
+                            console.warn('[StageDefinitionEditorShell] pending stage sync failed:', error);
+                        }
+                    }
+                    setEditorOpen(false);
+                }}
+                onResetAllToDefault={async () => {
+                    if (!onAction) return;
+                    const result = (await onAction({
+                        type: 'ADMIN_RESET_SINGLE_PLAYER_STAGES',
+                    } as ServerAction)) as any;
+                    if (result?.error) throw new Error(result.error);
+                }}
+            />,
             document.body
         );
 
@@ -656,54 +506,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             }
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
-            {canOpenStageEditor && (
-                <StageDefinitionEditorShell
-                    open={editorOpen}
-                    scope="singleplayer"
-                    stage={stage}
-                    swapStageOptions={SINGLE_PLAYER_STAGES}
-                    onClose={() => setEditorOpen(false)}
-                    onSave={async (nextStage) => {
-                        if (!onAction) return;
-                        const nextStages = SINGLE_PLAYER_STAGES.map((row) => (row.id === nextStage.id ? nextStage : row));
-                        const result = await onAction({
-                            type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
-                            payload: { stages: nextStages },
-                        } as ServerAction) as any;
-                        if (result?.error) throw new Error(result.error);
-                        setSinglePlayerStagesFromServer(nextStages);
-                        setEditorOpen(false);
-                    }}
-                    onSwapStageInfo={async (targetStageId) => {
-                        if (!onAction) return;
-                        const source = SINGLE_PLAYER_STAGES.find((row) => row.id === stage.id);
-                        const target = SINGLE_PLAYER_STAGES.find((row) => row.id === targetStageId);
-                        if (!source || !target || source.id === target.id) return;
-
-                        const { id: sourceId, ...sourceRest } = source;
-                        const { id: targetId, ...targetRest } = target;
-                        const nextStages = SINGLE_PLAYER_STAGES.map((row) => {
-                            if (row.id === sourceId) return { id: sourceId, ...targetRest } as SinglePlayerStageInfo;
-                            if (row.id === targetId) return { id: targetId, ...sourceRest } as SinglePlayerStageInfo;
-                            return row;
-                        });
-
-                        const result = await onAction({
-                            type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
-                            payload: { stages: nextStages },
-                        } as ServerAction) as any;
-                        if (result?.error) throw new Error(result.error);
-                        setSinglePlayerStagesFromServer(nextStages);
-                    }}
-                    onResetAllToDefault={async () => {
-                        if (!onAction) return;
-                        const result = await onAction({
-                            type: 'ADMIN_RESET_SINGLE_PLAYER_STAGES',
-                        } as ServerAction) as any;
-                        if (result?.error) throw new Error(result.error);
-                    }}
-                />
-            )}
+            {stageEditorPortal}
             {towerShopPortal}
             <div className={`flex min-h-0 flex-col text-white ${isCompactUi ? 'h-full min-h-0 flex-1' : 'shrink-0'}`}>
                 {isCompactUi ? (
@@ -747,86 +550,6 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     </div>
                 )}
             </div>
-            {intro11Stage &&
-                isIntro11TutorialOpen &&
-                intro11PortalMount &&
-                createPortal(
-                    <>
-                        {intro11SpotlightRect && (
-                            <div className="pointer-events-none absolute inset-0 z-[280]" aria-hidden>
-                                <div
-                                    className={ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS}
-                                    style={{
-                                        WebkitClipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
-                                        clipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
-                                    }}
-                                />
-                            </div>
-                        )}
-                        <div className="pointer-events-none absolute inset-0 z-[281] px-3 pt-2 sm:px-5 sm:pt-3">
-                            <div
-                                ref={intro11PanelRef}
-                                className="pointer-events-auto absolute left-1/2 w-[min(100%,32rem)] rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5"
-                                style={
-                                    intro11PanelPlacementTop
-                                        ? {
-                                              top: '1rem',
-                                              transform: `translate3d(calc(-50% + ${intro11PanelDragOffset.x}px), ${intro11PanelDragOffset.y}px, 0)`,
-                                          }
-                                        : {
-                                              bottom: '1rem',
-                                              transform: `translate3d(calc(-50% + ${intro11PanelDragOffset.x}px), ${intro11PanelDragOffset.y}px, 0)`,
-                                          }
-                                }
-                            >
-                                <div
-                                    className={`mb-2 flex touch-none select-none items-center justify-center rounded-lg border border-white/10 bg-black/25 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-stone-200/80 ${
-                                        intro11PanelDragging ? 'cursor-grabbing' : 'cursor-grab'
-                                    }`}
-                                    onPointerDown={(ev) => {
-                                        if (ev.button !== 0) return;
-                                        intro11DragPointerIdRef.current = ev.pointerId;
-                                        intro11DragOriginRef.current = {
-                                            x: ev.clientX,
-                                            y: ev.clientY,
-                                            offsetX: intro11PanelDragOffset.x,
-                                            offsetY: intro11PanelDragOffset.y,
-                                        };
-                                        setIntro11PanelDragging(true);
-                                        ev.currentTarget.setPointerCapture?.(ev.pointerId);
-                                    }}
-                                    title="드래그하여 위치 이동"
-                                >
-                                    <span className="h-1.5 w-14 rounded-full bg-white/45" aria-hidden />
-                                </div>
-                                <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">튜토리얼</p>
-                                <h2 className="mt-0.5 text-center text-base font-bold text-stone-50 sm:text-lg">살기기 바둑</h2>
-                                {intro11TutorialStep === 0 ? (
-                                    <>
-                                        <p className="mt-2 text-left text-sm leading-relaxed text-stone-200/95 sm:text-[15px]">
-                                            입문반 11스테이지까지 왔군요! 여기부터 승리 목표가 달라집니다. 승리조건과 패배조건을 잘 확인해야합니다. 이 스테이지는 살리기 바둑으로 제한 턴동안 상대방이 목표점수를 만들지 못하게 내 돌을 지키는 스테이지입니다.
-                                        </p>
-                                        <div className="mt-3 flex justify-end gap-2 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
-                                            <Button
-                                                type="button"
-                                                colorScheme="accent"
-                                                onClick={() => setIntro11TutorialStep(1)}
-                                                className="min-h-9 px-4 text-sm"
-                                            >
-                                                다음
-                                            </Button>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <p className="mt-2 text-left text-sm leading-relaxed text-stone-200/95 sm:text-[15px]">
-                                        이제 시작하기 버튼을 눌러 내 돌을 지켜보세요
-                                    </p>
-                                )}
-                            </div>
-                        </div>
-                    </>,
-                    intro11PortalMount,
-                )}
         </DraggableWindow>
     );
 };

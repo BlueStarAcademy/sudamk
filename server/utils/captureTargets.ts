@@ -38,11 +38,14 @@ export async function tryEndGameWhenCaptureTargetReached(game: LiveGameSession, 
     ) {
         return false;
     }
+    const mixedModes = ((game.settings as any)?.mixedModes ?? []) as GameMode[];
+    const hasCaptureInMix = game.mode === GameMode.Mix && Array.isArray(mixedModes) && mixedModes.includes(GameMode.Capture);
     const captureScoringContext =
         game.mode === GameMode.Capture ||
-        game.isSinglePlayer ||
-        game.gameCategory === GameCategory.Tower ||
-        game.gameCategory === GameCategory.Adventure;
+        hasCaptureInMix ||
+        // 길드전/모험/탑은 모드 전환 과정에서 stale target이 남을 수 있어도 capture 모드일 때만 발동.
+        ((game.gameCategory === GameCategory.Tower || game.gameCategory === GameCategory.Adventure) &&
+            (game.mode === GameMode.Capture || hasCaptureInMix));
     if (!captureScoringContext) return false;
     const target = getCaptureTarget(game, scorer);
     if (target === undefined || target === NO_CAPTURE_TARGET) return false;

@@ -150,6 +150,7 @@ function scheduleSinglePlayerBlackTurnLimitFail(gameId: string | number | undefi
             let g: types.LiveGameSession | null = await getCachedGame(key);
             if (!g) g = await db.getLiveGame(key);
             if (!g || !g.isSinglePlayer || (g.gameStatus as string) === 'ended') return;
+            if ((g.settings as any)?.isSurvivalMode === true) return;
 
             const blackTurnLimit = Number((g.settings as any)?.blackTurnLimit ?? 0);
             if (!(blackTurnLimit > 0)) return;
@@ -1469,14 +1470,18 @@ export async function makeGoAiBotMove(
     const nextPlannedAiHiddenTurn = plannedAiHiddenTurns[usedAiHiddenItems];
     const shouldUseStrategicAiHiddenItem = isStrategicAiGame && nextPlannedAiHiddenTurn === currentAiTurnIndex;
 
-    if (!isKataServerAvailable()) {
+    const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
+    const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
+    const forcedAiResponsesForStage = ((game.settings as any)?.singlePlayerForcedAiResponses ?? []) as Array<{
+        whenOpponentStoneAt?: Point;
+        move: Point;
+    }>;
+    const useHeuristicInsteadOfKata = game.isSinglePlayer && forcedAiResponsesForStage.length > 0;
+    if (!useHeuristicInsteadOfKata && !isKataServerAvailable()) {
         throw new Error(
             `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). game=${game.id}`
         );
     }
-
-    const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
-    const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
     let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
     // 도전의 탑·모험·길드전: DB/캐시·병합 등으로 settings.kataServerLevel만 빠지면 프로필 폴백으로 떨어져 체감이 달라짐 → 카테고리별 표로 복구.
@@ -1600,6 +1605,24 @@ export async function makeGoAiBotMove(
     }
 
     const userPlayerEnumForHidden = aiPlayerEnum === types.Player.White ? types.Player.Black : types.Player.White;
+    if (!selectedMove && useHeuristicInsteadOfKata) {
+        const logic = getGoLogic(game);
+        const profile = getGoAiBotProfile(goAiProfileLevel);
+        const validMoves = findAllValidMovesFast(game, logic, aiPlayerEnum);
+        if (validMoves.length === 0) {
+            await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+            return;
+        }
+        const scoredMoves =
+            (game.settings as any)?.isSurvivalMode
+                ? scoreMovesForAggressiveCapture(validMoves, game, profile, logic, aiPlayerEnum, opponentPlayerEnum)
+                : scoreMovesFast(validMoves, game, profile, logic, aiPlayerEnum, opponentPlayerEnum);
+        selectedMove = scoredMoves[0]?.move ?? validMoves[0]!;
+        console.log(
+            `[makeGoAiBotMove] forced-response stage uses heuristic move game=${game.id} (${selectedMove.x},${selectedMove.y})`
+        );
+    }
+
     if (!selectedMove) {
         const kataLevel = resolvedKataLevel;
         const rawMoveHistory = getMoveHistoryForKataServer(game, aiPlayerEnum);
@@ -1683,6 +1706,34 @@ export async function makeGoAiBotMove(
 
     if (!selectedMove) {
         throw new Error(`[makeGoAiBotMove] KataServer에서 수를 얻지 못했습니다. game=${game.id}`);
+    }
+
+    const forcedAiResponses = forcedAiResponsesForStage;
+    const isStrictForcedResponse =
+        game.isSinglePlayer &&
+        (game.settings as any)?.singlePlayerStrictForcedAiResponses === true &&
+        forcedAiResponses.length > 0;
+    if (game.isSinglePlayer && forcedAiResponses.length > 0) {
+        const boardSize = game.settings.boardSize || game.boardState.length;
+        const isInsideBoard = (p: Point | undefined): p is Point =>
+            !!p && p.x >= 0 && p.y >= 0 && p.x < boardSize && p.y < boardSize;
+        const isLegalForcedMove = (p: Point) =>
+            isInsideBoard(p) &&
+            processMove(game.boardState, { ...p, player: aiPlayerEnum }, game.koInfo, game.moveHistory.length).isValid;
+
+        for (const rule of forcedAiResponses) {
+            const cond = rule.whenOpponentStoneAt;
+            if (isInsideBoard(cond)) {
+                const stoneAtCondition = game.boardState[cond.y]?.[cond.x];
+                if (stoneAtCondition !== opponentPlayerEnum) {
+                    continue;
+                }
+            }
+            if (isInsideBoard(rule.move) && isLegalForcedMove(rule.move)) {
+                selectedMove = { x: rule.move.x, y: rule.move.y };
+                break;
+            }
+        }
     }
 
     // 히든 규칙: 유저의 미공개 히든 돌 위에 착점 시 공개 애니메이션 후 Kata 재질의.
@@ -1805,8 +1856,15 @@ export async function makeGoAiBotMove(
             await db.saveGame(game);
             return;
         }
-        const logicEmergency = getGoLogic(game);
-        let legalEmergency = findAllValidMoves(game, logicEmergency, aiPlayerEnum);
+        if (isStrictForcedResponse) {
+            console.warn(
+                `[makeGoAiBotMove] strict forced response failed; resign instead of random fallback, game=${game.id}`
+            );
+                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                return;
+        } else {
+            const logicEmergency = getGoLogic(game);
+            let legalEmergency = findAllValidMoves(game, logicEmergency, aiPlayerEnum);
         if (
             getUserUnrevealedHiddenPoints(game, aiPlayerEnum).length > 0 &&
             legalEmergency.length > 0
@@ -1840,6 +1898,7 @@ export async function makeGoAiBotMove(
             throw new Error(
                 `[makeGoAiBotMove] Kata가 고른 수가 규칙상 무효입니다 (${selectedMove.x},${selectedMove.y}). game=${game.id}`
             );
+        }
         }
     }
 
@@ -2039,8 +2098,10 @@ export async function makeGoAiBotMove(
     // (isItemMode가 위 블록에서 정의되지 않을 수 있으므로 여기서 별도 정의)
     const isItemModeHere = ['hidden_placing', 'scanning', 'missile_selecting', 'missile_animating', 'scanning_animating'].includes(game.gameStatus);
     const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
+    const isSurvivalSinglePlayer = game.isSinglePlayer && (game.settings as any)?.isSurvivalMode === true;
     const isGuildWarCapture = (game as any).gameCategory === 'guildwar' && game.mode === types.GameMode.Capture;
-    const shouldApplyBlackTurnLimit = (game.isSinglePlayer && game.stageId) || isGuildWarCapture;
+    const shouldApplyBlackTurnLimit =
+        !isSurvivalSinglePlayer && ((game.isSinglePlayer && game.stageId) || isGuildWarCapture);
     if (!isItemModeHere && shouldApplyBlackTurnLimit && blackTurnLimit !== undefined && aiPlayerEnum === types.Player.White && game.gameStatus === 'playing') {
         const blackMoves = game.moveHistory.filter(m => m.player === types.Player.Black && m.x !== -1 && m.y !== -1).length;
         if (blackMoves >= blackTurnLimit) {

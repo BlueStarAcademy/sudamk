@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { GameMode, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../../types/index.js';
+import { GameMode, SinglePlayerLevel, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../../types/index.js';
 import {
     inferSinglePlayerStrategicRulePreset,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
@@ -26,10 +26,8 @@ interface Props {
     open: boolean;
     scope: Scope;
     stage: SinglePlayerStageInfo;
-    swapStageOptions?: SinglePlayerStageInfo[];
     onClose: () => void;
     onSave: (next: SinglePlayerStageInfo) => Promise<void>;
-    onSwapStageInfo?: (targetStageId: string) => Promise<void>;
     onResetAllToDefault?: () => Promise<void>;
 }
 
@@ -104,16 +102,46 @@ const MIX_MODE_OPTIONS: { mode: GameMode; label: string }[] = [
     { mode: GameMode.Missile, label: '미사일' },
 ];
 
-const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapStageOptions, onClose, onSave, onSwapStageInfo, onResetAllToDefault }) => {
+const defaultSinglePlayerKataServerLevel = (level: SinglePlayerStageInfo['level']): number => {
+    switch (level) {
+        case SinglePlayerLevel.입문:
+            return -31;
+        case SinglePlayerLevel.초급:
+            return -30;
+        case SinglePlayerLevel.중급:
+            return -29;
+        case SinglePlayerLevel.고급:
+            return -28;
+        case SinglePlayerLevel.유단자:
+            return -27;
+        default:
+            return -31;
+    }
+};
+
+const clampKataServerLevel = (value: number): number => Math.max(-31, Math.min(9, Math.floor(value)));
+
+type ForcedAiResponseRow = NonNullable<SinglePlayerStageInfo['forcedAiResponses']>[number];
+const pointKey = (x: number, y: number): string => `${x},${y}`;
+
+const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClose, onSave, onResetAllToDefault }) => {
     const [draft, setDraft] = useState<SinglePlayerStageInfo>(() => cloneStageInfo(stage));
     const [cells, setCells] = useState<StoneCell[][]>(() => fixedOpeningToCells(stage));
     const [saving, setSaving] = useState(false);
-    const [swapping, setSwapping] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [brush, setBrush] = useState<BrushStone>('black');
+    const [kataServerLevelInput, setKataServerLevelInput] = useState<string>(() =>
+        String(
+            clampKataServerLevel(
+                Number.isFinite(stage.kataServerLevel)
+                    ? Number(stage.kataServerLevel)
+                    : defaultSinglePlayerKataServerLevel(stage.level)
+            )
+        )
+    );
     const [rulePreset, setRulePreset] = useState<SinglePlayerStrategicRulePreset>(() => stage.strategicRulePreset ?? 'auto');
+    const [isForcedResponseBoardEditMode, setIsForcedResponseBoardEditMode] = useState(false);
     const [resetBaseline, setResetBaseline] = useState<SinglePlayerStageInfo>(() => cloneStageInfo(stage));
-    const [swapTargetStageId, setSwapTargetStageId] = useState('');
     const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [rememberPosition, setRememberPosition] = useState(false);
@@ -121,20 +149,26 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
     const dragPointerIdRef = useRef<number | null>(null);
     const dragOriginRef = useRef<{ x: number; y: number; offsetX: number; offsetY: number } | null>(null);
 
+    // 편집기가 열릴 때·다른 스테이지로 바뀔 때만 서버/상수 스냅샷으로 초기화한다.
+    // `stage` 객체 참조만 바뀌는 경우(소켓으로 SINGLE_PLAYER_STAGES 전체 갱신 등)에는 초기화하지 않는다.
+    // 그렇지 않으면 보드 크기 변경·돌 배치 직후 로컬 편집이 덮어써져 저장이 깨진 것처럼 보인다.
     useEffect(() => {
         if (!open) return;
         const snapshot = cloneStageInfo(stage);
+        const resolvedKataServerLevel = clampKataServerLevel(
+            Number.isFinite(snapshot.kataServerLevel)
+                ? Number(snapshot.kataServerLevel)
+                : defaultSinglePlayerKataServerLevel(snapshot.level)
+        );
         setResetBaseline(snapshot);
-        setDraft(snapshot);
+        setDraft({ ...snapshot, kataServerLevel: resolvedKataServerLevel });
+        setKataServerLevelInput(String(resolvedKataServerLevel));
         setCells(fixedOpeningToCells(snapshot));
         setRulePreset(snapshot.strategicRulePreset ?? 'auto');
+        setIsForcedResponseBoardEditMode(false);
         setErrorMessage('');
-    }, [open, stage]);
-    useEffect(() => {
-        if (!open) return;
-        const options = (swapStageOptions ?? []).filter((row) => row.id !== stage.id);
-        setSwapTargetStageId((prev) => (prev && options.some((row) => row.id === prev) ? prev : (options[0]?.id ?? '')));
-    }, [open, stage.id, swapStageOptions]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- stage.id·open만으로 동기화 시점을 제한함
+    }, [open, stage.id]);
     useEffect(() => {
         if (!open) return;
         let shouldRemember = false;
@@ -189,6 +223,15 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
     const showHiddenCounts = effectiveRulePreset === 'hidden' || (isMixPreset && mixHasHidden);
     const showMissileCount = effectiveRulePreset === 'missile' || (isMixPreset && mixHasMissile);
     const isMixSelectionInvalid = isMixPreset && mixedModes.length < 2;
+    const forcedAiResponses = Array.isArray(draft.forcedAiResponses) ? draft.forcedAiResponses : [];
+    const forcedMoveIndexByKey = useMemo(() => {
+        const map = new Map<string, number>();
+        forcedAiResponses.forEach((rule, idx) => {
+            if (!rule?.move) return;
+            map.set(pointKey(rule.move.x, rule.move.y), idx);
+        });
+        return map;
+    }, [forcedAiResponses]);
     const validationErrors = useMemo(() => {
         const errors: string[] = [];
         if (isMixSelectionInvalid) {
@@ -208,12 +251,81 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
         if (randomStoneCount > randomCapacity) {
             errors.push(`랜덤 배치 돌 수가 가능한 칸 수(${randomCapacity})를 초과했습니다.`);
         }
+        if ((draft.description ?? '').length > 1200) {
+            errors.push('스테이지 설명은 1200자 이하로 입력해주세요.');
+        }
         return errors;
-    }, [cells, draft.boardSize, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid]);
+    }, [cells, draft.boardSize, draft.description, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid]);
     const hasValidationErrors = validationErrors.length > 0;
+
+    const updateForcedAiResponse = useCallback((index: number, updater: (prev: ForcedAiResponseRow) => ForcedAiResponseRow) => {
+        setDraft((prev) => {
+            const list = Array.isArray(prev.forcedAiResponses) ? [...prev.forcedAiResponses] : [];
+            const current = list[index];
+            if (!current) return prev;
+            list[index] = updater(current);
+            return { ...prev, forcedAiResponses: list };
+        });
+    }, []);
+
+    const addForcedAiResponse = useCallback(() => {
+        setDraft((prev) => {
+            const list = Array.isArray(prev.forcedAiResponses) ? [...prev.forcedAiResponses] : [];
+            list.push({ move: { x: 0, y: 0 } });
+            return { ...prev, forcedAiResponses: list };
+        });
+    }, []);
+
+    const removeForcedAiResponse = useCallback((index: number) => {
+        setDraft((prev) => {
+            const list = Array.isArray(prev.forcedAiResponses) ? [...prev.forcedAiResponses] : [];
+            list.splice(index, 1);
+            return {
+                ...prev,
+                forcedAiResponses: list.length > 0 ? list : undefined,
+                strictForcedAiResponses: list.length > 0 ? prev.strictForcedAiResponses : false,
+            };
+        });
+    }, []);
+    const handleBoardCellClick = useCallback((x: number, y: number) => {
+        if (scope === 'singleplayer' && isForcedResponseBoardEditMode) {
+            setDraft((prev) => {
+                const list = Array.isArray(prev.forcedAiResponses) ? [...prev.forcedAiResponses] : [];
+                const existingIndex = list.findIndex((rule) => rule.move.x === x && rule.move.y === y);
+                if (existingIndex >= 0) {
+                    list.splice(existingIndex, 1);
+                    return {
+                        ...prev,
+                        forcedAiResponses: list.length > 0 ? list : undefined,
+                        strictForcedAiResponses: list.length > 0 ? prev.strictForcedAiResponses : false,
+                    };
+                }
+                if (cells[y]?.[x]) {
+                    return prev;
+                }
+                list.push({ move: { x, y } });
+                return { ...prev, forcedAiResponses: list };
+            });
+            return;
+        }
+        setCells((prev) => {
+            const next = prev.map((row) => [...row]);
+            const cur = next[y][x];
+            if (cur) {
+                next[y][x] = '';
+            } else {
+                next[y][x] = brush;
+            }
+            return next;
+        });
+    }, [brush, cells, isForcedResponseBoardEditMode, scope]);
 
     const boardSize = draft.boardSize;
     const rowIndices = useMemo(() => Array.from({ length: boardSize }, (_, i) => i), [boardSize]);
+    const boardCellSizeClass =
+        boardSize >= 13 ? 'h-5 w-5 sm:h-5 sm:w-5' : boardSize >= 11 ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-7 w-7 sm:h-8 sm:w-8';
+    const boardRowGapClass = boardSize >= 13 ? 'gap-0.5' : boardSize >= 11 ? 'gap-0.5' : 'gap-1';
+    const forcedIndexTextClass = boardSize >= 13 ? 'text-[9px]' : 'text-[11px]';
     const clampDragOffset = useCallback((nextX: number, nextY: number) => {
         const modal = modalRef.current;
         if (!modal) return { x: nextX, y: nextY };
@@ -288,10 +400,10 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[260] bg-black/70 p-3 sm:p-6">
+        <div className="fixed inset-0 z-[280] bg-black/70 p-3 sm:p-5">
             <div
                 ref={modalRef}
-                className="mx-auto flex h-full w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-zinc-950 text-zinc-100 shadow-2xl"
+                className="mx-auto flex h-full w-full max-w-[min(98vw,45rem)] flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-zinc-950 text-zinc-100 shadow-2xl"
                 style={{ transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)` }}
             >
                 <div
@@ -313,8 +425,170 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                     <h2 className="text-lg font-bold">스테이지 편집 ({scope}) - {draft.id}</h2>
                     <Button onClick={onClose} colorScheme="gray">닫기</Button>
                 </div>
-                <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-auto p-4 lg:grid-cols-[1.15fr_1fr]">
-                    <div className="space-y-3">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4 lg:flex-row lg:items-stretch">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:min-w-0 lg:w-[70%] lg:flex-none lg:shrink-0">
+                        <div className="shrink-0">
+                            <p className="mb-2 text-xs text-zinc-400">
+                                위에서 돌 종류를 고른 뒤 빈 칸에 클릭해 놓습니다. 돌이 있는 칸을 다시 클릭하면 빈칸이 됩니다.
+                            </p>
+                            <div className="mb-3 flex flex-wrap gap-2">
+                                {BRUSH_OPTIONS.map((opt) => {
+                                    const active = brush === opt.id;
+                                    return (
+                                        <button
+                                            key={opt.id}
+                                            type="button"
+                                            onClick={() => setBrush(opt.id)}
+                                            className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                                                active
+                                                    ? 'border-amber-400/80 bg-amber-950/50 text-amber-100 ring-2 ring-amber-400/50'
+                                                    : 'border-zinc-600 bg-zinc-900/80 text-zinc-200 hover:border-zinc-500'
+                                            }`}
+                                        >
+                                            <span className={`h-5 w-5 shrink-0 rounded-full border ${opt.previewClass}`} aria-hidden />
+                                            {opt.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div
+                                className={`inline-grid w-fit max-w-full shrink-0 rounded border border-zinc-700 bg-zinc-900/40 p-1.5 sm:p-2 ${boardRowGapClass}`}
+                            >
+                                {rowIndices.map((y) => (
+                                    <div key={y} className={`flex shrink-0 ${boardRowGapClass}`}>
+                                        {rowIndices.map((x) => (
+                                            <button
+                                                key={`${x}-${y}`}
+                                                type="button"
+                                                className={`relative shrink-0 rounded-full border ${boardCellSizeClass} ${cellClassName(cells[y][x] || '')}`}
+                                                onClick={() => handleBoardCellClick(x, y)}
+                                            >
+                                                {scope === 'singleplayer' && forcedMoveIndexByKey.has(pointKey(x, y)) && (
+                                                    <span
+                                                        className={`absolute inset-0 flex items-center justify-center rounded-full border border-zinc-500 bg-white font-black leading-none text-zinc-900 ${forcedIndexTextClass}`}
+                                                    >
+                                                        {(forcedMoveIndexByKey.get(pointKey(x, y)) ?? 0) + 1}
+                                                    </span>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <label className="mt-3 block shrink-0 rounded border border-zinc-700/80 bg-zinc-900/35 p-2 text-xs">
+                            스테이지 설명
+                            <textarea
+                                className="mt-1 h-24 w-full resize-y rounded border border-zinc-700 bg-zinc-900 px-2 py-2 leading-5 sm:h-28"
+                                value={draft.description ?? ''}
+                                maxLength={1200}
+                                placeholder="대국 중 바둑판 왼쪽 두루마리에 표시될 설명을 입력합니다. 모바일에서는 설명 버튼으로 볼 수 있습니다."
+                                onChange={(e) => setDraft((p) => ({ ...p, description: e.target.value }))}
+                            />
+                            <span className="mt-1 block text-[11px] text-zinc-500">{(draft.description ?? '').length} / 1200</span>
+                        </label>
+                        {scope === 'singleplayer' && (
+                            <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-indigo-700/40 bg-indigo-950/20 lg:mt-3 lg:min-h-[8rem]">
+                                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-indigo-600/25 p-2">
+                                    <p className="text-xs font-semibold text-indigo-100">AI 강제 응수 규칙</p>
+                                    <Button
+                                        colorScheme="gray"
+                                        onClick={() => setIsForcedResponseBoardEditMode((prev) => !prev)}
+                                        disabled={saving}
+                                    >
+                                        {isForcedResponseBoardEditMode ? '보드 입력 종료' : '강제응수 규칙 추가'}
+                                    </Button>
+                                </div>
+                                <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-y-contain p-2">
+                                    {forcedAiResponses.length > 0 &&
+                                        forcedAiResponses.map((rule, idx) => (
+                                            <div key={idx} className="rounded border border-zinc-700 bg-zinc-900/70 p-2">
+                                                <div className="mb-2 flex items-center justify-between">
+                                                    <p className="text-xs font-semibold text-zinc-200">규칙 #{idx + 1}</p>
+                                                    <Button colorScheme="gray" onClick={() => removeForcedAiResponse(idx)} disabled={saving}>
+                                                        삭제
+                                                    </Button>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <label className="text-[11px]">조건 X (상대돌)
+                                                        <input
+                                                            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                            type="number"
+                                                            value={rule.whenOpponentStoneAt?.x ?? ''}
+                                                            onChange={(e) => {
+                                                                const v = e.target.value;
+                                                                updateForcedAiResponse(idx, (prev) => ({
+                                                                    ...prev,
+                                                                    whenOpponentStoneAt:
+                                                                        v === ''
+                                                                            ? undefined
+                                                                            : { x: Number(v) || 0, y: prev.whenOpponentStoneAt?.y ?? 0 },
+                                                                }));
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    <label className="text-[11px]">조건 Y (상대돌)
+                                                        <input
+                                                            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                            type="number"
+                                                            value={rule.whenOpponentStoneAt?.y ?? ''}
+                                                            onChange={(e) => {
+                                                                const v = e.target.value;
+                                                                updateForcedAiResponse(idx, (prev) => ({
+                                                                    ...prev,
+                                                                    whenOpponentStoneAt:
+                                                                        v === ''
+                                                                            ? undefined
+                                                                            : { x: prev.whenOpponentStoneAt?.x ?? 0, y: Number(v) || 0 },
+                                                                }));
+                                                            }}
+                                                        />
+                                                    </label>
+                                                    <label className="text-[11px]">응수 X
+                                                        <input
+                                                            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                            type="number"
+                                                            value={rule.move.x}
+                                                            onChange={(e) =>
+                                                                updateForcedAiResponse(idx, (prev) => ({
+                                                                    ...prev,
+                                                                    move: { ...prev.move, x: Number(e.target.value) || 0 },
+                                                                }))
+                                                            }
+                                                        />
+                                                    </label>
+                                                    <label className="text-[11px]">응수 Y
+                                                        <input
+                                                            className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                            type="number"
+                                                            value={rule.move.y}
+                                                            onChange={(e) =>
+                                                                updateForcedAiResponse(idx, (prev) => ({
+                                                                    ...prev,
+                                                                    move: { ...prev.move, y: Number(e.target.value) || 0 },
+                                                                }))
+                                                            }
+                                                        />
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        ))}
+                                </div>
+                                <label className="mt-2 flex shrink-0 items-start gap-2 border-t border-indigo-600/20 p-2 pt-2 text-xs text-zinc-200">
+                                    <input
+                                        className="mt-0.5"
+                                        type="checkbox"
+                                        checked={draft.strictForcedAiResponses === true}
+                                        onChange={(e) => setDraft((prev) => ({ ...prev, strictForcedAiResponses: e.target.checked }))}
+                                    />
+                                    <span>
+                                        강제 규칙 불가능 시 랜덤/일반 폴백 금지(즉시 기권)
+                                    </span>
+                                </label>
+                            </div>
+                        )}
+                    </div>
+                    <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-0.5 lg:w-[30%] lg:flex-none lg:shrink-0">
                         <div className="grid grid-cols-2 gap-2">
                             <label className="text-xs">액션포인트
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
@@ -333,6 +607,32 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                                 </select>
                             </label>
                         </div>
+                        <label className="text-xs">KATA 레벨 (-31 ~ 9)
+                            <input
+                                className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                type="text"
+                                inputMode="numeric"
+                                value={kataServerLevelInput}
+                                onChange={(e) => {
+                                    const raw = e.target.value.trim();
+                                    if (!/^-?\d*$/.test(raw)) return;
+                                    setKataServerLevelInput(raw);
+                                    if (raw === '' || raw === '-') return;
+                                    const parsed = Number(raw);
+                                    if (!Number.isFinite(parsed)) return;
+                                    setDraft((p) => ({ ...p, kataServerLevel: clampKataServerLevel(parsed) }));
+                                }}
+                                onBlur={() => {
+                                    const fallback = defaultSinglePlayerKataServerLevel(draft.level);
+                                    const parsed = Number(kataServerLevelInput);
+                                    const normalized = Number.isFinite(parsed)
+                                        ? clampKataServerLevel(parsed)
+                                        : fallback;
+                                    setKataServerLevelInput(String(normalized));
+                                    setDraft((p) => ({ ...p, kataServerLevel: normalized }));
+                                }}
+                            />
+                        </label>
                         <div className="grid grid-cols-2 gap-2">
                             <label className="text-xs">첫클리어 골드
                                 <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
@@ -362,7 +662,21 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                             <select
                                 className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                 value={rulePreset}
-                                onChange={(e) => setRulePreset(e.target.value as SinglePlayerStrategicRulePreset)}
+                                onChange={(e) => {
+                                    const nextPreset = e.target.value as SinglePlayerStrategicRulePreset;
+                                    setRulePreset(nextPreset);
+                                    if (nextPreset === 'survival') {
+                                        setDraft((prev) => {
+                                            const currentTurns = Number(prev.survivalTurns ?? 0);
+                                            if (currentTurns > 0) return prev;
+                                            const fromBlack = Math.max(0, Number(prev.blackTurnLimit ?? 0));
+                                            const fallbackTurns = fromBlack > 0 ? fromBlack : 15;
+                                            return { ...prev, survivalTurns: fallbackTurns };
+                                        });
+                                    } else if (nextPreset !== 'auto') {
+                                        setDraft((prev) => ({ ...prev, survivalTurns: 0 }));
+                                    }
+                                }}
                             >
                                 <option value="auto">자동 (필드 조합 — 현재 추론: {inferredRuleLabel})</option>
                                 {RULE_PRESET_OPTIONS.map((o) => (
@@ -537,98 +851,14 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                             />
                             수동배치 위에 랜덤돌 추가
                         </label>
-                        {onSwapStageInfo && (swapStageOptions?.length ?? 0) > 1 && (
-                            <div className="rounded border border-amber-700/40 bg-amber-950/20 p-2">
-                                <p className="text-xs font-semibold text-amber-100">스테이지 맵 정보 맞바꾸기</p>
-                                <p className="mt-1 text-[11px] text-amber-200/80">
-                                    현재 스테이지와 선택한 스테이지의 정보가 서로 교체됩니다. (ID 슬롯은 유지)
-                                </p>
-                                <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-                                    <select
-                                        className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-xs"
-                                        value={swapTargetStageId}
-                                        onChange={(e) => setSwapTargetStageId(e.target.value)}
-                                        disabled={saving || swapping}
-                                    >
-                                        {(swapStageOptions ?? [])
-                                            .filter((row) => row.id !== stage.id)
-                                            .map((row) => (
-                                                <option key={row.id} value={row.id}>
-                                                    {row.id} ({row.name})
-                                                </option>
-                                            ))}
-                                    </select>
-                                    <Button
-                                        colorScheme="gray"
-                                        disabled={saving || swapping || !swapTargetStageId}
-                                        onClick={async () => {
-                                            if (!swapTargetStageId) return;
-                                            setSwapping(true);
-                                            try {
-                                                setErrorMessage('');
-                                                await onSwapStageInfo(swapTargetStageId);
-                                            } catch (error) {
-                                                setErrorMessage(getErrorMessage(error));
-                                            } finally {
-                                                setSwapping(false);
-                                            }
-                                        }}
-                                    >
-                                        바꾸기
-                                    </Button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                    <div>
-                        <p className="mb-2 text-xs text-zinc-400">
-                            위에서 돌 종류를 고른 뒤 빈 칸에 클릭해 놓습니다. 돌이 있는 칸을 다시 클릭하면 빈칸이 됩니다.
-                        </p>
-                        <div className="mb-3 flex flex-wrap gap-2">
-                            {BRUSH_OPTIONS.map((opt) => {
-                                const active = brush === opt.id;
-                                return (
-                                    <button
-                                        key={opt.id}
-                                        type="button"
-                                        onClick={() => setBrush(opt.id)}
-                                        className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                                            active
-                                                ? 'border-amber-400/80 bg-amber-950/50 text-amber-100 ring-2 ring-amber-400/50'
-                                                : 'border-zinc-600 bg-zinc-900/80 text-zinc-200 hover:border-zinc-500'
-                                        }`}
-                                    >
-                                        <span className={`h-5 w-5 shrink-0 rounded-full border ${opt.previewClass}`} aria-hidden />
-                                        {opt.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <div className="inline-grid gap-1 rounded border border-zinc-700 bg-zinc-900/40 p-2">
-                            {rowIndices.map((y) => (
-                                <div key={y} className="flex gap-1">
-                                    {rowIndices.map((x) => (
-                                        <button
-                                            key={`${x}-${y}`}
-                                            type="button"
-                                            className={`h-7 w-7 rounded-full border sm:h-8 sm:w-8 ${cellClassName(cells[y][x] || '')}`}
-                                            onClick={() => {
-                                                setCells((prev) => {
-                                                    const next = prev.map((row) => [...row]);
-                                                    const cur = next[y][x];
-                                                    if (cur) {
-                                                        next[y][x] = '';
-                                                    } else {
-                                                        next[y][x] = brush;
-                                                    }
-                                                    return next;
-                                                });
-                                            }}
-                                        />
-                                    ))}
-                                </div>
-                            ))}
-                        </div>
+                        <label className="flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/40 p-2 text-sm">
+                            <input
+                                type="checkbox"
+                                checked={draft.allowPlacementRefresh !== false}
+                                onChange={(e) => setDraft((p) => ({ ...p, allowPlacementRefresh: e.target.checked }))}
+                            />
+                            <span className="font-semibold text-zinc-100">배치변경 허용</span>
+                        </label>
                     </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 border-t border-zinc-800 px-4 py-3">
@@ -679,14 +909,14 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                                 }
                             }}
                             colorScheme="gray"
-                            disabled={saving || swapping}
+                            disabled={saving}
                         >
                             기본값 복구(전체)
                         </Button>
                     )}
                     <Button
                         colorScheme="accent"
-                        disabled={saving || swapping || hasValidationErrors}
+                        disabled={saving || hasValidationErrors}
                         onClick={async () => {
                             if (hasValidationErrors) return;
                             setSaving(true);
@@ -695,7 +925,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, swapS
                                 await onSave({
                                     ...draft,
                                     strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
-                                    fixedOpening: cellsToFixedOpening(cells),
+                                    fixedOpening: cellsToFixedOpening(resizeCells(cells, draft.boardSize)),
                                 });
                             } catch (error) {
                                 setErrorMessage(getErrorMessage(error));

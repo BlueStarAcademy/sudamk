@@ -63,6 +63,11 @@ function scheduleSinglePlayerBlackTurnLimitFail(gameId: string, delayMs = 1000):
             let g: types.LiveGameSession | null = await getCachedGame(key);
             if (!g) g = await db.getLiveGame(key);
             if (!g || !g.isSinglePlayer || (g.gameStatus as string) === 'ended') return;
+            if ((g.settings as any)?.isSurvivalMode === true) return;
+            const mixedModes = (((g.settings as any)?.mixedModes ?? []) as types.GameMode[]);
+            const hasCaptureInMix =
+                g.mode === types.GameMode.Mix && Array.isArray(mixedModes) && mixedModes.includes(types.GameMode.Capture);
+            if (g.mode !== types.GameMode.Capture && !hasCaptureInMix) return;
 
             const blackTurnLimit = Number((g.settings as any)?.blackTurnLimit ?? 0);
             if (!(blackTurnLimit > 0)) return;
@@ -1444,11 +1449,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
             
             // 싱글플레이 따내기 바둑: 흑(유저) 턴 수 제한(blackTurnLimit) 도달 시,
-            // "아직 따낸 돌 미션을 완수하지 못했을 때만" 미션 실패 처리
+            // "아직 따낸 돌 미션을 완수하지 못했을 때만" 미션 실패 처리 (살리기에서는 미적용)
             const blackTurnLimit = (game.settings as any)?.blackTurnLimit;
             if (
                 game.isSinglePlayer &&
                 game.stageId &&
+                (game.settings as any)?.isSurvivalMode !== true &&
                 blackTurnLimit !== undefined &&
                 myPlayerEnum === types.Player.Black &&
                 (game.gameStatus as string) !== 'ended'

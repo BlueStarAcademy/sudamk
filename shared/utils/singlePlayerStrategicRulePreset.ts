@@ -63,8 +63,31 @@ export const resolveSinglePlayerSpeedTimeMode = (stage: SinglePlayerStageInfo): 
 
 export const resolveSinglePlayerSurvivalMode = (stage: SinglePlayerStageInfo): boolean => {
     const p = stage.strategicRulePreset;
-    if (p && p !== 'auto') return p === 'survival' && (stage.survivalTurns ?? 0) > 0;
+    if (p && p !== 'auto') return p === 'survival';
     return stage.survivalTurns !== undefined && stage.survivalTurns > 0;
+};
+
+/**
+ * 대국 세션 기준 살리기 여부. `settings.isSurvivalMode`가 명시되면 그것만 신뢰한다.
+ * (KV는 클래식인데 번들 `SINGLE_PLAYER_STAGES`에만 `survivalTurns`가 남아 있으면 UI가 살리기로 오인하는 것을 막음)
+ */
+export const resolveSinglePlayerSurvivalModeForSession = (
+    session: { settings?: { isSurvivalMode?: boolean; survivalTurns?: number } },
+    stage: SinglePlayerStageInfo
+): boolean => {
+    const explicit = session.settings?.isSurvivalMode;
+    if (explicit === false) return false;
+    if (explicit === true) return true;
+    return resolveSinglePlayerSurvivalMode(stage);
+};
+
+/** 살리기 바둑: 백(봇) 턴 한도. `survivalTurns` 우선, 없으면 `blackTurnLimit`, 둘 다 없으면 15. */
+export const resolveSinglePlayerSurvivalTurnCount = (stage: SinglePlayerStageInfo): number => {
+    const s = Math.max(0, Math.floor(Number(stage.survivalTurns ?? 0)));
+    if (s > 0) return s;
+    const b = Math.max(0, Math.floor(Number(stage.blackTurnLimit ?? 0)));
+    if (b > 0) return b;
+    return 15;
 };
 
 export const resolveSinglePlayerHasAutoScoringTurns = (stage: SinglePlayerStageInfo): boolean => {

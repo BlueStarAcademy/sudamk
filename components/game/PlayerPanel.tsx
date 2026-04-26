@@ -1,5 +1,4 @@
 import React, { useMemo, useState, useEffect, useLayoutEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 // FIX: Import missing types from the centralized types file.
 import { Player, GameProps, GameMode, User, AlkkagiPlacementType, GameSettings, GameStatus, UserWithStatus } from '../../types/index.js';
 import Avatar from '../Avatar.js';
@@ -10,17 +9,12 @@ import {
     resolveAiLobbyProfileStepFromSettings,
     strategicAiDisplayLevelFromProfileStep,
 } from '../../shared/utils/strategicAiDifficulty.js';
+import { resolveSinglePlayerSurvivalModeForSession } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
-import { isIntro11IngameStepRead, isIntro11TutorialActiveForGame, markIntro11IngameStepRead } from '../../utils/singlePlayerIntro11Tutorial.js';
-import {
-    ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS,
-    spotlightDimClipPathFromPxRect,
-} from '../../utils/onboardingSpotlightDimClipPath.js';
-
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
     const total = Math.floor(seconds);
@@ -55,16 +49,20 @@ const CapturedStones: React.FC<{
     curlingMeta?: CurlingScoreBoxMeta;
     /** false: 상단 패널 세로 스택 등 — 부모 높이를 채우지 않아 겹침 방지 */
     fillStretchHeight?: boolean;
+    /** 싱글플레이 대국자 정보 패널에서는 포획 수치를 '점수'로 안내 */
+    isSinglePlayer?: boolean;
     /** 모험 지역 이해도 시작 가산 — 따낸 숫자 옆 작은 `(+N)` */
     inlineHeadStartBonus?: number;
-}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta, fillStretchHeight = true, inlineHeadStartBonus }) => {
+}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta, fillStretchHeight = true, isSinglePlayer = false, inlineHeadStartBonus }) => {
     /** 주사위 전용 */
     const displayCount = typeof target === 'number' && target > 0 ? `${count}/${target}` : `${count}`;
     const isDiceGo = mode === GameMode.Dice;
     const isCurling = mode === GameMode.Curling && curlingMeta != null;
 
     let label = '따낸 돌';
-    if (isDiceGo) {
+    if (isSinglePlayer) {
+        label = '점수';
+    } else if (isDiceGo) {
         label = '포획 점수';
     } else if ([GameMode.Thief, GameMode.Curling].includes(mode)) {
         label = '점수';
@@ -425,6 +423,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
             panelType={panelType}
             mode={mode}
             isMobile={isMobile}
+            isSinglePlayer={!!isSinglePlayer}
             fillStretchHeight={!fluidTextLayout || isCurling}
             curlingMeta={
                 isCurling
@@ -912,7 +911,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         blackRemainingMonotonicRef.current = { gameId: session.id, value: null };
     }
 
-    // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → 0/N ~ N/N
+    // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → N/N에서 0/N으로 줄어드는 계가 카운트다운
     const isStrategicMode = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const strategicLobbyTurnInfoRaw = useMemo(() => {
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower') return null;
@@ -922,6 +921,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCountFromHistory = moveHistory.length;
         const validMovesOnly = moveHistory.filter((m) => m.x !== -1 && m.y !== -1).length;
+        const scoringTurnProgress = Math.max(turnCountFromHistory, session.totalTurns ?? 0);
         // 새로고침 직후 moveHistory가 비어 있을 수 있으므로 totalTurns로 대체 (수순 0/N 되는 버그 방지)
         const current =
             session.gameCategory === 'adventure'
@@ -940,7 +940,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         }
         const limit = settings.scoringTurnLimit;
         if (limit != null && limit > 0) {
-            return { type: 'scoring_limit' as const, label: '수순', current, total: limit };
+            const remaining = Math.max(0, limit - scoringTurnProgress);
+            return { type: 'scoring_limit' as const, label: '계가까지', current: remaining, total: limit };
         }
         return { type: 'moves_only' as const, label: '수순', current };
     }, [
@@ -978,7 +979,32 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : SINGLE_PLAYER_STAGES.find(s => s.id === session.stageId);
         if (!stage) return null;
         
-        // 따내기바둑: 흑의 남은 턴 (blackTurnLimit이 있는 경우)
+        const isSurvivalMode = resolveSinglePlayerSurvivalModeForSession(session, stage);
+
+        // 살리기바둑: 백의 남은 턴
+        if (isSurvivalMode) {
+            // KV/서버에서 내려온 settings가 진실값이다. 번들 상수 SINGLE_PLAYER_STAGES는
+            // 관리자가 스테이지를 덮어써도 갱신되지 않으므로 Math.max(설정, 상수)하면 15처럼 옛 값이 이긴다.
+            const settingsSurvivalTurns = Number((session.settings as any)?.survivalTurns ?? 0);
+            const stageSurvivalTurns = Number(stage.survivalTurns ?? 0);
+            const totalSurvivalTurns =
+                settingsSurvivalTurns > 0 ? settingsSurvivalTurns : Math.max(1, stageSurvivalTurns);
+            // 서버 승패 판정과 동일하게 whiteTurnsPlayed를 우선 사용한다.
+            const whiteTurnsPlayedRaw = (session as any).whiteTurnsPlayed;
+            const whiteTurnsPlayed =
+                typeof whiteTurnsPlayedRaw === 'number'
+                    ? Math.max(0, Math.floor(whiteTurnsPlayedRaw))
+                    : moveHistory.filter(m => m.player === Player.White && m.x !== -1).length;
+            const remainingTurns = Math.max(0, totalSurvivalTurns - whiteTurnsPlayed);
+            return {
+                type: 'survival' as const,
+                label: '백 남은 턴',
+                remaining: remainingTurns,
+                total: totalSurvivalTurns
+            };
+        }
+
+        // 따내기바둑: 흑의 남은 턴 (살리기가 아닐 때만)
         if (stage.blackTurnLimit) {
             const blackMovesCount = moveHistory.filter(m => m.player === Player.Black && m.x !== -1 && m.y !== -1).length;
             // 도전의 탑에서 턴 추가 아이템으로 증가한 턴을 반영
@@ -997,32 +1023,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             };
         }
         
-        // 살리기바둑: 백의 남은 턴
-        if (stage.survivalTurns) {
-            // 서버 승패 판정과 동일하게 whiteTurnsPlayed를 우선 사용한다.
-            const whiteTurnsPlayedRaw = (session as any).whiteTurnsPlayed;
-            const whiteTurnsPlayed =
-                typeof whiteTurnsPlayedRaw === 'number'
-                    ? Math.max(0, Math.floor(whiteTurnsPlayedRaw))
-                    : moveHistory.filter(m => m.player === Player.White && m.x !== -1).length;
-            const remainingTurns = Math.max(0, stage.survivalTurns - whiteTurnsPlayed);
-            return {
-                type: 'survival' as const,
-                label: '백 남은 턴',
-                remaining: remainingTurns,
-                total: stage.survivalTurns
-            };
-        }
-        
-        // 자동계가: 카운트다운 형태(남은 턴). 0이 되면 자동계가 진행 (유효 수만 카운트, 서버와 동일: x/y !== -1)
+        // 자동계가: 카운트다운 형태(남은 수순). 0이 되면 자동계가 진행 (유효 수만 카운트, 서버와 동일: x/y !== -1)
         // totalTurns가 0이거나 없으면 moveHistory 기준으로 계산 (한 수 둔 뒤 턴이 Max로 돌아가는 버그 방지)
         if (stage.autoScoringTurns) {
             const validMovesCount = moveHistory.filter(m => m.x !== -1 && m.y !== -1).length;
-            const totalTurns = validMovesCount;
+            const totalTurns = Math.max(validMovesCount, session.totalTurns ?? 0);
             const remainingTurns = Math.max(0, stage.autoScoringTurns - totalTurns);
             return {
                 type: 'auto_scoring' as const,
-                label: '남은 턴',
+                label: '계가까지',
                 remaining: remainingTurns,
                 total: stage.autoScoringTurns
             };
@@ -1115,62 +1124,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : {};
     const userPanelOnboardingTarget =
         singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === leftPlayerUser.id;
-    const [intro11IngameTutorialOpen, setIntro11IngameTutorialOpen] = useState(false);
-    const intro11RootRef = useRef<HTMLDivElement | null>(null);
-    const intro11TargetRef = useRef<HTMLDivElement | null>(null);
-    const [intro11SpotlightRect, setIntro11SpotlightRect] = useState<{ top: number; left: number; width: number; height: number } | null>(null);
-
-    useEffect(() => {
-        const shouldOpen =
-            session.stageId === '입문-11' &&
-            session.gameCategory === 'singleplayer' &&
-            session.gameStatus === 'playing' &&
-            isIntro11TutorialActiveForGame(session.id) &&
-            !isIntro11IngameStepRead(session.id);
-        setIntro11IngameTutorialOpen(shouldOpen);
-    }, [session.id, session.stageId, session.gameCategory, session.gameStatus]);
-
-    useLayoutEffect(() => {
-        if (!intro11IngameTutorialOpen) {
-            setIntro11SpotlightRect(null);
-            return;
-        }
-        const mountRoot = typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') ?? document.body : null;
-        const root = mountRoot;
-        const target = intro11TargetRef.current;
-        if (!root || !target) {
-            setIntro11SpotlightRect(null);
-            return;
-        }
-        const rr = root.getBoundingClientRect();
-        const tr = target.getBoundingClientRect();
-        const pad = 10;
-        const left = tr.left - rr.left;
-        const top = tr.top - rr.top;
-        const right = tr.right - rr.left;
-        const bottom = tr.bottom - rr.top;
-        const x1 = Math.max(0, left - pad);
-        const y1 = Math.max(0, top - pad);
-        const x2 = Math.min(rr.width, right + pad);
-        const y2 = Math.min(rr.height, bottom + pad);
-        setIntro11SpotlightRect({
-            top: y1,
-            left: x1,
-            width: Math.max(0, x2 - x1),
-            height: Math.max(0, y2 - y1),
-        });
-    }, [intro11IngameTutorialOpen, compactBarRowClass]);
-
-    const intro11SpotlightCenterY =
-        intro11SpotlightRect != null
-            ? intro11SpotlightRect.top + intro11SpotlightRect.height / 2
-            : null;
-    const intro11PanelPlacementTop =
-        intro11SpotlightCenterY == null
-            ? false
-            : intro11SpotlightCenterY > (typeof window !== 'undefined' ? window.innerHeight : 0) * 0.5;
-    const intro11PortalMount =
-        typeof document !== 'undefined' ? document.getElementById('sudamr-onboarding-root') ?? document.body : null;
 
     if (adventurePregameColorReveal) {
         return (
@@ -1184,12 +1137,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     }
 
     return (
-        <div ref={intro11RootRef} className="relative">
-        <div
-            ref={intro11TargetRef}
-            className={`flex w-full ${compactBarRowClass} flex-shrink-0`}
-            {...barHighlightAttrs}
-        >
+        <div className={`flex w-full ${compactBarRowClass} flex-shrink-0`} {...barHighlightAttrs}>
             <div className={playerColClass}>
                 <SinglePlayerPanel
                     user={leftPlayerUser}
@@ -1324,47 +1272,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                 {...rightAdventureCdProps}
             />
             </div>
-        </div>
-        {intro11IngameTutorialOpen && intro11PortalMount && createPortal(
-            <>
-                {intro11SpotlightRect && (
-                    <div className="pointer-events-none absolute inset-0 z-[280]" aria-hidden>
-                        <div
-                            className={ONBOARDING_SPOTLIGHT_DIM_LAYER_CLASS}
-                            style={{
-                                WebkitClipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
-                                clipPath: spotlightDimClipPathFromPxRect(intro11SpotlightRect),
-                            }}
-                        />
-                    </div>
-                )}
-                <div className="pointer-events-none absolute inset-0 z-[281] px-3 pt-2 sm:px-5 sm:pt-3">
-                <div
-                    className="pointer-events-auto absolute left-1/2 w-[min(100%,32rem)] -translate-x-1/2 rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5"
-                    style={intro11PanelPlacementTop ? { top: '0.75rem' } : { bottom: '0.75rem' }}
-                >
-                    <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">살기기 바둑</p>
-                    <p className="mt-2 text-left text-sm leading-relaxed text-stone-200/95 sm:text-[15px]">
-                        3턴동안 백의 공격을 피해 1점을 빼앗기지 않도록 피해보세요. 돌을 연결하고 넓은 공간으로 나가면 잡히지 않을겁니다.
-                    </p>
-                    <div className="mt-3 flex justify-end gap-2 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
-                        <button
-                            type="button"
-                            className="min-h-9 rounded-lg bg-amber-500 px-4 text-sm font-semibold text-black hover:bg-amber-400"
-                            onClick={() => {
-                                markIntro11IngameStepRead(session.id);
-                                setIntro11IngameTutorialOpen(false);
-                            }}
-                        >
-                            다음
-                        </button>
-                    </div>
-                </div>
-                </div>
-            </>
-            ,
-            intro11PortalMount,
-        )}
         </div>
     );
 };

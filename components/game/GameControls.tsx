@@ -1544,7 +1544,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const moveCount = session.moveHistory?.length ?? 0;
         const isPlayingState = gameStatus === 'playing';
         const currentGold = currentUser.gold ?? 0;
-        const canRefreshNow = !isGameEnded && isPlayingState && moveCount === 0 && remainingRefreshes > 0;
+        const placementRefreshAllowed =
+            session.settings.singlePlayerPlacementRefreshAllowed !== false &&
+            currentStage?.allowPlacementRefresh !== false;
+        const canRefreshNow = placementRefreshAllowed && !isGameEnded && isPlayingState && moveCount === 0 && remainingRefreshes > 0;
         const canAffordRefresh = currentGold >= nextCost;
         const isPaused = isSinglePlayerPaused;
         // 미사일 바둑에서 첫 턴에 미사일을 사용한 경우에만 배치변경 비활성화
@@ -1554,7 +1557,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const refreshDisabled = !canRefreshNow || !canAffordRefresh || isPaused || usedMissileBeforeFirstMove;
 
         let refreshHelperMessage = '';
-        if (usedMissileBeforeFirstMove) {
+        if (!placementRefreshAllowed) {
+            refreshHelperMessage = '이 스테이지에서는 배치변경을 사용할 수 없습니다.';
+        } else if (usedMissileBeforeFirstMove) {
             refreshHelperMessage = '첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.';
         } else if (remainingRefreshes <= 0) {
             refreshHelperMessage = '재배치 횟수를 모두 사용했습니다.';
@@ -1769,7 +1774,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     <ImageButton
                         src="/images/button/reflesh.png"
                         alt="돌 재배치"
-                        title="돌 재배치"
+                        title={placementRefreshAllowed ? '돌 재배치' : '이 스테이지에서는 배치변경을 사용할 수 없습니다.'}
                         onClick={handleRefreshClick}
                         disabled={refreshDisabled}
                         compact={isMobile}

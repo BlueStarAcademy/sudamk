@@ -2069,9 +2069,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     : '!p-3 sm:!p-4'
             }
         >
-            <>
             <div
-                className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_24px_48px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)]${isMobile ? ' h-0 min-h-0 flex-1' : ''}`}
+                className={`relative flex min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-500/35 bg-gradient-to-b from-[#141a28] via-[#0d111c] to-[#080b12] shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_24px_48px_-20px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.06)]${isMobile ? ' h-full min-h-0 flex-1' : ''}`}
             >
                 <div
                     className="pointer-events-none absolute inset-0 opacity-[0.12]"
@@ -2084,7 +2083,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             <div
                 className={`relative flex min-h-0 flex-col text-on-panel antialiased ${
                     useBodyScrollSizing ? 'w-full overflow-x-hidden' : 'w-full overflow-x-hidden overflow-y-visible'
-                } ${isMobile ? 'h-0 min-h-0 flex-1 p-1.5 text-xs sm:text-sm min-[390px]:p-2' : 'p-2.5 text-[0.9375rem] min-[1024px]:p-3 min-[1024px]:text-[1rem] min-[1280px]:text-[1.0625rem]'}`}
+                } ${isMobile ? 'min-h-0 flex-1 basis-0 p-1.5 text-xs sm:text-sm min-[390px]:p-2' : 'p-2.5 text-[0.9375rem] min-[1024px]:p-3 min-[1024px]:text-[1rem] min-[1280px]:text-[1.0625rem]'}`}
             >
                 {!isMobile && (
                 <h1
@@ -2100,8 +2099,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             onChange={setMobileResultTab}
                             recordLabel={isGuildWar ? '보상·기록' : '대국 결과'}
                         />
-                        <div className="flex h-0 min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-                            <div className="h-0 min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
+                        <div className="flex min-h-0 flex-1 basis-0 flex-col gap-1 overflow-hidden">
+                            <div className="min-h-0 flex-1 basis-0 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
                                 <MobileResultTabPanelStack
                                     className="min-h-0"
                                     active={mobileResultTab}
@@ -2644,7 +2643,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     )}
                     </div>
                 </div>
-            </>
         </DraggableWindow>
     );
 };

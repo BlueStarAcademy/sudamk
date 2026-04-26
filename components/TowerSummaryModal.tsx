@@ -503,11 +503,10 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
-            <>
             <div
                 className={`flex w-full min-h-0 flex-col text-white ${
                     isMobile
-                        ? 'h-0 min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
+                        ? 'h-full min-h-0 flex-1 overflow-hidden'
                         : useBodyScrollSizing
                           ? 'overflow-x-hidden'
                           : 'overflow-x-hidden overflow-y-visible'
@@ -515,7 +514,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             >
                 {/* Title */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
-                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
+                    <h1 className={`${isMobile ? 'text-base' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'sudamr-stable-gradient-text text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
                         {isWinner ? '도전 성공' : '도전 실패'}
                     </h1>
                 )}
@@ -533,8 +532,8 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             matchLabel="경기 결과"
                             recordLabel="내 정보"
                         />
-                        <div className="flex h-0 min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                            <div className="h-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
+                        <div className="flex min-h-0 flex-1 basis-0 flex-col gap-1.5 overflow-hidden">
+                            <div className="min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
                                 <MobileResultTabPanelStack
                                     active={mobileResultTab}
                                     matchPanel={
@@ -741,7 +740,6 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </Button>
                     </div>
                 </div>
-            </>
         </DraggableWindow>
     );
 };

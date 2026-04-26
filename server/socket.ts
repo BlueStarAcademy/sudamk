@@ -177,12 +177,33 @@ export const createWebSocketServer = (server: Server) => {
                 console.warn('[WebSocket] Initial state load timeout');
                 isClosed = true;
                 clearTimeout(initTimeout);
-                // 클라이언트에 타임아웃 에러 전송
+                // 타임아웃이어도 최소 초기 상태를 보내 클라이언트가 대기 상태에 갇히지 않도록 한다.
                 if (ws.readyState === WebSocket.OPEN) {
                     try {
-                        ws.send(JSON.stringify({ 
-                            type: 'ERROR', 
-                            payload: { message: 'Initial state load timeout. Please refresh the page.' } 
+                        ws.send(JSON.stringify({
+                            type: 'INITIAL_STATE',
+                            payload: {
+                                users: {},
+                                onlineUsers: [],
+                                liveGames: {},
+                                singlePlayerGames: {},
+                                towerGames: {},
+                                negotiations: {},
+                                waitingRoomChats: {},
+                                gameChats: {},
+                                adminLogs: [],
+                                announcements: [],
+                                globalOverrideAnnouncement: null,
+                                gameModeAvailability: {},
+                                arenaEntranceAvailability: {},
+                                announcementInterval: 3,
+                                homeBoardPosts: [],
+                                guilds: {},
+                                singlePlayerStages: [],
+                                userConnections: {},
+                                userStatuses: {},
+                                userLastChatMessage: {},
+                            },
                         }));
                     } catch (sendError) {
                         // 에러 전송 실패는 무시

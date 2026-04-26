@@ -2814,6 +2814,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 if (!activeWar.userAttempts) activeWar.userAttempts = {};
                 if (!user.isAdmin) {
                     activeWar.userAttempts[effectiveUserId] = (Number(activeWar.userAttempts[effectiveUserId] ?? 0) || 0) + 1;
+                    const todayKSTStart = getTodayKSTDateString(now);
+                    if (!activeWar.dailyAttempts[effectiveUserId]) {
+                        activeWar.dailyAttempts[effectiveUserId] = {};
+                    }
+                    const dayMap = activeWar.dailyAttempts[effectiveUserId] as Record<string, number>;
+                    dayMap[todayKSTStart] = (Number(dayMap[todayKSTStart] ?? 0) || 0) + 1;
                 }
 
                 // 바둑판 도전 중 상태 업데이트
@@ -2839,6 +2845,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     activeWars[warIndex] = activeWar;
                     await db.setKV('activeGuildWars', activeWars);
                 }
+                guildWarDataCacheByUser.delete(effectiveUserId);
             }
             
             // 사용자 상태 업데이트

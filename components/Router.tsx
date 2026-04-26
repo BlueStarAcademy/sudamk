@@ -29,8 +29,9 @@ import { userMeetsGuildFeatureLevelRequirement } from '../shared/constants/guild
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
-    const { activeGame, singlePlayerGames, towerGames, liveGames, currentUser } = useAppContext();
+    const { activeGame, singlePlayerGames, towerGames, liveGames, currentUser, gameRejoinFailure, handlers } = useAppContext();
     const [hasTimedOut, setHasTimedOut] = useState(false);
+    const currentRejoinFailure = gameRejoinFailure?.gameId === gameId ? gameRejoinFailure : null;
     // 새로고침(F5) 시 재입장은 INITIAL_STATE 직후 지연(약 2.5초) + 네트워크 여유
     const maxWaitTime = 10000;
 
@@ -45,6 +46,9 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
                     return;
                 }
                 setHasTimedOut(true);
+                if (currentRejoinFailure?.reason === 'network') {
+                    return;
+                }
                 setTimeout(() => {
                     if (window.location.hash !== '#/profile') {
                         replaceAppHash('#/profile');
@@ -54,7 +58,7 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
         }, maxWaitTime);
 
         return () => clearTimeout(timeout);
-    }, [gameId, activeGame, singlePlayerGames, towerGames, liveGames, currentUser]);
+    }, [gameId, activeGame, singlePlayerGames, towerGames, liveGames, currentUser, currentRejoinFailure?.reason]);
 
     // activeGame이 로드되면 즉시 렌더링 (status 기반 또는 URL 폴백)
     if (activeGame && activeGame.id === gameId) {
@@ -68,7 +72,25 @@ const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
         return <Game session={currentGame} />;
     }
 
-    if (hasTimedOut) {
+    if (currentRejoinFailure?.reason === 'network') {
+        return (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+                <div>{currentRejoinFailure.message}</div>
+                <button
+                    type="button"
+                    className="rounded-lg border border-color bg-primary px-4 py-2 text-sm font-semibold text-primary shadow hover:bg-opacity-90"
+                    onClick={() => {
+                        setHasTimedOut(false);
+                        handlers.requestGameRejoinRetry(gameId);
+                    }}
+                >
+                    다시 시도
+                </button>
+            </div>
+        );
+    }
+
+    if (hasTimedOut || currentRejoinFailure?.reason === 'notFound') {
         return <div className="flex items-center justify-center h-full">게임을 찾을 수 없습니다. 프로필로 이동합니다...</div>;
     }
 

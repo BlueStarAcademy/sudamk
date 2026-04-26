@@ -24,13 +24,6 @@ import {
 } from './game/ResultModalRewardSlot.js';
 import { MobileGameResultTabBar, MobileResultTabPanelStack, type MobileGameResultTab } from './game/MobileGameResultTabBar.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
-import {
-    clearIntro11TutorialForGame,
-    isIntro11ResultStepRead,
-    isIntro11TutorialActiveForGame,
-    markIntro11ResultStepRead,
-} from '../utils/singlePlayerIntro11Tutorial.js';
-
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
@@ -463,16 +456,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     }, [session.id]);
 
     const desktopCompactRewards = !isMobile;
-    const [intro11ClearTutorialOpen, setIntro11ClearTutorialOpen] = useState(false);
-
-    useEffect(() => {
-        const shouldOpen =
-            session.stageId === '입문-11' &&
-            isWinner &&
-            isIntro11TutorialActiveForGame(session.id) &&
-            !isIntro11ResultStepRead(session.id);
-        setIntro11ClearTutorialOpen(shouldOpen);
-    }, [session.id, session.stageId, isWinner]);
 
     const spRewardsSection = (
         <div
@@ -569,12 +552,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
         >
-            <>
             <div
                 data-onboarding-target="onboarding-sp-summary-modal"
                 className={`text-on-panel ${PRE_GAME_MODAL_LAYER_CLASS} flex w-full min-h-0 flex-col ${
                     isMobile
-                        ? 'h-0 min-h-0 flex-1 overflow-x-hidden overflow-y-visible'
+                        ? 'h-full min-h-0 flex-1 overflow-hidden'
                         : 'h-full flex-1 ' +
                           (useBodyScrollSizing ? 'overflow-x-hidden' : 'overflow-x-hidden overflow-y-visible')
                 } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'} ${
@@ -586,7 +568,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     <div className={`${isMobile ? 'mb-1.5 p-2' : 'mb-2 p-3 sm:p-3.5'} flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 shadow-[0_0_32px_-12px_rgba(251,191,36,0.28)]`}>
                         <div className={`${SP_SUMMARY_SECTION_LABEL} text-center`}>결과</div>
                         <h1
-                            className={`mt-1 text-center font-black tracking-widest ${isMobile ? 'text-lg' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} ${isWinner ? 'text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`}
+                            className={`mt-1 text-center font-black tracking-widest ${isMobile ? 'text-lg' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} ${isWinner ? 'sudamr-stable-gradient-text text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`}
                             style={{ fontSize: isMobile ? `${15 * mobileTextScale}px` : undefined }}
                         >
                             {isWinner ? '미션 성공' : '미션 실패'}
@@ -607,8 +589,8 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                             matchLabel="경기 결과"
                             recordLabel="기록"
                         />
-                        <div className="flex h-0 min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                            <div className="h-0 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
+                        <div className="flex min-h-0 flex-1 basis-0 flex-col gap-1.5 overflow-hidden">
+                            <div className="min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
                                 <MobileResultTabPanelStack
                                     active={mobileResultTab}
                                     matchPanel={
@@ -882,31 +864,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </Button>
                     </div>
                 </div>
-                {intro11ClearTutorialOpen && (
-                    <div className="pointer-events-none absolute inset-0 z-[8] px-3 pt-2 sm:px-5 sm:pt-3">
-                        <div className="pointer-events-auto absolute left-1/2 top-4 w-[min(100%,32rem)] -translate-x-1/2 rounded-2xl border border-white/18 bg-slate-950/55 p-3.5 shadow-[0_8px_40px_rgba(0,0,0,0.55)] backdrop-blur-md ring-1 ring-inset ring-white/10 sm:p-5">
-                            <p className="text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/90">튜토리얼</p>
-                            <p className="mt-2 text-left text-sm leading-relaxed text-stone-200/95 sm:text-[15px]">
-                                내 돌을 지켜내는데 성공했군요! 상대방의 돌을 잡으려 하는것도 중요하지만 내 돌을 지키는것 또한 중요합니다! 항상 경기 시작전에 어떤 종류의 경기인지 확인하는 습관이 필요합니다. 바둑판 장비를 장착해서 능력치를 상승시켜보세요.
-                            </p>
-                            <div className="mt-3 flex justify-end gap-2 border-t border-white/10 pt-3 sm:mt-4 sm:pt-4">
-                                <Button
-                                    type="button"
-                                    colorScheme="accent"
-                                    className="min-h-9 px-4 text-sm"
-                                    onClick={() => {
-                                        markIntro11ResultStepRead(session.id);
-                                        clearIntro11TutorialForGame(session.id);
-                                        setIntro11ClearTutorialOpen(false);
-                                    }}
-                                >
-                                    튜토리얼 종료
-                                </Button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </>
         </DraggableWindow>
     );
 };

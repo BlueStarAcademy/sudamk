@@ -931,7 +931,7 @@ const GuildWar = () => {
         const perspectiveAttempts = board ? (board.myGuildBoardAttempts ?? 0) : 0;
 
         return (
-            <div className={`flex h-full min-h-0 w-full flex-col gap-2 ${panelClasses} rounded-lg border-2 p-2 sm:p-2.5`}>
+            <div className={`flex w-full flex-1 flex-col gap-2 min-h-0 ${panelClasses} rounded-lg border-2 p-2 sm:p-2.5`}>
                 <div className="shrink-0">
                     <h2 className={`mb-1.5 text-center text-lg font-bold sm:text-xl ${textClasses}`}>상황판</h2>
                     <div className="space-y-1.5">
@@ -1489,7 +1489,7 @@ const GuildWar = () => {
                         aria-modal="true"
                         aria-labelledby="guild-war-my-situation-title"
                         aria-hidden={!mySituationDrawerOpen}
-                        className={`fixed top-0 right-0 z-[10051] flex h-[100dvh] max-h-[100dvh] w-[min(94vw,28rem)] flex-col border-l border-white/20 bg-gray-950/98 shadow-[-12px_0_32px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
+                        className={`fixed inset-y-0 right-0 z-[10051] flex min-h-0 w-[min(94vw,28rem)] flex-col border-l border-white/20 bg-gray-950/98 shadow-[-12px_0_32px_rgba(0,0,0,0.45)] transition-transform duration-300 ease-out motion-reduce:transition-none ${
                             mySituationDrawerOpen ? 'translate-x-0' : 'translate-x-full pointer-events-none'
                         }`}
                         style={{
@@ -1509,20 +1509,24 @@ const GuildWar = () => {
                                 닫기
                             </button>
                         </div>
-                        <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-2">
-                            <StatusAndViewerPanel
-                                colorSide={weAreVisualBlue ? 'blue' : 'red'}
-                                challengingMembers={myMembersChallenging}
-                                teamUsedTickets={myTeamTickets.used}
-                                teamTotalTickets={myTeamTickets.total}
-                                board={selectedBoard}
-                                boardHousePair={houseForSituationBoard}
-                                personalTicketsRemaining={personalTicketsRemaining}
-                                personalTicketsTotal={personalTicketTotal}
-                                onOpenMyAttemptLog={openMyAttemptLogModal}
-                                myAttemptLogBusy={myAttemptLogLoading}
-                                myAttemptLogDisabled={isDemoMode}
-                            />
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2 pt-1">
+                            <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]">
+                                <div className="flex min-h-full min-w-0 flex-col">
+                                    <StatusAndViewerPanel
+                                        colorSide={weAreVisualBlue ? 'blue' : 'red'}
+                                        challengingMembers={myMembersChallenging}
+                                        teamUsedTickets={myTeamTickets.used}
+                                        teamTotalTickets={myTeamTickets.total}
+                                        board={selectedBoard}
+                                        boardHousePair={houseForSituationBoard}
+                                        personalTicketsRemaining={personalTicketsRemaining}
+                                        personalTicketsTotal={personalTicketTotal}
+                                        onOpenMyAttemptLog={openMyAttemptLogModal}
+                                        myAttemptLogBusy={myAttemptLogLoading}
+                                        myAttemptLogDisabled={isDemoMode}
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </aside>
                 </>

@@ -1,6 +1,10 @@
 import { LiveGameSession, GameMode, GameSettings, SinglePlayerStageInfo } from '../types.js';
 import { Player } from '../types/enums.js';
 import { getAdventureEncounterCountdownMinutes } from '../shared/utils/adventureBattleBoard.js';
+import {
+  resolveSinglePlayerSurvivalModeForSession,
+  resolveSinglePlayerSurvivalTurnCount,
+} from '../shared/utils/singlePlayerStrategicRulePreset.js';
 import { countTowerLobbyItems, getTowerSessionFloor } from './towerPreGameDisplay.js';
 
 export type PreGameSpecialHighlight = {
@@ -367,10 +371,15 @@ function singlePlayerStageHighlights(
   disp: { missile: number; hidden: number; scan: number; turnAdd?: number }
 ): PreGameSpecialHighlight[] {
   const h: PreGameSpecialHighlight[] = [];
-  const isCaptureMode = stage.blackTurnLimit !== undefined || session.mode === GameMode.Capture;
+  const isSurvivalRules = resolveSinglePlayerSurvivalModeForSession(session, stage);
+  const isCaptureMode =
+    !isSurvivalRules && (stage.blackTurnLimit !== undefined || session.mode === GameMode.Capture);
   const bs = defaultBaseStoneCount(session.settings);
 
-  if ((stage.placements.blackPattern > 0 || stage.placements.whitePattern > 0) && isCaptureMode) {
+  if (
+    (stage.placements.blackPattern > 0 || stage.placements.whitePattern > 0) &&
+    (isCaptureMode || isSurvivalRules)
+  ) {
     h.push({ img: PATTERN_STONE_HIGHLIGHT_IMG, text: '문양돌 따내기 2점' });
   }
   if (session.mode === GameMode.Base) {
@@ -379,16 +388,18 @@ function singlePlayerStageHighlights(
       text: `비밀 베이스돌 최대 ${bs}개 · 공개 시 계가 보너스`,
     });
   }
-  if (stage.survivalTurns) {
+  if (isSurvivalRules) {
+    const settingsSurv = Number((session.settings as any)?.survivalTurns ?? 0);
+    const survN = settingsSurv > 0 ? settingsSurv : resolveSinglePlayerSurvivalTurnCount(stage);
     h.push({
       img: '/images/simbols/simbol1.png',
-      text: `살리기 바둑 · 백 ${stage.survivalTurns}턴 내 목표 점수`,
+      text: `살리기 바둑 · 백 ${survN}턴 내 목표 점수`,
     });
   }
   if (stage.autoScoringTurns && stage.autoScoringTurns > 0) {
     h.push({ img: '/images/simbols/simbol7.png', text: `${stage.autoScoringTurns}수 후 자동 계가` });
   }
-  if (stage.blackTurnLimit) {
+  if (stage.blackTurnLimit && !isSurvivalRules) {
     h.push({ img: '/images/icon/timer.png', text: `흑 ${stage.blackTurnLimit}턴 제한` });
   }
   const missileN = disp.missile;
@@ -691,16 +702,22 @@ function getSinglePlayerStageSummary(
   const effectiveTargets = session.effectiveCaptureTargets;
   const blackTarget = effectiveTargets?.[Player.Black];
   const whiteTarget = effectiveTargets?.[Player.White];
-  const isCaptureMode = stage.blackTurnLimit !== undefined || session.mode === GameMode.Capture;
-  const isSpeedMode = !isCaptureMode && stage.timeControl.type === 'fischer';
+  const isSurvivalRules = resolveSinglePlayerSurvivalModeForSession(session, stage);
+  const isLegacyRuleInference = stage.strategicRulePreset == null || stage.strategicRulePreset === 'auto';
+  const isCaptureMode =
+    !isSurvivalRules && (session.mode === GameMode.Capture || (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
+  const isSpeedMode = !isCaptureMode && !isSurvivalRules && stage.timeControl.type === 'fischer';
 
   /** 싱글/탑: 플레이어는 항상 흑 — 짧은 문구 + 유저(흑) 시점 */
   let winGoal = '스테이지 조건 충족 시 승리';
   let loseGoal = '조건 미달 시 패배';
-  if (stage.survivalTurns) {
+  if (isSurvivalRules) {
+    const settingsSurv = Number((session.settings as any)?.survivalTurns ?? 0);
+    const survN =
+      settingsSurv > 0 ? settingsSurv : resolveSinglePlayerSurvivalTurnCount(stage);
     const tgt = stage.targetScore.black;
-    winGoal = `${stage.survivalTurns}턴 내 백 ${tgt}점 미달성`;
-    loseGoal = `${stage.survivalTurns}턴 내 백 ${tgt}점 달성`;
+    winGoal = `${survN}턴 내 백 ${tgt}점 미달성`;
+    loseGoal = `${survN}턴 내 백 ${tgt}점 달성`;
   } else if (isCaptureMode) {
     if (stage.blackTurnLimit && typeof blackTarget === 'number' && blackTarget !== 999) {
       if (typeof whiteTarget === 'number' && whiteTarget !== 999) {
@@ -727,10 +744,10 @@ function getSinglePlayerStageSummary(
   } else if (stage.autoScoringTurns && stage.autoScoringTurns > 0) {
     winGoal = `${stage.autoScoringTurns}수 계가 후 승리`;
     loseGoal = `${stage.autoScoringTurns}수 계가 후 패배`;
-  } else if (stage.blackTurnLimit && stage.targetScore.black > 0) {
+  } else if (isLegacyRuleInference && stage.blackTurnLimit && stage.targetScore.black > 0) {
     winGoal = `${stage.blackTurnLimit}턴 내 ${stage.targetScore.black}점 이상`;
     loseGoal = `${stage.blackTurnLimit}턴 내 목표 미달`;
-  } else if (stage.targetScore.black > 0 && stage.targetScore.white > 0) {
+  } else if (isLegacyRuleInference && stage.targetScore.black > 0 && stage.targetScore.white > 0) {
     winGoal = `계가 흑 ${stage.targetScore.black}집+ · 백 ${stage.targetScore.white}집+`;
     loseGoal = '목표 집수 미달';
   } else {
@@ -739,7 +756,7 @@ function getSinglePlayerStageSummary(
   }
 
   let scoreFactors = '스테이지·모드에 따름';
-  if (isCaptureMode) {
+  if (isCaptureMode || isSurvivalRules) {
     const hasPatternStone =
       (stage.placements.blackPattern ?? 0) > 0 || (stage.placements.whitePattern ?? 0) > 0;
     scoreFactors = hasPatternStone ? '따내기 점수\n문양돌 2점' : '따내기 점수';

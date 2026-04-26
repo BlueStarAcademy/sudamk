@@ -38,25 +38,19 @@ function getCaptureScoreFloatVisual(cellSize: number, points: number) {
         strokeWidth = baseSw;
     }
     const stroke = tier === 'high' ? '#422006' : '#022c22';
-    const fillUrl =
+    const fill =
         tier === 'low'
-            ? 'url(#capture-score-gradient-low)'
+            ? '#5eead4'
             : tier === 'high'
-              ? 'url(#capture-score-gradient-critical)'
-              : 'url(#capture-score-gradient-mid)';
-    const filterUrl =
-        tier === 'low'
-            ? 'url(#capture-score-premium-low)'
-            : tier === 'high'
-              ? 'url(#capture-score-premium-critical)'
-              : 'url(#capture-score-premium-mid)';
+              ? '#fde047'
+              : '#6ee7b7';
     const innerClassName =
         tier === 'low'
             ? 'capture-points-float-inner capture-points-float-inner--low'
             : tier === 'high'
               ? 'capture-points-float-inner capture-points-float-inner--critical'
               : 'capture-points-float-inner capture-points-float-inner--mid';
-    return { tier, fontSize, strokeWidth, stroke, fillUrl, filterUrl, innerClassName };
+    return { tier, fontSize, strokeWidth, stroke, fill, innerClassName };
 }
 
 const AnimatedBonusText: React.FC<{
@@ -83,11 +77,10 @@ const AnimatedBonusText: React.FC<{
                         dy=".35em"
                         fontSize={vis.fontSize}
                         className="capture-score-float-text"
-                        fill={vis.fillUrl}
+                        fill={vis.fill}
                         stroke={vis.stroke}
                         strokeWidth={vis.strokeWidth}
                         paintOrder="stroke fill"
-                        filter={vis.filterUrl}
                     >
                         {text}
                     </text>
@@ -1432,9 +1425,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
         if (analysisResult.ownershipMap) {
             // KataGo: ownershipMap 기반, 영향력(절대값)에 따라 사각형 크기 차이
+            const deadSet = new Set(
+                (analysisResult.deadStones ?? []).map((d) => `${d.x},${d.y}`)
+            );
             analysisResult.ownershipMap.forEach((row, y) => {
                 row.forEach((value, x) => {
-                    if (displayBoardState[y]?.[x] !== Player.None) return;
+                    const onBoard = displayBoardState[y]?.[x];
+                    const isDeadMarked = deadSet.has(`${x},${y}`);
+                    if (onBoard !== Player.None && !isDeadMarked) return;
                     if (Math.abs(value) < TERRITORY_THRESHOLD) return;
 
                     const { cx, cy } = toSvgCoords({ x, y });
@@ -2078,11 +2076,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                             dy=".35em"
                                             fontSize={vis.fontSize}
                                             className="capture-score-float-text"
-                                            fill={vis.fillUrl}
+                                            fill={vis.fill}
                                             stroke={vis.stroke}
                                             strokeWidth={vis.strokeWidth}
                                             paintOrder="stroke fill"
-                                            filter={vis.filterUrl}
                                         >
                                             {f.label}
                                         </text>
