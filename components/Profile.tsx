@@ -29,7 +29,8 @@ import {
 import {
     USER_PROGRESSION_ARENA_BLOCK_MESSAGE,
     PVP_LOBBIES_MIN_COMBINED_LEVEL,
-    TOWER_ADVENTURE_MIN_STRATEGY_LEVEL,
+    TOWER_ENTRANCE_REQUIRED_STAGE_ID,
+    ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
     CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL,
 } from '../shared/utils/contentProgressionGates.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
@@ -624,6 +625,7 @@ const Profile: React.FC<ProfileProps> = () => {
     /** 네이티브 홈 하단 패널: 바둑능력 ↔ 장비보기 */
     const [nativeHomeLowerTab, setNativeHomeLowerTab] = useState<'baduk' | 'equipment'>('baduk');
     const [tutorialAdminBusy, setTutorialAdminBusy] = useState(false);
+    const [adminModalPreviewMenuOpen, setAdminModalPreviewMenuOpen] = useState(false);
     const tutorialPreviewActive = isOnboardingTutorialActive(currentUserWithStatus);
 
     const meetsGuildLevelForFeatures = useMemo(
@@ -647,6 +649,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const [vipMenuOpen, setVipMenuOpen] = useState(false);
     const [vipTestBusy, setVipTestBusy] = useState(false);
     const vipMenuRef = useRef<HTMLDivElement>(null);
+    const adminModalPreviewMenuRef = useRef<HTMLDivElement>(null);
 
     const sendAdminVipTestFlags = useCallback(
         async (flags: { rewardVip: boolean; functionVip: boolean; vvip: boolean }) => {
@@ -675,7 +678,21 @@ const Profile: React.FC<ProfileProps> = () => {
     }, [vipMenuOpen]);
 
     useEffect(() => {
+        if (!adminModalPreviewMenuOpen) return;
+        const onPointerDown = (ev: PointerEvent) => {
+            const el = adminModalPreviewMenuRef.current;
+            if (!el) return;
+            if (!el.contains(ev.target as Node)) {
+                setAdminModalPreviewMenuOpen(false);
+            }
+        };
+        document.addEventListener('pointerdown', onPointerDown, true);
+        return () => document.removeEventListener('pointerdown', onPointerDown, true);
+    }, [adminModalPreviewMenuOpen]);
+
+    useEffect(() => {
         if (profileTab !== 'home') setNativeHomeLowerTab('baduk');
+        if (profileTab !== 'home') setAdminModalPreviewMenuOpen(false);
     }, [profileTab]);
 
     useEffect(() => {
@@ -964,9 +981,15 @@ const Profile: React.FC<ProfileProps> = () => {
             if (arenaAdminBypass || mergedArena[key]) return null;
             if (!serverArena[key]) return '점검중';
             if (key === 'championship') return `능력치 합 ${CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL}+`;
-            return `전략 Lv.${currentUserWithStatus.strategyLevel}/${TOWER_ADVENTURE_MIN_STRATEGY_LEVEL}`;
+            const cleared = Array.isArray(currentUserWithStatus.clearedSinglePlayerStages)
+                ? new Set(currentUserWithStatus.clearedSinglePlayerStages)
+                : new Set<string>();
+            if (key === 'tower') {
+                return cleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) ? null : '입문반 20 클리어 필요';
+            }
+            return cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) ? null : '초급반 20 클리어 필요';
         },
-        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.strategyLevel],
+        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.clearedSinglePlayerStages],
     );
 
     const onSelectLobby = (type: 'strategic' | 'playful') => {
@@ -2074,26 +2097,70 @@ const Profile: React.FC<ProfileProps> = () => {
                                                 >
                                                     {tutorialPreviewActive ? '튜토리얼 끝' : '튜토리얼'}
                                                 </Button>
-                                                <Button
-                                                    type="button"
-                                                    colorScheme="none"
-                                                    bare
-                                                    onClick={() => handlers.previewAdminLevelUpCelebrationModal()}
-                                                    className="touch-manipulation !rounded-md !border !border-emerald-400/55 !bg-emerald-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
-                                                    title="레벨업 축하 모달 미리보기(전략·놀이, 실제 레벨 기준)"
-                                                >
-                                                    레벨업
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    colorScheme="none"
-                                                    bare
-                                                    onClick={() => handlers.previewAdminMannerGradeUpModal()}
-                                                    className="touch-manipulation !rounded-md !border !border-amber-400/55 !bg-amber-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-amber-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
-                                                    title="매너 등급 상승 모달 미리보기(직전 구간→현재 등급)"
-                                                >
-                                                    매너↑
-                                                </Button>
+                                                <div ref={adminModalPreviewMenuRef} className="relative">
+                                                    <Button
+                                                        type="button"
+                                                        colorScheme="none"
+                                                        bare
+                                                        onClick={() => setAdminModalPreviewMenuOpen((prev) => !prev)}
+                                                        className="touch-manipulation !rounded-md !border !border-sky-400/55 !bg-sky-950/95 !px-2 !py-1 !text-[9px] !font-bold uppercase tracking-wide !text-sky-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-2.5 sm:!py-1.5 sm:!text-[10px]"
+                                                        title="모달 미리보기 목록"
+                                                    >
+                                                        모달확인
+                                                    </Button>
+                                                    {adminModalPreviewMenuOpen && (
+                                                        <div className="absolute right-0 top-[calc(100%+0.25rem)] z-[6] flex min-w-[8.5rem] flex-col gap-1 rounded-lg border border-white/15 bg-black/90 p-1 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.7)] backdrop-blur-sm sm:min-w-[9.5rem]">
+                                                            <Button
+                                                                type="button"
+                                                                colorScheme="none"
+                                                                bare
+                                                                onClick={() => {
+                                                                    handlers.previewAdminLevelUpCelebrationModal();
+                                                                    setAdminModalPreviewMenuOpen(false);
+                                                                }}
+                                                                className="!justify-start !rounded-md !border !border-emerald-400/45 !bg-emerald-950/85 !px-2 !py-1 !text-[10px] !font-bold !text-emerald-100"
+                                                            >
+                                                                레벨업 모달
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                colorScheme="none"
+                                                                bare
+                                                                onClick={() => {
+                                                                    handlers.previewAdminMannerGradeUpModal();
+                                                                    setAdminModalPreviewMenuOpen(false);
+                                                                }}
+                                                                className="!justify-start !rounded-md !border !border-amber-400/45 !bg-amber-950/85 !px-2 !py-1 !text-[10px] !font-bold !text-amber-100"
+                                                            >
+                                                                매너등급 모달
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                colorScheme="none"
+                                                                bare
+                                                                onClick={() => {
+                                                                    handlers.previewAdminContentUnlockNoticeModal('tower');
+                                                                    setAdminModalPreviewMenuOpen(false);
+                                                                }}
+                                                                className="!justify-start !rounded-md !border !border-violet-400/45 !bg-violet-950/85 !px-2 !py-1 !text-[10px] !font-bold !text-violet-100"
+                                                            >
+                                                                탑 해금 모달
+                                                            </Button>
+                                                            <Button
+                                                                type="button"
+                                                                colorScheme="none"
+                                                                bare
+                                                                onClick={() => {
+                                                                    handlers.previewAdminContentUnlockNoticeModal('adventure');
+                                                                    setAdminModalPreviewMenuOpen(false);
+                                                                }}
+                                                                className="!justify-start !rounded-md !border !border-fuchsia-400/45 !bg-fuchsia-950/85 !px-2 !py-1 !text-[10px] !font-bold !text-fuchsia-100"
+                                                            >
+                                                                모험 해금 모달
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         )}
                                         <div
@@ -2247,26 +2314,70 @@ const Profile: React.FC<ProfileProps> = () => {
                                     >
                                         {tutorialPreviewActive ? '튜토리얼 끝' : '튜토리얼'}
                                     </Button>
-                                    <Button
-                                        type="button"
-                                        colorScheme="none"
-                                        bare
-                                        onClick={() => handlers.previewAdminLevelUpCelebrationModal()}
-                                        className="!rounded-md !border !border-emerald-400/55 !bg-emerald-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-emerald-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
-                                        title="레벨업 축하 모달 미리보기(전략·놀이, 실제 레벨 기준)"
-                                    >
-                                        레벨업
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        colorScheme="none"
-                                        bare
-                                        onClick={() => handlers.previewAdminMannerGradeUpModal()}
-                                        className="!rounded-md !border !border-amber-400/55 !bg-amber-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-amber-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
-                                        title="매너 등급 상승 모달 미리보기(직전 구간→현재 등급)"
-                                    >
-                                        매너↑
-                                    </Button>
+                                    <div ref={adminModalPreviewMenuRef} className="relative">
+                                        <Button
+                                            type="button"
+                                            colorScheme="none"
+                                            bare
+                                            onClick={() => setAdminModalPreviewMenuOpen((prev) => !prev)}
+                                            className="!rounded-md !border !border-sky-400/55 !bg-sky-950/95 !px-2.5 !py-1 !text-[10px] !font-bold uppercase tracking-wide !text-sky-100 shadow-[0_2px_10px_rgba(0,0,0,0.35)] sm:!px-3 sm:!py-1.5 sm:!text-xs"
+                                            title="모달 미리보기 목록"
+                                        >
+                                            모달확인
+                                        </Button>
+                                        {adminModalPreviewMenuOpen && (
+                                            <div className="absolute right-0 top-[calc(100%+0.35rem)] z-[6] flex min-w-[10rem] flex-col gap-1 rounded-lg border border-white/15 bg-black/90 p-1 shadow-[0_10px_24px_-10px_rgba(0,0,0,0.7)] backdrop-blur-sm">
+                                                <Button
+                                                    type="button"
+                                                    colorScheme="none"
+                                                    bare
+                                                    onClick={() => {
+                                                        handlers.previewAdminLevelUpCelebrationModal();
+                                                        setAdminModalPreviewMenuOpen(false);
+                                                    }}
+                                                    className="!justify-start !rounded-md !border !border-emerald-400/45 !bg-emerald-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-emerald-100"
+                                                >
+                                                    레벨업 모달
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    colorScheme="none"
+                                                    bare
+                                                    onClick={() => {
+                                                        handlers.previewAdminMannerGradeUpModal();
+                                                        setAdminModalPreviewMenuOpen(false);
+                                                    }}
+                                                    className="!justify-start !rounded-md !border !border-amber-400/45 !bg-amber-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-amber-100"
+                                                >
+                                                    매너등급 모달
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    colorScheme="none"
+                                                    bare
+                                                    onClick={() => {
+                                                        handlers.previewAdminContentUnlockNoticeModal('tower');
+                                                        setAdminModalPreviewMenuOpen(false);
+                                                    }}
+                                                    className="!justify-start !rounded-md !border !border-violet-400/45 !bg-violet-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-violet-100"
+                                                >
+                                                    탑 해금 모달
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    colorScheme="none"
+                                                    bare
+                                                    onClick={() => {
+                                                        handlers.previewAdminContentUnlockNoticeModal('adventure');
+                                                        setAdminModalPreviewMenuOpen(false);
+                                                    }}
+                                                    className="!justify-start !rounded-md !border !border-fuchsia-400/45 !bg-fuchsia-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-fuchsia-100"
+                                                >
+                                                    모험 해금 모달
+                                                </Button>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                             <div

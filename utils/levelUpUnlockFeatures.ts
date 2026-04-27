@@ -2,7 +2,6 @@ import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import {
     PVP_LOBBIES_MIN_COMBINED_LEVEL,
     QUEST_MIN_STRATEGY_LEVEL,
-    TOWER_ADVENTURE_MIN_STRATEGY_LEVEL,
 } from '../shared/utils/contentProgressionGates.js';
 import { MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES } from '../shared/constants/guildConstants.js';
 import { BORDER_POOL } from '../constants/ui.js';
@@ -42,9 +41,6 @@ export function getLevelUpFeatureUnlockLines(
 
     if (crossedLevel(strat.from, strat.to, QUEST_MIN_STRATEGY_LEVEL)) {
         pushUnique(strategy, `퀵 메뉴 · 퀘스트 이용 (전략 Lv.${QUEST_MIN_STRATEGY_LEVEL} 이상)`);
-    }
-    if (crossedLevel(strat.from, strat.to, TOWER_ADVENTURE_MIN_STRATEGY_LEVEL)) {
-        pushUnique(strategy, `도전의 탑 · 모험 입장 (전략 Lv.${TOWER_ADVENTURE_MIN_STRATEGY_LEVEL} 이상)`);
     }
     for (const line of getAdventureChapterStrategyUnlockHintsBetweenLevels(strat.from, strat.to)) {
         pushUnique(strategy, line);

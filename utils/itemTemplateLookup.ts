@@ -3,7 +3,7 @@
  * 서버 `inventoryUtils.createItemInstancesFromReward`와 동일한 이름 정규화·조회.
  */
 import { InventoryItem } from '../types/index.js';
-import { CONSUMABLE_ITEMS, MATERIAL_ITEMS } from '../constants';
+import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../constants';
 
 const CONSUMABLE_TEMPLATE_MAP: Record<string, Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipped' | 'level' | 'stars' | 'options' | 'enhancementFails'>> =
     CONSUMABLE_ITEMS.reduce(
@@ -130,6 +130,11 @@ export const getItemTemplateByName = (itemName: string) => {
         const withoutSpace = lookupKey.replace('다이아 꾸러미', '다이아꾸러미');
         template = CONSUMABLE_TEMPLATE_MAP[withoutSpace] || MATERIAL_TEMPLATE_MAP[withoutSpace];
         if (template) return template;
+    }
+
+    const equip = EQUIPMENT_POOL.find((e) => e.name === lookupKey);
+    if (equip) {
+        return { ...equip } as (typeof CONSUMABLE_TEMPLATE_MAP)[string];
     }
 
     return null;

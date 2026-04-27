@@ -174,6 +174,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
         gold: 0,
         items: [],
     };
+    let grantedBonusStatPoints = false;
     
     const stageIndex = stages.findIndex(s => s.id === stage.id);
     const currentProgress = user.singlePlayerProgress ?? 0;
@@ -243,15 +244,18 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
             summary.items = itemsToCreate;
         }
 
-        // 보너스 스탯 처리
-        if (rewards.bonus && rewards.bonus.startsWith('스탯')) {
-            const points = parseInt(rewards.bonus.replace('스탯', ''), 10);
-            if (!isNaN(points)) {
+        // 보너스 능력치 포인트(구 `스탯N` / `능력치N`) — bonusStatPoints에 반영
+        const statBonusMatch =
+            typeof rewards.bonus === 'string' ? rewards.bonus.match(/^(?:스탯|능력치)\s*(\d+)$/) : null;
+        if (statBonusMatch) {
+            const points = parseInt(statBonusMatch[1], 10);
+            if (!isNaN(points) && points > 0) {
                 user.bonusStatPoints = (user.bonusStatPoints || 0) + points;
+                grantedBonusStatPoints = true;
                 if (!summary.items) summary.items = [];
                 summary.items.push({
                     id: `stat-points-${Date.now()}`,
-                    name: `보너스 스탯`,
+                    name: `보너스 능력치`,
                     image: '/images/icons/stat_point.png',
                     type: 'consumable',
                     grade: 'rare',
@@ -308,6 +312,9 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     // inventory는 크기가 클 수 있으므로 필요한 경우에만 포함
     const { broadcastUserUpdate } = await import('./socket.js');
     const fieldsToUpdate = ['clearedSinglePlayerStages', 'singlePlayerProgress', 'gold', 'strategyXp', 'strategyLevel'];
+    if (grantedBonusStatPoints) {
+        fieldsToUpdate.push('bonusStatPoints');
+    }
     // inventory가 실제로 변경된 경우에만 포함 (아이템 보상이 있을 때만)
     if (summary.items && summary.items.length > 0) {
         fieldsToUpdate.push('inventory');

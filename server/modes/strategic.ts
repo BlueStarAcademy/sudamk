@@ -162,6 +162,10 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
 export const updateStrategicGameState = async (game: types.LiveGameSession, now: number) => {
     syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
 
+    if (await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer)) {
+        return;
+    }
+
     const advDeadline = (game as any).adventureEncounterDeadlineMs as number | undefined;
     const adventureEncounterBlocked =
         game.gameStatus === 'hidden_reveal_animating' ||

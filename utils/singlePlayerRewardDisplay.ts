@@ -13,6 +13,9 @@ export function formatSinglePlayerRewardCell(r: SinglePlayerClearReward | undefi
             r.items.map((i) => `${i.itemId} ×${i.quantity}`).join(', ')
         );
     }
-    if (r.bonus) parts.push(String(r.bonus));
+    if (r.bonus) {
+        const m = String(r.bonus).match(/^(?:스탯|능력치)\s*(\d+)$/);
+        parts.push(m ? `보너스 능력치 +${m[1]}` : String(r.bonus));
+    }
     return parts.length > 0 ? parts.join(' · ') : '—';
 }

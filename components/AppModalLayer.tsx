@@ -42,6 +42,7 @@ import InsufficientActionPointsModal from './InsufficientActionPointsModal.js';
 import OpponentInsufficientActionPointsModal from './OpponentInsufficientActionPointsModal.js';
 import LevelUpCelebrationModal from './LevelUpCelebrationModal.js';
 import MannerGradeChangeModal from './MannerGradeChangeModal.js';
+import ContentUnlockNoticeModal from './ContentUnlockNoticeModal.js';
 
 const ModalLoadingFallback = () => null;
 
@@ -94,6 +95,7 @@ const AppModalLayer: React.FC = () => {
         if (modals.isBlacksmithModalOpen) ids.push('blacksmith');
         if (modals.isBlacksmithEffectsModalOpen) ids.push('blacksmithEffects');
         if (modals.isBlacksmithHelpOpen) ids.push('blacksmithHelp');
+        if (modals.isEquipmentEffectsModalOpen) ids.push('equipmentEffects');
         if (modals.isGameRecordListOpen) ids.push('gameRecordList');
         if (modals.viewingGameRecord) ids.push('gameRecordViewer');
         if (modals.combinationResult) ids.push('combinationResult');
@@ -109,6 +111,7 @@ const AppModalLayer: React.FC = () => {
         if (modals.isOpponentInsufficientActionPointsModalOpen) ids.push('opponentInsufficientActionPoints');
         if (modals.levelUpCelebration) ids.push('levelUpCelebration');
         if (modals.mannerGradeChange) ids.push('mannerGradeChange');
+        if (modals.contentUnlockNotice) ids.push('contentUnlockNotice');
         return ids;
     }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 
@@ -414,6 +417,13 @@ const AppModalLayer: React.FC = () => {
                     payload={modals.mannerGradeChange}
                     onClose={handlers.closeMannerGradeChange}
                     isTopmost={topmostModalId === 'mannerGradeChange'}
+                />
+            )}
+            {modals.contentUnlockNotice && (
+                <ContentUnlockNoticeModal
+                    unlockType={modals.contentUnlockNotice}
+                    onClose={handlers.closeContentUnlockNotice}
+                    isTopmost={topmostModalId === 'contentUnlockNotice'}
                 />
             )}
         </>

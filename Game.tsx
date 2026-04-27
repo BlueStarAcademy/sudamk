@@ -1500,11 +1500,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [isMoveInFlight, session.moveHistory?.length, prevMoveCount, gameStatus, prevGameStatus, myBaseStoneCountForUnlock, prevMyBaseStoneCountForUnlock]);
 
-    // 싱글/타워 클라 착수 직후: 다음 렌더에서 ref 해제(성공 경로). 실패 시에는 위에서 즉시 false.
+    // 싱글/타워 클라 착수 직후: 실제로 내 턴이 돌아오기 전까지 빠른 연타를 막는다.
     useEffect(() => {
         if (!pveLocalStonePlacementLockRef.current) return;
+        const isGameOver = ['ended', 'no_contest', 'scoring'].includes(gameStatus);
+        if (!isMyTurn && !isGameOver) return;
         pveLocalStonePlacementLockRef.current = false;
-    }, [session.moveHistory?.length, session.currentPlayer, session.id]);
+    }, [isMyTurn, gameStatus, session.id]);
+
+    // 온라인 AI 대국 낙관적 착수도 서버 요청 완료가 아니라 턴 사이클 완료 기준으로 잠금을 푼다.
+    useEffect(() => {
+        if (!strategicAiStoneLockRef.current) return;
+        const isGameOver = ['ended', 'no_contest', 'scoring'].includes(gameStatus);
+        if (!isMyTurn && !isGameOver) return;
+        strategicAiStoneLockRef.current = false;
+    }, [isMyTurn, gameStatus, session.id]);
 
     const flashBoardRuleMessage = useCallback((message: string, durationMs = 3500) => {
         if (boardRuleFlashClearRef.current) clearTimeout(boardRuleFlashClearRef.current);
@@ -2038,9 +2048,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 })
                 .finally(() => {
-                    if (canOptimisticAiPlace) {
-                        strategicAiStoneLockRef.current = false;
-                    }
+                    // 성공 경로에서는 AI 응답 후 내 턴이 돌아올 때 effect에서 해제한다.
                 });
         } else {
             console.log('[Game] No action type determined', { 
@@ -2272,9 +2280,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 })
                 .finally(() => {
-                    if (canOptimisticAiPlaceConfirm) {
-                        strategicAiStoneLockRef.current = false;
-                    }
+                    // 성공 경로에서는 AI 응답 후 내 턴이 돌아올 때 effect에서 해제한다.
                 });
         }
         setPendingMove(null);
@@ -2547,6 +2553,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const aiStuckGameStateSyncTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const aiStuckPostSyncFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const lastStuckRecoverySyncAtRef = useRef(0);
+    const towerAutoScoringRecoveryKeyRef = useRef<string | null>(null);
     const aiStuckWatchRef = useRef({
         id: '',
         gameStatus: '' as GameStatus,
@@ -2559,6 +2566,70 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     });
     const handleActionRef = useRef(handlers.handleAction);
     handleActionRef.current = handlers.handleAction;
+
+    // 도전의 탑: 마지막 착수 직후 자동계가 요청이 유실되거나 새로고침되면,
+    // sessionStorage로 복원된 0/N 수순을 기준으로 서버 계가를 재트리거한다.
+    useEffect(() => {
+        if (!isTower) return;
+        if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return;
+        const autoScoringTurns = Number((sessionWithRestoredPatternStones.settings as any)?.autoScoringTurns);
+        if (!Number.isFinite(autoScoringTurns) || autoScoringTurns <= 0) return;
+
+        const moveHistory = sessionWithRestoredPatternStones.moveHistory || [];
+        const validMoves = moveHistory.filter((m) => m && m.x !== -1 && m.y !== -1);
+        const totalTurns = validMoves.length;
+        if (totalTurns < autoScoringTurns) return;
+
+        const boardState = restoredBoardState || sessionWithRestoredPatternStones.boardState;
+        const boardSize = sessionWithRestoredPatternStones.settings?.boardSize || 9;
+        const boardStateValid =
+            Array.isArray(boardState) &&
+            boardState.length === boardSize &&
+            boardState.every((row: any) => Array.isArray(row) && row.length === boardSize);
+        if (!boardStateValid) return;
+
+        const recoveryKey = `${sessionWithRestoredPatternStones.id}:${totalTurns}:${autoScoringTurns}`;
+        if (towerAutoScoringRecoveryKeyRef.current === recoveryKey) return;
+        towerAutoScoringRecoveryKeyRef.current = recoveryKey;
+
+        const snapshotBoardState = boardState.map((row: any[]) => [...row]);
+        const snapshotMoveHistory = moveHistory.map((m: any) => ({ ...m }));
+        void handleActionRef.current({
+            type: 'PLACE_STONE',
+            payload: {
+                gameId: sessionWithRestoredPatternStones.id,
+                x: -1,
+                y: -1,
+                triggerAutoScoring: true,
+                totalTurns,
+                moveHistory: snapshotMoveHistory,
+                boardState: snapshotBoardState,
+                blackTimeLeft: sessionWithRestoredPatternStones.blackTimeLeft,
+                whiteTimeLeft: sessionWithRestoredPatternStones.whiteTimeLeft,
+                captures: sessionWithRestoredPatternStones.captures,
+                hiddenMoves: sessionWithRestoredPatternStones.hiddenMoves ?? undefined,
+                permanentlyRevealedStones: Array.isArray(sessionWithRestoredPatternStones.permanentlyRevealedStones)
+                    ? sessionWithRestoredPatternStones.permanentlyRevealedStones
+                    : undefined,
+            },
+        } as unknown as ServerAction).catch((err) => {
+            towerAutoScoringRecoveryKeyRef.current = null;
+            console.error('[Game] Tower auto-scoring recovery failed:', err);
+        });
+    }, [
+        isTower,
+        gameStatus,
+        sessionWithRestoredPatternStones.id,
+        sessionWithRestoredPatternStones.moveHistory,
+        sessionWithRestoredPatternStones.boardState,
+        sessionWithRestoredPatternStones.settings,
+        sessionWithRestoredPatternStones.blackTimeLeft,
+        sessionWithRestoredPatternStones.whiteTimeLeft,
+        sessionWithRestoredPatternStones.captures,
+        sessionWithRestoredPatternStones.hiddenMoves,
+        sessionWithRestoredPatternStones.permanentlyRevealedStones,
+        restoredBoardState,
+    ]);
 
     aiStuckWatchRef.current = {
         id: session.id,

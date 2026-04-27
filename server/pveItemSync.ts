@@ -1,6 +1,75 @@
 import type { LiveGameSession, PveItemActionClientSync } from '../shared/types/index.js';
 import { Player } from '../types/index.js';
 
+const DEFAULT_AI_USER_ID = 'ai-player-01';
+
+function isAiControlledPlayer(game: LiveGameSession, player: Player): boolean {
+    const playerId = player === Player.Black ? game.blackPlayerId : player === Player.White ? game.whitePlayerId : undefined;
+    return playerId === DEFAULT_AI_USER_ID || String(playerId ?? '').startsWith('dungeon-bot-');
+}
+
+function isPlayablePoint(move: { x?: number; y?: number } | undefined): move is { x: number; y: number } {
+    return !!move && Number.isInteger(move.x) && Number.isInteger(move.y) && move.x >= 0 && move.y >= 0;
+}
+
+function keepServerAiMoveHistoryStable(
+    game: LiveGameSession,
+    syncedMoveHistory: LiveGameSession['moveHistory'],
+    syncedBoardState: LiveGameSession['boardState']
+): void {
+    const serverMoveHistory = game.moveHistory;
+    const serverBoardState = game.boardState;
+    if (!Array.isArray(serverMoveHistory) || serverMoveHistory.length === 0 || !Array.isArray(syncedMoveHistory)) return;
+
+    const syncDoesNotAdvanceServer = syncedMoveHistory.length <= serverMoveHistory.length;
+
+    for (let i = 0; i < Math.min(serverMoveHistory.length, syncedMoveHistory.length); i++) {
+        const serverMove = serverMoveHistory[i];
+        if (!serverMove || !isAiControlledPlayer(game, serverMove.player) || !isPlayablePoint(serverMove)) continue;
+
+        const syncedMove = syncedMoveHistory[i];
+        const syncedChangedAiMove =
+            !syncedMove ||
+            syncedMove.player !== serverMove.player ||
+            syncedMove.x !== serverMove.x ||
+            syncedMove.y !== serverMove.y;
+
+        if (syncedChangedAiMove) {
+            if (
+                syncDoesNotAdvanceServer &&
+                isPlayablePoint(syncedMove) &&
+                Array.isArray(serverBoardState) &&
+                Array.isArray(syncedBoardState) &&
+                syncedBoardState[syncedMove.y]?.[syncedMove.x] === serverMove.player &&
+                serverBoardState[syncedMove.y]?.[syncedMove.x] !== serverMove.player &&
+                !serverMoveHistory.some(
+                    (move) =>
+                        move &&
+                        move.player === serverMove.player &&
+                        move.x === syncedMove.x &&
+                        move.y === syncedMove.y
+                )
+            ) {
+                syncedBoardState[syncedMove.y][syncedMove.x] =
+                    serverBoardState[syncedMove.y]?.[syncedMove.x] ?? Player.None;
+            }
+            syncedMoveHistory[i] = { ...serverMove };
+        }
+
+        // Stale same-length client snapshots must not erase an already confirmed AI stone.
+        // Longer snapshots may include a new user move that legitimately captured it.
+        if (
+            syncDoesNotAdvanceServer &&
+            Array.isArray(serverBoardState) &&
+            Array.isArray(syncedBoardState) &&
+            serverBoardState[serverMove.y]?.[serverMove.x] === serverMove.player &&
+            syncedBoardState[serverMove.y]?.[serverMove.x] !== serverMove.player
+        ) {
+            syncedBoardState[serverMove.y][serverMove.x] = serverMove.player;
+        }
+    }
+}
+
 /**
  * 미사일 이동 후 클라가 boardState만 맞고 moveHistory 좌표는 예전 교차점에 남는 경우 —
  * Kata 입력(수순 재생)과 실제 판이 달라져 AI가 이미 돌이 있는 점을 비었다고 두는 것을 방지한다.
@@ -37,6 +106,7 @@ function reconcileMoveHistoryCoordsToBoardState(game: LiveGameSession): void {
             const m = mh[i];
             if (!m || m.x < 0 || m.y < 0) continue;
             if (m.player !== Player.Black && m.player !== Player.White) continue;
+            if (isAiControlledPlayer(game, m.player)) continue;
             if (m.y < sz && m.x < sz && bs[m.y][m.x] === m.player) continue;
             const candidates: { x: number; y: number }[] = [];
             for (let y = 0; y < sz; y++) {
@@ -65,8 +135,14 @@ export function applyPveItemActionClientSync(game: LiveGameSession, payload: unk
     if (!sync || typeof sync !== 'object') return;
     if (!Array.isArray(sync.boardState) || sync.boardState.length === 0) return;
     if (!Array.isArray(sync.moveHistory)) return;
-    game.boardState = sync.boardState.map((row: number[]) => [...row]);
-    game.moveHistory = sync.moveHistory.map((m) => ({ ...m }));
+    const serverCurrentPlayer = game.currentPlayer;
+    const serverMoveHistoryLength = Array.isArray(game.moveHistory) ? game.moveHistory.length : 0;
+    const syncedBoardState = sync.boardState.map((row: number[]) => [...row]);
+    const syncedMoveHistory = sync.moveHistory.map((m) => ({ ...m }));
+    const syncAdvancesServerMoves = syncedMoveHistory.length > serverMoveHistoryLength;
+    keepServerAiMoveHistoryStable(game, syncedMoveHistory, syncedBoardState);
+    game.boardState = syncedBoardState;
+    game.moveHistory = syncedMoveHistory;
     if (sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
         game.hiddenMoves = { ...sync.hiddenMoves };
     }
@@ -86,7 +162,13 @@ export function applyPveItemActionClientSync(game: LiveGameSession, payload: unk
         };
     }
     if (sync.currentPlayer !== undefined && sync.currentPlayer !== null) {
+        const staleSyncWouldSkipAiTurn =
+            !syncAdvancesServerMoves &&
+            isAiControlledPlayer(game, serverCurrentPlayer) &&
+            !isAiControlledPlayer(game, sync.currentPlayer);
+        if (!staleSyncWouldSkipAiTurn) {
         game.currentPlayer = sync.currentPlayer;
+        }
     }
     if (sync.gameStatus !== undefined && sync.gameStatus !== null) {
         const srv = String(game.gameStatus);

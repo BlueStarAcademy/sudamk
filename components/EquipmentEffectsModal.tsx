@@ -43,13 +43,13 @@ function visualWeight(b: { flat: number; percent: number } | undefined): number 
 
 const BonusPills: React.FC<{ flatStr: string | null; pctStr: string | null; muted?: boolean }> = ({ flatStr, pctStr, muted }) => {
     if (!flatStr && !pctStr) {
-        return <span className={`text-[11px] font-mono ${muted ? 'text-zinc-600' : 'text-zinc-500'}`}>—</span>;
+        return <span className={`text-[13px] font-mono ${muted ? 'text-zinc-600' : 'text-zinc-500'}`}>—</span>;
     }
     return (
         <div className="flex flex-wrap items-center justify-end gap-1">
             {flatStr ? (
                 <span
-                    className={`rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums sm:text-[11px] ${
+                    className={`rounded-md border px-2 py-0.5 font-mono text-[12px] font-bold tabular-nums sm:text-[13px] ${
                         muted
                             ? 'border-sky-500/15 bg-sky-950/25 text-sky-600/80'
                             : 'border-sky-400/35 bg-sky-950/50 text-sky-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
@@ -60,7 +60,7 @@ const BonusPills: React.FC<{ flatStr: string | null; pctStr: string | null; mute
             ) : null}
             {pctStr ? (
                 <span
-                    className={`rounded-md border px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums sm:text-[11px] ${
+                    className={`rounded-md border px-2 py-0.5 font-mono text-[12px] font-bold tabular-nums sm:text-[13px] ${
                         muted
                             ? 'border-amber-500/15 bg-amber-950/25 text-amber-700/75'
                             : 'border-amber-400/35 bg-amber-950/45 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
@@ -178,7 +178,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
             bodyPaddingClassName={compactChrome ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4'}
         >
             <div className="flex min-h-0 min-w-0 flex-col gap-2.5 text-on-panel">
-                <p className="px-0.5 text-[11px] leading-snug text-amber-100/70 sm:text-xs">
+                <p className="px-0.5 text-[13px] leading-snug text-amber-100/70 sm:text-sm">
                     장착 중인 장비에서 합산된 옵션입니다. 탭으로 구역을 나눠 볼 수 있습니다.
                 </p>
 
@@ -191,7 +191,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                 key={id}
                                 type="button"
                                 onClick={() => setTab(id)}
-                                className={`relative shrink-0 rounded-xl border px-2.5 py-1.5 text-[11px] font-bold transition sm:px-3 sm:text-xs ${
+                                className={`relative shrink-0 rounded-xl border px-3 py-1.5 text-[13px] font-bold transition sm:px-3.5 sm:text-sm ${
                                     on
                                         ? 'border-amber-400/50 bg-gradient-to-b from-amber-500/25 to-amber-950/40 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
                                         : 'border-white/[0.08] bg-black/30 text-zinc-400 hover:border-amber-500/25 hover:text-amber-100/90'
@@ -200,7 +200,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                 {TAB_LABEL[id]}
                                 {n != null && n > 0 ? (
                                     <span
-                                        className={`ml-1 inline-flex min-w-[1.1rem] justify-center rounded-md px-1 py-px font-mono text-[9px] tabular-nums ${
+                                        className={`ml-1 inline-flex min-w-[1.1rem] justify-center rounded-md px-1 py-px font-mono text-[11px] tabular-nums ${
                                             on ? 'bg-amber-400/25 text-amber-100' : 'bg-zinc-800 text-zinc-400'
                                         }`}
                                     >
@@ -215,7 +215,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                 <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain pr-0.5 [scrollbar-gutter:stable] [scrollbar-width:thin]">
                     {tab === 'summary' && (
                         <div className={sectionShell}>
-                            <h3 className="mb-2 border-b border-amber-500/20 pb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200/85 sm:text-xs">
+                            <h3 className="mb-2 border-b border-amber-500/20 pb-1.5 text-center text-[12px] font-bold uppercase tracking-[0.14em] text-amber-200/85 sm:text-sm">
                                 핵심 능력치 — 주옵션 vs 전투 부옵션
                             </h3>
                             <div className="space-y-2.5">
@@ -234,10 +234,10 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             }`}
                                         >
                                             <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
-                                                <span className="text-[12px] font-bold text-zinc-100 sm:text-sm">{meta.name}</span>
-                                                <span className="text-[9px] text-zinc-500 sm:text-[10px]">장착 합산</span>
+                                                <span className="text-[14px] font-bold text-zinc-100 sm:text-base">{meta.name}</span>
+                                                <span className="text-[11px] text-zinc-500 sm:text-xs">장착 합산</span>
                                             </div>
-                                            <div className="mb-1.5 grid grid-cols-2 gap-2 text-[10px] sm:text-[11px]">
+                                            <div className="mb-1.5 grid grid-cols-2 gap-2 text-[12px] sm:text-[13px]">
                                                 <div>
                                                     <div className="mb-0.5 font-semibold uppercase tracking-wide text-amber-200/75">주옵션</div>
                                                     <BonusPills {...mainParts} muted={!active} />
@@ -254,7 +254,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                                 </div>
                                             </div>
                                             <div>
-                                                <div className="mb-0.5 text-[9px] font-semibold uppercase tracking-wide text-emerald-200/70">
+                                                <div className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-200/70">
                                                     전체 장착 효과 중 비중
                                                 </div>
                                                 <MeterBar
@@ -275,7 +275,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
 
                     {tab === 'main' && (
                         <div className={sectionShell}>
-                            <h3 className="mb-2 border-b border-amber-500/20 pb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-amber-200/85 sm:text-xs">
+                            <h3 className="mb-2 border-b border-amber-500/20 pb-1.5 text-center text-[12px] font-bold uppercase tracking-[0.14em] text-amber-200/85 sm:text-sm">
                                 주옵션 합계
                             </h3>
                             <div className="space-y-2">
@@ -289,13 +289,13 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             className="group rounded-xl border border-amber-500/18 bg-gradient-to-r from-amber-950/20 to-transparent open:border-amber-400/35 open:bg-amber-950/25"
                                         >
                                             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-2 marker:content-none sm:px-2.5 [&::-webkit-details-marker]:hidden">
-                                                <span className="min-w-0 text-left text-[12px] font-bold text-zinc-100 sm:text-sm">{meta.name}</span>
+                                                <span className="min-w-0 text-left text-[14px] font-bold text-zinc-100 sm:text-base">{meta.name}</span>
                                                 <div className="flex shrink-0 items-center gap-2">
                                                     <BonusPills {...parts} />
                                                     <span className="text-zinc-500 transition group-open:rotate-90">›</span>
                                                 </div>
                                             </summary>
-                                            <div className="border-t border-amber-500/15 px-2 pb-2 pt-1 text-[11px] leading-relaxed text-zinc-400 sm:px-2.5 sm:text-xs">
+                                            <div className="border-t border-amber-500/15 px-2 pb-2 pt-1 text-[13px] leading-relaxed text-zinc-400 sm:px-2.5 sm:text-sm">
                                                 {meta.description}
                                             </div>
                                         </details>
@@ -307,7 +307,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
 
                     {tab === 'combat' && (
                         <div className={sectionShell}>
-                            <h3 className="mb-2 border-b border-violet-500/20 pb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-violet-200/85 sm:text-xs">
+                            <h3 className="mb-2 border-b border-violet-500/20 pb-1.5 text-center text-[12px] font-bold uppercase tracking-[0.14em] text-violet-200/85 sm:text-sm">
                                 전투 부옵션 합계
                             </h3>
                             <div className="space-y-2">
@@ -321,13 +321,13 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             className="group rounded-xl border border-violet-500/18 bg-gradient-to-r from-violet-950/20 to-transparent open:border-violet-400/35 open:bg-violet-950/25"
                                         >
                                             <summary className="flex cursor-pointer list-none items-center justify-between gap-2 px-2 py-2 marker:content-none sm:px-2.5 [&::-webkit-details-marker]:hidden">
-                                                <span className="min-w-0 text-left text-[12px] font-bold text-zinc-100 sm:text-sm">{meta.name}</span>
+                                                <span className="min-w-0 text-left text-[14px] font-bold text-zinc-100 sm:text-base">{meta.name}</span>
                                                 <div className="flex shrink-0 items-center gap-2">
                                                     <BonusPills {...parts} />
                                                     <span className="text-zinc-500 transition group-open:rotate-90">›</span>
                                                 </div>
                                             </summary>
-                                            <div className="border-t border-violet-500/15 px-2 pb-2 pt-1 text-[11px] leading-relaxed text-zinc-400 sm:px-2.5 sm:text-xs">
+                                            <div className="border-t border-violet-500/15 px-2 pb-2 pt-1 text-[13px] leading-relaxed text-zinc-400 sm:px-2.5 sm:text-sm">
                                                 {meta.description}
                                             </div>
                                         </details>
@@ -339,7 +339,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
 
                     {tab === 'special' && (
                         <div className={sectionShell}>
-                            <h3 className="mb-2 border-b border-emerald-500/20 pb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-200/85 sm:text-xs">
+                            <h3 className="mb-2 border-b border-emerald-500/20 pb-1.5 text-center text-[12px] font-bold uppercase tracking-[0.14em] text-emerald-200/85 sm:text-sm">
                                 특수 능력치
                             </h3>
                             {specialActive.length === 0 ? (
@@ -358,8 +358,8 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                             >
                                                 <div className="mb-1 flex flex-wrap items-start justify-between gap-2">
                                                     <div className="min-w-0 flex-1">
-                                                        <p className="text-[12px] font-bold text-emerald-100 sm:text-sm">{statData.name}</p>
-                                                        <p className="mt-0.5 text-[11px] leading-snug text-zinc-400 sm:text-xs">{statData.description}</p>
+                                                        <p className="text-[14px] font-bold text-emerald-100 sm:text-base">{statData.name}</p>
+                                                        <p className="mt-0.5 text-[13px] leading-snug text-zinc-400 sm:text-sm">{statData.description}</p>
                                                     </div>
                                                     <BonusPills {...parts} />
                                                 </div>
@@ -374,7 +374,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
 
                     {tab === 'mythic' && (
                         <div className={sectionShell}>
-                            <h3 className="mb-2 border-b border-rose-500/25 pb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.14em] text-rose-200/85 sm:text-xs">
+                            <h3 className="mb-2 border-b border-rose-500/25 pb-1.5 text-center text-[12px] font-bold uppercase tracking-[0.14em] text-rose-200/85 sm:text-sm">
                                 스페셜 옵션
                             </h3>
                             {mythicActive.length === 0 ? (
@@ -383,7 +383,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                 <div className="space-y-4">
                                     {mythicGradeSpecialActive.length > 0 ? (
                                         <div>
-                                            <p className="mb-1.5 text-center text-[10px] font-semibold text-rose-200/90">신화 스페셜 옵션</p>
+                                            <p className="mb-1.5 text-center text-[12px] font-semibold text-rose-200/90">신화 스페셜 옵션</p>
                                             <ul className="space-y-2">
                                                 {mythicGradeSpecialActive.map(([stat, data]) => {
                                                     const def = MYTHIC_STATS_DATA[stat];
@@ -393,13 +393,13 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                                             className="rounded-xl border border-rose-500/28 bg-gradient-to-br from-rose-950/30 via-zinc-950/50 to-zinc-950/90 p-2.5 ring-1 ring-inset ring-rose-400/10 sm:p-3"
                                                         >
                                                             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                                                <p className="text-[12px] font-bold text-rose-100 sm:text-sm">{def.name}</p>
-                                                                <span className="rounded-md border border-rose-400/35 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold text-rose-200/95">
+                                                                <p className="text-[14px] font-bold text-rose-100 sm:text-base">{def.name}</p>
+                                                                <span className="rounded-md border border-rose-400/35 bg-black/40 px-2 py-0.5 font-mono text-[12px] font-bold text-rose-200/95">
                                                                     중첩 ×{data.count}
                                                                 </span>
                                                             </div>
-                                                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-rose-200/60">{def.abbrevLabel}</p>
-                                                            <div className="text-[11px] leading-snug text-zinc-200/95 sm:text-xs">{formatMythicStat(stat, data)}</div>
+                                                            <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-rose-200/60">{def.abbrevLabel}</p>
+                                                            <div className="text-[13px] leading-snug text-zinc-200/95 sm:text-sm">{formatMythicStat(stat, data)}</div>
                                                         </li>
                                                     );
                                                 })}
@@ -408,7 +408,7 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                     ) : null}
                                     {transcendentGradeSpecialActive.length > 0 ? (
                                         <div>
-                                            <p className="mb-1.5 text-center text-[10px] font-semibold text-cyan-200/90">초월 스페셜 옵션</p>
+                                            <p className="mb-1.5 text-center text-[12px] font-semibold text-cyan-200/90">초월 스페셜 옵션</p>
                                             <ul className="space-y-2">
                                                 {transcendentGradeSpecialActive.map(([stat, data]) => {
                                                     const def = MYTHIC_STATS_DATA[stat];
@@ -418,13 +418,13 @@ const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
                                                             className="rounded-xl border border-cyan-500/28 bg-gradient-to-br from-cyan-950/25 via-zinc-950/50 to-zinc-950/90 p-2.5 ring-1 ring-inset ring-cyan-400/10 sm:p-3"
                                                         >
                                                             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
-                                                                <p className="text-[12px] font-bold text-cyan-100 sm:text-sm">{def.name}</p>
-                                                                <span className="rounded-md border border-cyan-400/35 bg-black/40 px-2 py-0.5 font-mono text-[10px] font-bold text-cyan-200/95">
+                                                                <p className="text-[14px] font-bold text-cyan-100 sm:text-base">{def.name}</p>
+                                                                <span className="rounded-md border border-cyan-400/35 bg-black/40 px-2 py-0.5 font-mono text-[12px] font-bold text-cyan-200/95">
                                                                     중첩 ×{data.count}
                                                                 </span>
                                                             </div>
-                                                            <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-200/60">{def.abbrevLabel}</p>
-                                                            <div className="text-[11px] leading-snug text-zinc-200/95 sm:text-xs">{formatMythicStat(stat, data)}</div>
+                                                            <p className="mb-1 text-[12px] font-semibold uppercase tracking-wide text-cyan-200/60">{def.abbrevLabel}</p>
+                                                            <div className="text-[13px] leading-snug text-zinc-200/95 sm:text-sm">{formatMythicStat(stat, data)}</div>
                                                         </li>
                                                     );
                                                 })}

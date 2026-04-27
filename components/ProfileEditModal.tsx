@@ -52,6 +52,17 @@ const pickRingIdle =
 
 const BORDER_CATEGORY_ORDER: BorderCategory[] = ['기본', '레벨제한', '구매테두리', '전시즌보상'];
 
+const formatVipRemaining = (expiresAt: number | undefined, nowMs: number): string => {
+    if (!expiresAt || expiresAt <= nowMs) return '비활성화';
+
+    const totalMinutes = Math.max(1, Math.ceil((expiresAt - nowMs) / 60000));
+    const days = Math.floor(totalMinutes / 1440);
+    const hours = Math.floor((totalMinutes % 1440) / 60);
+    const minutes = totalMinutes % 60;
+
+    return `${String(days).padStart(2, '0')}:${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
 const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const isPcMode = !isNativeMobile;
@@ -61,6 +72,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
     const [selectedAvatarId, setSelectedAvatarId] = useState(currentUser.avatarId);
     const [selectedBorderId, setSelectedBorderId] = useState(currentUser.borderId);
     const [newNickname, setNewNickname] = useState(currentUser.nickname);
+    const [nowMs, setNowMs] = useState(() => Date.now());
 
     // currentUser 변경 시 로컬 상태 동기화
     React.useEffect(() => {
@@ -102,6 +114,11 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
     }, [currentUser.mbti]);
 
     useEffect(() => {
+        const timer = window.setInterval(() => setNowMs(Date.now()), 60000);
+        return () => window.clearInterval(timer);
+    }, []);
+
+    useEffect(() => {
         if (activeTab !== 'avatar') return;
         const el = avatarScrollRef.current;
         if (!el) return;
@@ -127,6 +144,42 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
     const previewBorderUrl = useMemo(
         () => BORDER_POOL.find((b) => b.id === selectedBorderId)?.url,
         [selectedBorderId],
+    );
+
+    const rewardVipExpiresAt = Math.max(currentUser.rewardVipExpiresAt ?? 0, currentUser.vvipExpiresAt ?? 0);
+    const functionVipExpiresAt = Math.max(currentUser.functionVipExpiresAt ?? 0, currentUser.vvipExpiresAt ?? 0);
+    const vipStatusPanel = (
+        <div className={`${panelSurface} flex w-full flex-col justify-center gap-2 px-3 py-3 text-xs sm:w-[14.5rem] sm:px-4`}>
+            <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
+                <span className="font-bold text-violet-100">기능 VIP</span>
+                <span
+                    className={`font-mono font-bold tabular-nums ${
+                        functionVipExpiresAt > nowMs ? 'text-emerald-300' : 'text-zinc-500'
+                    }`}
+                >
+                    {functionVipExpiresAt > nowMs ? `남은 기간 ${formatVipRemaining(functionVipExpiresAt, nowMs)}` : '비활성화'}
+                </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-fuchsia-100">보상 VIP</span>
+                <span
+                    className={`font-mono font-bold tabular-nums ${
+                        rewardVipExpiresAt > nowMs ? 'text-emerald-300' : 'text-zinc-500'
+                    }`}
+                >
+                    {rewardVipExpiresAt > nowMs ? `남은 기간 ${formatVipRemaining(rewardVipExpiresAt, nowMs)}` : '비활성화'}
+                </span>
+            </div>
+        </div>
+    );
+
+    const renderPreviewRow = (previewPanel: React.ReactNode) => (
+        <div className="flex shrink-0 justify-center">
+            <div className="flex w-full max-w-[34rem] flex-col items-stretch justify-center gap-2 sm:flex-row">
+                {previewPanel}
+                {vipStatusPanel}
+            </div>
+        </div>
     );
 
     const handleSave = () => {
@@ -258,16 +311,16 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
     const renderTabContent = () => {
         switch (activeTab) {
             case 'avatar': {
-                const avatarStrip = (
+                const avatarGrid = (
                     <div
                         ref={avatarScrollRef}
                         tabIndex={0}
                         role="listbox"
                         aria-label="아바타 목록"
-                        className={`flex w-full cursor-default gap-2 overflow-x-auto overflow-y-visible [scrollbar-width:thin] outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 ${
+                        className={`grid min-h-0 flex-1 w-full cursor-default gap-2 overflow-y-auto [scrollbar-width:thin] outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 ${
                             isPcMode
-                                ? 'min-h-[92px] max-h-[92px] flex-nowrap px-3 py-2 scroll-px-3'
-                                : 'min-h-[88px] px-3 py-2.5 scroll-px-3 sm:min-h-[96px] sm:gap-2.5 sm:px-4 sm:py-3 sm:scroll-px-4'
+                                ? 'grid-cols-[repeat(auto-fill,minmax(5.25rem,1fr))] auto-rows-min px-3 py-2.5'
+                                : 'grid-cols-[repeat(auto-fill,minmax(5rem,1fr))] auto-rows-min px-3 py-2.5 sm:grid-cols-[repeat(auto-fill,minmax(5.75rem,1fr))] sm:gap-2.5 sm:px-4 sm:py-3'
                         }`}
                     >
                         {AVATAR_POOL.map((avatar: AvatarInfo) => {
@@ -285,7 +338,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                     aria-selected={sel}
                                     disabled={!isUnlocked}
                                     onClick={() => isUnlocked && setSelectedAvatarId(avatar.id)}
-                                    className={`relative flex w-[4.25rem] shrink-0 flex-col items-center gap-0.5 rounded-xl border p-1 transition-all duration-200 sm:w-[4.75rem] ${
+                                    className={`relative flex min-h-[5.75rem] w-full flex-col items-center justify-center gap-0.5 rounded-xl border p-1 transition-all duration-200 sm:min-h-[6.25rem] ${
                                         sel ? pickRingSel : pickRingIdle
                                     } ${!isUnlocked ? 'cursor-not-allowed opacity-45 grayscale' : 'cursor-pointer'}`}
                                 >
@@ -307,7 +360,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
 
                 const previewSize = isPcMode ? 88 : 100;
                 const previewPanel = (
-                    <div className={`${panelSurface} flex flex-col items-center gap-2 px-3 py-3 sm:px-4 sm:py-4`}>
+                    <div className={`${panelSurface} flex w-full max-w-[18rem] flex-col items-center gap-2 px-3 py-3 sm:px-4 sm:py-4`}>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/70">미리보기</p>
                         <div className="rounded-full p-1 shadow-[0_0_32px_rgba(245,158,11,0.2)] ring-2 ring-amber-400/35 ring-offset-2 ring-offset-zinc-950">
                             <Avatar
@@ -324,24 +377,12 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                     </div>
                 );
 
-                if (isPcMode) {
-                    return (
-                        <div className="flex min-h-0 flex-1 flex-row items-stretch gap-3">
-                            <div className="w-[min(40%,13.5rem)] shrink-0">{previewPanel}</div>
-                            <div className={`${panelSurface} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 py-2`}>
-                                <p className="mb-1 shrink-0 px-2 text-xs font-semibold text-stone-200">아바타 선택</p>
-                                {avatarStrip}
-                            </div>
-                        </div>
-                    );
-                }
-
                 return (
-                    <div className="flex flex-col gap-4">
-                        {previewPanel}
-                        <div className={`${panelSurface} px-2 py-2 sm:px-3 sm:py-3`}>
-                            <p className="mb-2 px-2 text-xs font-semibold text-stone-200 sm:text-sm">아바타 선택</p>
-                            {avatarStrip}
+                    <div className="flex min-h-0 flex-1 flex-col gap-3 sm:gap-4">
+                        {renderPreviewRow(previewPanel)}
+                        <div className={`${panelSurface} flex min-h-0 flex-1 flex-col overflow-hidden px-2 py-2 sm:px-3 sm:py-3`}>
+                            <p className="mb-2 shrink-0 px-2 text-xs font-semibold text-stone-200 sm:text-sm">아바타 선택</p>
+                            {avatarGrid}
                         </div>
                     </div>
                 );
@@ -461,7 +502,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
 
                 const borderPreviewSize = isPcMode ? 88 : 100;
                 const borderPreviewPanel = (
-                    <div className={`${panelSurface} flex flex-col items-center gap-1.5 px-3 py-3 sm:gap-2 sm:px-4 sm:py-4`}>
+                    <div className={`${panelSurface} flex w-full max-w-[18rem] flex-col items-center gap-1.5 px-3 py-3 sm:gap-2 sm:px-4 sm:py-4`}>
                         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-200/70">테두리 미리보기</p>
                         <div className="rounded-full p-1 shadow-[0_0_28px_rgba(245,158,11,0.18)] ring-2 ring-amber-400/30 ring-offset-2 ring-offset-zinc-950">
                             <Avatar
@@ -483,8 +524,8 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                 if (isPcMode) {
                     const activeBorders = categorizedBorders[borderCategoryTab] ?? [];
                     return (
-                        <div className="flex min-h-0 flex-1 flex-row items-stretch gap-3">
-                            <div className="w-[min(38%,12.5rem)] shrink-0">{borderPreviewPanel}</div>
+                        <div className="flex min-h-0 flex-1 flex-col gap-3">
+                            {renderPreviewRow(borderPreviewPanel)}
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden">
                                 <div
                                     className="flex shrink-0 flex-wrap gap-1 rounded-xl border border-white/10 bg-black/40 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
@@ -508,10 +549,10 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                         </button>
                                     ))}
                                 </div>
-                                <div className={`${panelSurface} min-h-0 flex-1 overflow-hidden p-2.5 sm:p-3`}>
+                                <div className={`${panelSurface} min-h-0 flex-1 overflow-y-auto p-2.5 [scrollbar-width:thin] sm:p-3`}>
                                     {renderBorderTiles(
                                         activeBorders,
-                                        'grid grid-cols-5 gap-2 sm:grid-cols-5 sm:gap-2.5',
+                                        'grid grid-cols-[repeat(auto-fill,minmax(5.5rem,1fr))] gap-2 sm:grid-cols-[repeat(auto-fill,minmax(6rem,1fr))] sm:gap-2.5',
                                     )}
                                 </div>
                             </div>
@@ -520,9 +561,9 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                 }
 
                 return (
-                    <div className="flex flex-col gap-4">
-                        {borderPreviewPanel}
-                        <div className="space-y-4">
+                    <div className="flex min-h-0 flex-1 flex-col gap-4">
+                        {renderPreviewRow(borderPreviewPanel)}
+                        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto [scrollbar-width:thin]">
                             {(Object.keys(categorizedBorders) as BorderCategory[]).map((category) => {
                                 const borders = categorizedBorders[category];
                                 if (borders.length === 0) return null;
@@ -546,37 +587,39 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
             }
             case 'nickname':
                 return (
-                    <div className="mx-auto flex max-w-md flex-col gap-4 px-1">
-                        <div className={`${panelSurface} p-4 sm:p-5`}>
-                            <label htmlFor="nickname-input" className="mb-2 block text-center text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/75 sm:text-sm sm:tracking-[0.24em]">
-                                새 닉네임
-                            </label>
-                            <p className="mb-3 text-center text-[11px] text-zinc-500">2~6자 · 비속어 불가 · 변경 시 다이아가 소모됩니다</p>
-                            <input
-                                id="nickname-input"
-                                type="text"
-                                value={newNickname}
-                                onChange={(e) => setNewNickname(e.target.value)}
-                                className="w-full rounded-xl border border-white/12 bg-black/45 px-4 py-3 text-center text-base font-semibold tracking-tight text-stone-100 shadow-[inset_0_2px_8px_rgba(0,0,0,0.35)] placeholder:text-zinc-600 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-400/25"
-                                maxLength={6}
-                                minLength={2}
-                                placeholder="닉네임 입력"
-                            />
-                        </div>
-                        <div className={`${panelSurface} px-4 py-3 text-sm`}>
-                            <div className="flex items-center justify-between border-b border-white/10 pb-2">
-                                <span className="text-zinc-400">변경 비용</span>
-                                <span
-                                    className={`flex items-center gap-1.5 font-bold tabular-nums ${canAffordNicknameChange ? 'text-cyan-200' : 'text-red-400'}`}
-                                >
-                                    <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {nicknameChangeCost}
-                                </span>
+                    <div className="flex min-h-0 flex-1 items-center justify-center px-1 py-4">
+                        <div className="flex w-full max-w-md flex-col gap-4">
+                            <div className={`${panelSurface} p-4 sm:p-5`}>
+                                <label htmlFor="nickname-input" className="mb-2 block text-center text-xs font-semibold uppercase tracking-[0.2em] text-amber-200/75 sm:text-sm sm:tracking-[0.24em]">
+                                    새 닉네임
+                                </label>
+                                <p className="mb-3 text-center text-[11px] text-zinc-500">2~6자 · 비속어 불가 · 변경 시 다이아가 소모됩니다</p>
+                                <input
+                                    id="nickname-input"
+                                    type="text"
+                                    value={newNickname}
+                                    onChange={(e) => setNewNickname(e.target.value)}
+                                    className="w-full rounded-xl border border-white/12 bg-black/45 px-4 py-3 text-center text-base font-semibold tracking-tight text-stone-100 shadow-[inset_0_2px_8px_rgba(0,0,0,0.35)] placeholder:text-zinc-600 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-400/25"
+                                    maxLength={6}
+                                    minLength={2}
+                                    placeholder="닉네임 입력"
+                                />
                             </div>
-                            <div className="mt-2 flex items-center justify-between">
-                                <span className="text-zinc-400">보유 다이아</span>
-                                <span className="flex items-center gap-1.5 font-bold tabular-nums text-stone-100">
-                                    <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {currentUser.diamonds.toLocaleString()}
-                                </span>
+                            <div className={`${panelSurface} px-4 py-3 text-sm`}>
+                                <div className="flex items-center justify-between border-b border-white/10 pb-2">
+                                    <span className="text-zinc-400">변경 비용</span>
+                                    <span
+                                        className={`flex items-center gap-1.5 font-bold tabular-nums ${canAffordNicknameChange ? 'text-cyan-200' : 'text-red-400'}`}
+                                    >
+                                        <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {nicknameChangeCost}
+                                    </span>
+                                </div>
+                                <div className="mt-2 flex items-center justify-between">
+                                    <span className="text-zinc-400">보유 다이아</span>
+                                    <span className="flex items-center gap-1.5 font-bold tabular-nums text-stone-100">
+                                        <img src="/images/icon/Zem.png" alt="" className="h-4 w-4" /> {currentUser.diamonds.toLocaleString()}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -676,9 +719,9 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                     selected: 'E' | 'I' | 'S' | 'N' | 'T' | 'F' | 'J' | 'P';
                     onSelect: (value: any) => void;
                 }> = ({ title, options, selected, onSelect }) => (
-                    <div className={`${panelSurface} flex flex-1 flex-col ${isPcMode ? 'p-2' : 'p-3 sm:p-4'}`}>
+                    <div className={`${panelSurface} flex flex-col ${isPcMode ? 'p-2.5' : 'p-3 sm:p-4'}`}>
                         <h4 className={`mb-1.5 text-center font-bold text-amber-100/95 ${isPcMode ? 'text-xs' : 'text-sm'}`}>{title}</h4>
-                        <div className={`mb-2 flex justify-center gap-1.5 ${isPcMode ? '' : 'mb-3 gap-2'}`}>
+                        <div className={`flex justify-center gap-1.5 ${isPcMode ? '' : 'gap-2'}`}>
                             {options.map((opt) => (
                                 <button
                                     key={opt}
@@ -696,33 +739,44 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                 </button>
                             ))}
                         </div>
-                        <div
-                            className={`flex-1 rounded-lg border border-white/8 bg-black/35 leading-relaxed text-zinc-400 ${
-                                isPcMode
-                                    ? 'min-h-[4.75rem] p-2 text-[10px] leading-snug'
-                                    : 'min-h-[7.5rem] p-2.5 text-[11px] sm:text-xs'
-                            }`}
-                        >
-                            <h5 className="font-bold text-amber-200/90">일반적 성향</h5>
-                            <p>{MBTI_DETAILS[selected].general}</p>
-                            <h5 className="mt-1.5 font-bold text-cyan-200/85 sm:mt-2">바둑 성향</h5>
-                            <p>{MBTI_DETAILS[selected].goStyle}</p>
-                        </div>
                     </div>
                 );
 
                 const finalMbti = `${mbti.ei}${mbti.sn}${mbti.tf}${mbti.jp}`;
+                const selectedMbtiDetails = [mbti.ei, mbti.sn, mbti.tf, mbti.jp].map((key) => MBTI_DETAILS[key]);
 
                 return (
                     <div className={`${isPcMode ? 'space-y-2' : 'space-y-4'}`}>
                         <div className={`${panelSurface} px-3 py-2 text-center sm:px-4 sm:py-2.5`}>
                             <p className="text-[11px] text-zinc-400 sm:text-sm">MBTI는 프로필에 공개됩니다</p>
                         </div>
-                        <div className={`grid grid-cols-1 md:grid-cols-2 ${isPcMode ? 'gap-2' : 'gap-3 md:gap-4'}`}>
+                        <div className={`grid ${isPcMode ? 'grid-cols-4 gap-2' : 'grid-cols-1 gap-3 md:grid-cols-2 md:gap-4'}`}>
                             <DichotomySelector title="에너지 방향" options={['E', 'I']} selected={mbti.ei} onSelect={(v) => setMbti((p) => ({ ...p, ei: v as 'E' | 'I' }))} />
                             <DichotomySelector title="인식 기능" options={['S', 'N']} selected={mbti.sn} onSelect={(v) => setMbti((p) => ({ ...p, sn: v as 'S' | 'N' }))} />
                             <DichotomySelector title="판단 기능" options={['T', 'F']} selected={mbti.tf} onSelect={(v) => setMbti((p) => ({ ...p, tf: v as 'T' | 'F' }))} />
                             <DichotomySelector title="생활 양식" options={['J', 'P']} selected={mbti.jp} onSelect={(v) => setMbti((p) => ({ ...p, jp: v as 'J' | 'P' }))} />
+                        </div>
+                        <div className={`${panelSurface} p-3 sm:p-4`}>
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
+                                <h4 className="text-sm font-bold text-amber-100 sm:text-base">종합 성향</h4>
+                                <span className="rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1 text-sm font-black tracking-widest text-emerald-300">
+                                    {finalMbti}
+                                </span>
+                            </div>
+                            <div className={`grid gap-3 ${isPcMode ? 'md:grid-cols-2' : ''}`}>
+                                <div className="rounded-lg border border-amber-400/15 bg-black/30 p-3">
+                                    <h5 className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-amber-200/85">일반적 성향</h5>
+                                    <p className="text-xs leading-relaxed text-zinc-300 sm:text-sm">
+                                        {selectedMbtiDetails.map((detail) => detail.general).join(' ')}
+                                    </p>
+                                </div>
+                                <div className="rounded-lg border border-cyan-400/15 bg-black/30 p-3">
+                                    <h5 className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-cyan-200/85">바둑 성향</h5>
+                                    <p className="text-xs leading-relaxed text-zinc-300 sm:text-sm">
+                                        {selectedMbtiDetails.map((detail) => detail.goStyle).join(' ')}
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                         <div
                             className={`${panelSurface} flex flex-wrap items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 ${isPcMode ? 'py-2' : 'py-2.5 sm:py-3'}`}
@@ -791,8 +845,10 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                     </div>
                 </div>
                 <div
-                    className={`min-h-0 flex-1 overflow-x-hidden px-1 pb-2 sm:px-2 ${
-                        isPcMode ? 'overflow-y-hidden' : 'overflow-y-auto [scrollbar-width:thin]'
+                    className={`flex min-h-0 flex-1 flex-col overflow-x-hidden px-1 pb-2 sm:px-2 ${
+                        activeTab === 'avatar' || activeTab === 'border'
+                            ? 'overflow-y-hidden'
+                            : 'overflow-y-auto [scrollbar-width:thin]'
                     }`}
                 >
                     {renderTabContent()}

@@ -55,6 +55,15 @@ const ExpIcon: React.FC = () => (
     </span>
 );
 
+/** 최초 클리어 `bonus` 필드: `스탯10` / `능력치10` 등 → 표시만 「보너스 능력치 +10」 */
+const formatStatBonusBadge = (
+    bonus: string
+): { label: string; value: string } | null => {
+    const m = bonus.match(/^(?:스탯|능력치)\s*(\d+)$/);
+    if (!m) return null;
+    return { label: '보너스 능력치', value: `+${m[1]}` };
+};
+
 const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) => {
     if (!reward) {
         return <span className="text-sm text-gray-400">—</span>;
@@ -107,7 +116,14 @@ const RewardBadges: React.FC<{ reward: RewardCell | undefined }> = ({ reward }) 
                         />
                     );
                 })}
-            {hasBonus && <RewardBadge tone="bonus" label="보너스" value={String(reward.bonus)} />}
+            {hasBonus &&
+                (() => {
+                    const statFmt = formatStatBonusBadge(String(reward.bonus));
+                    if (statFmt) {
+                        return <RewardBadge tone="bonus" label={statFmt.label} value={statFmt.value} />;
+                    }
+                    return <RewardBadge tone="bonus" label="보너스" value={String(reward.bonus)} />;
+                })()}
         </div>
     );
 };

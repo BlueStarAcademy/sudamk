@@ -40,7 +40,12 @@ import {
 import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
-import { applyUserProgressionArenaLocks, getBadukAbilitySnapshotFromStats } from '../shared/utils/contentProgressionGates.js';
+import {
+    applyUserProgressionArenaLocks,
+    getBadukAbilitySnapshotFromStats,
+    TOWER_ENTRANCE_REQUIRED_STAGE_ID,
+    ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
+} from '../shared/utils/contentProgressionGates.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
@@ -69,6 +74,8 @@ type GameRejoinFailure = {
     reason: GameRejoinFailureReason;
     message: string;
 };
+
+type ContentUnlockType = 'tower' | 'adventure';
 
 const CONNECTION_OK_STATUS: AppConnectionStatus = {
     kind: 'ok',
@@ -734,6 +741,25 @@ export const useApp = () => {
                     }
                 });
             }
+
+            const prevCleared = new Set(Array.isArray(prevUser.clearedSinglePlayerStages) ? prevUser.clearedSinglePlayerStages : []);
+            const nextCleared = new Set(Array.isArray(mergedUser.clearedSinglePlayerStages) ? mergedUser.clearedSinglePlayerStages : []);
+            const unlockedNow: ContentUnlockType[] = [];
+            if (!prevCleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) && nextCleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID)) {
+                unlockedNow.push('tower');
+            }
+            if (!prevCleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) && nextCleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID)) {
+                unlockedNow.push('adventure');
+            }
+            if (unlockedNow.length > 0) {
+                queueMicrotask(() => {
+                    setContentUnlockNoticeQueue((prev) => {
+                        const seen = new Set(prev);
+                        const append = unlockedNow.filter((k) => !seen.has(k));
+                        return append.length > 0 ? [...prev, ...append] : prev;
+                    });
+                });
+            }
         }
         
         // HTTP 업데이트인 경우 타임스탬프 및 액션 타입 기록
@@ -971,6 +997,8 @@ export const useApp = () => {
     const deferredLevelUpCelebrationRef = useRef<LevelUpCelebrationPayload | null>(null);
     const [mannerGradeChange, setMannerGradeChange] = useState<MannerGradeChangePayload | null>(null);
     const deferredMannerGradeChangeRef = useRef<MannerGradeChangePayload | null>(null);
+    const [contentUnlockNoticeQueue, setContentUnlockNoticeQueue] = useState<ContentUnlockType[]>([]);
+    const contentUnlockNotice = contentUnlockNoticeQueue[0] ?? null;
     const [isClaimAllSummaryOpen, setIsClaimAllSummaryOpen] = useState(false);
     const [claimAllSummary, setClaimAllSummary] = useState<{ gold: number; diamonds: number; actionPoints: number } | null>(null);
     const [viewingUser, setViewingUser] = useState<UserWithStatus | null>(null);
@@ -1425,6 +1453,13 @@ export const useApp = () => {
             previousScore,
             newScore: score,
         });
+    }, []);
+
+    /** 관리자 홈: 콘텐츠 해금 안내 모달 미리보기 */
+    const previewAdminContentUnlockNoticeModal = useCallback((type: ContentUnlockType) => {
+        const u = currentUserRef.current;
+        if (!u?.isAdmin) return;
+        setContentUnlockNoticeQueue([type]);
     }, []);
 
     const activeGame = useMemo(() => {
@@ -4942,6 +4977,7 @@ export const useApp = () => {
             setLevelUpCelebration(null);
             deferredMannerGradeChangeRef.current = null;
             setMannerGradeChange(null);
+            setContentUnlockNoticeQueue([]);
             return;
         }
 
@@ -8324,6 +8360,7 @@ export const useApp = () => {
             isActionPointModalOpen,
             levelUpCelebration,
             mannerGradeChange,
+            contentUnlockNotice,
         },
         handlers: {
             handleAction,
@@ -8362,8 +8399,10 @@ export const useApp = () => {
             closeRewardSummary: () => setRewardSummary(null),
             closeLevelUpCelebration: () => setLevelUpCelebration(null),
             closeMannerGradeChange: () => setMannerGradeChange(null),
+            closeContentUnlockNotice: () => setContentUnlockNoticeQueue((prev) => prev.slice(1)),
             previewAdminLevelUpCelebrationModal,
             previewAdminMannerGradeUpModal,
+            previewAdminContentUnlockNoticeModal,
             closeClaimAllSummary,
             openViewingUser: handleViewUser,
             closeViewingUser: () => setViewingUser(null),

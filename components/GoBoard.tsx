@@ -652,6 +652,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     /** 동일 시그니처(+점수/앵커/수순)의 짧은 시간 중복 재생 방지 */
     const lastCaptureFloatSignatureRef = useRef<string>('');
     const lastCaptureFloatSignatureAtRef = useRef<number>(0);
+    const reservedCaptureFloatSignaturesRef = useRef<Set<string>>(new Set());
     const prevCapturesForFloatRef = useRef<Partial<Record<Player, number>> | null>(null);
     /** 미사일 연출 중 매 프레임 착지점 (애니 종료 후 null이 되어도 여기 남음) */
     const lastMissileAnimationToRef = useRef<Point | null>(null);
@@ -672,6 +673,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         lastCaptureScoreFloatPushedMoveKeyRef.current = '';
         lastCaptureFloatSignatureRef.current = '';
         lastCaptureFloatSignatureAtRef.current = 0;
+        reservedCaptureFloatSignaturesRef.current.clear();
         prevCapturesForFloatRef.current = null;
         lastMissileAnimationToRef.current = null;
         missileCaptureScoreAnchorRef.current = null;
@@ -750,21 +752,28 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const pushFloat = (totalPts: number, anchor: Point, extraDelayMs = 0) => {
                 if (totalPts < minPts) return;
                 const lag = extraDelayMs + hiddenRevealScoreFloatLagMs;
+                const tailMove = moveHistory?.length ? moveHistory[moveHistory.length - 1] : null;
+                const movePart = tailMove
+                    ? `${moveHistory!.length}-${tailMove.player}-${tailMove.x}-${tailMove.y}`
+                    : `nomove-${gameStatus}`;
+                const sig = `${movePart}-${anchor.x}-${anchor.y}-${totalPts}`;
+                const nowTs = Date.now();
+                if (
+                    reservedCaptureFloatSignaturesRef.current.has(sig) ||
+                    (sig === lastCaptureFloatSignatureRef.current &&
+                        nowTs - lastCaptureFloatSignatureAtRef.current < 3000)
+                ) {
+                    return;
+                }
+                reservedCaptureFloatSignaturesRef.current.add(sig);
+                lastCaptureFloatSignatureRef.current = sig;
+                lastCaptureFloatSignatureAtRef.current = nowTs;
+                const releaseSigT = window.setTimeout(() => {
+                    reservedCaptureFloatSignaturesRef.current.delete(sig);
+                }, Math.max(3000, CAPTURE_FLOAT_MS + lag + 250));
+                captureFloatTimeoutsRef.current.push(releaseSigT);
+
                 const doPush = () => {
-                    const nowTs = Date.now();
-                    const tailMove = moveHistory?.length ? moveHistory[moveHistory.length - 1] : null;
-                    const movePart = tailMove
-                        ? `${moveHistory!.length}-${tailMove.player}-${tailMove.x}-${tailMove.y}`
-                        : `nomove-${gameStatus}`;
-                    const sig = `${movePart}-${anchor.x}-${anchor.y}-${totalPts}`;
-                    if (
-                        sig === lastCaptureFloatSignatureRef.current &&
-                        nowTs - lastCaptureFloatSignatureAtRef.current < 1200
-                    ) {
-                        return;
-                    }
-                    lastCaptureFloatSignatureRef.current = sig;
-                    lastCaptureFloatSignatureAtRef.current = nowTs;
                     const floatId = `cap-${anchor.x}-${anchor.y}-${totalPts}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
                     setCaptureScoreFloats((prev) => [
                         ...prev,
