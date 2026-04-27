@@ -14,6 +14,7 @@ export const BLACK_HIDDEN_STONE_IMG = "/images/Hidden.png";
 // Lobby card images
 export const STRATEGIC_GO_LOBBY_IMG = "/images/RatingArena.png";
 export const PLAYFUL_GO_LOBBY_IMG = "/images/PlayingArena.png";
+export const PAIR_GO_LOBBY_IMG = "/images/2v2.webp";
 export const TOURNAMENT_LOBBY_IMG = "/images/Championship.png";
 export const SINGLE_PLAYER_LOBBY_IMG = "/images/single/Map.png";
 export const TOWER_CHALLENGE_LOBBY_IMG = "/images/tower/Tower.png";

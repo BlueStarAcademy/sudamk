@@ -103,7 +103,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 label: '거래소',
                 gameplay: true,
-                iconUrl: '/images/quickmenu/store.png',
+                iconUrl: '/images/quickmenu/trade.webp',
                 handler: () => window.alert('거래소는 추후 업데이트 예정입니다.'),
                 disabled: tutorialQuickDisabled('거래소'),
                 notification: false,

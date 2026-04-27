@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef, useId } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, GRADE_LEVEL_REQUIREMENTS, RANKING_TIERS, SINGLE_PLAYER_STAGES } from '../constants';
-import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
+import { STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, TOURNAMENT_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG } from '../assets.js';
 import Avatar from './Avatar.js';
 import UserNicknameText from './UserNicknameText.js';
 import Button from './Button.js';
@@ -316,7 +316,7 @@ const LobbyCard: React.FC<{
     );
 };
 
-const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason }) => {
+const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string; imageScaleClass?: string }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason, imageScaleClass = '' }) => {
     const shadowColor = "hover:shadow-purple-500/30";
     const compactMode = Boolean(compact && !arenaMobile);
 
@@ -333,7 +333,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                 <img
                     src={imageUrl}
                     alt=""
-                    className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 ease-out ${interactive ? 'group-hover:scale-105 group-active:scale-[1.02]' : ''}`}
+                    className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-500 ease-out ${imageScaleClass} ${interactive ? 'group-hover:scale-105 group-active:scale-[1.02]' : ''}`}
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-violet-950/5 to-black/16" />
                 {locked && (
@@ -390,7 +390,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                     Coming Soon
                 </div>
             )}
-            <img src={imageUrl} alt={title} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
+            <img src={imageUrl} alt={title} className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105 ${imageScaleClass}`} />
             <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/5 via-violet-950/5 to-black/16" />
             {locked && (
                 <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
@@ -1671,6 +1671,7 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const mergedCardClass = 'flex h-full min-h-0 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10';
     const imagePaneClass = 'min-h-0 min-w-0 flex-[1.78] p-0.5';
+    const pairImagePaneClass = 'min-h-0 min-w-0 flex-[2.2] p-0.5';
     /** PC 경기장 카드 우측: 타이틀 상단·버튼 하단 고정, 중간 통계 블록 세로 중앙 */
     const infoPanelShellClass =
         'flex h-full min-h-0 min-w-[196px] flex-[0.92] flex-col gap-2 border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
@@ -1796,8 +1797,8 @@ const Profile: React.FC<ProfileProps> = () => {
                     </div>
                 </div>
                 <div className={mergedCardClass}>
-                    <div className={imagePaneClass}>
-                        <PveCard title="페어경기장" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText />
+                    <div className={pairImagePaneClass}>
+                        <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" />
                     </div>
                     <div className={`${infoPanelShellClass} border-violet-300/25`}>
                         <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
@@ -2199,8 +2200,8 @@ const Profile: React.FC<ProfileProps> = () => {
                                         </div>
                                     </div>
                                     <div className={mergedCardClass}>
-                                        <div className={imagePaneClass}>
-                                            <PveCard title="페어경기장" imageUrl={STRATEGIC_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText />
+                                        <div className={pairImagePaneClass}>
+                                            <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-violet-300/25`}>
                                             <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
