@@ -2265,11 +2265,9 @@ export const useApp = () => {
                 return;
             }
             const updateGameState =
-                gameType === 'guildwar'
-                    ? setLiveGames
-                    : gameType === 'tower'
-                      ? setTowerGames
-                      : setSinglePlayerGames;
+                gameType === 'tower'
+                    ? setTowerGames
+                    : setSinglePlayerGames;
             const now = Date.now();
             const postRevealAutoScoringRef: {
                 current: {
