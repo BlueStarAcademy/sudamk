@@ -44,6 +44,7 @@ const CurlingStartConfirmationModal: React.FC<CurlingStartConfirmationModalProps
             shrinkHeightToContent
             windowId="curling-start-confirm"
             transparentModalBackdrop
+            skipSavedPosition
         >
             <div className="text-white">
                 <PreGameColorRoulette

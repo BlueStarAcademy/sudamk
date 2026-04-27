@@ -45,6 +45,7 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
             shrinkHeightToContent
             windowId="alkkagi-start-confirm"
             transparentModalBackdrop
+            skipSavedPosition
         >
             <div className="text-white">
                 <PreGameColorRoulette

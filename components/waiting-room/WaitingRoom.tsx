@@ -384,15 +384,23 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       : 'relative z-[1] min-w-0 flex-1 truncate text-left text-base font-bold text-amber-50 sm:text-lg lg:text-xl drop-shadow-[0_0_14px_rgba(251,191,36,0.2)]';
 
   const lobbySwitchTabs = (compact?: boolean) => (
-    <div className={`relative z-[1] grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-violet-400/35 bg-black/30 p-1 ${compact ? 'h-7' : 'h-9'}`}>
+    <div
+      className={`relative z-[1] grid shrink-0 grid-cols-2 gap-1 rounded-xl border-2 ${
+        mode === 'strategic'
+          ? 'border-cyan-300/70 bg-cyan-950/35 shadow-[0_0_20px_rgba(34,211,238,0.2)]'
+          : 'border-amber-300/70 bg-amber-950/25 shadow-[0_0_20px_rgba(251,191,36,0.2)]'
+      } p-1 ${compact ? 'h-8 min-w-[7.4rem]' : 'h-11 min-w-[10.5rem]'}`}
+      title="대기실 전환"
+      aria-label="전략 바둑과 놀이 바둑 대기실 전환"
+    >
       <button
         type="button"
         onClick={() => navigateToWaitingLobby('strategic')}
         aria-pressed={mode === 'strategic'}
-        className={`rounded-md px-2 font-bold transition-all ${compact ? 'text-[10px]' : 'text-xs'} ${
+        className={`rounded-lg px-2 font-black transition-all duration-200 ${compact ? 'text-[11px]' : 'text-sm'} ${
           mode === 'strategic'
-            ? 'bg-cyan-600/80 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]'
-            : 'text-cyan-100/80 hover:bg-cyan-700/30'
+            ? 'bg-gradient-to-b from-cyan-400 to-cyan-600 text-white ring-2 ring-cyan-200/90 shadow-[0_0_18px_rgba(34,211,238,0.55),inset_0_1px_0_rgba(255,255,255,0.35)] scale-[1.02]'
+            : 'text-cyan-100/95 bg-cyan-900/25 hover:bg-cyan-700/35 hover:text-cyan-50'
         }`}
       >
         전략
@@ -401,10 +409,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         type="button"
         onClick={() => navigateToWaitingLobby('playful')}
         aria-pressed={mode === 'playful'}
-        className={`rounded-md px-2 font-bold transition-all ${compact ? 'text-[10px]' : 'text-xs'} ${
+        className={`rounded-lg px-2 font-black transition-all duration-200 ${compact ? 'text-[11px]' : 'text-sm'} ${
           mode === 'playful'
-            ? 'bg-amber-600/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2)]'
-            : 'text-amber-100/80 hover:bg-amber-700/30'
+            ? 'bg-gradient-to-b from-amber-400 to-amber-600 text-white ring-2 ring-amber-200/90 shadow-[0_0_18px_rgba(251,191,36,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] scale-[1.02]'
+            : 'text-amber-100/95 bg-amber-900/20 hover:bg-amber-700/35 hover:text-amber-50'
         }`}
       >
         놀이

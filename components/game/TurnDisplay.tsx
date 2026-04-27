@@ -319,6 +319,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         if (session.isAiGame && (session.mode === GameMode.Dice || session.mode === GameMode.Thief)) {
             return false;
         }
+        if (session.isAiGame && session.mode === GameMode.Alkkagi) {
+            return false;
+        }
         return (
             PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode) &&
             session.turnDeadline &&
@@ -576,7 +579,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center ${isMobile ? 'min-h-[1.15rem]' : 'min-h-[1.5rem]'}`}
             >
                 <div
-                    className={`font-bold tracking-wider text-center px-1 text-amber-100 ${
+                    className={`font-bold tracking-wider text-center px-1 text-amber-100 whitespace-nowrap overflow-hidden text-ellipsis ${
                         isMobile ? 'text-[clamp(0.62rem,2vmin,0.72rem)] leading-tight' : 'text-[clamp(0.8rem,2.5vmin,1rem)]'
                     }`}
                     style={{
@@ -606,9 +609,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 }`}
             >
                 <div
-                    className={`flex items-center justify-center text-center font-extrabold ${textClass} tracking-wide animate-pulse ${
+                    className={`flex items-center justify-center text-center font-extrabold ${textClass} tracking-wide animate-pulse whitespace-nowrap overflow-hidden text-ellipsis ${
                         isMobile
-                            ? 'px-1 text-[clamp(0.78rem,2.4vmin,0.95rem)] leading-snug whitespace-normal'
+                            ? 'px-1 text-[clamp(0.78rem,2.4vmin,0.95rem)] leading-snug'
                             : 'px-2 text-[clamp(1.05rem,3.2vmin,1.45rem)] min-[1025px]:text-[clamp(1.15rem,2.8vmin,1.55rem)]'
                     }`}
                     style={{
@@ -627,7 +630,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 isMobile ? 'py-0.5 min-h-[2.25rem]' : 'py-1 h-12'
             }`,
             <p
-                className={`px-1 text-center font-bold text-white tracking-wider ${
+                className={`px-1 text-center font-bold text-white tracking-wider whitespace-nowrap overflow-hidden text-ellipsis ${
                     isMobile ? 'text-[clamp(0.65rem,2.2vmin,0.8rem)] leading-tight' : 'text-[clamp(0.875rem,3vmin,1.125rem)]'
                 }`}
             >
@@ -638,6 +641,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     
     if (
         session.mode === GameMode.Alkkagi &&
+        !session.isAiGame &&
         (session.gameStatus === 'alkkagi_placement' || session.gameStatus === 'alkkagi_simultaneous_placement')
     ) {
         const target = session.settings.alkkagiStoneCount || 5;
@@ -675,7 +679,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                         className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
                     >
                         <p
-                            className={`font-bold ${textClass} text-center leading-snug tracking-wide ${
+                            className={`font-bold ${textClass} text-center leading-snug tracking-wide whitespace-nowrap overflow-hidden text-ellipsis ${
                                 isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
                             }`}
                             style={{
@@ -713,7 +717,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
         );
     }
 
-    if (session.mode === GameMode.Alkkagi && session.gameStatus === 'alkkagi_round_end' && session.alkkagiRoundSummary) {
+    if (session.mode === GameMode.Alkkagi && !session.isAiGame && session.gameStatus === 'alkkagi_round_end' && session.alkkagiRoundSummary) {
         const summary = session.alkkagiRoundSummary;
         const { player1, player2, blackPlayerId, whitePlayerId, id: gameId, alkkagiStones, roundEndConfirmations, settings } = session;
         const winnerUser = player1.id === summary.winnerId ? player1 : player2;
@@ -740,7 +744,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             <>
                 <div className="flex w-full min-w-0 flex-col items-center gap-1">
                     <p
-                        className={`text-center font-bold leading-snug ${textClass} ${
+                        className={`text-center font-bold leading-snug ${textClass} whitespace-nowrap overflow-hidden text-ellipsis ${
                             isMobile ? 'text-[clamp(0.6rem,1.7vmin,0.78rem)]' : 'text-sm min-[1025px]:text-base'
                         }`}
                         style={{
@@ -813,7 +817,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                         className={`w-full overflow-hidden flex-shrink-0 relative flex items-center justify-center px-0.5 ${isMobile ? 'min-h-[1.1rem]' : 'min-h-[1.35rem]'}`}
                     >
                         <p
-                            className={`font-bold ${textClass} text-center leading-snug tracking-wide ${
+                            className={`font-bold ${textClass} text-center leading-snug tracking-wide whitespace-nowrap overflow-hidden text-ellipsis ${
                                 isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.68rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.82rem)]'
                             }`}
                             style={{
@@ -879,9 +883,9 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                     }`}
                 >
                     <div
-                        className={`flex items-center justify-center text-center font-bold ${textClass} tracking-wider ${
+                        className={`flex items-center justify-center text-center font-bold ${textClass} tracking-wider whitespace-nowrap overflow-hidden text-ellipsis ${
                             isMobile
-                                ? 'px-0.5 text-[clamp(0.58rem,1.85vmin,0.68rem)] leading-tight whitespace-normal'
+                                ? 'px-0.5 text-[clamp(0.58rem,1.85vmin,0.68rem)] leading-tight'
                                 : 'absolute inset-0 whitespace-nowrap text-[clamp(0.8rem,2.5vmin,1rem)]'
                         }`}
                         style={{
@@ -959,7 +963,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
             `${baseClasses} ${themeClasses} min-w-0 ${isMobile ? 'gap-0 px-2 min-h-[2rem]' : 'gap-0 px-3 min-h-[2.25rem]'}`,
             <div className="flex w-full min-w-0 items-center justify-center">
                 <p
-                    className={`max-w-full text-center font-bold leading-snug tracking-wide ${textClass} ${
+                    className={`max-w-full text-center font-bold leading-snug tracking-wide ${textClass} whitespace-nowrap overflow-hidden text-ellipsis ${
                         isMobile ? 'text-[clamp(0.58rem,1.65vmin,0.78rem)]' : 'text-[clamp(0.68rem,1.9vmin,0.92rem)]'
                     }`}
                     style={{
@@ -1006,11 +1010,11 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 </p>
             )}
             <p
-                className={`text-center font-bold tracking-wider ${textClass} ${
+                className={`text-center font-bold tracking-wider ${textClass} whitespace-nowrap overflow-hidden text-ellipsis ${
                     isMobile
                         ? 'px-0.5 text-[0.6875rem] leading-tight sm:text-sm sm:leading-snug'
                         : 'px-2 text-[clamp(0.88rem,2.7vmin,1.08rem)] min-[1025px]:text-[clamp(0.95rem,2.2vmin,1.15rem)]'
-                } ${isAdventureCategory ? 'line-clamp-2 [overflow-wrap:anywhere]' : ''}`}
+                }`}
                 style={statusTextShadow}
             >
                 {statusText}

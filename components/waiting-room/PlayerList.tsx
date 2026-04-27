@@ -33,6 +33,7 @@ interface PlayerListProps {
 
 const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, mode, negotiations, onViewUser, lobbyType, userCount }) => {
     const { handlers } = useAppContext();
+    const isStrategicLobby = lobbyType === 'strategic';
     const [isChallengeSelectionModalOpen, setIsChallengeSelectionModalOpen] = useState(false);
     const [challengeTargetUser, setChallengeTargetUser] = useState<UserWithStatus | null>(null);
     const [isRejectionSettingsModalOpen, setIsRejectionSettingsModalOpen] = useState(false);
@@ -96,18 +97,29 @@ const PlayerList: React.FC<PlayerListProps> = ({ users, onAction, currentUser, m
                     </div>
                 </div>
                 {isCurrentUser ? (
-                    <select
-                        value={currentUser.status}
-                        onChange={(e) => onAction({ type: 'SET_USER_STATUS', payload: { status: e.target.value } })}
-                        disabled={!['waiting', 'resting'].includes(currentUser.status)}
-                        className="px-2 py-1 lg:px-3 lg:py-1.5 bg-secondary border border-color rounded-lg text-xs lg:text-sm transition-colors w-20 lg:w-24 text-center focus:ring-accent focus:border-accent disabled:opacity-50"
-                    >
-                        <option value="waiting">대기 중</option>
-                        <option value="resting">휴식 중</option>
-                        {!['waiting', 'resting'].includes(currentUser.status) && (
-                            <option value={currentUser.status} disabled>{statusDisplay[currentUser.status].text}</option>
+                    <div className="flex items-center gap-1.5">
+                        {isStrategicLobby && (
+                            <Button
+                                onClick={() => handlers.openGameRecordList()}
+                                colorScheme="none"
+                                className="!text-[10px] !py-0.5 !px-1.5 lg:!text-xs bg-gradient-to-r from-amber-500/90 to-orange-500/90 text-white font-bold rounded-md shadow-sm whitespace-nowrap"
+                            >
+                                기보
+                            </Button>
                         )}
-                    </select>
+                        <select
+                            value={currentUser.status}
+                            onChange={(e) => onAction({ type: 'SET_USER_STATUS', payload: { status: e.target.value } })}
+                            disabled={!['waiting', 'resting'].includes(currentUser.status)}
+                            className="px-2 py-1 lg:px-3 lg:py-1.5 bg-secondary border border-color rounded-lg text-xs lg:text-sm transition-colors w-20 lg:w-24 text-center focus:ring-accent focus:border-accent disabled:opacity-50"
+                        >
+                            <option value="waiting">대기 중</option>
+                            <option value="resting">휴식 중</option>
+                            {!['waiting', 'resting'].includes(currentUser.status) && (
+                                <option value={currentUser.status} disabled>{statusDisplay[currentUser.status].text}</option>
+                            )}
+                        </select>
+                    </div>
                 ) : (
                     <div className="flex items-center gap-2 flex-shrink-0">
                         {currentUser.isAdmin && !user.isAdmin && (

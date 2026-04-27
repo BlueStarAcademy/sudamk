@@ -52,6 +52,30 @@ class AudioService {
     /** soundName별 성공 URL 캐시 */
     private resolvedSoundUrlByName = new Map<string, string>();
 
+    private createAudioContext(): AudioContext | null {
+        if (typeof window === 'undefined') return null;
+        try {
+            const AC =
+                window.AudioContext ||
+                (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+            if (!AC) return null;
+            return new AC();
+        } catch (error) {
+            console.error('[AudioService] failed to create AudioContext:', error);
+            return null;
+        }
+    }
+
+    /**
+     * 일부 모바일 WebView/브라우저에서 AudioContext가 예고 없이 closed 상태로 바뀌는 경우가 있어
+     * 다음 재생 시점에 자동으로 새 컨텍스트를 복구한다.
+     */
+    private rebuildAudioContextIfClosed(): void {
+        if (!this.audioContext || this.audioContext.state !== 'closed') return;
+        this.audioContext = this.createAudioContext();
+        this.initMutex = null;
+    }
+
     public isReady(): boolean {
         return !!this.audioContext && this.audioContext.state === 'running';
     }
@@ -164,10 +188,12 @@ class AudioService {
         const warmHtml5Pool = opts?.warmHtml5Pool !== false;
         this.hookVisibilityResume();
         try {
-            const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-            if (!AC) return;
+            this.rebuildAudioContextIfClosed();
             if (!this.audioContext) {
-                this.audioContext = new AC();
+                this.audioContext = this.createAudioContext();
+            }
+            if (!this.audioContext) {
+                return;
             }
             const ctx = this.audioContext;
             if (ctx.state === 'closed') return;
@@ -225,8 +251,12 @@ class AudioService {
         this.initMutex = (async () => {
             try {
                 this.hookVisibilityResume();
+                this.rebuildAudioContextIfClosed();
                 if (!this.audioContext) {
-                    this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    this.audioContext = this.createAudioContext();
+                }
+                if (!this.audioContext) {
+                    return;
                 }
                 // await resume()는 대부분 제스처 스택 밖에서 호출되므로 iOS에서 무의미·지연만 유발.
                 // unlockFromUserGesture()에서 이미 void resume() + 무음 버퍼로 잠금 해제함.

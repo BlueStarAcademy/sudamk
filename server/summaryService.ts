@@ -602,7 +602,16 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         }
     }
 
-    game.statsUpdated = true;
+    const participantIds = [game.player1?.id, game.player2?.id].filter((id): id is string => typeof id === 'string');
+    const humanParticipantIds = participantIds.filter((id) => id !== aiUserId);
+    const hasAllHumanSummaries = humanParticipantIds.every((id) => !!game.summary?.[id]);
+    game.statsUpdated = hasAllHumanSummaries;
+    if (!hasAllHumanSummaries) {
+        console.warn(
+            `[endGame] Summary missing for one or more human players in game ${game.id}. ` +
+            `humanIds=${JSON.stringify(humanParticipantIds)}, summaryKeys=${JSON.stringify(Object.keys(game.summary || {}))}`
+        );
+    }
 
     try {
         const { applyGuildWarBoardAfterGame } = await import('./guildWarBoardResult.js');
@@ -1802,6 +1811,8 @@ const processPlayerSummary = async (
             losses: gameStats.losses,
         },
         gold: rewards.gold + vipGoldBonus,
+        matchGold: rewards.gold,
+        ...(vipGoldBonus > 0 ? { vipGoldBonus } : {}),
         diamonds: rewards.diamonds,
         items: rewards.items,
         level: levelSummary,
@@ -2045,6 +2056,15 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
         console.error(`[Summary] Error processing summary for player 2 (${p2.id}) in game ${game.id}:`, e);
     }
     
-    game.statsUpdated = true;
+    const participantIds = [game.player1?.id, game.player2?.id].filter((id): id is string => typeof id === 'string');
+    const humanParticipantIds = participantIds.filter((id) => id !== aiUserId);
+    const hasAllHumanSummaries = humanParticipantIds.every((id) => !!game.summary?.[id]);
+    game.statsUpdated = hasAllHumanSummaries;
+    if (!hasAllHumanSummaries) {
+        console.warn(
+            `[processGameSummary] Incomplete summary for game ${game.id}. ` +
+            `humanIds=${JSON.stringify(humanParticipantIds)}, summaryKeys=${JSON.stringify(Object.keys(game.summary || {}))}`
+        );
+    }
     await db.saveGame(game);
 };

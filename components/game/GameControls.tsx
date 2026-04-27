@@ -66,6 +66,12 @@ const CountOverlay: React.FC<{ count: number; disabled?: boolean; children: Reac
 );
 
 const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count, compact = false }) => {
+    const [isTooltipVisible, setIsTooltipVisible] = useState(false);
+    const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const longPressTriggeredRef = useRef(false);
+    const touchHandledRef = useRef(false);
+    const isTouchInteraction = compact;
+
     const variantClasses = variant === 'danger'
         ? 'border-red-500/55 shadow-[0_0_26px_-10px_rgba(248,113,113,0.4)] ring-1 ring-inset ring-red-400/18 focus:ring-red-400'
         : 'border-amber-400/50 shadow-[0_0_24px_-10px_rgba(251,191,36,0.28)] ring-1 ring-inset ring-amber-300/14 focus:ring-amber-300';
@@ -73,23 +79,94 @@ const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled =
         ? 'h-16 w-16 sm:h-[4.25rem] sm:w-[4.25rem] md:h-[4.5rem] md:w-[4.5rem] rounded-xl md:rounded-xl'
         : 'h-[4.25rem] w-[4.25rem] rounded-xl min-[1025px]:h-16 min-[1025px]:w-16';
 
-    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-        e.preventDefault();
-        e.stopPropagation();
+    const clearLongPressTimer = () => {
+        if (longPressTimerRef.current) {
+            clearTimeout(longPressTimerRef.current);
+            longPressTimerRef.current = null;
+        }
+    };
+
+    const handleUse = () => {
         if (!disabled && onClick) onClick();
     };
 
+    const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (touchHandledRef.current) {
+            touchHandledRef.current = false;
+            return;
+        }
+        handleUse();
+    };
+
+    const handleTouchStart = (e: React.TouchEvent<HTMLButtonElement>) => {
+        if (!isTouchInteraction || disabled || !title) return;
+        e.preventDefault();
+        e.stopPropagation();
+        touchHandledRef.current = false;
+        longPressTriggeredRef.current = false;
+        clearLongPressTimer();
+        longPressTimerRef.current = setTimeout(() => {
+            longPressTriggeredRef.current = true;
+            touchHandledRef.current = true;
+            setIsTooltipVisible(true);
+        }, 450);
+    };
+
+    const handleTouchEnd = (e: React.TouchEvent<HTMLButtonElement>) => {
+        if (!isTouchInteraction) return;
+        e.preventDefault();
+        e.stopPropagation();
+        clearLongPressTimer();
+        if (longPressTriggeredRef.current) {
+            setTimeout(() => setIsTooltipVisible(false), 900);
+            return;
+        }
+        touchHandledRef.current = true;
+        handleUse();
+    };
+
+    const handleTouchCancel = () => {
+        clearLongPressTimer();
+        if (longPressTriggeredRef.current) {
+            setTimeout(() => setIsTooltipVisible(false), 200);
+        }
+    };
+
+    const handleMouseEnter = () => {
+        if (isTouchInteraction || !title) return;
+        setIsTooltipVisible(true);
+    };
+
+    const handleMouseLeave = () => {
+        if (isTouchInteraction || !title) return;
+        setIsTooltipVisible(false);
+    };
+
+    useEffect(() => {
+        return () => clearLongPressTimer();
+    }, []);
+
     return (
-        <div className="relative shrink-0">
+        <div className="relative shrink-0" onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
             <button
                 type="button"
                 onClick={handleClick}
+                onTouchStart={handleTouchStart}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchCancel}
                 disabled={disabled}
                 title={title}
                 className={`relative block ${sizeClass} shrink-0 overflow-hidden border-2 bg-gradient-to-b from-white/[0.07] to-black/40 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-950 ${variantClasses} ${disabled ? 'cursor-not-allowed border-slate-700 opacity-40 shadow-none ring-0' : 'cursor-pointer shadow-[0_12px_32px_-14px_rgba(0,0,0,0.8)] hover:scale-[1.04] hover:brightness-[1.06] active:scale-[0.96]'}`}
             >
                 <img src={src} alt={alt} className="pointer-events-none h-full w-full object-contain" />
             </button>
+            {isTooltipVisible && title && !disabled && (
+                <div className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-[12.5rem] -translate-x-1/2 rounded-md border border-amber-300/45 bg-black/95 px-2.5 py-1.5 text-center text-[11px] font-semibold leading-tight text-amber-100 shadow-[0_8px_24px_-10px_rgba(0,0,0,0.9)]">
+                    {title}
+                </div>
+            )}
             {count !== undefined && <ItemCountBadge count={count} disabled={disabled} />}
         </div>
     );
@@ -692,7 +769,7 @@ const AlkkagiItemPanel: React.FC<{
                     caption={isSlowActive ? '사용중' : undefined}
                     onClick={() => useItem('slow')}
                     disabled={!canUse || slowCount <= 0 || isSlowActive}
-                    title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
+                    title={`슬로우 : 힘조절 그래프의 속도를 줄여줍니다. 남은 개수: ${slowCount}`}
                     compact={compact}
                 />
                 <LabeledControlButton
@@ -703,56 +780,38 @@ const AlkkagiItemPanel: React.FC<{
                     caption={isAimActive ? '사용중' : undefined}
                     onClick={() => useItem('aimingLine')}
                     disabled={!canUse || aimCount <= 0 || isAimActive}
-                    title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
+                    title={`조준선 : 조준선의 길이가 길어집니다. 남은 개수: ${aimCount}`}
                     compact={compact}
                 />
             </ArenaFixedColsGrid>
         );
     }
     
-    const maxRefills = totalRounds - 1;
-    const myRefillsUsed = session.alkkagiRefillsUsed?.[currentUser.id] || 0;
-    const myRefillsLeft = maxRefills - myRefillsUsed;
-
     return (
-        <div
-            className={
-                compact
-                    ? 'grid w-full min-w-0 grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-2.5'
-                    : 'flex items-center justify-center gap-4'
-            }
-        >
-            <div className={`flex shrink-0 flex-col text-center font-semibold text-yellow-300 ${compact ? 'text-[9px]' : 'text-xs'}`}>
-                <span className="whitespace-nowrap">
-                    리필: {myRefillsLeft} / {maxRefills}
-                </span>
-            </div>
-            <div className={`h-8 w-px shrink-0 bg-gray-600 ${compact ? 'mx-0' : 'mx-2'}`} />
-            <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className="min-w-0">
-                <LabeledControlButton
-                    src="/images/button/slow.png"
-                    alt="슬로우"
-                    label="슬로우"
-                    count={slowCount}
-                    caption={isSlowActive ? '사용중' : undefined}
-                    onClick={() => useItem('slow')}
-                    disabled={!canUse || slowCount <= 0 || isSlowActive}
-                    title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
-                    compact={compact}
-                />
-                <LabeledControlButton
-                    src="/images/button/target.png"
-                    alt="조준선"
-                    label="조준선"
-                    count={aimCount}
-                    caption={isAimActive ? '사용중' : undefined}
-                    onClick={() => useItem('aimingLine')}
-                    disabled={!canUse || aimCount <= 0 || isAimActive}
-                    title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
-                    compact={compact}
-                />
-            </ArenaFixedColsGrid>
-        </div>
+        <ArenaFixedColsGrid cols={2} gapClass={compact ? 'gap-3' : 'gap-5'} className="min-w-0">
+            <LabeledControlButton
+                src="/images/button/slow.png"
+                alt="슬로우"
+                label="슬로우"
+                count={slowCount}
+                caption={isSlowActive ? '사용중' : undefined}
+                onClick={() => useItem('slow')}
+                disabled={!canUse || slowCount <= 0 || isSlowActive}
+                title={`슬로우 : 힘조절 그래프의 속도를 줄여줍니다. 남은 개수: ${slowCount}`}
+                compact={compact}
+            />
+            <LabeledControlButton
+                src="/images/button/target.png"
+                alt="조준선"
+                label="조준선"
+                count={aimCount}
+                caption={isAimActive ? '사용중' : undefined}
+                onClick={() => useItem('aimingLine')}
+                disabled={!canUse || aimCount <= 0 || isAimActive}
+                title={`조준선 : 조준선의 길이가 길어집니다. 남은 개수: ${aimCount}`}
+                compact={compact}
+            />
+        </ArenaFixedColsGrid>
     );
 };
 
@@ -1152,7 +1211,7 @@ const CurlingItemPanel: React.FC<{
                 count={slowCount}
                 onClick={() => useItem('slow')}
                 disabled={!canUse || slowCount <= 0 || isSlowActive}
-                title={`파워 게이지 속도를 50% 감소시킵니다. 남은 개수: ${slowCount}`}
+                title={`슬로우 : 힘조절 그래프의 속도를 줄여줍니다. 남은 개수: ${slowCount}`}
                 compact={compact}
             />
             <LabeledControlButton
@@ -1162,7 +1221,7 @@ const CurlingItemPanel: React.FC<{
                 count={aimCount}
                 onClick={() => useItem('aimingLine')}
                 disabled={!canUse || aimCount <= 0 || isAimActive}
-                title={`조준선 길이를 1000% 증가시킵니다. 남은 개수: ${aimCount}`}
+                title={`조준선 : 조준선의 길이가 길어집니다. 남은 개수: ${aimCount}`}
                 compact={compact}
             />
         </ArenaFixedColsGrid>
@@ -1445,7 +1504,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     label="히든"
                     onClick={() => handleUseItem('hidden')}
                     disabled={hiddenDisabled}
-                    title="히든 스톤 배치"
+                    title="히든 : 상대에게 보이지 않는 한 수를 둡니다."
                     count={hiddenLeft}
                     compact={isMobile}
                 />
@@ -1470,7 +1529,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         label="스캔"
                         onClick={() => handleUseItem('scan')}
                         disabled={scanDisabled}
-                        title="상대 히든 스톤 탐지"
+                        title="스캔 : 상대방의 숨어있는 돌을 찾아봅니다."
                         count={scansLeft}
                         compact={isMobile}
                     />
@@ -1489,7 +1548,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     label="미사일"
                     onClick={() => handleUseItem('missile')}
                     disabled={missileDisabled}
-                    title="미사일 발사"
+                    title="미사일 : 현재 놓여진 바둑돌을 한방향으로 날려보냅니다."
                     count={missilesLeft}
                     compact={isMobile}
                 />
@@ -1922,7 +1981,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 맵으로 이동
                             </Button>
                         )}
-                        {showStrategicGameRecordActions && (onAction || onOpenGameRecordList) && (
+                        {showStrategicGameRecordActions && (
                             <>
                                 {onAction && (
                                     <Button
@@ -1974,7 +2033,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             {isSpectator ? '관전종료' : '대기실로'}
                         </Button>
                     )}
-                    {showStrategicGameRecordActions && (onAction || onOpenGameRecordList) && (
+                    {showStrategicGameRecordActions && (
                         <>
                             {onAction && (
                                 <Button

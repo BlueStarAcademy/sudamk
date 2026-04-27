@@ -7,8 +7,6 @@ import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, EQUIPMENT_POOL, MATERIAL_ITEMS, aiUserId } from '../constants';
 import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
-import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
-import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
@@ -691,80 +689,52 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                 <p className="text-center text-sm font-bold text-amber-200/95" style={{ fontSize: `${13 * mobileTextScale}px` }}>
                     라운드별 점수
                 </p>
-                <div className="flex flex-col gap-1.5">
+                <div className="overflow-hidden rounded-xl border border-amber-500/25 bg-gradient-to-br from-slate-900/92 via-slate-950/90 to-zinc-950/95 ring-1 ring-inset ring-white/[0.06]">
+                    <div className="grid grid-cols-[0.95fr_1.05fr] items-center border-b border-amber-500/15 bg-black/35 px-2.5 py-1.5">
+                        <span
+                            className="text-left text-[10px] font-bold uppercase tracking-[0.1em] text-amber-100/90"
+                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                        >
+                            라운드
+                        </span>
+                        <span
+                            className="text-right text-[10px] font-bold uppercase tracking-[0.1em] text-amber-100/90"
+                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                        >
+                            라운드 점수 (흑:백)
+                        </span>
+                    </div>
                     {roundNums.map((roundNum) => {
                         const roundData = curlingRoundAt(roundNum);
                         const played = Boolean(roundData);
-                        const blackHouse = played ? roundData!.black.houseScore : null;
-                        const blackKnockout = played ? roundData!.black.knockoutScore : null;
-                        const blackPreviousKnockout = played ? (roundData!.black?.previousKnockoutScore ?? 0) : 0;
-                        const whiteHouse = played ? roundData!.white.houseScore : null;
-                        const whiteKnockout = played ? roundData!.white.knockoutScore : null;
-                        const whitePreviousKnockout = played ? (roundData!.white?.previousKnockoutScore ?? 0) : 0;
+                        const blackRoundScore = played ? roundData!.black.total : null;
+                        const whiteRoundScore = played ? roundData!.white.total : null;
                         return (
                             <div
                                 key={roundNum}
-                                className={`relative overflow-hidden rounded-xl border px-2.5 py-1.5 ring-1 ring-inset ring-white/[0.06] ${
-                                    played
-                                        ? 'border-amber-500/25 bg-gradient-to-br from-slate-900/92 via-slate-950/90 to-zinc-950/95 shadow-[0_12px_36px_-20px_rgba(0,0,0,0.65)]'
-                                        : 'border-slate-600/35 bg-slate-950/55'
-                                }`}
+                                className={`grid grid-cols-[0.95fr_1.05fr] items-center px-2.5 py-2 ${
+                                    roundNum < displayRoundCount ? 'border-b border-white/[0.05]' : ''
+                                } ${played ? 'bg-transparent' : 'bg-slate-950/40'}`}
                             >
-                                {!played && (
-                                    <div
-                                        className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,transparent_40%,rgba(148,163,184,0.04)_50%,transparent_60%)]"
-                                        aria-hidden
-                                    />
-                                )}
                                 <div
-                                    className="mb-1 text-center font-mono text-xs font-bold tabular-nums text-amber-200/95"
-                                    style={{ fontSize: `${12 * mobileTextScale}px` }}
+                                    className="text-left font-mono text-xs font-bold tabular-nums text-amber-200/95"
+                                    style={{ fontSize: `${11 * mobileTextScale}px` }}
                                 >
                                     {roundNum}R
                                 </div>
-                                <div className="grid grid-cols-2 gap-1.5">
-                                    <div className="min-w-0 rounded-lg border border-stone-600/40 bg-black/30 px-1.5 py-1 ring-1 ring-inset ring-stone-500/10">
-                                        <div className="flex items-center gap-1.5">
-                                            <GoStoneIcon color="black" className="h-3.5 w-3.5 shrink-0" />
-                                            <p className="text-[10px] font-bold tracking-wide text-stone-200">흑</p>
-                                        </div>
-                                        <p className="mt-0.5 text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
-                                            하우스{' '}
-                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
-                                                {played ? blackHouse : <span className="font-medium text-slate-500">-</span>}
-                                            </span>
-                                        </p>
-                                        <p className="text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
-                                            넉아웃{' '}
-                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
-                                                {played ? blackKnockout : <span className="font-medium text-slate-500">-</span>}
-                                            </span>
-                                            {played && blackPreviousKnockout > 0 && (
-                                                <span className="block text-[9px] text-slate-500">(이전 {blackPreviousKnockout})</span>
-                                            )}
-                                        </p>
-                                    </div>
-                                    <div className="min-w-0 rounded-lg border border-slate-500/40 bg-slate-950/55 px-1.5 py-1 ring-1 ring-inset ring-slate-400/10">
-                                        <div className="flex items-center gap-1.5">
-                                            <GoStoneIcon color="white" className="h-3.5 w-3.5 shrink-0" />
-                                            <p className="text-[10px] font-bold tracking-wide text-slate-100">백</p>
-                                        </div>
-                                        <p className="mt-0.5 text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
-                                            하우스{' '}
-                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
-                                                {played ? whiteHouse : <span className="font-medium text-slate-500">-</span>}
-                                            </span>
-                                        </p>
-                                        <p className="text-[11px] leading-tight text-slate-200" style={{ fontSize: `${11 * mobileTextScale}px` }}>
-                                            넉아웃{' '}
-                                            <span className="font-mono font-bold tabular-nums text-amber-50/95">
-                                                {played ? whiteKnockout : <span className="font-medium text-slate-500">-</span>}
-                                            </span>
-                                            {played && whitePreviousKnockout > 0 && (
-                                                <span className="block text-[9px] text-slate-500">(이전 {whitePreviousKnockout})</span>
-                                            )}
-                                        </p>
-                                    </div>
+                                <div
+                                    className="text-right font-mono text-sm font-bold tabular-nums text-slate-100"
+                                    style={{ fontSize: `${12 * mobileTextScale}px` }}
+                                >
+                                    {played ? (
+                                        <>
+                                            <span className="text-amber-100/95">{blackRoundScore}</span>
+                                            <span className="px-1 text-slate-500">:</span>
+                                            <span className="text-slate-50">{whiteRoundScore}</span>
+                                        </>
+                                    ) : (
+                                        <span className="font-medium text-slate-500">-</span>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -905,99 +875,89 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
     const whitePlayer = whitePlayerId === player1.id ? player1 : player2;
     const totalRounds = settings?.alkkagiRounds || 1;
     const history: AlkkagiRoundHistoryEntry[] = alkkagiRoundHistory || [];
-    const blackWins = history.filter((r: AlkkagiRoundHistoryEntry) => r.winnerId === blackPlayerId).length;
-    const whiteWins = history.filter((r: AlkkagiRoundHistoryEntry) => r.winnerId === whitePlayerId).length;
-    const roundNums = Array.from({ length: totalRounds }, (_, i) => i + 1);
+    const blackTotalScore = history.reduce((sum, r) => sum + Math.max(0, Number(r.blackKnockout ?? 0)), 0);
+    const whiteTotalScore = history.reduce((sum, r) => sum + Math.max(0, Number(r.whiteKnockout ?? 0)), 0);
+    const displayRoundCount = Math.max(3, totalRounds);
+    const roundNums = Array.from({ length: displayRoundCount }, (_, i) => i + 1);
     const alkkagiRoundAt = (roundNum: number) => history.find((r: AlkkagiRoundHistoryEntry) => r.round === roundNum);
-
     if (isMobile) {
-        const nickRowWithStone = (nickname: string, color: 'black' | 'white', light: 'stone' | 'slate') => (
-            <div className="flex min-w-0 items-center gap-1.5">
-                <GoStoneIcon color={color} className="h-3.5 w-3.5 shrink-0" />
-                <div
-                    className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                    title={nickname}
-                >
-                    <span
-                        className={`inline font-semibold ${light === 'stone' ? 'text-stone-200' : 'text-slate-100'}`}
-                        style={{ fontSize: `${10 * mobileTextScale}px` }}
-                    >
-                        {nickname}
-                    </span>
-                </div>
-            </div>
-        );
         return (
-            <div className="mx-auto w-full max-w-md space-y-2 text-left">
+            <div className="mx-auto w-full max-w-md space-y-1 text-left">
                 <p
                     className="text-center text-xs font-bold leading-none text-amber-200/95"
                     style={{ fontSize: `${12 * mobileTextScale}px` }}
                 >
                     라운드별 결과
                 </p>
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-1">
                     {roundNums.map((roundNum) => {
                         const roundData = alkkagiRoundAt(roundNum);
                         const played = Boolean(roundData);
-                        const blackWin = played ? roundData!.winnerId === blackPlayerId : false;
-                        const whiteWin = played ? roundData!.winnerId === whitePlayerId : false;
-                        const blackKnockout = played ? (roundData!.blackKnockout ?? 0) : null;
-                        const whiteKnockout = played ? (roundData!.whiteKnockout ?? 0) : null;
+                        const blackFor = played ? (roundData!.blackKnockout ?? 0) : null;
+                        const blackAgainst = played ? (roundData!.whiteKnockout ?? 0) : null;
+                        const whiteFor = played ? (roundData!.whiteKnockout ?? 0) : null;
+                        const whiteAgainst = played ? (roundData!.blackKnockout ?? 0) : null;
                         return (
                             <div
                                 key={roundNum}
-                                className={`relative overflow-hidden rounded-xl border px-2.5 py-2 shadow-inner ring-1 ring-inset ring-white/[0.06] ${
+                                className={`relative overflow-hidden rounded-xl border px-2 py-1 shadow-inner ring-1 ring-inset ring-white/[0.06] ${
                                     played
                                         ? 'border-amber-500/25 bg-gradient-to-br from-slate-900/92 via-slate-950/90 to-zinc-950/95'
                                         : 'border-slate-600/35 bg-slate-950/55'
                                 }`}
                             >
                                 <div
-                                    className="mb-2 text-center font-mono text-sm font-bold tabular-nums text-amber-200/95"
+                                    className="mb-1 text-center font-mono text-sm font-bold tabular-nums text-amber-200/95"
                                     style={{ fontSize: `${14 * mobileTextScale}px` }}
                                 >
                                     {roundNum}R
                                 </div>
                                 <div className="grid grid-cols-2 gap-1.5">
                                     <div className="min-w-0 rounded-md border border-stone-600/40 bg-black/30 px-1.5 py-1 ring-1 ring-inset ring-stone-500/10">
-                                        {nickRowWithStone(blackPlayer.nickname, 'black', 'stone')}
+                                        <div className="flex min-w-0 items-center gap-1.5">
+                                            <GoStoneIcon color="black" className="h-3.5 w-3.5 shrink-0" />
+                                            <span className="text-[10px] font-bold tracking-wide text-stone-200">흑</span>
+                                        </div>
                                         <p
                                             className="mt-1 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
-                                            <span className="shrink-0 text-slate-400">넉아웃</span>
+                                            <span className="shrink-0 text-slate-400">득점</span>
                                             <span className="font-mono font-bold tabular-nums text-amber-100">
-                                                {played ? blackKnockout : <span className="font-medium text-slate-500">-</span>}
+                                                {played ? blackFor : <span className="font-medium text-slate-500">-</span>}
                                             </span>
                                         </p>
                                         <p
                                             className="mt-0.5 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
-                                            <span className="shrink-0 text-slate-400">라운드</span>
-                                            <span className="font-mono font-bold tabular-nums text-amber-200">
-                                                {played ? (blackWin ? 1 : 0) : <span className="font-medium text-slate-500">-</span>}
+                                            <span className="shrink-0 text-slate-400">실점</span>
+                                            <span className="font-mono font-bold tabular-nums text-rose-200">
+                                                {played ? blackAgainst : <span className="font-medium text-slate-500">-</span>}
                                             </span>
                                         </p>
                                     </div>
                                     <div className="min-w-0 rounded-md border border-slate-500/40 bg-slate-950/55 px-1.5 py-1 ring-1 ring-inset ring-slate-400/10">
-                                        {nickRowWithStone(whitePlayer.nickname, 'white', 'slate')}
+                                        <div className="flex min-w-0 items-center gap-1.5">
+                                            <GoStoneIcon color="white" className="h-3.5 w-3.5 shrink-0" />
+                                            <span className="text-[10px] font-bold tracking-wide text-slate-100">백</span>
+                                        </div>
                                         <p
                                             className="mt-1 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
-                                            <span className="shrink-0 text-slate-400">넉아웃</span>
+                                            <span className="shrink-0 text-slate-400">득점</span>
                                             <span className="font-mono font-bold tabular-nums text-amber-100">
-                                                {played ? whiteKnockout : <span className="font-medium text-slate-500">-</span>}
+                                                {played ? whiteFor : <span className="font-medium text-slate-500">-</span>}
                                             </span>
                                         </p>
                                         <p
                                             className="mt-0.5 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
                                             style={{ fontSize: `${9 * mobileTextScale}px` }}
                                         >
-                                            <span className="shrink-0 text-slate-400">라운드</span>
-                                            <span className="font-mono font-bold tabular-nums text-amber-200">
-                                                {played ? (whiteWin ? 1 : 0) : <span className="font-medium text-slate-500">-</span>}
+                                            <span className="shrink-0 text-slate-400">실점</span>
+                                            <span className="font-mono font-bold tabular-nums text-rose-200">
+                                                {played ? whiteAgainst : <span className="font-medium text-slate-500">-</span>}
                                             </span>
                                         </p>
                                     </div>
@@ -1010,100 +970,68 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
                     compact
                     blackPrimary={
                         <>
-                            {blackWins}
-                            <span className="ml-0.5 text-sm font-semibold text-amber-200/90 sm:text-base">승</span>
+                            {blackTotalScore}
+                            <span className="ml-0.5 text-sm font-semibold text-amber-200/90 sm:text-base">점</span>
                         </>
                     }
                     whitePrimary={
                         <>
-                            {whiteWins}
-                            <span className="ml-0.5 text-sm font-semibold text-amber-200/90 sm:text-base">승</span>
+                            {whiteTotalScore}
+                            <span className="ml-0.5 text-sm font-semibold text-amber-200/90 sm:text-base">점</span>
                         </>
                     }
                 />
-                {winner !== null && winner !== Player.None && (
-                    <div
-                        className="mt-1.5 min-w-0 px-0.5 text-center text-[11px] font-bold leading-tight text-green-400"
-                        style={{ fontSize: `${11 * mobileTextScale}px` }}
-                    >
-                        <div
-                            className="mx-auto max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                            title={`${winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname} 최종 승리`}
-                        >
-                            {winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname}
-                        </div>
-                        <span className="mt-0.5 block whitespace-nowrap text-[0.72em] font-semibold text-emerald-300/95">최종 승리</span>
-                    </div>
-                )}
             </div>
         );
     }
 
     return (
-        <div className="mx-auto w-full max-w-lg space-y-2.5 text-center sm:space-y-3">
+        <div className="mx-auto w-full max-w-lg space-y-1 text-center sm:space-y-1.5">
             <div className="relative overflow-hidden rounded-2xl border border-amber-500/22 bg-gradient-to-b from-slate-900/[0.97] via-slate-950/95 to-zinc-950 shadow-[0_22px_55px_-28px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.05]">
                 <div
                     className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_95%_48%_at_50%_-18%,rgba(251,191,36,0.09),transparent_58%)]"
                     aria-hidden
                 />
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-400/35 to-transparent" aria-hidden />
-                <div className="relative p-3 sm:p-3.5">
+                <div className="relative p-1.5 sm:p-2">
                     <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/[0.05]">
-                        <div className="text-xs lg:text-sm">
+                        <div className="text-xs leading-tight lg:text-sm">
                             <table className="w-full table-fixed border-collapse">
                                 <thead>
                                     <tr className="border-b border-amber-500/12 bg-gradient-to-b from-zinc-800/95 to-zinc-900/98">
-                                        <th className="w-[12%] bg-zinc-900/60 px-1 py-2 sm:py-2.5" aria-hidden />
-                                        <th className="border-l border-amber-500/18 bg-black/25 px-1 py-2.5 text-center sm:px-2 sm:py-3" colSpan={3}>
+                                        <th className="w-[14%] bg-zinc-900/60 px-1 py-1 sm:py-1.5" aria-hidden />
+                                        <th className="border-l border-amber-500/18 bg-black/25 px-1 py-1 text-center sm:px-2 sm:py-1.5" colSpan={2}>
                                             <div className="flex flex-col items-center justify-center gap-1">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     <GoStoneIcon color="black" className="h-4 w-4 sm:h-5 sm:w-5" />
                                                     <span className="text-[11px] font-bold tracking-wide text-stone-100 sm:text-xs">흑</span>
                                                 </div>
-                                                <span
-                                                    className="max-w-[6.5rem] truncate text-[9px] font-medium text-stone-500 sm:max-w-[10rem] sm:text-[10px]"
-                                                    title={blackPlayer.nickname}
-                                                >
-                                                    {blackPlayer.nickname}
-                                                </span>
                                             </div>
                                         </th>
-                                        <th className="border-l border-amber-500/18 bg-slate-800/35 px-1 py-2.5 text-center sm:px-2 sm:py-3" colSpan={3}>
+                                        <th className="border-l border-amber-500/18 bg-slate-800/35 px-1 py-1 text-center sm:px-2 sm:py-1.5" colSpan={2}>
                                             <div className="flex flex-col items-center justify-center gap-1">
                                                 <div className="flex items-center justify-center gap-1.5">
                                                     <GoStoneIcon color="white" className="h-4 w-4 sm:h-5 sm:w-5" />
                                                     <span className="text-[11px] font-bold tracking-wide text-slate-50 sm:text-xs">백</span>
                                                 </div>
-                                                <span
-                                                    className="max-w-[6.5rem] truncate text-[9px] font-medium text-slate-500 sm:max-w-[10rem] sm:text-[10px]"
-                                                    title={whitePlayer.nickname}
-                                                >
-                                                    {whitePlayer.nickname}
-                                                </span>
                                             </div>
                                         </th>
                                     </tr>
                                     <tr className="border-b border-amber-500/12 bg-black/40">
-                                        <th className="px-1 py-1.5 text-center text-[9px] font-bold uppercase tracking-[0.1em] text-amber-100/90 sm:text-[10px]">
+                                        <th className="px-1 py-0.5 text-center text-[9px] font-bold uppercase tracking-[0.1em] text-amber-100/90 sm:text-[10px]">
                                             라운드
                                         </th>
-                                        <th className="border-l border-amber-500/12 px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
-                                            공격성공
+                                        <th className="border-l border-amber-500/12 px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            득점
                                         </th>
-                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
-                                            넉아웃
+                                        <th className="px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            실점
                                         </th>
-                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
-                                            점수
+                                        <th className="border-l border-amber-500/12 px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            득점
                                         </th>
-                                        <th className="border-l border-amber-500/12 px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
-                                            공격성공
-                                        </th>
-                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
-                                            넉아웃
-                                        </th>
-                                        <th className="px-0.5 py-1.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
-                                            점수
+                                        <th className="px-0.5 py-0.5 text-center text-[9px] font-semibold uppercase tracking-wide text-slate-400 sm:text-[10px]">
+                                            실점
                                         </th>
                                     </tr>
                                 </thead>
@@ -1111,44 +1039,42 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
                                     {roundNums.map((roundNum) => {
                                         const roundData = alkkagiRoundAt(roundNum);
                                         const played = Boolean(roundData);
-                                        const blackWin = played ? roundData!.winnerId === blackPlayerId : false;
-                                        const whiteWin = played ? roundData!.winnerId === whitePlayerId : false;
-                                        const blackKnockout = played ? (roundData!.blackKnockout ?? 0) : null;
-                                        const whiteKnockout = played ? (roundData!.whiteKnockout ?? 0) : null;
+                                        const blackFor = played ? (roundData!.blackKnockout ?? 0) : null;
+                                        const blackAgainst = played ? (roundData!.whiteKnockout ?? 0) : null;
+                                        const whiteFor = played ? (roundData!.whiteKnockout ?? 0) : null;
+                                        const whiteAgainst = played ? (roundData!.blackKnockout ?? 0) : null;
                                         const rowBg = played ? 'bg-transparent' : 'bg-slate-950/45';
                                         return (
                                             <tr key={roundNum} className={`border-b border-white/[0.05] last:border-b-0 ${rowBg}`}>
-                                                <td className="align-middle px-1 py-2.5 text-center sm:py-3">
+                                                <td className="align-middle px-1 py-1 text-center sm:py-1.5">
                                                     <span className="font-mono text-sm font-bold tabular-nums text-amber-200/95 sm:text-base">
                                                         {roundNum}R
                                                     </span>
                                                 </td>
-                                                <td className="border-l border-amber-500/10 px-0.5 py-2.5 text-center align-middle text-slate-500 sm:py-3">-</td>
-                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                <td className="border-l border-amber-500/10 px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-1.5">
                                                     {played ? (
-                                                        <span className="text-sm font-semibold sm:text-base">{blackKnockout}</span>
+                                                        <span className="text-sm font-semibold sm:text-base">{blackFor}</span>
                                                     ) : (
                                                         <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
                                                     )}
                                                 </td>
-                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                <td className="px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-1.5">
                                                     {played ? (
-                                                        <span className="text-sm font-semibold sm:text-base">{blackWin ? 1 : 0}</span>
+                                                        <span className="text-sm font-semibold text-rose-200 sm:text-base">{blackAgainst}</span>
                                                     ) : (
                                                         <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
                                                     )}
                                                 </td>
-                                                <td className="border-l border-amber-500/10 px-0.5 py-2.5 text-center align-middle text-slate-500 sm:py-3">-</td>
-                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                <td className="border-l border-amber-500/10 px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-1.5">
                                                     {played ? (
-                                                        <span className="text-sm font-semibold sm:text-base">{whiteKnockout}</span>
+                                                        <span className="text-sm font-semibold sm:text-base">{whiteFor}</span>
                                                     ) : (
                                                         <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
                                                     )}
                                                 </td>
-                                                <td className="px-0.5 py-2.5 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-3">
+                                                <td className="px-0.5 py-1 text-center align-middle font-mono tabular-nums text-slate-100 sm:py-1.5">
                                                     {played ? (
-                                                        <span className="text-sm font-semibold sm:text-base">{whiteWin ? 1 : 0}</span>
+                                                        <span className="text-sm font-semibold text-rose-200 sm:text-base">{whiteAgainst}</span>
                                                     ) : (
                                                         <span className="text-lg font-medium text-slate-500 sm:text-xl">-</span>
                                                     )}
@@ -1165,22 +1091,17 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
             <CurlingAlkkagiTotalScoreRow
                 blackPrimary={
                     <>
-                        {blackWins}
-                        <span className="ml-0.5 text-lg font-semibold text-amber-200/90 sm:text-xl">승</span>
+                        {blackTotalScore}
+                        <span className="ml-0.5 text-lg font-semibold text-amber-200/90 sm:text-xl">점</span>
                     </>
                 }
                 whitePrimary={
                     <>
-                        {whiteWins}
-                        <span className="ml-0.5 text-lg font-semibold text-amber-200/90 sm:text-xl">승</span>
+                        {whiteTotalScore}
+                        <span className="ml-0.5 text-lg font-semibold text-amber-200/90 sm:text-xl">점</span>
                     </>
                 }
             />
-            {winner !== null && winner !== Player.None && (
-                <p className={`text-base font-bold text-green-400`}>
-                    {winner === Player.Black ? blackPlayer.nickname : whitePlayer.nickname} 승리!
-                </p>
-            )}
         </div>
     );
 };
@@ -1231,6 +1152,8 @@ const MatchPlayersRoster: React.FC<{
 
     const blackIsMonster = !!(adventureMonster && blackPlayer.id === aiUserId);
     const whiteIsMonster = !!(adventureMonster && whitePlayer.id === aiUserId);
+    const winnerEnum = session && (session.winner === Player.Black || session.winner === Player.White) ? session.winner : null;
+    const showWinLoseBadge = !!session && PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode) && winnerEnum != null;
 
     const blackMonsterFrame = isPlayful
         ? 'border-sky-400/45 bg-gradient-to-br from-sky-800/50 via-violet-950/88 to-black/85 ring-1 ring-inset ring-sky-400/22'
@@ -1275,57 +1198,71 @@ const MatchPlayersRoster: React.FC<{
         return (
             <div className="mb-1.5 grid w-full grid-cols-2 gap-1.5">
                 <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-stone-600/40 bg-black/35 px-1.5 py-1.5 ring-1 ring-stone-500/10">
-                    {blackIsMonster && adventureMonster ? (
-                        <div
-                            className={`shrink-0 overflow-hidden rounded-md ${blackMonsterFrame}`}
-                            style={{ width: avatarPxAlk, height: avatarPxAlk }}
-                        >
-                            <img
-                                src={monsterPortrait.src}
-                                alt=""
-                                className="h-full w-full object-contain"
-                                draggable={false}
-                                loading="eager"
-                                decoding="async"
-                                onError={monsterPortrait.onError}
+                    <div className="relative shrink-0">
+                        {blackIsMonster && adventureMonster ? (
+                            <div
+                                className={`shrink-0 overflow-hidden rounded-md ${blackMonsterFrame}`}
+                                style={{ width: avatarPxAlk, height: avatarPxAlk }}
+                            >
+                                <img
+                                    src={monsterPortrait.src}
+                                    alt=""
+                                    className="h-full w-full object-contain"
+                                    draggable={false}
+                                    loading="eager"
+                                    decoding="async"
+                                    onError={monsterPortrait.onError}
+                                />
+                            </div>
+                        ) : (
+                            <Avatar
+                                userId={blackPlayer.id}
+                                userName={blackPlayer.nickname}
+                                size={avatarPxAlk}
+                                avatarUrl={blackAvatarUrl}
+                                borderUrl={blackBorderUrl}
                             />
-                        </div>
-                    ) : (
-                        <Avatar
-                            userId={blackPlayer.id}
-                            userName={blackPlayer.nickname}
-                            size={avatarPxAlk}
-                            avatarUrl={blackAvatarUrl}
-                            borderUrl={blackBorderUrl}
-                        />
-                    )}
+                        )}
+                        {showWinLoseBadge && (
+                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                                {winnerEnum === Player.Black ? '승' : '패'}
+                            </span>
+                        )}
+                    </div>
                     {blackIsMonster && adventureMonster ? nickRowMonster('흑') : nickRowHuman(blackPlayer.nickname, '흑', blackLv)}
                 </div>
                 <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-500/35 bg-slate-950/55 px-1.5 py-1.5 ring-1 ring-slate-400/12">
-                    {whiteIsMonster && adventureMonster ? (
-                        <div
-                            className={`shrink-0 overflow-hidden rounded-md ${whiteMonsterFrame}`}
-                            style={{ width: avatarPxAlk, height: avatarPxAlk }}
-                        >
-                            <img
-                                src={monsterPortrait.src}
-                                alt=""
-                                className="h-full w-full object-contain"
-                                draggable={false}
-                                loading="eager"
-                                decoding="async"
-                                onError={monsterPortrait.onError}
+                    <div className="relative shrink-0">
+                        {whiteIsMonster && adventureMonster ? (
+                            <div
+                                className={`shrink-0 overflow-hidden rounded-md ${whiteMonsterFrame}`}
+                                style={{ width: avatarPxAlk, height: avatarPxAlk }}
+                            >
+                                <img
+                                    src={monsterPortrait.src}
+                                    alt=""
+                                    className="h-full w-full object-contain"
+                                    draggable={false}
+                                    loading="eager"
+                                    decoding="async"
+                                    onError={monsterPortrait.onError}
+                                />
+                            </div>
+                        ) : (
+                            <Avatar
+                                userId={whitePlayer.id}
+                                userName={whitePlayer.nickname}
+                                size={avatarPxAlk}
+                                avatarUrl={whiteAvatarUrl}
+                                borderUrl={whiteBorderUrl}
                             />
-                        </div>
-                    ) : (
-                        <Avatar
-                            userId={whitePlayer.id}
-                            userName={whitePlayer.nickname}
-                            size={avatarPxAlk}
-                            avatarUrl={whiteAvatarUrl}
-                            borderUrl={whiteBorderUrl}
-                        />
-                    )}
+                        )}
+                        {showWinLoseBadge && (
+                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                                {winnerEnum === Player.White ? '승' : '패'}
+                            </span>
+                        )}
+                    </div>
                     {whiteIsMonster && adventureMonster ? nickRowMonster('백') : nickRowHuman(whitePlayer.nickname, '백', whiteLv)}
                 </div>
             </div>
@@ -1337,30 +1274,37 @@ const MatchPlayersRoster: React.FC<{
             <div className="relative overflow-hidden rounded-xl border border-stone-600/35 bg-gradient-to-br from-zinc-950 via-[#141016] to-black p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_44px_-22px_rgba(0,0,0,0.85)] ring-1 ring-stone-500/15">
                 <div className="pointer-events-none absolute -right-8 -top-10 h-20 w-20 rounded-full bg-stone-400/[0.06] blur-2xl" aria-hidden />
                 <div className="relative flex items-center gap-2.5">
-                    {blackIsMonster && adventureMonster ? (
-                        <div
-                            className={`shrink-0 overflow-hidden rounded-lg ${blackMonsterFrame}`}
-                            style={{ width: avatarPx, height: avatarPx }}
-                        >
-                            <img
-                                src={monsterPortrait.src}
-                                alt=""
-                                className="h-full w-full object-contain"
-                                draggable={false}
-                                loading="eager"
-                                decoding="async"
-                                onError={monsterPortrait.onError}
+                    <div className="relative shrink-0">
+                        {blackIsMonster && adventureMonster ? (
+                            <div
+                                className={`shrink-0 overflow-hidden rounded-lg ${blackMonsterFrame}`}
+                                style={{ width: avatarPx, height: avatarPx }}
+                            >
+                                <img
+                                    src={monsterPortrait.src}
+                                    alt=""
+                                    className="h-full w-full object-contain"
+                                    draggable={false}
+                                    loading="eager"
+                                    decoding="async"
+                                    onError={monsterPortrait.onError}
+                                />
+                            </div>
+                        ) : (
+                            <Avatar
+                                userId={blackPlayer.id}
+                                userName={blackPlayer.nickname}
+                                size={avatarPx}
+                                avatarUrl={blackAvatarUrl}
+                                borderUrl={blackBorderUrl}
                             />
-                        </div>
-                    ) : (
-                        <Avatar
-                            userId={blackPlayer.id}
-                            userName={blackPlayer.nickname}
-                            size={avatarPx}
-                            avatarUrl={blackAvatarUrl}
-                            borderUrl={blackBorderUrl}
-                        />
-                    )}
+                        )}
+                        {showWinLoseBadge && (
+                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.Black ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                                {winnerEnum === Player.Black ? '승' : '패'}
+                            </span>
+                        )}
+                    </div>
                     <div className="min-w-0 flex-1">
                         <span className="inline-flex rounded-md border border-stone-500/45 bg-black/50 px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] text-stone-200/90">
                             흑
@@ -1387,30 +1331,37 @@ const MatchPlayersRoster: React.FC<{
             <div className="relative overflow-hidden rounded-xl border border-slate-400/25 bg-gradient-to-br from-slate-900/98 via-[#17161f] to-[#0b0a10] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.09),0_14px_44px_-22px_rgba(148,163,184,0.12)] ring-1 ring-slate-400/18">
                 <div className="pointer-events-none absolute -left-6 -bottom-8 h-20 w-20 rounded-full bg-slate-300/[0.07] blur-2xl" aria-hidden />
                 <div className="relative flex items-center gap-2.5">
-                    {whiteIsMonster && adventureMonster ? (
-                        <div
-                            className={`shrink-0 overflow-hidden rounded-lg ${whiteMonsterFrame}`}
-                            style={{ width: avatarPx, height: avatarPx }}
-                        >
-                            <img
-                                src={monsterPortrait.src}
-                                alt=""
-                                className="h-full w-full object-contain"
-                                draggable={false}
-                                loading="eager"
-                                decoding="async"
-                                onError={monsterPortrait.onError}
+                    <div className="relative shrink-0">
+                        {whiteIsMonster && adventureMonster ? (
+                            <div
+                                className={`shrink-0 overflow-hidden rounded-lg ${whiteMonsterFrame}`}
+                                style={{ width: avatarPx, height: avatarPx }}
+                            >
+                                <img
+                                    src={monsterPortrait.src}
+                                    alt=""
+                                    className="h-full w-full object-contain"
+                                    draggable={false}
+                                    loading="eager"
+                                    decoding="async"
+                                    onError={monsterPortrait.onError}
+                                />
+                            </div>
+                        ) : (
+                            <Avatar
+                                userId={whitePlayer.id}
+                                userName={whitePlayer.nickname}
+                                size={avatarPx}
+                                avatarUrl={whiteAvatarUrl}
+                                borderUrl={whiteBorderUrl}
                             />
-                        </div>
-                    ) : (
-                        <Avatar
-                            userId={whitePlayer.id}
-                            userName={whitePlayer.nickname}
-                            size={avatarPx}
-                            avatarUrl={whiteAvatarUrl}
-                            borderUrl={whiteBorderUrl}
-                        />
-                    )}
+                        )}
+                        {showWinLoseBadge && (
+                            <span className={`pointer-events-none absolute inset-x-0 bottom-0 flex justify-center rounded-b-md py-[2px] text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)] ${winnerEnum === Player.White ? 'bg-blue-600/95' : 'bg-red-600/95'}`}>
+                                {winnerEnum === Player.White ? '승' : '패'}
+                            </span>
+                        )}
+                    </div>
                     <div className="min-w-0 flex-1">
                         <span className="inline-flex rounded-md border border-slate-400/40 bg-white/[0.06] px-1.5 py-0.5 text-[0.6rem] font-bold uppercase tracking-[0.14em] text-slate-100/95">
                             백
@@ -1443,8 +1394,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     currentUser,
     onConfirm,
     onLeaveToAdventureMap,
-    onAction,
-    onOpenGameRecordList,
     isSpectator = false,
 }) => {
     const { winner, player1, player2, blackPlayerId, whitePlayerId, winReason } = session;
@@ -1541,6 +1490,19 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             (mySummary.items?.length ?? 0) > 0
         );
     }, [mySummary, isAdventureGame, sessionShowsVipPlayRewardSlot, vipSlotEffective]);
+
+    const displayedMatchGold = useMemo(() => {
+        if (!mySummary) return 0;
+        if (typeof mySummary.matchGold === 'number' && Number.isFinite(mySummary.matchGold) && mySummary.matchGold > 0) {
+            return mySummary.matchGold;
+        }
+        const totalGold = Math.max(0, Number(mySummary.gold ?? 0));
+        const vipBonus = Math.max(0, Number(mySummary.vipGoldBonus ?? 0));
+        if (totalGold > 0 && vipBonus > 0) {
+            return Math.max(0, totalGold - vipBonus);
+        }
+        return totalGold;
+    }, [mySummary]);
     const isGuildWar = isGuildWarLiveSession(session as any);
     const guildWarStars = mySummary?.guildWarStars ?? 0;
     const guildWarHouseScore = useMemo(() => {
@@ -1560,10 +1522,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const isPlayful = PLAYFUL_GAME_MODES.some((m: {mode: GameMode}) => m.mode === session.mode);
     const blackPlayer = player1.id === blackPlayerId ? player1 : player2;
     const whitePlayer = player1.id === whitePlayerId ? player1 : player2;
-    const canUseGameRecordUi = canSaveStrategicPvpGameRecord(session) && !isSpectator;
-    const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(session.id, currentUser.savedGameRecords);
-    const recordCount = currentUser.savedGameRecords?.length ?? 0;
-    const [savingRecord, setSavingRecord] = useState(false);
     const [mobileResultTab, setMobileResultTab] = useState<MobileGameResultTab>('match');
 
     const avatarUrl = useMemo(() => AVATAR_POOL.find((a: AvatarInfo) => a.id === currentUser.avatarId)?.url, [currentUser.avatarId]);
@@ -1958,9 +1916,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             />
                         ) : (
                             <>
-                        {(mySummary.gold ?? 0) > 0 && (
+                        {displayedMatchGold > 0 && (
                             <ResultModalGoldCurrencySlot
-                                amount={mySummary.gold ?? 0}
+                                amount={displayedMatchGold}
                                 compact={useCompactRewardSlots}
                                 understandingBonus={mySummary.adventureGoldUnderstandingBonus}
                             />
@@ -2057,7 +2015,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             pcViewportMaxHeightCss="min(92vh, 840px)"
             uniformPcScale={false}
             mobileViewportFit
-            mobileLockViewportHeight={isMobile}
+            mobileLockViewportHeight={false}
             mobileViewportMaxHeightVh={isMobile ? 96 : 86}
             windowId="game-summary"
             variant="store"
@@ -2572,66 +2530,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 >
                     {isMobile ? <div className="min-w-0 w-full shrink-0">{pvpRewardsSection}</div> : null}
                     <div className={`${arenaPostGameButtonGridClass} min-w-0 shrink-0`}>
-                    {canUseGameRecordUi && onAction && (
-                        <button
-                            type="button"
-                            className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
-                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
-                            disabled={savingRecord || recordAlreadySaved}
-                            onClick={async () => {
-                                if (savingRecord || recordAlreadySaved) return;
-                                if (recordCount >= 10) {
-                                    alert(GAME_RECORD_SLOT_FULL_MESSAGE);
-                                    return;
-                                }
-                                setSavingRecord(true);
-                                try {
-                                    const out = await onAction({ type: 'SAVE_GAME_RECORD', payload: { gameId: session.id } });
-                                    if (out && typeof out === 'object' && 'error' in out && (out as { error?: string }).error) {
-                                        alert((out as { error?: string }).error);
-                                        return;
-                                    }
-                                    setSavedOptimistic(true);
-                                } catch (error) {
-                                    console.error('Failed to save game record:', error);
-                                } finally {
-                                    setSavingRecord(false);
-                                }
-                            }}
-                        >
-                            {savingRecord ? '저장 중...' : recordAlreadySaved ? '이미 저장됨' : '기보 저장'}
-                        </button>
-                    )}
-                    {canUseGameRecordUi && onOpenGameRecordList && (
-                        <button
-                            type="button"
-                            className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
-                            style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
-                            onClick={() => onOpenGameRecordList()}
-                        >
-                            기보 관리
-                        </button>
-                    )}
-                    {adventureResultChrome ? (
-                        <>
-                            <button
-                                type="button"
-                                className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
-                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
-                                onClick={onConfirm}
-                            >
-                                확인
-                            </button>
-                            <button
-                                type="button"
-                                className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
-                                style={{ fontSize: isMobile ? `${10 * mobileTextScale}px` : undefined }}
-                                onClick={onLeaveToAdventureMap}
-                            >
-                                맵으로 이동
-                            </button>
-                        </>
-                    ) : (
                         <button
                             type="button"
                             className={arenaPostGameButtonClass('neutral', isMobile, 'modal')}
@@ -2640,7 +2538,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                         >
                             확인
                         </button>
-                    )}
                     </div>
                 </div>
         </DraggableWindow>

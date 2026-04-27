@@ -15,6 +15,7 @@ import ThiefRoundSummary from '../ThiefRoundSummary.js';
 import CurlingRoundSummary from '../CurlingRoundSummary.js';
 import Button from '../Button.js';
 import DiceRoundSummary from '../DiceRoundSummary.js';
+import AlkkagiRoundSummary from '../AlkkagiRoundSummary.js';
 import KomiBiddingPanel from '../KomiBiddingPanel.js';
 import NegotiationModal from '../NegotiationModal.js';
 import DiceGoTurnSelectionModal from '../DiceGoTurnSelectionModal.js';
@@ -137,6 +138,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'thief_round_end') return <ThiefRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'curling_round_end') return <CurlingRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'dice_round_end') return <DiceRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'alkkagi_round_end' && session.isAiGame) {
+            return <AlkkagiRoundSummary session={session} currentUser={currentUser} onAction={onAction} />;
+        }
         // 게임이 종료되었을 때만 결과 모달 표시
         // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
         // 도전의 탑과 싱글플레이어는 이미 위에서 처리했으므로 제외

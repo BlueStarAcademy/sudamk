@@ -150,6 +150,8 @@ const AlkkagiArena: React.FC<AlkkagiArenaProps> = (props) => {
 
     const handlePlacementClick = useCallback((svgPoint: Point) => {
         const { session: currentSession, onAction: currentOnAction } = latestProps.current;
+        // 유저 배치도 AI 배치와 동일하게 착수 효과음을 낸다.
+        audioService.placeStone();
         currentOnAction({ type: 'ALKKAGI_PLACE_STONE', payload: { gameId: currentSession.id, point: svgPoint } });
     }, []);
     

@@ -1208,9 +1208,17 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
 
 export const makeAiMove = async (game: LiveGameSession) => {
     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    const isAlkkagiSimultaneousAiPlacement =
+        game.mode === types.GameMode.Alkkagi &&
+        game.isAiGame &&
+        game.gameStatus === 'alkkagi_simultaneous_placement' &&
+        (game.blackPlayerId === aiUserId || game.whitePlayerId === aiUserId);
     const isAiControlledTurn =
-        game.currentPlayer !== types.Player.None &&
-        (currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')));
+        (
+            game.currentPlayer !== types.Player.None &&
+            (currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')))
+        ) ||
+        isAlkkagiSimultaneousAiPlacement;
     if (!isAiControlledTurn) {
         return;
     }

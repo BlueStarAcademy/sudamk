@@ -64,7 +64,7 @@ const GoldPointCombinedSlot: React.FC<{ amount: number; bonusAmount?: number }> 
     <div className={`${GOLD_BOX_COMPACT} ring-1 ring-emerald-400/35`} aria-hidden>
       <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain p-0.5 sm:h-8 sm:w-8" />
     </div>
-    <span className="text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">
+    <span className="whitespace-nowrap text-[0.7rem] font-bold tabular-nums text-amber-100 sm:text-xs">
       {amount.toLocaleString()}
       {bonusAmount != null && bonusAmount > 0 ? `(+${bonusAmount.toLocaleString()})` : ''}
     </span>
@@ -163,13 +163,17 @@ function renderSlot(
   switch (slot.kind) {
     case 'xp_compact_total':
       return (
-        <div key={`xpc-${idx}`} className="flex shrink-0 flex-col items-center justify-end">
-          <ResultModalXpRewardBadge variant={slot.xpVariant} amount={slot.mainXp} density="compact" />
-          {slot.bonusXp != null && slot.bonusXp > 0 ? (
-            <span className="mt-0.5 text-[0.62rem] font-semibold tabular-nums text-emerald-200/90 sm:text-[0.68rem]">
-              (+{slot.bonusXp.toLocaleString()})
-            </span>
-          ) : null}
+        <div key={`xpc-${idx}`} className="flex flex-col items-center gap-0.5">
+          <ResultModalXpRewardBadge
+            variant={slot.xpVariant}
+            amount={slot.mainXp}
+            density="compact"
+            hideAmount
+          />
+          <span className="whitespace-nowrap text-[0.7rem] font-bold tabular-nums text-emerald-200/90 sm:text-xs">
+            +{slot.mainXp.toLocaleString()}
+            {slot.bonusXp != null && slot.bonusXp > 0 ? `(+${slot.bonusXp.toLocaleString()})` : ''}
+          </span>
         </div>
       );
     case 'xp_win_loss':

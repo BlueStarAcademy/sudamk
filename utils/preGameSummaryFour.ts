@@ -661,8 +661,8 @@ export function getPreGameSummaryFour(
 
   if (mode === GameMode.Alkkagi) {
     return {
-      winGoal: '라운드별로 상대 돌을 판 밖으로 더 많이 밀어낸 쪽 승',
-      loseGoal: '라운드에서 상대보다 적게 밀어내면 패배',
+      winGoal: '상대 돌 모두 넉아웃',
+      loseGoal: '내 돌 모두 넉아웃',
       scoreFactors: '판 밖으로 나간 상대 돌 수',
       timeRules: NONE,
       specialHighlights: [{ img: '/images/simbols/simbolp5.png', text: '게이지로 힘 조절 · 벽 반사' }],

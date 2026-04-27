@@ -198,7 +198,7 @@ const CurlingBoard = forwardRef<CurlingBoardHandle, CurlingBoardProps>((props, r
 
     return (
         <div
-            className={`relative w-full h-full shadow-2xl rounded-lg overflow-hidden border-4 border-gray-800`}
+            className={`go-board-panel relative w-full h-full shadow-2xl rounded-lg overflow-hidden border-4 border-gray-800`}
         >
             <svg
                 ref={svgRef}

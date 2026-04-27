@@ -29,7 +29,25 @@ interface AlkkagiBoardProps {
 }
 
 const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, ref): ReactNode => {
-    const { stones, gameStatus, myPlayer, isMyTurn, settings, onPlacementClick, onStoneInteractionStart, isSpectator, dragStartPoint, dragEndPoint, selectedStone, isInCancelZone = false, myStonesCount, maxStones, session, currentUser, isRotated = false } = props;
+    const {
+        stones,
+        gameStatus,
+        myPlayer,
+        isMyTurn,
+        settings,
+        onPlacementClick,
+        onStoneInteractionStart,
+        isSpectator,
+        dragStartPoint,
+        dragEndPoint,
+        selectedStone,
+        isInCancelZone = false,
+        myStonesCount,
+        maxStones,
+        session,
+        currentUser,
+        isRotated = false,
+    } = props;
     const [localStones, setLocalStones] = useState(stones);
     const [hoverPos, setHoverPos] = useState<Point | null>(null);
     const svgRef = useRef<SVGSVGElement>(null);
@@ -247,7 +265,7 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
 
     return (
         <div
-            className={`relative w-full h-full shadow-2xl rounded-lg overflow-hidden border-4 border-gray-800`}
+            className={`go-board-panel relative w-full h-full shadow-2xl rounded-lg overflow-hidden border-4 border-gray-800`}
         >
             <svg
                 ref={svgRef}
@@ -294,7 +312,12 @@ const AlkkagiBoard = forwardRef<AlkkagiBoardHandle, AlkkagiBoardProps>((props, r
 
                 {canPlaceStone && hoverPos && isHoverValid && (
                     <g opacity="0.5" style={{ pointerEvents: 'none' }}>
-                        <circle cx={hoverPos.x} cy={hoverPos.y} r={(localStones && localStones[0] ? localStones[0].radius : (840/19)*0.47)} fill={myPlayer === Player.Black ? "#111827" : "#f9fafb"} />
+                        <circle
+                            cx={hoverPos.x}
+                            cy={hoverPos.y}
+                            r={(localStones && localStones[0] ? localStones[0].radius : (840 / 19) * 0.47)}
+                            fill={myPlayer === Player.Black ? '#111827' : '#f9fafb'}
+                        />
                     </g>
                 )}
 

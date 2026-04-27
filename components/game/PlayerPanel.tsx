@@ -64,6 +64,8 @@ const CapturedStones: React.FC<{
         label = '점수';
     } else if (isDiceGo) {
         label = '포획 점수';
+    } else if (mode === GameMode.Alkkagi) {
+        label = '점수';
     } else if ([GameMode.Thief, GameMode.Curling].includes(mode)) {
         label = '점수';
     }
@@ -761,7 +763,47 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         session.currentPlayer,
     ]);
 
-    const isScoreMode = [GameMode.Dice, GameMode.Thief, GameMode.Curling].includes(mode);
+    const isScoreMode = [GameMode.Dice, GameMode.Thief, GameMode.Curling, GameMode.Alkkagi].includes(mode);
+
+    const alkkagiLiveScores = useMemo(() => {
+        if (mode !== GameMode.Alkkagi) {
+            return {
+                black: 0,
+                white: 0,
+            };
+        }
+
+        const roundHistory = session.alkkagiRoundHistory || [];
+        const historicalBlack = roundHistory.reduce((sum, r) => sum + (r.blackKnockout || 0), 0);
+        const historicalWhite = roundHistory.reduce((sum, r) => sum + (r.whiteKnockout || 0), 0);
+        const isLiveRound = session.gameStatus === 'alkkagi_playing' || session.gameStatus === 'alkkagi_animating';
+
+        let liveBlack = 0;
+        let liveWhite = 0;
+        if (isLiveRound) {
+            const stones = session.alkkagiStones || [];
+            const roundStartCounts = (session as LiveGameSession & {
+                alkkagiRoundStartCounts?: { black?: number; white?: number };
+            }).alkkagiRoundStartCounts;
+            if (roundStartCounts && (roundStartCounts.black != null || roundStartCounts.white != null)) {
+                const onBoardBlack = stones.filter((s) => s.player === Player.Black && s.onBoard).length;
+                const onBoardWhite = stones.filter((s) => s.player === Player.White && s.onBoard).length;
+                const startBlack = Math.max(0, Number(roundStartCounts.black ?? onBoardBlack));
+                const startWhite = Math.max(0, Number(roundStartCounts.white ?? onBoardWhite));
+                liveBlack = Math.max(0, startWhite - onBoardWhite);
+                liveWhite = Math.max(0, startBlack - onBoardBlack);
+            } else {
+                // 하위 호환: 구형 세션은 roundStartCounts가 없으므로 기존 방식으로 계산
+                liveBlack = stones.filter((s) => s.player === Player.White && !s.onBoard).length;
+                liveWhite = stones.filter((s) => s.player === Player.Black && !s.onBoard).length;
+            }
+        }
+
+        return {
+            black: historicalBlack + liveBlack,
+            white: historicalWhite + liveWhite,
+        };
+    }, [mode, session.alkkagiRoundHistory, session.alkkagiStones, session.gameStatus]);
 
     const adventureRegionalFlatBonus =
         session.gameCategory === 'adventure' &&
@@ -783,14 +825,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const isLeftPlayerActive = currentPlayer === leftPlayerEnum && leftPlayerEnum !== Player.None;
     const isRightPlayerActive = currentPlayer === rightPlayerEnum && rightPlayerEnum !== Player.None;
 
-    const leftPlayerScore = mode === GameMode.Curling 
-    ? (session.curlingScores?.[leftPlayerEnum] ?? 0) 
-    : isScoreMode 
-        ? (scores?.[leftPlayerUser.id] ?? 0) 
-        : captures[leftPlayerEnum];
+    const leftPlayerScore = mode === GameMode.Curling
+        ? (session.curlingScores?.[leftPlayerEnum] ?? 0)
+        : mode === GameMode.Alkkagi
+            ? (leftPlayerEnum === Player.Black ? alkkagiLiveScores.black : alkkagiLiveScores.white)
+            : isScoreMode
+                ? (scores?.[leftPlayerUser.id] ?? 0)
+                : captures[leftPlayerEnum];
 
     const rightPlayerScore = mode === GameMode.Curling
         ? (session.curlingScores?.[rightPlayerEnum] ?? 0)
+        : mode === GameMode.Alkkagi
+            ? (rightPlayerEnum === Player.Black ? alkkagiLiveScores.black : alkkagiLiveScores.white)
         : isScoreMode
             ? (scores?.[rightPlayerUser.id] ?? 0)
             : captures[rightPlayerEnum];
@@ -1067,6 +1113,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const turnInfoTotalSize = compactPlayerBar ? 'text-sm' : 'text-sm md:text-base';
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
+    const showAlkkagiRoundBox = mode === GameMode.Alkkagi;
+    const alkkagiRoundCurrent = Math.max(1, session.alkkagiRound || 1);
+    const alkkagiRoundTotal = Math.max(1, session.settings.alkkagiRounds || 1);
 
     const isPlayfulDiceStonesBoxPhase =
         (mode === GameMode.Dice && ['dice_rolling', 'dice_rolling_animating', 'dice_placing'].includes(session.gameStatus)) ||
@@ -1198,6 +1247,22 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                                 <span className={`${turnInfoTotalSize} text-gray-400`}>/ {strategicLobbyTurnInfo.total}</span>
                             </div>
                         )}
+                    </div>
+                </div>
+            )}
+            {showAlkkagiRoundBox && (
+                <div className={`${turnInfoShellClass} bg-gray-800/95 rounded-lg border-2 border-gray-500 shadow-xl`}>
+                    <div
+                        className={`flex w-full flex-col items-center justify-center px-1 text-center ${
+                            compactPlayerBar ? 'min-h-0 flex-1' : ''
+                        }`}
+                    >
+                        <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
+                            라운드
+                        </span>
+                        <span className={`${turnInfoValueSize} font-bold text-amber-300 tabular-nums`}>
+                            ({alkkagiRoundCurrent}/{alkkagiRoundTotal})
+                        </span>
                     </div>
                 </div>
             )}

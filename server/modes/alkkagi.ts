@@ -6,6 +6,22 @@ import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT
 import { endGame } from '../summaryService.js';
 import { findAlkkagiStoneById, nextAlkkagiStoneId } from '../../shared/utils/alkkagiStoneId.js';
 
+const ALKKAGI_AI_PLACEMENT_DELAY_MS = 1000;
+const ALKKAGI_AI_FIRST_ATTACK_DELAY_MS = 2000;
+
+const isBotPlayerId = (id?: string | null): boolean =>
+    !!id && (id === aiUserId || String(id).startsWith('dungeon-bot-'));
+
+const countPlacedStonesForPlayerThisPhase = (game: types.LiveGameSession, playerId: string): number => {
+    const playerEnum = playerId === game.blackPlayerId ? types.Player.Black : types.Player.White;
+    const combined = [
+        ...(game.alkkagiStones || []),
+        ...(game.alkkagiStones_p1 || []),
+        ...(game.alkkagiStones_p2 || []),
+    ];
+    return combined.filter((s) => s.player === playerEnum && s.onBoard).length;
+};
+
 // --- Simulation & Scoring Logic ---
 /** @returns 시뮬레이션을 실제로 적용했으면 true (돌을 찾지 못하면 false — 턴을 넘기면 안 됨) */
 const runServerSimulation = (game: types.LiveGameSession): boolean => {
@@ -89,9 +105,18 @@ const checkAndEndRound = (game: types.LiveGameSession, now: number): boolean => 
     if (roundWinnerId) {
         const totalRounds = game.settings.alkkagiRounds || 1;
         const loserId = roundWinnerId === game.player1.id ? game.player2.id : game.player1.id;
-        const stoneCount = game.settings.alkkagiStoneCount || 5;
-        const blackKnockout = roundWinnerId === game.blackPlayerId ? stoneCount : 0;
-        const whiteKnockout = roundWinnerId === game.whitePlayerId ? stoneCount : 0;
+        const roundStartCounts = (game as any).alkkagiRoundStartCounts as { black?: number; white?: number } | undefined;
+        const placedThisRound = game.alkkagiStonesPlacedThisRound || {};
+        const fallbackStoneCount = game.settings.alkkagiStoneCount || 5;
+        const placedBlackRaw = game.blackPlayerId ? placedThisRound[game.blackPlayerId] : undefined;
+        const placedWhiteRaw = game.whitePlayerId ? placedThisRound[game.whitePlayerId] : undefined;
+        const placedBlack = Number.isFinite(Number(placedBlackRaw)) ? Number(placedBlackRaw) : undefined;
+        const placedWhite = Number.isFinite(Number(placedWhiteRaw)) ? Number(placedWhiteRaw) : undefined;
+        const startBlack = Math.max(0, Number(roundStartCounts?.black ?? placedBlack ?? fallbackStoneCount));
+        const startWhite = Math.max(0, Number(roundStartCounts?.white ?? placedWhite ?? fallbackStoneCount));
+        // 득점(넉아웃)은 "라운드 시작 시 상대 돌 수 - 현재 상대 온보드 수"로 집계
+        const blackKnockout = Math.max(0, startWhite - whiteStones);
+        const whiteKnockout = Math.max(0, startBlack - blackStones);
         if (!game.alkkagiRoundHistory) game.alkkagiRoundHistory = [];
         game.alkkagiRoundHistory.push({
             round: game.alkkagiRound!,
@@ -112,7 +137,13 @@ const checkAndEndRound = (game: types.LiveGameSession, now: number): boolean => 
             game.gameStatus = 'alkkagi_round_end';
             game.revealEndTime = now + 30000;
             game.roundEndConfirmations = { [game.player1.id]: 0, [game.player2.id]: 0 };
-            if (game.isAiGame) game.roundEndConfirmations[aiUserId] = now;
+            if (game.isAiGame) {
+                if (isBotPlayerId(game.player1.id)) game.roundEndConfirmations[game.player1.id] = now;
+                if (isBotPlayerId(game.player2.id)) game.roundEndConfirmations[game.player2.id] = now;
+                if (game.roundEndConfirmations[aiUserId] == null) {
+                    game.roundEndConfirmations[aiUserId] = now;
+                }
+            }
         }
         return true;
     }
@@ -301,6 +332,9 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
         case 'alkkagi_placement':
         case 'alkkagi_simultaneous_placement': {
             if (!game.alkkagiStonesPlacedThisRound) game.alkkagiStonesPlacedThisRound = {};
+            // 라운드 리필 중에는 저장 카운트가 실제 온보드 개수와 어긋날 수 있어 매 틱 동기화한다.
+            game.alkkagiStonesPlacedThisRound[p1Id] = countPlacedStonesForPlayerThisPhase(game, p1Id);
+            game.alkkagiStonesPlacedThisRound[p2Id] = countPlacedStonesForPlayerThisPhase(game, p2Id);
             // AI 턴일 때는 타임아웃 체크를 건너뛰기
             const isAiTurnPlacement = game.isAiGame && game.currentPlayer !== types.Player.None && 
                                      (game.currentPlayer === types.Player.Black ? game.blackPlayerId === aiUserId : game.whitePlayerId === aiUserId);
@@ -416,13 +450,21 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                 game.alkkagiRoundSummary = undefined;
                 game.roundEndConfirmations = undefined;
                 game.revealEndTime = undefined;
+                (game as any).alkkagiRoundStartCounts = {
+                    black: (game.alkkagiStones || []).filter((s: types.AlkkagiStone) => s.player === types.Player.Black && s.onBoard).length,
+                    white: (game.alkkagiStones || []).filter((s: types.AlkkagiStone) => s.player === types.Player.White && s.onBoard).length,
+                };
                 
                 if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {
-                        scheduleAiTurnStartForFreshUi(game, now);
-                        (game as any).alkkagiTriggerAiAttack = true; // 배치→공격 전환 직후 메인 루프에서 AI 공격 1회 확실히 호출
-                        console.log(`[updateAlkkagiState] AI turn after placement phase, game ${game.id}, deferred aiTurnStartTime by first-move delay`);
+                        // AI 선공 라운드는 유저가 판을 인지할 수 있도록 첫 공격을 2초 지연한다.
+                        game.aiTurnStartTime = now + ALKKAGI_AI_FIRST_ATTACK_DELAY_MS;
+                        (game as any).alkkagiTriggerAiAttack = false;
+                        console.log(
+                            `[updateAlkkagiState] AI first attack delayed ${ALKKAGI_AI_FIRST_ATTACK_DELAY_MS}ms after placement, ` +
+                            `game ${game.id}, aiTurnStartTime=${game.aiTurnStartTime}`
+                        );
                     } else {
                         game.aiTurnStartTime = undefined;
                         console.log(`[updateAlkkagiState] User turn after placement phase, game ${game.id}, clearing aiTurnStartTime`);
@@ -520,7 +562,19 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
             break;
         }
         case 'alkkagi_round_end':
-            if ((game.roundEndConfirmations?.[p1Id] && game.roundEndConfirmations?.[p2Id]) || (game.revealEndTime && now > game.revealEndTime)) {
+            const p1IsBot = isBotPlayerId(p1Id);
+            const p2IsBot = isBotPlayerId(p2Id);
+            const p1Confirmed = !!game.roundEndConfirmations?.[p1Id];
+            const p2Confirmed = !!game.roundEndConfirmations?.[p2Id];
+            const bothConfirmed = p1Confirmed && p2Confirmed;
+            const aiReadyByHumanConfirmOnly =
+                game.isAiGame &&
+                ((p1IsBot ? true : p1Confirmed) && (p2IsBot ? true : p2Confirmed));
+            if (
+                bothConfirmed ||
+                aiReadyByHumanConfirmOnly ||
+                (!game.isAiGame && game.revealEndTime && now > game.revealEndTime)
+            ) {
                 const totalRounds = game.settings.alkkagiRounds || 1;
                 if (game.alkkagiRound! >= totalRounds) {
                     const winnerId = game.alkkagiRoundSummary!.winnerId;
@@ -556,7 +610,17 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                         if (game.isAiGame) game.aiTurnStartTime = undefined;
                     }
 
-                    game.alkkagiStonesPlacedThisRound = { [p1Id]: 0, [p2Id]: 0 }; 
+                    // 다음 라운드 리필 배치: "이번 라운드 시작 시 보유 돌 수"를 배치 카운트의 시작값으로 둔다.
+                    // 그래야 생존 돌이 있는 플레이어는 부족분만 배치하고, 타임아웃 자동배치/완료판정이 정확해진다.
+                    const p1EnumAtRoundStart = p1Id === game.blackPlayerId ? types.Player.Black : types.Player.White;
+                    const p2EnumAtRoundStart = p2Id === game.blackPlayerId ? types.Player.Black : types.Player.White;
+                    const p1Survivors = (game.alkkagiStones || []).filter(
+                        (s: types.AlkkagiStone) => s.player === p1EnumAtRoundStart && s.onBoard
+                    ).length;
+                    const p2Survivors = (game.alkkagiStones || []).filter(
+                        (s: types.AlkkagiStone) => s.player === p2EnumAtRoundStart && s.onBoard
+                    ).length;
+                    game.alkkagiStonesPlacedThisRound = { [p1Id]: p1Survivors, [p2Id]: p2Survivors };
                     game.alkkagiStones_p1 = [];
                     game.alkkagiStones_p2 = [];
                     game.roundEndConfirmations = undefined;
@@ -640,7 +704,8 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
             if (game.gameStatus !== 'alkkagi_placement' && !isSimultaneous) return { error: '배치 단계가 아닙니다.' };
             if (!isSimultaneous && !isMyTurn) return { error: '당신의 차례가 아닙니다.' };            
             const targetPlacements = game.settings.alkkagiStoneCount || 5;
-            const placedThisRound = game.alkkagiStonesPlacedThisRound?.[user.id] || 0;
+            const placedFromBoard = countPlacedStonesForPlayerThisPhase(game, user.id);
+            const placedThisRound = Math.max(game.alkkagiStonesPlacedThisRound?.[user.id] || 0, placedFromBoard);
 
             if (placedThisRound >= targetPlacements) {
                 return { error: '모든 돌을 배치했습니다.' };
@@ -664,7 +729,7 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
                 }
                 
                 if (!game.alkkagiStonesPlacedThisRound) game.alkkagiStonesPlacedThisRound = {};
-                game.alkkagiStonesPlacedThisRound[user.id] = placedThisRound + 1;
+                game.alkkagiStonesPlacedThisRound[user.id] = placedFromBoard + 1;
                 
                 if (game.gameStatus === 'alkkagi_placement') {
                     game.currentPlayer = game.currentPlayer === types.Player.Black ? types.Player.White : types.Player.Black;
@@ -675,7 +740,8 @@ export const handleAlkkagiAction = async (volatileState: types.VolatileState, ga
                     if (game.isAiGame) {
                         const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                         if (nextPlayerId === aiUserId) {
-                            game.aiTurnStartTime = now;
+                            // 교대 배치에서 유저 착수 직후 AI 배치는 1초 뒤 실행한다.
+                            game.aiTurnStartTime = now + ALKKAGI_AI_PLACEMENT_DELAY_MS;
                         } else {
                             game.aiTurnStartTime = undefined;
                         }

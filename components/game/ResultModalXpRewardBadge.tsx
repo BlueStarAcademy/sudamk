@@ -55,7 +55,8 @@ export const ResultModalXpRewardBadge: React.FC<{
     density?: keyof typeof DENSITY_BOX;
     className?: string;
     title?: string;
-}> = ({ variant, amount, density = 'compact', className = '', title }) => {
+    hideAmount?: boolean;
+}> = ({ variant, amount, density = 'compact', className = '', title, hideAmount = false }) => {
     if (amount <= 0) return null;
     const v = VARIANT[variant];
     const modeLabel = variant === 'strategy' ? '전략' : '놀이';
@@ -93,11 +94,13 @@ export const ResultModalXpRewardBadge: React.FC<{
                 <span className={labelModeClass}>{modeLabel}</span>
                 <span className={labelExpClass}>EXP</span>
             </div>
-            <span
-                className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}
-            >
-                <span className="whitespace-nowrap">+{amount.toLocaleString()}</span>
-            </span>
+            {!hideAmount && (
+                <span
+                    className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}
+                >
+                    <span className="whitespace-nowrap">+{amount.toLocaleString()}</span>
+                </span>
+            )}
         </div>
     );
 };

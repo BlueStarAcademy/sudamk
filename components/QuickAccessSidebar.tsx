@@ -76,7 +76,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         if (onboardingPhase >= 10) return false;
         if (label === '가방') return onboardingPhase < 9;
         if (label === '대장간') return onboardingPhase < 10;
-        if (label === '퀘스트' || label === '기보' || label === '상점') return true;
+        if (label === '퀘스트' || label === '거래소' || label === '상점') return true;
         return false;
     };
     const tutorialQuickPulse = (label: string) => {
@@ -101,11 +101,11 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: hasClaimableQuest,
             },
             {
-                label: '기보',
+                label: '거래소',
                 gameplay: true,
-                iconUrl: '/images/quickmenu/gibo.png',
-                handler: handlers.openGameRecordList,
-                disabled: tutorialQuickDisabled('기보'),
+                iconUrl: '/images/quickmenu/store.png',
+                handler: () => window.alert('거래소는 추후 업데이트 예정입니다.'),
+                disabled: tutorialQuickDisabled('거래소'),
                 notification: false,
             },
             {

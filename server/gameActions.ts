@@ -47,6 +47,7 @@ export type HandleActionResult = {
 };
 
 const gameActionQueues = new Map<string, Promise<unknown>>();
+const ALKKAGI_AI_FIRST_ATTACK_DELAY_MS = 2000;
 
 async function runGameActionSerial<T>(gameId: string, task: () => Promise<T>): Promise<T> {
     const previous = gameActionQueues.get(gameId) ?? Promise.resolve();
@@ -1419,7 +1420,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             const isAlkkagiPlacementAiTurn =
                 game.mode === GameMode.Alkkagi &&
                 game.isAiGame &&
-                (game.gameStatus === 'alkkagi_placement' || game.gameStatus === 'alkkagi_simultaneous_placement') &&
+                game.gameStatus === 'alkkagi_simultaneous_placement' &&
                 game.currentPlayer !== types.Player.None &&
                 currentPlayerId === aiUserId;
             // setImmediate로 두면 메인 루프의 makeAiMove와 startAiProcessing 잠금이 겹쳐 봇이 스킵되는 경우가 있어, 같은 요청 안에서 즉시 처리
@@ -1436,7 +1437,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     if (game.gameStatus === 'alkkagi_playing' && game.currentPlayer !== types.Player.None) {
                         const cp = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                         if (cp === aiUserId) {
-                            await makeAiMove(game);
+                            game.aiTurnStartTime = Date.now() + ALKKAGI_AI_FIRST_ATTACK_DELAY_MS;
                             updateGameCache(game);
                             await db.saveGame(game);
                             broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
@@ -1466,23 +1467,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (game.currentPlayer !== types.Player.None && currentPlayerId === aiUserId) {
-                        const gameId = game.id;
-                        setImmediate(() => {
-                            makeAiMove(game)
-                                .then(async () => {
-                                    try {
-                                        updateGameCache(game);
-                                        await db.saveGame(game);
-                                        const { broadcastToGameParticipants } = await import('./socket.js');
-                                        broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
-                                    } catch (e: any) {
-                                        console.error('[GameActions] Alkkagi post-placement attack save/broadcast failed:', e?.message);
-                                    }
-                                })
-                                .catch((err: any) => {
-                                    console.error('[GameActions] Alkkagi post-placement makeAiMove (attack) failed:', err?.message);
-                                });
-                        });
+                        game.aiTurnStartTime = Date.now() + ALKKAGI_AI_FIRST_ATTACK_DELAY_MS;
+                        updateGameCache(game);
+                        await db.saveGame(game);
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
                     }
                 }
             }

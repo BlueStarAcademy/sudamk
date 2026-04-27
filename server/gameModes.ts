@@ -1506,27 +1506,16 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             const isAiTurn = (game.isAiGame || isAiPlayerTurn) && !isManuallyPaused && game.currentPlayer !== types.Player.None &&
                 isAiPlayerTurn;
 
-            // 알까기: 배치→공격 전환 직후 AI 공격 1회 확실히 스케줄 (round-robin 등으로 놓치는 것 방지)
+            // 알까기: 배치→공격 전환 직후에는 즉시 공격하지 않고 딜레이 예약만 건다.
             const didAlkkagiTriggerAiAttack = (game as any).alkkagiTriggerAiAttack === true &&
                 game.mode === types.GameMode.Alkkagi && game.gameStatus === 'alkkagi_playing' && isAiTurn;
             if (didAlkkagiTriggerAiAttack) {
                 (game as any).alkkagiTriggerAiAttack = false;
-                const gameId = game.id;
-                setImmediate(() => {
-                    makeAiMove(game).then(async () => {
-                        try {
-                            const { updateGameCache } = await import('./gameCache.js');
-                            updateGameCache(game);
-                            db.saveGame(game).catch((err: any) => console.error(`[processGame] Alkkagi post-placement AI save failed ${gameId}:`, err?.message));
-                            const { broadcastToGameParticipants } = await import('./socket.js');
-                            broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: game } }, game);
-                        } catch (e: any) {
-                            console.error(`[processGame] Alkkagi post-placement AI broadcast failed ${gameId}:`, e?.message);
-                        }
-                    }).catch((err: any) => {
-                        console.error(`[processGame] Alkkagi post-placement makeAiMove failed ${gameId}:`, err?.message);
-                    });
-                });
+                const delayedStartAt = now + 2000;
+                const currentStart = Number(game.aiTurnStartTime ?? 0);
+                if (!Number.isFinite(currentStart) || currentStart < delayedStartAt) {
+                    game.aiTurnStartTime = delayedStartAt;
+                }
             }
 
             // 멀티플레이 AI 게임의 경우에만 메인 루프에서 AI 수 처리

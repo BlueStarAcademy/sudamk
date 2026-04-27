@@ -411,35 +411,49 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
     );
 };
 
-const UnifiedPvpSymbolCard: React.FC<{ onClick?: () => void }> = ({ onClick }) => {
-    const symbols = useMemo(() => {
-        const strategic = SPECIAL_GAME_MODES.slice(0, 2).map((m) => ({ key: `s-${m.mode}`, name: m.name, image: m.image }));
-        const playful = PLAYFUL_GAME_MODES.slice(0, 2).map((m) => ({ key: `p-${m.mode}`, name: m.name, image: m.image }));
-        return [...strategic, ...playful];
-    }, []);
-
+const UnifiedPvpSymbolCard: React.FC<{
+    onSelectStrategic?: () => void;
+    onSelectPlayful?: () => void;
+}> = ({ onSelectStrategic, onSelectPlayful }) => {
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            className="group relative flex h-full min-h-0 w-full cursor-pointer flex-col overflow-hidden rounded-xl border border-amber-400/35 text-on-panel transition-all hover:-translate-y-1 hover:shadow-fuchsia-500/30"
-            aria-label="PVP경기장 입장"
-        >
-            <div className="absolute inset-0 bg-gradient-to-br from-cyan-950/45 via-black/55 to-amber-950/45" />
-            <div className="relative z-[1] grid h-full w-full grid-cols-2 grid-rows-2 gap-1.5 p-2.5">
-                {symbols.map((symbol) => (
-                    <div key={symbol.key} className="flex min-h-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/35 p-1.5">
-                        <img
-                            src={symbol.image}
-                            alt={symbol.name}
-                            className="h-full w-full max-h-[85%] max-w-[85%] object-contain opacity-90 transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
-                        />
-                    </div>
-                ))}
-            </div>
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
-        </button>
+        <div className="group relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-xl border border-amber-400/35 text-on-panel shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)]">
+            <button
+                type="button"
+                onClick={onSelectStrategic}
+                className="relative h-1/2 w-full overflow-hidden border-b border-amber-300/25 text-left transition-transform duration-200 hover:brightness-110 active:scale-[0.995]"
+                aria-label="전략 바둑 대기실 입장"
+            >
+                <img
+                    src={STRATEGIC_GO_LOBBY_IMG}
+                    alt="전략 바둑 대기실"
+                    className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+                    loading="lazy"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-cyan-950/45 via-black/25 to-transparent" />
+                <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-cyan-300/55 bg-cyan-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-cyan-100">
+                    전략
+                </span>
+            </button>
+            <button
+                type="button"
+                onClick={onSelectPlayful}
+                className="relative h-1/2 w-full overflow-hidden text-left transition-transform duration-200 hover:brightness-110 active:scale-[0.995]"
+                aria-label="놀이 바둑 대기실 입장"
+            >
+                <img
+                    src={PLAYFUL_GO_LOBBY_IMG}
+                    alt="놀이 바둑 대기실"
+                    className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+                    loading="lazy"
+                />
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-amber-950/45 via-black/25 to-transparent" />
+                <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-amber-300/55 bg-amber-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-amber-100">
+                    놀이
+                </span>
+            </button>
+            <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
+            <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px bg-gradient-to-r from-transparent via-amber-200/35 to-transparent" aria-hidden />
+        </div>
     );
 };
 
@@ -1759,7 +1773,10 @@ const Profile: React.FC<ProfileProps> = () => {
             >
                 <div className={mergedCardClass}>
                     <div className={imagePaneClass}>
-                        <UnifiedPvpSymbolCard onClick={onSelectUnifiedPvpLobby} />
+                        <UnifiedPvpSymbolCard
+                            onSelectStrategic={() => onSelectLobby('strategic')}
+                            onSelectPlayful={() => onSelectLobby('playful')}
+                        />
                     </div>
                     <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
                         <div className={`${infoTitleClass} text-fuchsia-100`}>PVP경기장</div>
@@ -2157,7 +2174,10 @@ const Profile: React.FC<ProfileProps> = () => {
                                 <div className="flex w-full max-w-3xl min-h-0 flex-col gap-2.5">
                                     <div className={mergedCardClass}>
                                         <div className={imagePaneClass}>
-                                            <UnifiedPvpSymbolCard onClick={onSelectUnifiedPvpLobby} />
+                                            <UnifiedPvpSymbolCard
+                                                onSelectStrategic={() => onSelectLobby('strategic')}
+                                                onSelectPlayful={() => onSelectLobby('playful')}
+                                            />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
                                             <div className={`${infoTitleClass} text-fuchsia-100`}>PVP경기장</div>

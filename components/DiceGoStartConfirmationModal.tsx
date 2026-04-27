@@ -51,6 +51,7 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
             shrinkHeightToContent
             windowId="dice-go-start-confirm"
             transparentModalBackdrop
+            skipSavedPosition
         >
             <div className="text-white">
                 {p1Roll !== null && p2Roll !== null && (
