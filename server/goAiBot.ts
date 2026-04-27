@@ -961,6 +961,24 @@ function buildKataMoveHistory(
     if (!needsKataBoardSetupPrefix) return moveHistory;
 
     const bs = game.settings?.boardSize ?? 19;
+    const aiEnumForHiddenValidation = aiPlayerForKata ?? game.currentPlayer;
+    const shouldUseAiVisibleBoardForValidation =
+        shouldMaskUserHiddenFromAi(game) &&
+        getUserUnrevealedHiddenPoints(game, aiEnumForHiddenValidation).length > 0;
+    const replayTargetBoard =
+        shouldUseAiVisibleBoardForValidation
+            ? getBoardStateForAi(game, aiEnumForHiddenValidation)
+            : game.boardState;
+
+    // 히든 전체 공개 이후에는 board-only 강제 모드를 해제해 다시 정상 수순(오프닝 접두+moveHistory) 경로를 시도한다.
+    if (
+        (game as any).kataPveKataMovesFromBoardStateOnly === true &&
+        shouldMaskUserHiddenFromAi(game) &&
+        getUserUnrevealedHiddenPoints(game, aiEnumForHiddenValidation).length === 0
+    ) {
+        (game as any).kataPveKataMovesFromBoardStateOnly = false;
+    }
+
     if (
         (game as any).kataPveKataMovesFromBoardStateOnly === true &&
         game.boardState?.length === bs &&
@@ -1015,11 +1033,11 @@ function buildKataMoveHistory(
     if (
         !setupMoves?.length &&
         moveHistory.length > 0 &&
-        game.boardState?.length === bs &&
-        game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs) &&
+        replayTargetBoard?.length === bs &&
+        replayTargetBoard.every((row: unknown[]) => Array.isArray(row) && row.length === bs) &&
         !(game as any).kataPveKataMovesFromBoardStateOnly
     ) {
-        if (!doesKataCombinedMovesReplayToBoard(bs, moveHistory, game.boardState)) {
+        if (!doesKataCombinedMovesReplayToBoard(bs, moveHistory, replayTargetBoard)) {
             console.warn(
                 `[buildKataMoveHistory] moveHistory alone ≠ boardState; board-only Kata encoding, game=${game.id}`,
             );
@@ -1052,9 +1070,9 @@ function buildKataMoveHistory(
 
     const combined = [...setupMoves, ...moveHistory];
     if (
-        game.boardState?.length === bs &&
-        game.boardState.every((row: unknown[]) => Array.isArray(row) && row.length === bs) &&
-        !doesKataCombinedMovesReplayToBoard(bs, combined, game.boardState)
+        replayTargetBoard?.length === bs &&
+        replayTargetBoard.every((row: unknown[]) => Array.isArray(row) && row.length === bs) &&
+        !doesKataCombinedMovesReplayToBoard(bs, combined, replayTargetBoard)
     ) {
         console.warn(
             `[buildKataMoveHistory] setup+moveHistory does not replay to boardState; board-only Kata encoding, game=${game.id}`,

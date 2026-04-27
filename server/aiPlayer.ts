@@ -391,6 +391,24 @@ const makeOmokAiMove = (game: types.LiveGameSession) => {
         // 수를 둘 곳이 없으면 게임 종료 처리
         return;
     }
+
+    const occupiedCount = game.boardState.flat().filter(cell => cell !== types.Player.None).length;
+    const isEarlyPhase = occupiedCount <= 8;
+    const humanStones: types.Point[] = [];
+    for (let y = 0; y < boardSize; y++) {
+        for (let x = 0; x < boardSize; x++) {
+            if (game.boardState[y][x] === humanPlayerEnum) {
+                humanStones.push({ x, y });
+            }
+        }
+    }
+    const isNearHumanStone = (x: number, y: number): boolean =>
+        humanStones.some((p) => Math.max(Math.abs(p.x - x), Math.abs(p.y - y)) <= 2);
+    const openingMoves =
+        isEarlyPhase && humanStones.length > 0
+            ? validMoves.filter((m) => isNearHumanStone(m.x, m.y))
+            : [];
+    const candidateMoves = openingMoves.length > 0 ? openingMoves : validMoves;
     
     // 임시 보드로 수를 시뮬레이션 (승리를 위한 최선의 방법)
     const evaluateMove = (x: number, y: number, player: types.Player): number => {
@@ -473,7 +491,7 @@ const makeOmokAiMove = (game: types.LiveGameSession) => {
     };
     
     // 각 수의 점수 계산
-    const moveScores = validMoves.map(move => ({
+    const moveScores = candidateMoves.map(move => ({
         move,
         score: evaluateMove(move.x, move.y, aiPlayerEnum)
     }));

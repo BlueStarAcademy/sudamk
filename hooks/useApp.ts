@@ -2245,6 +2245,25 @@ export const useApp = () => {
                 gameId: string;
                 gameType: 'tower' | 'singleplayer' | 'guildwar';
             };
+            // 길드전은 서버 권위 상태를 그대로 사용한다.
+            // 로컬에서 pendingCapture 정산/자동계가를 추가로 수행하면
+            // WS 갱신 타이밍과 엇갈려 캡처된 돌이 되살아나는 시각적 역행이 발생할 수 있다.
+            if (gameType === 'guildwar') {
+                setLiveGames((currentGames) => {
+                    const game = currentGames[gameId];
+                    if (!game) return currentGames;
+                    if (game.gameStatus !== 'hidden_reveal_animating') return currentGames;
+                    return {
+                        ...currentGames,
+                        [gameId]: {
+                            ...game,
+                            animation: null,
+                            revealAnimationEndTime: undefined,
+                        } as any,
+                    };
+                });
+                return;
+            }
             const updateGameState =
                 gameType === 'guildwar'
                     ? setLiveGames
