@@ -44,6 +44,7 @@ export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.pausedTurnTimeLeft = undefined;
     game.preGameConfirmations = {};
     game.preGameKomiSummaryAck = undefined;
+    game.baseKomiBidsSnapshot = undefined;
 
     // AI 대국: 봇의 베이스돌은 시작 즉시 랜덤으로 모두 배치해 둔다.
     if (game.isAiGame) {
@@ -288,6 +289,99 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
     game.pausedTurnTimeLeft = undefined;
 };
 
+/** 양측 입찰이 채워진 뒤 흑·백·finalKomi·판 반영. 1차 동률이면 komi_bidding 2차로만 되돌림. (덤 공개 연출 단계 없이 즉시 처리) */
+const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) => {
+    const p1 = game.player1;
+    const p2 = game.player2;
+    const p1Bid = game.komiBids?.[p1.id];
+    const p2Bid = game.komiBids?.[p2.id];
+    if (p1Bid == null || p2Bid == null) return;
+
+    game.komiBidRevealProcessed = undefined;
+    const baseKomi = game.settings.komi;
+    let blackPlayerId: string | undefined, whitePlayerId: string | undefined, finalKomi: number | undefined;
+    let useBaseColorRoulettePhase = false;
+
+    if (p1Bid.color !== p2Bid.color) {
+        blackPlayerId = p1Bid.color === types.Player.Black ? p1.id : p2.id;
+        whitePlayerId = blackPlayerId === p1.id ? p2.id : p1.id;
+        finalKomi = baseKomi;
+    } else if (p1Bid.komi !== p2Bid.komi) {
+        const winnerId = p1Bid.komi > p2Bid.komi ? p1.id : p2.id;
+        const loserId = winnerId === p1.id ? p2.id : p1.id;
+        const winningBidKomi = Math.max(p1Bid.komi, p2Bid.komi);
+
+        if (p1Bid.color === types.Player.Black) {
+            blackPlayerId = winnerId;
+            whitePlayerId = loserId;
+            finalKomi = winningBidKomi + baseKomi;
+        } else {
+            whitePlayerId = winnerId;
+            blackPlayerId = loserId;
+            finalKomi = baseKomi - winningBidKomi;
+        }
+    } else if ((game.komiBiddingRound || 1) === 1) {
+        game.gameStatus = 'komi_bidding';
+        game.komiBiddingDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
+        game.komiBids = { [p1.id]: null, [p2.id]: null };
+        game.komiBiddingRound = 2;
+        game.revealEndTime = undefined;
+        return;
+    } else {
+        const winnerId = Math.random() < 0.5 ? p1.id : p2.id;
+        const loserId = winnerId === p1.id ? p2.id : p1.id;
+        useBaseColorRoulettePhase = true;
+
+        if (p1Bid.color === types.Player.Black) {
+            blackPlayerId = winnerId;
+            whitePlayerId = loserId;
+            finalKomi = p1Bid.komi + baseKomi;
+        } else {
+            whitePlayerId = winnerId;
+            blackPlayerId = loserId;
+            finalKomi = baseKomi - p1Bid.komi;
+        }
+    }
+
+    if (blackPlayerId && whitePlayerId && typeof finalKomi === 'number') {
+        game.blackPlayerId = blackPlayerId;
+        game.whitePlayerId = whitePlayerId;
+        game.finalKomi = finalKomi;
+        game.baseStones = [];
+        const newBoardState = Array(game.settings.boardSize)
+            .fill(0)
+            .map(() => Array(game.settings.boardSize).fill(types.Player.None));
+        const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
+        const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
+        // 모험 베이스는 덤 결과로 유저 색이 바뀌어도, 배치한 베이스 돌의 흑/백 표시를 고정한다.
+        const p1BaseStoneColor = isAdventureBaseGame(game) ? types.Player.Black : p1Color;
+        const p2BaseStoneColor = isAdventureBaseGame(game) ? types.Player.White : p2Color;
+        (game.baseStones_p1 || []).forEach(p => {
+            newBoardState[p.y][p.x] = p1BaseStoneColor;
+            game.baseStones!.push({ ...p, player: p1BaseStoneColor });
+        });
+        (game.baseStones_p2 || []).forEach(p => {
+            newBoardState[p.y][p.x] = p2BaseStoneColor;
+            game.baseStones!.push({ ...p, player: p2BaseStoneColor });
+        });
+        game.boardState = newBoardState;
+        if (useBaseColorRoulettePhase) {
+            game.gameStatus = 'base_color_roulette';
+            game.revealEndTime = isAdventureBaseGame(game) ? now - 1 : now + BASE_COLOR_ROULETTE_PHASE_MS;
+            game.preGameConfirmations = {};
+        } else {
+            enterBaseGameStartConfirmation(game, now);
+        }
+        game.baseKomiBidsSnapshot = { [p1.id]: p1Bid, [p2.id]: p2Bid };
+        game.komiBids = undefined;
+        game.komiBiddingRound = undefined;
+        game.basePlacementDeadline = undefined;
+        game.komiBidRevealProcessed = undefined;
+        game.turnDeadline = undefined;
+        game.turnStartTime = undefined;
+        game.pausedTurnTimeLeft = undefined;
+    }
+};
 
 export const updateBaseState = (game: types.LiveGameSession, now: number) => {
     const p1Id = game.player1.id;
@@ -341,107 +435,14 @@ export const updateBaseState = (game: types.LiveGameSession, now: number) => {
                     if (!game.komiBids![p1Id]) game.komiBids![p1Id] = timeoutBid;
                     if (!game.komiBids![p2Id]) game.komiBids![p2Id] = timeoutBid;
                 }
-                game.gameStatus = 'komi_bid_reveal';
-                // 모험: 결과 연출 대기 없이 다음 틱에서 바로 흑백·판 반영
-                game.revealEndTime = isAdventureBaseGame(game) ? now - 1 : now + 4000;
+                applyBaseKomiBidResolution(game, now);
             }
             break;
         }
         case 'komi_bid_reveal':
-             if (game.revealEndTime && now > game.revealEndTime && !game.komiBidRevealProcessed) {
-                game.komiBidRevealProcessed = true;
-                const p1 = game.player1;
-                const p2 = game.player2;
-                const p1Bid = game.komiBids![p1.id]!;
-                const p2Bid = game.komiBids![p2.id]!;
-                const baseKomi = game.settings.komi;
-                let blackPlayerId: string | undefined, whitePlayerId: string | undefined, finalKomi: number | undefined;
-                let useBaseColorRoulettePhase = false;
-
-                if (p1Bid.color !== p2Bid.color) {
-                    blackPlayerId = p1Bid.color === types.Player.Black ? p1.id : p2.id;
-                    whitePlayerId = blackPlayerId === p1.id ? p2.id : p1.id;
-                    finalKomi = baseKomi;
-                } else {
-                     if (p1Bid.komi !== p2Bid.komi) {
-                        const winnerId = p1Bid.komi > p2Bid.komi ? p1.id : p2.id;
-                        const loserId = winnerId === p1.id ? p2.id : p1.id;
-                        const winningBidKomi = Math.max(p1Bid.komi, p2Bid.komi);
-
-                        if (p1Bid.color === types.Player.Black) {
-                            blackPlayerId = winnerId;
-                            whitePlayerId = loserId;
-                            finalKomi = winningBidKomi + baseKomi;
-                        } else {
-                            whitePlayerId = winnerId;
-                            blackPlayerId = loserId;
-                            finalKomi = baseKomi - winningBidKomi;
-                        }
-                    } else {
-                        if ((game.komiBiddingRound || 1) === 1) {
-                            game.gameStatus = 'komi_bidding';
-                            game.komiBiddingDeadline = isAdventureBaseGame(game) ? undefined : now + 30000;
-                            game.komiBids = { [p1.id]: null, [p2.id]: null };
-                            game.komiBiddingRound = 2;
-                            game.komiBidRevealProcessed = false;
-                            game.revealEndTime = undefined;
-                            return;
-                        } else {
-                            const winnerId = Math.random() < 0.5 ? p1.id : p2.id;
-                            const loserId = winnerId === p1.id ? p2.id : p1.id;
-                            useBaseColorRoulettePhase = true;
-
-                            if (p1Bid.color === types.Player.Black) {
-                                blackPlayerId = winnerId;
-                                whitePlayerId = loserId;
-                                finalKomi = p1Bid.komi + baseKomi;
-                            } else {
-                                whitePlayerId = winnerId;
-                                blackPlayerId = loserId;
-                                finalKomi = baseKomi - p1Bid.komi;
-                            }
-                        }
-                    }
-                }
-                
-                if (blackPlayerId && whitePlayerId && typeof finalKomi === 'number') {
-                    game.blackPlayerId = blackPlayerId;
-                    game.whitePlayerId = whitePlayerId;
-                    game.finalKomi = finalKomi;
-                    game.baseStones = [];
-                    const newBoardState = Array(game.settings.boardSize).fill(0).map(() => Array(game.settings.boardSize).fill(types.Player.None));
-                    const p1Color = p1.id === blackPlayerId ? types.Player.Black : types.Player.White;
-                    const p2Color = p2.id === whitePlayerId ? types.Player.White : types.Player.Black;
-                    // 모험 베이스는 덤 결과로 유저 색이 바뀌어도, 배치한 베이스 돌의 흑/백 표시를 고정한다.
-                    // (덤 확정 시 재매핑되며 돌 색이 바뀌는 현상 방지)
-                    const p1BaseStoneColor = isAdventureBaseGame(game) ? types.Player.Black : p1Color;
-                    const p2BaseStoneColor = isAdventureBaseGame(game) ? types.Player.White : p2Color;
-                    (game.baseStones_p1 || []).forEach(p => {
-                        newBoardState[p.y][p.x] = p1BaseStoneColor;
-                        game.baseStones!.push({ ...p, player: p1BaseStoneColor });
-                    });
-                    (game.baseStones_p2 || []).forEach(p => {
-                        newBoardState[p.y][p.x] = p2BaseStoneColor;
-                        game.baseStones!.push({ ...p, player: p2BaseStoneColor });
-                    });
-                    game.boardState = newBoardState;
-                    if (useBaseColorRoulettePhase) {
-                        game.gameStatus = 'base_color_roulette';
-                        game.revealEndTime = isAdventureBaseGame(game) ? now - 1 : now + BASE_COLOR_ROULETTE_PHASE_MS;
-                        game.preGameConfirmations = {};
-                    } else {
-                        enterBaseGameStartConfirmation(game, now);
-                    }
-                    // Clean up bidding state
-                    game.komiBids = undefined;
-                    game.komiBiddingRound = undefined;
-                    game.basePlacementDeadline = undefined;
-                    game.komiBidRevealProcessed = undefined;
-                    // 시작 확인 전까지는 시계 비활성 유지
-                    game.turnDeadline = undefined;
-                    game.turnStartTime = undefined;
-                    game.pausedTurnTimeLeft = undefined;
-                }
+            // 구버전·저장 데이터 호환: 공개 연출 없이 즉시 확정
+            if (game.komiBids?.[p1Id] != null && game.komiBids?.[p2Id] != null) {
+                applyBaseKomiBidResolution(game, now);
             }
             break;
         case 'base_color_roulette': {

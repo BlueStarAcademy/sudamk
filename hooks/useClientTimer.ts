@@ -76,6 +76,49 @@ export const useClientTimer = (session: LiveGameSession, options: ClientTimerOpt
         }
 
         if (options.isPaused) {
+            // 수동 일시정지(싱글/탑/모험 UI 플래그)에서는 클라이언트 타이머를 완전히 멈춘다.
+            if (
+                session.pausedTurnTimeLeft !== undefined &&
+                (session.currentPlayer === Player.Black || session.currentPlayer === Player.White)
+            ) {
+                setClientTimes(prev => session.currentPlayer === Player.Black
+                    ? { black: session.pausedTurnTimeLeft!, white: prev.white }
+                    : { black: prev.black, white: session.pausedTurnTimeLeft! });
+            }
+            return;
+        }
+
+        // 수동 일시정지(일반 AI 대국 포함): 서버가 turnDeadline을 비운 상태에서
+        // 클라이언트가 가상 deadline을 생성해 시간을 계속 깎는 것을 방지한다.
+        const isManuallyPaused =
+            session.pausedTurnTimeLeft !== undefined &&
+            !session.turnDeadline &&
+            !session.itemUseDeadline &&
+            playingStatuses.includes(session.gameStatus) &&
+            (session.currentPlayer === Player.Black || session.currentPlayer === Player.White);
+        if (isManuallyPaused) {
+            deadlineRef.current = null;
+            byoyomiDeadlineRef.current = null;
+            setClientTimes(prev => session.currentPlayer === Player.Black
+                ? { black: session.pausedTurnTimeLeft!, white: prev.white }
+                : { black: prev.black, white: session.pausedTurnTimeLeft! });
+            return;
+        }
+
+        // 히든/미사일 등 아이템 사용 시간은 유저 시간에서 제외한다.
+        // (스피드+믹스에서 아이템 사용 중 AI 시간보너스 추정치가 오르지 않도록 정지)
+        const isItemTimerPaused =
+            session.pausedTurnTimeLeft !== undefined &&
+            !session.turnDeadline &&
+            typeof session.itemUseDeadline === 'number' &&
+            session.itemUseDeadline > now &&
+            (session.currentPlayer === Player.Black || session.currentPlayer === Player.White);
+        if (isItemTimerPaused) {
+            deadlineRef.current = null;
+            byoyomiDeadlineRef.current = null;
+            setClientTimes(prev => session.currentPlayer === Player.Black
+                ? { black: session.pausedTurnTimeLeft!, white: prev.white }
+                : { black: prev.black, white: session.pausedTurnTimeLeft! });
             return;
         }
 

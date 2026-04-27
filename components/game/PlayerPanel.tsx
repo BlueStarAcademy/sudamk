@@ -10,6 +10,7 @@ import {
     strategicAiDisplayLevelFromProfileStep,
 } from '../../shared/utils/strategicAiDifficulty.js';
 import { resolveSinglePlayerSurvivalModeForSession } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
 import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
@@ -53,7 +54,20 @@ const CapturedStones: React.FC<{
     isSinglePlayer?: boolean;
     /** 모험 지역 이해도 시작 가산 — 따낸 숫자 옆 작은 `(+N)` */
     inlineHeadStartBonus?: number;
-}> = ({ count, target, panelType, mode, isMobile = false, curlingMeta, fillStretchHeight = true, isSinglePlayer = false, inlineHeadStartBonus }) => {
+    /** 점수판 우측 보너스 표기 (예: AI 시간 보너스 `(+3)`) */
+    inlineScoreBonusText?: string | null;
+}> = ({
+    count,
+    target,
+    panelType,
+    mode,
+    isMobile = false,
+    curlingMeta,
+    fillStretchHeight = true,
+    isSinglePlayer = false,
+    inlineHeadStartBonus,
+    inlineScoreBonusText,
+}) => {
     /** 주사위 전용 */
     const displayCount = typeof target === 'number' && target > 0 ? `${count}/${target}` : `${count}`;
     const isDiceGo = mode === GameMode.Dice;
@@ -124,6 +138,13 @@ const CapturedStones: React.FC<{
                     ) : null}
                 </div>
             )}
+            {inlineScoreBonusText ? (
+                <div className={`mt-0.5 font-semibold leading-none ${isMobile ? 'text-[0.6rem]' : 'text-[clamp(0.58rem,2.2vmin,0.74rem)]'} ${
+                    panelType === 'white' ? 'text-emerald-700' : 'text-emerald-300'
+                }`}>
+                    {inlineScoreBonusText}
+                </div>
+            ) : null}
             {isCurling && curlingMeta && (
                 <div className={`mt-1.5 w-full border-t pt-1.5 ${metaMuted}`}>
                     <div className={`flex flex-col gap-0.5 ${labelSize} font-semibold tabular-nums leading-tight`}>
@@ -223,6 +244,14 @@ interface SinglePlayerPanelProps {
     opponentMonsterDisplay?: { portraitUrl: string; displayName: string; level: number };
     /** 모험 지역 이해도 시작 가산 — 따낸 숫자 옆 `(+N)` */
     captureHeadStartFlatBonus?: number;
+    /** 스피드 바둑 결과 정산용 시간 보너스 점수(실시간 추정치) */
+    speedTimeBonusScore?: number | null;
+    /** 스피드 시간보너스 점수 수혜 대상 라벨 */
+    speedBonusScoreLabel?: 'self' | 'ai';
+    /** 스피드 시간보너스: 다음 -1점까지 남은 구간 진행률(0~1, 1에 가까울수록 곧 감소) */
+    speedBonusTickProgress?: number | null;
+    /** 스피드 시간보너스: 다음 -1점까지 남은 초 */
+    speedBonusSecToNextDrop?: number | null;
 }
 
 const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
@@ -253,6 +282,10 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         adventureMatchTotalSec = null,
         spIngameOnboardingUserTarget = false,
         captureHeadStartFlatBonus,
+        speedTimeBonusScore = null,
+        speedBonusScoreLabel = 'self',
+        speedBonusTickProgress = null,
+        speedBonusSecToNextDrop = null,
     } = props;
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
@@ -270,6 +303,12 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const effectiveTotalByoyomi = isFoulMode ? foulLimit : safeTotalByoyomi;
     const effectiveByoyomiPeriodsLeft = Math.max(0, isFoulMode ? (foulLimit - (session.timeoutFouls?.[user.id] || 0)) : safeByoyomiPeriodsLeft);
     const showByoyomiStatus = isFoulMode ? true : (effectiveTotalByoyomi > 0);
+    const showSpeedTimeBonusScore = speedTimeBonusScore != null;
+    const showSpeedBonusTickBar =
+        !isAiPlayer && speedBonusTickProgress != null && speedBonusSecToNextDrop != null;
+    const speedBonusTickPct = showSpeedBonusTickBar
+        ? Math.max(0, Math.min(100, (1 - speedBonusTickProgress!) * 100))
+        : 0;
 
     const levelToDisplay = isStrategic ? user.strategyLevel : user.playfulLevel;
     const levelLabel = isStrategic ? '전략' : '놀이';
@@ -438,6 +477,11 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     : undefined
             }
             inlineHeadStartBonus={captureHeadStartFlatBonus}
+            inlineScoreBonusText={
+                isAiPlayer && showSpeedTimeBonusScore && speedBonusScoreLabel === 'ai'
+                    ? `(+${speedTimeBonusScore})`
+                    : null
+            }
         />
     );
 
@@ -568,7 +612,9 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     {(!useAdventureMatchCountdown && (showElapsedOnly ? isCurrentUser : true)) && (
                     <div className={`flex flex-wrap items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-x-1 gap-y-0.5`}>
                         {showElapsedOnly ? (
-                            <span className={`font-mono font-bold ${timeTextClasses} ${displayTimeTextSize}`}>{formatTime(timeLeft)}</span>
+                            <>
+                                <span className={`font-mono font-bold ${timeTextClasses} ${displayTimeTextSize}`}>{formatTime(timeLeft)}</span>
+                            </>
                         ) : (
                             <>
                                 <span
@@ -602,6 +648,27 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                             </>
                         )}
                     </div>
+                    )}
+                    {showSpeedBonusTickBar && (
+                        <div className={`mt-0 flex items-center gap-1 ${isLeft ? '' : 'justify-end'}`}>
+                            <div
+                                className={`h-1.5 w-24 overflow-hidden rounded-full ${
+                                    panelType === 'white' ? 'bg-emerald-900/25' : 'bg-emerald-300/20'
+                                }`}
+                            >
+                                <div
+                                    className="h-full rounded-full bg-emerald-400 transition-[width] duration-300"
+                                    style={{ width: `${speedBonusTickPct}%` }}
+                                />
+                            </div>
+                            <span
+                                className={`tabular-nums ${
+                                    fluidTextLayout && isMobile ? 'text-[10px]' : isMobile ? 'text-[10px]' : 'text-[11px]'
+                                } ${panelType === 'white' ? 'text-emerald-800/90' : 'text-emerald-300/90'}`}
+                            >
+                                {speedBonusSecToNextDrop}초
+                            </span>
+                        </div>
                     )}
                 </div>
             </div>
@@ -950,6 +1017,145 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const isGuildWarAi = session.gameCategory === 'guildwar' && session.isAiGame;
     const leftShowElapsedOnly = isGuildWarAi ? isLeftAi : session.gameCategory === 'adventure' ? isLeftAi : !enforceTime;
     const rightShowElapsedOnly = isGuildWarAi ? isRightAi : session.gameCategory === 'adventure' ? isRightAi : !enforceTime;
+    const isSpeedLikeMode =
+        mode === GameMode.Speed ||
+        (mode === GameMode.Mix && Boolean(session.settings?.mixedModes?.includes(GameMode.Speed)));
+    const isSinglePlayerSpeed = !!session.isSinglePlayer && isSpeedLikeMode && isFischerStyleTimeControl(session);
+    const [speedBonusNowMs, setSpeedBonusNowMs] = useState(() => Date.now());
+    useEffect(() => {
+        if (!isSinglePlayerSpeed) return;
+        const id = setInterval(() => setSpeedBonusNowMs(Date.now()), 250);
+        return () => clearInterval(id);
+    }, [isSinglePlayerSpeed]);
+    const getLiveMainTimeForBonus = (playerEnum: Player, storedMainTimeLeft: number): number => {
+        if (!isSinglePlayerSpeed) return storedMainTimeLeft;
+        if (session.currentPlayer === playerEnum && typeof session.turnDeadline === 'number') {
+            return Math.max(0, (session.turnDeadline - speedBonusNowMs) / 1000);
+        }
+        return storedMainTimeLeft;
+    };
+    const getLiveSpeedTimeBonusScore = (playerEnum: Player, playerId: string, currentMainTimeLeft: number): number | null => {
+        if (!isSinglePlayerSpeed) return null;
+        if (playerId === aiUserId) return null;
+        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
+        const committedUsedSec =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(speedConsumed.black ?? 0))
+                : Math.max(0, Number(speedConsumed.white ?? 0));
+        const storedAtTurnStart =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(session.blackTimeLeft ?? 0))
+                : Math.max(0, Number(session.whiteTimeLeft ?? 0));
+        const current = Math.max(0, Number(currentMainTimeLeft) || 0);
+        const liveTurnUsedSec =
+            session.currentPlayer === playerEnum && typeof session.turnDeadline === 'number'
+                ? Math.max(0, storedAtTurnStart - current)
+                : 0;
+        const usedSec = committedUsedSec + liveTurnUsedSec;
+        return Math.floor(usedSec / 10);
+    };
+    const speedBonusStableRef = useRef<{ gameId: string; byPlayerId: Record<string, number | null> }>({
+        gameId: '',
+        byPlayerId: {},
+    });
+    if (speedBonusStableRef.current.gameId !== session.id) {
+        speedBonusStableRef.current = { gameId: session.id, byPlayerId: {} };
+    }
+    const stabilizeSpeedBonus = (playerId: string, playerEnum: Player, raw: number | null): number | null => {
+        const prev = speedBonusStableRef.current.byPlayerId[playerId];
+        if (raw == null) return prev ?? null;
+        const isThatPlayersTurn = session.currentPlayer === playerEnum;
+        // 봇 턴에서는 플레이어 시간 보너스가 크게 튀는 사례가 있어, 해당 플레이어 턴이 아닐 때는 이전 값을 유지한다.
+        const next = !isThatPlayersTurn && prev != null ? prev : raw;
+        speedBonusStableRef.current.byPlayerId[playerId] = next;
+        return next;
+    };
+    const humanSide =
+        leftPlayerUser.id !== aiUserId
+            ? {
+                  userId: leftPlayerUser.id,
+                  playerEnum: leftPlayerEnum,
+                  liveMainTime: getLiveMainTimeForBonus(leftPlayerEnum, leftPlayerMainTime),
+              }
+            : rightPlayerUser.id !== aiUserId
+              ? {
+                    userId: rightPlayerUser.id,
+                    playerEnum: rightPlayerEnum,
+                    liveMainTime: getLiveMainTimeForBonus(rightPlayerEnum, rightPlayerMainTime),
+                }
+              : null;
+    const humanUsedTimeBonusScore = humanSide
+        ? stabilizeSpeedBonus(
+              humanSide.userId,
+              humanSide.playerEnum,
+              getLiveSpeedTimeBonusScore(humanSide.playerEnum, humanSide.userId, humanSide.liveMainTime),
+          )
+        : null;
+    const getSpeedBonusTickState = (playerEnum: Player, playerId: string, currentMainTimeLeft: number) => {
+        if (!isSinglePlayerSpeed) return { progress: null as number | null, secToNextDrop: null as number | null };
+        if (playerId === aiUserId) return { progress: null as number | null, secToNextDrop: null as number | null };
+        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
+        const committedUsedSec =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(speedConsumed.black ?? 0))
+                : Math.max(0, Number(speedConsumed.white ?? 0));
+        const storedAtTurnStart =
+            playerEnum === Player.Black
+                ? Math.max(0, Number(session.blackTimeLeft ?? 0))
+                : Math.max(0, Number(session.whiteTimeLeft ?? 0));
+        const current = Math.max(0, Number(currentMainTimeLeft) || 0);
+        const liveTurnUsedSec =
+            session.currentPlayer === playerEnum && typeof session.turnDeadline === 'number'
+                ? Math.max(0, storedAtTurnStart - current)
+                : 0;
+        const usedSec = committedUsedSec + liveTurnUsedSec;
+        const withinChunk = ((usedSec % 10) + 10) % 10;
+        const secToNextDropRaw = 10 - withinChunk;
+        const secToNextDrop = secToNextDropRaw <= 0 ? 10 : Math.ceil(secToNextDropRaw);
+        return {
+            progress: withinChunk / 10,
+            secToNextDrop,
+        };
+    };
+    const humanSpeedBonusTick = humanSide
+        ? getSpeedBonusTickState(humanSide.playerEnum, humanSide.userId, humanSide.liveMainTime)
+        : { progress: null as number | null, secToNextDrop: null as number | null };
+    const speedBonusTickStableRef = useRef<{
+        gameId: string;
+        byPlayerId: Record<string, { progress: number | null; secToNextDrop: number | null }>;
+    }>({
+        gameId: '',
+        byPlayerId: {},
+    });
+    if (speedBonusTickStableRef.current.gameId !== session.id) {
+        speedBonusTickStableRef.current = { gameId: session.id, byPlayerId: {} };
+    }
+    const stabilizeSpeedBonusTick = (
+        playerId: string,
+        playerEnum: Player,
+        raw: { progress: number | null; secToNextDrop: number | null },
+    ) => {
+        const prev = speedBonusTickStableRef.current.byPlayerId[playerId] ?? { progress: null, secToNextDrop: null };
+        const isThatPlayersTurn = session.currentPlayer === playerEnum;
+        const next = isThatPlayersTurn ? raw : prev;
+        speedBonusTickStableRef.current.byPlayerId[playerId] = next;
+        return next;
+    };
+    const stableHumanSpeedBonusTick = humanSide
+        ? stabilizeSpeedBonusTick(humanSide.userId, humanSide.playerEnum, humanSpeedBonusTick)
+        : { progress: null as number | null, secToNextDrop: null as number | null };
+    const leftSpeedBonusTick =
+        !isLeftAi && humanSide?.userId === leftPlayerUser.id
+            ? stableHumanSpeedBonusTick
+            : { progress: null as number | null, secToNextDrop: null as number | null };
+    const rightSpeedBonusTick =
+        !isRightAi && humanSide?.userId === rightPlayerUser.id
+            ? stableHumanSpeedBonusTick
+            : { progress: null as number | null, secToNextDrop: null as number | null };
+    const leftLiveSpeedTimeBonusScore = isLeftAi ? humanUsedTimeBonusScore : null;
+    const rightLiveSpeedTimeBonusScore = isRightAi ? humanUsedTimeBonusScore : null;
+    const leftSpeedBonusScoreLabel: 'self' | 'ai' = isLeftAi ? 'ai' : 'self';
+    const rightSpeedBonusScoreLabel: 'self' | 'ai' = isRightAi ? 'ai' : 'self';
     
     const turnDuration = getTurnDuration(mode, session.gameStatus, settings);
     const blackRemainingMonotonicRef = useRef<{ gameId: string; value: number | null }>({ gameId: '', value: null });
@@ -1213,6 +1419,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     opponentMonsterDisplay={isLeftAi ? adventureMonsterPanel : undefined}
                     spIngameOnboardingUserTarget={userPanelOnboardingTarget}
                     captureHeadStartFlatBonus={leftCaptureHeadStartFlatBonus}
+                    speedTimeBonusScore={leftLiveSpeedTimeBonusScore}
+                    speedBonusScoreLabel={leftSpeedBonusScoreLabel}
+                    speedBonusTickProgress={leftSpeedBonusTick.progress}
+                    speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
                     {...leftAdventureCdProps}
                 />
             </div>
@@ -1334,6 +1544,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     singlePlayerOnboardingBarHighlight === 'user-panel' && currentUser?.id === rightPlayerUser.id
                 }
                 captureHeadStartFlatBonus={rightCaptureHeadStartFlatBonus}
+                speedTimeBonusScore={rightLiveSpeedTimeBonusScore}
+                speedBonusScoreLabel={rightSpeedBonusScoreLabel}
+                speedBonusTickProgress={rightSpeedBonusTick.progress}
+                speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
                 {...rightAdventureCdProps}
             />
             </div>

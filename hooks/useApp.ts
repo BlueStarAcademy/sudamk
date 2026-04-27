@@ -50,6 +50,7 @@ import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
+import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
 import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
@@ -1977,23 +1978,26 @@ export const useApp = () => {
                         }
                     }
                     
-                    // moveHistory 업데이트: 원래 자리의 이동 기록을 목적지로 변경 (이미 서버에서 처리되었을 수 있음)
-                    const fromMoveIndex = g.moveHistory.findIndex(m => m.x === animationFrom.x && m.y === animationFrom.y && m.player === playerWhoMoved);
-                    if (fromMoveIndex !== -1) {
-                        updatedGame.moveHistory = [...g.moveHistory];
-                        updatedGame.moveHistory[fromMoveIndex] = { ...updatedGame.moveHistory[fromMoveIndex], x: animationTo.x, y: animationTo.y };
-                    }
+                    // 미사일 이동은 착수가 아니므로 moveHistory를 목적지로 치환하지 않는다.
+                    // (서버와 동일하게 실제 클릭 수순을 보존)
                     
-                    // 문양 돌 이동: 원래 자리가 문양 돌이면 목적지에서도 문양 돌로 유지 (서버 동기화 대비)
+                    // 문양 돌 이동: 소모된 교차점(consumedPatternIntersections)에는 문양을 다시 두지 않는다.
+                    const consumedPatternIntersections =
+                        (updatedGame as any).consumedPatternIntersections ??
+                        (g as any).consumedPatternIntersections ??
+                        [];
+                    const isConsumedPatternIntersection = (pt: Point) =>
+                        Array.isArray(consumedPatternIntersections) &&
+                        consumedPatternIntersections.some((p: Point) => p.x === pt.x && p.y === pt.y);
                     if (g.blackPatternStones?.some(p => p.x === animationFrom.x && p.y === animationFrom.y)) {
-                        updatedGame.blackPatternStones = (updatedGame.blackPatternStones ?? g.blackPatternStones ?? []).map(p =>
-                            p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p
-                        );
+                        updatedGame.blackPatternStones = (updatedGame.blackPatternStones ?? g.blackPatternStones ?? [])
+                            .map(p => (p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p))
+                            .filter(p => !isConsumedPatternIntersection(p));
                     }
                     if (g.whitePatternStones?.some(p => p.x === animationFrom.x && p.y === animationFrom.y)) {
-                        updatedGame.whitePatternStones = (updatedGame.whitePatternStones ?? g.whitePatternStones ?? []).map(p =>
-                            p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p
-                        );
+                        updatedGame.whitePatternStones = (updatedGame.whitePatternStones ?? g.whitePatternStones ?? [])
+                            .map(p => (p.x === animationFrom.x && p.y === animationFrom.y ? { x: animationTo.x, y: animationTo.y } : p))
+                            .filter(p => !isConsumedPatternIntersection(p));
                     }
                     // 공개된 히든 돌: 원래 자리가 공개 목록에 있으면 목적지에서도 공개 상태 유지
                     if (g.permanentlyRevealedStones?.some(p => p.x === animationFrom.x && p.y === animationFrom.y)) {
@@ -2365,7 +2369,8 @@ export const useApp = () => {
                 const hiddenStoneCaptures = { ...(game.hiddenStoneCaptures || {}) };
                 let blackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;
                 let whitePatternStones = game.whitePatternStones ? [...game.whitePatternStones] : undefined;
-                const justCaptured: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[] = [];
+                const justCaptured: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number; wasBaseStone?: boolean }[] =
+                    [];
                 let clearAiInitialHidden = false;
                 const aiInitialHiddenStone = (game as any).aiInitialHiddenStone as Point | undefined;
 
@@ -2384,7 +2389,7 @@ export const useApp = () => {
                     }
                     const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                     const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
-                    const wasBaseStone = !!game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+                    const wasBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                     const wasPatternStone = opponentPlayer === Player.Black
                         ? !!blackPatternStones?.some(p => p.x === stone.x && p.y === stone.y)
                         : !!whitePatternStones?.some(p => p.x === stone.x && p.y === stone.y);
@@ -2412,7 +2417,13 @@ export const useApp = () => {
                     }
 
                     captures[movePlayer] = (captures[movePlayer] || 0) + points;
-                    justCaptured.push({ point: stone, player: opponentPlayer, wasHidden, capturePoints: points });
+                    justCaptured.push({
+                        point: stone,
+                        player: opponentPlayer,
+                        wasHidden,
+                        capturePoints: points,
+                        ...(wasBaseStone ? { wasBaseStone: true as const } : {}),
+                    });
                 }
 
                 // pendingCapture.stones에 “수순 좌표(히든 공개 시도 위치)”가 포함되는 경우,

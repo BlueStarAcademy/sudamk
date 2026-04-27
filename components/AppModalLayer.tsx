@@ -372,6 +372,7 @@ const AppModalLayer: React.FC = () => {
                         onClose={handlers.closeBlacksmithEffectsModal}
                         isTopmost={topmostModalId === 'blacksmithEffects'}
                         blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
+                        currentUser={currentUserWithStatus}
                     />
                 </Suspense>
             )}

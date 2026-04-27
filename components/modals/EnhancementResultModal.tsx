@@ -3,6 +3,7 @@ import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from '../Dra
 import Button from '../Button.js';
 import { InventoryItem, ItemGrade } from '../../types.js';
 import { gradeBackgrounds, gradeStyles } from '../../constants/items';
+import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
 
 interface EnhancementResultModalProps {
     result: {
@@ -77,6 +78,7 @@ const generateRollingValue = (min: number, max: number, isPercentage: boolean): 
 const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result, onClose, isTopmost }) => {
     const { success, message, itemBefore, itemAfter, xpGained, isRolling } = result;
     const [rollingValues, setRollingValues] = useState<Record<string, number>>({});
+    const isFailure = !success && !isRolling;
 
     useEffect(() => {
         if (!isRolling) {
@@ -130,6 +132,34 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
         return null;
     }, [success, itemBefore, itemAfter]);
 
+    const changedSpecialOption = useMemo(() => {
+        if (!success || !itemBefore.options || !itemAfter.options) return null;
+
+        const beforeSpecialSubs = itemBefore.options.specialSubs || [];
+        const afterSpecialSubs = itemAfter.options.specialSubs || [];
+        if (afterSpecialSubs.length === 0) return null;
+
+        if (afterSpecialSubs.length > beforeSpecialSubs.length) {
+            const newSpecial = afterSpecialSubs.find(
+                (afterSub) =>
+                    !beforeSpecialSubs.some(
+                        (beforeSub) => beforeSub.type === afterSub.type && beforeSub.isPercentage === afterSub.isPercentage
+                    )
+            );
+            return newSpecial ? { type: 'new' as const, option: newSpecial } : null;
+        }
+
+        for (const afterSub of afterSpecialSubs) {
+            const beforeSub = beforeSpecialSubs.find(
+                (s) => s.type === afterSub.type && s.isPercentage === afterSub.isPercentage
+            );
+            if (!beforeSub || beforeSub.value !== afterSub.value || beforeSub.enhancements !== afterSub.enhancements) {
+                return { type: 'upgraded' as const, before: beforeSub, after: afterSub };
+            }
+        }
+        return null;
+    }, [success, itemBefore, itemAfter]);
+
     const starInfoBefore = getStarDisplayInfo(itemBefore.stars);
     const starInfoAfter = getStarDisplayInfo(itemAfter.stars);
 
@@ -156,7 +186,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
             onClose={onClose}
             windowId="enhancementResult"
             initialWidth={540}
-            initialHeight={780}
+            shrinkHeightToContent
             isTopmost={isTopmost}
             variant="store"
             mobileViewportFit
@@ -164,7 +194,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
         >
             <>
             <div
-                className={`relative flex min-h-0 flex-col overflow-x-hidden overflow-y-visible bg-gradient-to-b ${backdropClass} rounded-b-xl px-0.5 pb-1 pt-0 sm:px-2 sm:pb-2 sm:pt-1`}
+                className={`relative flex min-h-0 flex-col overflow-x-hidden overflow-y-visible bg-gradient-to-b ${backdropClass} rounded-b-xl px-0.5 pt-0 sm:px-2 sm:pt-1 ${isFailure ? 'pb-0 sm:pb-0.5' : 'pb-1 sm:pb-2'}`}
             >
                 <div
                     className="pointer-events-none absolute -left-24 top-0 hidden h-48 w-48 rounded-full bg-gradient-to-br from-white/5 to-transparent blur-2xl sm:block"
@@ -176,25 +206,25 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                 />
 
                 {/* PC: 창 제목과 보조 헤드라인 (이모지 히어로 제거 — 결과 본문 가독성 우선) */}
-                <div className="relative hidden flex-col items-center sm:mb-2 sm:mt-1 sm:flex">
+                <div className={`relative hidden flex-col items-center sm:flex ${isFailure ? 'sm:mb-1 sm:mt-0.5' : 'sm:mb-2 sm:mt-1'}`}>
                     <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-stone-500">
                         {isRolling ? 'Processing' : success ? 'Enhancement' : 'Result'}
                     </p>
-                    <h3 className={`text-2xl font-black tracking-tight sm:text-3xl ${headlineClass}`}>
+                    <h3 className={`${isFailure ? 'text-xl sm:text-[1.65rem]' : 'text-2xl sm:text-3xl'} font-black tracking-tight ${headlineClass}`}>
                         {isRolling ? '제련 진행 중…' : success ? '강화 성공' : '강화 실패'}
                     </h3>
                 </div>
 
-                <p className="mx-auto line-clamp-3 max-h-[3.25rem] shrink-0 px-1 text-center text-xs leading-snug text-stone-300 sm:mt-1.5 sm:max-h-none sm:text-sm sm:leading-snug md:text-base">
+                <p className={`mx-auto line-clamp-3 max-h-[3.25rem] shrink-0 px-1 text-center text-xs leading-snug text-stone-300 sm:max-h-none sm:text-sm sm:leading-snug md:text-base ${isFailure ? 'sm:mt-0.5' : 'sm:mt-1.5'}`}>
                     {message}
                 </p>
 
-                <div className="mt-1.5 flex w-full max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 sm:mt-3 sm:gap-4">
-                    <div className="rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm sm:rounded-2xl sm:p-4 sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)]">
+                <div className={`flex w-full max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 sm:gap-4 ${isFailure ? 'mt-1 sm:mt-2' : 'mt-1.5 sm:mt-3'}`}>
+                    <div className={`rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm sm:rounded-2xl sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)] ${isFailure ? 'sm:p-3' : 'sm:p-4'}`}>
                         <ItemDisplay item={itemBefore} label="이전" dimmed />
                     </div>
                     <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-black sm:h-12 sm:w-12 sm:text-lg ${
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-black ${isFailure ? 'sm:h-10 sm:w-10 sm:text-base' : 'sm:h-12 sm:w-12 sm:text-lg'} ${
                             success
                                 ? 'border-emerald-500/40 bg-stone-900/90 text-emerald-300 shadow-[0_0_20px_-6px_rgba(52,211,153,0.5)]'
                                 : 'border-rose-500/35 bg-stone-900/90 text-rose-300'
@@ -203,7 +233,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                     >
                         {success ? '→' : '×'}
                     </div>
-                    <div className="rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm ring-0 ring-inset ring-white/5 sm:rounded-2xl sm:p-4 sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)] sm:ring-1">
+                    <div className={`rounded-lg border border-stone-600/40 bg-stone-900/50 px-1 py-1 shadow-md backdrop-blur-sm ring-0 ring-inset ring-white/5 sm:rounded-2xl sm:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.75)] sm:ring-1 ${isFailure ? 'sm:p-3' : 'sm:p-4'}`}>
                         <ItemDisplay item={itemAfter} label="결과" />
                     </div>
                 </div>
@@ -232,7 +262,7 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                         주옵션
                                     </span>
                                     <span className="min-w-0 text-left font-mono text-xs font-bold leading-snug tracking-tight text-amber-100 sm:text-sm sm:leading-snug">
-                                        <span className="text-stone-500">{itemBefore.options.main.display}</span>
+                                        <span className="inline-block max-w-full truncate align-bottom text-stone-500" title={itemBefore.options.main.display}>{itemBefore.options.main.display}</span>
                                         <span className="mx-0.5 text-stone-600 sm:mx-1">→</span>
                                         {isRolling && rollingValues.main !== undefined ? (
                                             <span className="animate-pulse text-amber-300">
@@ -241,7 +271,9 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                                     : rollingValues.main}
                                             </span>
                                         ) : (
-                                            <span>{itemAfter.options.main.display}</span>
+                                            <span className="inline-block max-w-full truncate align-bottom" title={itemAfter.options.main.display}>
+                                                {itemAfter.options.main.display}
+                                            </span>
                                         )}
                                     </span>
                                 </div>
@@ -268,10 +300,16 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                                               : rollingValue}
                                                       </span>
                                                   ) : (
-                                                      changedSubOption.option.display
+                                                      <span className="inline-block max-w-full truncate align-bottom" title={changedSubOption.option.display}>
+                                                          {changedSubOption.option.display}
+                                                      </span>
                                                   );
                                               })()
-                                            : changedSubOption.option.display}
+                                            : (
+                                                <span className="inline-block max-w-full truncate align-bottom" title={changedSubOption.option.display}>
+                                                    {changedSubOption.option.display}
+                                                </span>
+                                            )}
                                     </span>
                                 </div>
                             )}
@@ -281,7 +319,9 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                         부옵션 강화
                                     </span>
                                     <span className="min-w-0 text-left font-mono text-xs font-bold leading-snug tracking-tight sm:text-sm sm:leading-snug">
-                                        <span className="text-stone-500">{changedSubOption.before.display}</span>
+                                        <span className="inline-block max-w-full truncate align-bottom text-stone-500" title={changedSubOption.before.display}>
+                                            {changedSubOption.before.display}
+                                        </span>
                                         <span className="mx-0.5 text-stone-600 sm:mx-1">→</span>
                                         {isRolling && changedSubOption.after
                                             ? (() => {
@@ -299,10 +339,47 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
                                                               : rollingValue}
                                                       </span>
                                                   ) : (
-                                                      changedSubOption.after.display
+                                                      <span className="inline-block max-w-full truncate align-bottom" title={changedSubOption.after.display}>
+                                                          {changedSubOption.after.display}
+                                                      </span>
                                                   );
                                               })()
-                                            : changedSubOption.after?.display || ''}
+                                            : (
+                                                <span className="inline-block max-w-full truncate align-bottom" title={changedSubOption.after?.display || ''}>
+                                                    {changedSubOption.after?.display || ''}
+                                                </span>
+                                            )}
+                                    </span>
+                                </div>
+                            )}
+                            {changedSpecialOption?.type === 'new' && changedSpecialOption.option && (
+                                <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-3 py-2 text-emerald-200 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-x-3.5">
+                                    <span className="pt-px text-right text-xs font-semibold leading-tight tracking-tight text-emerald-300/95 sm:text-sm">
+                                        특수옵션 추가
+                                    </span>
+                                    <span className="min-w-0 text-left font-mono text-xs font-bold leading-snug tracking-tight sm:text-sm sm:leading-snug">
+                                        <span
+                                            className="inline-block max-w-full truncate align-bottom"
+                                            title={formatSpecialSubLineForPanel(changedSpecialOption.option, itemAfter.stars ?? 0)}
+                                        >
+                                            {formatSpecialSubLineForPanel(changedSpecialOption.option, itemAfter.stars ?? 0)}
+                                        </span>
+                                    </span>
+                                </div>
+                            )}
+                            {changedSpecialOption?.type === 'upgraded' && changedSpecialOption.before && changedSpecialOption.after && (
+                                <div className="grid grid-cols-[8rem_minmax(0,1fr)] items-start gap-x-3 py-2 text-lime-200 sm:grid-cols-[8.75rem_minmax(0,1fr)] sm:gap-x-3.5">
+                                    <span className="pt-px text-right text-xs font-semibold leading-tight tracking-tight text-lime-200/95 sm:text-sm">
+                                        특수옵션 강화
+                                    </span>
+                                    <span className="min-w-0 text-left font-mono text-xs font-bold leading-snug tracking-tight sm:text-sm sm:leading-snug">
+                                        <span className="inline-block max-w-full truncate align-bottom text-stone-500" title={formatSpecialSubLineForPanel(changedSpecialOption.before, itemBefore.stars ?? 0)}>
+                                            {formatSpecialSubLineForPanel(changedSpecialOption.before, itemBefore.stars ?? 0)}
+                                        </span>
+                                        <span className="mx-0.5 text-stone-600 sm:mx-1">→</span>
+                                        <span className="inline-block max-w-full truncate align-bottom" title={formatSpecialSubLineForPanel(changedSpecialOption.after, itemAfter.stars ?? 0)}>
+                                            {formatSpecialSubLineForPanel(changedSpecialOption.after, itemAfter.stars ?? 0)}
+                                        </span>
                                     </span>
                                 </div>
                             )}
@@ -326,14 +403,14 @@ const EnhancementResultModal: React.FC<EnhancementResultModalProps> = ({ result,
 
             </div>
                 {!isRolling && (
-                    <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} mt-2 flex justify-center px-0.5 pb-2 sm:mt-3 sm:px-2`}>
+                    <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex justify-center px-0.5 sm:px-2 ${isFailure ? 'mt-1 pb-1 sm:mt-1.5 sm:pb-1' : 'mt-2 pb-2 sm:mt-3'}`}>
                         <Button
                             onClick={(e) => {
                                 e?.stopPropagation();
                                 onClose();
                             }}
                             colorScheme="none"
-                            className={`w-auto min-w-[10rem] max-w-[min(100%,18rem)] shrink-0 px-8 !border-2 py-2.5 text-sm font-bold tracking-wide !shadow-lg transition hover:brightness-110 active:scale-[0.99] focus:!ring-offset-stone-900 sm:py-3 sm:text-base ${
+                            className={`w-auto min-w-[10rem] max-w-[min(100%,18rem)] shrink-0 px-8 !border-2 text-sm font-bold tracking-wide !shadow-lg transition hover:brightness-110 active:scale-[0.99] focus:!ring-offset-stone-900 sm:text-base ${isFailure ? 'py-2 sm:py-2.5' : 'py-2.5 sm:py-3'} ${
                                 success
                                     ? '!border-emerald-400/55 bg-gradient-to-r from-emerald-700/90 via-teal-700/90 to-cyan-800/90 text-white !shadow-emerald-950/50 focus:!ring-emerald-400/40'
                                     : '!border-rose-500/35 bg-gradient-to-r from-stone-700/90 via-stone-800/90 to-stone-900/90 text-stone-100 !shadow-black/50 focus:!ring-rose-400/30'

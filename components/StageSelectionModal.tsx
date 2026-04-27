@@ -53,7 +53,7 @@ const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, 
                                     </p>
                                     {stage.timeControl?.type === 'fischer' && (
                                         <div className="px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-400 text-[10px] text-blue-200">
-                                            스피드 바둑 · 시간보너스 20점−5초당 1점
+                                            스피드 바둑 · 유저 시간 10초당 AI +1점
                                         </div>
                                     )}
                                 </div>

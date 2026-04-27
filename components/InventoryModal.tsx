@@ -20,6 +20,7 @@ import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import SellItemConfirmModal from './SellItemConfirmModal.js';
 import SellMaterialBulkModal from './SellMaterialBulkModal.js';
 import UseQuantityModal from './UseQuantityModal.js';
+import AlertModal from './AlertModal.js';
 import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 
@@ -196,14 +197,16 @@ const EquipmentSlotDisplay: React.FC<{
         const gap = Math.max(2, Math.round(2 * scaleFactor));
         const padding = Math.max(2, Math.round(2 * scaleFactor));
         const innerPadding = Math.max(4, Math.round(6 * scaleFactor));
+        const insetTop = innerPadding + Math.max(1, Math.round(1 * scaleFactor));
+        const insetRight = innerPadding + Math.max(8, Math.round(10 * scaleFactor));
 
         return (
             <div 
-                className="absolute flex items-center bg-black/40 rounded-bl-md z-10" 
+                className="absolute flex items-center rounded-md border border-white/10 bg-black/55 z-10" 
                 style={{ 
                     textShadow: '1px 1px 2px black',
-                    top: `${innerPadding}px`,
-                    right: `${innerPadding + 6}px`,
+                    top: `${insetTop}px`,
+                    right: `${insetRight}px`,
                     gap: `${gap}px`,
                     padding: `${padding}px`
                 }}
@@ -1338,6 +1341,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const [selectedPreset, setSelectedPreset] = useState(0);
     const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
     const [newPresetName, setNewPresetName] = useState('');
+    const [isPresetSavedModalOpen, setIsPresetSavedModalOpen] = useState(false);
     const [showUseQuantityModal, setShowUseQuantityModal] = useState(false);
     const [itemToUseBulk, setItemToUseBulk] = useState<InventoryItem | null>(null);
     const [itemToSell, setItemToSell] = useState<InventoryItem | null>(null);
@@ -1549,7 +1553,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         };
         onAction({ type: 'SAVE_PRESET', payload: { preset: updatedPreset, index: selectedPreset } });
         setIsRenameModalOpen(false);
-        alert('프리셋이 저장되었습니다.');
+        setIsPresetSavedModalOpen(true);
     };
 
     const handleEquipToggle = (itemId: string) => {
@@ -3227,6 +3231,16 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         </div>
                     </div>
                 </DraggableWindow>
+            )}
+            {isPresetSavedModalOpen && (
+                <AlertModal
+                    title="프리셋 저장"
+                    message="프리셋이 저장되었습니다."
+                    onClose={() => setIsPresetSavedModalOpen(false)}
+                    confirmText="확인"
+                    isTopmost
+                    windowId="preset-save-alert"
+                />
             )}
         </DraggableWindow>
     );

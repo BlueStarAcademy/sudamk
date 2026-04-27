@@ -195,7 +195,7 @@ const CombinationView: React.FC<CombinationViewProps> = ({
                     <label htmlFor="random-combine" className={`${isMobile ? 'text-[10px]' : 'text-xs'} text-slate-200`}>완전 랜덤 종류로 받기</label>
                 </div>
 
-                <ResourceActionButton onClick={handleCombine} disabled={!canCombine} variant="materials" className={`w-full ${isMobile ? 'text-[10px] py-1' : 'text-sm py-2'}`}>
+                <ResourceActionButton onClick={handleCombine} disabled={!canCombine} variant="materials" className={`mx-auto w-auto min-w-[8.5rem] ${isMobile ? 'text-[10px] py-1 px-3' : 'text-sm py-2 px-5'}`}>
                     합성
                 </ResourceActionButton>
             </div>

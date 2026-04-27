@@ -526,6 +526,7 @@ const applyAiCaptureOutcome = (
 
         let points = 1;
         let wasHidden = false;
+        let isBaseStone = false;
 
         if (wasHiddenMove || wasAiInitialHidden) {
             points = 5;
@@ -535,7 +536,7 @@ const applyAiCaptureOutcome = (
                 clearAiInitialHiddenStone = true;
             }
         } else {
-            const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
+            isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
             if (isBaseStone) {
                 game.baseStoneCaptures[aiPlayerEnum]++;
                 points = 5;
@@ -546,7 +547,13 @@ const applyAiCaptureOutcome = (
 
         game.captures[aiPlayerEnum] += points;
         guildWarCapturePointsThisMove += points;
-        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden, capturePoints: points });
+        game.justCaptured.push({
+            point: stone,
+            player: opponentPlayerEnum,
+            wasHidden,
+            capturePoints: points,
+            ...(isBaseStone ? { wasBaseStone: true as const } : {}),
+        });
         if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
             delete game.hiddenMoves[moveIndex];
         }

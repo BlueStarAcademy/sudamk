@@ -6,6 +6,7 @@
 import { Player, LiveGameSession, Point, GameMode } from '../types/index.js';
 import { getFischerIncrementSeconds } from '../shared/utils/gameTimeControl.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../shared/utils/patternStoneConsume.js';
+import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { getTowerSessionFloor } from '../utils/towerPreGameDisplay.js';
 
 export type GameType = 'tower' | 'singleplayer';
@@ -31,6 +32,15 @@ export interface GameStateUpdateResult {
         gameType: GameType;
     };
 }
+
+const getEffectiveFischerIncrementForClient = (game: LiveGameSession): number => {
+    const isSpeedMode =
+        game.mode === GameMode.Speed ||
+        (game.mode === GameMode.Mix && !!game.settings?.mixedModes?.includes(GameMode.Speed));
+    // AI 대국 스피드는 피셔 증분을 사용하지 않는다(서버 규칙과 동기화).
+    if (game.isAiGame && isSpeedMode) return 0;
+    return getFischerIncrementSeconds(game as any);
+};
 
 const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 
@@ -181,7 +191,7 @@ export function updateGameStateAfterMove(
     let updatedTurnDeadline = game.turnDeadline;
     let updatedTurnStartTime = game.turnStartTime;
 
-    const timeIncrement = getFischerIncrementSeconds(game as any);
+    const timeIncrement = getEffectiveFischerIncrementForClient(game);
     const byoyomiTime = game.settings?.byoyomiTime ?? 0;
 
     if (movePlayer === Player.Black) {
@@ -282,7 +292,13 @@ export function updateGameStateAfterMove(
     if (!isHidden) {
         updatedPermanentlyRevealedStones = updatedPermanentlyRevealedStones.filter(p => !(p.x === x && p.y === y));
     }
-    const justCapturedEntries: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number }[] = [];
+    const justCapturedEntries: {
+        point: Point;
+        player: Player;
+        wasHidden: boolean;
+        capturePoints?: number;
+        wasBaseStone?: boolean;
+    }[] = [];
 
     if (stonesToReveal.length === 0) {
         for (const stone of capturedStones) {
@@ -296,7 +312,7 @@ export function updateGameStateAfterMove(
                 !!(game as any).aiInitialHiddenStone &&
                 isSamePoint((game as any).aiInitialHiddenStone, stone);
 
-            const isBaseStone = !!game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+            const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
 
             let points = 1;
             let wasHidden = false;
@@ -324,7 +340,13 @@ export function updateGameStateAfterMove(
             }
 
             updatedCaptures[movePlayer] = (updatedCaptures[movePlayer] || 0) + points;
-            justCapturedEntries.push({ point: stone, player: opponentPlayer, wasHidden, capturePoints: points });
+            justCapturedEntries.push({
+                point: stone,
+                player: opponentPlayer,
+                wasHidden,
+                capturePoints: points,
+                ...(isBaseStone ? { wasBaseStone: true as const } : {}),
+            });
         }
     } else {
         for (const stone of stonesToReveal) {

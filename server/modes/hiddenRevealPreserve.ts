@@ -4,6 +4,15 @@ import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../sha
 
 type PendingCap = NonNullable<types.LiveGameSession['pendingCapture']>;
 
+const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number => {
+    const isSpeedMode =
+        game.mode === types.GameMode.Speed ||
+        (game.mode === types.GameMode.Mix && !!game.settings?.mixedModes?.includes(types.GameMode.Speed));
+    // AI 대국 스피드는 피셔 증분을 비활성화한다.
+    if (game.isAiGame && isSpeedMode) return 0;
+    return getFischerIncrementSeconds(game as any);
+};
+
 /**
  * pendingCapture에 preserveDiscovererTurn + 스냅샷이 있으면 적용하고 true.
  * hidden.ts / 싱글·탑 전용 업데이트에서 동일 동작을 공유한다.
@@ -67,7 +76,7 @@ export const applyPreserveDiscovererTurnIfPending = async (
     const cur = myPlayerEnum;
     if (game.pausedTurnTimeLeft !== undefined) {
         const timeKey = cur === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-        const fischerIncrement = getFischerIncrementSeconds(game as any);
+        const fischerIncrement = resolveEffectiveFischerIncrement(game);
         game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
     }
     if (

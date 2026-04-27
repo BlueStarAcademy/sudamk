@@ -124,7 +124,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     const isMissileMode = session.isSinglePlayer && missileCountSetting > 0;
     const isMissileOnlyMode = isMissileMode && hiddenCountSetting === 0 && scanCountSetting === 0;
     const moveCount = session.moveHistory?.length ?? 0;
-    const myMissilesLeftForRefresh = session.missiles_p1 ?? missileCountSetting;
+    const myMissilesLeftForRefresh = Number.isFinite(Number(session.missiles_p1))
+        ? Math.max(0, Number(session.missiles_p1))
+        : 0;
     const usedMissileBeforeFirstMove = isMissileOnlyMode && moveCount === 0 && (missileCountSetting - myMissilesLeftForRefresh) > 0;
     const refreshDisabled = !canRefresh || !canAfford || usedMissileBeforeFirstMove;
 
@@ -211,7 +213,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     }, [session, gameStatus, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
     
     // 미사일 아이템
-    const myMissilesLeft = session.missiles_p1 ?? missileCountSetting;
+    const myMissilesLeft = Number.isFinite(Number(session.missiles_p1))
+        ? Math.max(0, Number(session.missiles_p1))
+        : 0;
     const missileDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
     
     const handleUseMissile = React.useCallback(() => {

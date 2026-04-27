@@ -337,6 +337,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         !!singlePlayerStage &&
         (gameStatus === 'playing' || gameStatus === 'hidden_placing' || gameStatus === 'scoring');
     const isMobileStageDescriptionExpanded = shouldShowMobileStageDescription && !stageDescriptionCollapsed;
+    const isMissileAnimating = gameStatus === 'missile_animating';
 
     return (
         <div className="relative w-full h-full flex flex-col items-center justify-center">
@@ -408,7 +409,15 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     }}
                     lastMove={displayLastMove}
                     lastTurnStones={lastTurnStones}
-                    isBoardDisabled={!isMyTurn || isSpectator || isPaused || isBoardLocked || isBoardDisabledDueToTurnLimit || isMobileStageDescriptionExpanded}
+                    isBoardDisabled={
+                        !isMyTurn ||
+                        isSpectator ||
+                        isPaused ||
+                        isBoardLocked ||
+                        isBoardDisabledDueToTurnLimit ||
+                        isMobileStageDescriptionExpanded ||
+                        isMissileAnimating
+                    }
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}
                     mode={session.mode}

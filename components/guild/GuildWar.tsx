@@ -109,6 +109,17 @@ function readGuildWarApiResult(result: any) {
     return { war, guildsData, guildWarTicketSummary, occupierProfileByUserId };
 }
 
+function toEpochMs(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.length > 0) {
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed)) return parsed;
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+    }
+    return null;
+}
+
 type GuildWarOccupierServerProfile = {
     nickname: string;
     avatarId?: string | null;
@@ -528,14 +539,15 @@ const GuildWar = () => {
                 }
                 
                 // 남은 시간 계산
-                if (war.endTime) {
+                const warEndMs = toEpochMs((war as any).endTime);
+                if (warEndMs) {
                     if (remainingTimeInterval) {
                         clearInterval(remainingTimeInterval);
                         remainingTimeInterval = null;
                     }
                     const updateRemainingTime = () => {
                         const now = Date.now();
-                        const remaining = war.endTime! - now;
+                        const remaining = warEndMs - now;
                         if (remaining <= 0) {
                             setRemainingTime('종료됨');
                             return;
@@ -1232,7 +1244,7 @@ const GuildWar = () => {
                                         type="button"
                                         onClick={() => handleBoardClick(board)}
                                         disabled={!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT}
-                                        className={`mt-0.5 w-full shrink-0 rounded-lg px-2 py-2 text-sm font-semibold transition-all sm:py-2.5 sm:text-base flex items-center justify-center gap-2 flex-wrap ${
+                                        className={`mt-0.5 w-[78%] max-w-[14rem] self-center shrink-0 rounded-lg px-2 py-2 text-sm font-semibold transition-all sm:py-2.5 sm:text-base flex items-center justify-center gap-2 flex-wrap ${
                                             (!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT)
                                                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                                                 : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98]'

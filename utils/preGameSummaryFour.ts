@@ -355,10 +355,10 @@ function mixSpecialHighlights(
   return h;
 }
 
-function singlePlayerStageTimeRules(stage: SinglePlayerStageInfo): string {
+function singlePlayerStageTimeRules(stage: SinglePlayerStageInfo, isSpeedMode: boolean): string {
   const tc = stage.timeControl;
   /** 싱글/탑 비스피드: 서버에서 제한시간·초읽기 미적용 — 스테이지 JSON의 분/초읽기는 표시하지 않음 */
-  if (tc.type === 'fischer') {
+  if (isSpeedMode) {
     return `피셔 · 본전 ${tc.mainTime}분 + ${tc.increment ?? 0}초/수`;
   }
   return '제한없음';
@@ -797,7 +797,7 @@ function getSinglePlayerStageSummary(
     winGoal,
     loseGoal,
     scoreFactors,
-    timeRules: singlePlayerStageTimeRules(stage),
+    timeRules: singlePlayerStageTimeRules(stage, isSpeedMode),
     specialHighlights,
     items: itemBits.length ? itemBits.join(' · ') : NONE,
     itemSlots: buildSinglePlayerStageItemSlots(stage, {

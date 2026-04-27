@@ -23,7 +23,7 @@ export const MythicOptionAbbrev: React.FC<{
 };
 
 const bubbleShell =
-    'relative w-max max-w-[min(260px,calc(100vw-32px))] rounded-lg border border-red-600 bg-zinc-900 px-2 py-1.5 text-left shadow-2xl ring-1 ring-black/50';
+    'relative w-max max-w-[min(300px,calc(100vw-32px))] rounded-lg border border-red-600 bg-zinc-900 px-2.5 py-2 text-left shadow-2xl ring-1 ring-black/50';
 
 export const MythicStatAbbrev: React.FC<{
     stat: MythicStat;
@@ -86,10 +86,10 @@ export const MythicStatAbbrev: React.FC<{
                 bubbleMountRef={bubbleMountRef}
             >
                 <div className={bubbleShell}>
-                    <span className="mb-0.5 block text-[10px] font-bold text-red-200">{data.name}</span>
-                    <span className="block text-[9px] leading-snug text-gray-100">{data.description}</span>
+                    <span className="mb-1 block text-xs font-bold text-red-200">{data.name}</span>
+                    <span className="block text-[11px] leading-snug text-gray-100">{data.description}</span>
                     {data.shortDescription ? (
-                        <span className="mt-1 block text-[9px] leading-snug text-gray-400">{data.shortDescription}</span>
+                        <span className="mt-1.5 block text-[10px] leading-snug text-gray-400">{data.shortDescription}</span>
                     ) : null}
                     {bubbleSide === 'top' ? (
                         <>

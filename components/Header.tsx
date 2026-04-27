@@ -669,8 +669,8 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             isMobile
                                 ? `relative flex ${MOBILE_HEADER_ACTION_BTN} flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary`
                                 : dense
-                                  ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
-                                  : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
+                                  ? 'relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
+                                  : 'relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 transition-colors hover:bg-primary'
                         }
                         title="우편함"
                     >
@@ -698,8 +698,8 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             isMobile
                                 ? `relative flex ${MOBILE_HEADER_ACTION_BTN} flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 ${MOBILE_HEADER_SETTINGS_ICON} transition-colors hover:bg-primary`
                                 : dense
-                                  ? 'relative flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm transition-colors hover:bg-primary'
-                                  : 'relative rounded-lg p-2 text-xl transition-colors hover:bg-secondary'
+                                  ? 'relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-sm transition-colors hover:bg-primary'
+                                  : 'relative flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full border border-primary/60 bg-primary/70 text-xl transition-colors hover:bg-primary'
                         }
                         title="설정"
                         aria-label="설정 열기"

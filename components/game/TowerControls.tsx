@@ -276,14 +276,23 @@ const TowerControls: React.FC<TowerControlsProps> = ({ session, onAction, curren
         if (gameStatus !== 'playing') return;
         const currentPassCount = (session.passCount || 0) + 1;
         if (currentPassCount >= 2) {
+            const scoringBoardSnapshot = Array.isArray(session.boardState)
+                ? session.boardState.map((row: number[]) => [...row])
+                : [];
+            const scoringMoveHistorySnapshot = Array.isArray(session.moveHistory)
+                ? session.moveHistory.map((move: any) => ({ ...move }))
+                : [];
+            const scoringSettingsSnapshot = session.settings
+                ? { ...session.settings }
+                : undefined;
             onAction({
                 type: 'REQUEST_SCORING',
                 payload: {
                     gameId: session.id,
-                    boardState: session.boardState,
-                    moveHistory: session.moveHistory || [],
-                    settings: session.settings
-                }
+                    boardState: scoringBoardSnapshot,
+                    moveHistory: scoringMoveHistorySnapshot,
+                    settings: scoringSettingsSnapshot,
+                },
             } as any);
         } else {
             onAction({

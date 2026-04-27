@@ -532,86 +532,84 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             matchLabel="경기 결과"
                             recordLabel="내 정보"
                         />
-                        <div className="flex min-h-0 flex-1 basis-0 flex-col gap-1.5 overflow-hidden">
-                            <div className="min-h-0 flex-1 basis-0 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
-                                <MobileResultTabPanelStack
-                                    active={mobileResultTab}
-                                    matchPanel={
-                                    <div
-                                        className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} min-h-0 p-2 sp-summary-left-panel overflow-x-hidden overflow-y-visible`}
+                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden overscroll-y-contain [scrollbar-gutter:auto] [scrollbar-width:thin]">
+                            <MobileResultTabPanelStack
+                                active={mobileResultTab}
+                                matchPanel={
+                                <div
+                                    className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} min-h-0 p-2 sp-summary-left-panel overflow-x-hidden overflow-y-visible`}
+                                >
+                                    <h2
+                                        className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
+                                        style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
                                     >
-                                        <h2
-                                            className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                            style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
-                                        >
-                                            경기 결과
-                                        </h2>
-                                        <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-visible">
-                                            {(analysisResult || (isEnded && session.winner !== null)) && (
-                                                <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 space-y-0.5`}>
-                                                    <div className="flex items-center justify-between" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}>
-                                                        <span className="text-amber-200/65">총 걸린 시간:</span>
-                                                        <span className="font-semibold text-zinc-100">{gameDuration}</span>
-                                                    </div>
-                                                    {(winReasonText || failureReason) && (
-                                                        <p
-                                                            className={`leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`}
-                                                            style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
-                                                        >
-                                                            {winReasonText || failureReason}
-                                                        </p>
-                                                    )}
+                                        경기 결과
+                                    </h2>
+                                    <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-x-hidden overflow-y-visible">
+                                        {(analysisResult || (isEnded && session.winner !== null)) && (
+                                            <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 space-y-0.5`}>
+                                                <div className="flex items-center justify-between" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}>
+                                                    <span className="text-amber-200/65">총 걸린 시간:</span>
+                                                    <span className="font-semibold text-zinc-100">{gameDuration}</span>
                                                 </div>
-                                            )}
-                                            {isScoring && !analysisResult && (
-                                                <div className="flex min-h-[100px] flex-shrink-0 flex-col items-center justify-center">
-                                                    <ScoringOverlay variant="inline" />
-                                                </div>
-                                            )}
-                                            {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
-                                                <ScoreDetailsComponent
-                                                    analysis={analysisResult}
-                                                    session={session}
-                                                    isMobile={isMobile}
-                                                    mobileTextScale={mobileTextScale}
-                                                    compactSideBySideMobile
-                                                />
-                                            ) : !isScoring && !isEnded ? (
-                                                <p className="text-center text-gray-400">계가 결과가 없습니다.</p>
-                                            ) : null}
-                                        </div>
-                                    </div>
-                                    }
-                                    recordPanel={
-                                    <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} p-2`}>
-                                        <h2
-                                            className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                            style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
-                                        >
-                                            내 정보
-                                        </h2>
-                                        <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5`}>
-                                            <Avatar
-                                                userId={currentUser.id}
-                                                userName={currentUser.nickname}
-                                                avatarUrl={avatarUrl}
-                                                borderUrl={borderUrl}
-                                                size={24}
-                                            />
-                                            <div>
-                                                <p className="font-bold text-zinc-100" style={{ fontSize: `${11 * mobileTextScale}px` }}>
-                                                    {currentUser.nickname}
-                                                </p>
-                                                <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
-                                                    전략 Lv.{currentUser.strategyLevel}
-                                                </p>
+                                                {(winReasonText || failureReason) && (
+                                                    <p
+                                                        className={`leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`}
+                                                        style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
+                                                    >
+                                                        {winReasonText || failureReason}
+                                                    </p>
+                                                )}
                                             </div>
-                                        </div>
-                                        {renderTowerStrategyXpPanel(true)}
+                                        )}
+                                        {isScoring && !analysisResult && (
+                                            <div className="flex min-h-[100px] flex-shrink-0 flex-col items-center justify-center">
+                                                <ScoringOverlay variant="inline" />
+                                            </div>
+                                        )}
+                                        {(isScoring && analysisResult) || (isEnded && analysisResult) ? (
+                                            <ScoreDetailsComponent
+                                                analysis={analysisResult}
+                                                session={session}
+                                                isMobile={isMobile}
+                                                mobileTextScale={mobileTextScale}
+                                                compactSideBySideMobile
+                                            />
+                                        ) : !isScoring && !isEnded ? (
+                                            <p className="text-center text-gray-400">계가 결과가 없습니다.</p>
+                                        ) : null}
                                     </div>
-                                    }
-                                />
-                            </div>
+                                </div>
+                                }
+                                recordPanel={
+                                <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} p-2`}>
+                                    <h2
+                                        className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
+                                        style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
+                                    >
+                                        내 정보
+                                    </h2>
+                                    <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5`}>
+                                        <Avatar
+                                            userId={currentUser.id}
+                                            userName={currentUser.nickname}
+                                            avatarUrl={avatarUrl}
+                                            borderUrl={borderUrl}
+                                            size={24}
+                                        />
+                                        <div>
+                                            <p className="font-bold text-zinc-100" style={{ fontSize: `${11 * mobileTextScale}px` }}>
+                                                {currentUser.nickname}
+                                            </p>
+                                            <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
+                                                전략 Lv.{currentUser.strategyLevel}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {renderTowerStrategyXpPanel(true)}
+                                </div>
+                                }
+                            />
                             {towerRewardsSection}
                         </div>
                     </>

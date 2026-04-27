@@ -4,8 +4,20 @@ import * as db from '../db.js';
 import { processMove } from '../goLogic.js';
 import { resumeGameTimer, pauseGameTimer } from './shared.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
+import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
 
 type HandleActionResult = types.HandleActionResult;
+
+function pickConservativeRemainingCount(currentValue: unknown, syncedValue: unknown): number | undefined {
+    const cur = Number(currentValue);
+    const syn = Number(syncedValue);
+    const curValid = Number.isFinite(cur);
+    const synValid = Number.isFinite(syn);
+    if (curValid && synValid) return Math.max(0, Math.min(cur, syn));
+    if (curValid) return Math.max(0, cur);
+    if (synValid) return Math.max(0, syn);
+    return undefined;
+}
 
 /** 미사일 착지 후(이동 연출 종료 시점) 착점과 동일 규칙으로 따내기 — 점수 연출과 순서 맞춤 */
 function applyMissileLandingCapturesSinglePlayer(game: types.LiveGameSession, to: types.Point, myPlayerEnum: types.Player) {
@@ -160,32 +172,33 @@ function calculateSinglePlayerMissilePath(
     return { to: current, revealedHiddenStone };
 }
 
-function findLatestOwnedMoveIndexAt(
-    game: types.LiveGameSession,
-    point: types.Point,
-    player: types.Player
-): number {
-    for (let i = game.moveHistory.length - 1; i >= 0; i--) {
-        const m = game.moveHistory[i];
-        if (m.x === point.x && m.y === point.y && m.player === player) return i;
-    }
-    return -1;
-}
-
 function relocateMissileStoneMetadata(
     game: types.LiveGameSession,
     from: types.Point,
     to: types.Point,
     player: types.Player
 ) {
+    const isConsumedPatternIntersection = (pt: types.Point) =>
+        !!(game as any).consumedPatternIntersections?.some(
+            (p: types.Point) => p.x === pt.x && p.y === pt.y
+        );
     const patternKey = player === types.Player.Black ? 'blackPatternStones' : 'whitePatternStones';
     const patternStones = (game as any)[patternKey] as types.Point[] | undefined;
     if (patternStones?.length) {
         const idx = patternStones.findIndex((p) => p.x === from.x && p.y === from.y);
         if (idx !== -1) {
-            patternStones[idx] = { x: to.x, y: to.y };
+            // 미사일로 문양돌이 이동하면 기존 좌표는 영구 소모 처리하여 같은 대국에서 재문양화 방지
+            recordPatternStoneConsumed(game as any, from);
+            if (isConsumedPatternIntersection(to)) {
+                // 이미 소모된 교차점에는 문양을 다시 올리지 않는다.
+                patternStones.splice(idx, 1);
+            } else {
+                patternStones[idx] = { x: to.x, y: to.y };
+            }
         }
+        (game as any)[patternKey] = patternStones.filter((p) => !isConsumedPatternIntersection(p));
     }
+    stripPatternStonesAtConsumedIntersections(game as any);
 
     if (game.permanentlyRevealedStones?.length) {
         const ridx = game.permanentlyRevealedStones.findIndex((p) => p.x === from.x && p.y === from.y);
@@ -305,10 +318,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                     const stoneAtTo = game.boardState[at.y]?.[at.x];
                     if (game.isSinglePlayer && stoneAtTo === opponentPlayer) {
                         console.error(`[SinglePlayer Missile] CRITICAL: Attempted to place stone on AI stone at (${at.x}, ${at.y}) during animation completion, gameId=${game.id}`);
-                        // AI 돌 위에 덮어씌우지 않음
-                        return false;
+                        // AI 돌 위에는 덮어쓰지 않고, 상태 정리만 진행한다(고착 방지).
+                    } else {
+                        game.boardState[at.y][at.x] = playerWhoMoved;
                     }
-                    game.boardState[at.y][at.x] = playerWhoMoved;
                 }
 
                 if (animationTo) {
@@ -559,10 +572,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                     const stoneAtTo = game.boardState[at.y]?.[at.x];
                     if (game.isSinglePlayer && stoneAtTo === opponentPlayer) {
                         console.error(`[SinglePlayer Missile] CRITICAL: Attempted to place stone on AI stone at (${at.x}, ${at.y}) during animation completion, gameId=${game.id}`);
-                        // AI 돌 위에 덮어씌우지 않음
-                        return false;
+                        // AI 돌 위에는 덮어쓰지 않고, 상태 정리만 진행한다(고착 방지).
+                    } else {
+                        game.boardState[at.y][at.x] = playerWhoMoved;
                     }
-                    game.boardState[at.y][at.x] = playerWhoMoved;
                 }
 
                 if (animationTo) {
@@ -636,10 +649,10 @@ export const updateSinglePlayerMissileState = async (game: types.LiveGameSession
                     const stoneAtTo = game.boardState[at.y]?.[at.x];
                     if (game.isSinglePlayer && stoneAtTo === opponentPlayer) {
                         console.error(`[SinglePlayer Missile] CRITICAL: Attempted to place stone on AI stone at (${at.x}, ${at.y}) during animation completion, gameId=${game.id}`);
-                        // AI 돌 위에 덮어씌우지 않음
-                        return false;
+                        // AI 돌 위에는 덮어쓰지 않고, 상태 정리만 진행한다(고착 방지).
+                    } else {
+                        game.boardState[at.y][at.x] = playerWhoMoved;
                     }
-                    game.boardState[at.y][at.x] = playerWhoMoved;
                 }
 
                 if (animationTo) {
@@ -710,8 +723,10 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                     // 캐시된 게임의 상태와 미사일 개수를 사용 (더 최신일 수 있음)
                     game.gameStatus = cachedGame.gameStatus;
                     game.animation = cachedGame.animation;
-                    game.missiles_p1 = cachedGame.missiles_p1 ?? game.missiles_p1;
-                    game.missiles_p2 = cachedGame.missiles_p2 ?? game.missiles_p2;
+                    const syncedP1 = pickConservativeRemainingCount(game.missiles_p1, cachedGame.missiles_p1);
+                    const syncedP2 = pickConservativeRemainingCount(game.missiles_p2, cachedGame.missiles_p2);
+                    if (syncedP1 !== undefined) game.missiles_p1 = syncedP1;
+                    if (syncedP2 !== undefined) game.missiles_p2 = syncedP2;
                     game.pausedTurnTimeLeft = cachedGame.pausedTurnTimeLeft;
                     game.itemUseDeadline = cachedGame.itemUseDeadline;
                     console.log(`[SinglePlayer Missile] START_MISSILE_SELECTION: Using cached game state, gameStatus=${game.gameStatus}, missiles_p1=${game.missiles_p1}, missiles_p2=${game.missiles_p2}, gameId=${game.id}`);
@@ -766,9 +781,12 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             if (game.isSinglePlayer && game.id.startsWith('sp-game-')) {
                 const { getCachedGame } = await import('../gameCache.js');
                 const cachedGame = await getCachedGame(game.id);
-                if (cachedGame && cachedGame[missileKey] !== undefined) {
-                    game[missileKey] = cachedGame[missileKey];
-                    console.log(`[SinglePlayer Missile] START_MISSILE_SELECTION: Updated missile count from cache, ${missileKey}=${game[missileKey]}, gameId=${game.id}`);
+                if (cachedGame) {
+                    const syncedMissile = pickConservativeRemainingCount(game[missileKey], cachedGame[missileKey]);
+                    if (syncedMissile !== undefined) {
+                        game[missileKey] = syncedMissile;
+                        console.log(`[SinglePlayer Missile] START_MISSILE_SELECTION: Updated missile count from cache (conservative), ${missileKey}=${game[missileKey]}, gameId=${game.id}`);
+                    }
                 }
             }
             const myMissilesLeft = game[missileKey] ?? game.settings.missileCount ?? 0;
@@ -967,17 +985,8 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 }
             }
             
-            // moveHistory 업데이트: 원래 자리의 이동 기록을 목적지로 변경
-            const fromMoveIndex = findLatestOwnedMoveIndexAt(game, from, myPlayerEnum);
-            if (fromMoveIndex !== -1) {
-                // 원래 자리의 이동 기록이 있으면 목적지로 변경
-                game.moveHistory[fromMoveIndex].x = to.x;
-                game.moveHistory[fromMoveIndex].y = to.y;
-            } else {
-                // 원래 자리의 이동 기록이 없으면 (배치돌인 경우) 새로 추가하지 않음
-                // 배치돌은 moveHistory에 없으므로 추가하지 않음
-                // 유저가 직접 착수한 돌만 moveHistory에 있음
-            }
+            // 미사일은 "착수"가 아니므로 moveHistory는 실제 유저 클릭 수순을 그대로 유지한다.
+            // (수순 꼬리/마지막 수 마커/점수 플로트 앵커가 이동 좌표로 오염되는 현상 방지)
             
             // 문양/공개 히든 좌표 메타를 함께 이동시켜 원래 위치에 잔상이 남지 않게 한다.
             relocateMissileStoneMetadata(game, from, to, myPlayerEnum);
@@ -1155,17 +1164,9 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                     }
                 }
                 
-                // moveHistory 업데이트: 원래 자리의 이동 기록을 목적지로 변경
-                // (제거하지 않고 변경하는 이유: totalTurns 계산을 위해 moveHistory 길이를 유지해야 함)
-                const fromMoveIndex = game.moveHistory.findIndex(m => m.x === animationFrom.x && m.y === animationFrom.y && m.player === playerWhoMoved);
-                if (fromMoveIndex !== -1) {
-                    // 원래 자리의 이동 기록을 목적지로 변경 (제거하지 않음)
-                    game.moveHistory[fromMoveIndex].x = animationTo.x;
-                    game.moveHistory[fromMoveIndex].y = animationTo.y;
-                } else {
-                    // 원래 자리의 이동 기록이 없으면 (배치돌인 경우) 목적지에 새로 추가하지 않음
-                    // 배치돌은 moveHistory에 없으므로 추가하지 않음
-                }
+                // 미사일 연출 완료 시에도 moveHistory는 수정하지 않는다.
+                // moveHistory는 "실제 착수 좌표"의 타임라인이므로, 이동 좌표로 치환하면
+                // 이후 점수 애니/마지막 수 표식/자동 계가 기준이 어긋난다.
             }
             
             // 히든 돌 공개 처리

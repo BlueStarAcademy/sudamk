@@ -90,15 +90,15 @@ const CraftingDetailModal: React.FC<{
                                 <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-slate-900/40 border border-slate-500/40 shadow-inner">
                                     {sourceTemplate?.image && <img src={sourceTemplate.image} alt={sourceMaterialName} className="absolute inset-0 w-full h-full object-contain" />}
                                 </div>
-                                <span className="text-xs font-semibold text-center leading-tight">{sourceMaterialName}</span>
-                                <span className="text-[10px] text-cyan-200/80 text-center">보유 {sourceMaterialCount.toLocaleString()}개</span>
+                                <span className="text-sm font-semibold text-center leading-tight">{sourceMaterialName}</span>
+                                <span className="text-xs text-cyan-200/80 text-center">보유 {sourceMaterialCount.toLocaleString()}개</span>
                             </div>
                             <div className="flex flex-col items-center gap-1.5">
                                 <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-emerald-900/30 border border-emerald-400/40 shadow-[0_0_20px_-10px_rgba(16,185,129,0.85)]">
                                     {targetTemplate?.image && <img src={targetTemplate.image} alt={targetMaterialName} className="absolute inset-0 w-full h-full object-contain" />}
                                 </div>
-                                <span className="text-xs font-semibold text-emerald-200 text-center leading-tight">{targetMaterialName}</span>
-                                <span className="text-[10px] text-emerald-300/90 text-center">
+                                <span className="text-sm font-semibold text-emerald-200 text-center leading-tight">{targetMaterialName}</span>
+                                <span className="text-xs text-emerald-300/90 text-center">
                                     예상 획득{' '}
                                     {yieldMin === yieldMax
                                         ? `${(quantity * yieldMin).toLocaleString()}개`
@@ -108,11 +108,11 @@ const CraftingDetailModal: React.FC<{
                         </div>
                         
                         <div className="bg-gradient-to-br from-[#141f33] via-[#10192a] to-[#0b1221] border border-slate-500/30 rounded-xl p-3 space-y-2">
-                            <p className="text-xs text-center text-cyan-200">
+                            <p className="text-sm text-center text-cyan-200">
                                 {isUpgrade ? '합성' : '분해'}에 사용될 수량을 조절하세요.
                             </p>
                             <div className="flex flex-col gap-1.5">
-                                <label htmlFor="quantity-slider" className="text-[10px] font-medium text-slate-200 text-center">
+                                <label htmlFor="quantity-slider" className="text-xs font-medium text-slate-200 text-center">
                                     {sourceMaterialName} 소비{' '}
                                     <span className="text-amber-200 font-semibold">
                                         {(quantity * conversionRate).toLocaleString()}
@@ -129,11 +129,11 @@ const CraftingDetailModal: React.FC<{
                                     disabled={maxQuantity === 0}
                                     className="w-full h-1.5 rounded-full appearance-none bg-slate-800 accent-cyan-300"
                                 />
-                                <div className="flex justify-between text-[10px] text-slate-400 px-1">
+                                <div className="flex justify-between text-xs text-slate-400 px-1">
                                     <span>0회</span>
                                     <span>{maxQuantity}회</span>
                                 </div>
-                                <div className="flex justify-between text-[10px] px-1 text-slate-200/90">
+                                <div className="flex justify-between text-xs px-1 text-slate-200/90">
                                     <span>총 시도</span>
                                     <span className="font-semibold text-cyan-200">{quantity.toLocaleString()}회</span>
                                 </div>
@@ -141,12 +141,11 @@ const CraftingDetailModal: React.FC<{
                         </div>
                     </div>
 
-                    <div className="bg-gradient-to-br from-[#101a2f] via-[#0c1527] to-[#09101d] border border-cyan-300/20 rounded-xl p-3 text-center text-[10px] text-cyan-200/90 leading-relaxed">
-                        {isUpgrade ? '합성' : '분해'} 시{' '}
+                    <div className="bg-gradient-to-br from-[#101a2f] via-[#0c1527] to-[#09101d] border border-cyan-300/20 rounded-xl p-3 text-center text-sm text-cyan-200/90 leading-relaxed">
+                        대박 확률{' '}
                         <span className="text-emerald-300 font-semibold">
                             {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)]}%
                         </span>
-                        의 확률로 <span className="text-amber-200 font-semibold">'대박'</span>이 발생하여 보상이 2배가 됩니다.
                     </div>
                 </div>
 

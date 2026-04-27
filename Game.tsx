@@ -234,9 +234,21 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const strategicAiStoneLockRef = useRef(false);
     const [boardRuleFlashMessage, setBoardRuleFlashMessage] = useState<string | null>(null);
     const boardRuleFlashClearRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const isPausableAiGameForTimer =
+        session.isAiGame &&
+        !session.isSinglePlayer &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'singleplayer' &&
+        session.gameCategory !== 'guildwar' &&
+        session.gameCategory !== 'adventure';
     const clientTimes = useClientTimer(
         session,
-        session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'adventure' ? { isPaused } : {}
+        session.isSinglePlayer ||
+            session.gameCategory === 'tower' ||
+            session.gameCategory === 'adventure' ||
+            isPausableAiGameForTimer
+            ? { isPaused }
+            : {}
     );
     const [isAiRematchModalOpen, setIsAiRematchModalOpen] = useState(false);
     // 싱글플레이 고급 히든: AI 히든 아이템 연출 종료 시각 (이 시각까지 바둑판 패널 테두리만 빛남)
@@ -1529,15 +1541,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         flashBoardRuleMessage(KO_RULE_FLASH_MESSAGE, 5000);
     }, [flashBoardRuleMessage]);
 
-    const applyOptimisticAiUserMove = useCallback((x: number, y: number) => {
+    const applyOptimisticAiUserMove = useCallback((x: number, y: number): boolean => {
         // sessionStorage 복원판은 수순이 느릴 때 서버보다 뒤처져 빈 칸으로 보이는 경우가 있어, 낙관적 착수는 서버 판 우선
         const boardStateToUse =
             session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
                 ? session.boardState
                 : restoredBoardState || session.boardState;
-        if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return;
+        if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return false;
         const stoneHere = boardStateToUse[y]?.[x];
-        if (stoneHere !== Player.None) return;
+        if (stoneHere !== Player.None) return false;
         try {
             const moveResult = processMoveClient(
                 boardStateToUse,
@@ -1545,7 +1557,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 session.koInfo,
                 session.moveHistory?.length || 0
             );
-            if (!moveResult.isValid) return;
+            if (!moveResult.isValid) return false;
             handlers.handleAction({
                 type: 'AI_GAME_CLIENT_MOVE',
                 payload: {
@@ -1558,8 +1570,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     movePlayer: myPlayerEnum,
                 }
             } as any);
+            return true;
         } catch (e) {
             console.warn('[Game] AI_GAME_CLIENT_MOVE optimistic update skipped:', e);
+            return false;
         }
     }, [
         gameId,
@@ -2028,9 +2042,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 optimisticAiStonePlace &&
                 boardForOptimistic &&
                 boardForOptimistic[y]?.[x] === Player.None;
-            if (canOptimisticAiPlace) {
+            if (canOptimisticAiPlace && applyOptimisticAiUserMove(x, y)) {
                 strategicAiStoneLockRef.current = true;
-                applyOptimisticAiUserMove(x, y);
             }
             setIsMoveInFlight(true);
             void Promise.resolve(handlers.handleAction({ type: actionType, payload } as ServerAction))
@@ -2038,6 +2051,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
                         setIsMoveInFlight(false);
+                        if (actionType === 'PLACE_STONE') strategicAiStoneLockRef.current = false;
                         const err = String((res as { error: string }).error);
                         if (actionType === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
                             showKoRuleFlash();
@@ -2260,9 +2274,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 optimisticAiStonePlaceConfirm &&
                 boardForOptimisticConfirm &&
                 boardForOptimisticConfirm[y]?.[x] === Player.None;
-            if (canOptimisticAiPlaceConfirm) {
+            if (canOptimisticAiPlaceConfirm && applyOptimisticAiUserMove(x, y)) {
                 strategicAiStoneLockRef.current = true;
-                applyOptimisticAiUserMove(x, y);
             }
             setIsMoveInFlight(true);
             const at = actionType;
@@ -2271,6 +2284,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     const hasErr = res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
                     if (hasErr) {
                         setIsMoveInFlight(false);
+                        if (at === 'PLACE_STONE') strategicAiStoneLockRef.current = false;
                         const err = String((res as { error: string }).error);
                         if (at === 'PLACE_STONE' && (err.includes('패 모양') || err.includes('코 금지') || (err.includes('바로') && err.includes('따낼')))) {
                             showKoRuleFlash();

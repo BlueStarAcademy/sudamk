@@ -968,30 +968,42 @@ const QuestsModal: React.FC<QuestsModalProps> = ({ currentUser: propCurrentUser,
                     </button>
                 </div>
 
-                <div
-                    className={
-                        isMobile
-                            ? 'w-full min-w-0 overflow-x-hidden pb-1 pr-1'
-                            : 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
-                    }
-                >
-                    {activeTab !== 'achievements' ? renderActivityPanel() : null}
-                    {activeTab === 'achievements' ? (
+                {activeTab === 'achievements' ? (
+                    <div
+                        className={
+                            isMobile
+                                ? 'w-full min-w-0 overflow-x-hidden pb-1 pr-1'
+                                : 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
+                        }
+                    >
                         <AchievementTrackPanel currentUser={currentUser} onAction={onAction} isMobile={isMobile} />
-                    ) : questList.length > 0 ? (
-                        <ul className={`${isMobile ? 'mt-2 space-y-2' : 'mt-3 space-y-3'}`}>
-                            {questList.map((quest) => (
-                                <li key={quest.id}>
-                                    <QuestItem quest={quest} onClaim={handleClaim} isMobile={isMobile} />
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <div className="flex h-full min-h-[8rem] items-center justify-center text-slate-500">
-                            <p className="text-sm">진행 가능한 퀘스트가 없습니다.</p>
+                    </div>
+                ) : (
+                    <div className="flex min-h-0 flex-1 flex-col">
+                        <div className="shrink-0">{renderActivityPanel()}</div>
+                        <div
+                            className={
+                                isMobile
+                                    ? 'min-h-0 flex-1 w-full min-w-0 overflow-y-auto overflow-x-hidden overscroll-contain pb-1 pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
+                                    : 'min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pr-2 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]'
+                            }
+                        >
+                            {questList.length > 0 ? (
+                                <ul className={`${isMobile ? 'space-y-2' : 'space-y-3'}`}>
+                                    {questList.map((quest) => (
+                                        <li key={quest.id}>
+                                            <QuestItem quest={quest} onClaim={handleClaim} isMobile={isMobile} />
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="flex h-full min-h-[8rem] items-center justify-center text-slate-500">
+                                    <p className="text-sm">진행 가능한 퀘스트가 없습니다.</p>
+                                </div>
+                            )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </DraggableWindow>
     );

@@ -5,8 +5,6 @@ import Button from './Button.js';
 import Avatar from './Avatar.js';
 import { SINGLE_PLAYER_STAGES, AVATAR_POOL, BORDER_POOL } from '../constants';
 import { ScoringOverlay } from './game/ScoringOverlay.js';
-import { replaceAppHash } from '../utils/appUtils.js';
-import { arenaPostGameButtonClass, formatArenaRetryLabel, formatSinglePlayerNextFooterLabel } from './game/arenaPostGameButtonStyles.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -133,8 +131,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     );
 };
 
-const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
-    const [isProcessing, setIsProcessing] = useState(false);
+const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction: _onAction, onClose }) => {
     const [mobileResultTab, setMobileResultTab] = useState<MobileGameResultTab>('match');
     const { modalLayerUsesDesignPixels } = useAppContext();
     const isScoring = session.gameStatus === 'scoring';
@@ -213,26 +210,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
         
         return null;
     }, [summary, isEnded, currentStage, isWinner, currentUser, session.winReason]);
-    const nextStage = SINGLE_PLAYER_STAGES[currentStageIndex + 1];
-    const clearedStagesForNext = (currentUser as { clearedSinglePlayerStages?: string[] }).clearedSinglePlayerStages || [];
-    const singlePlayerProgressForNext = (currentUser as { singlePlayerProgress?: number }).singlePlayerProgress ?? 0;
-    const sid = session.stageId;
-    const isCurrentStageAlreadyCleared =
-        currentStageIndex >= 0 &&
-        !!sid &&
-        (clearedStagesForNext.includes(sid) || singlePlayerProgressForNext > currentStageIndex);
-    const canTryNext = !!nextStage && (isWinner || isCurrentStageAlreadyCleared);
-    // 입장 시 차감이 0이었으면(재도전 입장 등) 패배 후에도 재도전 라벨 0 — currentUser 지연 시 inferred만 쓰면 비용이 잘못 붙는 경우 방지
-    const inferredRetryAp =
-        isCurrentStageAlreadyCleared || isWinner ? 0 : (currentStage?.actionPointCost ?? 0);
-    const retryActionPointCost =
-        session.singlePlayerStartActionPointCost === 0 ? 0 : inferredRetryAp;
-    const nextStageIndex = currentStageIndex + 1;
-    const isNextStageAlreadyCleared =
-        !!nextStage &&
-        (clearedStagesForNext.includes(nextStage.id) || singlePlayerProgressForNext > nextStageIndex);
-    const nextStageActionPointCost = isNextStageAlreadyCleared ? 0 : (nextStage?.actionPointCost ?? 0);
-
     const failureReason = useMemo(() => {
         if (isWinner) return null;
         switch (session.winReason) {
@@ -339,77 +316,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     }
     const gameDuration = gameDurationRef.current;
 
-    const handleRetry = async () => {
-        if (isProcessing) return;
-        setIsProcessing(true);
-        try {
-            // onAction이 완료될 때까지 기다림 (gameId 반환 가능)
-            // handleAction에서 이미 라우팅을 업데이트하므로 여기서는 모달만 닫으면 됨
-            const result = await onAction({ type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: session.stageId! } });
-            const gameId = (result as any)?.gameId;
-            
-            if (gameId) {
-                // gameId를 받았으면 handleAction에서 이미 라우팅이 업데이트되었으므로
-                // WebSocket 업데이트를 기다리면서 모달 닫기
-                await new Promise(resolve => setTimeout(resolve, 200));
-            } else {
-                // gameId가 없으면 WebSocket 업데이트를 기다림
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-            onClose();
-        } catch (error) {
-            console.error('[SinglePlayerSummaryModal] Failed to retry stage:', error);
-            setIsProcessing(false);
-        }
-    };
-
-    const handleNextStage = async () => {
-        if (!canTryNext || !nextStage || isProcessing) return;
-        setIsProcessing(true);
-        try {
-            // onAction이 완료될 때까지 기다림 (gameId 반환 가능)
-            // handleAction에서 이미 라우팅을 업데이트하므로 여기서는 모달만 닫으면 됨
-            const result = await onAction({ type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: nextStage.id } });
-            const gameId = (result as any)?.gameId;
-            
-            if (gameId) {
-                // gameId를 받았으면 handleAction에서 이미 라우팅이 업데이트되었으므로
-                // WebSocket 업데이트를 기다리면서 모달 닫기
-                await new Promise(resolve => setTimeout(resolve, 200));
-            } else {
-                // gameId가 없으면 WebSocket 업데이트를 기다림
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-            onClose();
-        } catch (error) {
-            console.error('[SinglePlayerSummaryModal] Failed to start next stage:', error);
-            setIsProcessing(false);
-        }
-    };
-
-    const handleExitToLobby = async () => {
-        if (isProcessing) return;
-        setIsProcessing(true);
-        sessionStorage.setItem('postGameRedirect', '#/singleplayer');
-        // 라우팅을 먼저 설정하여 홈화면이 보이지 않도록 함 (경기장 히스토리 항목 교체)
-        replaceAppHash('#/singleplayer');
-        try {
-            // onAction이 완료될 때까지 기다림 (Promise 반환)
-            await onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } });
-            if (
-                session.stageId === '입문-1' &&
-                (currentUser.onboardingTutorialPhase ?? 0) === 7 &&
-                currentUser.onboardingSpResultTutorialStep === 1
-            ) {
-                await onAction({ type: 'ADVANCE_ONBOARDING_TUTORIAL', payload: { phase: 8 } });
-            }
-        } catch (error) {
-            console.error('[SinglePlayerSummaryModal] Failed to leave AI game:', error);
-        } finally {
-            onClose();
-        }
-    };
-
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === currentUser.avatarId)?.url, [currentUser.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     // calculatedSummary를 사용하여 보상 표시 (summary가 없을 때도 계산된 보상 사용)
@@ -448,9 +354,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const blockSpModalScroll =
         intro1SpResultOnboarding && (spResultStep === 0 || spResultStep === 1);
     const blockSpFooterRow = intro1SpResultOnboarding && spResultStep === 0;
-    const lobbyOnboardingActive = intro1SpResultOnboarding && spResultStep === 1;
-    const blockNonLobbyResultButtons = intro1SpResultOnboarding;
-
     useEffect(() => {
         setMobileResultTab('match');
     }, [session.id]);
@@ -813,7 +716,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 >
                     <div
                         data-onboarding-target="onboarding-sp-summary-footer"
-                        className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5 ${
+                        className={`grid w-full min-w-0 flex-shrink-0 grid-cols-1 gap-2 ${
                             blockSpFooterRow ? 'pointer-events-none' : ''
                         }`}
                     >
@@ -825,40 +728,10 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         }}
                         bare
                         colorScheme="none"
-                        disabled={isScoring || blockNonLobbyResultButtons}
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isScoring || blockNonLobbyResultButtons ? '!cursor-not-allowed !opacity-45' : ''}`}
+                        disabled={isScoring}
+                        className={`mx-auto min-w-0 w-full max-w-[220px] justify-center rounded-xl border border-amber-300/35 bg-gradient-to-b from-amber-500/30 via-amber-500/20 to-amber-700/25 px-3 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_8px_20px_-12px_rgba(251,191,36,0.55)] transition-all hover:border-amber-200/55 hover:brightness-110 active:translate-y-px ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
                     >
                         확인
-                    </Button>
-                    <Button
-                        data-onboarding-target="onboarding-sp-summary-next"
-                        onClick={handleNextStage}
-                        bare
-                        colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${!canTryNext || isProcessing || blockNonLobbyResultButtons ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={!canTryNext || isProcessing || blockNonLobbyResultButtons}
-                    >
-                        {formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
-                    </Button>
-                    <Button
-                        data-onboarding-target="onboarding-sp-summary-retry"
-                        onClick={handleRetry}
-                        bare
-                        colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing || blockNonLobbyResultButtons ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={isProcessing || blockNonLobbyResultButtons}
-                    >
-                        {formatArenaRetryLabel(retryActionPointCost)}
-                    </Button>
-                    <Button
-                        data-onboarding-target="onboarding-sp-summary-lobby"
-                        onClick={handleExitToLobby}
-                        bare
-                        colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing || (intro1SpResultOnboarding && spResultStep !== 1) ? '!cursor-not-allowed !opacity-45' : ''} ${lobbyOnboardingActive ? '!pointer-events-auto relative z-[2]' : ''}`}
-                        disabled={isProcessing || (intro1SpResultOnboarding && spResultStep !== 1)}
-                    >
-                        대기실로
                     </Button>
                     </div>
                 </div>

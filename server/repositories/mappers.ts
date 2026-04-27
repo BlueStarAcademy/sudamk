@@ -199,6 +199,7 @@ export const rowToGame = (row: any): types.LiveGameSession | null => {
             komiBiddingRound: safeParse(row.komiBiddingRound, null, row.id, 'komiBiddingRound'),
             komiBidRevealProcessed: safeParse(row.komiBidRevealProcessed, null, row.id, 'komiBidRevealProcessed'),
             finalKomi: safeParse(row.finalKomi, null, row.id, 'finalKomi'),
+            baseKomiBidsSnapshot: safeParse(row.baseKomiBidsSnapshot, null, row.id, 'baseKomiBidsSnapshot'),
             hiddenMoves: safeParse(row.hiddenMoves, null, row.id, 'hiddenMoves'),
             scans_p1: safeParse(row.scans_p1, null, row.id, 'scans_p1'),
             scans_p2: safeParse(row.scans_p2, null, row.id, 'scans_p2'),

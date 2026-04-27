@@ -1,5 +1,5 @@
 import React from 'react';
-import { LiveGameSession, User, ServerAction } from '../types.js';
+import { LiveGameSession, User, ServerAction, Player } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
@@ -18,7 +18,17 @@ const startPanelShell =
 
 /** 베이스: 흑·백·덤 확정 + 양측 프로필 — 푸터에는 두지 않고 모달 전용 */
 export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalProps> = ({ session, currentUser, onAction }) => {
-    const { id: gameId, player1, player2, blackPlayerId, whitePlayerId, preGameConfirmations, finalKomi, gameStatus } = session;
+    const {
+        id: gameId,
+        player1,
+        player2,
+        blackPlayerId,
+        whitePlayerId,
+        preGameConfirmations,
+        finalKomi,
+        gameStatus,
+        baseKomiBidsSnapshot
+    } = session;
     const isKomiResultPhase = gameStatus === 'base_komi_result';
     const hasConfirmed = isKomiResultPhase
         ? !!session.preGameKomiSummaryAck?.[currentUser.id]
@@ -76,9 +86,29 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
                         {getSessionPlayerDisplayName(session, whitePlayer)}
                     </span>
                 </div>
-                <p className="border-t border-white/5 pt-2 text-center text-sm text-cyan-100/90">
-                    덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
-                </p>
+                <div className="border-t border-white/5 pt-2 space-y-2">
+                    {baseKomiBidsSnapshot?.[player1.id] && baseKomiBidsSnapshot?.[player2.id] ? (
+                        <div className="space-y-1.5">
+                            <p className="text-center text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+                                덤 입찰(최종 라운드)
+                            </p>
+                            {[player1, player2].map((pl) => {
+                                const bid = baseKomiBidsSnapshot[pl.id]!;
+                                return (
+                                    <div key={pl.id} className="flex items-center justify-between gap-2 text-sm">
+                                        <span className="truncate text-stone-400">{getSessionPlayerDisplayName(session, pl)}</span>
+                                        <span className="shrink-0 font-bold text-amber-100/95">
+                                            {bid.color === Player.Black ? '흑' : '백'}, {bid.komi}집
+                                        </span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : null}
+                    <p className="text-center text-sm text-cyan-100/90">
+                        덤 <span className="font-mono font-bold text-amber-200">{komiLabel}</span>집
+                    </p>
+                </div>
             </div>
             <p className="text-center text-xs leading-relaxed text-stone-400">
                 {isKomiResultPhase

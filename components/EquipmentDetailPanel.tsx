@@ -44,7 +44,7 @@ const renderStarDisplay = (stars: number) => {
 
     return (
         <div
-            className="absolute left-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-br-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
+            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
             style={{ textShadow: '1px 1px 2px black' }}
         >
             <img src={starImage} alt="" className="h-3 w-3" />

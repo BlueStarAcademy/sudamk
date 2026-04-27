@@ -164,7 +164,12 @@ const EquipmentSlotDisplay: React.FC<{
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
                 {item.stars > 0 && (
-                    <div className={`absolute ${compact ? 'top-0.5 right-1 text-[10px]' : 'top-1 right-2.5 text-sm'} font-bold z-10 ${starInfo.colorClass}`} style={{ textShadow: '1px 1px 2px black' }}>
+                    <div
+                        className={`absolute z-10 rounded-md border border-white/10 bg-black/55 font-bold backdrop-blur-[1px] ${
+                            compact ? 'top-1 right-1 px-1 py-0.5 text-[10px]' : 'top-1.5 right-1.5 px-1.5 py-0.5 text-sm'
+                        } ${starInfo.colorClass}`}
+                        style={{ textShadow: '1px 1px 2px black' }}
+                    >
                         ★{item.stars}
                     </div>
                 )}

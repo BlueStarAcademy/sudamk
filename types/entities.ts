@@ -1015,6 +1015,8 @@ export type LiveGameSession = {
   komiBiddingRound?: number;
   komiBidRevealProcessed?: boolean;
   finalKomi?: number;
+  /** 베이스 덤: 확정 직전 입찰(색·추가 덤 집). komiBids 정리 후에도 결과 모달에서 표시 */
+  baseKomiBidsSnapshot?: { [userId: string]: KomiBid };
   hiddenMoves?: { [moveIndex: number]: boolean };
   scans_p1?: number;
   scans_p2?: number;
@@ -1022,7 +1024,15 @@ export type LiveGameSession = {
   hidden_stones_p2?: number;
   revealedHiddenMoves?: { [playerId: string]: number[] };
   newlyRevealed?: { point: Point, player: Player }[];
-  justCaptured?: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number; capturerId?: string }[];
+  justCaptured?: {
+    point: Point;
+    player: Player;
+    wasHidden: boolean;
+    capturePoints?: number;
+    /** 베이스 배치돌 따내기(+5). capturePoints 누락 시 플로트 표시용 */
+    wasBaseStone?: boolean;
+    capturerId?: string;
+  }[];
   hidden_stones_used_p1?: number;
   hidden_stones_used_p2?: number;
   pendingCapture?: { stones: Point[]; move: Move; hiddenContributors: Point[]; capturedHiddenStones?: Point[] } | null;

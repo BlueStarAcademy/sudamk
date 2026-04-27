@@ -1,6 +1,6 @@
 
 import { getGoLogic } from './goLogic.js';
-import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, TIME_BONUS_SECONDS_PER_POINT, getScoringTurnLimitOptionsByBoardSize, PLAYFUL_AI_BATCH_STONE_INTERVAL_MS } from '../constants';
+import { NO_CONTEST_MOVE_THRESHOLD, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_BUTTONS_EARLY, STRATEGIC_ACTION_BUTTONS_MID, STRATEGIC_ACTION_BUTTONS_LATE, PLAYFUL_ACTION_BUTTONS_EARLY, PLAYFUL_ACTION_BUTTONS_MID, PLAYFUL_ACTION_BUTTONS_LATE, RANDOM_DESCRIPTIONS, ALKKAGI_TURN_TIME_LIMIT, ALKKAGI_PLACEMENT_TIME_LIMIT, getScoringTurnLimitOptionsByBoardSize, PLAYFUL_AI_BATCH_STONE_INTERVAL_MS } from '../constants';
 import * as types from '../types/index.js';
 import { analyzeGame, getScoringKataGoLimits } from './kataGoService.js';
 import type { LiveGameSession, AppState, Negotiation, ActionButton, GameMode } from '../types/index.js';
@@ -135,41 +135,20 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     finalAnalysis.scoreDetails.black.hiddenStoneBonus = 0;
     finalAnalysis.scoreDetails.white.hiddenStoneBonus = 0;
     
-    // Time bonus:
-    // - 스피드바둑 PVP: 기본시간 대비 ± 5초당 1점
-    // - 스피드바둑 AI/싱글: 3분(180초) 기준 잔여시간을 10초당 1점으로 환산 (음수 허용, 소수점 절삭)
-    const SPEED_AI_BASELINE_SECONDS = 180;
+    // Time bonus (speed unified):
+    // - PVP/AI/싱글 공통: "내가 사용한 시간 10초당 상대 +1점"
+    // - 피셔 등으로 시간이 회복되어도 누적 사용시간은 감소하지 않는다.
     const SPEED_AI_SECONDS_PER_POINT = 10;
     const isSpeedMode = session.mode === types.GameMode.Speed || (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
     if (isSpeedMode) {
-        const blackInitial = preservedTimeInfo?.blackInitialTimeLeft ?? session.blackInitialTimeLeft;
-        const whiteInitial = preservedTimeInfo?.whiteInitialTimeLeft ?? session.whiteInitialTimeLeft;
-        const blackTime = preservedTimeInfo?.blackTimeLeft ?? session.blackTimeLeft ?? 0;
-        const whiteTime = preservedTimeInfo?.whiteTimeLeft ?? session.whiteTimeLeft ?? 0;
-        if (blackInitial != null && whiteInitial != null) {
-            const isAiOrSinglePlayer = !!session.isAiGame || !!session.isSinglePlayer;
-            if (isAiOrSinglePlayer) {
-                // 스피드 바둑 AI/싱글플레이: floor((180 - 사용시간초) / 10) (인간 측만 적용, AI는 0)
-                const blackUsedSec = Math.max(0, blackInitial - blackTime);
-                const whiteUsedSec = Math.max(0, whiteInitial - whiteTime);
-                const blackIsHuman = session.blackPlayerId !== aiUserId;
-                const whiteIsHuman = session.whitePlayerId !== aiUserId;
-                finalAnalysis.scoreDetails.black.timeBonus = blackIsHuman
-                    ? Math.floor((SPEED_AI_BASELINE_SECONDS - blackUsedSec) / SPEED_AI_SECONDS_PER_POINT)
-                    : 0;
-                finalAnalysis.scoreDetails.white.timeBonus = whiteIsHuman
-                    ? Math.floor((SPEED_AI_BASELINE_SECONDS - whiteUsedSec) / SPEED_AI_SECONDS_PER_POINT)
-                    : 0;
-            } else {
-                // PVP 스피드: 기본시간 대비 ± 초를 5초당 1점으로
-                finalAnalysis.scoreDetails.black.timeBonus = Math.floor((blackTime - blackInitial) / TIME_BONUS_SECONDS_PER_POINT);
-                finalAnalysis.scoreDetails.white.timeBonus = Math.floor((whiteTime - whiteInitial) / TIME_BONUS_SECONDS_PER_POINT);
-            }
-        } else {
-            finalAnalysis.scoreDetails.black.timeBonus = 0;
-            finalAnalysis.scoreDetails.white.timeBonus = 0;
-        }
-        console.log(`[finalizeAnalysisResult] Speed time bonus: blackTime=${blackTime}, whiteTime=${whiteTime}, blackInitial=${blackInitial}, whiteInitial=${whiteInitial}, blackBonus=${finalAnalysis.scoreDetails.black.timeBonus}, whiteBonus=${finalAnalysis.scoreDetails.white.timeBonus}`);
+        const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
+        const blackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
+        const whiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
+        finalAnalysis.scoreDetails.black.timeBonus = Math.floor(whiteConsumed / SPEED_AI_SECONDS_PER_POINT);
+        finalAnalysis.scoreDetails.white.timeBonus = Math.floor(blackConsumed / SPEED_AI_SECONDS_PER_POINT);
+        console.log(
+            `[finalizeAnalysisResult] Speed time bonus (unified): blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, blackBonus=${finalAnalysis.scoreDetails.black.timeBonus}, whiteBonus=${finalAnalysis.scoreDetails.white.timeBonus}`
+        );
     } else {
         finalAnalysis.scoreDetails.black.timeBonus = 0;
         finalAnalysis.scoreDetails.white.timeBonus = 0;

@@ -5,6 +5,7 @@ import {
     stripPatternStonesAtConsumedIntersections,
 } from './patternStoneConsume.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from './guildWarMaxSingleCapturePoints.js';
+import { isIntersectionRecordedAsBaseStone } from './removeCapturedBaseStoneMarkers.js';
 
 export type MissileCaptureProcessResult = {
     isValid: boolean;
@@ -64,9 +65,10 @@ export function applyMissileCaptureProcessResult(
         const capturedPlayerEnum = opponentEnum;
         let points = 1;
         let wasHiddenForJustCaptured = false;
+        let isBaseStone = false;
 
         if (pveLike) {
-            const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+            isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
             if (isBaseStone) {
                 if (!game.baseStoneCaptures) {
                     game.baseStoneCaptures = { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
@@ -77,7 +79,7 @@ export function applyMissileCaptureProcessResult(
                 points = 2;
             }
         } else {
-            const isBaseStone = game.baseStones?.some((bs) => bs.x === stone.x && bs.y === stone.y);
+            isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
             const moveIndex = game.moveHistory.findIndex((m) => m.x === stone.x && m.y === stone.y);
             const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
             wasHiddenForJustCaptured = wasHidden;
@@ -108,6 +110,7 @@ export function applyMissileCaptureProcessResult(
             player: capturedPlayerEnum,
             wasHidden: wasHiddenForJustCaptured,
             capturePoints: points,
+            ...(isBaseStone ? { wasBaseStone: true as const } : {}),
         });
     }
 

@@ -4,6 +4,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import DraggableWindow from '../DraggableWindow.js';
+import ConfirmModal from '../ConfirmModal.js';
 import { getEnhancementCostRowForDisassembly, MATERIAL_ITEMS } from '../../constants';
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 
@@ -310,7 +311,7 @@ const DisassemblyPreviewPanel: React.FC<{
                     onClick={onDisassemble}
                     disabled={selectedCount === 0}
                     variant="materials"
-                    className={`w-full min-h-[44px] !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
+                    className={`mx-auto w-auto min-w-[9.5rem] min-h-[44px] !rounded-lg !border !border-rose-300/45 !bg-gradient-to-r !from-rose-600/90 !via-rose-500/90 !to-orange-500/85 !px-3 !py-2.5 !text-sm !font-bold !text-rose-50 !shadow-[0_14px_26px_-18px_rgba(244,63,94,0.85)] hover:!from-rose-500 hover:!via-rose-400 hover:!to-orange-400 disabled:!opacity-50 disabled:!cursor-not-allowed leading-snug`}
                 >
                     분해({selectedCount})
                 </ResourceActionButton>
@@ -436,6 +437,10 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
         return () => window.removeEventListener('resize', sync);
     }, []);
     const useStackedDisassemblyLayout = isNativeMobile || viewportNarrow;
+    const [confirmState, setConfirmState] = useState<{
+        step: 'danger' | 'final';
+        message: string;
+    } | null>(null);
 
     if (!currentUserWithStatus) return null;
 
@@ -460,17 +465,23 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
             const reasons: string[] = [];
             if (hasHighGrade) reasons.push('전설 등급 이상의 장비');
             if (hasHighStars) reasons.push('7강화 이상의 장비');
-            
-            if (!window.confirm(`${reasons.join(', ')}가 포함되어 있습니다. 정말 분해하시겠습니까?`)) {
-                return;
-            }
+            setConfirmState({
+                step: 'danger',
+                message: `${reasons.join(', ')}가 포함되어 있습니다.\n정말 분해하시겠습니까?`,
+            });
+            return;
         }
 
-        if (window.confirm(`${selectedForDisassembly.size}개의 아이템을 분해하시겠습니까?`)) {
-            onAction({ type: 'DISASSEMBLE_ITEM', payload: { itemIds: Array.from(selectedForDisassembly) } });
-            // No need to clear selectedForDisassembly here, as it's managed by BlacksmithModal
-            // and will be cleared when the action is processed and state updates.
-        }
+        setConfirmState({
+            step: 'final',
+            message: `${selectedForDisassembly.size}개의 아이템을 분해하시겠습니까?`,
+        });
+    };
+
+    const executeDisassemble = () => {
+        onAction({ type: 'DISASSEMBLE_ITEM', payload: { itemIds: Array.from(selectedForDisassembly) } });
+        // No need to clear selectedForDisassembly here, as it's managed by BlacksmithModal
+        // and will be cleared when the action is processed and state updates.
     };
 
     return (
@@ -501,6 +512,30 @@ const DisassemblyView: React.FC<DisassemblyViewProps> = ({
                     />
                 </div>
             </div>
+            {confirmState && (
+                <ConfirmModal
+                    title="분해 확인"
+                    message={confirmState.message}
+                    onCancel={() => setConfirmState(null)}
+                    onConfirm={() => {
+                        if (confirmState.step === 'danger') {
+                            setConfirmState({
+                                step: 'final',
+                                message: `${selectedForDisassembly.size}개의 아이템을 분해하시겠습니까?`,
+                            });
+                            return;
+                        }
+                        setConfirmState(null);
+                        executeDisassemble();
+                    }}
+                    confirmText="분해"
+                    cancelText="취소"
+                    confirmColorScheme="red"
+                    isTopmost
+                    windowId="disassembly-confirm-modal"
+                    variant={confirmState.step === 'danger' ? 'premium-danger' : 'default'}
+                />
+            )}
         </div>
     );
 };

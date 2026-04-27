@@ -88,6 +88,17 @@ type GuildWarDataCacheEntry = {
 const guildWarDataCacheByUser = new Map<string, GuildWarDataCacheEntry>();
 const GUILD_WAR_DATA_CACHE_MS = 5000;
 
+function parseEpochMs(value: unknown): number | null {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.length > 0) {
+        const parsed = Date.parse(value);
+        if (Number.isFinite(parsed)) return parsed;
+        const n = Number(value);
+        if (Number.isFinite(n)) return n;
+    }
+    return null;
+}
+
 /**
  * GET_GUILD_INFO는 요청 시작 시점의 guilds 스냅샷으로 멤버만 동기화한 뒤 저장한다.
  * 그 사이 출석 마일스톤 수령·보스전·체크인 등으로 KV가 갱신되면 오래된 객체로 덮어써
@@ -116,10 +127,17 @@ function buildGuildWarTicketSummary(
     const myIdsRaw = isG1 ? war.guild1ParticipantIds : war.guild2ParticipantIds;
     const oppIdsRaw = isG1 ? war.guild2ParticipantIds : war.guild1ParticipantIds;
     const da = war.dailyAttempts || {};
+    const userAttempts = war.userAttempts || {};
     const sumFor = (roster: string[]) => {
         let u = 0;
         for (const id of roster) {
-            u += da[id]?.[todayKST] ?? 0;
+            const cumulativeUsed = Number(userAttempts[id] ?? 0) || 0;
+            if (cumulativeUsed > 0) {
+                u += cumulativeUsed;
+                continue;
+            }
+            // 구버전/호환 데이터는 일자별 사용량만 남아있을 수 있어 todayKST 값을 보조로 사용.
+            u += Number(da[id]?.[todayKST] ?? 0) || 0;
         }
         return u;
     };
@@ -2353,18 +2371,30 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         w.status === 'completed' &&
                         w.result?.winnerId
                 )
-                .sort((a: any, b: any) => (b.endTime ?? 0) - (a.endTime ?? 0));
+                .sort((a: any, b: any) => {
+                    const bEnd = parseEpochMs(b.endTime) ?? 0;
+                    const aEnd = parseEpochMs(a.endTime) ?? 0;
+                    return bEnd - aEnd;
+                });
             const latestCompletedWar = completedForGuild[0];
-            const activeWar = warInProgress ?? null;
+            const activeWar =
+                warInProgress
+                    ? {
+                        ...warInProgress,
+                        startTime: parseEpochMs((warInProgress as any).startTime) ?? (warInProgress as any).startTime,
+                        endTime: parseEpochMs((warInProgress as any).endTime) ?? (warInProgress as any).endTime,
+                    }
+                    : null;
 
             const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
             let guildWarLatestCompletedRewardClaimed = false;
             let guildWarRewardClaimable = false;
             if (latestCompletedWar?.id) {
                 guildWarLatestCompletedRewardClaimed = !!claimedRewards[latestCompletedWar.id]?.includes(effectiveUserId);
+                const latestCompletedEndMs = parseEpochMs((latestCompletedWar as any).endTime) ?? 0;
                 const rewardAvailableAt =
                     (latestCompletedWar as any).rewardAvailableAt ??
-                    (latestCompletedWar.endTime ?? 0) + 60 * 60 * 1000;
+                    latestCompletedEndMs + 60 * 60 * 1000;
                 guildWarRewardClaimable =
                     !guildWarLatestCompletedRewardClaimed && now >= rewardAvailableAt;
             }
@@ -2384,7 +2414,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             
             // 마지막 완료된 전쟁 (가장 최근)
-            const lastCompleted = [...completedWars].sort((a: any, b: any) => (b.endTime ?? b.updatedAt ?? 0) - (a.endTime ?? a.updatedAt ?? 0))[0];
+            const lastCompleted = [...completedWars].sort((a: any, b: any) => {
+                const bTs = parseEpochMs(b.endTime) ?? parseEpochMs(b.updatedAt) ?? 0;
+                const aTs = parseEpochMs(a.endTime) ?? parseEpochMs(a.updatedAt) ?? 0;
+                return bTs - aTs;
+            })[0];
             let myRecordInLastWar: { contributedStars: number } | null = null;
             if (lastCompleted && lastCompleted.result) {
                 const isGuild1 = lastCompleted.guild1Id === myGuildId;
@@ -2415,7 +2449,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const winRate = totalPlayed > 0 ? Math.round((totalWins / totalPlayed) * 100) : 0;
             const warStats = { totalWins, totalLosses, winRate, lastOpponent, myRecordInLastWar };
             
-            const activeWarForUser = warInProgress;
+            const activeWarForUser = activeWar;
             const todayKSTWar = getTodayKSTDateString();
             let myRecordInCurrentWar: { attempts: number; maxAttempts: number; contributedStars: number } | null = null;
             let guildWarTicketSummary: ReturnType<typeof buildGuildWarTicketSummary> | null = null;

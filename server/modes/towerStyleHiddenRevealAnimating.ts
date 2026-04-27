@@ -133,6 +133,7 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
                 player: opponentP,
                 wasHidden: wasHiddenForEntry || wasAiInitialHidden,
                 capturePoints: points,
+                ...(isBaseStone ? { wasBaseStone: true as const } : {}),
             });
             if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
                 delete game.hiddenMoves[moveIndex];

@@ -38,6 +38,29 @@ import {
 } from './hiddenRevealPolicy.js';
 import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
+
+const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number => {
+    const isSpeedMode =
+        game.mode === types.GameMode.Speed ||
+        (game.mode === types.GameMode.Mix && !!game.settings?.mixedModes?.includes(types.GameMode.Speed));
+    // AI 대국 스피드는 피셔 증분을 비활성화한다.
+    if (game.isAiGame && isSpeedMode) return 0;
+    return getFischerIncrementSeconds(game as any);
+};
+
+const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Player, consumedSec: number): void => {
+    if (consumedSec <= 0) return;
+    const isSpeedMode =
+        game.mode === types.GameMode.Speed ||
+        (game.mode === types.GameMode.Mix && !!game.settings?.mixedModes?.includes(types.GameMode.Speed));
+    if (!isSpeedMode) return;
+    const bag = (((game.settings as any).__speedBonusConsumedSec ??= {}) as { black?: number; white?: number });
+    if (player === types.Player.Black) {
+        bag.black = Math.max(0, Number(bag.black ?? 0)) + consumedSec;
+    } else if (player === types.Player.White) {
+        bag.white = Math.max(0, Number(bag.white ?? 0)) + consumedSec;
+    }
+};
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 
 const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
@@ -1240,6 +1263,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     
                     let points = 1;
                     let wasHiddenForJustCaptured = false; // default for justCaptured
+                    let isBaseStone = false;
 
                     if (
                         game.isSinglePlayer ||
@@ -1247,7 +1271,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         (game as any).gameCategory === 'tower' ||
                         game.gameCategory === GameCategory.Adventure
                     ) {
-                        const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
+                        isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
@@ -1283,7 +1307,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                             }
                         }
                     } else { // PvP logic
-                        const isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
+                        isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         let moveIndex = -1;
                         for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
                             const m = game.moveHistory![i];
@@ -1310,7 +1334,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
 
                     game.captures[myPlayerEnum] += points;
                     guildWarCapturePointsThisMove += points;
-                    game.justCaptured.push({ point: stone, player: capturedPlayerEnum, wasHidden: wasHiddenForJustCaptured, capturePoints: points });
+                    game.justCaptured.push({
+                        point: stone,
+                        player: capturedPlayerEnum,
+                        wasHidden: wasHiddenForJustCaptured,
+                        capturePoints: points,
+                        ...(isBaseStone ? { wasBaseStone: true as const } : {}),
+                    });
                     for (let i = (game.moveHistory?.length ?? 0) - 1; i >= 0; i--) {
                         const m = game.moveHistory![i];
                         if (m.x === stone.x && m.y === stone.y && m.player === capturedPlayerEnum) {
@@ -1343,7 +1373,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                 const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                 const byoyomiKey = playerWhoMoved === types.Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
-                const fischerIncrement = getFischerIncrementSeconds(game as any);
+                const fischerIncrement = resolveEffectiveFischerIncrement(game);
                 const isFischer = isFischerStyleTimeControl(game as any);
                 
                 // 초읽기 모드인지 확인 (메인 시간이 0이고 초읽기 횟수가 남아있는 경우)
@@ -1357,9 +1387,14 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 } else {
                     // 일반 모드: 남은 시간 저장
                     if (game.turnDeadline) {
+                        const prevTime = Math.max(0, Number(game[timeKey] ?? 0));
                         const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
+                        addSpeedConsumedSeconds(game, playerWhoMoved, Math.max(0, prevTime - timeRemaining));
                         game[timeKey] = timeRemaining + fischerIncrement;
                     } else if(game.pausedTurnTimeLeft) {
+                        const prevTime = Math.max(0, Number(game[timeKey] ?? 0));
+                        const resumed = Math.max(0, Number(game.pausedTurnTimeLeft ?? 0));
+                        addSpeedConsumedSeconds(game, playerWhoMoved, Math.max(0, prevTime - resumed));
                         game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
                     } else {
                         game[timeKey] += fischerIncrement;
@@ -1606,7 +1641,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
                     
                     if (game.turnDeadline) {
+                        const prevTime = Math.max(0, Number(game[timeKey] ?? 0));
                         const timeRemaining = Math.max(0, (game.turnDeadline - now) / 1000);
+                        addSpeedConsumedSeconds(game, playerWhoMoved, Math.max(0, prevTime - timeRemaining));
                         game[timeKey] = timeRemaining;
                     }
                 }

@@ -33,8 +33,7 @@ const AdjustButton: React.FC<{ amount: number; onAdjust: (amount: number) => voi
 
 const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
     const { session, currentUser, onAction, layout = 'window' } = props;
-    const { id: gameId, player1, player2, komiBids, komiBiddingDeadline, gameStatus, komiBiddingRound, gameCategory } =
-        session;
+    const { id: gameId, player1, player2, komiBids, komiBiddingDeadline, komiBiddingRound, gameCategory } = session;
     const isAdventure = gameCategory === GameCategory.Adventure;
     const [selectedColor, setSelectedColor] = useState<Player>(Player.Black);
     const [komiValue, setKomiValue] = useState<number>(0);
@@ -104,62 +103,6 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
         return `백을 잡고, 흑에게 오히려 덤 ${Math.abs(finalKomi)}집을 줍니다.`;
     };
 
-    const renderBidResult = () => {
-        if (!myBid || !opponentBid || !opponent) {
-            return (
-                <div className={`${komiWindowShell} px-4 py-5 text-center`}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-300/80">덤 설정</p>
-                    <h3 className="mt-2 text-base font-bold text-stone-50">결과 확인 중</h3>
-                    <p className="mt-2 text-sm text-stone-400">상대 설정을 기다립니다.</p>
-                    <div className="mt-5 flex justify-center">
-                        <div className="h-9 w-9 animate-spin rounded-full border-2 border-amber-400/30 border-t-amber-400" />
-                    </div>
-                </div>
-            );
-        }
-        let resultText = '';
-        const isTie = myBid.color === opponentBid.color && myBid.komi === opponentBid.komi;
-
-        if (myBid.color !== opponentBid.color) {
-            resultText = '서로 다른 색 → 각자 선택한 색으로 시작합니다. (덤 0.5집)';
-        } else if (myBid.komi !== opponentBid.komi) {
-            resultText = '같은 색 → 더 유리한 덤을 제시한 쪽이 그 색·덤을 가져갑니다.';
-        } else if (komiBiddingRound === 1) {
-            resultText = '같은 색·같은 덤 → 2차 덤 설정으로 넘어갑니다.';
-        } else {
-            resultText = '2차에서도 동일 → 흑/백이 무작위로 정해집니다.';
-        }
-
-        const pulseText =
-            isTie && komiBiddingRound === 1 ? '잠시 후 재설정을 시작합니다…' : '잠시 후 대국이 시작됩니다…';
-
-        return (
-            <div className={`${komiWindowShell} space-y-3 px-4 py-4`}>
-                <div className="text-center">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-300/85">
-                        덤 설정 결과{komiBiddingRound === 2 ? ' · 재설정' : ''}
-                    </p>
-                </div>
-                <div className="space-y-2 rounded-lg border border-white/10 bg-black/35 px-3 py-2.5 text-sm text-stone-200">
-                    <div className="flex justify-between gap-2">
-                        <span className="text-stone-500">{getSessionPlayerDisplayName(session, currentUser)}</span>
-                        <span className="font-bold text-amber-100">
-                            {myBid.color === Player.Black ? '흑' : '백'}, {myBid.komi}집
-                        </span>
-                    </div>
-                    <div className="flex justify-between gap-2">
-                        <span className="text-stone-500">{getSessionPlayerDisplayName(session, opponent)}</span>
-                        <span className="font-bold text-amber-100">
-                            {opponentBid.color === Player.Black ? '흑' : '백'}, {opponentBid.komi}집
-                        </span>
-                    </div>
-                </div>
-                <p className="text-center text-xs leading-relaxed text-amber-200/85">{resultText}</p>
-                <p className="text-center text-[11px] text-stone-500 animate-pulse">{pulseText}</p>
-            </div>
-        );
-    };
-
     const panelProps = {
         windowId: 'komi-bidding' as const,
         initialWidth: 340,
@@ -172,16 +115,6 @@ const KomiBiddingPanel: React.FC<KomiBiddingPanelProps> = (props) => {
         bodyNoScroll: true,
         containerExtraClassName: '!max-w-[min(100vw,360px)]',
     };
-
-    if (gameStatus === 'komi_bid_reveal') {
-        return layout === 'inline' ? (
-            <div className="w-full min-w-0 max-w-full overflow-x-auto">{renderBidResult()}</div>
-        ) : (
-            <DraggableWindow title="덤 설정" {...panelProps}>
-                {renderBidResult()}
-            </DraggableWindow>
-        );
-    }
 
     if (myBid) {
         const waitingBody = (

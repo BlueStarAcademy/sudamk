@@ -118,7 +118,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
-        if (['komi_bidding', 'komi_bid_reveal'].includes(gameStatus)) {
+        if (gameStatus === 'komi_bidding') {
             if (baseUsesBottomStrip && gameStatus === 'komi_bidding') return null;
             return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
         }

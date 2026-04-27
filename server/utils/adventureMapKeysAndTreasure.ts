@@ -299,9 +299,6 @@ export async function confirmAdventureMapTreasureChest(
     if (spendBase < 1) return { ok: false, error: '열쇠가 부족합니다.' };
 
     const grants = selectedSlots.map((i) => sess.rolls[i]!);
-    /** 보물 수령 중 effect 동기화를 하지 않으므로, 회복 상한은 이 시점의 저장 max (절대 올리지 않음) */
-    const treasureActionPointsMaxSnapshot =
-        user.actionPoints != null ? Math.max(1, Math.floor(user.actionPoints.max)) : null;
     const boxItems = collectItemsFromRolls(grants);
     if (!boxItems.ok) return { ok: false, error: boxItems.error };
 
@@ -329,12 +326,9 @@ export async function confirmAdventureMapTreasureChest(
         if (!user.actionPoints) {
             user.actionPoints = { current: 0, max: 1 };
         }
-        const cap =
-            treasureActionPointsMaxSnapshot != null
-                ? treasureActionPointsMaxSnapshot
-                : Math.max(1, Math.floor(user.actionPoints.max));
         const cur0 = Math.max(0, Math.floor(user.actionPoints.current));
-        user.actionPoints.current = Math.min(cap, cur0 + apGainTotal);
+        /** 모험 보물상자 행동력은 저장 max를 넘겨 충전 가능(자연 회복은 max까지, 초과분은 소모 시까지 유지) */
+        user.actionPoints.current = cur0 + apGainTotal;
     }
 
     const keysHeld = { ...(prev.adventureMapKeysHeldByStageId ?? {}) };

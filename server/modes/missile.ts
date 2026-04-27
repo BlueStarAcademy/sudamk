@@ -11,6 +11,7 @@ import {
     syncTowerP1ConsumableSessionFromInventory,
 } from './towerPlayerHidden.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
+import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -175,9 +176,12 @@ function relocateMissileStoneMetadata(
     if (patternStones?.length) {
         const idx = patternStones.findIndex((p) => p.x === from.x && p.y === from.y);
         if (idx !== -1) {
+            // 미사일로 문양돌이 이동하면 기존 좌표는 같은 대국에서 재문양화되지 않도록 소모 처리
+            recordPatternStoneConsumed(game as any, from);
             patternStones[idx] = { x: to.x, y: to.y };
         }
     }
+    stripPatternStonesAtConsumedIntersections(game as any);
 
     if (game.permanentlyRevealedStones?.length) {
         const ridx = game.permanentlyRevealedStones.findIndex((p) => p.x === from.x && p.y === from.y);

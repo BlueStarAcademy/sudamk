@@ -1162,24 +1162,24 @@ input, textarea {
 /* 문양·히든 따내기 보너스 (+2 / +5): 에메랄드 톤, 팝→부유→소멸 (글로우는 SVG 필터) */
 @keyframes capture-points-float-animation {
   0% {
-    transform: translateY(16px) scale(0.22);
+    transform: translateY(10px) scale(0.72);
     opacity: 0;
   }
   9% {
     opacity: 1;
   }
   16% {
-    transform: translateY(-8px) scale(1.14);
+    transform: translateY(-4px) scale(1.02);
   }
   26% {
-    transform: translateY(-14px) scale(0.98);
+    transform: translateY(-8px) scale(0.99);
   }
   58% {
-    transform: translateY(-44px) scale(1.04);
+    transform: translateY(-22px) scale(1);
     opacity: 1;
   }
   100% {
-    transform: translateY(-84px) scale(0.88);
+    transform: translateY(-38px) scale(0.92);
     opacity: 0;
   }
 }
@@ -1194,24 +1194,24 @@ input, textarea {
 /* 5~9점: 녹색 특별 연출 (기본보다 더 강한 팝과 체공) */
 @keyframes capture-points-float-animation-mid {
   0% {
-    transform: translateY(17px) scale(0.2);
+    transform: translateY(10px) scale(0.7);
     opacity: 0;
   }
   8% {
     opacity: 1;
   }
   14% {
-    transform: translateY(-10px) scale(1.2);
+    transform: translateY(-5px) scale(1.03);
   }
   24% {
-    transform: translateY(-16px) scale(1.02);
+    transform: translateY(-9px) scale(1);
   }
   56% {
-    transform: translateY(-48px) scale(1.08);
+    transform: translateY(-24px) scale(1.01);
     opacity: 1;
   }
   100% {
-    transform: translateY(-90px) scale(0.86);
+    transform: translateY(-40px) scale(0.92);
     opacity: 0;
   }
 }
@@ -1226,24 +1226,24 @@ input, textarea {
 /* 5점 미만: 덜 튀는 팝, 완만한 이징 */
 @keyframes capture-points-float-animation-low {
   0% {
-    transform: translateY(16px) scale(0.2);
+    transform: translateY(9px) scale(0.72);
     opacity: 0;
   }
   10% {
     opacity: 1;
   }
   18% {
-    transform: translateY(-7px) scale(1.06);
+    transform: translateY(-3px) scale(1.01);
   }
   28% {
-    transform: translateY(-13px) scale(0.96);
+    transform: translateY(-7px) scale(0.98);
   }
   58% {
-    transform: translateY(-42px) scale(1.01);
+    transform: translateY(-20px) scale(1);
     opacity: 1;
   }
   100% {
-    transform: translateY(-80px) scale(0.86);
+    transform: translateY(-36px) scale(0.92);
     opacity: 0;
   }
 }
@@ -1258,28 +1258,28 @@ input, textarea {
 /* 10점 이상: 크리티컬 팝 + 긴 부유 */
 @keyframes capture-points-float-animation-critical {
   0% {
-    transform: translateY(18px) scale(0.16);
+    transform: translateY(10px) scale(0.68);
     opacity: 0;
   }
   7% {
     opacity: 1;
   }
   13% {
-    transform: translateY(-11px) scale(1.22);
+    transform: translateY(-6px) scale(1.04);
   }
   21% {
-    transform: translateY(-17px) scale(1.02);
+    transform: translateY(-10px) scale(1.01);
   }
   34% {
-    transform: translateY(-28px) scale(1.08);
+    transform: translateY(-16px) scale(1.02);
     opacity: 1;
   }
   56% {
-    transform: translateY(-50px) scale(1.06);
+    transform: translateY(-26px) scale(1.01);
     opacity: 1;
   }
   100% {
-    transform: translateY(-94px) scale(0.82);
+    transform: translateY(-44px) scale(0.9);
     opacity: 0;
   }
 }

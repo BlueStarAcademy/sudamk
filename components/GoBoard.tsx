@@ -4,7 +4,7 @@ import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLA
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 
 /** 따내기/보너스 점수 플로트: mid(5~9) 기준 폰트 배율 */
-const CAPTURE_SCORE_FLOAT_BASE_EM = 1.42;
+const CAPTURE_SCORE_FLOAT_BASE_EM = 0.92;
 const CAPTURE_SCORE_FLOAT_TIER_STANDARD_MIN = 5;
 const CAPTURE_SCORE_FLOAT_TIER_CRITICAL_MIN = 10;
 
@@ -24,15 +24,15 @@ function parseBonusTextPoints(text: string): number | null {
 function getCaptureScoreFloatVisual(cellSize: number, points: number) {
     const tier = captureScoreFloatTierFromPoints(points);
     const baseFs = cellSize * CAPTURE_SCORE_FLOAT_BASE_EM;
-    const baseSw = Math.max(1.6, cellSize * 0.1);
+    const baseSw = Math.max(1.2, cellSize * 0.075);
     let fontSize: number;
     let strokeWidth: number;
     if (tier === 'low') {
-        fontSize = baseFs * 0.82;
-        strokeWidth = Math.max(1.35, cellSize * 0.085);
+        fontSize = baseFs * 0.78;
+        strokeWidth = Math.max(1.05, cellSize * 0.065);
     } else if (tier === 'high') {
-        fontSize = baseFs * 1.09;
-        strokeWidth = Math.max(1.8, cellSize * 0.11);
+        fontSize = baseFs * 0.96;
+        strokeWidth = Math.max(1.3, cellSize * 0.082);
     } else {
         fontSize = baseFs;
         strokeWidth = baseSw;
@@ -568,7 +568,14 @@ interface GoBoardProps {
   myRevealedMoveIndices?: readonly number[];
   allRevealedStones?: { [playerId: string]: Point[] };
   newlyRevealed?: { point: Point, player: Player }[];
-  justCaptured?: { point: Point; player: Player; wasHidden: boolean; capturePoints?: number; capturerId?: string }[];
+  justCaptured?: {
+    point: Point;
+    player: Player;
+    wasHidden: boolean;
+    capturePoints?: number;
+    wasBaseStone?: boolean;
+    capturerId?: string;
+  }[];
   permanentlyRevealedStones?: Point[];
   blackPatternStones?: Point[];
   whitePatternStones?: Point[];
@@ -658,6 +665,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const lastMissileAnimationToRef = useRef<Point | null>(null);
     /** missile_animating → playing 직후: 따내기 점수 플로트를 이동한 내 돌 위치에서 띄우기 위한 앵커 */
     const missileCaptureScoreAnchorRef = useRef<Point | null>(null);
+    /** 미사일 앵커는 생성 당시 moveHistory 길이의 "같은 턴" 캡처에만 1회 사용 */
+    const missileCaptureScoreAnchorMoveCountRef = useRef<number | null>(null);
     const prevGameStatusForMissileFloatRef = useRef<GameStatus | undefined>(undefined);
     const isMyCaptureByPlayer = (capturer: Player): boolean =>
         myPlayerEnum !== Player.None && capturer === myPlayerEnum;
@@ -677,6 +686,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         prevCapturesForFloatRef.current = null;
         lastMissileAnimationToRef.current = null;
         missileCaptureScoreAnchorRef.current = null;
+        missileCaptureScoreAnchorMoveCountRef.current = null;
         prevGameStatusForMissileFloatRef.current = undefined;
         if (captures) {
             prevCapturesForFloatRef.current = { ...captures };
@@ -694,13 +704,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         }
         if (gameStatus === 'missile_selecting') {
             missileCaptureScoreAnchorRef.current = null;
+            missileCaptureScoreAnchorMoveCountRef.current = null;
         }
         const prev = prevGameStatusForMissileFloatRef.current;
         if (prev === 'missile_animating' && gameStatus === 'playing') {
             missileCaptureScoreAnchorRef.current = lastMissileAnimationToRef.current;
+            missileCaptureScoreAnchorMoveCountRef.current = moveHistory?.length ?? null;
         }
         prevGameStatusForMissileFloatRef.current = gameStatus;
-    }, [gameStatus, animation]);
+    }, [gameStatus, animation, moveHistory]);
 
     useEffect(() => {
         return () => {
@@ -747,7 +759,11 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 return list.slice(start);
             };
             const sumCapturePoints = (entries: typeof list) =>
-                entries.reduce((sum, e) => sum + (e.capturePoints ?? (e.wasHidden ? 5 : 1)), 0);
+                entries.reduce(
+                    (sum, e) =>
+                        sum + (e.capturePoints ?? (e.wasHidden || e.wasBaseStone ? 5 : 1)),
+                    0
+                );
 
             const pushFloat = (totalPts: number, anchor: Point, extraDelayMs = 0) => {
                 if (totalPts < minPts) return;
@@ -795,7 +811,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             /** 미사일로 이동한 돌(착지) 위치 — 해당 칸에 따낸 쪽 돌이 있을 때만 */
             const missileMovedStoneAnchorFor = (capturer: Player): Point | null => {
                 const p = missileCaptureScoreAnchorRef.current;
+                const anchorMoveCount = missileCaptureScoreAnchorMoveCountRef.current;
                 if (!p || p.x < 0 || p.y < 0) return null;
+                // 미사일 직후 캡처(동일 moveHistory 길이)에서만 유효. 이후 일반 착수가 생기면 앵커 폐기.
+                if (anchorMoveCount == null || (moveHistory?.length ?? 0) !== anchorMoveCount) {
+                    missileCaptureScoreAnchorRef.current = null;
+                    missileCaptureScoreAnchorMoveCountRef.current = null;
+                    return null;
+                }
                 const cell = boardState?.[p.y]?.[p.x];
                 if (cell !== capturer) return null;
                 return { x: p.x, y: p.y };
@@ -902,7 +925,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         return;
                     }
                     commitMoveFloatState();
-                    if (missileAnchor) missileCaptureScoreAnchorRef.current = null;
+                    if (missileAnchor) {
+                        missileCaptureScoreAnchorRef.current = null;
+                        missileCaptureScoreAnchorMoveCountRef.current = null;
+                    }
                     lastCaptureScoreFloatPushedMoveKeyRef.current = moveKey;
                     pushFloat(floatPts, anchor, 0);
                     return;
@@ -949,7 +975,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             const missileAnchor = missileMovedStoneAnchorFor(capturer);
             const lm = lastMoveForFloatRef.current;
             const anchor = missileAnchor ?? (lm ? { x: lm.x, y: lm.y } : newEntries[0].point);
-            if (missileAnchor) missileCaptureScoreAnchorRef.current = null;
+            if (missileAnchor) {
+                missileCaptureScoreAnchorRef.current = null;
+                missileCaptureScoreAnchorMoveCountRef.current = null;
+            }
             if (moveKeyForSlice) lastCaptureScoreFloatPushedMoveKeyRef.current = moveKeyForSlice;
             if (captures) prevCapturesForFloatRef.current = { ...captures };
             pushFloat(totalPts, anchor, 0);
@@ -977,6 +1006,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const svgRef = useRef<SVGSVGElement>(null);
     const preservedBoardStateRef = useRef<BoardState | null>(null);
     const missileAnimationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastMissileCompletionSignalKeyRef = useRef<string>('');
     const boardSizePx = 840;
     
     // scoring 상태일 때 boardState를 보존하여 초기화 방지
@@ -1032,6 +1062,33 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
     // 미사일 애니메이션 완료 감지 및 처리
     useEffect(() => {
+        const makeMissileCompletionSignalKey = () => {
+            if (!gameId || !animation || (animation.type !== 'missile' && animation.type !== 'hidden_missile')) {
+                return '';
+            }
+            return `${gameId}:${animation.type}:${animation.startTime}`;
+        };
+        const sendMissileCompletionOnce = (singlePlayer: boolean) => {
+            if (!onAction || !gameId) return;
+            const signalKey = makeMissileCompletionSignalKey();
+            if (!signalKey) return;
+            if (lastMissileCompletionSignalKeyRef.current === signalKey) {
+                return;
+            }
+            lastMissileCompletionSignalKeyRef.current = signalKey;
+            if (singlePlayer) {
+                onAction({
+                    type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE',
+                    payload: { gameId }
+                } as any);
+            } else {
+                onAction({
+                    type: 'MISSILE_ANIMATION_COMPLETE',
+                    payload: { gameId }
+                });
+            }
+        };
+
         // 이전 타임아웃 정리
         if (missileAnimationTimeoutRef.current) {
             clearTimeout(missileAnimationTimeoutRef.current);
@@ -1042,6 +1099,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         // (서버에서 GAME_UPDATE를 받아 gameStatus가 playing으로 변경되고 animation이 null이 된 경우)
         if (gameStatus === 'playing' && (!animation || (animation.type !== 'missile' && animation.type !== 'hidden_missile'))) {
             console.log(`[GoBoard] Game status changed to playing, animation cleared. Animation:`, animation);
+            lastMissileCompletionSignalKeyRef.current = '';
             // 애니메이션 타임아웃이 남아있으면 정리
             if (missileAnimationTimeoutRef.current) {
                 clearTimeout(missileAnimationTimeoutRef.current);
@@ -1071,13 +1129,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 // 이미 애니메이션이 완료되었으면 즉시 처리
                 if (elapsed >= animation.duration) {
                     console.log(`[GoBoard] SinglePlayer missile animation already completed (elapsed=${elapsed}ms >= duration=${animation.duration}ms), triggering completion immediately`);
-                    if (onAction && gameId) {
-                        console.log(`[GoBoard] Sending SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE action for game ${gameId}`);
-                        onAction({ 
-                            type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE', 
-                            payload: { gameId } 
-                        } as any);
-                    }
+                    sendMissileCompletionOnce(true);
                     return;
                 }
 
@@ -1089,13 +1141,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const currentElapsed = currentTime - animation.startTime;
                     console.log(`[GoBoard] SinglePlayer missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${animation.duration}ms`);
                     
-                    if (onAction && gameId) {
-                        console.log(`[GoBoard] Sending SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE action after timeout for game ${gameId}`);
-                        onAction({ 
-                            type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE', 
-                            payload: { gameId } 
-                        } as any);
-                    }
+                    sendMissileCompletionOnce(true);
                     missileAnimationTimeoutRef.current = null;
                 }, timeout);
             } else {
@@ -1103,13 +1149,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 // 이미 애니메이션이 완료되었으면 즉시 처리
                 if (elapsed >= animation.duration) {
                     console.log(`[GoBoard] Missile animation already completed (elapsed=${elapsed}ms >= duration=${animation.duration}ms), triggering completion immediately`);
-                    if (onAction && gameId) {
-                        console.log(`[GoBoard] Sending MISSILE_ANIMATION_COMPLETE action for game ${gameId}`);
-                        onAction({ 
-                            type: 'MISSILE_ANIMATION_COMPLETE', 
-                            payload: { gameId } 
-                        });
-                    }
+                    sendMissileCompletionOnce(false);
                     return;
                 }
 
@@ -1121,13 +1161,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const currentElapsed = currentTime - animation.startTime;
                     console.log(`[GoBoard] Missile animation timeout triggered. Expected end time: ${animationEndTime}, current time: ${currentTime}, elapsed: ${currentElapsed}ms, duration: ${animation.duration}ms`);
                     
-                    if (onAction && gameId) {
-                        console.log(`[GoBoard] Sending MISSILE_ANIMATION_COMPLETE action after timeout for game ${gameId}`);
-                        onAction({ 
-                            type: 'MISSILE_ANIMATION_COMPLETE', 
-                            payload: { gameId } 
-                        });
-                    }
+                    sendMissileCompletionOnce(false);
                     missileAnimationTimeoutRef.current = null;
                 }, timeout);
             }
@@ -1591,7 +1625,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     return (
         <div 
-            className={`relative w-full h-full min-h-0 shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'} ${gameStatus === 'scanning' ? 'cursor-scan' : ''}`}
+            className={`relative z-20 w-full h-full min-h-0 shadow-2xl rounded-lg overflow-hidden p-0 border-4 bg-transparent go-board-panel ${isItemModeActive ? 'prism-border' : 'border-gray-800'} ${gameStatus === 'scanning' ? 'cursor-scan' : ''}`}
             style={{ 
                 backgroundImage: 'none', 
                 backgroundColor: 'transparent',
@@ -1887,7 +1921,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         </g>
                     );
                 })}
-                {(gameStatus === 'komi_bidding' || gameStatus === 'komi_bid_reveal') && (
+                {gameStatus === 'komi_bidding' && (
                     <>
                         {baseStones_p1?.map((stone, i) => {
                             const { cx, cy } = toSvgCoords(stone);

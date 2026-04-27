@@ -1328,15 +1328,24 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             // PVE 게임: 클라이언트에서 패스 처리 및 계가 요청
             const currentPassCount = (session.passCount || 0) + 1;
             if (currentPassCount >= 2) {
+                const scoringBoardSnapshot = Array.isArray(session.boardState)
+                    ? session.boardState.map((row: number[]) => [...row])
+                    : [];
+                const scoringMoveHistorySnapshot = Array.isArray(session.moveHistory)
+                    ? session.moveHistory.map((move: any) => ({ ...move }))
+                    : [];
+                const scoringSettingsSnapshot = session.settings
+                    ? { ...session.settings }
+                    : undefined;
                 // 두 번 연속 패스 시 계가 요청
                 console.log('[GameControls] handlePass: Requesting scoring (2 passes)');
                 onAction({ 
                     type: 'REQUEST_SCORING', 
                     payload: { 
                         gameId, 
-                        boardState: session.boardState, 
-                        moveHistory: session.moveHistory || [], 
-                        settings: session.settings 
+                        boardState: scoringBoardSnapshot, 
+                        moveHistory: scoringMoveHistorySnapshot, 
+                        settings: scoringSettingsSnapshot,
                     } 
                 } as any);
             } else {

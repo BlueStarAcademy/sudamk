@@ -114,9 +114,8 @@ const getGameStatusText = (session: LiveGameSession): string => {
         case 'base_placement':
             return `베이스돌 배치 · 각 ${settings.baseStones ?? 4}개`;
         case 'komi_bidding':
-            return '원하는 돌 색과 추가 덤을 정하세요.';
         case 'komi_bid_reveal':
-            return '덤 입찰 결과 공개 중...';
+            return '원하는 돌 색과 추가 덤을 정하세요.';
         case 'base_komi_result':
             return '흑·백·덤 확정을 확인해 주세요.';
         case 'base_game_start_confirmation':

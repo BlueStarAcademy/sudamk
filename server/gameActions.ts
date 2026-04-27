@@ -1057,7 +1057,22 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         if (isPVEGame) {
             // 계가 요청은 서버에서 처리
             if (type === 'REQUEST_SCORING') {
-                const { boardState, moveHistory, settings } = payload;
+                const payloadBoardState = Array.isArray(payload?.boardState)
+                    ? payload.boardState.map((row: unknown) => (Array.isArray(row) ? [...row] : row))
+                    : undefined;
+                const payloadMoveHistory = Array.isArray(payload?.moveHistory)
+                    ? payload.moveHistory.map((move: Record<string, unknown>) => ({ ...move }))
+                    : undefined;
+                const payloadSettings = payload?.settings && typeof payload.settings === 'object'
+                    ? { ...payload.settings }
+                    : undefined;
+                const boardSize = game.settings?.boardSize ?? 19;
+                const isValidBoardState = (board: unknown): board is number[][] =>
+                    Array.isArray(board) &&
+                    board.length === boardSize &&
+                    board.every((row) => Array.isArray(row) && row.length === boardSize);
+                const boardState = isValidBoardState(payloadBoardState) ? payloadBoardState : game.boardState;
+                const moveHistory = Array.isArray(payloadMoveHistory) ? payloadMoveHistory : game.moveHistory;
                 // KataGo는 "바둑 종료 후 계가(스코어링)"에만 사용
                 // 클라이언트에서 임의로 분석을 요청하는 것을 방지하기 위해,
                 // 마지막 2수 연속 패스(= 종료 조건)일 때만 허용합니다.
@@ -1076,7 +1091,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     ...game,
                     boardState,
                     moveHistory,
-                    settings: { ...game.settings, ...settings }
+                    settings: { ...game.settings, ...payloadSettings },
                 };
                 const lim = getScoringKataGoLimits();
                 const analysis = await analyzeGame(analysisGame, {

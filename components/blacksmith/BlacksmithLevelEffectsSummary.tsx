@@ -29,12 +29,16 @@ const GRADE_NAMES_KO: Record<ItemGrade, string> = {
 
 export interface BlacksmithLevelEffectsSummaryProps {
     blacksmithLevel: number;
+    disassemblyJackpotBonusPercent?: number;
+    combinationGreatSuccessBonusPercent?: number;
     className?: string;
 }
 
 /** 대장간 레벨별 수치 효과 (합성 등급, 대박·대성공 확률 등) */
 const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps> = ({
     blacksmithLevel,
+    disassemblyJackpotBonusPercent = 0,
+    combinationGreatSuccessBonusPercent = 0,
     className = '',
 }) => {
     const currentLevel = blacksmithLevel ?? 1;
@@ -71,6 +75,9 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         <span>장비 분해 대박 확률</span>
                         <span>
                             {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
+                            {disassemblyJackpotBonusPercent > 0 && (
+                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent})</span>
+                            )}
                             {!isMaxLevel && (
                                 <span className="text-yellow-400"> → {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex]}%</span>
                             )}
@@ -82,6 +89,9 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         <span>재료 분해/합성 대박 확률</span>
                         <span>
                             {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
+                            {disassemblyJackpotBonusPercent > 0 && (
+                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent})</span>
+                            )}
                             {!isMaxLevel && (
                                 <span className="text-yellow-400"> → {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex]}%</span>
                             )}
@@ -105,6 +115,9 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                                 </span>
                                 <span>
                                     {rate}%
+                                    {combinationGreatSuccessBonusPercent > 0 && (
+                                        <span className="text-emerald-300"> (+{combinationGreatSuccessBonusPercent})</span>
+                                    )}
                                     {!isMaxLevel && nextRate !== undefined && (
                                         <span className="text-yellow-400"> → {nextRate}%</span>
                                     )}

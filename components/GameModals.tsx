@@ -76,7 +76,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus)) return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
-        if (['komi_bidding', 'komi_bid_reveal'].includes(gameStatus)) return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
+        if (gameStatus === 'komi_bidding') return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'base_color_roulette') return <BaseColorRouletteModal session={session} />;
         if (gameStatus === 'base_game_start_confirmation') return <BaseStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (rpsStates.includes(gameStatus)) return <RPSMinigame session={session} currentUser={currentUser} onAction={onAction} />;

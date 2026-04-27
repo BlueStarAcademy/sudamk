@@ -283,6 +283,11 @@ export async function applyPassiveActionPointRegenToUser(user: User, nowMs: numb
 
     user.actionPoints.max = calculatedMaxAP;
 
+    /** max 초과 보유(모험 보물상자 등): current는 줄이지 않고 자연 회복만 멈춤 */
+    if (user.actionPoints.current > calculatedMaxAP) {
+        if (user.lastActionPointUpdate !== 0) user.lastActionPointUpdate = 0;
+        return;
+    }
     if (user.actionPoints.current >= calculatedMaxAP) {
         user.actionPoints.current = calculatedMaxAP;
         if (user.lastActionPointUpdate !== 0) user.lastActionPointUpdate = 0;

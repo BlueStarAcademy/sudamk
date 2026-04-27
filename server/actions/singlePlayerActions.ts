@@ -202,7 +202,8 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
 
 const applyLatestPendingSinglePlayerStage = async (
     game: LiveGameSession,
-    stage: SinglePlayerStageInfo
+    stage: SinglePlayerStageInfo,
+    options?: { preserveExistingPlacement?: boolean }
 ): Promise<void> => {
     const gameMode: GameMode = resolveSinglePlayerStrategicGameMode(stage);
     const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];
@@ -211,7 +212,19 @@ const applyLatestPendingSinglePlayerStage = async (
     const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
     const survivalTurnsResolved = isSurvivalMode ? resolveSinglePlayerSurvivalTurnCount(stage) : undefined;
     const hasAutoScoring = resolveSinglePlayerHasAutoScoringTurns(stage);
-    const { board, blackPattern, whitePattern } = generateSinglePlayerBoard(stage);
+    const preserveExistingPlacement =
+        options?.preserveExistingPlacement === true &&
+        Array.isArray(game.boardState) &&
+        game.boardState.length === stage.boardSize &&
+        (game.moveHistory?.length ?? 0) === 0;
+    const generated = generateSinglePlayerBoard(stage);
+    const board = preserveExistingPlacement ? game.boardState : generated.board;
+    const blackPattern = preserveExistingPlacement
+        ? (Array.isArray(game.blackPatternStones) ? game.blackPatternStones : [])
+        : generated.blackPattern;
+    const whitePattern = preserveExistingPlacement
+        ? (Array.isArray(game.whitePatternStones) ? game.whitePatternStones : [])
+        : generated.whitePattern;
 
     const baseCaptureTargetBlack =
         !isCaptureGoalMode || hasAutoScoring ? 999 : (stage.targetScore.black > 0 ? stage.targetScore.black : 999);
@@ -580,7 +593,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!latestStage) {
                 return { error: 'Stage data not found.' };
             }
-            await applyLatestPendingSinglePlayerStage(game, latestStage);
+            await applyLatestPendingSinglePlayerStage(game, latestStage, { preserveExistingPlacement: true });
             console.log(`[handleSinglePlayerAction] CONFIRM_SINGLE_PLAYER_GAME_START - Starting game:`, { gameId, currentStatus: game.gameStatus });
 
             const now = Date.now();
@@ -645,7 +658,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 game.settings.timeIncrement = enforcedIncrement;
             }
 
-            // 싱글플레이 스피드: 초기 시간 설정 (시간 보너스 floor((180-사용초)/10) 계산을 위해 blackInitialTimeLeft 등 설정)
+            // 싱글플레이 스피드: 초기 시간 설정 (유저 사용 시간 10초당 AI +1점 계산용 blackInitialTimeLeft/whiteInitialTimeLeft 보관)
             // 비스피드: 시간 제한 없음 (제한시간/초읽기 미적용, 결과까지 소요 시간만 표시)
             if (isSpeedMode) {
                 const initialSec = enforcedMainTimeMinutes * 60;
@@ -785,7 +798,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: 'Stage data not found.' };
             }
 
-            await applyLatestPendingSinglePlayerStage(game, stage);
+            await applyLatestPendingSinglePlayerStage(game, stage, { preserveExistingPlacement: true });
 
             await db.saveGame(game, true);
             updateGameCache(game);

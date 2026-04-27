@@ -23,6 +23,7 @@ interface PurchaseQuantityModalProps {
 
 const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, currentUser, onClose, onConfirm }) => {
     const [quantity, setQuantity] = useState(1);
+    const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
 
     const isTieredPriceItem = ['action_point_10', 'action_point_20', 'action_point_30'].includes(item.itemId);
     const remainingDaily = item.limit ?? (isTieredPriceItem ? 0 : Infinity);
@@ -45,27 +46,27 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
     const isGold = !!item.price.gold;
     const pricePerItem = item.price.gold || item.price.diamonds || 0;
 
-    const maxQuantity = useMemo(() => {
-        const currency = isGold ? (currentUser.gold ?? 0) : (currentUser.diamonds ?? 0);
-        const maxByCurrency = !isTieredPriceItem && pricePerItem > 0 ? Math.floor(currency / pricePerItem) : (isTieredPriceItem ? maxAffordByTieredPrices : Infinity);
-
-        let maxByInventory = Infinity;
+    const maxByInventory = useMemo(() => {
         if (item.type === 'equipment') {
             const equipmentCount = currentUser.inventory.filter(invItem => invItem.type === 'equipment').length;
             const inventorySlots = currentUser.inventorySlots?.equipment || BASE_SLOTS_PER_CATEGORY;
             const availableSlots = inventorySlots - equipmentCount;
-            maxByInventory = Math.max(0, availableSlots);
-        } else {
-            const currentItemCount = currentUser.inventory.filter(invItem => invItem.id === item.itemId).length;
-            const inventorySlots = currentUser.inventorySlots?.[item.type] || BASE_SLOTS_PER_CATEGORY;
-            const availableSlots = inventorySlots - currentItemCount;
-            maxByInventory = Math.max(0, availableSlots);
+            return Math.max(0, availableSlots);
         }
 
+        const currentItemCount = currentUser.inventory.filter(invItem => invItem.id === item.itemId).length;
+        const inventorySlots = currentUser.inventorySlots?.[item.type] || BASE_SLOTS_PER_CATEGORY;
+        const availableSlots = inventorySlots - currentItemCount;
+        return Math.max(0, availableSlots);
+    }, [item.itemId, item.type, currentUser.inventory, currentUser.inventorySlots]);
+
+    const maxQuantity = useMemo(() => {
+        const currency = isGold ? (currentUser.gold ?? 0) : (currentUser.diamonds ?? 0);
+        const maxByCurrency = !isTieredPriceItem && pricePerItem > 0 ? Math.floor(currency / pricePerItem) : (isTieredPriceItem ? maxAffordByTieredPrices : Infinity);
         const byLimit = isTieredPriceItem ? remainingDaily : (item.limit ?? Infinity);
-        const cap = Math.min(byLimit, maxByCurrency, maxByInventory, 999);
+        const cap = Math.min(byLimit, maxByCurrency, 999);
         return Math.max(0, cap);
-    }, [item, currentUser, isGold, pricePerItem, isTieredPriceItem, remainingDaily, maxAffordByTieredPrices]);
+    }, [item.limit, currentUser.gold, currentUser.diamonds, isGold, pricePerItem, isTieredPriceItem, remainingDaily, maxAffordByTieredPrices]);
 
     const totalPrice = useMemo(() => {
         const q = quantity;
@@ -85,7 +86,19 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
         if (maxQuantity > 0 && quantity > maxQuantity) setQuantity(maxQuantity);
     }, [maxQuantity]);
 
+    useEffect(() => {
+        if (noticeMessage) setNoticeMessage(null);
+    }, [quantity, noticeMessage]);
+
     const handleConfirm = () => {
+        if (quantity > maxByInventory) {
+            if (maxByInventory <= 0) {
+                setNoticeMessage('가방 공간이 부족합니다. 가방을 정리한 뒤 다시 구매해 주세요.');
+            } else {
+                setNoticeMessage(`가방 공간이 부족합니다. 현재 ${maxByInventory}개까지만 구매할 수 있습니다.`);
+            }
+            return;
+        }
         if (quantity > 0 && quantity <= maxQuantity) {
             onConfirm(item.itemId, quantity);
         }
@@ -192,6 +205,11 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
                         구매
                     </button>
                 </div>
+                {noticeMessage && (
+                    <p className="mt-2 text-center text-sm font-medium text-rose-300">
+                        {noticeMessage}
+                    </p>
+                )}
             </div>
         </DraggableWindow>
     );

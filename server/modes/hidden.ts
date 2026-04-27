@@ -24,6 +24,15 @@ import {
 
 type HandleActionResult = types.HandleActionResult;
 
+const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number => {
+    const isSpeedMode =
+        game.mode === types.GameMode.Speed ||
+        (game.mode === types.GameMode.Mix && !!game.settings?.mixedModes?.includes(types.GameMode.Speed));
+    // AI 대국 스피드는 피셔 증분을 비활성화한다.
+    if (game.isAiGame && isSpeedMode) return 0;
+    return getFischerIncrementSeconds(game as any);
+};
+
 export const initializeHidden = (game: types.LiveGameSession) => {
     const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
     if (isHiddenMode) {
@@ -252,7 +261,13 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         }
                         game.captures[myPlayerEnum] += points;
         
-                        game.justCaptured.push({ point: stone, player: opponentPlayerEnum, wasHidden: wasHiddenForEntry || wasAiInitialHidden, capturePoints: points });
+                        game.justCaptured.push({
+                            point: stone,
+                            player: opponentPlayerEnum,
+                            wasHidden: wasHiddenForEntry || wasAiInitialHidden,
+                            capturePoints: points,
+                            ...(isBaseStone ? { wasBaseStone: true as const } : {}),
+                        });
                         if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
                             delete game.hiddenMoves[moveIndex];
                         }
@@ -295,7 +310,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                 
                 if (game.settings.timeLimit > 0) {
                     const timeKey = playerWhoMoved === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
-                    const fischerIncrement = getFischerIncrementSeconds(game as any);
+                    const fischerIncrement = resolveEffectiveFischerIncrement(game);
                     
                     if (game.pausedTurnTimeLeft) {
                         game[timeKey] = game.pausedTurnTimeLeft + fischerIncrement;
