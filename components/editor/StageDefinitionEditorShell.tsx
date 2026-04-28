@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { GameMode, SinglePlayerLevel, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../../types/index.js';
 import {
     inferSinglePlayerStrategicRulePreset,
+    resolveSinglePlayerMixedModes,
 } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import Button from '../Button.js';
 
@@ -33,6 +34,140 @@ interface Props {
 
 const cloneStageInfo = (value: SinglePlayerStageInfo): SinglePlayerStageInfo =>
     JSON.parse(JSON.stringify(value)) as SinglePlayerStageInfo;
+
+/** 믹스에 포함되지 않은 모드 전용 스테이지 필드 제거 */
+function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameMode[]): SinglePlayerStageInfo {
+    const next: SinglePlayerStageInfo = { ...d, mixedStrategicModes: modes.length > 0 ? [...modes] : undefined };
+    if (modes.length === 0) {
+        delete (next as { missileCount?: number }).missileCount;
+        delete (next as { hiddenCount?: number }).hiddenCount;
+        delete (next as { scanCount?: number }).scanCount;
+        delete (next as { baseStones?: number }).baseStones;
+        delete (next as { blackTurnLimit?: number }).blackTurnLimit;
+        delete (next as { autoScoringTurns?: number }).autoScoringTurns;
+        delete (next as { survivalTurns?: number }).survivalTurns;
+        return next;
+    }
+    if (!modes.includes(GameMode.Missile)) delete (next as { missileCount?: number }).missileCount;
+    if (!modes.includes(GameMode.Hidden)) {
+        delete (next as { hiddenCount?: number }).hiddenCount;
+        delete (next as { scanCount?: number }).scanCount;
+    }
+    if (!modes.includes(GameMode.Base)) delete (next as { baseStones?: number }).baseStones;
+    if (!modes.includes(GameMode.Capture)) delete (next as { blackTurnLimit?: number }).blackTurnLimit;
+    const keepAutoScoringTurns =
+        modes.includes(GameMode.Speed) ||
+        modes.includes(GameMode.Missile) ||
+        modes.includes(GameMode.Hidden) ||
+        modes.includes(GameMode.Base) ||
+        !modes.includes(GameMode.Capture);
+    if (!keepAutoScoringTurns) delete (next as { autoScoringTurns?: number }).autoScoringTurns;
+    delete (next as { survivalTurns?: number }).survivalTurns;
+    return next;
+}
+
+/** 게임 룰 프리셋 변경 시 이전 프리셋 전용 필드를 제거하고 새 룰에 맞게 정리 */
+function nextDraftAfterStrategicRulePresetChange(
+    prev: SinglePlayerStageInfo,
+    nextPreset: SinglePlayerStrategicRulePreset,
+): SinglePlayerStageInfo {
+    if (nextPreset === 'auto') {
+        const next = { ...prev };
+        delete (next as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
+        return next;
+    }
+
+    const wipe = (base: SinglePlayerStageInfo, keys: (keyof SinglePlayerStageInfo)[]) => {
+        const n = { ...base };
+        for (const k of keys) delete (n as Record<string, unknown>)[k as string];
+        return n;
+    };
+
+    switch (nextPreset) {
+        case 'capture':
+            return wipe(prev, [
+                'survivalTurns',
+                'autoScoringTurns',
+                'missileCount',
+                'hiddenCount',
+                'scanCount',
+                'baseStones',
+                'mixedStrategicModes',
+            ]);
+        case 'survival': {
+            const seedTurns =
+                Number(prev.survivalTurns ?? 0) > 0
+                    ? Number(prev.survivalTurns)
+                    : (() => {
+                          const fromBlack = Math.max(0, Number(prev.blackTurnLimit ?? 0));
+                          return fromBlack > 0 ? fromBlack : 15;
+                      })();
+            const cleared = wipe(prev, [
+                'autoScoringTurns',
+                'missileCount',
+                'hiddenCount',
+                'scanCount',
+                'baseStones',
+                'mixedStrategicModes',
+                'blackTurnLimit',
+            ]);
+            return { ...cleared, survivalTurns: seedTurns };
+        }
+        case 'speed':
+            return wipe(prev, [
+                'missileCount',
+                'hiddenCount',
+                'scanCount',
+                'survivalTurns',
+                'blackTurnLimit',
+                'baseStones',
+                'mixedStrategicModes',
+            ]);
+        case 'classic':
+            return wipe(prev, [
+                'missileCount',
+                'hiddenCount',
+                'scanCount',
+                'survivalTurns',
+                'blackTurnLimit',
+                'baseStones',
+                'mixedStrategicModes',
+            ]);
+        case 'base':
+            return wipe(prev, [
+                'missileCount',
+                'hiddenCount',
+                'scanCount',
+                'survivalTurns',
+                'blackTurnLimit',
+                'mixedStrategicModes',
+            ]);
+        case 'hidden':
+            return wipe(prev, [
+                'missileCount',
+                'survivalTurns',
+                'blackTurnLimit',
+                'baseStones',
+                'mixedStrategicModes',
+            ]);
+        case 'missile':
+            return wipe(prev, [
+                'hiddenCount',
+                'scanCount',
+                'survivalTurns',
+                'blackTurnLimit',
+                'baseStones',
+                'mixedStrategicModes',
+            ]);
+        case 'mix': {
+            const modes = resolveSinglePlayerMixedModes({ ...prev, strategicRulePreset: 'mix' });
+            const withMix = { ...prev, mixedStrategicModes: modes };
+            return pruneDraftForMixedStrategicModes(withMix, modes);
+        }
+        default:
+            return prev;
+    }
+}
 
 const fixedOpeningToCells = (stage: SinglePlayerStageInfo): StoneCell[][] => {
     const size = stage.boardSize;
@@ -323,7 +458,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     const boardSize = draft.boardSize;
     const rowIndices = useMemo(() => Array.from({ length: boardSize }, (_, i) => i), [boardSize]);
     const boardCellSizeClass =
-        boardSize >= 13 ? 'h-5 w-5 sm:h-5 sm:w-5' : boardSize >= 11 ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-7 w-7 sm:h-8 sm:w-8';
+        boardSize >= 13 ? 'h-6 w-6 sm:h-6 sm:w-6' : boardSize >= 11 ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-7 w-7 sm:h-8 sm:w-8';
     const boardRowGapClass = boardSize >= 13 ? 'gap-0.5' : boardSize >= 11 ? 'gap-0.5' : 'gap-1';
     const forcedIndexTextClass = boardSize >= 13 ? 'text-[9px]' : 'text-[11px]';
     const clampDragOffset = useCallback((nextX: number, nextY: number) => {
@@ -403,7 +538,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         <div className="fixed inset-0 z-[280] bg-black/70 p-3 sm:p-5">
             <div
                 ref={modalRef}
-                className="mx-auto flex h-full w-full max-w-[min(98vw,45rem)] flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-zinc-950 text-zinc-100 shadow-2xl"
+                className="mx-auto flex h-full w-full max-w-[min(99vw,72rem)] flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-zinc-950 text-zinc-100 shadow-2xl"
                 style={{ transform: `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)` }}
             >
                 <div
@@ -425,9 +560,10 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                     <h2 className="text-lg font-bold">스테이지 편집 ({scope}) - {draft.id}</h2>
                     <Button onClick={onClose} colorScheme="gray">닫기</Button>
                 </div>
-                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4 lg:flex-row lg:items-stretch">
-                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:min-w-0 lg:w-[70%] lg:flex-none lg:shrink-0">
-                        <div className="shrink-0">
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-hidden p-4 xl:flex-row xl:items-stretch">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:min-w-0 xl:w-[70%] xl:flex-none xl:shrink-0 xl:grid xl:grid-cols-[4fr_3fr] xl:gap-3">
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden xl:col-span-1">
+                        <div className="shrink-0 rounded border border-zinc-800 bg-zinc-900/30 p-2">
                             <p className="mb-2 text-xs text-zinc-400">
                                 위에서 돌 종류를 고른 뒤 빈 칸에 클릭해 놓습니다. 돌이 있는 칸을 다시 클릭하면 빈칸이 됩니다.
                             </p>
@@ -451,6 +587,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     );
                                 })}
                             </div>
+                            <div className="flex justify-center">
                             <div
                                 className={`inline-grid w-fit max-w-full shrink-0 rounded border border-zinc-700 bg-zinc-900/40 p-1.5 sm:p-2 ${boardRowGapClass}`}
                             >
@@ -475,6 +612,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     </div>
                                 ))}
                             </div>
+                            </div>
                         </div>
                         <label className="mt-3 block shrink-0 rounded border border-zinc-700/80 bg-zinc-900/35 p-2 text-xs">
                             스테이지 설명
@@ -487,8 +625,9 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             />
                             <span className="mt-1 block text-[11px] text-zinc-500">{(draft.description ?? '').length} / 1200</span>
                         </label>
+                        </div>
                         {scope === 'singleplayer' && (
-                            <div className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded border border-indigo-700/40 bg-indigo-950/20 lg:mt-3 lg:min-h-[8rem]">
+                            <div className="mt-3 flex min-h-[10rem] flex-1 flex-col overflow-hidden rounded border border-indigo-700/40 bg-indigo-950/20 xl:col-span-1 xl:row-span-2 xl:mt-0 xl:min-h-0">
                                 <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-indigo-600/25 p-2">
                                     <p className="text-xs font-semibold text-indigo-100">AI 강제 응수 규칙</p>
                                     <Button
@@ -588,7 +727,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             </div>
                         )}
                     </div>
-                    <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-0.5 lg:w-[30%] lg:flex-none lg:shrink-0">
+                    <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-0.5 xl:w-[30%] xl:flex-none xl:shrink-0">
                         {scope !== 'singleplayer' ? (
                             <div className="grid grid-cols-2 gap-2">
                                 <label className="text-xs">액션포인트
@@ -682,18 +821,9 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                 value={rulePreset}
                                 onChange={(e) => {
                                     const nextPreset = e.target.value as SinglePlayerStrategicRulePreset;
+                                    if (nextPreset === rulePreset) return;
                                     setRulePreset(nextPreset);
-                                    if (nextPreset === 'survival') {
-                                        setDraft((prev) => {
-                                            const currentTurns = Number(prev.survivalTurns ?? 0);
-                                            if (currentTurns > 0) return prev;
-                                            const fromBlack = Math.max(0, Number(prev.blackTurnLimit ?? 0));
-                                            const fallbackTurns = fromBlack > 0 ? fromBlack : 15;
-                                            return { ...prev, survivalTurns: fallbackTurns };
-                                        });
-                                    } else if (nextPreset !== 'auto') {
-                                        setDraft((prev) => ({ ...prev, survivalTurns: 0 }));
-                                    }
+                                    setDraft((d) => nextDraftAfterStrategicRulePresetChange(d, nextPreset));
                                 }}
                             >
                                 <option value="auto">자동 (필드 조합 — 현재 추론: {inferredRuleLabel})</option>
@@ -722,7 +852,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                             const next = e.target.checked
                                                                 ? [...prev, mode]
                                                                 : prev.filter((m) => m !== mode);
-                                                            return { ...p, mixedStrategicModes: next };
+                                                            return pruneDraftForMixedStrategicModes({ ...p, mixedStrategicModes: next }, next);
                                                         });
                                                     }}
                                                 />

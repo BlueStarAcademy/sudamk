@@ -229,6 +229,42 @@ function shouldSkipDelayedAiSnapshotApply(
     const delayedMoves = delayedSnapshot.moveHistory?.length ?? 0;
     if (latestMoves > delayedMoves) return true;
 
+    // 수순 길이가 같아도 마지막 착수가 다르면 더 최신 국면(다른 분기)일 수 있으므로
+    // 늦게 도착한 지연 스냅샷이 최신 상태를 덮어쓰지 않게 차단한다.
+    if (latestMoves > 0 && latestMoves === delayedMoves) {
+        const getLastPlacedPoint = (g: LiveGameSession): { x: number; y: number } | null => {
+            const history = g.moveHistory;
+            if (!Array.isArray(history) || history.length === 0) return null;
+            for (let i = history.length - 1; i >= 0; i--) {
+                const m = history[i] as { x?: unknown; y?: unknown } | undefined;
+                if (!m) continue;
+                const x = m.x;
+                const y = m.y;
+                if (
+                    typeof x === 'number' &&
+                    typeof y === 'number' &&
+                    Number.isFinite(x) &&
+                    Number.isFinite(y) &&
+                    x >= 0 &&
+                    y >= 0
+                ) {
+                    return { x, y };
+                }
+            }
+            return null;
+        };
+
+        const latestLast = getLastPlacedPoint(latestGame);
+        const delayedLast = getLastPlacedPoint(delayedSnapshot);
+        if (
+            latestLast &&
+            delayedLast &&
+            (latestLast.x !== delayedLast.x || latestLast.y !== delayedLast.y)
+        ) {
+            return true;
+        }
+    }
+
     return false;
 }
 
@@ -2821,9 +2857,20 @@ export const useApp = () => {
                 
                 // 히든 공개 연출 중에는 updatedGame.captures가 직전 값으로 유지될 수 있어
                 // 종료 판정(목표 달성/턴 제한)에는 checkInfo.newCaptures를 우선 사용한다.
-                const capturesForOutcome: { [key: number]: number } = {
-                    ...((updateResult.updatedGame.captures || {}) as Record<number, number>),
-                    ...((updateResult.checkInfo?.newCaptures || {}) as Record<number, number>),
+                const prevOutcomeCaptures = (updateResult.updatedGame.captures ||
+                    {}) as Partial<Record<Player, number>>;
+                const checkInfoOutcomeCaptures = (updateResult.checkInfo?.newCaptures ||
+                    {}) as Partial<Record<Player, number>>;
+                const capturesForOutcome: LiveGameSession['captures'] = {
+                    [Player.None]: Number(
+                        checkInfoOutcomeCaptures[Player.None] ?? prevOutcomeCaptures[Player.None] ?? 0,
+                    ),
+                    [Player.Black]: Number(
+                        checkInfoOutcomeCaptures[Player.Black] ?? prevOutcomeCaptures[Player.Black] ?? 0,
+                    ),
+                    [Player.White]: Number(
+                        checkInfoOutcomeCaptures[Player.White] ?? prevOutcomeCaptures[Player.White] ?? 0,
+                    ),
                 };
 
                 // 살리기 바둑 모드: 백이 수를 둔 경우 목표 돌/남은 턴 체크
@@ -2859,11 +2906,15 @@ export const useApp = () => {
                             console.log(`[handleAction] ${actionTypeName} - White reached capture target (${whiteCaptures}/${whiteTargetRaw}), White wins - ENDING GAME`);
                             shouldEndGameSurvival = true;
                             endGameWinnerSurvival = Player.White;
-                            finalUpdatedGame = { ...updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'capture_limit' };
+                            const updatedGameWithOutcomeCaptures: LiveGameSession = {
+                                ...updatedGame,
+                                captures: capturesForOutcome,
+                            };
+                            finalUpdatedGame = { ...updatedGameWithOutcomeCaptures, gameStatus: 'ended' as const, winner: Player.White, winReason: 'capture_limit' };
                             return {
                                 ...currentGames,
                                 [gameId]: {
-                                    ...updatedGame,
+                                    ...updatedGameWithOutcomeCaptures,
                                     gameStatus: 'ended' as const,
                                     winner: Player.White,
                                     winReason: 'capture_limit'
@@ -2879,12 +2930,16 @@ export const useApp = () => {
                                 console.log(`[handleAction] ${actionTypeName} - White ran out of turns (${whiteTurnsPlayed}/${survivalTurns}), Black wins - ENDING GAME`);
                                 shouldEndGameSurvival = true;
                                 endGameWinnerSurvival = Player.Black;
-                                finalUpdatedGame = { ...updatedGame, gameStatus: 'ended' as const, winner: Player.Black, winReason: 'capture_limit' };
+                                const updatedGameWithOutcomeCaptures: LiveGameSession = {
+                                    ...updatedGame,
+                                    captures: capturesForOutcome,
+                                };
+                                finalUpdatedGame = { ...updatedGameWithOutcomeCaptures, gameStatus: 'ended' as const, winner: Player.Black, winReason: 'capture_limit' };
                                 // 게임 상태를 즉시 ended로 업데이트
                                 return {
                                     ...currentGames,
                                     [gameId]: {
-                                        ...updatedGame,
+                                        ...updatedGameWithOutcomeCaptures,
                                         gameStatus: 'ended' as const,
                                         winner: Player.Black,
                                         winReason: 'capture_limit'
@@ -2936,8 +2991,12 @@ export const useApp = () => {
                                 console.log(`[handleAction] ${actionTypeName} - Black turn limit reached (${blackMoves}/${effectiveLimit}), mission fail - ENDING GAME`);
                                 shouldEndGameTurnLimit = true;
                                 endGameWinnerTurnLimit = Player.White;
-                                finalUpdatedGame = { ...updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' };
-                                return { ...currentGames, [gameId]: { ...updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' } };
+                                const updatedGameWithOutcomeCaptures: LiveGameSession = {
+                                    ...updatedGame,
+                                    captures: capturesForOutcome,
+                                };
+                                finalUpdatedGame = { ...updatedGameWithOutcomeCaptures, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' };
+                                return { ...currentGames, [gameId]: { ...updatedGameWithOutcomeCaptures, gameStatus: 'ended' as const, winner: Player.White, winReason: 'timeout' } };
                             }
                         }
                     }
@@ -2959,11 +3018,15 @@ export const useApp = () => {
                         endGameWinnerTurnLimit = null;
                         shouldEndGameCaptureTarget = true;
                         endGameWinnerCaptureTarget = Player.Black;
-                        finalUpdatedGame = { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.Black, winReason: 'capture_limit' };
+                        const updatedGameWithOutcomeCaptures: LiveGameSession = {
+                            ...(updateResult.updatedGame as LiveGameSession),
+                            captures: capturesForOutcome,
+                        };
+                        finalUpdatedGame = { ...updatedGameWithOutcomeCaptures, gameStatus: 'ended' as const, winner: Player.Black, winReason: 'capture_limit' };
                         return {
                             ...currentGames,
                             [gameId]: {
-                                ...updateResult.updatedGame,
+                                ...updatedGameWithOutcomeCaptures,
                                 gameStatus: 'ended' as const,
                                 winner: Player.Black,
                                 winReason: 'capture_limit'
@@ -2977,11 +3040,15 @@ export const useApp = () => {
                         endGameWinnerTurnLimit = null;
                         shouldEndGameCaptureTarget = true;
                         endGameWinnerCaptureTarget = Player.White;
-                        finalUpdatedGame = { ...updateResult.updatedGame, gameStatus: 'ended' as const, winner: Player.White, winReason: 'capture_limit' };
+                        const updatedGameWithOutcomeCaptures: LiveGameSession = {
+                            ...(updateResult.updatedGame as LiveGameSession),
+                            captures: capturesForOutcome,
+                        };
+                        finalUpdatedGame = { ...updatedGameWithOutcomeCaptures, gameStatus: 'ended' as const, winner: Player.White, winReason: 'capture_limit' };
                         return {
                             ...currentGames,
                             [gameId]: {
-                                ...updateResult.updatedGame,
+                                ...updatedGameWithOutcomeCaptures,
                                 gameStatus: 'ended' as const,
                                 winner: Player.White,
                                 winReason: 'capture_limit'

@@ -232,6 +232,8 @@ function buildItemSlots(settings: GameSettings, mode: GameMode, mix: GameMode[])
 function buildSinglePlayerStageItemSlots(
   stage: SinglePlayerStageInfo,
   opts?: {
+    /** 실제 대국 모드(스테이지 JSON에 남은 미사일·히든 수와 불일치할 때 슬롯 숨김) */
+    session?: Pick<LiveGameSession, 'mode' | 'settings'>;
     /** 도전의 탑: 스테이지에 허용된 종류는 아이콘 유지, 배지는 가방 보유 수(0 포함) */
     towerOwned?: { missile: number; hidden: number; scan: number; turnAdd: number } | null;
     towerShopOnZero?: boolean;
@@ -249,6 +251,12 @@ function buildSinglePlayerStageItemSlots(
   const showTurnAddSlot =
     shopZero && typeof floor === 'number' && Number.isFinite(floor) && floor >= 1 && floor <= 20;
 
+  const sess = opts?.session;
+  const mix = sess ? mixedList(sess.settings) : [];
+  const em = sess ? effectiveModesForRules(sess.mode, mix) : null;
+  const showMissileSlot = !em || em.includes(GameMode.Missile);
+  const showHiddenScanSlots = !em || em.includes(GameMode.Hidden);
+
   if (showTurnAddSlot) {
     slots.push({
       key: 'turn-add',
@@ -259,7 +267,7 @@ function buildSinglePlayerStageItemSlots(
       towerShopOnZero: shopZero,
     });
   }
-  if (sm > 0) {
+  if (showMissileSlot && sm > 0) {
     slots.push({
       key: 'missile',
       img: '/images/button/missile.png',
@@ -269,7 +277,7 @@ function buildSinglePlayerStageItemSlots(
       towerShopOnZero: shopZero,
     });
   }
-  if (sh > 0) {
+  if (showHiddenScanSlots && sh > 0) {
     slots.push({
       key: 'hidden',
       img: '/images/button/hidden.png',
@@ -279,7 +287,7 @@ function buildSinglePlayerStageItemSlots(
       towerShopOnZero: shopZero,
     });
   }
-  if (ss > 0) {
+  if (showHiddenScanSlots && ss > 0) {
     slots.push({
       key: 'scan',
       img: '/images/button/scan.png',
@@ -371,8 +379,12 @@ function singlePlayerStageHighlights(
 ): PreGameSpecialHighlight[] {
   const h: PreGameSpecialHighlight[] = [];
   const isSurvivalRules = resolveSinglePlayerSurvivalModeForSession(session, stage);
+  const isLegacyRuleInference = stage.strategicRulePreset == null || stage.strategicRulePreset === 'auto';
   const isCaptureMode =
-    !isSurvivalRules && (stage.blackTurnLimit !== undefined || session.mode === GameMode.Capture);
+    !isSurvivalRules &&
+    (session.mode === GameMode.Capture || (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
+  const mix = mixedList(session.settings);
+  const em = effectiveModesForRules(session.mode, mix);
   const bs = defaultBaseStoneCount(session.settings);
 
   if (
@@ -395,7 +407,11 @@ function singlePlayerStageHighlights(
       text: `살리기 바둑 · 백 ${survN}턴 내 목표 점수`,
     });
   }
-  if (stage.autoScoringTurns && stage.autoScoringTurns > 0) {
+  if (
+    stage.autoScoringTurns &&
+    stage.autoScoringTurns > 0 &&
+    usesTerritoryScoring(session.mode, mix)
+  ) {
     h.push({ img: '/images/simbols/simbol7.png', text: `${stage.autoScoringTurns}수 후 자동 계가` });
   }
   if (stage.blackTurnLimit && !isSurvivalRules) {
@@ -408,10 +424,10 @@ function singlePlayerStageHighlights(
   if (typeof turnAddN === 'number' && turnAddN > 0) {
     h.push({ img: '/images/button/addturn.png', text: `턴 추가 ${turnAddN}개` });
   }
-  if (missileN > 0) {
+  if (em.includes(GameMode.Missile) && missileN > 0) {
     h.push({ img: '/images/button/missile.png', text: `미사일 ${missileN}개` });
   }
-  if (hiddenN > 0 || scanN > 0) {
+  if (em.includes(GameMode.Hidden) && (hiddenN > 0 || scanN > 0)) {
     h.push({
       img: '/images/button/hidden.png',
       text: `히든 ${hiddenN}개 · 스캔 ${scanN}개`,
@@ -706,6 +722,8 @@ function getSinglePlayerStageSummary(
   const isCaptureMode =
     !isSurvivalRules && (session.mode === GameMode.Capture || (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
   const isSpeedMode = !isCaptureMode && !isSurvivalRules && stage.timeControl.type === 'fischer';
+  const sessionMix = mixedList(session.settings);
+  const sessionEm = effectiveModesForRules(session.mode, sessionMix);
 
   /** 싱글/탑: 플레이어는 항상 흑 — 짧은 문구 + 유저(흑) 시점 */
   let winGoal = '스테이지 조건 충족 시 승리';
@@ -740,7 +758,11 @@ function getSinglePlayerStageSummary(
   } else if (isSpeedMode) {
     winGoal = '계가 종합점수에서 승리';
     loseGoal = '계가에서 패배';
-  } else if (stage.autoScoringTurns && stage.autoScoringTurns > 0) {
+  } else if (
+    stage.autoScoringTurns &&
+    stage.autoScoringTurns > 0 &&
+    usesTerritoryScoring(session.mode, sessionMix)
+  ) {
     winGoal = `${stage.autoScoringTurns}수 계가 후 승리`;
     loseGoal = `${stage.autoScoringTurns}수 계가 후 패배`;
   } else if (isLegacyRuleInference && stage.blackTurnLimit && stage.targetScore.black > 0) {
@@ -777,9 +799,12 @@ function getSinglePlayerStageSummary(
   const turnAddDisp = showTowerTurnAdd ? (towerOwned?.turnAdd ?? 0) : undefined;
 
   const itemBits: string[] = [];
-  const mDisp = towerOwned ? towerOwned.missile : (stage.missileCount ?? 0);
-  const hDisp = towerOwned ? towerOwned.hidden : (stage.hiddenCount ?? 0);
-  const sDisp = towerOwned ? towerOwned.scan : (stage.scanCount ?? 0);
+  const mBase = towerOwned ? towerOwned.missile : (stage.missileCount ?? 0);
+  const hBase = towerOwned ? towerOwned.hidden : (stage.hiddenCount ?? 0);
+  const sBase = towerOwned ? towerOwned.scan : (stage.scanCount ?? 0);
+  const mDisp = sessionEm.includes(GameMode.Missile) ? mBase : 0;
+  const hDisp = sessionEm.includes(GameMode.Hidden) ? hBase : 0;
+  const sDisp = sessionEm.includes(GameMode.Hidden) ? sBase : 0;
   if (typeof turnAddDisp === 'number' && turnAddDisp > 0) itemBits.push(`턴 추가 ${turnAddDisp}개`);
   if (mDisp > 0) itemBits.push(`미사일 ${mDisp}개`);
   if (hDisp > 0) itemBits.push(`히든 ${hDisp}개`);
@@ -800,6 +825,7 @@ function getSinglePlayerStageSummary(
     specialHighlights,
     items: itemBits.length ? itemBits.join(' · ') : NONE,
     itemSlots: buildSinglePlayerStageItemSlots(stage, {
+      session,
       towerOwned,
       towerShopOnZero: session.gameCategory === 'tower',
       towerSessionFloor: session.gameCategory === 'tower' ? towerFloor : undefined,

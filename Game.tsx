@@ -3065,6 +3065,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             if (process.env.NODE_ENV === 'development') {
                                 console.warn('[Game] PVE server AI: missing clientSync', { gameId: currentGameId });
                             }
+                            // 새로고침 직후 등으로 로컬 스냅샷이 비어 clientSync를 못 만들면
+                            // 즉시 서버 상태를 당겨와 다음 tick에서 AI 착수 요청이 재개되게 한다.
+                            void handlers.handleAction({
+                                type: 'REQUEST_GAME_STATE_SYNC',
+                                payload: { gameId: currentGameId },
+                            } as ServerAction);
                             lastAiMoveRef.current = null;
                             aiMoveTimeoutRef.current = null;
                             return;
