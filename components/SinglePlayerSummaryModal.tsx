@@ -301,14 +301,27 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     // 계가 진입 시 서버가 설정한 endTime을 쓰면 연출 구간이 포함되지 않음.
     const gameDurationRef = useRef<string | null>(null);
     if (gameDurationRef.current === null) {
-        const startTime = session.gameStartTime ?? (session as any).startTime ?? session.createdAt ?? Date.now();
+        const asValidEpochMs = (v: unknown): number | null => {
+            const n = Number(v);
+            return Number.isFinite(n) && n > 0 ? n : null;
+        };
+        const startTime =
+            asValidEpochMs(session.gameStartTime) ??
+            asValidEpochMs((session as any).startTime) ??
+            asValidEpochMs(session.createdAt);
         const isEnded = session.gameStatus === 'ended' || session.gameStatus === 'no_contest';
         const isScoring = session.gameStatus === 'scoring';
-        const serverEndTime = (session as any).endTime;
-        const rawEnd = serverEndTime ?? session.turnStartTime ?? Date.now();
-        const useFixedEnd = (isEnded || (isScoring && serverEndTime != null)) && typeof rawEnd === 'number' && rawEnd > 0;
-        const endTime = useFixedEnd ? rawEnd : Date.now();
-        const elapsedMs = Math.max(0, endTime - (startTime || 0));
+        const serverEndTime = asValidEpochMs((session as any).endTime);
+        // 패배 케이스에서 endTime이 비어 있을 때 turnStartTime(마지막 턴 시작시각)을 종료시각으로 쓰면
+        // 실제 경기 시간보다 과소 계산되어 0초가 자주 표시된다. 종료시각은 endTime 우선, 없으면 현재시각 사용.
+        const endTime = (isEnded || isScoring) && serverEndTime != null ? serverEndTime : Date.now();
+        const createdAtFallback = asValidEpochMs(session.createdAt);
+        const elapsedMs =
+            startTime != null
+                ? Math.max(0, endTime - startTime)
+                : createdAtFallback != null
+                  ? Math.max(0, endTime - createdAtFallback)
+                  : 0;
         const totalSeconds = Math.floor(elapsedMs / 1000);
         const minutes = Math.floor(totalSeconds / 60);
         const seconds = totalSeconds % 60;

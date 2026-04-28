@@ -4454,6 +4454,9 @@ export const useApp = () => {
                             if (hasValidBoard) {
                                 merged.boardState = existing.boardState;
                                 if (existing.moveHistory?.length) merged.moveHistory = existing.moveHistory;
+                                // 종료 응답 병합 시 보드/수순을 기존 것으로 유지하면 lastMove도 함께 고정해야
+                                // 마지막 수 마커가 다른 색(예: 백)으로 뒤바뀌는 현상을 막을 수 있다.
+                                if (existing.lastMove != null) merged.lastMove = existing.lastMove;
                                 if (existing.blackPatternStones?.length) merged.blackPatternStones = existing.blackPatternStones;
                                 if (existing.whitePatternStones?.length) merged.whitePatternStones = existing.whitePatternStones;
                             }

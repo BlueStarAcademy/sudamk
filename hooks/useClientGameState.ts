@@ -18,6 +18,8 @@ export interface ClientMovePayload {
     newBoardState: any[][];
     capturedStones: Point[];
     newKoInfo: any;
+    /** 착수자 명시(턴 레이스 시 currentPlayer 의존 오판 방지) */
+    movePlayer?: Player;
     /** 도전의 탑 21층+ 히든 아이템 착수 시 true (gameStatus → playing, hiddenMoves 기록, hidden_stones_p1 감소) */
     isHidden?: boolean;
 }
@@ -143,7 +145,11 @@ export function updateGameStateAfterMove(
     }
 
     const now = Date.now();
-    const movePlayer = game.currentPlayer;
+    const payloadMovePlayer = payload.movePlayer;
+    const movePlayer =
+        payloadMovePlayer === Player.Black || payloadMovePlayer === Player.White
+            ? payloadMovePlayer
+            : game.currentPlayer;
     const opponentPlayer = movePlayer === Player.Black ? Player.White : Player.Black;
     const newMoveHistory = [...(game.moveHistory || []), { x, y, player: movePlayer }];
     const updatedHiddenMoves = { ...(game.hiddenMoves || {}) };

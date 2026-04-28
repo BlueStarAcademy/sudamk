@@ -74,10 +74,31 @@ export async function migrateUsersAfterSinglePlayerStageReorder(
 
     const users = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
     let n = 0;
+    const sameStringArray = (a: string[] | undefined, b: string[] | undefined): boolean => {
+        const aa = Array.isArray(a) ? a : [];
+        const bb = Array.isArray(b) ? b : [];
+        if (aa.length !== bb.length) return false;
+        for (let i = 0; i < aa.length; i++) {
+            if (aa[i] !== bb[i]) return false;
+        }
+        return true;
+    };
     for (const user of users) {
         const next: User = { ...user };
+        const prevCleared = Array.isArray(user.clearedSinglePlayerStages)
+            ? [...user.clearedSinglePlayerStages]
+            : [];
+        const prevProgress = Number.isFinite(Number(user.singlePlayerProgress))
+            ? Math.max(0, Math.floor(Number(user.singlePlayerProgress)))
+            : 0;
         remapUserSinglePlayerProgressFields(next, prevOrder, remap, newOrder);
-        if (next.clearedSinglePlayerStages !== user.clearedSinglePlayerStages || next.singlePlayerProgress !== user.singlePlayerProgress) {
+        const nextCleared = Array.isArray(next.clearedSinglePlayerStages)
+            ? next.clearedSinglePlayerStages
+            : [];
+        const nextProgress = Number.isFinite(Number(next.singlePlayerProgress))
+            ? Math.max(0, Math.floor(Number(next.singlePlayerProgress)))
+            : 0;
+        if (!sameStringArray(nextCleared, prevCleared) || nextProgress !== prevProgress) {
             await db.updateUser(next);
         }
         n++;

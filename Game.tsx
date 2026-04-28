@@ -1856,6 +1856,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         newBoardState: moveResult.newBoardState,
                         capturedStones: moveResult.capturedStones,
                         newKoInfo: moveResult.newKoInfo,
+                        movePlayer: myPlayerEnum,
                         isHidden: true,
                     }
                 } as any);
@@ -1990,6 +1991,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         newBoardState: moveResult.newBoardState,
                         capturedStones: moveResult.capturedStones,
                         newKoInfo: moveResult.newKoInfo,
+                        movePlayer: myPlayerEnum,
                     }
                 } as any);
                 return;
