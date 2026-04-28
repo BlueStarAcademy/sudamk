@@ -1097,9 +1097,6 @@ function calculateAdventureMonsterBattleRewards(
     let baseRewardBeforeBuffs = Math.round(baseGold * rewardMultiplier);
     baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * adventureMonsterGoldLevelMultiplier(level));
     const isBoss19Board = game.adventureBoardSize === 19;
-    if (isBoss19Board) {
-        baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * 1.68);
-    }
     const globalGoldPercent = (effects.goldRewardMultiplier - 1) * 100;
     const totalBonusPercent =
         globalGoldPercent + effects.winGoldBonusPercent + codexOnlyPercent + understandingPercent + regGoldPct;

@@ -696,47 +696,64 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                             : 'mt-2 !gap-2 !p-3 sm:!gap-3 sm:!p-3.5'
                     }`}
                 >
-                    <div className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5`}>
-                    <Button
-                        onClick={() => {
-                            if (isScoring) return;
-                            handleClose(session, onClose);
-                        }}
-                        bare
-                        colorScheme="none"
-                        disabled={isScoring}
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
-                    >
-                        확인
-                    </Button>
-                    <Button
-                        onClick={handleNextFloor}
-                        bare
-                        colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${!canTryNext || isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={!canTryNext || isProcessing}
-                    >
-                        {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorActionPointCost)}
-                    </Button>
-                    <Button
-                        onClick={handleRetry}
-                        bare
-                        colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={isProcessing}
-                    >
-                        {formatArenaRetryLabel(effectiveRetryActionPointCost)}
-                    </Button>
-                    <Button
-                        onClick={handleExitToLobby}
-                        bare
-                        colorScheme="none"
-                        className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', isMobile, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
-                        disabled={isProcessing}
-                    >
-                        대기실로
-                    </Button>
-                    </div>
+                    {isMobile ? (
+                        <div className="grid w-full min-w-0 flex-shrink-0 grid-cols-1 gap-2">
+                            <Button
+                                onClick={() => {
+                                    if (isScoring) return;
+                                    handleClose(session, onClose);
+                                }}
+                                bare
+                                colorScheme="none"
+                                disabled={isScoring}
+                                className={`mx-auto min-w-0 w-full max-w-[220px] justify-center rounded-xl border border-amber-300/35 bg-gradient-to-b from-amber-500/30 via-amber-500/20 to-amber-700/25 px-3 py-2.5 text-sm font-semibold text-amber-50 shadow-[0_8px_20px_-12px_rgba(251,191,36,0.55)] transition-all hover:border-amber-200/55 hover:brightness-110 active:translate-y-px ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
+                            >
+                                확인
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className={`grid w-full min-w-0 flex-shrink-0 grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5`}>
+                            <Button
+                                onClick={() => {
+                                    if (isScoring) return;
+                                    handleClose(session, onClose);
+                                }}
+                                bare
+                                colorScheme="none"
+                                disabled={isScoring}
+                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${isScoring ? '!cursor-not-allowed !opacity-45' : ''}`}
+                            >
+                                확인
+                            </Button>
+                            <Button
+                                onClick={handleNextFloor}
+                                bare
+                                colorScheme="none"
+                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${!canTryNext || isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
+                                disabled={!canTryNext || isProcessing}
+                            >
+                                {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorActionPointCost)}
+                            </Button>
+                            <Button
+                                onClick={handleRetry}
+                                bare
+                                colorScheme="none"
+                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
+                                disabled={isProcessing}
+                            >
+                                {formatArenaRetryLabel(effectiveRetryActionPointCost)}
+                            </Button>
+                            <Button
+                                onClick={handleExitToLobby}
+                                bare
+                                colorScheme="none"
+                                className={`min-w-0 w-full justify-center ${arenaPostGameButtonClass('neutral', false, 'modal')} ${isProcessing ? '!cursor-not-allowed !opacity-45' : ''}`}
+                                disabled={isProcessing}
+                            >
+                                대기실로
+                            </Button>
+                        </div>
+                    )}
                 </div>
         </DraggableWindow>
     );

@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
+import type { User } from '../../../shared/types/index.js';
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../../shared/constants/singlePlayerConstants.js';
 import { reconcileSinglePlayerProgress } from '../../../shared/utils/singlePlayerProgress.js';
-import { normalizeSinglePlayerStagesOverride } from '../../singlePlayerStageConfigService.js';
+import { isFullSinglePlayerStagesPermutation, normalizeSinglePlayerStagesOverride } from '../../singlePlayerStageConfigService.js';
+import { remapUserSinglePlayerProgressFields } from '../../singlePlayerStageIdMigration.js';
 
 describe('single-player stage stability', () => {
+    it('accepts a full permutation: canonical slot ids with content from payload order', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES;
+        expect(base.length).toBeGreaterThan(3);
+        const permuted = [base[1], base[2], base[0], ...base.slice(3)].map((s) => ({ ...s }));
+        expect(isFullSinglePlayerStagesPermutation(permuted)).toBe(true);
+        const normalized = normalizeSinglePlayerStagesOverride(permuted);
+        expect(normalized.map((s) => s.id)).toEqual(base.map((s) => s.id));
+        expect(normalized[0].id).toBe(base[0].id);
+        expect(normalized[0].name).toBe(base[0].name);
+        expect(normalized[0].targetScore).toEqual(base[1].targetScore);
+    });
+
     it('normalizes partial overrides into the full default stage list with stable order', () => {
         const target = DEFAULT_SINGLE_PLAYER_STAGES[2];
         const normalized = normalizeSinglePlayerStagesOverride([
@@ -25,6 +39,22 @@ describe('single-player stage stability', () => {
         expect(normalized[2].actionPointCost).toBe(7);
         expect(normalized[2].rewards.repeatClear.gold).toBe(target.rewards.repeatClear.gold + 123);
         expect(normalized[0].id).toBe(DEFAULT_SINGLE_PLAYER_STAGES[0].id);
+    });
+
+    it('stage reorder migration: late explicit clear implies all earlier stages under prev order', () => {
+        const prev = DEFAULT_SINGLE_PLAYER_STAGES.slice(0, 5);
+        const prevPick = prev.map((s) => ({ id: s.id }));
+        const newOrder = prev.map((s) => ({ id: s.id }));
+        const remap = Object.fromEntries(prev.map((s) => [s.id, s.id]));
+        const user = {
+            clearedSinglePlayerStages: [prev[4]!.id],
+            singlePlayerProgress: 0,
+        } as unknown as User;
+
+        remapUserSinglePlayerProgressFields(user, prevPick, remap, newOrder);
+
+        expect(user.clearedSinglePlayerStages).toEqual(prev.map((s) => s.id));
+        expect(user.singlePlayerProgress).toBe(5);
     });
 
     it('uses numeric progress as compatible cleared-stage proof for legacy users', () => {

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
+import { GameMode, SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants/singlePlayerConstants.js';
 import { CONSUMABLE_ITEMS } from '../../constants/index.js';
 import Button from '../Button.js';
@@ -10,7 +10,10 @@ import {
     isSinglePlayerStageUnlocked,
     reconcileSinglePlayerProgress,
 } from '../../shared/utils/singlePlayerProgress.js';
-import { inferSinglePlayerStrategicRulePreset } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
+import {
+    inferSinglePlayerStrategicRulePreset,
+    resolveSinglePlayerMixedModes,
+} from '../../shared/utils/singlePlayerStrategicRulePreset.js';
 import SinglePlayerRewardsModal from './SinglePlayerRewardsModal.js';
 
 /** 싱글플레이 스테이지 입장: 앰버 메탈 + 글로우 (PC·모바일 공통) */
@@ -97,28 +100,39 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
         return !isSinglePlayerStageUnlocked(SINGLE_PLAYER_STAGES, progress, stage.id);
     };
 
+    const GAME_MODE_LABELS: Record<GameMode, string> = {
+        [GameMode.Standard]: '클래식',
+        [GameMode.Speed]: '스피드',
+        [GameMode.Capture]: '따내기',
+        [GameMode.Survival]: '살리기',
+        [GameMode.Hidden]: '히든',
+        [GameMode.Missile]: '미사일',
+        [GameMode.Base]: '베이스',
+        [GameMode.Mix]: '믹스',
+    };
+
     // 스테이지 프리셋(명시/auto 추론) 기준으로 대기실 모드명을 표시
     const getStageGameModeName = (stage: typeof stages[0]): string => {
         const preset = inferSinglePlayerStrategicRulePreset(stage);
         switch (preset) {
             case 'classic':
-                return '클래식 바둑';
+                return '클래식';
             case 'capture':
-                return '따내기 바둑';
+                return '따내기';
             case 'survival':
-                return '살리기 바둑';
+                return '살리기';
             case 'speed':
-                return '스피드 바둑';
+                return '스피드';
             case 'base':
-                return '베이스 바둑';
+                return '베이스';
             case 'hidden':
-                return '히든 바둑';
+                return '히든';
             case 'missile':
-                return '미사일 바둑';
+                return '미사일';
             case 'mix':
-                return '믹스룰 바둑';
+                return '믹스';
             default:
-                return '클래식 바둑';
+                return '클래식';
         }
     };
 
@@ -223,6 +237,11 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                         const isLocked = isStageLocked(index);
                         const stageNumber = parseInt(stage.id.split('-')[1]);
                         const gameModeName = getStageGameModeName(stage);
+                        const stagePreset = inferSinglePlayerStrategicRulePreset(stage);
+                        const mixedModeLabels =
+                            stagePreset === 'mix'
+                                ? resolveSinglePlayerMixedModes(stage).map((mode) => GAME_MODE_LABELS[mode] ?? mode)
+                                : [];
                         const effectiveActionPointCost = isCleared ? 0 : stage.actionPointCost;
                         const hasEnoughAP = currentUser.actionPoints.current >= effectiveActionPointCost;
                         const spOnboardingPhase = currentUser.onboardingTutorialPhase ?? 0;
@@ -330,11 +349,32 @@ const StageGrid: React.FC<StageGridProps> = ({ selectedClass, currentUser, compa
                                                 : 'rounded-md border border-amber-500/35 bg-gradient-to-b from-gray-700/85 to-gray-800/90 px-2 py-1'
                                         }`}
                                     >
-                                        <div
-                                            className={`truncate text-center font-semibold tracking-tight text-amber-100/95 ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : usePremiumDesktop ? 'text-[11px]' : 'text-xs sm:text-sm'}`}
-                                        >
-                                            {gameModeName}
-                                        </div>
+                                        {stagePreset === 'mix' ? (
+                                            <div className="flex flex-wrap items-center justify-center gap-1">
+                                                {mixedModeLabels.map((label, i) => (
+                                                    <span
+                                                        key={`${stage.id}-mix-mode-${i}-${label}`}
+                                                        className={`inline-flex items-center justify-center rounded-sm border border-amber-300/45 bg-black/35 px-1.5 py-0.5 font-semibold text-amber-100/95 ${
+                                                            tabShelf
+                                                                ? 'text-[11px]'
+                                                                : isMobile
+                                                                  ? 'text-[10px]'
+                                                                  : usePremiumDesktop
+                                                                    ? 'text-[10px]'
+                                                                    : 'text-[11px]'
+                                                        }`}
+                                                    >
+                                                        {label}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div
+                                                className={`truncate text-center font-semibold tracking-tight text-amber-100/95 ${tabShelf ? 'text-sm' : isMobile ? 'text-xs' : usePremiumDesktop ? 'text-[11px]' : 'text-xs sm:text-sm'}`}
+                                            >
+                                                {gameModeName}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 

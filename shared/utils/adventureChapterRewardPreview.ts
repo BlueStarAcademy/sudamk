@@ -94,7 +94,7 @@ function previewGoldAt(boardSize: number, monsterLevel: number): number {
 
 export type AdventureChapterRewardPreview = {
     goldNormalRange: { min: number; max: number };
-    /** 놀이동산 등 19줄 보스 승리 시(기본 골드만 ×1.68, 이해도 전) */
+    /** 놀이동산 등 19줄 보스 승리 시(기본 골드 기준, 이해도 전) */
     goldBoss19Range: { min: number; max: number } | null;
     equipmentGradeRange: string;
     materialGradeRange: string;
@@ -174,8 +174,8 @@ export function getAdventureChapterRewardPreview(stageId: AdventureStageId): Adv
 
     let goldBoss19Range: { min: number; max: number } | null = null;
     if (stageId === 'amusement_park') {
-        const b1 = Math.round(previewGoldAt(19, lvMin) * 1.68);
-        const b2 = Math.round(previewGoldAt(19, lvMax) * 1.68);
+        const b1 = previewGoldAt(19, lvMin);
+        const b2 = previewGoldAt(19, lvMax);
         goldBoss19Range = { min: Math.min(b1, b2), max: Math.max(b1, b2) };
     }
 

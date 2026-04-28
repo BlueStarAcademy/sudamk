@@ -142,12 +142,46 @@ export const finalizeAnalysisResult = (baseAnalysis: types.AnalysisResult, sessi
     const isSpeedMode = session.mode === types.GameMode.Speed || (session.mode === types.GameMode.Mix && session.settings.mixedModes?.includes(types.GameMode.Speed));
     if (isSpeedMode) {
         const speedConsumed = ((session.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
-        const blackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
-        const whiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
-        finalAnalysis.scoreDetails.black.timeBonus = Math.floor(whiteConsumed / SPEED_AI_SECONDS_PER_POINT);
-        finalAnalysis.scoreDetails.white.timeBonus = Math.floor(blackConsumed / SPEED_AI_SECONDS_PER_POINT);
+        const committedBlackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
+        const committedWhiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
+        const nowMs = Date.now();
+        const liveBlackTurnUsed =
+            session.currentPlayer === types.Player.Black && typeof session.turnDeadline === 'number'
+                ? Math.max(0, Math.max(0, Number(session.blackTimeLeft ?? 0)) - Math.max(0, (session.turnDeadline - nowMs) / 1000))
+                : 0;
+        const liveWhiteTurnUsed =
+            session.currentPlayer === types.Player.White && typeof session.turnDeadline === 'number'
+                ? Math.max(0, Math.max(0, Number(session.whiteTimeLeft ?? 0)) - Math.max(0, (session.turnDeadline - nowMs) / 1000))
+                : 0;
+        // 핵심 원칙: 사용 시간 누적치는 절대 감소하지 않는다.
+        // 피셔 증분으로 남은 시간이 늘어나도 committed는 줄지 않고, 현재 턴 실시간 사용분만 추가한다.
+        const blackConsumed = committedBlackConsumed + liveBlackTurnUsed;
+        const whiteConsumed = committedWhiteConsumed + liveWhiteTurnUsed;
+
+        if (session.isAiGame) {
+            // AI전: 유저가 사용한 시간만 AI에게 보너스로 반영한다. (AI 사용 시간은 무시)
+            const humanIsBlack = session.blackPlayerId !== aiUserId && session.whitePlayerId === aiUserId;
+            const humanIsWhite = session.whitePlayerId !== aiUserId && session.blackPlayerId === aiUserId;
+            const humanConsumed = humanIsBlack ? blackConsumed : humanIsWhite ? whiteConsumed : 0;
+            const aiBonus = Math.floor(humanConsumed / SPEED_AI_SECONDS_PER_POINT);
+
+            if (humanIsBlack) {
+                finalAnalysis.scoreDetails.black.timeBonus = 0;
+                finalAnalysis.scoreDetails.white.timeBonus = aiBonus;
+            } else if (humanIsWhite) {
+                finalAnalysis.scoreDetails.black.timeBonus = aiBonus;
+                finalAnalysis.scoreDetails.white.timeBonus = 0;
+            } else {
+                // 예외 좌석 상태면 기존 대칭 규칙으로 폴백
+                finalAnalysis.scoreDetails.black.timeBonus = Math.floor(whiteConsumed / SPEED_AI_SECONDS_PER_POINT);
+                finalAnalysis.scoreDetails.white.timeBonus = Math.floor(blackConsumed / SPEED_AI_SECONDS_PER_POINT);
+            }
+        } else {
+            finalAnalysis.scoreDetails.black.timeBonus = Math.floor(whiteConsumed / SPEED_AI_SECONDS_PER_POINT);
+            finalAnalysis.scoreDetails.white.timeBonus = Math.floor(blackConsumed / SPEED_AI_SECONDS_PER_POINT);
+        }
         console.log(
-            `[finalizeAnalysisResult] Speed time bonus (unified): blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, blackBonus=${finalAnalysis.scoreDetails.black.timeBonus}, whiteBonus=${finalAnalysis.scoreDetails.white.timeBonus}`
+            `[finalizeAnalysisResult] Speed time bonus (unified): committedBlack=${committedBlackConsumed}, committedWhite=${committedWhiteConsumed}, liveBlackTurnUsed=${liveBlackTurnUsed}, liveWhiteTurnUsed=${liveWhiteTurnUsed}, blackConsumed=${blackConsumed}, whiteConsumed=${whiteConsumed}, blackBonus=${finalAnalysis.scoreDetails.black.timeBonus}, whiteBonus=${finalAnalysis.scoreDetails.white.timeBonus}`
         );
     } else {
         finalAnalysis.scoreDetails.black.timeBonus = 0;

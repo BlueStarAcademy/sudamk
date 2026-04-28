@@ -589,12 +589,26 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                         )}
                     </div>
                     <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-0.5 lg:w-[30%] lg:flex-none lg:shrink-0">
-                        <div className="grid grid-cols-2 gap-2">
-                            <label className="text-xs">액션포인트
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                    type="number" value={draft.actionPointCost}
-                                    onChange={(e) => setDraft((p) => ({ ...p, actionPointCost: Number(e.target.value) || 0 }))} />
-                            </label>
+                        {scope !== 'singleplayer' ? (
+                            <div className="grid grid-cols-2 gap-2">
+                                <label className="text-xs">액션포인트
+                                    <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                        type="number" value={draft.actionPointCost}
+                                        onChange={(e) => setDraft((p) => ({ ...p, actionPointCost: Number(e.target.value) || 0 }))} />
+                                </label>
+                                <label className="text-xs">보드 크기
+                                    <select className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                        value={draft.boardSize}
+                                        onChange={(e) => {
+                                            const nextSize = Number(e.target.value) as SinglePlayerStageInfo['boardSize'];
+                                            setDraft((p) => ({ ...p, boardSize: nextSize }));
+                                            setCells((prev) => resizeCells(prev, nextSize));
+                                        }}>
+                                        {[7, 9, 11, 13].map((s) => <option key={s} value={s}>{s}</option>)}
+                                    </select>
+                                </label>
+                            </div>
+                        ) : (
                             <label className="text-xs">보드 크기
                                 <select className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
                                     value={draft.boardSize}
@@ -606,7 +620,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     {[7, 9, 11, 13].map((s) => <option key={s} value={s}>{s}</option>)}
                                 </select>
                             </label>
-                        </div>
+                        )}
                         <label className="text-xs">KATA 레벨 (-31 ~ 9)
                             <input
                                 className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
@@ -633,30 +647,34 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                 }}
                             />
                         </label>
-                        <div className="grid grid-cols-2 gap-2">
-                            <label className="text-xs">첫클리어 골드
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                    type="number" value={draft.rewards.firstClear.gold}
-                                    onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, gold: Number(e.target.value) || 0 } } }))} />
-                            </label>
-                            <label className="text-xs">첫클리어 경험치
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                    type="number" value={draft.rewards.firstClear.exp}
-                                    onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, exp: Number(e.target.value) || 0 } } }))} />
-                            </label>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <label className="text-xs">반복클리어 골드
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                    type="number" value={draft.rewards.repeatClear.gold}
-                                    onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, gold: Number(e.target.value) || 0 } } }))} />
-                            </label>
-                            <label className="text-xs">반복클리어 경험치
-                                <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
-                                    type="number" value={draft.rewards.repeatClear.exp}
-                                    onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, exp: Number(e.target.value) || 0 } } }))} />
-                            </label>
-                        </div>
+                        {scope !== 'singleplayer' && (
+                            <>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="text-xs">첫클리어 골드
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                            type="number" value={draft.rewards.firstClear.gold}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, gold: Number(e.target.value) || 0 } } }))} />
+                                    </label>
+                                    <label className="text-xs">첫클리어 경험치
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                            type="number" value={draft.rewards.firstClear.exp}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, firstClear: { ...p.rewards.firstClear, exp: Number(e.target.value) || 0 } } }))} />
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="text-xs">반복클리어 골드
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                            type="number" value={draft.rewards.repeatClear.gold}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, gold: Number(e.target.value) || 0 } } }))} />
+                                    </label>
+                                    <label className="text-xs">반복클리어 경험치
+                                        <input className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                            type="number" value={draft.rewards.repeatClear.exp}
+                                            onChange={(e) => setDraft((p) => ({ ...p, rewards: { ...p.rewards, repeatClear: { ...p.rewards.repeatClear, exp: Number(e.target.value) || 0 } } }))} />
+                                    </label>
+                                </div>
+                            </>
+                        )}
                         <label className="block text-xs">
                             게임 룰
                             <select

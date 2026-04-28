@@ -252,9 +252,35 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
     return out;
 };
 
+/** 전체 스테이지 배열이 기본 ID 집합과 1:1 대응하는 순열이면 true (관리자 순서 편집 저장) */
+export const isFullSinglePlayerStagesPermutation = (raw: unknown): boolean => {
+    if (!Array.isArray(raw)) return false;
+    const fallbacks = DEFAULT_SINGLE_PLAYER_STAGES;
+    const n = fallbacks.length;
+    if (raw.length !== n) return false;
+    const expected = new Set(fallbacks.map((s) => s.id));
+    const seen = new Set<string>();
+    for (const row of raw) {
+        if (!row || typeof row !== 'object') return false;
+        const id = typeof (row as { id?: unknown }).id === 'string' ? (row as { id: string }).id : '';
+        if (!id || !expected.has(id) || seen.has(id)) return false;
+        seen.add(id);
+    }
+    return seen.size === n;
+};
+
 export const normalizeSinglePlayerStagesOverride = (raw: unknown): SinglePlayerStageInfo[] => {
     if (!Array.isArray(raw)) return DEFAULT_SINGLE_PLAYER_STAGES.map((stage) => ({ ...stage }));
     const fallbackById = new Map(DEFAULT_SINGLE_PLAYER_STAGES.map((row) => [row.id, row]));
+
+    if (isFullSinglePlayerStagesPermutation(raw)) {
+        return DEFAULT_SINGLE_PLAYER_STAGES.map((slotDefault, i) => {
+            const row = raw[i] as Record<string, unknown>;
+            const normalized = normalizeStage({ ...row, name: slotDefault.name }, slotDefault);
+            return normalized ?? ({ ...slotDefault } as SinglePlayerStageInfo);
+        });
+    }
+
     const overrideById = new Map<string, unknown>();
     const used = new Set<string>();
     for (const row of raw) {

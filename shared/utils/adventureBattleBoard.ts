@@ -40,13 +40,10 @@ export function adventureBoardSizeHashUnit(seed: string): number {
 export function adventureBoardSizeFromMonsterLevel(monsterLevel: number, u: number): 7 | 9 | 11 | 13 | 19 {
     const lv = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
     const r = Number.isFinite(u) ? Math.max(0, Math.min(0.999999999, u)) : 0;
-    if (lv <= 2) return 7;
-    if (lv <= 4) return 11;
-    if (lv <= 9) return 9;
-    if (lv === 10) return 13;
-    if (lv <= 15) return r < 0.5 ? 9 : 13;
-    if (lv <= 19) return r < 0.2 ? 9 : 13;
-    if (lv <= 45) return 13;
+    if (lv <= 5) return r < 0.5 ? 7 : 9;
+    if (lv <= 19) return 9;
+    if (lv <= 29) return 11;
+    if (lv <= 40) return 13;
     if (lv <= 49) return r < 0.5 ? 13 : 19;
     return 19;
 }
@@ -159,7 +156,7 @@ const ADVENTURE_BOARD_RULES: Record<7 | 9 | 11 | 13 | 19, BoardRuleRow> = {
         missileCount: 1,
     },
     11: {
-        scoringTurnLimit: 60,
+        scoringTurnLimit: 50,
         captureTarget: 8,
         baseStones: 3,
         hiddenStoneCount: 1,
@@ -167,7 +164,7 @@ const ADVENTURE_BOARD_RULES: Record<7 | 9 | 11 | 13 | 19, BoardRuleRow> = {
         missileCount: 2,
     },
     13: {
-        scoringTurnLimit: 80,
+        scoringTurnLimit: 60,
         captureTarget: 10,
         baseStones: 4,
         hiddenStoneCount: 1,

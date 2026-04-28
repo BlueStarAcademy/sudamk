@@ -4,7 +4,7 @@ export const ADVENTURE_STRATEGY_XP_BY_BOARD_SIZE: Record<number, number> = {
     9: 13,
     11: 15,
     13: 20,
-    19: 30,
+    19: 40,
 };
 
 export function getAdventureBaseStrategyXp(boardSizeRaw: unknown): number {

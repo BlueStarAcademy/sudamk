@@ -114,7 +114,7 @@ function timeLine(settings: GameSettings, mode: GameMode, mix: GameMode[]): stri
     return '시간 제한 없음';
   }
   if (mode === GameMode.Speed || hasMix(mix, GameMode.Speed)) {
-    return `피셔 · 본전 ${settings.timeLimit}분 + ${settings.timeIncrement ?? 0}초/수`;
+    return '피셔방식 +5초/수';
   }
   if (byoyomiCount > 0 && byoyomiTime > 0) {
     return `제한 ${settings.timeLimit}분 · 초읽기 ${byoyomiTime}초×${byoyomiCount}회`;
@@ -355,11 +355,10 @@ function mixSpecialHighlights(
   return h;
 }
 
-function singlePlayerStageTimeRules(stage: SinglePlayerStageInfo, isSpeedMode: boolean): string {
-  const tc = stage.timeControl;
+function singlePlayerStageTimeRules(_stage: SinglePlayerStageInfo, isSpeedMode: boolean): string {
   /** 싱글/탑 비스피드: 서버에서 제한시간·초읽기 미적용 — 스테이지 JSON의 분/초읽기는 표시하지 않음 */
   if (isSpeedMode) {
-    return `피셔 · 본전 ${tc.mainTime}분 + ${tc.increment ?? 0}초/수`;
+    return '피셔방식 +5초/수';
   }
   return '제한없음';
 }

@@ -3,6 +3,7 @@ import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 
@@ -17,7 +18,9 @@ interface NoContestModalProps {
 
 const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, onConfirm, onAction, onOpenGameRecordList, isSpectator = false }) => {
     const [savingRecord, setSavingRecord] = useState(false);
-    const isMobile = useIsHandheldDevice(1025);
+    const isCompactViewport = useIsHandheldDevice(1025);
+    const { isNativeMobile } = useNativeMobileShell();
+    const isMobile = isCompactViewport || isNativeMobile;
     const isInitiator = session.noContestInitiatorIds?.includes(currentUser.id);
     const canUseGameRecordUi = canSaveStrategicPvpGameRecord(session) && !isSpectator;
     const { recordAlreadySaved, setSavedOptimistic } = useGameRecordSaveLock(session.id, currentUser.savedGameRecords);
@@ -46,7 +49,7 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
                     )}
                 </div>
 
-                {canUseGameRecordUi && (onAction || onOpenGameRecordList) && (
+                {canUseGameRecordUi && (onAction || onOpenGameRecordList) && !isMobile && (
                     <div className="flex flex-col sm:flex-row gap-2 mb-3">
                         {onAction && (
                             <Button

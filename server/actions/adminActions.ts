@@ -25,7 +25,18 @@ import { normalizeLegacyDivineMythicInventoryItem } from '../../shared/utils/inv
 import { nicknameContainsReservedStaffTerms } from '../../shared/utils/staffNicknameDisplay.js';
 import { hashPassword } from '../utils/passwordUtils.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
-import { normalizeSinglePlayerStagesOverride, setSinglePlayerStagesOverride } from '../singlePlayerStageConfigService.js';
+import {
+    getEffectiveSinglePlayerStages,
+    isFullSinglePlayerStagesPermutation,
+    normalizeSinglePlayerStagesOverride,
+    setSinglePlayerStagesOverride,
+} from '../singlePlayerStageConfigService.js';
+import {
+    buildSinglePlayerStageIdRemapFromPermutationPayload,
+    migrateActiveSinglePlayerLiveGames,
+    migrateUsersAfterSinglePlayerStageReorder,
+    patchVolatileSinglePlayerStageIds,
+} from '../singlePlayerStageIdMigration.js';
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlayerConstants.js';
 
 type HandleActionResult = { 
@@ -127,8 +138,16 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
 
     switch (type) {
         case 'ADMIN_SET_SINGLE_PLAYER_STAGES': {
-            const stages = normalizeSinglePlayerStagesOverride(payload?.stages);
+            const rawPayload = payload?.stages;
+            const prevStages = await getEffectiveSinglePlayerStages();
+            const stages = normalizeSinglePlayerStagesOverride(rawPayload);
             const saved = await setSinglePlayerStagesOverride(stages);
+            if (Array.isArray(rawPayload) && isFullSinglePlayerStagesPermutation(rawPayload)) {
+                const remap = buildSinglePlayerStageIdRemapFromPermutationPayload(rawPayload);
+                await migrateUsersAfterSinglePlayerStageReorder(prevStages, remap, saved);
+                await migrateActiveSinglePlayerLiveGames(remap);
+                patchVolatileSinglePlayerStageIds(volatileState, remap);
+            }
             broadcast({ type: 'SINGLE_PLAYER_STAGES_UPDATE', payload: { singlePlayerStages: saved } });
             return { clientResponse: { singlePlayerStages: saved } };
         }

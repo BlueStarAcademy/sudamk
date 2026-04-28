@@ -46,6 +46,51 @@ function isCaptureTargetEndEnabled(game: LiveGameSession): boolean {
     );
 }
 
+function resolveSpeedTimeBonusForCaptureTarget(game: LiveGameSession): { black: number; white: number } {
+    const mixedModes = ((game.settings as any)?.mixedModes ?? []) as GameMode[];
+    const isSpeedCaptureMix =
+        game.mode === GameMode.Mix &&
+        Array.isArray(mixedModes) &&
+        mixedModes.includes(GameMode.Speed) &&
+        mixedModes.includes(GameMode.Capture);
+    if (!isSpeedCaptureMix) return { black: 0, white: 0 };
+
+    const speedConsumed = ((game.settings as any)?.__speedBonusConsumedSec ?? {}) as { black?: number; white?: number };
+    const committedBlackConsumed = Math.max(0, Number(speedConsumed.black ?? 0));
+    const committedWhiteConsumed = Math.max(0, Number(speedConsumed.white ?? 0));
+    const nowMs = Date.now();
+    const liveBlackTurnUsed =
+        game.currentPlayer === Player.Black && typeof game.turnDeadline === 'number'
+            ? Math.max(0, Math.max(0, Number(game.blackTimeLeft ?? 0)) - Math.max(0, (game.turnDeadline - nowMs) / 1000))
+            : 0;
+    const liveWhiteTurnUsed =
+        game.currentPlayer === Player.White && typeof game.turnDeadline === 'number'
+            ? Math.max(0, Math.max(0, Number(game.whiteTimeLeft ?? 0)) - Math.max(0, (game.turnDeadline - nowMs) / 1000))
+            : 0;
+    const blackConsumed = committedBlackConsumed + liveBlackTurnUsed;
+    const whiteConsumed = committedWhiteConsumed + liveWhiteTurnUsed;
+    const secondsPerPoint = 10;
+
+    if (game.isAiGame) {
+        // AI전: 유저 소모 시간만 AI 보너스로 반영.
+        const humanId = game.player1?.id;
+        const humanPlayer =
+            humanId && humanId === game.blackPlayerId ? Player.Black : humanId && humanId === game.whitePlayerId ? Player.White : Player.None;
+        if (humanPlayer === Player.Black) {
+            return { black: 0, white: Math.floor(blackConsumed / secondsPerPoint) };
+        }
+        if (humanPlayer === Player.White) {
+            return { black: Math.floor(whiteConsumed / secondsPerPoint), white: 0 };
+        }
+    }
+
+    // PVP/일반 믹스: 내가 사용한 시간 10초당 상대 +1점
+    return {
+        black: Math.floor(whiteConsumed / secondsPerPoint),
+        white: Math.floor(blackConsumed / secondsPerPoint),
+    };
+}
+
 export function getCaptureTargetWinner(game: LiveGameSession, preferredScorer?: Player): Player | null {
     if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') return null;
     if (!isCaptureTargetEndEnabled(game)) return null;
@@ -55,9 +100,13 @@ export function getCaptureTargetWinner(game: LiveGameSession, preferredScorer?: 
             ? [preferredScorer, preferredScorer === Player.Black ? Player.White : Player.Black]
             : [Player.Black, Player.White];
 
+    const speedBonuses = resolveSpeedTimeBonusForCaptureTarget(game);
     for (const player of candidates) {
         const target = getCaptureTarget(game, player);
-        if (target !== undefined && target !== NO_CAPTURE_TARGET && (game.captures[player] ?? 0) >= target) {
+        const captureScore = Math.max(0, Number(game.captures[player] ?? 0));
+        const speedBonus = player === Player.Black ? speedBonuses.black : speedBonuses.white;
+        const effectiveScore = captureScore + speedBonus;
+        if (target !== undefined && target !== NO_CAPTURE_TARGET && effectiveScore >= target) {
             return player;
         }
     }

@@ -34,6 +34,7 @@ import {
 } from '../shared/constants/onboardingTutorial.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import StageDefinitionEditorShell from './editor/StageDefinitionEditorShell.js';
+import SinglePlayerStageOrderEditor from './editor/SinglePlayerStageOrderEditor.js';
 
 const SINGLE_PLAYER_CLEAR_GOLD_BOX = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 const SINGLE_PLAYER_CLEAR_ITEM_BOX = `${RESULT_MODAL_BOX_ITEM_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
@@ -130,6 +131,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
     const [towerShopInitialItemId, setTowerShopInitialItemId] = useState<string | undefined>(undefined);
     const [pregameDescSubStep, setPregameDescSubStep] = useState(-1);
     const [editorOpen, setEditorOpen] = useState(false);
+    const [orderEditorOpen, setOrderEditorOpen] = useState(false);
 
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -374,13 +376,22 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             ) : (
                 <>
             {canOpenStageEditor && (
-                <Button
-                    onClick={() => setEditorOpen(true)}
-                    colorScheme="gray"
-                    className={compact ? '!flex-1 basis-0 min-w-0 min-h-[3rem] px-5 py-2.5 text-base max-[480px]:px-4' : `!w-auto shrink-0 text-base ${desktopBtnTight}`}
-                >
-                    스테이지 편집
-                </Button>
+                <>
+                    <Button
+                        onClick={() => setEditorOpen(true)}
+                        colorScheme="gray"
+                        className={compact ? '!flex-1 basis-0 min-w-0 min-h-[3rem] px-5 py-2.5 text-base max-[480px]:px-4' : `!w-auto shrink-0 text-base ${desktopBtnTight}`}
+                    >
+                        스테이지 편집
+                    </Button>
+                    <Button
+                        onClick={() => setOrderEditorOpen(true)}
+                        colorScheme="gray"
+                        className={compact ? '!flex-1 basis-0 min-w-0 min-h-[3rem] px-5 py-2.5 text-base max-[480px]:px-4' : `!w-auto shrink-0 text-base ${desktopBtnTight}`}
+                    >
+                        순서 편집
+                    </Button>
+                </>
             )}
             {onClose && !onboardingPregameFinalSubStep && (
                 <Button
@@ -476,6 +487,15 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             document.body
         );
 
+    const stageOrderEditorPortal =
+        canOpenStageEditor &&
+        orderEditorOpen &&
+        onAction &&
+        createPortal(
+            <SinglePlayerStageOrderEditor open={orderEditorOpen} onClose={() => setOrderEditorOpen(false)} onAction={onAction} />,
+            document.body
+        );
+
     return (
         <DraggableWindow
             title={`${stageDisplayName} - 게임 설명`}
@@ -507,6 +527,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
         >
             {stageEditorPortal}
+            {stageOrderEditorPortal}
             {towerShopPortal}
             <div className={`flex min-h-0 flex-col text-white ${isCompactUi ? 'h-full min-h-0 flex-1' : 'shrink-0'}`}>
                 {isCompactUi ? (

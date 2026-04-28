@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import type { GuildBossBattleResult as GuildBossBattleResultType } from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
-import DraggableWindow from '../DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { PRE_GAME_MODAL_ACCENT_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 import { gradeBackgrounds, EQUIPMENT_POOL } from '../../constants/items.js';
@@ -38,16 +38,17 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
         {card.type === 'guildXp' ? (
             <div className="flex w-full flex-col items-center justify-center">
                 <div
-                    className={`text-xl font-black ${card.isSpecial ? 'text-yellow-200' : 'text-blue-400'}`}
+                    className={`text-center text-[13px] font-black leading-none sm:text-xl ${card.isSpecial ? 'text-yellow-200' : 'text-blue-400'}`}
                     style={{
                         textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(59,130,246,0.5)',
-                        letterSpacing: '3px',
+                        letterSpacing: '1px',
                     }}
                 >
-                    GuildEXP
+                    <span className="block">길드</span>
+                    <span className="block">EXP</span>
                 </div>
                 {card.quantity !== undefined && (
-                    <div className={`mt-0.5 text-[10px] font-bold ${card.isSpecial ? 'text-yellow-200' : 'text-blue-300'}`}>
+                    <div className={`mt-0.5 text-[9px] font-bold sm:text-[11px] ${card.isSpecial ? 'text-yellow-200' : 'text-blue-300'}`}>
                         {card.quantityText ?? card.quantity.toLocaleString()}
                     </div>
                 )}
@@ -58,15 +59,15 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
                     src={card.image}
                     alt={card.name}
                     decoding="async"
-                    className={`mb-1 h-9 w-9 object-contain sm:h-10 sm:w-10 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
+                    className={`mb-0.5 h-7 w-7 object-contain sm:mb-1 sm:h-10 sm:w-10 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
                     style={{ imageRendering: 'auto' }}
                 />
                 <div className="w-full px-0.5 text-center">
-                    <div className={`mb-0.5 text-[10px] font-semibold leading-tight sm:text-[11px] ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
+                    <div className={`mb-0.5 line-clamp-2 text-[9px] font-semibold leading-tight sm:text-[11px] ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
                         {card.equipment?.fullName || card.name}
                     </div>
                     {card.quantity !== undefined && (
-                        <div className={`text-[11px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
+                        <div className={`text-[10px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
                             {card.quantityText ?? card.quantity.toLocaleString()}
                         </div>
                     )}
@@ -78,15 +79,15 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
                     src={card.image}
                     alt={card.name}
                     decoding="async"
-                    className={`mb-1 h-9 w-9 object-contain sm:h-10 sm:w-10 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
+                    className={`mb-0.5 h-7 w-7 object-contain sm:mb-1 sm:h-10 sm:w-10 ${card.isSpecial ? 'drop-shadow-[0_0_10px_rgba(255,215,0,0.8)]' : ''}`}
                     style={{ imageRendering: 'auto' }}
                 />
                 <div className="text-center">
-                    <div className={`mb-0.5 text-[10px] font-semibold leading-tight sm:text-[11px] ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
+                    <div className={`mb-0.5 line-clamp-2 text-[9px] font-semibold leading-tight sm:text-[11px] ${card.isSpecial ? 'text-yellow-100' : 'text-white'}`}>
                         {card.name}
                     </div>
                     {card.quantity !== undefined && (
-                        <div className={`text-[11px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
+                        <div className={`text-[10px] font-bold sm:text-xs ${card.isSpecial ? 'text-yellow-200' : 'text-gray-200'}`}>
                             {card.quantityText ?? card.quantity.toLocaleString()}
                         </div>
                     )}
@@ -318,33 +319,44 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
     };
 
     return (
-        <DraggableWindow title="전투 결과" onClose={onClose} windowId="guild-boss-battle-result" initialWidth={600} initialHeight={700} isTopmost={isTopmost}>
-            <div className="flex flex-col h-full min-h-0 bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950 rounded-b-lg border-t border-amber-500/30">
-                <div className="text-center mb-4 flex-shrink-0 pt-2">
-                    <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 bg-clip-text text-transparent" style={{ textShadow: '0 0 20px rgba(251,191,36,0.3)' }}>
+        <DraggableWindow
+            title="전투 결과"
+            onClose={onClose}
+            windowId="guild-boss-battle-result"
+            initialWidth={600}
+            initialHeight={700}
+            isTopmost={isTopmost}
+            hideFooter
+            mobileViewportFit
+            mobileViewportMaxHeightCss="min(96dvh, calc(100dvh - 8px))"
+            mobileViewportMaxHeightVh={96}
+        >
+            <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950 rounded-b-lg border-t border-amber-500/30">
+                <div className="mb-2 flex-shrink-0 pt-1 text-center sm:mb-4 sm:pt-2">
+                    <h2 className="mb-1 break-words px-1 text-lg font-bold bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 bg-clip-text text-transparent sm:mb-2 sm:text-2xl" style={{ textShadow: '0 0 20px rgba(251,191,36,0.3)' }}>
                         {result.bossName} 전투 결과
                     </h2>
-                    <div className="flex items-center justify-center gap-3 flex-wrap">
-                        <div className={`px-4 py-1.5 rounded-full bg-gradient-to-r ${getTierColor(tier)} text-white font-bold text-lg shadow-lg border border-amber-400/40`}>
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3">
+                        <div className={`rounded-full border border-amber-400/40 bg-gradient-to-r px-2.5 py-0.5 text-xs font-bold text-white shadow-lg sm:px-4 sm:py-1.5 sm:text-lg ${getTierColor(tier)}`}>
                             {getTierName(tier)}
                         </div>
-                        <span className="text-amber-100/90">총 피해량: <span className="font-bold text-amber-300">{result.damageDealt.toLocaleString()}</span></span>
+                        <span className="text-xs text-amber-100/90 sm:text-sm">총 피해량: <span className="font-bold text-amber-300">{result.damageDealt.toLocaleString()}</span></span>
                     </div>
                 </div>
                 
-                <div className="mb-3 flex-1 min-h-0 pr-1">
-                    <div className="grid grid-cols-5 gap-1.5">
+                <div className="mb-2 min-h-0 flex-1 px-1 sm:px-0 sm:pr-1">
+                    <div className="grid grid-cols-4 gap-1 sm:grid-cols-4 sm:gap-1.5 lg:grid-cols-5">
                         {rewardCards.map((card, index) => (
                             <div
                                 key={index}
-                                className={`relative h-20 sm:h-[5.25rem] ${card.isSpecial ? 'z-10' : ''}`}
+                                className={`relative h-[4.1rem] sm:h-[5.25rem] ${card.isSpecial ? 'z-10' : ''}`}
                                 style={{
                                     animationDelay: `${index * 100}ms`,
                                 }}
                             >
                                 {flipSettled ? (
                                     <div
-                                        className={`relative flex h-full w-full flex-col items-center justify-center rounded-lg border-2 p-1 shadow-lg [transform:none] [filter:none] ${
+                                        className={`relative flex h-full w-full flex-col items-center justify-center rounded-lg border-2 p-0.5 sm:p-1 shadow-lg [transform:none] [filter:none] ${
                                             card.isSpecial
                                                 ? 'bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 border-yellow-300 shadow-[0_0_20px_rgba(255,215,0,0.8)] ring-2 ring-yellow-200/60'
                                                 : 'border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900'
@@ -379,7 +391,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                                                 <span className="text-3xl font-bold text-white/80">?</span>
                                             </div>
                                             <div
-                                                className={`absolute inset-0 backface-hidden flex flex-col items-center justify-center rounded-lg border-2 p-1 shadow-lg ${
+                                                className={`absolute inset-0 backface-hidden flex flex-col items-center justify-center rounded-lg border-2 p-0.5 sm:p-1 shadow-lg ${
                                                     card.isSpecial
                                                         ? 'border-yellow-300 bg-gradient-to-br from-yellow-400 via-orange-500 to-red-500 shadow-[0_0_20px_rgba(255,215,0,0.8)]'
                                                         : 'border-gray-600 bg-gradient-to-br from-gray-800 to-gray-900'
@@ -396,7 +408,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                                 )}
                             </div>
                         ))}
-                        <div className="relative h-20 sm:h-[5.25rem]">
+                        <div className="relative h-[4.1rem] sm:h-[5.25rem]">
                             <ResultModalVipRewardSlot
                                 slot={vipSlot}
                                 compact
@@ -406,21 +418,21 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     </div>
                 </div>
                 
-                <div className="space-y-2 bg-black/40 border border-amber-500/20 p-4 rounded-lg text-sm flex-shrink-0">
-                    <div className="flex justify-between items-center">
+                <div className="flex-shrink-0 space-y-1.5 rounded-lg border border-amber-500/20 bg-black/40 p-2.5 text-[11px] sm:space-y-2 sm:p-4 sm:text-sm">
+                    <div className="flex items-center justify-between">
                         <span className="text-amber-200/80">생존 턴:</span>
                         <span className="font-bold text-amber-100">{result.turnsSurvived} 턴</span>
                     </div>
-                    <div className="pt-2 border-t border-amber-500/30">
+                    <div className="border-t border-amber-500/30 pt-1.5 sm:pt-2">
                         <p className="text-xs text-amber-200/70 mb-1">보스 남은 체력 ({hpPercentAfter.toFixed(1)}%)</p>
-                        <div className="w-full bg-stone-900/80 rounded-full h-3 border border-amber-600/40 relative overflow-hidden">
+                        <div className="relative h-2.5 w-full overflow-hidden rounded-full border border-amber-600/40 bg-stone-900/80 sm:h-3">
                             <div className="bg-gradient-to-r from-red-600 to-red-800 h-full rounded-full shadow-[0_0_8px_rgba(220,38,38,0.5)]" style={{ width: `${hpPercentAfter}%` }}></div>
-                            <span className="absolute inset-0 text-xs font-bold text-white flex items-center justify-center" style={{textShadow: '1px 1px 2px black'}}>
+                            <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white sm:text-xs" style={{textShadow: '1px 1px 2px black'}}>
                                 {result.bossHpAfter.toLocaleString()} / {result.bossMaxHp.toLocaleString()}
                             </span>
                         </div>
                     </div>
-                    <div className="pt-2 border-t border-amber-500/30">
+                    <div className="border-t border-amber-500/30 pt-1.5 sm:pt-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <span className="text-amber-200/80">누적 피해 순위</span>
                             <div className="flex max-w-full flex-wrap items-center justify-end gap-x-2 gap-y-1 text-xs sm:text-sm">
@@ -454,12 +466,12 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     </div>
                 </div>
                 
-                <div className="flex-shrink-0 mt-4 flex justify-center px-2">
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} mt-2 flex shrink-0 justify-center border-t border-amber-500/20 bg-black/20 px-2 pb-[max(0.4rem,env(safe-area-inset-bottom,0px))] pt-1.5 sm:mt-4 sm:border-t-0 sm:bg-transparent sm:pb-0`}>
                     <Button
                         bare
                         colorScheme="none"
                         onClick={onClose}
-                        className={`min-w-[10rem] px-10 ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`}
+                        className={`min-w-[8.5rem] px-8 sm:min-w-[10rem] sm:px-10 ${PRE_GAME_MODAL_ACCENT_BTN_CLASS}`}
                     >
                         확인
                     </Button>
