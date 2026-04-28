@@ -76,6 +76,21 @@ const normalizeOptionalPositiveInt = (
     return n > 0 ? n : undefined;
 };
 
+const normalizeOptionalPositiveIntList = (value: unknown, maxValue: number, maxLen: number): number[] | undefined => {
+    if (!Array.isArray(value)) return undefined;
+    const seen = new Set<number>();
+    const out: number[] = [];
+    for (const raw of value) {
+        const n = clampInt(raw, 1, maxValue, 0);
+        if (n <= 0 || seen.has(n)) continue;
+        seen.add(n);
+        out.push(n);
+        if (out.length >= maxLen) break;
+    }
+    out.sort((a, b) => a - b);
+    return out.length > 0 ? out : undefined;
+};
+
 const normalizeOptionalText = (value: unknown, fallback: string | undefined, maxLength: number): string | undefined => {
     if (value == null) return fallback;
     if (typeof value !== 'string') return fallback;
@@ -198,6 +213,20 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         survivalTurns: normalizeOptionalPositiveInt(row.survivalTurns, fallback.survivalTurns, 999),
         hiddenCount: normalizeOptionalPositiveInt(row.hiddenCount, fallback.hiddenCount, 99),
         scanCount: normalizeOptionalPositiveInt(row.scanCount, fallback.scanCount, 99),
+        aiHiddenItemTurns:
+            normalizeOptionalPositiveIntList((row as any).aiHiddenItemTurns, 99, 12)
+            ?? normalizeOptionalPositiveIntList((fallback as any).aiHiddenItemTurns, 99, 12),
+        aiHiddenItemUseWithinTurn: normalizeOptionalPositiveInt(
+            (row as any).aiHiddenItemUseWithinTurn,
+            (fallback as any).aiHiddenItemUseWithinTurn,
+            99
+        ),
+        forceAiResponsesOnHiddenTurnsOnly:
+            (row as any).forceAiResponsesOnHiddenTurnsOnly === true
+                ? true
+                : (fallback as any).forceAiResponsesOnHiddenTurnsOnly === true
+                  ? true
+                  : undefined,
         missileCount: normalizeOptionalPositiveInt(row.missileCount, fallback.missileCount, 99),
         autoScoringTurns: normalizeOptionalPositiveInt(row.autoScoringTurns, fallback.autoScoringTurns, 999),
         rewards: {

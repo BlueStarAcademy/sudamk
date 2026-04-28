@@ -52,6 +52,9 @@ function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameM
     if (!modes.includes(GameMode.Hidden)) {
         delete (next as { hiddenCount?: number }).hiddenCount;
         delete (next as { scanCount?: number }).scanCount;
+        delete (next as { aiHiddenItemTurns?: number[] }).aiHiddenItemTurns;
+        delete (next as { aiHiddenItemUseWithinTurn?: number }).aiHiddenItemUseWithinTurn;
+        delete (next as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
     }
     if (!modes.includes(GameMode.Base)) delete (next as { baseStones?: number }).baseStones;
     if (!modes.includes(GameMode.Capture)) delete (next as { blackTurnLimit?: number }).blackTurnLimit;
@@ -154,6 +157,9 @@ function nextDraftAfterStrategicRulePresetChange(
             return wipe(prev, [
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemTurns',
+                'aiHiddenItemUseWithinTurn',
+                'forceAiResponsesOnHiddenTurnsOnly',
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
@@ -255,6 +261,25 @@ const defaultSinglePlayerKataServerLevel = (level: SinglePlayerStageInfo['level'
 };
 
 const clampKataServerLevel = (value: number): number => Math.max(-31, Math.min(9, Math.floor(value)));
+const normalizeHiddenTurnsFromCsv = (raw: string): number[] => {
+    const tokens = raw
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+    const seen = new Set<number>();
+    const out: number[] = [];
+    for (const token of tokens) {
+        const parsed = Number(token);
+        if (!Number.isInteger(parsed) || parsed <= 0) continue;
+        const clamped = Math.max(1, Math.min(99, parsed));
+        if (seen.has(clamped)) continue;
+        seen.add(clamped);
+        out.push(clamped);
+        if (out.length >= 12) break;
+    }
+    out.sort((a, b) => a - b);
+    return out;
+};
 
 type ForcedAiResponseRow = NonNullable<SinglePlayerStageInfo['forcedAiResponses']>[number];
 const pointKey = (x: number, y: number): string => `${x},${y}`;
@@ -273,6 +298,9 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                     : defaultSinglePlayerKataServerLevel(stage.level)
             )
         )
+    );
+    const [aiHiddenTurnsCsv, setAiHiddenTurnsCsv] = useState<string>(() =>
+        Array.isArray(stage.aiHiddenItemTurns) ? stage.aiHiddenItemTurns.join(', ') : ''
     );
     const [rulePreset, setRulePreset] = useState<SinglePlayerStrategicRulePreset>(() => stage.strategicRulePreset ?? 'auto');
     const [isForcedResponseBoardEditMode, setIsForcedResponseBoardEditMode] = useState(false);
@@ -298,6 +326,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         setResetBaseline(snapshot);
         setDraft({ ...snapshot, kataServerLevel: resolvedKataServerLevel });
         setKataServerLevelInput(String(resolvedKataServerLevel));
+        setAiHiddenTurnsCsv(Array.isArray(snapshot.aiHiddenItemTurns) ? snapshot.aiHiddenItemTurns.join(', ') : '');
         setCells(fixedOpeningToCells(snapshot));
         setRulePreset(snapshot.strategicRulePreset ?? 'auto');
         setIsForcedResponseBoardEditMode(false);
@@ -356,6 +385,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         || (isMixPreset && !mixHasCapture);
     const showBaseStones = effectiveRulePreset === 'base' || (isMixPreset && mixHasBase);
     const showHiddenCounts = effectiveRulePreset === 'hidden' || (isMixPreset && mixHasHidden);
+    const showHiddenAiTiming = showHiddenCounts;
     const showMissileCount = effectiveRulePreset === 'missile' || (isMixPreset && mixHasMissile);
     const isMixSelectionInvalid = isMixPreset && mixedModes.length < 2;
     const forcedAiResponses = Array.isArray(draft.forcedAiResponses) ? draft.forcedAiResponses : [];
@@ -389,8 +419,18 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         if ((draft.description ?? '').length > 1200) {
             errors.push('스테이지 설명은 1200자 이하로 입력해주세요.');
         }
+        if (showHiddenAiTiming) {
+            const turns = normalizeHiddenTurnsFromCsv(aiHiddenTurnsCsv);
+            if (aiHiddenTurnsCsv.trim().length > 0 && turns.length === 0) {
+                errors.push('AI 히든 턴은 1 이상의 정수(쉼표 구분)로 입력해주세요. 예: 2, 5, 8');
+            }
+            const within = Number(draft.aiHiddenItemUseWithinTurn ?? 0);
+            if (within < 0) {
+                errors.push('AI 히든 N턴 이내 사용은 0 이상으로 입력해주세요.');
+            }
+        }
         return errors;
-    }, [cells, draft.boardSize, draft.description, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid]);
+    }, [aiHiddenTurnsCsv, cells, draft.aiHiddenItemUseWithinTurn, draft.boardSize, draft.description, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid, showHiddenAiTiming]);
     const hasValidationErrors = validationErrors.length > 0;
 
     const updateForcedAiResponse = useCallback((index: number, updater: (prev: ForcedAiResponseRow) => ForcedAiResponseRow) => {
@@ -958,6 +998,39 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                             </label>
                                         </>
                                     )}
+                                    {showHiddenAiTiming && (
+                                        <>
+                                            <label className="col-span-2 text-xs">AI 히든 연출 턴(직접 지정, 쉼표 구분)
+                                                <input
+                                                    className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                    type="text"
+                                                    value={aiHiddenTurnsCsv}
+                                                    placeholder="예: 2, 5, 8"
+                                                    onChange={(e) => setAiHiddenTurnsCsv(e.target.value)}
+                                                />
+                                            </label>
+                                            <label className="text-xs">AI 히든 N턴 이내 랜덤 사용
+                                                <input
+                                                    className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                    type="number"
+                                                    value={draft.aiHiddenItemUseWithinTurn ?? 0}
+                                                    onChange={(e) =>
+                                                        setDraft((p) => ({ ...p, aiHiddenItemUseWithinTurn: Number(e.target.value) || 0 }))
+                                                    }
+                                                />
+                                            </label>
+                                            <label className="col-span-2 flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/60 px-2 py-2 text-xs">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={draft.forceAiResponsesOnHiddenTurnsOnly === true}
+                                                    onChange={(e) =>
+                                                        setDraft((p) => ({ ...p, forceAiResponsesOnHiddenTurnsOnly: e.target.checked }))
+                                                    }
+                                                />
+                                                AI 강제 응수 규칙을 히든 연출 턴에만 적용
+                                            </label>
+                                        </>
+                                    )}
                                     {showMissileCount && (
                                         <label className="text-xs">미사일 개수
                                             <input
@@ -1032,6 +1105,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                         onClick={() => {
                             const snapshot = cloneStageInfo(resetBaseline);
                             setDraft(snapshot);
+                            setAiHiddenTurnsCsv(Array.isArray(snapshot.aiHiddenItemTurns) ? snapshot.aiHiddenItemTurns.join(', ') : '');
                             setCells(fixedOpeningToCells(snapshot));
                             setRulePreset(snapshot.strategicRulePreset ?? 'auto');
                             setErrorMessage('');
@@ -1070,9 +1144,15 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             setSaving(true);
                             try {
                                 setErrorMessage('');
+                                const normalizedHiddenTurns = normalizeHiddenTurnsFromCsv(aiHiddenTurnsCsv);
                                 await onSave({
                                     ...draft,
                                     strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
+                                    aiHiddenItemTurns: normalizedHiddenTurns.length > 0 ? normalizedHiddenTurns : undefined,
+                                    aiHiddenItemUseWithinTurn: Number(draft.aiHiddenItemUseWithinTurn ?? 0) > 0
+                                        ? Number(draft.aiHiddenItemUseWithinTurn)
+                                        : undefined,
+                                    forceAiResponsesOnHiddenTurnsOnly: draft.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
                                     fixedOpening: cellsToFixedOpening(resizeCells(cells, draft.boardSize)),
                                 });
                             } catch (error) {

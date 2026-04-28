@@ -290,6 +290,9 @@ const applyLatestPendingSinglePlayerStage = async (
         baseStones: stage.baseStones,
         singlePlayerForcedAiResponses: stage.forcedAiResponses,
         singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
+        singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
+        singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
+        singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,
         ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
     } as any;
 
@@ -466,6 +469,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     baseStones: stage.baseStones, // 베이스바둑: 베이스 돌 개수
                     singlePlayerForcedAiResponses: stage.forcedAiResponses,
                     singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
+                    singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
+                    singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
+                    singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,
                     ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
                 } as any,
                 player1: user,

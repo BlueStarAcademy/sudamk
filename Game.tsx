@@ -499,6 +499,23 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     ) {
                         return session.boardState;
                     }
+                    // 미사일 좌표 선반영 직후 빠르게 종료/계가로 넘어가면, 저장소(gameState_*)는 직전 판일 수 있다.
+                    // 이 경우에는 서버/세션의 최신 boardState를 우선해 결과 화면에서 돌 소실을 막는다.
+                    const storedMissileTransition =
+                        parsed.gameStatus === 'missile_animating' ||
+                        parsed.gameStatus === 'missile_selecting' ||
+                        (parsed.animation &&
+                            (parsed.animation.type === 'missile' || parsed.animation.type === 'hidden_missile'));
+                    if (
+                        session.boardState &&
+                        Array.isArray(session.boardState) &&
+                        session.boardState.length > 0 &&
+                        serverMoveCount === storedMoveCount &&
+                        ['scoring', 'ended', 'no_contest', 'rematch_pending'].includes(gameStatus) &&
+                        storedMissileTransition
+                    ) {
+                        return session.boardState;
+                    }
                     // 싱글/탑: 수순 길이가 같을 때는 서버 보드가 최종(포획·미사일 반영)인 경우가 많다.
                     // 계가/종료 직후에는 sessionStorage를 더 이상 덮어쓰지 않아(아래 useEffect), 저장분이 마지막 playing의 포획 반영 판이고
                     // 서버가 포석+수순만으로 재구성한 보드면 따낸 돌이 다시 보인다(튜토리얼 USER_UPDATE 등 한 번 더 동기화될 때 포함).

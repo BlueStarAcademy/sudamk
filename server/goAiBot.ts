@@ -1501,7 +1501,20 @@ export async function makeGoAiBotMove(
         whenOpponentStoneAt?: Point;
         move: Point;
     }>;
-    const useHeuristicInsteadOfKata = game.isSinglePlayer && forcedAiResponsesForStage.length > 0;
+    const forceResponsesOnHiddenTurnsOnly =
+        game.isSinglePlayer &&
+        (game.settings as any)?.singlePlayerForceAiResponsesOnHiddenTurnsOnly === true;
+    const isConfiguredAiHiddenTurn =
+        isHiddenMode &&
+        (
+            (Array.isArray(plannedAiHiddenTurns) && plannedAiHiddenTurns.includes(currentAiTurnIndex)) ||
+            (typeof game.aiHiddenItemTurn === 'number' && game.aiHiddenItemTurn === currentAiTurnIndex)
+        );
+    const shouldApplyForcedResponsesThisTurn =
+        game.isSinglePlayer &&
+        forcedAiResponsesForStage.length > 0 &&
+        (!forceResponsesOnHiddenTurnsOnly || isConfiguredAiHiddenTurn);
+    const useHeuristicInsteadOfKata = shouldApplyForcedResponsesThisTurn;
     if (!useHeuristicInsteadOfKata && !isKataServerAvailable()) {
         throw new Error(
             `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). game=${game.id}`
@@ -1733,7 +1746,7 @@ export async function makeGoAiBotMove(
         throw new Error(`[makeGoAiBotMove] KataServer에서 수를 얻지 못했습니다. game=${game.id}`);
     }
 
-    const forcedAiResponses = forcedAiResponsesForStage;
+    const forcedAiResponses = shouldApplyForcedResponsesThisTurn ? forcedAiResponsesForStage : [];
     const isStrictForcedResponse =
         game.isSinglePlayer &&
         (game.settings as any)?.singlePlayerStrictForcedAiResponses === true &&

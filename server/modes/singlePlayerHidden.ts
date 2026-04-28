@@ -21,9 +21,29 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
         game.hidden_stones_p2 = (game.settings.hiddenStoneCount || 0);
         game.hidden_stones_used_p1 = 0;
         game.hidden_stones_used_p2 = 0;
-        // AI 턴 1~10 중 하나를 경기 시작 시 랜덤으로 정해 두고, 그 AI 턴에만 히든 연출 (전체 수순이 아니라 '몇 번째 AI 차례'인지)
+        // 스테이지 설정 우선순위:
+        // 1) 명시 턴 목록(singlePlayerAiHiddenItemTurns)
+        // 2) N턴 이내 랜덤 1회(singlePlayerAiHiddenItemUseWithinTurn)
+        // 3) 기존 기본값(1~10 랜덤)
         if ((game.hidden_stones_p2 ?? 0) > 0 && game.aiHiddenItemTurn === undefined) {
-            game.aiHiddenItemTurn = 1 + Math.floor(Math.random() * 10); // 1=1번째 AI턴, 2=2번째 AI턴, ..., 10=10번째 AI턴
+            const configuredTurnsRaw = (game.settings as any)?.singlePlayerAiHiddenItemTurns;
+            const configuredTurns = Array.isArray(configuredTurnsRaw)
+                ? configuredTurnsRaw
+                    .map((turn: unknown) => Number(turn))
+                    .filter((turn: number) => Number.isInteger(turn) && turn > 0)
+                    .slice(0, 12)
+                    .sort((a: number, b: number) => a - b)
+                : [];
+            if (configuredTurns.length > 0) {
+                game.aiHiddenItemTurns = configuredTurns;
+                game.aiHiddenItemsUsedCount = 0;
+                game.aiHiddenItemUsed = false;
+                game.aiHiddenItemTurn = configuredTurns[0];
+            } else {
+                const withinTurnRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn ?? 0);
+                const withinTurn = Number.isFinite(withinTurnRaw) ? Math.max(1, Math.min(99, Math.floor(withinTurnRaw))) : 10;
+                game.aiHiddenItemTurn = 1 + Math.floor(Math.random() * withinTurn); // 1=1번째 AI턴, ..., withinTurn=withinTurn번째 AI턴
+            }
         }
     }
 };

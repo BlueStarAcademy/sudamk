@@ -637,6 +637,12 @@ export type SinglePlayerStageInfo = {
     // 히든바둑 모드: 히든/스캔 아이템 개수
     hiddenCount?: number; // 히든 아이템 개수
     scanCount?: number; // 스캔 아이템 개수
+    /** AI 히든 연출(아이템 사용) 턴을 직접 지정 (AI의 n번째 턴 기준, 예: [2,5]) */
+    aiHiddenItemTurns?: number[];
+    /** AI 히든 연출을 n번째 AI 턴 이내에서 무작위 1회 사용 (aiHiddenItemTurns 미지정 시 사용) */
+    aiHiddenItemUseWithinTurn?: number;
+    /** true면 강제 응수 규칙을 AI 히든 연출 턴에만 적용 */
+    forceAiResponsesOnHiddenTurnsOnly?: boolean;
     // 흑(유저)의 턴 수 제한
     blackTurnLimit?: number; // 유저(흑)의 턴 수 제한
     // 베이스 바둑 모드: 베이스 돌 개수
@@ -703,6 +709,12 @@ export type GameSettings = {
     move: Point;
   }>;
   singlePlayerStrictForcedAiResponses?: boolean;
+  /** 싱글 스테이지 히든 연출 AI 턴 지정(직접 지정) */
+  singlePlayerAiHiddenItemTurns?: number[];
+  /** 싱글 스테이지 히든 연출 AI 턴 지정(무작위 상한) */
+  singlePlayerAiHiddenItemUseWithinTurn?: number;
+  /** true면 강제 응수 규칙을 히든 연출 턴에만 적용 */
+  singlePlayerForceAiResponsesOnHiddenTurnsOnly?: boolean;
   
   // Omok settings
   has33Forbidden?: boolean;

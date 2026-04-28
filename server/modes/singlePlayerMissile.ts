@@ -1145,11 +1145,12 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                     game.boardState[animationFrom.y][animationFrom.x] = types.Player.None;
                 }
                 
-                // 배치돌 업데이트: 원래 자리의 배치돌 제거 (싱글플레이 특성 고려)
+                // 배치돌 업데이트: 원래 자리의 배치돌을 목적지로 이동
                 if (game.baseStones) {
                     const baseStoneIndex = game.baseStones.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
                     if (baseStoneIndex !== -1) {
-                        game.baseStones.splice(baseStoneIndex, 1);
+                        game.baseStones[baseStoneIndex].x = animationTo.x;
+                        game.baseStones[baseStoneIndex].y = animationTo.y;
                     }
                 }
                 
@@ -1160,7 +1161,8 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
                 if (baseStonesArray) {
                     const baseStoneIndex = baseStonesArray.findIndex(bs => bs.x === animationFrom.x && bs.y === animationFrom.y);
                     if (baseStoneIndex !== -1) {
-                        baseStonesArray.splice(baseStoneIndex, 1);
+                        baseStonesArray[baseStoneIndex].x = animationTo.x;
+                        baseStonesArray[baseStoneIndex].y = animationTo.y;
                     }
                 }
                 

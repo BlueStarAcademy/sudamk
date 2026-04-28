@@ -1848,17 +1848,8 @@ export const useApp = () => {
                 const gameInStore = currentGames[gameId];
                 if (!gameInStore) return currentGames;
                 const g = gameInStore;
-                // 게임이 이미 종료되었는지 확인
-                if (g.gameStatus === 'ended' || g.gameStatus === 'no_contest' || g.gameStatus === 'scoring') {
-                    // 성능 최적화: 불필요한 로깅 제거 (프로덕션)
-                    if (process.env.NODE_ENV === 'development') {
-                        console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Game already ended, ignoring:`, {
-                            gameId,
-                            gameStatus: g.gameStatus
-                        });
-                    }
-                    return currentGames;
-                }
+                const isTerminalStatus =
+                    g.gameStatus === 'ended' || g.gameStatus === 'no_contest' || g.gameStatus === 'scoring';
                 
                 // 애니메이션이 없거나 이미 완료된 경우
                 if (!g.animation || (g.animation.type !== 'missile' && g.animation.type !== 'hidden_missile')) {
@@ -1912,7 +1903,8 @@ export const useApp = () => {
                 const updatedGame: LiveGameSession = {
                     ...g,
                     animation: null,
-                    gameStatus: 'playing',
+                    // 종료 직전 레이스에서도 미사일 보드 정합 처리는 유지하되, 종료 상태는 보존한다.
+                    gameStatus: isTerminalStatus ? g.gameStatus : 'playing',
                     blackTimeLeft: updatedBlackTime,
                     whiteTimeLeft: updatedWhiteTime,
                     pausedTurnTimeLeft: undefined,
@@ -2103,14 +2095,16 @@ export const useApp = () => {
                     }
                 }
                 
-                console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Updated game state:`, {
-                    gameId,
-                    gameStatus: updatedGame.gameStatus,
-                    animation: updatedGame.animation,
-                    moveHistoryLength: updatedGame.moveHistory?.length,
-                    totalTurns: updatedGame.totalTurns,
-                    captures: updatedGame.captures
-                });
+                if (process.env.NODE_ENV === 'development') {
+                    console.log(`[handleAction] SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE - Updated game state:`, {
+                        gameId,
+                        gameStatus: updatedGame.gameStatus,
+                        animation: updatedGame.animation,
+                        moveHistoryLength: updatedGame.moveHistory?.length,
+                        totalTurns: updatedGame.totalTurns,
+                        captures: updatedGame.captures
+                    });
+                }
                 
                 // 새로고침 직후 등 moveHistory/boardState/턴 정보가 없을 수 있음 — 반환 객체는 기존 game 값 보존
                 const safeGame: LiveGameSession = {
