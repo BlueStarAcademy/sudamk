@@ -5,6 +5,7 @@ import { syncAiSession } from '../aiSessionManager.js';
 import { resumeGameTimer } from './shared.js';
 import {
     consumeOpponentPatternStoneIfAny,
+    recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
 import {
@@ -120,12 +121,14 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
             if (isBaseStone) {
                 game.baseStoneCaptures[myP]++;
                 points = 5;
+                recordPatternStoneConsumed(game, stone);
             } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentP)) {
                 points = 2;
             } else if (wasHidden || wasAiInitialHidden) {
                 game.hiddenStoneCaptures[myP] = (game.hiddenStoneCaptures[myP] || 0) + 1;
                 points = 5;
                 wasHiddenForEntry = true;
+                recordPatternStoneConsumed(game, stone);
             }
             game.captures[myP] += points;
             game.justCaptured.push({

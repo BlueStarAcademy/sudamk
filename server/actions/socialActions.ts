@@ -332,7 +332,22 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         case 'LEAVE_GAME_ROOM': {
             const { gameId } = payload;
             const game = await db.getLiveGame(gameId);
-            if (!game) return { error: 'Game not found.' };
+            if (!game) {
+                // 경기 종료 직후 GC/정리로 이미 삭제된 게임이어도
+                // 나가기 버튼은 성공 처리되어 클라이언트 대기실 리다이렉트가 진행되어야 한다.
+                const userStatus = volatileState.userStatuses[user.id];
+                if (userStatus) {
+                    userStatus.status = UserStatus.Online;
+                    delete userStatus.gameId;
+                    delete userStatus.spectatingGameId;
+                    delete userStatus.mode;
+                    delete userStatus.waitingLobby;
+                } else {
+                    volatileState.userStatuses[user.id] = { status: UserStatus.Online };
+                }
+                broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                return {};
+            }
 
             if (volatileState.userStatuses[user.id]) {
                 // 싱글플레이 게임이 아닌 경우, 게임 모드를 strategic/playful로 변환

@@ -788,7 +788,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             setRememberPosition(shouldRemember);
 
-            const shouldForceDefaultCenter = skipSavedPosition || Boolean(ingameBoardFrame);
+            /** 인게임에서도 `창 위치 기억하기`가 켜져 있으면 저장 좌표를 쓰고, 끄면 바둑판 중앙 고정(기존 동작) */
+            const shouldForceDefaultCenter =
+                skipSavedPosition || (Boolean(ingameBoardFrame) && !shouldRemember);
             if (shouldForceDefaultCenter) {
                 setPosition({ ...effectiveDefaultPosition });
                 try {
@@ -941,7 +943,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (isDragging) {
             setIsDragging(false);
 
-            if (rememberPosition && !skipSavedPosition && !ingameBoardFrame) {
+            if (rememberPosition && !skipSavedPosition) {
                 try {
                     const savedPositions = JSON.parse(localStorage.getItem('draggableWindowPositions') || '{}');
 
@@ -955,7 +957,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
             queueMicrotask(() => applyBoundsClamp());
         }
-    }, [isDragging, windowId, rememberPosition, skipSavedPosition, ingameBoardFrame, applyBoundsClamp]);
+    }, [isDragging, windowId, rememberPosition, skipSavedPosition, applyBoundsClamp]);
 
 
 

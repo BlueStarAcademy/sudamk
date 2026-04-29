@@ -2,6 +2,7 @@ import { Player } from '../types/index.js';
 import type { BoardState, LiveGameSession, Point } from '../types/index.js';
 import {
     consumeOpponentPatternStoneIfAny,
+    recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
 } from './patternStoneConsume.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from './guildWarMaxSingleCapturePoints.js';
@@ -75,6 +76,7 @@ export function applyMissileCaptureProcessResult(
                 }
                 game.baseStoneCaptures[myPlayerEnum]++;
                 points = 5;
+                recordPatternStoneConsumed(game, stone);
             } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
                 points = 2;
             }
@@ -90,12 +92,14 @@ export function applyMissileCaptureProcessResult(
                 }
                 game.baseStoneCaptures[myPlayerEnum]++;
                 points = 5;
+                recordPatternStoneConsumed(game, stone);
             } else if (wasHidden) {
                 if (!game.hiddenStoneCaptures) {
                     game.hiddenStoneCaptures = { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 };
                 }
                 game.hiddenStoneCaptures[myPlayerEnum]++;
                 points = 5;
+                recordPatternStoneConsumed(game, stone);
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                 if (!game.permanentlyRevealedStones.some((p) => p.x === stone.x && p.y === stone.y)) {
                     game.permanentlyRevealedStones.push(stone);

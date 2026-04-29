@@ -5,6 +5,7 @@ import { pauseGameTimer, resumeGameTimer, shouldEnforceTimeControl } from './sha
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     consumeOpponentPatternStoneIfAny,
+    recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
 import {
@@ -245,6 +246,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
+                            recordPatternStoneConsumed(game, stone);
                         } else {
                             const pveLike =
                                 game.isSinglePlayer ||
@@ -257,6 +259,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                                 game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
                                 points = 5;
                                 wasHiddenForEntry = true;
+                                recordPatternStoneConsumed(game, stone);
                             }
                         }
                         game.captures[myPlayerEnum] += points;

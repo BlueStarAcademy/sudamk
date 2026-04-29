@@ -862,18 +862,34 @@ export const analyzeGame = async (
     if (useBoardStateForAnalysis) {
         // For these modes, send the current board state directly.
         // 미리 배치된 돌(baseStones)과 히든돌도 포함하여 정확한 계가 수행
+        const boardSize = session.settings.boardSize || 19;
+        const rawBs = session.boardState;
+        if (!rawBs || !Array.isArray(rawBs) || rawBs.length < boardSize) {
+            throw new Error(`[analyzeGame] Invalid boardState for game ${session.id}`);
+        }
+        /** HTTP 계가는 비동기라 동안 세션이 갱신되면 순회 중 좌표/색이 끼어들 수 있음 → 스냅샷으로 Kata 페이로드 고정 */
+        const boardSnapshot: types.Player[][] = [];
+        for (let y = 0; y < boardSize; y++) {
+            const row = rawBs[y];
+            if (!Array.isArray(row) || row.length < boardSize) {
+                throw new Error(`[analyzeGame] boardState row ${y} invalid for game ${session.id}`);
+            }
+            boardSnapshot.push(row.slice(0, boardSize) as types.Player[]);
+        }
+        const snapshotCurrentPlayer = session.currentPlayer;
+
         const initialStones: [string, string][] = [];
         const processedPoints = new Set<string>();
         
         // 1. 현재 보드 상태의 모든 돌 추가
-        for (let y = 0; y < session.settings.boardSize; y++) {
-            for (let x = 0; x < session.settings.boardSize; x++) {
-                if (session.boardState[y][x] !== types.Player.None) {
+        for (let y = 0; y < boardSize; y++) {
+            for (let x = 0; x < boardSize; x++) {
+                if (boardSnapshot[y][x] !== types.Player.None) {
                     const pointKey = `${x},${y}`;
                     processedPoints.add(pointKey);
                     initialStones.push([
-                        session.boardState[y][x] === types.Player.Black ? 'B' : 'W',
-                        pointToKataGoMove({ x, y }, session.settings.boardSize)
+                        boardSnapshot[y][x] === types.Player.Black ? 'B' : 'W',
+                        pointToKataGoMove({ x, y }, boardSize)
                     ]);
                 }
             }
@@ -888,7 +904,7 @@ export const analyzeGame = async (
                 processedPoints.add(pointKey);
                 initialStones.push([
                     resolveBaseStoneColor('p1'),
-                    pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
+                    pointToKataGoMove({ x: stone.x, y: stone.y }, boardSize)
                 ]);
             }
         }
@@ -899,7 +915,7 @@ export const analyzeGame = async (
                 processedPoints.add(pointKey);
                 initialStones.push([
                     resolveBaseStoneColor('p2'),
-                    pointToKataGoMove({ x: stone.x, y: stone.y }, session.settings.boardSize)
+                    pointToKataGoMove({ x: stone.x, y: stone.y }, boardSize)
                 ]);
             }
         }
@@ -908,7 +924,7 @@ export const analyzeGame = async (
         // (히든돌은 이미 boardState에 반영되어 있으므로 추가 처리 불필요)
         // 단, moveHistory를 기반으로 한 분석에서 누락될 수 있으므로 확인
         
-        isCurrentPlayerWhite = session.currentPlayer === types.Player.White;
+        isCurrentPlayerWhite = snapshotCurrentPlayer === types.Player.White;
 
         query = {
             id: `query-${randomUUID()}`,
@@ -917,8 +933,8 @@ export const analyzeGame = async (
             moves: [], // No moves, since we provided the final state.
             rules: "korean",
             komi: session.finalKomi ?? session.settings.komi,
-            boardXSize: session.settings.boardSize,
-            boardYSize: session.settings.boardSize,
+            boardXSize: boardSize,
+            boardYSize: boardSize,
             maxVisits: options?.maxVisits ?? parseInt(process.env.KATAGO_MAX_VISITS || '500', 10),
             includePolicy: options?.includePolicy ?? true,
             includeOwnership: options?.includeOwnership ?? true,

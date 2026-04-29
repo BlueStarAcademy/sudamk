@@ -326,6 +326,7 @@ export function updateGameStateAfterMove(
             if (isBaseStone) {
                 points = 5;
                 updatedBaseStoneCaptures[movePlayer] = (updatedBaseStoneCaptures[movePlayer] || 0) + 1;
+                recordPatternStoneConsumed(consumedPatternSlice, stone);
             } else if (isPatternStone) {
                 points = 2;
                 if (opponentPlayer === Player.Black) {
@@ -338,6 +339,7 @@ export function updateGameStateAfterMove(
                 points = 5;
                 wasHidden = true;
                 updatedHiddenStoneCaptures[movePlayer] = (updatedHiddenStoneCaptures[movePlayer] || 0) + 1;
+                recordPatternStoneConsumed(consumedPatternSlice, stone);
                 updatedPermanentlyRevealedStones = upsertPoint(updatedPermanentlyRevealedStones, stone);
             }
 

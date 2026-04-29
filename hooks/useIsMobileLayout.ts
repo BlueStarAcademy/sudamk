@@ -29,6 +29,8 @@ export const TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX = 500;
  * 태블릿 오검출을 줄이기 위해 800px까지 허용한다.
  */
 export const TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX = 800;
+/** UA 기반 태블릿 가로 보정 긴 변 하한 (브라우저 UI/줌으로 viewport가 작아진 경우 대응) */
+export const TABLET_LANDSCAPE_UA_RELAXED_MIN_LONG_SIDE_CSS_PX = 700;
 
 export type TouchLayoutProfile = {
     /** 폰·소형 터치 기기: 항상 세로형 네이티브 셸 */
@@ -64,6 +66,9 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
     /** Android 폰: UA에 Mobile이 있는 경우가 많고, 주변기기·접근성으로 coarse가 꺼져도 폰으로 본다 */
     const likelyAndroidPhoneByUa =
         isAndroidUa && /Mobile/i.test(ua) && !/\bTablet\b/i.test(ua) && !/Silk\//i.test(ua);
+    /** Android 태블릿: Android UA이면서 Mobile 토큰이 없는 경우를 우선 태블릿 후보로 본다 */
+    const likelyAndroidTabletByUa = isAndroidUa && !/Mobile/i.test(ua);
+    const likelyTabletByUaStrong = isIpadLikeUa || likelyAndroidTabletByUa;
     const treatAsTouchTablet =
         (hasTouch && (tabletLikePointer || likelyTabletBySize)) ||
         likelyTabletByUaAndSize ||
@@ -83,6 +88,16 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
             shortSide >= TABLET_LANDSCAPE_MIN_SHORT_SIDE_CSS_PX &&
             longSide >= TABLET_LANDSCAPE_MIN_LONG_SIDE_RELAXED_CSS_PX &&
             longSide <= TABLET_NARROW_SHORT_SIDE_LANDSCAPE_MAX_LONG_CSS_PX
+        ) {
+            return { isPhoneHandheldTouch: false, isLargeTouchTablet: true };
+        }
+        if (
+            landscape &&
+            hasTouch &&
+            likelyTabletByUaStrong &&
+            !likelyApplePhoneByUa &&
+            !likelyAndroidPhoneByUa &&
+            longSide >= TABLET_LANDSCAPE_UA_RELAXED_MIN_LONG_SIDE_CSS_PX
         ) {
             return { isPhoneHandheldTouch: false, isLargeTouchTablet: true };
         }

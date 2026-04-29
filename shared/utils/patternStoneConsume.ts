@@ -7,7 +7,10 @@ export type PatternStoneConsumeSlice = {
     consumedPatternIntersections?: Point[] | null;
 };
 
-/** 한 번 문양돌로 따인 교차점은 같은 대국에서 다시 문양이 되지 않도록 기록 */
+/**
+ * 한 번 특수(문양·베이스·히든) 돌이 따인 교차점을 기록한다.
+ * `consumedPatternIntersections` 이름은 호환용이며, 같은 대국에서 해당 좌표는 일반 돌로만 표시한다.
+ */
 export function recordPatternStoneConsumed(game: PatternStoneConsumeSlice, point: Point): void {
     if (!game.consumedPatternIntersections) game.consumedPatternIntersections = [];
     if (!game.consumedPatternIntersections.some((p) => p.x === point.x && p.y === point.y)) {
@@ -15,7 +18,7 @@ export function recordPatternStoneConsumed(game: PatternStoneConsumeSlice, point
     }
 }
 
-/** 상대 색 기준 문양 목록에서 제거 + 소모 기록. 문양이었으면 true */
+/** 상대 색 기준 문양 목록에서 제거 + 소모 기록. 문양이었으면 true (일회용 문양) */
 export function consumeOpponentPatternStoneIfAny(
     game: PatternStoneConsumeSlice,
     point: Point,

@@ -1806,7 +1806,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 미사일 선택 가능 여부는 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
                     // displayBoardState와 동일 소스만 사용 (서버 boardState 참조가 순간적으로 어긋나면 히든 문양이 잘못 붙는 현상 방지)
                     const actualPlayer = player;
-                    
+                    /** 문양·베이스·히든 특수돌이 따인 뒤 같은 좌표에 다시 둔 돌은 항상 일반돌로만 표시 */
+                    const isPlainStoneReuseIntersection =
+                        consumedPatternIntersections?.some((p) => p.x === x && p.y === y) ?? false;
+
                     const isSingleLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastMove && lastMove.x === x && lastMove.y === y;
                     const isMultiLastMove = showLastMoveMarker && isLastMoveMarkerEnabled && lastTurnStones && lastTurnStones.some(p => p.x === x && p.y === y);
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
@@ -1815,6 +1818,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y, actualPlayer) : -1;
                     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
                     const isHiddenMove =
+                        !isPlainStoneReuseIntersection &&
                         hiddenMoves &&
                         moveIndex !== -1 &&
                         !!hiddenMoves[moveIndex] &&
@@ -1826,6 +1830,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         animation.stones?.some((s: { point: Point }) => s.point.x === x && s.point.y === y);
                     const isPermanentlyRevealed = permanentlyRevealedStones?.some(p => p.x === x && p.y === y) || !!isInRevealAnimation;
                     const atAiInitialHiddenStone =
+                        !isPlainStoneReuseIntersection &&
                         !!aiInitialHiddenStone &&
                         aiInitialHiddenStone.x === x &&
                         aiInitialHiddenStone.y === y &&
@@ -1888,7 +1893,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         (effectiveHiddenMoveForRender && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
                     );
 
-                    const hasBaseStoneHere = baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false;
+                    const hasBaseStoneHere =
+                        !isPlainStoneReuseIntersection && (baseStones?.some((bs) => bs.x === x && bs.y === y) ?? false);
                     // 히든 돌은 공개되어도 히든 문양을 유지. 상대 미공개 히든은 위에서 return null.
                     // (이전: 마지막 수만 문양 제외 → 본인 히든 착수 직후·스캔 직후에도 문양이 안 보이는 버그)
                     const isKnownHidden = !!effectiveHiddenMoveForRender;
@@ -1900,8 +1906,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     // 히든 돌(공개 여부와 관계없이)은 히든 문양을 우선 표시하므로 패턴 문양을 표시하지 않음
                     let isPatternStone = false;
                     if (!effectiveHiddenMoveForRender) {
-                        const patternConsumedHere = consumedPatternIntersections?.some((p) => p.x === x && p.y === y);
-                        if (!patternConsumedHere) {
+                        if (!isPlainStoneReuseIntersection) {
                             isPatternStone =
                                 ((actualPlayer === Player.Black && blackPatternStones?.some((p) => p.x === x && p.y === y)) ||
                                     (actualPlayer === Player.White && whitePatternStones?.some((p) => p.x === x && p.y === y))) ??

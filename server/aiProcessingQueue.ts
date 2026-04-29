@@ -7,7 +7,7 @@
 import { LiveGameSession, Player } from '../types/index.js';
 import { PLAYFUL_AI_BATCH_STONE_INTERVAL_MS } from '../constants';
 import { makeAiMove, aiUserId } from './aiPlayer.js';
-import { getCachedGame } from './gameCache.js';
+import { getCachedGame, updateGameCache } from './gameCache.js';
 import * as db from './db.js';
 import { broadcast } from './socket.js';
 import { cpus } from 'os';
@@ -203,6 +203,9 @@ class AiProcessingQueue {
             // AI 수 처리
             await makeAiMove(game);
             this.retryCounts.delete(gameId);
+
+            // 강제응수·goAiBot 등으로 보드가 바뀐 직후 lastUpdated가 오래되면 캐시 만료 → DB 폴백이 빈판/낡은 판을 줄 수 있음
+            updateGameCache(game);
 
             // DB 저장 (비동기, 응답 지연 최소화)
             db.saveGame(game).catch(err => {

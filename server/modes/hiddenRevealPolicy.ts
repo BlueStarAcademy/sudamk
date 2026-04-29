@@ -22,9 +22,9 @@ export const treatAsPveLikeForHiddenOpponentReveal = (game: types.LiveGameSessio
     (game as any).gameCategory === 'guildwar' ||
     !!game.isAiGame;
 
-/** 모험: 히든 위 착수는 포획·수순 반영 없이 공개 연출만 */
+/** 모든 히든 모드 공통: 히든 위 착수는 포획·수순 반영 없이 공개 연출만 */
 export const skipPendingCaptureForAdventureHiddenReveal = (game: types.LiveGameSession): boolean =>
-    isAdventureCategory(game);
+    true;
 
 /**
  * 히든 공개 연출 후 실제 착수를 되돌리고 발견한 쪽 턴을 유지할지.
@@ -32,12 +32,9 @@ export const skipPendingCaptureForAdventureHiddenReveal = (game: types.LiveGameS
  */
 export const shouldPreserveDiscovererTurnAfterOpponentHiddenReveal = (game: types.LiveGameSession): boolean => {
     if (isAdventureCategory(game)) return false;
-    return (
-        !!game.isSinglePlayer ||
-        game.gameCategory === 'tower' ||
-        (game as any).gameCategory === 'guildwar' ||
-        !!game.isAiGame
-    );
+    // 모험을 제외한 모든 전략 대국에서 "상대 미공개 히든 클릭" 경험을 동일화한다.
+    // (PVP 포함: 전체 공개 후 발견자 턴 유지)
+    return true;
 };
 
 /** aiInitialHiddenStone 좌표 추적(히든 분기 진입) */

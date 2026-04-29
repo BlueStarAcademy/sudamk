@@ -19,6 +19,7 @@ import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceT
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     consumeOpponentPatternStoneIfAny,
+    recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
 import {
@@ -153,6 +154,57 @@ function adventureRevealAllHumanHiddensIfInvolved(
             game.permanentlyRevealedStones.push({ x: m.x, y: m.y });
         }
     }
+}
+
+function expandToAllUnrevealedHiddenStonesForPlayers(
+    game: types.LiveGameSession,
+    seedStones: { point: types.Point; player: types.Player }[]
+): { point: types.Point; player: types.Player }[] {
+    if (!seedStones.length) return seedStones;
+    const revealByPoint = new Map<string, { point: types.Point; player: types.Player }>();
+    for (const stone of seedStones) {
+        revealByPoint.set(`${stone.point.x},${stone.point.y}`, stone);
+    }
+    const targetPlayers = new Set<types.Player>(seedStones.map((s) => s.player));
+    const revealedPoints = new Set<string>(
+        (game.permanentlyRevealedStones || []).map((p) => `${p.x},${p.y}`)
+    );
+
+    if (game.hiddenMoves && game.moveHistory) {
+        for (const moveIndexStr of Object.keys(game.hiddenMoves)) {
+            const moveIndex = Number.parseInt(moveIndexStr, 10);
+            if (!game.hiddenMoves[moveIndex]) continue;
+            const move = game.moveHistory[moveIndex];
+            if (!move || move.x < 0 || move.y < 0 || !targetPlayers.has(move.player)) continue;
+            if (game.boardState[move.y]?.[move.x] !== move.player) continue;
+            if (revealedPoints.has(`${move.x},${move.y}`)) continue;
+            if (isHiddenMoveIndexSoftRevealedByAnyPlayer(game, moveIndex)) continue;
+            revealByPoint.set(`${move.x},${move.y}`, { point: { x: move.x, y: move.y }, player: move.player });
+        }
+    }
+
+    const aiHidden = (game as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
+    if (
+        aiHidden &&
+        targetPlayers.size > 0 &&
+        !revealedPoints.has(`${aiHidden.x},${aiHidden.y}`) &&
+        game.boardState[aiHidden.y]?.[aiHidden.x] !== types.Player.None
+    ) {
+        const aiPlayer =
+            game.blackPlayerId === aiUserId
+                ? types.Player.Black
+                : game.whitePlayerId === aiUserId
+                  ? types.Player.White
+                  : types.Player.None;
+        if (aiPlayer !== types.Player.None && targetPlayers.has(aiPlayer)) {
+            revealByPoint.set(`${aiHidden.x},${aiHidden.y}`, {
+                point: { x: aiHidden.x, y: aiHidden.y },
+                player: aiPlayer,
+            });
+        }
+    }
+
+    return Array.from(revealByPoint.values());
 }
 
 /** 모험 맵 AI전: 베이스 제외 랜덤 흑백, 따내기는 도전자(플레이어1) 항상 흑. 그 외는 기존 설정 또는 기본 흑. */
@@ -971,17 +1023,25 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     }
                 );
 
+                const revealSeed = [{ point: { x, y }, player: opponentPlayerEnum }];
+                const stonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(game, revealSeed);
                 game.animation = {
                     type: 'hidden_reveal',
-                    stones: [{ point: { x, y }, player: opponentPlayerEnum }],
+                    stones: stonesToReveal,
                     startTime: now,
                     duration: 2000,
                 };
                 game.revealAnimationEndTime = now + 2000;
                 game.gameStatus = 'hidden_reveal_animating';
                 game.itemUseDeadline = undefined;
+                if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+                for (const stone of stonesToReveal) {
+                    if (!game.permanentlyRevealedStones.some((p) => p.x === stone.point.x && p.y === stone.point.y)) {
+                        game.permanentlyRevealedStones.push({ x: stone.point.x, y: stone.point.y });
+                    }
+                }
 
-                // 모험: 상대 히든 위 착수 시도는 전체 공개·문양 유지만 하고 수·턴은 바꾸지 않음(유효 따냄이어도 동일)
+                // 모든 히든 모드: 상대 히든 위 착수 시도는 전체 공개·문양 유지만 하고 수·턴은 바꾸지 않음.
                 const adventureHiddenRevealOnly = skipPendingCaptureForAdventureHiddenReveal(game);
 
                 // 유효한 포획(히든 1점만 따낸 경우 포함): tempBoard에서 히든 칸을 비운 뒤 processMove라
@@ -1189,7 +1249,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
             
             const allStonesToReveal = [...contributingHiddenStones, ...capturedHiddenStones];
-            const uniqueStonesToReveal = Array.from(new Map(allStonesToReveal.map(item => [JSON.stringify(item.point), item])).values());
+            const uniqueStonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(
+                game,
+                Array.from(new Map(allStonesToReveal.map(item => [JSON.stringify(item.point), item])).values())
+            );
             
             if (uniqueStonesToReveal.length > 0) {
                 adventureRevealAllHumanHiddensIfInvolved(game, uniqueStonesToReveal);
@@ -1275,6 +1338,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
+                            recordPatternStoneConsumed(game, stone);
                         } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
                             points = 2;
                         } else {
@@ -1289,8 +1353,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                 }
                             }
                             const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                            wasHiddenForJustCaptured = wasHidden;
-                            if (wasHidden) {
+                            const wasAiInitialHidden =
+                                !!(game as any).aiInitialHiddenStone &&
+                                (game as any).aiInitialHiddenStone.x === stone.x &&
+                                (game as any).aiInitialHiddenStone.y === stone.y;
+                            wasHiddenForJustCaptured = wasHidden || wasAiInitialHidden;
+                            if (wasHidden || wasAiInitialHidden) {
                                 if (!game.hiddenStoneCaptures) {
                                     game.hiddenStoneCaptures = {
                                         [types.Player.None]: 0,
@@ -1300,6 +1368,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                 }
                                 game.hiddenStoneCaptures[myPlayerEnum]++;
                                 points = 5;
+                                recordPatternStoneConsumed(game, stone);
                                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                                 if (!game.permanentlyRevealedStones.some((p) => p.x === stone.x && p.y === stone.y)) {
                                     game.permanentlyRevealedStones.push(stone);

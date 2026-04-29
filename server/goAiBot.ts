@@ -19,6 +19,7 @@ import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import {
     consumeOpponentPatternStoneIfAny,
     isPatternIntersectionPermanentlyConsumed,
+    recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
 } from '../shared/utils/patternStoneConsume.js';
 import {
@@ -528,21 +529,23 @@ const applyAiCaptureOutcome = (
         let wasHidden = false;
         let isBaseStone = false;
 
-        if (wasHiddenMove || wasAiInitialHidden) {
+        /** standard.ts / hidden.ts와 동일: 베이스 → 문양 → 히든 순. 히든을 먼저 보면 문양 목록이 안 비워져 재착수 시 문양으로 다시 그려진다. */
+        if (isIntersectionRecordedAsBaseStone(game, stone.x, stone.y)) {
+            isBaseStone = true;
+            game.baseStoneCaptures[aiPlayerEnum]++;
+            points = 5;
+            recordPatternStoneConsumed(game, stone);
+        } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentPlayerEnum)) {
+            points = 2;
+        } else if (wasHiddenMove || wasAiInitialHidden) {
             points = 5;
             wasHidden = true;
             game.hiddenStoneCaptures[aiPlayerEnum] = (game.hiddenStoneCaptures[aiPlayerEnum] || 0) + 1;
-            if (wasAiInitialHidden) {
-                clearAiInitialHiddenStone = true;
-            }
-        } else {
-            isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
-            if (isBaseStone) {
-                game.baseStoneCaptures[aiPlayerEnum]++;
-                points = 5;
-            } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentPlayerEnum)) {
-                points = 2;
-            }
+            recordPatternStoneConsumed(game, stone);
+        }
+
+        if (wasAiInitialHidden) {
+            clearAiInitialHiddenStone = true;
         }
 
         game.captures[aiPlayerEnum] += points;
@@ -2075,6 +2078,17 @@ export async function makeGoAiBotMove(
                     if (isPveDeferredAutoScoringGame(game)) {
                         const kickAt = Date.now() + PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS;
                         (game as any).pendingAutoScoringKickoffAt = kickAt;
+                        // 지연 계가 직전에 캐시 TTL 만료 → DB 폴백 시 아직 save가 안 끝나 옛 판이 나올 수 있음. 캐시 갱신 + 즉시 저장으로 국면 고정.
+                        try {
+                            const { updateGameCache } = await import('./gameCache.js');
+                            updateGameCache(game);
+                            await db.saveGame(game);
+                        } catch (persistErr: any) {
+                            console.error(
+                                `[GoAiBot][${gameType}] pre-deferred-scoring persist failed game=${game.id}:`,
+                                persistErr?.message ?? persistErr
+                            );
+                        }
                         scheduleDeferredPveAutoScoring(game.id, PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS);
                         console.log(
                             `[GoAiBot][${gameType}] PVE auto-scoring deferred ${PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS}ms after last AI move (game=${game.id})`

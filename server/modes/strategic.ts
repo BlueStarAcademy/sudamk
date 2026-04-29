@@ -15,6 +15,7 @@ import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventur
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
     consumeOpponentPatternStoneIfAny,
+    recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
 } from '../../shared/utils/patternStoneConsume.js';
 import {
@@ -967,6 +968,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
+                            recordPatternStoneConsumed(game, stone);
                         } else {
                             const wasPatternStone = consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum);
                             if (wasPatternStone) {
@@ -991,6 +993,7 @@ const handleStandardAction = async (volatileState: types.VolatileState, game: ty
                                     game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
                                     points = 5;
                                     wasHiddenForJustCaptured = true;
+                                    recordPatternStoneConsumed(game, stone);
                                     if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                                     if (!game.permanentlyRevealedStones.some(p => p.x === stone.x && p.y === stone.y)) {
                                         game.permanentlyRevealedStones.push(stone);

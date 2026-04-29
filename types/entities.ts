@@ -1177,7 +1177,7 @@ export type LiveGameSession = {
   towerStartActionPointCost?: number;
   blackPatternStones?: Point[];
   whitePatternStones?: Point[];
-  /** 문양돌이 따인 교차점(1회 소모). 같은 대국에서 해당 좌표는 다시 문양이 되지 않음 */
+  /** 특수(문양·베이스·히든) 돌이 따인 교차점(1회 소모). 같은 대국에서 해당 좌표는 일반 돌로만 표시 */
   consumedPatternIntersections?: Point[];
   whiteTurnsPlayed?: number; // 살리기 바둑 모드: 백(AI)이 둔 턴 수
   singlePlayerPlacementRefreshesUsed?: number;
