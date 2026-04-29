@@ -194,6 +194,18 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
 
     const canOpenTowerShop = isTower && !!currentUser && !!onTowerItemPurchase;
     const canOpenStageEditor = !isTower && !!currentUser && isClientAdmin(currentUser) && !!onAction;
+    const pendingSinglePlayerGameId = !isTower && session.gameStatus === 'pending' ? session.id : undefined;
+    const adminStageListIndex = useMemo(
+        () => (!isTower ? SINGLE_PLAYER_STAGES.findIndex((s) => s.id === session.stageId) : -1),
+        [isTower, session.stageId],
+    );
+    const adminCanJumpPrev =
+        !!pendingSinglePlayerGameId && canOpenStageEditor && adminStageListIndex > 0;
+    const adminCanJumpNext =
+        !!pendingSinglePlayerGameId &&
+        canOpenStageEditor &&
+        adminStageListIndex >= 0 &&
+        adminStageListIndex < SINGLE_PLAYER_STAGES.length - 1;
 
     const resolveItemImage = (itemId: string): string | null => {
         const normalized = normalizeBoxItemName(itemId);
@@ -375,6 +387,44 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 </Button>
             ) : (
                 <>
+            {canOpenStageEditor && pendingSinglePlayerGameId && onAction && (
+                <>
+                    <Button
+                        onClick={() => {
+                            void onAction({
+                                type: 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE',
+                                payload: { gameId: pendingSinglePlayerGameId, direction: 'prev' },
+                            } as ServerAction);
+                        }}
+                        disabled={!adminCanJumpPrev}
+                        colorScheme="gray"
+                        className={
+                            compact
+                                ? '!min-h-[3rem] shrink-0 px-3 py-2 text-sm max-[480px]:px-2.5'
+                                : `!w-auto shrink-0 text-sm ${desktopBtnTight}`
+                        }
+                    >
+                        이전
+                    </Button>
+                    <Button
+                        onClick={() => {
+                            void onAction({
+                                type: 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE',
+                                payload: { gameId: pendingSinglePlayerGameId, direction: 'next' },
+                            } as ServerAction);
+                        }}
+                        disabled={!adminCanJumpNext}
+                        colorScheme="gray"
+                        className={
+                            compact
+                                ? '!min-h-[3rem] shrink-0 px-3 py-2 text-sm max-[480px]:px-2.5'
+                                : `!w-auto shrink-0 text-sm ${desktopBtnTight}`
+                        }
+                    >
+                        다음
+                    </Button>
+                </>
+            )}
             {canOpenStageEditor && (
                 <>
                     <Button
@@ -464,7 +514,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     } as ServerAction)) as any;
                     if (result?.error) throw new Error(result.error);
                     setSinglePlayerStagesFromServer(nextStages);
-                    if (session.gameCategory === 'singleplayer' && session.gameStatus === 'pending') {
+                    if (session.isSinglePlayer && session.gameStatus === 'pending') {
                         try {
                             await onAction({
                                 type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
@@ -482,6 +532,16 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                         type: 'ADMIN_RESET_SINGLE_PLAYER_STAGES',
                     } as ServerAction)) as any;
                     if (result?.error) throw new Error(result.error);
+                    if (session.isSinglePlayer && session.gameStatus === 'pending') {
+                        try {
+                            await onAction({
+                                type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
+                                payload: { gameId: session.id },
+                            } as ServerAction);
+                        } catch (e) {
+                            console.warn('[SinglePlayerGameDescriptionModal] pending sync after reset:', e);
+                        }
+                    }
                 }}
             />,
             document.body
@@ -492,7 +552,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         orderEditorOpen &&
         onAction &&
         createPortal(
-            <SinglePlayerStageOrderEditor open={orderEditorOpen} onClose={() => setOrderEditorOpen(false)} onAction={onAction} />,
+            <SinglePlayerStageOrderEditor
+                open={orderEditorOpen}
+                onClose={() => setOrderEditorOpen(false)}
+                onAction={onAction}
+                pendingSinglePlayerGameId={pendingSinglePlayerGameId}
+            />,
             document.body
         );
 

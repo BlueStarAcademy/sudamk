@@ -49,9 +49,16 @@ export interface SinglePlayerStageOrderEditorProps {
     open: boolean;
     onClose: () => void;
     onAction: (action: ServerAction) => Promise<any> | void;
+    /** 저장 직후 pending 싱글 경기 세션에 최신 스테이지 정의 반영 */
+    pendingSinglePlayerGameId?: string;
 }
 
-const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> = ({ open, onClose, onAction }) => {
+const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> = ({
+    open,
+    onClose,
+    onAction,
+    pendingSinglePlayerGameId,
+}) => {
     const [ordered, setOrdered] = useState<SinglePlayerStageInfo[]>(() => SINGLE_PLAYER_STAGES.map((s) => ({ ...s })));
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -160,6 +167,16 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
                 setOrdered(fromServer.map((s) => ({ ...s })));
             } else {
                 setSinglePlayerStagesFromServer(payload);
+            }
+            if (pendingSinglePlayerGameId) {
+                try {
+                    await onAction({
+                        type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
+                        payload: { gameId: pendingSinglePlayerGameId },
+                    } as ServerAction);
+                } catch (e) {
+                    console.warn('[SinglePlayerStageOrderEditor] pending sync after order save:', e);
+                }
             }
             onClose();
         } catch (err: unknown) {

@@ -375,6 +375,8 @@ export type ServerAction =
     | { type: 'CONFIRM_SINGLE_PLAYER_GAME_START', payload: { gameId: string } }
     | { type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId: string } }
     | { type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE', payload: { gameId: string } }
+    /** 관리자: pending 싱글 세션의 스테이지를 목록 순서대로 이전/다음으로 전환 */
+    | { type: 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE', payload: { gameId: string; direction: 'prev' | 'next' } }
     | { type: 'START_TOWER_GAME', payload: { floor: number; useClientSideAi?: boolean } }
     | { type: 'CONFIRM_TOWER_GAME_START', payload: { gameId: string } }
     | { type: 'TOWER_REFRESH_PLACEMENT', payload: { gameId: string } }

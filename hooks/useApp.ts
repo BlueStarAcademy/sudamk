@@ -4558,6 +4558,8 @@ export const useApp = () => {
                         action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                         action.type === 'CONFIRM_AI_GAME_START' ||
                         action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
+                        action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
+                        action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
                         action.type === 'TOWER_REFRESH_PLACEMENT' ||
                         action.type === 'TOWER_ADD_TURNS' ||
                         action.type === 'START_SCANNING' ||
@@ -4576,13 +4578,26 @@ export const useApp = () => {
                         // 게임 카테고리 확인
                         if (game.isSinglePlayer) {
                             // 배치변경 시 sessionStorage의 이전 보드를 제거해 Game.tsx가 서버의 새 boardState를 사용하도록 함
-                            if (action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT') {
+                            if (
+                                action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
+                                action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
+                                action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE'
+                            ) {
                                 try {
                                     sessionStorage.removeItem(`gameState_${effectiveGameId}`);
                                 } catch (_) { /* ignore */ }
                             }
                             setSinglePlayerGames(currentGames => {
-                                const shouldUpdate = action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' || action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || action.type === 'START_SCANNING' || action.type === 'START_HIDDEN_PLACEMENT' || action.type === 'SCAN_BOARD' || action.type === 'START_SINGLE_PLAYER_GAME' || !currentGames[effectiveGameId];
+                                const shouldUpdate =
+                                    action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
+                                    action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
+                                    action.type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
+                                    action.type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE' ||
+                                    action.type === 'START_SCANNING' ||
+                                    action.type === 'START_HIDDEN_PLACEMENT' ||
+                                    action.type === 'SCAN_BOARD' ||
+                                    action.type === 'START_SINGLE_PLAYER_GAME' ||
+                                    !currentGames[effectiveGameId];
                                 if (shouldUpdate) {
                                     const isRefresh = action.type === 'SINGLE_PLAYER_REFRESH_PLACEMENT';
                                     const nextGame = isRefresh && game.boardState
@@ -5009,6 +5024,9 @@ export const useApp = () => {
             }
         }
     }, [currentUser?.id, applyOptimisticTowerClearOnBlackWin, guilds, markConnectionRestored, setConnectionNotice]);
+
+    const handleActionRef = useRef(handleAction);
+    handleActionRef.current = handleAction;
 
     const handleLogout = useCallback(async () => {
         if (!currentUser) return;
@@ -5940,6 +5958,22 @@ export const useApp = () => {
                             if (stages !== undefined) {
                                 setSinglePlayerStagesFromServer(stages);
                             }
+                            // pending 싱글 세션에 최신 스테이지 정의 즉시 반영(관리자 편집·순서 저장 후 추가 동기화 단계 제거)
+                            queueMicrotask(() => {
+                                const uid = currentUserRef.current?.id;
+                                if (!uid) return;
+                                for (const g of Object.values(singlePlayerGamesRef.current)) {
+                                    if (g?.isSinglePlayer && g.gameStatus === 'pending' && g.blackPlayerId === uid) {
+                                        void handleActionRef
+                                            .current({
+                                                type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
+                                                payload: { gameId: g.id },
+                                            } as ServerAction)
+                                            .catch(() => {});
+                                        break;
+                                    }
+                                }
+                            });
                             return;
                         }
                         case 'USER_UPDATE': {

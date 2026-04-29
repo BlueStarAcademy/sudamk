@@ -1227,7 +1227,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
             // 싱글플레이 배치변경/대기 세션 동기화는 singlePlayerActions에서 처리
-            if ((type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' || type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE') && game.isSinglePlayer) {
+            if (
+                (type === 'SINGLE_PLAYER_REFRESH_PLACEMENT' ||
+                    type === 'SINGLE_PLAYER_SYNC_PENDING_STAGE' ||
+                    type === 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE') &&
+                game.isSinglePlayer
+            ) {
                 const { handleSinglePlayerAction } = await import('./actions/singlePlayerActions.js');
                 return handleSinglePlayerAction(volatileState, action, userData);
             }

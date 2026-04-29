@@ -145,8 +145,8 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             if (Array.isArray(rawPayload) && isFullSinglePlayerStagesPermutation(rawPayload)) {
                 const remap = buildSinglePlayerStageIdRemapFromPermutationPayload(rawPayload);
                 await migrateUsersAfterSinglePlayerStageReorder(prevStages, remap, saved);
-                await migrateActiveSinglePlayerLiveGames(remap);
-                patchVolatileSinglePlayerStageIds(volatileState, remap);
+                await migrateActiveSinglePlayerLiveGames(remap, saved);
+                patchVolatileSinglePlayerStageIds(volatileState, remap, saved);
             }
             broadcast({ type: 'SINGLE_PLAYER_STAGES_UPDATE', payload: { singlePlayerStages: saved } });
             return { clientResponse: { singlePlayerStages: saved } };

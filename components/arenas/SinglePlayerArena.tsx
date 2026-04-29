@@ -293,11 +293,17 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                   ),
               )
             : 0;
-    const singlePlayerStage = useMemo(() => {
+    const singlePlayerStage = useMemo((): SinglePlayerStageInfo | undefined => {
         if (!session.isSinglePlayer || !session.stageId) return undefined;
         const snap = session.singlePlayerStageDisplay;
         if (snap && snap.id === session.stageId) return snap;
-        return SINGLE_PLAYER_STAGES.find((stage) => stage.id === session.stageId);
+        const fromList = SINGLE_PLAYER_STAGES.find((stage) => stage.id === session.stageId);
+        if (fromList) return fromList;
+        // 관리자 스테이지 순서 재배치 등으로 stageId는 갱신됐는데 스냅샷 id만 남은 경우: 두루마리·규칙 표시용 폴백
+        if (snap && typeof snap.id === 'string') {
+            return { ...snap, id: session.stageId };
+        }
+        return undefined;
     }, [session.isSinglePlayer, session.stageId, session.singlePlayerStageDisplay, session.gameStatus]);
 
     useEffect(() => {
@@ -325,9 +331,9 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         };
     }, [isMobile, singlePlayerStage]);
 
+    // 모바일: 스테이지 진입 시 두루마리를 펼친 상태로 시작
     useEffect(() => {
         if (isMobile && singlePlayerStage) {
-            // 모바일 인게임 진입 시 두루마리를 기본 펼침 상태로 시작
             setStageDescriptionCollapsed(false);
         }
     }, [isMobile, singlePlayerStage?.id, session.id]);
@@ -336,7 +342,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         isMobile &&
         !!singlePlayerStage &&
         (gameStatus === 'playing' || gameStatus === 'hidden_placing' || gameStatus === 'scoring');
-    const isMobileStageDescriptionExpanded = shouldShowMobileStageDescription && !stageDescriptionCollapsed;
     const isMissileAnimating = gameStatus === 'missile_animating';
 
     return (
@@ -353,8 +358,10 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                 {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
                 <div
                     ref={arenaFrameRef}
-                    className={`relative w-full flex items-center justify-center rounded-lg min-w-0 overflow-hidden ${
-                        isMobile ? 'flex-1 min-h-0' : 'h-full'
+                    className={`relative w-full min-w-0 overflow-hidden rounded-lg ${
+                        isMobile
+                            ? 'flex flex-1 min-h-0 flex-col items-stretch'
+                            : 'flex h-full items-center justify-center'
                     }`}
                 >
                 {!isMobile && singlePlayerStage && leftGutterWidth > 0 && (
@@ -369,19 +376,32 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         />
                     </div>
                 )}
-                {shouldShowMobileStageDescription && stageDescriptionCollapsed && (
-                    <div className="absolute left-2 right-2 top-2 z-[14]">
-                        <StageDescriptionScroll
-                            stage={singlePlayerStage}
-                            collapsed={stageDescriptionCollapsed}
-                            onToggleCollapsed={() => setStageDescriptionCollapsed((prev) => !prev)}
-                            mobileOverlay
-                        />
+                {/* 모바일 상단 슬롯: 높이를 항상 pt-2(8px) + 38px로 고정 → 접힘/펼침 시 바둑판 패널 위치 동일 */}
+                {shouldShowMobileStageDescription && (
+                    <div className="relative z-10 box-border flex h-[46px] w-full shrink-0 flex-col px-2 pt-2">
+                        <div className="flex h-[38px] min-h-0 w-full items-center overflow-hidden">
+                            {stageDescriptionCollapsed ? (
+                                <StageDescriptionScroll
+                                    stage={singlePlayerStage}
+                                    collapsed
+                                    onToggleCollapsed={() => setStageDescriptionCollapsed((prev) => !prev)}
+                                    mobileOverlay
+                                />
+                            ) : (
+                                <div className="h-full w-full shrink-0" aria-hidden />
+                            )}
+                        </div>
                     </div>
                 )}
-                <div className="relative w-full flex-1 max-w-full max-h-full aspect-square min-w-0 min-h-0">
+                <div
+                    className={
+                        isMobile
+                            ? 'relative flex min-h-0 w-full min-w-0 flex-1 items-center justify-center'
+                            : 'relative aspect-square min-h-0 w-full max-h-full max-w-full flex-1'
+                    }
+                >
                 {shouldShowMobileStageDescription && !stageDescriptionCollapsed && (
-                    <div className="absolute left-2 right-2 top-2 z-[14]">
+                    <div className="absolute left-2 right-2 top-2 z-[30]">
                         <StageDescriptionScroll
                             stage={singlePlayerStage}
                             collapsed={stageDescriptionCollapsed}
@@ -390,6 +410,13 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         />
                     </div>
                 )}
+                <div
+                    className={
+                        isMobile
+                            ? 'relative aspect-square h-auto max-h-full w-full min-h-0 max-w-full'
+                            : 'relative h-full w-full'
+                    }
+                >
                 <GoBoard
                     boardState={boardState}
                     boardSize={settings.boardSize}
@@ -415,7 +442,6 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         isPaused ||
                         isBoardLocked ||
                         isBoardDisabledDueToTurnLimit ||
-                        isMobileStageDescriptionExpanded ||
                         isMissileAnimating
                     }
                     stoneColor={myPlayerEnum}
@@ -466,6 +492,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         aria-hidden
                     />
                 )}
+                </div>
                 </div>
                 </div>
             </div>

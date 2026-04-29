@@ -109,10 +109,14 @@ export async function migrateUsersAfterSinglePlayerStageReorder(
     console.log(`[singlePlayerStageIdMigration] users done (${n})`);
 }
 
-export async function migrateActiveSinglePlayerLiveGames(remap: Record<string, string>): Promise<void> {
+export async function migrateActiveSinglePlayerLiveGames(
+    remap: Record<string, string>,
+    newStages: SinglePlayerStageInfo[]
+): Promise<void> {
     const changed = Object.keys(remap).some((k) => remap[k] !== k);
     if (!changed) return;
 
+    const { broadcastToGameParticipants } = await import('./socket.js');
     const games = await db.getAllActiveGames();
     for (const g of games) {
         if (!g.isSinglePlayer && g.gameCategory !== 'singleplayer') continue;
@@ -121,11 +125,22 @@ export async function migrateActiveSinglePlayerLiveGames(remap: Record<string, s
         const nextId = remap[sid];
         if (!nextId || nextId === sid) continue;
         g.stageId = nextId;
+        const stageRow = newStages.find((s) => s.id === nextId);
+        if (stageRow) {
+            (g as any).singlePlayerStageDisplay = JSON.parse(JSON.stringify(stageRow)) as SinglePlayerStageInfo;
+        } else {
+            console.warn(`[migrateActiveSinglePlayerLiveGames] remapped stageId=${nextId} has no row in newStages, gameId=${g.id}`);
+        }
         await db.saveGame(g);
+        broadcastToGameParticipants(g.id, { type: 'GAME_UPDATE', payload: { [g.id]: g } }, g);
     }
 }
 
-export function patchVolatileSinglePlayerStageIds(volatileState: VolatileState | undefined, remap: Record<string, string>): void {
+export function patchVolatileSinglePlayerStageIds(
+    volatileState: VolatileState | undefined,
+    remap: Record<string, string>,
+    newStages: SinglePlayerStageInfo[]
+): void {
     const changed = Object.keys(remap).some((k) => remap[k] !== k);
     if (!changed || !volatileState?.gameCache?.size) return;
 
@@ -135,6 +150,12 @@ export function patchVolatileSinglePlayerStageIds(volatileState: VolatileState |
         const sid = g.stageId;
         if (!sid || typeof sid !== 'string') continue;
         const nextId = remap[sid];
-        if (nextId && nextId !== sid) g.stageId = nextId;
+        if (nextId && nextId !== sid) {
+            g.stageId = nextId;
+            const stageRow = newStages.find((s) => s.id === nextId);
+            if (stageRow) {
+                (g as any).singlePlayerStageDisplay = JSON.parse(JSON.stringify(stageRow)) as SinglePlayerStageInfo;
+            }
+        }
     }
 }

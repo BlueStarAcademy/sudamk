@@ -812,6 +812,47 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
             return { clientResponse: { gameId: game.id, game } };
         }
+        case 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE': {
+            if (!user.isAdmin) {
+                return { error: 'Permission denied.' };
+            }
+            const { gameId, direction } = payload as { gameId?: string; direction?: 'prev' | 'next' };
+            if (!gameId || (direction !== 'prev' && direction !== 'next')) {
+                return { error: 'Invalid payload.' };
+            }
+            const { getCachedGame, updateGameCache } = await import('../gameCache.js');
+            let game = await getCachedGame(gameId);
+            if (!game) game = await db.getLiveGame(gameId);
+            if (!game || !game.isSinglePlayer || !game.stageId) {
+                return { error: 'Invalid single player game.' };
+            }
+            if (game.blackPlayerId !== user.id) {
+                return { error: '게임 소유자가 아닙니다.' };
+            }
+            if (game.gameStatus !== 'pending') {
+                return { error: '게임 시작 전(pending) 상태에서만 바꿀 수 있습니다.' };
+            }
+            const stages = await getEffectiveSinglePlayerStages();
+            const idx = stages.findIndex((s) => s.id === game.stageId);
+            if (idx < 0) {
+                return { error: 'Stage data not found.' };
+            }
+            const nextIdx = direction === 'prev' ? Math.max(0, idx - 1) : Math.min(stages.length - 1, idx + 1);
+            const nextStage = stages[nextIdx];
+            if (!nextStage) {
+                return { error: 'Stage data not found.' };
+            }
+            if (nextIdx !== idx) {
+                game.stageId = nextStage.id;
+                await applyLatestPendingSinglePlayerStage(game, nextStage, { preserveExistingPlacement: false });
+                await db.saveGame(game, true);
+                updateGameCache(game);
+                const { broadcastToGameParticipants } = await import('../socket.js');
+                broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+            }
+            const gameCopy = JSON.parse(JSON.stringify(game)) as LiveGameSession;
+            return { clientResponse: { gameId: game.id, game: gameCopy } };
+        }
         case 'START_SINGLE_PLAYER_MISSION': {
             const spMissionGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer', user);
             if (!spMissionGate.ok) return { error: spMissionGate.error };
