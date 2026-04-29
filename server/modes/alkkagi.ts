@@ -425,7 +425,7 @@ export const updateAlkkagiState = (game: types.LiveGameSession, now: number) => 
                         if (shouldEnforceTimeControl(game)) {
                             game.alkkagiPlacementDeadline = now + ALKKAGI_PLACEMENT_TIME_LIMIT * 1000;
                         }
-                        if (game.isAiGame && game.currentPlayer !== types.Player.None) {
+                        if (game.isAiGame) {
                             const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                             if (nextPlayerId === aiUserId) scheduleAiTurnStartForFreshUi(game, now);
                             else game.aiTurnStartTime = undefined;

@@ -1284,7 +1284,7 @@ const GuildWar = () => {
         const innerBox = isBlue ? 'bg-blue-950/50 border-blue-800/70' : 'bg-red-950/50 border-red-800/70';
         return (
             <div
-                className={`flex h-40 w-full shrink-0 flex-col justify-center gap-1 rounded-lg border-2 px-2.5 py-2 ${panelClasses} shadow-md ${className ?? ''}`}
+                className={`flex h-40 w-[12rem] min-w-[12rem] flex-none flex-col justify-center gap-1 rounded-lg border-2 px-2.5 py-2 ${panelClasses} shadow-md ${className ?? ''}`}
             >
                 <div className={`flex min-h-0 flex-1 flex-col justify-center rounded-md border px-2 py-1.5 ${innerBox}`}>
                     <p className={`text-center text-[10px] font-semibold leading-none ${secondaryTextClasses}`}>총 도전권 (사용/전체)</p>
@@ -1394,34 +1394,37 @@ const GuildWar = () => {
                 </main>
             ) : (
                 <main className="flex min-h-0 min-w-0 flex-1 gap-4">
-                    <div className="flex h-full min-h-0 w-[min(30rem,24vw)] min-w-[21rem] max-w-[32rem] shrink-0 flex-col">
-                        <StatusAndViewerPanel
-                            colorSide={weAreVisualBlue ? 'blue' : 'red'}
-                            challengingMembers={myMembersChallenging}
-                            teamUsedTickets={myTeamTickets.used}
-                            teamTotalTickets={myTeamTickets.total}
-                            board={selectedBoard}
-                            boardHousePair={houseForSituationBoard}
-                            personalTicketsRemaining={personalTicketsRemaining}
-                            personalTicketsTotal={personalTicketTotal}
-                            onOpenMyAttemptLog={openMyAttemptLogModal}
-                            myAttemptLogBusy={myAttemptLogLoading}
-                            myAttemptLogDisabled={isDemoMode}
-                        />
-                    </div>
+                    {weAreVisualBlue ? (
+                        <div className="flex h-full min-h-0 w-[min(30rem,24vw)] min-w-[21rem] max-w-[32rem] shrink-0 flex-col">
+                            <StatusAndViewerPanel
+                                colorSide={weAreVisualBlue ? 'blue' : 'red'}
+                                challengingMembers={myMembersChallenging}
+                                teamUsedTickets={myTeamTickets.used}
+                                teamTotalTickets={myTeamTickets.total}
+                                board={selectedBoard}
+                                boardHousePair={houseForSituationBoard}
+                                personalTicketsRemaining={personalTicketsRemaining}
+                                personalTicketsTotal={personalTicketTotal}
+                                onOpenMyAttemptLog={openMyAttemptLogModal}
+                                myAttemptLogBusy={myAttemptLogLoading}
+                                myAttemptLogDisabled={isDemoMode}
+                            />
+                        </div>
+                    ) : null}
 
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
-                        <div className="flex w-full shrink-0 flex-wrap items-start justify-center gap-x-3 gap-y-3">
-                            <div className="flex shrink-0 items-start gap-2.5">
+                        <div className="grid w-full shrink-0 grid-cols-[22rem_minmax(13rem,1fr)_22rem] items-start gap-3">
+                            <div className="flex w-[22rem] items-start justify-center gap-2.5">
                                 {!weAreVisualBlue ? (
                                     <OpponentGuildTicketsOnly
                                         colorSide="blue"
                                         used={opponentTeamTickets.used}
                                         total={opponentTeamTickets.total}
                                         unknown={opponentTeamTickets.unknown}
-                                        className="!w-[min(12rem,100%)]"
                                     />
-                                ) : null}
+                                ) : (
+                                    <div className="h-40 w-[12rem] shrink-0 opacity-0" aria-hidden />
+                                )}
                                 <div className="flex w-[9.25rem] shrink-0 flex-col items-center">
                                     <div className="relative h-40 w-[9.25rem]">
                                         <img
@@ -1441,7 +1444,7 @@ const GuildWar = () => {
                                 </div>
                             </div>
 
-                            <div className="flex min-w-[13rem] max-w-[640px] flex-1 flex-col items-stretch self-center pt-1">
+                            <div className="flex min-w-[13rem] max-w-[640px] w-full flex-col items-stretch self-center pt-1">
                                 <GuildWarUnifiedScoreboard
                                     blueStars={visualBlueTeamStars}
                                     redStars={visualRedTeamStars}
@@ -1450,7 +1453,7 @@ const GuildWar = () => {
                                 />
                             </div>
 
-                            <div className="flex shrink-0 items-start gap-2.5">
+                            <div className="flex w-[22rem] items-start justify-center gap-2.5">
                                 <div className="flex w-[9.25rem] shrink-0 flex-col items-center">
                                     <div className="relative h-40 w-[9.25rem]">
                                         <img
@@ -1474,9 +1477,10 @@ const GuildWar = () => {
                                         used={opponentTeamTickets.used}
                                         total={opponentTeamTickets.total}
                                         unknown={opponentTeamTickets.unknown}
-                                        className="!w-[min(12rem,100%)]"
                                     />
-                                ) : null}
+                                ) : (
+                                    <div className="h-40 w-[12rem] shrink-0 opacity-0" aria-hidden />
+                                )}
                             </div>
                         </div>
 
@@ -1484,6 +1488,23 @@ const GuildWar = () => {
                             {boards.map((board) => renderGuildWarBoardCell(board, false))}
                         </div>
                     </div>
+                    {!weAreVisualBlue ? (
+                        <div className="flex h-full min-h-0 w-[min(30rem,24vw)] min-w-[21rem] max-w-[32rem] shrink-0 flex-col">
+                            <StatusAndViewerPanel
+                                colorSide={weAreVisualBlue ? 'blue' : 'red'}
+                                challengingMembers={myMembersChallenging}
+                                teamUsedTickets={myTeamTickets.used}
+                                teamTotalTickets={myTeamTickets.total}
+                                board={selectedBoard}
+                                boardHousePair={houseForSituationBoard}
+                                personalTicketsRemaining={personalTicketsRemaining}
+                                personalTicketsTotal={personalTicketTotal}
+                                onOpenMyAttemptLog={openMyAttemptLogModal}
+                                myAttemptLogBusy={myAttemptLogLoading}
+                                myAttemptLogDisabled={isDemoMode}
+                            />
+                        </div>
+                    ) : null}
                 </main>
             )}
 

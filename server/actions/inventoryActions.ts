@@ -367,7 +367,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
         }
 
         case 'USE_ITEM': {
-            const { itemId, quantity = 1, itemName } = payload as { itemId?: string; quantity?: number; itemName?: string };
+            const { itemId, quantity = 1, itemName, targetEquipmentId } = payload as { itemId?: string; quantity?: number; itemName?: string; targetEquipmentId?: string };
             if (!itemId && !itemName) {
                 console.error(`[USE_ITEM] Missing itemId and itemName for user ${user.id}`);
                 return { error: '아이템 ID 또는 이름이 제공되지 않았습니다.' };
@@ -450,7 +450,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 console.error(`[USE_ITEM] Item at index ${itemIndex} is null/undefined for user ${user.id}`);
                 return { error: '아이템 데이터가 손상되었습니다.' };
             }
-            if (item.type !== 'consumable') return { error: '사용할 수 없는 아이템입니다.' };
+            const isTradeListingTicketMaterial = item.type === 'material' && item.name === '거래 등록권';
+            const isRefinementCharmMaterial = item.type === 'material' && item.name === '제련의 부적';
+            if (item.type !== 'consumable' && !isTradeListingTicketMaterial && !isRefinementCharmMaterial) return { error: '사용할 수 없는 아이템입니다.' };
 
             // 변경권 사용 시 대장간 제련 탭으로 이동하도록 플래그 설정
             const isRefinementTicket = item.name === '옵션 종류 변경권' || 
@@ -515,7 +517,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 let remainingToRemove = useQuantity;
                 const tempInventoryAfterUse: InventoryItem[] = [];
                 for (const invItem of user.inventory) {
-                    if (invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0) {
+                    if (invItem.name === item.name && (invItem.type === 'consumable' || invItem.type === 'material') && remainingToRemove > 0) {
                         const itemQuantity = invItem.quantity || 1;
                         if (itemQuantity <= remainingToRemove) {
                             remainingToRemove -= itemQuantity;
@@ -536,6 +538,79 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 const { broadcastUserUpdate } = await import('../socket.js');
                 broadcastUserUpdate(user, ['inventory', 'actionPoints']);
                 return { clientResponse: { updatedUser, actionPointsRestored: totalRestore } };
+            }
+
+            // 거래 등록권: 거래소 판매 등록 1회 권한 소모용 아이템
+            if (item.name === '거래 등록권') {
+                let remainingToRemove = useQuantity;
+                const tempInventoryAfterUse: InventoryItem[] = [];
+                for (const invItem of user.inventory) {
+                    if (invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0) {
+                        const itemQuantity = invItem.quantity || 1;
+                        if (itemQuantity <= remainingToRemove) {
+                            remainingToRemove -= itemQuantity;
+                        } else {
+                            tempInventoryAfterUse.push({ ...invItem, quantity: itemQuantity - remainingToRemove });
+                            remainingToRemove = 0;
+                        }
+                    } else {
+                        tempInventoryAfterUse.push(invItem);
+                    }
+                }
+                user.inventory = tempInventoryAfterUse;
+
+                const updatedUser = getSelectiveUserUpdate(user, 'USE_ITEM');
+                db.updateUser(user).catch(err => {
+                    console.error(`[USE_ITEM] Failed to save user ${user.id} (trade listing ticket):`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['inventory']);
+                return { clientResponse: { updatedUser, tradeListingTicketUsed: useQuantity } };
+            }
+            // 제련의 부적: 선택 장비의 제련 가능 횟수 1회 복원
+            if (item.name === '제련의 부적') {
+                if (!targetEquipmentId) {
+                    return { error: '제련의 부적을 사용할 장비를 선택해주세요.' };
+                }
+                const targetEquipment = user.inventory.find(
+                    (inv) => inv.id === targetEquipmentId && inv.type === 'equipment',
+                );
+                if (!targetEquipment) {
+                    return { error: '대상 장비를 찾을 수 없습니다.' };
+                }
+
+                let remainingToRemove = useQuantity;
+                const tempInventoryAfterUse: InventoryItem[] = [];
+                for (const invItem of user.inventory) {
+                    if (invItem.name === item.name && (invItem.type === 'consumable' || invItem.type === 'material') && remainingToRemove > 0) {
+                        const itemQuantity = invItem.quantity || 1;
+                        if (itemQuantity <= remainingToRemove) {
+                            remainingToRemove -= itemQuantity;
+                        } else {
+                            tempInventoryAfterUse.push({ ...invItem, quantity: itemQuantity - remainingToRemove });
+                            remainingToRemove = 0;
+                        }
+                    } else {
+                        tempInventoryAfterUse.push(invItem);
+                    }
+                }
+                user.inventory = tempInventoryAfterUse;
+                const targetInUpdatedInventory = user.inventory.find(
+                    (inv) => inv.id === targetEquipmentId && inv.type === 'equipment',
+                );
+                if (!targetInUpdatedInventory) {
+                    return { error: '대상 장비를 찾을 수 없습니다.' };
+                }
+                (targetInUpdatedInventory as InventoryItem & { refinementCount?: number }).refinementCount =
+                    ((targetInUpdatedInventory as InventoryItem & { refinementCount?: number }).refinementCount ?? 0) + 1;
+
+                const updatedUser = getSelectiveUserUpdate(user, 'USE_ITEM');
+                db.updateUser(user).catch(err => {
+                    console.error(`[USE_ITEM] Failed to save user ${user.id} (refinement charm):`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['inventory']);
+                return { clientResponse: { updatedUser, refinementCharmUsed: useQuantity, targetEquipmentId } };
             }
 
             // 골드/다이아 꾸러미: 키 통일 후 룩업 (일괄 사용 시 차감과 동일 키 사용)

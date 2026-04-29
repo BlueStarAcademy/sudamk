@@ -3,6 +3,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import ClassNavigationPanel from './singleplayer/ClassNavigationPanel.js';
 import StageGrid from './singleplayer/StageGrid.js';
 import TrainingQuestPanel from './singleplayer/TrainingQuestPanel.js';
+import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import { SinglePlayerLevel, UserWithStatus } from '../types.js';
 import { SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -44,7 +45,7 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
                 />
             </div>
 
-            <div className={`flex min-h-0 flex-col ${phase8TrainingSpotlight ? 'col-span-5' : 'col-span-8'}`}>
+            <div className={`flex min-h-0 flex-col ${phase8TrainingSpotlight ? 'col-span-4' : 'col-span-7'}`}>
                 <StageGrid selectedClass={selectedClass} currentUser={currentUserWithStatus} />
             </div>
             {phase8TrainingSpotlight && (
@@ -52,6 +53,11 @@ const DesktopSinglePlayerLobbyLayout: React.FC<{
                     <TrainingQuestPanel currentUser={currentUserWithStatus} />
                 </div>
             )}
+            <div className={`flex min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}>
+                <div className="flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40">
+                    <QuickAccessSidebar fillHeight />
+                </div>
+            </div>
         </div>
     );
 };

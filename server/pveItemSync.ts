@@ -1,5 +1,5 @@
 import type { LiveGameSession, PveItemActionClientSync } from '../shared/types/index.js';
-import { Player } from '../types/index.js';
+import { GameMode, Player } from '../types/index.js';
 
 const DEFAULT_AI_USER_ID = 'ai-player-01';
 
@@ -9,7 +9,15 @@ function isAiControlledPlayer(game: LiveGameSession, player: Player): boolean {
 }
 
 function isPlayablePoint(move: { x?: number; y?: number } | undefined): move is { x: number; y: number } {
-    return !!move && Number.isInteger(move.x) && Number.isInteger(move.y) && move.x >= 0 && move.y >= 0;
+    return (
+        !!move &&
+        typeof move.x === 'number' &&
+        typeof move.y === 'number' &&
+        Number.isInteger(move.x) &&
+        Number.isInteger(move.y) &&
+        move.x >= 0 &&
+        move.y >= 0
+    );
 }
 
 function keepServerAiMoveHistoryStable(
@@ -85,8 +93,10 @@ function reconcileMoveHistoryCoordsToBoardState(game: LiveGameSession): void {
         game.isSinglePlayer || gc === 'tower' || gc === 'singleplayer' || gc === 'guildwar' || gc === 'adventure';
     if (!pveLike) return;
     const isMissileLikeMode =
-        game.mode === 'missile' ||
-        (game.mode === 'mix' && Array.isArray((game.settings as any)?.mixedModes) && (game.settings as any).mixedModes.includes('missile'));
+        game.mode === GameMode.Missile ||
+        (game.mode === GameMode.Mix &&
+            Array.isArray((game.settings as any)?.mixedModes) &&
+            (game.settings as any).mixedModes.includes(GameMode.Missile));
     // 이 좌표 보정은 "미사일 이동 후 수순-보드 불일치" 전용 복구다.
     // 히든 대국에 적용하면 방금 둔 히든 착수가 다른 칸으로 재매핑되는 부작용이 생길 수 있어 제한한다.
     if (!isMissileLikeMode) return;
@@ -144,13 +154,23 @@ export function applyPveItemActionClientSync(game: LiveGameSession, payload: unk
     game.boardState = syncedBoardState;
     game.moveHistory = syncedMoveHistory;
     if (sync.hiddenMoves != null && typeof sync.hiddenMoves === 'object') {
-        game.hiddenMoves = { ...sync.hiddenMoves };
+        // Stale clientSync must never erase server-confirmed hidden metadata.
+        // In particular, AI hidden item flow records hiddenMoves on the server after the thinking animation.
+        // A client snapshot from before that move can arrive with an empty hiddenMoves object.
+        game.hiddenMoves = {
+            ...(game.hiddenMoves ?? {}),
+            ...sync.hiddenMoves,
+        };
     }
     if (Array.isArray(sync.permanentlyRevealedStones)) {
         game.permanentlyRevealedStones = sync.permanentlyRevealedStones.map((p) => ({ ...p }));
     }
     if (sync.aiInitialHiddenStone === null) {
+        if (!syncAdvancesServerMoves && (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone) {
+            // Do not let stale client snapshots clear server-confirmed AI hidden coordinates.
+        } else {
         (game as { aiInitialHiddenStone?: unknown }).aiInitialHiddenStone = undefined;
+        }
     } else if (
         sync.aiInitialHiddenStone &&
         typeof (sync.aiInitialHiddenStone as { x?: number }).x === 'number' &&

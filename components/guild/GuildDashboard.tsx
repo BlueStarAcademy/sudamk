@@ -660,7 +660,6 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
     const { currentUserWithStatus, isNativeMobile } = useAppContext();
     const [hoveredSkill, setHoveredSkill] = useState<GuildBossSkill | null>(null);
     const [clickedSkill, setClickedSkill] = useState<GuildBossSkill | null>(null);
-    const [skillTooltipPos, setSkillTooltipPos] = useState<{ top: number; left: number } | null>(null);
     const skillIconRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [showBossParticipantsModal, setShowBossParticipantsModal] = useState(false);
@@ -830,9 +829,9 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
     const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
 
     return (
-        <div className={`bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-stretch w-full relative overflow-hidden h-full ${className || ''}`}>
+        <div className={`bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-stretch w-full relative overflow-visible h-full ${className || ''}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <div className="relative z-10 w-full flex flex-col h-full min-h-0">
+            <div className="relative z-10 w-full flex flex-col h-full min-h-0 overflow-visible">
                 <h3 className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'} text-highlight ${isMobile ? 'mb-1' : 'mb-3'} flex items-center justify-center gap-2 flex-shrink-0`}>
                     <span className={isMobile ? 'text-base' : 'text-2xl'}>⚔️</span>
                     <span>길드 보스전</span>
@@ -844,7 +843,7 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                     </p>
                 </div>
 
-                <div className={`grid min-h-0 w-full flex-1 ${isMobile ? 'grid-cols-1 gap-1.5' : 'grid-cols-[1.3fr_1fr] gap-2'}`}>
+                <div className={`grid min-h-0 w-full flex-1 overflow-visible ${isMobile ? 'grid-cols-1 gap-1.5' : 'grid-cols-[1.3fr_1fr] gap-2'}`}>
                     <div className="flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 p-2">
                         <div className="flex min-h-0 flex-1 flex-col items-center">
                             <div className={`relative ${isMobile ? 'h-36 w-36' : 'h-full max-h-[19rem] w-full max-w-[19rem]'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg overflow-hidden`}>
@@ -881,16 +880,10 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                                     tooltipHideTimeoutRef.current = null;
                                                 }
                                                 setHoveredSkill(skill);
-                                                const rect = e.currentTarget.getBoundingClientRect();
-                                                setSkillTooltipPos({
-                                                    top: rect.top,
-                                                    left: rect.left + rect.width / 2,
-                                                });
                                             }}
                                             onMouseLeave={() => {
                                                 tooltipHideTimeoutRef.current = setTimeout(() => {
                                                     setHoveredSkill(null);
-                                                    setSkillTooltipPos(null);
                                                     tooltipHideTimeoutRef.current = null;
                                                 }, BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS);
                                             }}
@@ -904,14 +897,9 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                                 )}
                                             </div>
                                             {/* 호버 시 툴팁 */}
-                                            {hoveredSkill?.id === skill.id && skillTooltipPos && (
+                                            {hoveredSkill?.id === skill.id && (
                                             <div 
-                                                className="fixed z-[9999] w-64 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 p-3 shadow-2xl"
-                                                style={{
-                                                    bottom: `calc(100vh - ${skillTooltipPos.top}px + 8px)`,
-                                                    left: `${skillTooltipPos.left}px`,
-                                                    transform: 'translateX(-50%)',
-                                                }}
+                                                className="absolute bottom-full left-1/2 z-[9999] mb-2 w-64 -translate-x-1/2 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/98 via-neutral-800/95 to-stone-900/98 p-3 shadow-2xl"
                                                 onMouseEnter={(e) => {
                                                     e.stopPropagation();
                                                     if (tooltipHideTimeoutRef.current) {
@@ -922,7 +910,6 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                                 }}
                                                 onMouseLeave={() => {
                                                     setHoveredSkill(null);
-                                                    setSkillTooltipPos(null);
                                                 }}
                                             >
                                                 <div className="flex items-center gap-2 mb-2">

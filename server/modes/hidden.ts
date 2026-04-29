@@ -240,6 +240,9 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                             (game as any).aiInitialHiddenStone &&
                             (game as any).aiInitialHiddenStone.x === stone.x &&
                             (game as any).aiInitialHiddenStone.y === stone.y;
+                        const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
+                            (p) => p.x === stone.x && p.y === stone.y
+                        );
                         
                         let points = 1;
                         let wasHiddenForEntry = false;
@@ -255,7 +258,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                             const wasPattern = pveLike && consumeOpponentPatternStoneIfAny(game, stone, opponentPlayerEnum);
                             if (wasPattern) {
                                 points = 2;
-                            } else if (wasHidden || wasAiInitialHidden) {
+                            } else if (wasHidden || wasAiInitialHidden || wasRevealedHidden) {
                                 game.hiddenStoneCaptures[myPlayerEnum] = (game.hiddenStoneCaptures[myPlayerEnum] || 0) + 1;
                                 points = 5;
                                 wasHiddenForEntry = true;
@@ -267,7 +270,7 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                         game.justCaptured.push({
                             point: stone,
                             player: opponentPlayerEnum,
-                            wasHidden: wasHiddenForEntry || wasAiInitialHidden,
+                            wasHidden: wasHiddenForEntry || wasAiInitialHidden || wasRevealedHidden,
                             capturePoints: points,
                             ...(isBaseStone ? { wasBaseStone: true as const } : {}),
                         });

@@ -14,6 +14,10 @@ type HandleActionResult = types.HandleActionResult;
 
 export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
     const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const disableAiHiddenItemsByStageSetting =
+        game.isSinglePlayer &&
+        isHiddenMode &&
+        (game.settings as any)?.singlePlayerDisableAiHiddenItemUsage === true;
     if (isHiddenMode && game.isSinglePlayer) {
         game.scans_p1 = (game.settings.scanCount || 0);
         game.scans_p2 = (game.settings.scanCount || 0);
@@ -25,7 +29,7 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
         // 1) 명시 턴 목록(singlePlayerAiHiddenItemTurns)
         // 2) N턴 이내 랜덤 1회(singlePlayerAiHiddenItemUseWithinTurn)
         // 3) 기존 기본값(1~10 랜덤)
-        if ((game.hidden_stones_p2 ?? 0) > 0 && game.aiHiddenItemTurn === undefined) {
+        if (!disableAiHiddenItemsByStageSetting) {
             const configuredTurnsRaw = (game.settings as any)?.singlePlayerAiHiddenItemTurns;
             const configuredTurns = Array.isArray(configuredTurnsRaw)
                 ? configuredTurnsRaw
@@ -34,15 +38,28 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
                     .slice(0, 12)
                     .sort((a: number, b: number) => a - b)
                 : [];
+            const withinTurnRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn ?? 0);
+            const withinTurn = Number.isFinite(withinTurnRaw) ? Math.max(1, Math.min(99, Math.floor(withinTurnRaw))) : 10;
+            const minAiHiddenByConfig =
+                configuredTurns.length > 0
+                    ? configuredTurns.length
+                    : ((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn != null ? 1 : 0);
+            const currentAiHidden = Math.max(0, Number(game.hidden_stones_p2 ?? 0));
+            if (currentAiHidden < minAiHiddenByConfig) {
+                game.hidden_stones_p2 = minAiHiddenByConfig;
+            }
+            if ((game.hidden_stones_p2 ?? 0) <= 0) {
+                return;
+            }
+            // 새 스테이지 적용/재시작 시 이전 게임 잔여값이 남지 않도록 항상 초기화
+            game.aiHiddenItemsUsedCount = 0;
+            game.aiHiddenItemUsed = false;
             if (configuredTurns.length > 0) {
                 game.aiHiddenItemTurns = configuredTurns;
-                game.aiHiddenItemsUsedCount = 0;
-                game.aiHiddenItemUsed = false;
                 game.aiHiddenItemTurn = configuredTurns[0];
             } else {
-                const withinTurnRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn ?? 0);
-                const withinTurn = Number.isFinite(withinTurnRaw) ? Math.max(1, Math.min(99, Math.floor(withinTurnRaw))) : 10;
                 game.aiHiddenItemTurn = 1 + Math.floor(Math.random() * withinTurn); // 1=1번째 AI턴, ..., withinTurn=withinTurn번째 AI턴
+                game.aiHiddenItemTurns = [game.aiHiddenItemTurn];
             }
         }
     }

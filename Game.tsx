@@ -406,6 +406,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     // 게임 상태를 sessionStorage에서 복원 (종료 후에도 결과 모달 동안 종료된 화면 유지를 위해 ended/scoring에서도 복원 허용)
     const restoredBoardState = useMemo(() => {
+        // PVE(싱글/탑/모험)는 서버 보드 동기화를 절대 우선한다.
+        // sessionStorage 복원 보드를 우선하면 히든/포획/애니메이션 경합에서 돌 소실이 발생할 수 있다.
+        if ((isSinglePlayer || isTower || isAdventureGame) && session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
+            return session.boardState;
+        }
         try {
             const storedState = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
             if (storedState) {

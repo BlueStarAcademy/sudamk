@@ -1375,6 +1375,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const [isMobileItemDetailOpen, setIsMobileItemDetailOpen] = useState(false);
     const [isMobileEquippedModalOpen, setIsMobileEquippedModalOpen] = useState(false);
     const [pendingBindEquipItemId, setPendingBindEquipItemId] = useState<string | null>(null);
+    const [pendingUnbindItemId, setPendingUnbindItemId] = useState<string | null>(null);
 
     /** 논리 뷰포트(폰 가로+portrait-lock 시 세로와 동일). innerWidth만 쓰면 가로 667 등으로 PC 가방 UI가 열린다 */
     const [windowWidth, setWindowWidth] = useState(() =>
@@ -1525,22 +1526,52 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         handlers.applyPreset(preset || { name: presets[presetIndex]?.name || `프리셋 ${presetIndex + 1}`, equipment: {} });
     };
 
+    const itemTemplateByName = useMemo(() => {
+        const map = new Map<string, { grade: ItemGrade; description: string; image: string }>();
+        for (const item of CONSUMABLE_ITEMS) {
+            map.set(item.name, { grade: item.grade, description: item.description, image: item.image });
+        }
+        for (const [name, item] of Object.entries(MATERIAL_ITEMS)) {
+            map.set(name, { grade: item.grade, description: item.description, image: item.image });
+        }
+        return map;
+    }, []);
+    const inventoryWithLatestItemMeta = useMemo(
+        () =>
+            currentUser.inventory.map((item) => {
+                const template = itemTemplateByName.get(item.name);
+                if (!template) return item;
+                // 기존 보유 아이템도 최신 마스터 정의(등급/설명/아이콘)를 우선 반영한다.
+                return {
+                    ...item,
+                    grade: template.grade,
+                    description: template.description,
+                    image: template.image,
+                };
+            }),
+        [currentUser.inventory, itemTemplateByName],
+    );
+
     const selectedItem = useMemo(() => {
         if (!selectedItemId) return null;
         // 현재 인벤토리에서 아이템이 사라졌을 경우 선택 해제
-        const found = currentUser.inventory.find(item => item.id === selectedItemId);
+        const found = inventoryWithLatestItemMeta.find(item => item.id === selectedItemId);
         if (!found && selectedItemId) {
             // 아이템이 사라진 경우 선택 해제 (다음 렌더링에서 처리)
             setTimeout(() => setSelectedItemId(null), 0);
         }
         return found || null;
-    }, [selectedItemId, currentUser.inventory, updateTrigger]);
+    }, [selectedItemId, inventoryWithLatestItemMeta, updateTrigger]);
     const ownedUnbindTickets = useMemo(
         () =>
-            currentUser.inventory
+            inventoryWithLatestItemMeta
                 .filter((item) => item.type === 'material' && item.name === EQUIPMENT_UNBIND_TICKET_NAME)
                 .reduce((sum, item) => sum + (item.quantity ?? 0), 0),
-        [currentUser.inventory],
+        [inventoryWithLatestItemMeta],
+    );
+    const unbindTicketTemplate = useMemo(
+        () => MATERIAL_ITEMS[EQUIPMENT_UNBIND_TICKET_NAME] ?? null,
+        [],
     );
 
     const expansionCost = useMemo(() => {
@@ -1588,7 +1619,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     };
 
     const handleEquipToggle = (itemId: string) => {
-        const item = currentUser.inventory.find(i => i.id === itemId);
+        const item = inventoryWithLatestItemMeta.find(i => i.id === itemId);
         if (!item) return;
 
         if (!item.isEquipped) {
@@ -1615,11 +1646,27 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         setPendingBindEquipItemId(null);
     };
     const handleUnbindEquipment = (itemId: string) => {
-        onAction({ type: 'UNBIND_EQUIPMENT', payload: { itemId } });
+        setPendingUnbindItemId(itemId);
     };
-
+    const handleConfirmUnbindEquipment = () => {
+        if (!pendingUnbindItemId) return;
+        onAction({ type: 'UNBIND_EQUIPMENT', payload: { itemId: pendingUnbindItemId } });
+        setPendingUnbindItemId(null);
+    };
+    const handleCancelUnbindEquipment = () => {
+        setPendingUnbindItemId(null);
+    };
+    const pendingUnbindItem = useMemo(() => {
+        if (!pendingUnbindItemId) return null;
+        return inventoryWithLatestItemMeta.find((item) => item.id === pendingUnbindItemId && item.type === 'equipment') ?? null;
+    }, [pendingUnbindItemId, inventoryWithLatestItemMeta]);
+    const pendingUnbindRequiredTickets = useMemo(() => {
+        if (!pendingUnbindItem) return 0;
+        return EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[pendingUnbindItem.grade] ?? 1;
+    }, [pendingUnbindItem]);
+    const pendingUnbindHasEnoughTickets = pendingUnbindRequiredTickets > 0 && ownedUnbindTickets >= pendingUnbindRequiredTickets;
     const filteredAndSortedInventory = useMemo(() => {
-        let items = [...currentUser.inventory];
+        let items = [...inventoryWithLatestItemMeta];
         // 도전의 탑 전용 소모품은 가방에서 숨김(탑 대기실에서만 표시)
         items = items.filter((item: InventoryItem) => !(item.type === 'consumable' && isTowerOnlyConsumable(item.name)));
         // 거래소 등록 중인 장비는 가방에서 숨김 (등록 취소/회수 시 다시 표시)
@@ -1637,7 +1684,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         }
         items.sort((a, b) => compareInventoryItemsForSort(a, b, sortKey));
         return items;
-    }, [currentUser.inventory, activeTab, sortKey, updateTrigger]);
+    }, [inventoryWithLatestItemMeta, activeTab, sortKey, updateTrigger]);
 
     const currentSlots = useMemo(() => {
         const slots = inventorySlots || {};
@@ -1689,8 +1736,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const getItemForSlot = useCallback((slot: EquipmentSlot) => {
         const itemId = currentUser.equipment[slot];
         if (!itemId) return undefined;
-        return currentUser.inventory.find(item => item.id === itemId);
-    }, [currentUser.equipment, currentUser.inventory, updateTrigger]);
+        return inventoryWithLatestItemMeta.find(item => item.id === itemId);
+    }, [currentUser.equipment, inventoryWithLatestItemMeta, updateTrigger]);
 
     const correspondingEquippedItem = useMemo(() => {
         if (!selectedItem || !selectedItem.slot) return null;
@@ -1973,10 +2020,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             colorScheme="none"
                                             onClick={() => handleUnbindEquipment(selectedItem.id)}
                                             className={BAG_INVENTORY_FOOTER_BTN.info}
-                                            disabled={ownedUnbindTickets < (EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1)}
                                             style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
                                         >
-                                            귀속 해제 ({EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1}장)
+                                            귀속해제
                                         </Button>
                                     )}
                                 </div>
@@ -2550,9 +2596,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                             colorScheme="none"
                                             onClick={() => handleUnbindEquipment(selectedItem.id)}
                                             className={BAG_INVENTORY_FOOTER_BTN.info}
-                                            disabled={ownedUnbindTickets < (EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1)}
                                         >
-                                            귀속 해제 ({EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1}장)
+                                            귀속해제
                                         </Button>
                                     )}
                                 </>
@@ -3290,6 +3335,99 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             <Button onClick={handleCancelBindEquip} colorScheme="gray" className="min-w-[120px]">
                                 취소
                             </Button>
+                        </div>
+                    </div>
+                </DraggableWindow>
+            )}
+            {pendingUnbindItem && (
+                <DraggableWindow
+                    title="귀속 해제 확인"
+                    onClose={handleCancelUnbindEquipment}
+                    windowId="equipmentUnbindConfirm"
+                    isTopmost
+                    variant="store"
+                    initialWidth={460}
+                    initialHeight={560}
+                    bodyNoScroll
+                >
+                    <div className="flex h-full flex-col gap-3 p-3 text-slate-100">
+                        <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+                            <p className="text-center text-xs font-bold tracking-wide text-amber-200/85">귀속 해제 안내</p>
+                            <p className="mt-1 text-center text-base font-bold text-slate-50">{pendingUnbindItem.name}</p>
+                            <p className="mt-2 text-center text-xs text-slate-300">
+                                장비 귀속을 해제하면 거래소 판매가 가능해집니다.
+                            </p>
+                            <div className="mt-3 flex items-center justify-center">
+                                <div className="relative h-16 w-16 overflow-hidden rounded-xl ring-1 ring-white/10">
+                                    <img
+                                        src={gradeBackgrounds[pendingUnbindItem.grade ?? ItemGrade.Normal]}
+                                        alt=""
+                                        className="absolute inset-0 h-full w-full object-cover"
+                                    />
+                                    <img
+                                        src={pendingUnbindItem.image}
+                                        alt={pendingUnbindItem.name}
+                                        className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.75)]"
+                                    />
+                                </div>
+                            </div>
+                            <div className="mt-3 flex items-center justify-center gap-2 text-xs font-semibold">
+                                <span className="rounded-full border border-rose-400/35 bg-rose-950/35 px-2.5 py-1 text-rose-200">
+                                    귀속
+                                </span>
+                                <span className="text-amber-200">→</span>
+                                <span className="rounded-full border border-emerald-400/35 bg-emerald-950/30 px-2.5 py-1 text-emerald-200">
+                                    거래가능
+                                </span>
+                            </div>
+                        </div>
+                        <div className="rounded-xl border border-amber-500/25 bg-gradient-to-r from-amber-950/45 via-yellow-950/25 to-amber-950/45 p-3">
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="rounded-lg border border-white/10 bg-black/25 p-2">
+                                    <p className="mb-1 text-center text-[11px] font-semibold text-slate-300">보유</p>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <img
+                                            src={unbindTicketTemplate?.image ?? '/images/use/belong.webp'}
+                                            alt={EQUIPMENT_UNBIND_TICKET_NAME}
+                                            className="h-8 w-8 object-contain"
+                                        />
+                                        <span className="text-lg font-black tabular-nums text-emerald-300">{ownedUnbindTickets}</span>
+                                    </div>
+                                </div>
+                                <div className="rounded-lg border border-white/10 bg-black/25 p-2">
+                                    <p className="mb-1 text-center text-[11px] font-semibold text-slate-300">필요</p>
+                                    <div className="flex items-center justify-center gap-2">
+                                        <img
+                                            src={unbindTicketTemplate?.image ?? '/images/use/belong.webp'}
+                                            alt={EQUIPMENT_UNBIND_TICKET_NAME}
+                                            className="h-8 w-8 object-contain"
+                                        />
+                                        <span className="text-lg font-black tabular-nums text-amber-200">{pendingUnbindRequiredTickets}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {!pendingUnbindHasEnoughTickets && (
+                            <p className="rounded-lg border border-rose-400/35 bg-rose-950/35 px-3 py-2 text-center text-sm font-semibold text-rose-300">
+                                귀속 해제권이 부족합니다.
+                            </p>
+                        )}
+                        <div className="mt-auto flex items-center justify-center gap-3">
+                            <button
+                                type="button"
+                                onClick={handleConfirmUnbindEquipment}
+                                className="min-w-[120px] rounded-xl border border-emerald-300/45 bg-gradient-to-b from-emerald-400 via-emerald-500 to-emerald-700 px-4 py-2.5 text-sm font-bold tracking-[0.01em] text-white shadow-[0_12px_28px_-12px_rgba(16,185,129,0.6),inset_0_1px_0_rgba(255,255,255,0.26)] transition hover:-translate-y-[1px] hover:border-emerald-200/60 hover:from-emerald-300 hover:via-emerald-500 hover:to-emerald-650 hover:shadow-[0_14px_30px_-12px_rgba(16,185,129,0.7)] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                                disabled={!pendingUnbindHasEnoughTickets}
+                            >
+                                귀속해제
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleCancelUnbindEquipment}
+                                className="min-w-[120px] rounded-xl border border-slate-400/55 bg-gradient-to-b from-slate-600/95 via-slate-700/95 to-slate-900/95 px-4 py-2.5 text-sm font-bold tracking-[0.01em] text-slate-100 shadow-[0_10px_22px_-12px_rgba(15,23,42,0.85),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:-translate-y-[1px] hover:border-slate-300/70 hover:from-slate-500/95 hover:via-slate-650/95 hover:to-slate-800/95 hover:shadow-[0_12px_26px_-12px_rgba(15,23,42,0.92)] active:translate-y-0 active:scale-[0.98]"
+                            >
+                                취소
+                            </button>
                         </div>
                     </div>
                 </DraggableWindow>

@@ -11,6 +11,7 @@ export type ScoringStoneSessionSlice = {
     gameCategory?: string | null;
     moveHistory?: { x: number; y: number }[] | null;
     hiddenMoves?: Record<number, boolean> | null;
+    permanentlyRevealedStones?: Point[] | null;
     blackPatternStones?: Point[] | null;
     whitePatternStones?: Point[] | null;
     baseStones?: Point[] | null;
@@ -53,6 +54,10 @@ function wasAiInitialHiddenStone(game: ScoringStoneSessionSlice, stone: Point): 
     return !!(h && h.x === stone.x && h.y === stone.y);
 }
 
+function wasRevealedHiddenStone(game: ScoringStoneSessionSlice, stone: Point): boolean {
+    return !!game.permanentlyRevealedStones?.some((p) => p.x === stone.x && p.y === stone.y);
+}
+
 /**
  * strategic.ts / hidden.ts / towerPlayerHidden 등 착수 시 포획 점수 규칙과 동일한 우선순위.
  */
@@ -63,6 +68,7 @@ export function getStoneCapturePointValueForScoring(game: ScoringStoneSessionSli
 
     const hidden = wasHiddenPlacement(game, stone);
     const aiInitial = wasAiInitialHiddenStone(game, stone);
+    const revealedHidden = wasRevealedHiddenStone(game, stone);
     const pattern = isPatternStoneForOwner(game, stone, stoneOwner);
 
     const isStrategicAiGame =
@@ -77,11 +83,11 @@ export function getStoneCapturePointValueForScoring(game: ScoringStoneSessionSli
 
     if (pvePatternFirst) {
         if (pattern) return 2;
-        if (hidden || aiInitial) return 5;
+        if (hidden || aiInitial || revealedHidden) return 5;
         return 1;
     }
 
     if (pattern) return 2;
-    if (hidden || aiInitial) return 5;
+    if (hidden || aiInitial || revealedHidden) return 5;
     return 1;
 }

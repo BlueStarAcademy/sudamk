@@ -850,6 +850,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 }
 
                 const sliceEntries = newJustCapturedEntries();
+                // justCaptured가 없는 상태에서 "마지막 착수자"가 아닌 쪽의 captures 증가분이 보이면
+                // 이전 턴 포획 점수를 늦은 GAME_UPDATE에서 다시 본 것이다. 다음 AI 착수에 +5가 재생되는 버그 방지.
+                if (sliceEntries.length === 0 && delta >= minPts && floatPlayer !== last.player) {
+                    prevCapturesForFloatRef.current = { ...captures };
+                    processedJustCapturedCountRef.current = list.length;
+                    lastFloatedMoveKeyRef.current = moveKey;
+                    return;
+                }
                 const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
                 /** justCaptured만 보면 히든 5점 등이 누락될 수 있어(낙관적 갱신·슬라이스 동기), captures 증가분과 맞춤 */
                 const floatPts = Math.max(slicePts, delta);
@@ -1813,15 +1821,14 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isLast = !!(isSingleLastMove || isMultiLastMove);
                     const isMyJustPlacedStone = !!lastMove && lastMove.x === x && lastMove.y === y && actualPlayer === myPlayerEnum;
                     
-                    const moveIndex = moveHistory ? findMoveIndexAt({ moveHistory } as LiveGameSession, x, y, actualPlayer) : -1;
+                    const moveIndex = moveHistory ? lastMoveIndexAtForHiddenClassify(moveHistory, x, y) : -1;
                     const histMove = moveIndex >= 0 && moveHistory ? moveHistory[moveIndex] : undefined;
                     const isHiddenMove =
                         !isPlainStoneReuseIntersection &&
                         hiddenMoves &&
                         moveIndex !== -1 &&
                         !!hiddenMoves[moveIndex] &&
-                        !!histMove &&
-                        histMove.player === actualPlayer;
+                        !!histMove;
                     const isInRevealAnimation =
                         isHiddenRevealStatus &&
                         animation?.type === 'hidden_reveal' &&
@@ -1869,6 +1876,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                 !!softScanAtCurrentMove ||
                                 !!isNewlyRevealed;
                         }
+                    }
+                    // 방어 로직: AI 히든 좌표는 내 돌 색 판정이 잠깐 어긋나도 기본 비공개를 강제한다.
+                    // (스캔으로 찾은 경우/영구 공개/게임 종료는 예외)
+                    if (
+                        atAiInitialHiddenStone &&
+                        !isGameFinished &&
+                        !isPermanentlyRevealed &&
+                        !softScanAtCurrentMove
+                    ) {
+                        isVisible = false;
                     }
 
                     if (!isVisible) return null;

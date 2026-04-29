@@ -1,9 +1,8 @@
 /**
  * 바둑 AI 봇 시스템
  * 싱글플레이, 도전의탑, 전략·모험 AI 대국 등에서 사용하는 1단계~10단계 바둑 AI.
- * 전략 goAi 경로는 KataServer만 사용한다. KATA_SERVER_URL 미설정·API 오류·무효 응답은 모두 예외로 전파한다(휴리스틱 폴백 없음).
- * 한 턴당 Kata 응답 좌표만 착수에 사용한다(히든 규칙으로 재질의·다른 좌표로 바꾸지 않음).
- * Kata가 PASS/빈 좌표만 주는 경우에도 예외로 끊지 않고, 서버 합법수/종료 폴백으로 안전 처리한다.
+ * 전략 goAi 경로는 KataServer 응답을 우선 사용한다.
+ * KataServer 미설정·API 오류·무효/PASS 응답은 서버 합법수/종료 폴백으로 안전 처리해 AI 턴 정지를 막는다.
  */
 
 import { LiveGameSession, Player, Point } from '../types/index.js';
@@ -109,18 +108,25 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
         console.log(
             `[GoAiBot][${gameType}] Deferred auto-scoring starting after last AI stone animation (game=${g.id}, turns=${totalTurns}/${autoScoringTurns})`
         );
-        if (isLobbyAiStrategicGoGame(g)) {
-            await broadcastPlayingSnapshotBeforeScoring(g);
+        const isHiddenModeForDeferred =
+            g.mode === types.GameMode.Hidden ||
+            (g.mode === types.GameMode.Mix && Boolean(g.settings.mixedModes?.includes(types.GameMode.Hidden)));
+        if (!isHiddenModeForDeferred) {
+            if (isLobbyAiStrategicGoGame(g)) {
+                await broadcastPlayingSnapshotBeforeScoring(g);
+            }
+            g.endTime = Date.now();
+            g.gameStatus = 'scoring';
+            await db.saveGame(g);
+            const { updateGameCache } = await import('./gameCache.js');
+            updateGameCache(g);
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const gameToBroadcast = { ...g };
+            if (!g.isSinglePlayer) {
+                delete (gameToBroadcast as any).boardState;
+            }
+            broadcastToGameParticipants(g.id, { type: 'GAME_UPDATE', payload: { [g.id]: gameToBroadcast } }, g);
         }
-        g.endTime = Date.now();
-        g.gameStatus = 'scoring';
-        await db.saveGame(g);
-        const { updateGameCache } = await import('./gameCache.js');
-        updateGameCache(g);
-        const { broadcastToGameParticipants } = await import('./socket.js');
-        const gameToBroadcast = { ...g };
-        delete (gameToBroadcast as any).boardState;
-        broadcastToGameParticipants(g.id, { type: 'GAME_UPDATE', payload: { [g.id]: gameToBroadcast } }, g);
         const { getGameResult } = await import('./gameModes.js');
         await getGameResult(g);
     } catch (e: any) {
@@ -436,6 +442,24 @@ const getCurrentAiTurnIndex = (game: LiveGameSession, aiPlayerEnum: Player): num
     return aiTurnsPlayed + 1;
 };
 
+const countRecordedAiHiddenMoves = (game: LiveGameSession, aiPlayerEnum: Player): number => {
+    if (!Array.isArray(game.moveHistory) || !game.hiddenMoves) return 0;
+    let count = 0;
+    for (let i = 0; i < game.moveHistory.length; i++) {
+        const move = game.moveHistory[i];
+        if (
+            move &&
+            move.player === aiPlayerEnum &&
+            move.x !== -1 &&
+            move.y !== -1 &&
+            !!game.hiddenMoves[i]
+        ) {
+            count++;
+        }
+    }
+    return count;
+};
+
 const collectContributingHiddenStones = (
     game: LiveGameSession,
     boardAfterMove: types.BoardState,
@@ -561,9 +585,9 @@ const applyAiCaptureOutcome = (
                 type: 'hidden_reveal',
                 stones: uniqueStonesToReveal,
                 startTime: now,
-                duration: 2000
+                duration: 1500
             };
-            game.revealAnimationEndTime = now + 2000;
+            game.revealAnimationEndTime = now + 1500;
             game.pendingCapture = {
                 stones: result.capturedStones,
                 move: { player: aiPlayerEnum, x: move.x, y: move.y },
@@ -605,6 +629,9 @@ const applyAiCaptureOutcome = (
         }
         const wasHiddenMove = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
         const wasAiInitialHidden = !!aiInitialHiddenStone && aiInitialHiddenStone.x === stone.x && aiInitialHiddenStone.y === stone.y;
+        const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
+            (p) => p.x === stone.x && p.y === stone.y
+        );
 
         let points = 1;
         let wasHidden = false;
@@ -618,7 +645,7 @@ const applyAiCaptureOutcome = (
             recordPatternStoneConsumed(game, stone);
         } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentPlayerEnum)) {
             points = 2;
-        } else if (wasHiddenMove || wasAiInitialHidden) {
+        } else if (wasHiddenMove || wasAiInitialHidden || wasRevealedHidden) {
             points = 5;
             wasHidden = true;
             game.hiddenStoneCaptures[aiPlayerEnum] = (game.hiddenStoneCaptures[aiPlayerEnum] || 0) + 1;
@@ -1190,6 +1217,10 @@ function isUserUnrevealedHiddenPosition(
 ): boolean {
     const isHiddenMode = game.mode === types.GameMode.Hidden ||
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const disableAiHiddenItemsByStageSetting =
+        game.isSinglePlayer &&
+        isHiddenMode &&
+        (game.settings as any)?.singlePlayerDisableAiHiddenItemUsage === true;
     if (!isHiddenMode || !shouldMaskUserHiddenFromAi(game) || !game.hiddenMoves || !game.moveHistory) return false;
     const userPlayerEnum = aiPlayerEnum === Player.White ? Player.Black : Player.White;
     return isCurrentUnrevealedHiddenStoneAt(game, x, y, userPlayerEnum);
@@ -1255,7 +1286,7 @@ function revealAllUnrevealedHiddensForPlayerEnum(game: types.LiveGameSession, pl
     }
 }
 
-const USER_HIDDEN_FULL_REVEAL_MS = 2000;
+const USER_HIDDEN_FULL_REVEAL_MS = 1500;
 /** AI 히든 아이템 "생각" 연출 길이 — 연출이 끝난 뒤에 Kata로 좌표를 정한다 */
 const AI_HIDDEN_ITEM_THINKING_DURATION_MS = 6000;
 
@@ -1484,10 +1515,16 @@ export async function makeGoAiBotMove(
         return;
     }
     
+    const currentPlayerIdForGuard =
+        game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    const isServerAiTurnForGuard =
+        currentPlayerIdForGuard === 'ai-player-01' ||
+        (currentPlayerIdForGuard != null && String(currentPlayerIdForGuard).startsWith('dungeon-bot-'));
+
     // 아이템 사용 모드에서는 AI 수를 두지 않음 (사용자가 아이템을 사용 중)
+    // 단, AI 턴에 hidden_placing/scanning이 stale 상태로 남은 경우에는 아래 복구 로직에서 playing으로 정규화한다.
     if (
-        game.gameStatus === 'hidden_placing' ||
-        game.gameStatus === 'scanning' ||
+        ((game.gameStatus === 'hidden_placing' || game.gameStatus === 'scanning') && !isServerAiTurnForGuard) ||
         game.gameStatus === 'scanning_animating' ||
         game.gameStatus === 'missile_selecting'
     ) {
@@ -1511,6 +1548,10 @@ export async function makeGoAiBotMove(
 
     const isHiddenMode = game.mode === types.GameMode.Hidden ||
         (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
+    const disableAiHiddenItemsByStageSetting =
+        game.isSinglePlayer &&
+        isHiddenMode &&
+        (game.settings as any)?.singlePlayerDisableAiHiddenItemUsage === true;
     const totalTurns = (game.moveHistory || []).filter(m => m.x !== -1 && m.y !== -1).length;
     const isStrategicAiGame =
         game.isAiGame &&
@@ -1526,6 +1567,38 @@ export async function makeGoAiBotMove(
     }
     let aiHiddenLeft = (game as any)[aiHiddenKey] ?? 0;
     let shouldApplyHiddenOnThisMove = !!(game as any).pendingAiHiddenPlacement;
+    const aiHiddenPlacementArmed = !!(game as any).aiHiddenPlacementArmed;
+    if (isHiddenMode && aiHiddenPlacementArmed && !shouldApplyHiddenOnThisMove) {
+        shouldApplyHiddenOnThisMove = true;
+    }
+    const aiHiddenThinkPlacementDue = !!(game as any).aiHiddenItemThinkPlacementDue;
+    const aiHiddenThinkDueMoveCountRaw = Number((game as any).aiHiddenItemThinkDueMoveCount);
+    const aiHiddenThinkDueMoveCount = Number.isFinite(aiHiddenThinkDueMoveCountRaw)
+        ? Math.max(0, Math.floor(aiHiddenThinkDueMoveCountRaw))
+        : undefined;
+    const currentMoveCount = Array.isArray(game.moveHistory) ? game.moveHistory.length : 0;
+    const isAiHiddenThinkingAnim =
+        (game.animation as { type?: string } | null | undefined)?.type === 'ai_thinking';
+    // 연출 컨텍스트(타이머/애니메이션)가 살아 있는 경우에만 예약 플래그로 히든 착수를 강제한다.
+    // stale 플래그만 남은 상태에서 다음 턴까지 히든이 연쇄 발동되는 것을 막는다.
+    if (
+        isHiddenMode &&
+        aiHiddenThinkPlacementDue &&
+        !shouldApplyHiddenOnThisMove &&
+        (
+            game.aiHiddenItemAnimationEndTime != null ||
+            isAiHiddenThinkingAnim ||
+            (aiHiddenThinkDueMoveCount != null && aiHiddenThinkDueMoveCount === currentMoveCount)
+        )
+    ) {
+        shouldApplyHiddenOnThisMove = true;
+    }
+    // stale 예약 플래그는 현재 수순과 불일치하면 더 이상 사용하지 않는다.
+    if (aiHiddenThinkPlacementDue && aiHiddenThinkDueMoveCount != null && aiHiddenThinkDueMoveCount < currentMoveCount) {
+        (game as any).aiHiddenItemThinkPlacementDue = false;
+        (game as any).aiHiddenItemThinkDueMoveCount = undefined;
+        (game as any).aiHiddenPlacementArmed = false;
+    }
 
     // AI 히든 아이템 연출 진행 중에는 실제 착수를 하지 않고 대기한다.
     if (game.aiHiddenItemAnimationEndTime != null && now < game.aiHiddenItemAnimationEndTime) {
@@ -1574,10 +1647,38 @@ export async function makeGoAiBotMove(
     // AI 히든 아이템 사용 연출 시작 (실제 수는 다음 호출에서 히든으로 둠)
     aiHiddenLeft = (game as any)[aiHiddenKey] ?? aiHiddenLeft;
     const plannedAiHiddenTurns = isStrategicAiGame ? planStrategicAiHiddenTurns(game, aiHiddenLeft) : [];
+    const configuredSinglePlayerHiddenTurns = game.isSinglePlayer
+        ? (() => {
+            const fromRuntime = normalizeAiHiddenTurns((game as any).aiHiddenItemTurns);
+            if (fromRuntime.length > 0) return fromRuntime;
+            return normalizeAiHiddenTurns((game.settings as any)?.singlePlayerAiHiddenItemTurns);
+        })()
+        : [];
     const usedAiHiddenItems = Math.max(0, Number((game as any).aiHiddenItemsUsedCount ?? 0));
     const currentAiTurnIndex = getCurrentAiTurnIndex(game, aiPlayerEnum);
+    const recordedAiHiddenMoves = countRecordedAiHiddenMoves(game, aiPlayerEnum);
+    if (
+        game.isSinglePlayer &&
+        isHiddenMode &&
+        usedAiHiddenItems > recordedAiHiddenMoves &&
+        !shouldApplyHiddenOnThisMove
+    ) {
+        shouldApplyHiddenOnThisMove = true;
+    }
     const nextPlannedAiHiddenTurn = plannedAiHiddenTurns[usedAiHiddenItems];
     const shouldUseStrategicAiHiddenItem = isStrategicAiGame && nextPlannedAiHiddenTurn === currentAiTurnIndex;
+    const nextSinglePlayerAiHiddenTurn = configuredSinglePlayerHiddenTurns[usedAiHiddenItems];
+    const shouldUseSinglePlayerAiHiddenItem =
+        game.isSinglePlayer &&
+        (
+            (nextSinglePlayerAiHiddenTurn != null && currentAiTurnIndex >= nextSinglePlayerAiHiddenTurn) ||
+            (
+                configuredSinglePlayerHiddenTurns.length === 0 &&
+                !game.aiHiddenItemUsed &&
+                typeof game.aiHiddenItemTurn === 'number' &&
+                currentAiTurnIndex >= game.aiHiddenItemTurn
+            )
+        );
 
     const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
     const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
@@ -1600,8 +1701,8 @@ export async function makeGoAiBotMove(
         (!forceResponsesOnHiddenTurnsOnly || isConfiguredAiHiddenTurn);
     const useHeuristicInsteadOfKata = shouldApplyForcedResponsesThisTurn;
     if (!useHeuristicInsteadOfKata && !isKataServerAvailable()) {
-        throw new Error(
-            `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). game=${game.id}`
+        console.error(
+            `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). 서버 합법수 폴백으로 진행합니다. game=${game.id}`
         );
     }
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
@@ -1641,20 +1742,28 @@ export async function makeGoAiBotMove(
     // 6초 연출만 시작하고 Kata는 호출하지 않는다. 만료 후 다음 makeGoAiBotMove 틱에서 Kata로 수를 정해 히든으로 둔다.
     if (
         isHiddenMode &&
+        !disableAiHiddenItemsByStageSetting &&
         !shouldApplyHiddenOnThisMove &&
-        (shouldUseStrategicAiHiddenItem ||
-            (!game.aiHiddenItemUsed && game.aiHiddenItemTurn != null && totalTurns >= game.aiHiddenItemTurn))
+        (shouldUseStrategicAiHiddenItem || shouldUseSinglePlayerAiHiddenItem)
     ) {
         const appliesToAi = game.isSinglePlayer || (game as any).gameCategory === 'tower' || isStrategicAiGame;
         if (aiHiddenLeft > 0 && appliesToAi) {
-            (game as any).pendingAiHiddenPlacement = false;
+            // 연출 시작 시 다음 AI 착수는 반드시 히든으로 예약한다.
+            // (캐시/동기화 경합으로 think 플래그가 유실되어도 pending으로 복구 가능)
+            (game as any).pendingAiHiddenPlacement = true;
+            (game as any).aiHiddenPlacementArmed = true;
             pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
             (game as any).aiHiddenItemThinkPlacementDue = true;
+            (game as any).aiHiddenItemThinkDueMoveCount = currentMoveCount;
 
-            if (isStrategicAiGame) {
+            if (isStrategicAiGame || game.isSinglePlayer) {
                 (game as any).aiHiddenItemsUsedCount = usedAiHiddenItems + 1;
             }
-            game.aiHiddenItemUsed = true;
+            if (game.isSinglePlayer && configuredSinglePlayerHiddenTurns.length > 0) {
+                game.aiHiddenItemUsed = usedAiHiddenItems + 1 >= configuredSinglePlayerHiddenTurns.length;
+            } else {
+                game.aiHiddenItemUsed = true;
+            }
             const aiPlayerId = aiPlayerEnum === types.Player.Black ? game.blackPlayerId! : game.whitePlayerId!;
             const hiddenNoticeMsg =
                 (game as any).gameCategory === 'adventure'
@@ -1671,7 +1780,9 @@ export async function makeGoAiBotMove(
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            delete (gameToBroadcast as any).boardState;
+            if (!game.isSinglePlayer) {
+                delete (gameToBroadcast as any).boardState;
+            }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
             return;
         }
@@ -1700,7 +1811,9 @@ export async function makeGoAiBotMove(
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            delete (gameToBroadcast as any).boardState;
+            if (!game.isSinglePlayer) {
+                delete (gameToBroadcast as any).boardState;
+            }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
             const { getGameResult } = await import('./gameModes.js');
             try {
@@ -1713,6 +1826,31 @@ export async function makeGoAiBotMove(
     }
     
     let selectedMove: Point | null = null;
+    const configuredAiHiddenPlacementsRaw = (game.settings as any)?.singlePlayerAiHiddenItemPlacements;
+    const configuredAiHiddenPlacements: Point[] = Array.isArray(configuredAiHiddenPlacementsRaw)
+        ? configuredAiHiddenPlacementsRaw
+            .map((p: any) => ({ x: Number(p?.x), y: Number(p?.y) }))
+            .filter((p: Point) => Number.isInteger(p.x) && Number.isInteger(p.y))
+        : [];
+    if (game.isSinglePlayer && shouldApplyHiddenOnThisMove && configuredAiHiddenPlacements.length > 0) {
+        const placementByOrder = configuredAiHiddenPlacements[usedAiHiddenItems];
+        const fallbackPlacement = configuredAiHiddenPlacements[0];
+        const preferredPlacement = placementByOrder ?? fallbackPlacement;
+        if (
+            preferredPlacement &&
+            processMove(
+                game.boardState,
+                { ...preferredPlacement, player: aiPlayerEnum },
+                game.koInfo,
+                game.moveHistory.length
+            ).isValid
+        ) {
+            selectedMove = { x: preferredPlacement.x, y: preferredPlacement.y };
+            console.log(
+                `[makeGoAiBotMove] singleplayer configured hidden placement used game=${game.id} (${selectedMove.x},${selectedMove.y})`
+            );
+        }
+    }
 
     const cachedHiddenKata = pendingAiHiddenKataMoveByGameId.get(hiddenKataCacheKey(game.id));
     if (
@@ -1759,7 +1897,17 @@ export async function makeGoAiBotMove(
             gameId: game.id,
             kataSessionTag: composeKataSessionTagForGame(game, undefined),
         };
-        const kataCandidates = await generateKataServerMoveCandidates(kataParamsBase);
+        let kataCandidates: Point[] = [];
+        if (isKataServerAvailable()) {
+            try {
+                kataCandidates = await generateKataServerMoveCandidates(kataParamsBase);
+            } catch (e: any) {
+                console.error(
+                    `[makeGoAiBotMove] KataServer 호출 실패; 서버 합법수 폴백으로 진행합니다. game=${game.id}:`,
+                    e?.message ?? e
+                );
+            }
+        }
 
         if (
             kataCandidates.length === 0 ||
@@ -1894,7 +2042,17 @@ export async function makeGoAiBotMove(
                 gameId: game.id,
                 kataSessionTag: composeKataSessionTagForGame(game, hiddenRevealTag),
             };
-            const kataCandidatesReveal = await generateKataServerMoveCandidates(kataParamsReveal);
+            let kataCandidatesReveal: Point[] = [];
+            if (isKataServerAvailable()) {
+                try {
+                    kataCandidatesReveal = await generateKataServerMoveCandidates(kataParamsReveal);
+                } catch (e: any) {
+                    console.error(
+                        `[makeGoAiBotMove] KataServer 재질의 실패; 서버 합법수 폴백으로 진행합니다. game=${game.id}:`,
+                        e?.message ?? e
+                    );
+                }
+            }
 
             if (
                 kataCandidatesReveal.length === 0 ||
@@ -2040,7 +2198,9 @@ export async function makeGoAiBotMove(
         (game as any).aiInitialHiddenStone = { x: selectedMove.x, y: selectedMove.y };
         (game as any).aiInitialHiddenStoneIsPrePlaced = false;
         (game as any).pendingAiHiddenPlacement = false;
+        (game as any).aiHiddenPlacementArmed = false;
         (game as any).aiHiddenItemThinkPlacementDue = false;
+        (game as any).aiHiddenItemThinkDueMoveCount = undefined;
         pendingAiHiddenKataMoveByGameId.delete(hiddenKataCacheKey(game.id));
     }
     if (!shouldApplyHiddenOnThisMove && game.permanentlyRevealedStones?.length) {
@@ -2156,6 +2316,9 @@ export async function makeGoAiBotMove(
                     const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
                     console.log(`[GoAiBot][${gameType}] Auto-scoring triggered at ${totalTurns} turns (stageId: ${game.stageId || 'N/A'}, validMovesLength: ${validMoves.length}, gameStatus: ${game.gameStatus})`);
                     // 싱글·탑 PVE: 마지막 수가 AI일 때 클라에 돌 착수 애니가 보인 뒤 계가가 이어지도록 약간 지연(턴 전환·저장·브로드캐스트는 아래로 진행)
+                    const isHiddenModeForAutoScoring =
+                        game.mode === types.GameMode.Hidden ||
+                        (game.mode === types.GameMode.Mix && Boolean(game.settings.mixedModes?.includes(types.GameMode.Hidden)));
                     if (isPveDeferredAutoScoringGame(game)) {
                         const kickAt = Date.now() + PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS;
                         (game as any).pendingAutoScoringKickoffAt = kickAt;
@@ -2175,19 +2338,23 @@ export async function makeGoAiBotMove(
                             `[GoAiBot][${gameType}] PVE auto-scoring deferred ${PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS}ms after last AI move (game=${game.id})`
                         );
                     } else {
-                    if (isLobbyAiStrategicGoGame(game)) {
-                        await broadcastPlayingSnapshotBeforeScoring(game);
+                    if (!isHiddenModeForAutoScoring) {
+                        if (isLobbyAiStrategicGoGame(game)) {
+                            await broadcastPlayingSnapshotBeforeScoring(game);
+                        }
+                        // 계가 진입 시점에 종료 시각 고정 → 타이머 정지, 총 걸린 시간에 계가 연출 구간 제외
+                        game.endTime = Date.now();
+                        // 게임 상태를 먼저 scoring으로 변경하여 다른 로직이 게임을 재시작하지 않도록 함
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        // boardState 제외하여 대역폭 절약
+                        const gameToBroadcast = { ...game };
+                        if (!game.isSinglePlayer) {
+                            delete (gameToBroadcast as any).boardState;
+                        }
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
                     }
-                    // 계가 진입 시점에 종료 시각 고정 → 타이머 정지, 총 걸린 시간에 계가 연출 구간 제외
-                    game.endTime = Date.now();
-                    // 게임 상태를 먼저 scoring으로 변경하여 다른 로직이 게임을 재시작하지 않도록 함
-                    game.gameStatus = 'scoring';
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('./socket.js');
-                    // boardState 제외하여 대역폭 절약
-                    const gameToBroadcast = { ...game };
-                    delete (gameToBroadcast as any).boardState;
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
                     const { getGameResult } = await import('./gameModes.js');
                     try {
                         await getGameResult(game);
@@ -2201,14 +2368,21 @@ export async function makeGoAiBotMove(
                 } else {
                     const gameType = game.isSinglePlayer ? 'SinglePlayer' : 'AiGame';
                     console.warn(`[GoAiBot][${gameType}] Auto-scoring condition met but gameStatus is not 'playing' or 'hidden_placing': ${game.gameStatus} (totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}) - FORCING TRIGGER`);
-                    game.endTime = Date.now();
-                    // 조건이 만족되었는데 gameStatus가 다른 경우 강제로 트리거
-                    game.gameStatus = 'scoring';
-                    await db.saveGame(game);
-                    const { broadcastToGameParticipants } = await import('./socket.js');
-                    const gameToBroadcast = { ...game };
-                    delete (gameToBroadcast as any).boardState;
-                    broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    const isHiddenModeForForcedAutoScoring =
+                        game.mode === types.GameMode.Hidden ||
+                        (game.mode === types.GameMode.Mix && Boolean(game.settings.mixedModes?.includes(types.GameMode.Hidden)));
+                    if (!isHiddenModeForForcedAutoScoring) {
+                        game.endTime = Date.now();
+                        // 조건이 만족되었는데 gameStatus가 다른 경우 강제로 트리거
+                        game.gameStatus = 'scoring';
+                        await db.saveGame(game);
+                        const { broadcastToGameParticipants } = await import('./socket.js');
+                        const gameToBroadcast = { ...game };
+                        if (!game.isSinglePlayer) {
+                            delete (gameToBroadcast as any).boardState;
+                        }
+                        broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
+                    }
                     const { getGameResult } = await import('./gameModes.js');
                     try {
                         await getGameResult(game);

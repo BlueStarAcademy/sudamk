@@ -115,6 +115,9 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
                 (game as any).aiInitialHiddenStone &&
                 (game as any).aiInitialHiddenStone.x === stone.x &&
                 (game as any).aiInitialHiddenStone.y === stone.y;
+            const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
+                (p) => p.x === stone.x && p.y === stone.y
+            );
             if (wasAiInitialHidden) (game as any).aiInitialHiddenStone = undefined;
             let points = 1;
             let wasHiddenForEntry = false;
@@ -124,7 +127,7 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
                 recordPatternStoneConsumed(game, stone);
             } else if (consumeOpponentPatternStoneIfAny(game, stone, opponentP)) {
                 points = 2;
-            } else if (wasHidden || wasAiInitialHidden) {
+            } else if (wasHidden || wasAiInitialHidden || wasRevealedHidden) {
                 game.hiddenStoneCaptures[myP] = (game.hiddenStoneCaptures[myP] || 0) + 1;
                 points = 5;
                 wasHiddenForEntry = true;
@@ -134,7 +137,7 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
             game.justCaptured.push({
                 point: stone,
                 player: opponentP,
-                wasHidden: wasHiddenForEntry || wasAiInitialHidden,
+                wasHidden: wasHiddenForEntry || wasAiInitialHidden || wasRevealedHidden,
                 capturePoints: points,
                 ...(isBaseStone ? { wasBaseStone: true as const } : {}),
             });
@@ -180,6 +183,11 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
     const playerWhoMoved = cap.move.player;
     const nextPlayer = playerWhoMoved === types.Player.Black ? types.Player.White : types.Player.Black;
     game.currentPlayer = nextPlayer;
+    if (isAiControlledSeat(game, nextPlayer)) {
+        // 히든 공개 직후 AI가 바로 착수하는 흐름에서는 직전 캡처 justCaptured가
+        // 다음 착수 렌더 트리거에 재사용되어 점수 플로트가 한 번 더 재생될 수 있다.
+        game.justCaptured = [];
+    }
     game.pausedTurnTimeLeft = undefined;
 
     if (onPostTurnSwitch) {

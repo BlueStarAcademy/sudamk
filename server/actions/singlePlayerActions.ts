@@ -292,6 +292,8 @@ const applyLatestPendingSinglePlayerStage = async (
         singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
         singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
         singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
+        singlePlayerAiHiddenItemPlacements: stage.aiHiddenItemPlacements,
+        singlePlayerDisableAiHiddenItemUsage: stage.disableAiHiddenItemUsage === true,
         singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,
         ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
     } as any;
@@ -471,6 +473,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
                     singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
                     singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
+                    singlePlayerAiHiddenItemPlacements: stage.aiHiddenItemPlacements,
+                    singlePlayerDisableAiHiddenItemUsage: stage.disableAiHiddenItemUsage === true,
                     singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,
                     ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
                 } as any,

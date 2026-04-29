@@ -1029,9 +1029,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     type: 'hidden_reveal',
                     stones: stonesToReveal,
                     startTime: now,
-                    duration: 2000,
+                    duration: 1500,
                 };
-                game.revealAnimationEndTime = now + 2000;
+                game.revealAnimationEndTime = now + 1500;
                 game.gameStatus = 'hidden_reveal_animating';
                 game.itemUseDeadline = undefined;
                 if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
@@ -1267,9 +1267,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     type: 'hidden_reveal',
                     stones: uniqueStonesToReveal,
                     startTime: now,
-                    duration: 2000
+                    duration: 1500
                 };
-                game.revealAnimationEndTime = now + 2000;
+                game.revealAnimationEndTime = now + 1500;
                 game.pendingCapture = { stones: result.capturedStones, move, hiddenContributors: contributingHiddenStones.map(c => c.point) };
             
                 game.lastMove = { x, y };
@@ -1363,8 +1363,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                 !!(game as any).aiInitialHiddenStone &&
                                 (game as any).aiInitialHiddenStone.x === stone.x &&
                                 (game as any).aiInitialHiddenStone.y === stone.y;
-                            wasHiddenForJustCaptured = wasHidden || wasAiInitialHidden;
-                            if (wasHidden || wasAiInitialHidden) {
+                            const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
+                                (p) => p.x === stone.x && p.y === stone.y
+                            );
+                            wasHiddenForJustCaptured = wasHidden || wasAiInitialHidden || wasRevealedHidden;
+                            if (wasHidden || wasAiInitialHidden || wasRevealedHidden) {
                                 if (!game.hiddenStoneCaptures) {
                                     game.hiddenStoneCaptures = {
                                         [types.Player.None]: 0,
@@ -1392,14 +1395,17 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                             }
                         }
                         const wasHidden = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        wasHiddenForJustCaptured = wasHidden; // pass to justCaptured
+                        const wasRevealedHidden = !!game.permanentlyRevealedStones?.some(
+                            (p) => p.x === stone.x && p.y === stone.y
+                        );
+                        wasHiddenForJustCaptured = wasHidden || wasRevealedHidden; // pass to justCaptured
 
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
                             points = 5;
                         } else if (consumeOpponentPatternStoneIfAny(game, stone, capturedPlayerEnum)) {
                             points = 2;
-                        } else if (wasHidden) {
+                        } else if (wasHidden || wasRevealedHidden) {
                             game.hiddenStoneCaptures[myPlayerEnum]++;
                             points = 5;
                             if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
@@ -1683,8 +1689,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                 if (move && move.x !== -1 && game.boardState[move.y]?.[move.x] === move.player) {
                                     const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === move.x && p.y === move.y);
                                     if (
-                                        !isPermanentlyRevealed &&
-                                        !isHiddenMoveIndexSoftRevealedByAnyPlayer(game, moveIndex)
+                                        !isPermanentlyRevealed
                                     ) {
                                         unrevealedStones.push({ point: { x: move.x, y: move.y }, player: move.player });
                                     }
@@ -1699,9 +1704,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                             type: 'hidden_reveal',
                             stones: unrevealedStones,
                             startTime: now,
-                            duration: 3000
+                            duration: 1500
                         };
-                        game.revealAnimationEndTime = now + 3000;
+                        game.revealAnimationEndTime = now + 1500;
                         if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
                         game.permanentlyRevealedStones.push(...unrevealedStones.map(s => s.point));
                     } else {

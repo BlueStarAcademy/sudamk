@@ -282,7 +282,7 @@ export type ServerAction =
       }
     | { type: 'ABANDON_ADVENTURE_MAP_TREASURE_PICK'; payload: { stageId: string } }
     // Inventory & Item Actions
-    | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
+    | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string; targetEquipmentId?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
     | { type: 'TOGGLE_EQUIP_ITEM', payload: { itemId: string } }
     | { type: 'UNBIND_EQUIPMENT', payload: { itemId: string } }

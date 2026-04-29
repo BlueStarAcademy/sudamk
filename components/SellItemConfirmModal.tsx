@@ -53,13 +53,13 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
             isTopmost={isTopmost}
             variant="store"
             initialWidth={440}
-            initialHeight={520}
+            initialHeight={580}
             mobileViewportFit
             mobileViewportMaxHeightVh={92}
             bodyPaddingClassName="p-0 sm:p-0"
         >
             <>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-y-contain p-3 pb-2 text-slate-100 sm:p-5 sm:pb-4 [-webkit-overflow-scrolling:touch]">
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-3 pb-2 text-slate-100 sm:p-5 sm:pb-4">
                 <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
                     <p className="text-center text-xs font-bold tracking-wide text-amber-200/90 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-amber-200/70">
                         판매 확인

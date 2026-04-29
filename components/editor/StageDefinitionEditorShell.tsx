@@ -54,6 +54,8 @@ function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameM
         delete (next as { scanCount?: number }).scanCount;
         delete (next as { aiHiddenItemTurns?: number[] }).aiHiddenItemTurns;
         delete (next as { aiHiddenItemUseWithinTurn?: number }).aiHiddenItemUseWithinTurn;
+        delete (next as { aiHiddenItemPlacements?: { x: number; y: number }[] }).aiHiddenItemPlacements;
+        delete (next as { disableAiHiddenItemUsage?: boolean }).disableAiHiddenItemUsage;
         delete (next as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
     }
     if (!modes.includes(GameMode.Base)) delete (next as { baseStones?: number }).baseStones;
@@ -94,6 +96,8 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemPlacements',
+                'disableAiHiddenItemUsage',
                 'baseStones',
                 'mixedStrategicModes',
             ]);
@@ -110,6 +114,8 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemPlacements',
+                'disableAiHiddenItemUsage',
                 'baseStones',
                 'mixedStrategicModes',
                 'blackTurnLimit',
@@ -121,6 +127,8 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemPlacements',
+                'disableAiHiddenItemUsage',
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
@@ -131,6 +139,8 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemPlacements',
+                'disableAiHiddenItemUsage',
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
@@ -141,6 +151,8 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemPlacements',
+                'disableAiHiddenItemUsage',
                 'survivalTurns',
                 'blackTurnLimit',
                 'mixedStrategicModes',
@@ -159,6 +171,8 @@ function nextDraftAfterStrategicRulePresetChange(
                 'scanCount',
                 'aiHiddenItemTurns',
                 'aiHiddenItemUseWithinTurn',
+                'aiHiddenItemPlacements',
+                'disableAiHiddenItemUsage',
                 'forceAiResponsesOnHiddenTurnsOnly',
                 'survivalTurns',
                 'blackTurnLimit',
@@ -280,6 +294,28 @@ const normalizeHiddenTurnsFromCsv = (raw: string): number[] => {
     out.sort((a, b) => a - b);
     return out;
 };
+const normalizeHiddenPlacementsFromCsv = (raw: string, boardSize: number): { x: number; y: number }[] => {
+    const tokens = raw
+        .split(',')
+        .map((t) => t.trim())
+        .filter(Boolean);
+    const seen = new Set<string>();
+    const out: { x: number; y: number }[] = [];
+    for (const token of tokens) {
+        const parts = token.split(':').map((p) => p.trim());
+        if (parts.length !== 2) continue;
+        const x = Number(parts[0]);
+        const y = Number(parts[1]);
+        if (!Number.isInteger(x) || !Number.isInteger(y)) continue;
+        if (x < 0 || y < 0 || x >= boardSize || y >= boardSize) continue;
+        const key = `${x},${y}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ x, y });
+        if (out.length >= 12) break;
+    }
+    return out;
+};
 
 type ForcedAiResponseRow = NonNullable<SinglePlayerStageInfo['forcedAiResponses']>[number];
 const pointKey = (x: number, y: number): string => `${x},${y}`;
@@ -301,6 +337,9 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     );
     const [aiHiddenTurnsCsv, setAiHiddenTurnsCsv] = useState<string>(() =>
         Array.isArray(stage.aiHiddenItemTurns) ? stage.aiHiddenItemTurns.join(', ') : ''
+    );
+    const [aiHiddenPlacementsCsv, setAiHiddenPlacementsCsv] = useState<string>(() =>
+        Array.isArray(stage.aiHiddenItemPlacements) ? stage.aiHiddenItemPlacements.map((p) => `${p.x}:${p.y}`).join(', ') : ''
     );
     const [rulePreset, setRulePreset] = useState<SinglePlayerStrategicRulePreset>(() => stage.strategicRulePreset ?? 'auto');
     const [isForcedResponseBoardEditMode, setIsForcedResponseBoardEditMode] = useState(false);
@@ -327,6 +366,11 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         setDraft({ ...snapshot, kataServerLevel: resolvedKataServerLevel });
         setKataServerLevelInput(String(resolvedKataServerLevel));
         setAiHiddenTurnsCsv(Array.isArray(snapshot.aiHiddenItemTurns) ? snapshot.aiHiddenItemTurns.join(', ') : '');
+        setAiHiddenPlacementsCsv(
+            Array.isArray(snapshot.aiHiddenItemPlacements)
+                ? snapshot.aiHiddenItemPlacements.map((p) => `${p.x}:${p.y}`).join(', ')
+                : ''
+        );
         setCells(fixedOpeningToCells(snapshot));
         setRulePreset(snapshot.strategicRulePreset ?? 'auto');
         setIsForcedResponseBoardEditMode(false);
@@ -419,10 +463,15 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
         if ((draft.description ?? '').length > 1200) {
             errors.push('스테이지 설명은 1200자 이하로 입력해주세요.');
         }
-        if (showHiddenAiTiming) {
+        const aiHiddenUsageEnabled = draft.disableAiHiddenItemUsage !== true;
+        if (showHiddenAiTiming && aiHiddenUsageEnabled) {
             const turns = normalizeHiddenTurnsFromCsv(aiHiddenTurnsCsv);
             if (aiHiddenTurnsCsv.trim().length > 0 && turns.length === 0) {
                 errors.push('AI 히든 턴은 1 이상의 정수(쉼표 구분)로 입력해주세요. 예: 2, 5, 8');
+            }
+            const placements = normalizeHiddenPlacementsFromCsv(aiHiddenPlacementsCsv, draft.boardSize);
+            if (aiHiddenPlacementsCsv.trim().length > 0 && placements.length === 0) {
+                errors.push(`AI 히든 자리 형식이 올바르지 않습니다. 예: 2:3, 5:4 (0 ~ ${draft.boardSize - 1})`);
             }
             const within = Number(draft.aiHiddenItemUseWithinTurn ?? 0);
             if (within < 0) {
@@ -430,7 +479,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
             }
         }
         return errors;
-    }, [aiHiddenTurnsCsv, cells, draft.aiHiddenItemUseWithinTurn, draft.boardSize, draft.description, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid, showHiddenAiTiming]);
+    }, [aiHiddenPlacementsCsv, aiHiddenTurnsCsv, cells, draft.aiHiddenItemUseWithinTurn, draft.boardSize, draft.description, draft.disableAiHiddenItemUsage, draft.mergeRandomPlacementsWithFixed, draft.placements, isMixSelectionInvalid, showHiddenAiTiming]);
     const hasValidationErrors = validationErrors.length > 0;
 
     const updateForcedAiResponse = useCallback((index: number, updater: (prev: ForcedAiResponseRow) => ForcedAiResponseRow) => {
@@ -1000,6 +1049,16 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     )}
                                     {showHiddenAiTiming && (
                                         <>
+                                            <label className="col-span-2 flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/60 px-2 py-2 text-xs">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={draft.disableAiHiddenItemUsage !== true}
+                                                    onChange={(e) =>
+                                                        setDraft((p) => ({ ...p, disableAiHiddenItemUsage: e.target.checked ? undefined : true }))
+                                                    }
+                                                />
+                                                AI 히든 아이템 사용 허용 (기본값: 사용)
+                                            </label>
                                             <label className="col-span-2 text-xs">AI 히든 연출 턴(직접 지정, 쉼표 구분)
                                                 <input
                                                     className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
@@ -1007,6 +1066,17 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     value={aiHiddenTurnsCsv}
                                                     placeholder="예: 2, 5, 8"
                                                     onChange={(e) => setAiHiddenTurnsCsv(e.target.value)}
+                                                    disabled={draft.disableAiHiddenItemUsage === true}
+                                                />
+                                            </label>
+                                            <label className="col-span-2 text-xs">AI 히든 자리(순서대로, x:y 쉼표 구분)
+                                                <input
+                                                    className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                    type="text"
+                                                    value={aiHiddenPlacementsCsv}
+                                                    placeholder="예: 2:3, 5:4"
+                                                    onChange={(e) => setAiHiddenPlacementsCsv(e.target.value)}
+                                                    disabled={draft.disableAiHiddenItemUsage === true}
                                                 />
                                             </label>
                                             <label className="text-xs">AI 히든 N턴 이내 랜덤 사용
@@ -1017,6 +1087,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     onChange={(e) =>
                                                         setDraft((p) => ({ ...p, aiHiddenItemUseWithinTurn: Number(e.target.value) || 0 }))
                                                     }
+                                                    disabled={draft.disableAiHiddenItemUsage === true}
                                                 />
                                             </label>
                                             <label className="col-span-2 flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/60 px-2 py-2 text-xs">
@@ -1106,6 +1177,11 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             const snapshot = cloneStageInfo(resetBaseline);
                             setDraft(snapshot);
                             setAiHiddenTurnsCsv(Array.isArray(snapshot.aiHiddenItemTurns) ? snapshot.aiHiddenItemTurns.join(', ') : '');
+                            setAiHiddenPlacementsCsv(
+                                Array.isArray(snapshot.aiHiddenItemPlacements)
+                                    ? snapshot.aiHiddenItemPlacements.map((p) => `${p.x}:${p.y}`).join(', ')
+                                    : ''
+                            );
                             setCells(fixedOpeningToCells(snapshot));
                             setRulePreset(snapshot.strategicRulePreset ?? 'auto');
                             setErrorMessage('');
@@ -1145,6 +1221,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             try {
                                 setErrorMessage('');
                                 const normalizedHiddenTurns = normalizeHiddenTurnsFromCsv(aiHiddenTurnsCsv);
+                                const normalizedHiddenPlacements = normalizeHiddenPlacementsFromCsv(aiHiddenPlacementsCsv, draft.boardSize);
                                 await onSave({
                                     ...draft,
                                     strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
@@ -1152,6 +1229,8 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     aiHiddenItemUseWithinTurn: Number(draft.aiHiddenItemUseWithinTurn ?? 0) > 0
                                         ? Number(draft.aiHiddenItemUseWithinTurn)
                                         : undefined,
+                                    aiHiddenItemPlacements: normalizedHiddenPlacements.length > 0 ? normalizedHiddenPlacements : undefined,
+                                    disableAiHiddenItemUsage: draft.disableAiHiddenItemUsage === true ? true : undefined,
                                     forceAiResponsesOnHiddenTurnsOnly: draft.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
                                     fixedOpening: cellsToFixedOpening(resizeCells(cells, draft.boardSize)),
                                 });

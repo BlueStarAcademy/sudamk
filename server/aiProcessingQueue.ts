@@ -25,6 +25,29 @@ interface QueueStats {
     maxWaitTime: number;
 }
 
+const AI_GO_STALL_RETRY_STATUSES = new Set([
+    'playing',
+    'hidden_placing',
+    'hidden_reveal_animating',
+]);
+
+function getCurrentPlayerId(game: LiveGameSession): string | undefined {
+    return (game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId) ?? undefined;
+}
+
+function isAiControlledPlayerId(playerId: string | undefined): boolean {
+    return playerId === aiUserId || (playerId != null && String(playerId).startsWith('dungeon-bot-'));
+}
+
+function getAnimationRetryDelayMs(game: LiveGameSession): number | null {
+    const animation = game.animation as { startTime?: number; duration?: number } | null | undefined;
+    if (!animation || !Number.isFinite(animation.startTime) || !Number.isFinite(animation.duration)) {
+        return null;
+    }
+    const endAt = Number(animation.startTime) + Math.max(0, Number(animation.duration));
+    return Math.max(250, endAt - Date.now() + 80);
+}
+
 class AiProcessingQueue {
     private queue: QueuedAiTask[] = [];
     private processing: Set<string> = new Set(); // 현재 처리 중인 게임 ID
@@ -153,7 +176,7 @@ class AiProcessingQueue {
             // 게임이 종료되었거나 AI 차례가 아니면 무시
             // 전략바둑 playing + 놀이바둑 전체(알까기·컬링·주사위·오목·따목·도둑) AI 행동 가능 상태 허용
             const allowedStatuses = [
-                'playing', 'hidden_reveal_animating',
+                'playing', 'hidden_placing', 'hidden_reveal_animating',
                 'alkkagi_playing', 'alkkagi_placement', 'alkkagi_simultaneous_placement',
                 'curling_playing',
                 'curling_tiebreaker_playing',
@@ -164,8 +187,8 @@ class AiProcessingQueue {
                 return;
             }
 
-            const aiPlayerId = game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId;
-            if (aiPlayerId !== aiUserId) {
+            const aiPlayerId = getCurrentPlayerId(game);
+            if (!isAiControlledPlayerId(aiPlayerId)) {
                 return;
             }
 
@@ -194,15 +217,59 @@ class AiProcessingQueue {
             if (!allowedStatuses.includes(game.gameStatus) || game.currentPlayer === undefined) {
                 return;
             }
-            const aiPlayerIdAfterDelay =
-                game.currentPlayer === Player.Black ? game.blackPlayerId : game.whitePlayerId;
-            if (aiPlayerIdAfterDelay !== aiUserId) {
+            if (game.gameStatus === 'hidden_reveal_animating') {
+                const beforeStatus = game.gameStatus;
+                const beforeRevealEnd = game.revealAnimationEndTime;
+                const { updateHiddenState } = await import('./modes/hidden.js');
+                await updateHiddenState(game, Date.now());
+                const revealResolved =
+                    game.gameStatus !== beforeStatus ||
+                    beforeRevealEnd !== game.revealAnimationEndTime ||
+                    game.revealAnimationEndTime == null;
+                if (revealResolved) {
+                    updateGameCache(game);
+                    db.saveGame(game).catch(err => {
+                        console.error(`[AI Queue] Failed to save hidden reveal resolution ${gameId}:`, err);
+                    });
+                    const { broadcastToGameParticipants } = await import('./socket.js');
+                    const payloadGame =
+                        game.boardState && Array.isArray(game.boardState) && game.boardState.length > 0
+                            ? { ...game, boardState: game.boardState.map((row: number[]) => [...row]) }
+                            : game;
+                    broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: payloadGame } }, game);
+                }
+                if (!allowedStatuses.includes(game.gameStatus) || game.currentPlayer === undefined) {
+                    return;
+                }
+            }
+            const aiPlayerIdAfterDelay = getCurrentPlayerId(game);
+            if (!isAiControlledPlayerId(aiPlayerIdAfterDelay)) {
                 return;
             }
+            const beforeMoveCount = game.moveHistory?.length ?? 0;
 
             // AI 수 처리
             await makeAiMove(game);
-            this.retryCounts.delete(gameId);
+            const afterMoveCount = game.moveHistory?.length ?? beforeMoveCount;
+            const currentPlayerIdAfterMove = getCurrentPlayerId(game);
+            const stalledOnAiTurn =
+                afterMoveCount <= beforeMoveCount &&
+                isAiControlledPlayerId(currentPlayerIdAfterMove) &&
+                AI_GO_STALL_RETRY_STATUSES.has(String(game.gameStatus));
+            if (stalledOnAiTurn) {
+                const retryCount = (this.retryCounts.get(gameId) ?? 0) + 1;
+                this.retryCounts.set(gameId, retryCount);
+                const animationDelay = getAnimationRetryDelayMs(game);
+                const retryDelayMs =
+                    animationDelay ??
+                    Math.min(5000, 500 * Math.max(1, retryCount));
+                console.warn(
+                    `[AI Queue] AI turn made no progress; requeueing game=${gameId} status=${game.gameStatus} moves=${beforeMoveCount}->${afterMoveCount} retry=${retryCount} delay=${retryDelayMs}ms`
+                );
+                setTimeout(() => this.enqueue(gameId), retryDelayMs);
+            } else {
+                this.retryCounts.delete(gameId);
+            }
 
             // 강제응수·goAiBot 등으로 보드가 바뀐 직후 lastUpdated가 오래되면 캐시 만료 → DB 폴백이 빈판/낡은 판을 줄 수 있음
             updateGameCache(game);
@@ -247,6 +314,7 @@ class AiProcessingQueue {
                     if (!latest) return;
                     const allowedStatuses = new Set([
                         'playing',
+                        'hidden_placing',
                         'hidden_reveal_animating',
                         'alkkagi_playing',
                         'alkkagi_placement',

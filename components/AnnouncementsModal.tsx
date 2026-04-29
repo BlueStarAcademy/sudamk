@@ -21,11 +21,20 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
     };
 
     return (
-        <DraggableWindow title="공지" onClose={onClose} windowId="announcements-modal" initialWidth={520} isTopmost={isTopmost}>
-            <div className="flex max-h-[min(70dvh,520px)] flex-col gap-3 overflow-y-auto pr-1 text-primary">
+        <DraggableWindow title="공지 / 패치 노트" onClose={onClose} windowId="announcements-modal" initialWidth={720} isTopmost={isTopmost}>
+            <div className="h-[min(72dvh,640px)] min-h-[520px] rounded-xl border border-color/40 bg-gradient-to-b from-secondary/40 via-secondary/20 to-transparent p-4 shadow-[0_14px_40px_rgba(0,0,0,0.35)]">
+                <div className="mb-4 rounded-lg border border-color/40 bg-black/20 px-4 py-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-secondary">
+                        Notice Center
+                    </p>
+                    <p className="mt-1 text-sm text-on-panel/85">
+                        공지사항 및 패치/업데이트 내역을 확인할 수 있습니다.
+                    </p>
+                </div>
+                <div className="flex h-[calc(100%-84px)] flex-col gap-3 overflow-y-auto pr-1 text-primary">
                 {globalOverrideAnnouncement?.message ? (
-                    <div className="rounded-lg border border-amber-500/40 bg-amber-950/40 p-3 shadow-inner">
-                        <p className="text-xs font-semibold uppercase tracking-wide text-amber-200/80">긴급 안내</p>
+                    <div className="rounded-xl border border-amber-400/60 bg-gradient-to-br from-amber-700/30 via-amber-900/35 to-black/25 p-4 shadow-[0_10px_30px_rgba(120,53,15,0.35)]">
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-100">긴급 안내</p>
                         <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-amber-50">
                             {globalOverrideAnnouncement.message}
                         </p>
@@ -40,11 +49,12 @@ const AnnouncementsModal: React.FC<AnnouncementsModalProps> = ({
                 {announcements?.map((a) => (
                     <div
                         key={a.id}
-                        className="rounded-lg border border-color/40 bg-secondary/40 p-3 shadow-sm"
+                        className="rounded-xl border border-color/45 bg-gradient-to-br from-secondary/55 via-secondary/35 to-black/20 p-4 shadow-[0_8px_24px_rgba(0,0,0,0.28)] transition-colors hover:border-color/70"
                     >
                         <p className="whitespace-pre-wrap text-sm leading-relaxed text-on-panel">{a.message}</p>
                     </div>
                 ))}
+                </div>
             </div>
         </DraggableWindow>
     );

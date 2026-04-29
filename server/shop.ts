@@ -235,6 +235,21 @@ export function openMaterialBox(boxId: 'material_box_1' | 'material_box_2' | 'ma
         };
     }).filter((item): item is NonNullable<typeof item> => item !== null && item !== undefined) as InventoryItem[];
 }
+const createSingleMaterialItem = (name: string, quantity = 1): InventoryItem => {
+    const template = MATERIAL_ITEMS[name];
+    if (!template) {
+        throw new Error(`[createSingleMaterialItem] Template not found for: ${name}`);
+    }
+    return {
+        ...template,
+        id: `item-${randomUUID()}`,
+        createdAt: Date.now(),
+        quantity,
+        isEquipped: false,
+        level: 1,
+        stars: 0,
+    };
+};
 
 export const SHOP_ITEMS: { [key: string]: { type: 'equipment' | 'material'; name: string; description: string; cost: { gold?: number, diamonds?: number }; onPurchase: () => any, image: string, dailyLimit?: number, weeklyLimit?: number } } = {
     'equipment_box_1': { type: 'equipment', name: '장비 상자 I', description: '일반~희귀 등급 장비 획득', cost: { gold: 500 }, onPurchase: openEquipmentBox1, image: '/images/Box/EquipmentBox1.png' },
@@ -249,4 +264,6 @@ export const SHOP_ITEMS: { [key: string]: { type: 'equipment' | 'material'; name
     'material_box_4': { type: 'material', name: '재료 상자 IV', description: '중급 ~ 최상급 강화석 5개 획득', cost: { gold: 3500 }, onPurchase: () => openMaterialBox('material_box_4', 5), image: '/images/Box/ResourceBox4.png', dailyLimit: 10 },
     'material_box_5': { type: 'material', name: '재료 상자 V', description: '상급 ~ 신비의 강화석 5개 획득', cost: { gold: 5000 }, onPurchase: () => openMaterialBox('material_box_5', 5), image: '/images/Box/ResourceBox5.png', dailyLimit: 10 },
     'material_box_6': { type: 'material', name: '재료 상자 VI', description: '상급 ~ 신비의 강화석 5개 획득', cost: { diamonds: 100 }, onPurchase: () => openMaterialBox('material_box_6', 5), image: '/images/Box/ResourceBox6.png', dailyLimit: 10 },
+    'equipment_unbind_ticket': { type: 'material', name: '귀속 해제권', description: '귀속된 장비를 거래가능 상태로 되돌릴 수 있는 해제권.', cost: { diamonds: 50 }, onPurchase: () => createSingleMaterialItem('귀속 해제권'), image: '/images/use/belong.webp', dailyLimit: 10 },
+    'refinement_charm': { type: 'material', name: '제련의 부적', description: '선택한 장비의 제련 가능 횟수를 1회 복원합니다.', cost: { diamonds: 100 }, onPurchase: () => createSingleMaterialItem('제련의 부적'), image: '/images/use/refine.webp', dailyLimit: 1 },
 };

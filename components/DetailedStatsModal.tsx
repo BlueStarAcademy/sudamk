@@ -210,8 +210,9 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                 </div>
 
                 <div className={`${isNativeMobile ? 'max-h-[min(56dvh,460px)] pr-0.5' : 'max-h-[min(50vh,420px)] pr-1'} overflow-y-auto overflow-x-hidden [scrollbar-gutter:stable]`}>
-                    <div className={`divide-y divide-white/[0.06] rounded-lg border ${theme.accent} bg-slate-950/40`}>
-                        {modes.map(({ mode, name }) => {
+                    <div className={`rounded-lg border p-2 sm:p-2.5 ${theme.accent} bg-slate-950/40`}>
+                        <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+                        {modes.map(({ mode, name, image }) => {
                             const gameStats = stats?.[mode];
                             const wins = gameStats?.wins ?? 0;
                             const losses = gameStats?.losses ?? 0;
@@ -221,18 +222,18 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                             return (
                                 <div
                                     key={mode}
-                                    className={`grid items-center gap-x-2 px-2.5 py-1.5 sm:px-3 sm:py-1.5 ${theme.rowHover}`}
-                                    style={{ gridTemplateColumns: 'minmax(5.25rem, 0.95fr) minmax(0, 1fr) auto' }}
+                                    className={`flex min-h-[8.2rem] flex-col items-center rounded-lg border border-white/10 bg-black/25 px-2 py-2 shadow-sm transition-colors ${theme.rowHover}`}
                                 >
-                                    <div className="min-w-0">
-                                        <p className="truncate text-[12px] font-semibold tracking-tight text-primary sm:text-[0.92rem]">
+                                    <div className="mb-1.5 flex flex-col items-center gap-1 text-center">
+                                        <img src={image} alt="" className="h-10 w-10 shrink-0 rounded-md border border-white/15 bg-black/25 object-contain p-0.5" aria-hidden />
+                                        <p className="line-clamp-1 text-center text-[12px] font-semibold tracking-tight text-primary sm:text-[0.95rem]">
                                             {name}
                                         </p>
                                     </div>
                                     <div
-                                        className={`flex min-w-0 items-center justify-start gap-x-1.5 text-[11px] sm:text-[0.8rem] tabular-nums ${theme.winText}`}
+                                        className={`mb-2 flex min-w-0 items-center justify-center gap-x-1.5 text-[11px] sm:text-[0.86rem] tabular-nums ${theme.winText}`}
                                     >
-                                        <span className="shrink-0">
+                                        <span className="shrink-0 text-center leading-tight">
                                             <span className="font-bold">{wins}</span>
                                             <span className="text-secondary/75">승 </span>
                                             <span className="font-bold text-slate-200">{losses}</span>
@@ -249,14 +250,15 @@ const DetailedStatsModal: React.FC<DetailedStatsModalProps> = ({ currentUser, st
                                                 : `다이아 부족 (필요 ${SINGLE_RESET_COST})`
                                         }
                                         onClick={() => handleResetSingle(mode, name)}
-                                        className={`inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors sm:h-7 sm:text-[11px] ${theme.singleBtn}`}
+                                        className={`mt-auto inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-[10px] font-semibold transition-colors sm:h-7 sm:text-[11px] ${theme.singleBtn}`}
                                     >
                                         <span>초기화</span>
-                                        <DiamondPrice amount={SINGLE_RESET_COST} className="text-cyan-100/90" />
+                                        <DiamondPrice amount={SINGLE_RESET_COST} className="text-cyan-100/90" iconClassName="h-3.5 w-3.5 min-w-[0.875rem]" />
                                     </button>
                                 </div>
                             );
                         })}
+                        </div>
                     </div>
                 </div>
 

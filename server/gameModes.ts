@@ -71,10 +71,9 @@ function finalizeHiddenStonesForScoring(game: types.LiveGameSession): void {
                 }
                 delete game.hiddenMoves[i];
             } else if (cell === types.Player.None) {
-                row[x] = m.player;
-                if (!game.permanentlyRevealedStones.some((p) => p.x === x && p.y === y)) {
-                    game.permanentlyRevealedStones.push({ x, y });
-                }
+                // 계가 직전에는 boardState를 절대 수정하지 않는다.
+                // hiddenMoves 메타만으로 빈 칸을 복원하면, 이미 따낸 히든돌이 부활해
+                // KataGo에 실제 최종 국면과 다른 판이 전달될 수 있다.
                 delete game.hiddenMoves[i];
             } else if (cell === opponent) {
                 delete game.hiddenMoves[i];
@@ -278,7 +277,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            delete (gameToBroadcast as any).boardState;
+            if (!game.isSinglePlayer) {
+                delete (gameToBroadcast as any).boardState;
+            }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
         } catch (e: any) {
             console.error(`[getGameResult] Failed to persist/broadcast short-game no_contest for ${game.id}:`, e?.message || e);
@@ -342,7 +343,6 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 p => p.x === x && p.y === y
             );
             if (isAlreadyRevealed) continue;
-            if (isHiddenMoveIndexSoftRevealedByAnyPlayer(game, moveIndex)) continue;
             
             if (game.boardState[y]?.[x] !== types.Player.None) {
                 stonesToReveal.push({ x, y });
@@ -359,7 +359,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 p => p.x === aiHidden.x && p.y === aiHidden.y
             );
             
-            if (!isAlreadyRevealed && !isAiInitialHiddenSoftFoundByAnyPlayer(game)) {
+            if (!isAlreadyRevealed) {
                 // AI 초기 히든돌이 보드에 남아있는지 확인
                 if (game.boardState[aiHidden.y]?.[aiHidden.x] !== types.Player.None) {
                     stonesToReveal.push({ x: aiHidden.x, y: aiHidden.y });
@@ -405,16 +405,18 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                 type: 'hidden_reveal',
                 stones: stonesToRevealWithPlayer,
                 startTime: now,
-                duration: 2000
+                duration: 1500
             };
-            game.revealAnimationEndTime = now + 2000;
+            game.revealAnimationEndTime = now + 1500;
             game.gameStatus = 'hidden_final_reveal';
 
             // 애니메이션 종료 후 계가 진행하도록 설정
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            delete (gameToBroadcast as any).boardState;
+            if (!game.isSinglePlayer) {
+                delete (gameToBroadcast as any).boardState;
+            }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
 
             // 정공법: "결과를 바꾸지 않되 더 빨리"를 위해 애니메이션 동안 KataGo 계가 분석을 미리 시작한다.
@@ -522,12 +524,11 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     
     await db.saveGame(game);
     const { broadcast } = await import('./socket.js');
-    // 브로드캐스트 시 moveHistory, totalTurns, 시간 정보를 명시적으로 포함하되, boardState는 제외하여 대역폭 절약
-    // scoring 상태로 변경될 때는 클라이언트에서 이미 boardState를 보존하고 있으므로 전송 불필요
+    // 브로드캐스트 시 moveHistory, totalTurns, 시간 정보를 명시적으로 포함.
+    // 싱글플레이는 hidden_reveal/pendingCapture 경합으로 클라 보드가 1수 뒤처질 수 있으므로 boardState를 포함해 동기화한다.
     const gameToBroadcast = {
         ...game,
         animation: null,
-        // boardState는 제외 (클라이언트에서 보존)
         moveHistory: preservedGameState.moveHistory || game.moveHistory,
         totalTurns: preservedGameState.totalTurns ?? game.totalTurns,
         blackTimeLeft: preservedTimeInfo.blackTimeLeft ?? game.blackTimeLeft,
@@ -540,8 +541,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         baseStoneCaptures: preservedGameState.baseStoneCaptures || game.baseStoneCaptures,
         hiddenStoneCaptures: preservedGameState.hiddenStoneCaptures || game.hiddenStoneCaptures,
     };
-    // boardState 제거하여 대역폭 절약
-    delete (gameToBroadcast as any).boardState;
+    if (!game.isSinglePlayer) {
+        delete (gameToBroadcast as any).boardState;
+    }
     const { broadcastToGameParticipants } = await import('./socket.js');
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
     console.log(`[getGameResult] Scoring started for ${game.id}: moves=${game.moveHistory?.length ?? 0}, board=${game.boardState?.length ?? 0}x${game.boardState?.[0]?.length ?? 0}`);
@@ -587,7 +589,6 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         const timeInfoForBroadcast = (freshGame as any).preservedTimeInfo || savedPreservedTimeInfo || preservedTimeInfo;
         const gameToBroadcast = {
             ...freshGame,
-            // boardState는 제외 (클라이언트에서 보존)
             moveHistory: preservedStateForBroadcast?.moveHistory || freshGame.moveHistory,
             totalTurns: preservedStateForBroadcast?.totalTurns ?? freshGame.totalTurns,
             blackTimeLeft: timeInfoForBroadcast?.blackTimeLeft ?? freshGame.blackTimeLeft,
@@ -601,7 +602,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             baseStoneCaptures: preservedStateForBroadcast?.baseStoneCaptures || freshGame.baseStoneCaptures,
             hiddenStoneCaptures: preservedStateForBroadcast?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
         };
-        delete (gameToBroadcast as any).boardState;
+        if (!freshGame.isSinglePlayer) {
+            delete (gameToBroadcast as any).boardState;
+        }
 
         await db.saveGame(freshGame);
         const { broadcastToGameParticipants } = await import('./socket.js');

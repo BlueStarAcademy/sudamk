@@ -16,6 +16,7 @@ type InventorySortKey = 'createdAt' | 'grade' | 'name';
 type BuySortColumn = 'latest' | 'name' | 'currentPrice' | 'lowestPrice';
 type SortDirection = 'asc' | 'desc';
 type BuySlotFilter = 'all' | EquipmentSlot;
+type BuyGradeFilter = 'all' | ItemGrade;
 type BuyCurrencyFilter = 'all' | SaleCurrency;
 
 type ExchangeListing = {
@@ -84,6 +85,7 @@ interface ExchangeModalProps {
 const MAX_SELL_SLOTS = 3;
 const LISTING_MAX_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 const VERIFICATION_MS = 30 * 1000;
+const TRADE_LISTING_TICKET_NAME = '거래 등록권';
 
 const formatCurrency = (value: number, currency: SaleCurrency): string =>
     `${value.toLocaleString()}${currency === 'gold' ? '골드' : '다이아'}`;
@@ -119,6 +121,16 @@ const BUY_CURRENCY_FILTER_OPTIONS: Array<{ value: BuyCurrencyFilter; label: stri
     { value: 'gold', label: '골드상품' },
     { value: 'diamonds', label: '다이아상품' },
 ];
+const BUY_GRADE_FILTER_OPTIONS: Array<{ value: BuyGradeFilter; label: string }> = [
+    { value: 'all', label: '등급(전체)' },
+    { value: 'normal', label: '일반' },
+    { value: 'uncommon', label: '고급' },
+    { value: 'rare', label: '희귀' },
+    { value: 'epic', label: '에픽' },
+    { value: 'legendary', label: '전설' },
+    { value: 'mythic', label: '신화' },
+    { value: 'transcendent', label: '초월' },
+];
 
 const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
     const [activeTab, setActiveTab] = useState<ExchangeTab>('buy');
@@ -131,6 +143,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
     const [buySortColumn, setBuySortColumn] = useState<BuySortColumn>('latest');
     const [buySortDirection, setBuySortDirection] = useState<SortDirection>('desc');
     const [buySlotFilter, setBuySlotFilter] = useState<BuySlotFilter>('all');
+    const [buyGradeFilter, setBuyGradeFilter] = useState<BuyGradeFilter>('all');
     const [buyCurrencyFilter, setBuyCurrencyFilter] = useState<BuyCurrencyFilter>('all');
     const [inventorySortKey, setInventorySortKey] = useState<InventorySortKey>('createdAt');
     const [nowMs, setNowMs] = useState<number>(Date.now());
@@ -199,6 +212,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         return copied;
     }, [sellableItems, inventorySortKey]);
     const myListedCount = listings.filter((listing) => listing.sellerId === currentUser.id && listing.status === 'listed').length;
+    const tradeListingTicketCount = useMemo(
+        () =>
+            (currentUser.inventory ?? [])
+                .filter((item: InventoryItem) => item.type === 'material' && item.name === TRADE_LISTING_TICKET_NAME)
+                .reduce((sum, item) => sum + (item.quantity ?? 1), 0),
+        [currentUser.inventory],
+    );
+    const allowedListingCount = isAdminUser ? Number.POSITIVE_INFINITY : functionVipActive ? MAX_SELL_SLOTS : tradeListingTicketCount;
     const saleFee = Math.floor((Number(salePrice || 0) * 10) / 100);
     const minimumPrice = minPriceByCurrency[saleCurrency];
     const selectedItem = allEquipmentItems.find((entry) => entry.id === selectedItemId);
@@ -238,9 +259,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         return () => window.clearInterval(timer);
     }, []);
     React.useEffect(() => {
-        setListings((currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? []);
-        setSettlements((currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? []);
-        setHistory((currentUser.exchangeState?.history as string[] | undefined) ?? []);
+        const serverListings = (currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
+        const serverSettlements = (currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? [];
+        const serverHistory = (currentUser.exchangeState?.history as string[] | undefined) ?? [];
+        setListings(serverListings);
+        setSettlements(serverSettlements);
+        setHistory(serverHistory);
     }, [currentUser.id]);
     React.useEffect(() => {
         void onAction?.({
@@ -266,6 +290,20 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
             setPendingRegistration(null);
             setSelectedItemId('');
             return;
+        }
+        if (!functionVipActive && !isAdminUser) {
+            const ticketItem = (currentUser.inventory ?? []).find(
+                (inv) => inv.type === 'material' && inv.name === TRADE_LISTING_TICKET_NAME && (inv.quantity ?? 1) > 0,
+            );
+            if (!ticketItem) {
+                window.alert('거래 등록권이 부족합니다.');
+                setPendingRegistration(null);
+                return;
+            }
+            await onAction?.({
+                type: 'USE_ITEM',
+                payload: { itemId: ticketItem.id, itemName: ticketItem.name, quantity: 1 },
+            });
         }
         if (currency === 'gold') setWalletGold((prev) => prev - fee);
         else setWalletDiamonds((prev) => prev - fee);
@@ -298,12 +336,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
     };
 
     const handleRegisterSale = () => {
-        if (!functionVipActive && !isAdminUser) {
-            window.alert('판매 등록은 기능 VIP 활성 유저만 가능합니다.');
-            return;
-        }
-        if (!isAdminUser && myListedCount >= MAX_SELL_SLOTS) {
-            window.alert('기능 VIP는 최대 3개 상품까지만 판매 등록할 수 있습니다.');
+        if (myListedCount >= allowedListingCount) {
+            if (functionVipActive && !isAdminUser) {
+                window.alert('기능 VIP는 최대 3개 상품까지만 판매 등록할 수 있습니다.');
+            } else if (!isAdminUser) {
+                window.alert('거래 등록권이 부족합니다. 등록권 1장으로 판매물품 1개를 등록할 수 있습니다.');
+            }
             return;
         }
         const item = selectedItem;
@@ -343,6 +381,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         const listing = listings.find((entry) => entry.id === listingId);
         if (!listing) {
             setShowAlreadySoldModal(true);
+            return;
+        }
+        if (listing.sellerId === currentUser.id) {
+            window.alert('본인이 등록한 물품은 구매할 수 없습니다.');
             return;
         }
         const isPurchaseAvailable =
@@ -481,6 +523,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
             (entry) =>
                 (keyword.length === 0 ? true : entry.itemName.toLowerCase().includes(keyword)) &&
                 (buySlotFilter === 'all' ? true : entry.itemSlot === buySlotFilter) &&
+                (buyGradeFilter === 'all' ? true : (entry.itemGrade ?? 'normal') === buyGradeFilter) &&
                 (buyCurrencyFilter === 'all' ? true : entry.currency === buyCurrencyFilter),
         );
         const copied = [...filtered];
@@ -508,7 +551,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
             copied.sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
         }
         return copied;
-    }, [listedItems, buySearchText, buySortColumn, buySortDirection, buySlotFilter, buyCurrencyFilter]);
+    }, [listedItems, buySearchText, buySortColumn, buySortDirection, buySlotFilter, buyGradeFilter, buyCurrencyFilter]);
     const lowestPriceByBuyGroup = useMemo(() => {
         const map = new Map<string, number>();
         filteredAndSortedBuyItems.forEach((entry) => {
@@ -519,6 +562,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         return map;
     }, [filteredAndSortedBuyItems]);
     const selectedBuyListing = filteredAndSortedBuyItems.find((entry) => entry.id === selectedBuyListingId) ?? filteredAndSortedBuyItems[0] ?? null;
+    const selectedBuyListingIsMine = Boolean(selectedBuyListing && selectedBuyListing.sellerId === currentUser.id);
     const selectedBuyInventoryItem = selectedBuyListing
         ? allEquipmentItems.find((item) => item.id === selectedBuyListing.itemId)
         : null;
@@ -1003,6 +1047,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                             <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
                             <span className="tabular-nums font-semibold">{walletDiamonds.toLocaleString()}</span>
                         </div>
+                        <div className="flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-900/20 px-2 py-1 text-emerald-200">
+                            <img src="/images/use/allowtrade.webp" alt="거래 등록권" className="h-4 w-4 object-contain" />
+                            <span className="tabular-nums font-semibold">{tradeListingTicketCount.toLocaleString()}</span>
+                        </div>
                     </div>
                 }
             >
@@ -1018,13 +1066,24 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                         {activeTab === 'buy' && (
                             <div className="grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
                                 <div className="flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
-                                    <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-[auto_auto_1fr]">
+                                    <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-[auto_auto_auto_1fr]">
                                         <select
                                             value={buySlotFilter}
                                             onChange={(e) => setBuySlotFilter(e.target.value as BuySlotFilter)}
                                             className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-200"
                                         >
                                             {BUY_SLOT_FILTER_OPTIONS.map((opt) => (
+                                                <option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <select
+                                            value={buyGradeFilter}
+                                            onChange={(e) => setBuyGradeFilter(e.target.value as BuyGradeFilter)}
+                                            className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-200"
+                                        >
+                                            {BUY_GRADE_FILTER_OPTIONS.map((opt) => (
                                                 <option key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </option>
@@ -1093,6 +1152,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                             const gradeLabel = gradeStyles[gradeKey]?.name ?? '일반';
                                             const gradeColor = gradeStyles[gradeKey]?.color ?? 'text-slate-200';
                                             const starVisual = getStarVisual(listing.itemStars ?? 0);
+                                            const isMyListing = listing.sellerId === currentUser.id;
                                             return (
                                             <button
                                                 key={listing.id}
@@ -1124,6 +1184,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                     <div className="min-w-0 pl-1 text-center">
                                                         <span className={`block text-xs font-semibold leading-none ${gradeColor}`}>[{gradeLabel}]</span>
                                                         <span className="mt-0.5 block whitespace-nowrap text-sm font-semibold leading-none">{listing.itemName}</span>
+                                                        {isMyListing ? (
+                                                            <span className="mt-0.5 inline-block rounded-full border border-violet-400/50 bg-violet-900/35 px-1.5 py-0.5 text-[10px] font-bold leading-none text-violet-200">
+                                                                내 등록
+                                                            </span>
+                                                        ) : null}
                                                     </div>
                                                     <div className="h-14 w-14" aria-hidden />
                                                 </div>
@@ -1224,6 +1289,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                         <span>남은 시간</span>
                                                         <span className="tabular-nums font-semibold text-cyan-200">{buyRemainingDays}일 {buyRemainingHours}시간</span>
                                                     </div>
+                                                    <div className="mt-1 flex items-center justify-between">
+                                                        <span>판매자</span>
+                                                        <span className={`font-semibold ${selectedBuyListingIsMine ? 'text-violet-200' : 'text-slate-200'}`}>
+                                                            {selectedBuyListing.sellerNickname}
+                                                            {selectedBuyListingIsMine ? ' (나)' : ''}
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
@@ -1233,10 +1305,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                     <div className="mt-2">
                                         <Button
                                             onClick={() => selectedBuyListing && handleBuy(selectedBuyListing.id)}
-                                            disabled={!selectedBuyListing}
+                                            disabled={!selectedBuyListing || selectedBuyListingIsMine}
                                             className={exchangePrimaryButtonClass}
                                         >
-                                            구매
+                                            {selectedBuyListingIsMine ? '내 등록 물품' : '구매'}
                                         </Button>
                                     </div>
                                 </div>

@@ -655,19 +655,21 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                     onClick={() => setSelectedPost(null)}
                 >
                     <div
-                        className={`sudamr-modal-panel flex w-full flex-col overflow-hidden p-0 ring-1 ring-white/[0.06] ${
-                            modalMode ? 'max-h-[min(88dvh,40rem)] max-w-lg sm:max-w-2xl' : 'max-h-[min(85dvh,28rem)] max-w-md'
+                        className={`sudamr-modal-panel flex w-full flex-col overflow-hidden border border-amber-200/20 bg-gradient-to-b from-[#16181f] via-[#111319] to-[#0a0b0f] p-0 shadow-[0_24px_70px_-24px_rgba(0,0,0,0.9)] ring-1 ring-white/[0.07] ${
+                            modalMode
+                                ? 'h-[min(88dvh,44rem)] min-h-[30rem] max-w-xl sm:max-w-3xl'
+                                : 'h-[min(85dvh,32rem)] min-h-[24rem] max-w-lg'
                         }`}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-white/10 bg-gradient-to-r from-secondary/90 to-tertiary/40 px-3 py-2.5 sm:px-4 sm:py-3">
+                        <div className="flex shrink-0 items-start justify-between gap-2 border-b border-amber-200/15 bg-gradient-to-r from-amber-900/30 via-slate-900/90 to-cyan-950/30 px-3 py-2.5 sm:px-4 sm:py-3">
                             <div className="min-w-0 flex-1">
                                 <h2
                                     id="home-board-modal-title"
                                     className={
                                         modalMode
-                                            ? 'text-lg font-bold leading-snug text-primary sm:text-xl'
-                                            : 'text-sm font-bold leading-snug text-primary sm:text-base'
+                                            ? 'text-lg font-black leading-snug tracking-tight text-slate-100 sm:text-2xl'
+                                            : 'text-sm font-bold leading-snug text-slate-100 sm:text-lg'
                                     }
                                 >
                                     {selectedPost.isPinned && <span className="mr-1 text-amber-400">📌</span>}
@@ -676,8 +678,8 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 <p
                                     className={
                                         modalMode
-                                            ? 'mt-1.5 text-sm text-tertiary sm:text-base'
-                                            : 'mt-1 text-[11px] text-tertiary sm:text-xs'
+                                            ? 'mt-1.5 text-sm text-slate-400 sm:text-base'
+                                            : 'mt-1 text-[11px] text-slate-400 sm:text-xs'
                                     }
                                 >
                                     {formatDateTime(selectedPost.createdAt)}
@@ -690,7 +692,7 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                             </div>
                             <button
                                 type="button"
-                                className={`shrink-0 rounded-lg border border-color/60 bg-secondary/80 font-semibold text-primary hover:bg-secondary ${
+                                className={`shrink-0 rounded-lg border border-amber-300/40 bg-amber-950/40 font-semibold text-amber-100 transition-colors hover:bg-amber-900/45 ${
                                     modalMode ? 'px-3 py-1.5 text-sm sm:px-4 sm:py-2' : 'px-2.5 py-1 text-xs'
                                 }`}
                                 onClick={() => setSelectedPost(null)}
@@ -699,11 +701,13 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                             </button>
                         </div>
                         <div
-                            className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 leading-relaxed text-primary whitespace-pre-wrap sm:px-5 sm:py-4 ${
+                            className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-3 py-3 leading-relaxed text-slate-100 whitespace-pre-wrap sm:px-5 sm:py-4 ${
                                 modalMode ? 'text-base sm:text-lg' : 'text-sm sm:text-[15px]'
                             }`}
                         >
-                            {selectedPost.content}
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:px-4 sm:py-4">
+                                {selectedPost.content}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -718,11 +722,11 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                     initialHeight={500}
                     isTopmost={true}
                 >
-                    <div className="p-4 text-on-panel">
-                        <div className="mb-4 flex items-center justify-between border-b border-color pb-2">
+                    <div className="h-full min-h-0 bg-gradient-to-b from-[#171920] via-[#12141b] to-[#0c0d12] p-4 text-slate-100">
+                        <div className="mb-4 flex items-center justify-between border-b border-amber-200/20 pb-2">
                             <div className="flex items-center gap-2">
                                 {selectedPost.isPinned && <span className="text-base font-bold text-yellow-500">📌</span>}
-                                <span className="text-sm text-tertiary sm:text-base">
+                                <span className="text-sm text-slate-400 sm:text-base">
                                     {formatDateTime(selectedPost.createdAt)}
                                     {selectedPost.updatedAt !== selectedPost.createdAt && (
                                         <span className="ml-2">(수정됨: {formatDateTime(selectedPost.updatedAt)})</span>
@@ -730,8 +734,10 @@ const HomeBoardPanel: React.FC<HomeBoardPanelProps> = ({
                                 </span>
                             </div>
                         </div>
-                        <div className="text-base leading-relaxed text-primary whitespace-pre-wrap sm:text-lg">
-                            {selectedPost.content}
+                        <div className="h-[calc(100%-3.5rem)] overflow-y-auto">
+                            <div className="rounded-xl border border-white/10 bg-white/[0.03] px-4 py-4 text-base leading-relaxed text-slate-100 whitespace-pre-wrap shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:text-lg">
+                                {selectedPost.content}
+                            </div>
                         </div>
                     </div>
                 </DraggableWindow>

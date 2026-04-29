@@ -6512,10 +6512,21 @@ export const useApp = () => {
                                                 const mergedPendingCapture = game.pendingCapture ?? existingGame?.pendingCapture ?? null;
                                                 const mergedRevealAnimationEndTime = game.revealAnimationEndTime ?? existingGame?.revealAnimationEndTime;
                                                 const mergedAnimation = game.animation ?? existingGame?.animation ?? null;
+                                                const mergedHiddenMoves =
+                                                    (game.hiddenMoves && Object.keys(game.hiddenMoves).length > 0)
+                                                        ? game.hiddenMoves
+                                                        : (existingGame?.hiddenMoves ?? game.hiddenMoves);
+                                                const mergedAiInitialHiddenStone =
+                                                    (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
+                                                const mergedAiInitialHiddenStoneIsPrePlaced =
+                                                    (game as any).aiInitialHiddenStoneIsPrePlaced ?? (existingGame as any)?.aiInitialHiddenStoneIsPrePlaced;
                                                 updatedGames[gameId] = {
                                                     ...game,
                                                     boardState: finalBoardState,
                                                     moveHistory: finalMoveHistory,
+                                                    hiddenMoves: mergedHiddenMoves,
+                                                    aiInitialHiddenStone: mergedAiInitialHiddenStone,
+                                                    aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlaced,
                                                     permanentlyRevealedStones: mergedRevealed,
                                                     pendingCapture: mergedPendingCapture,
                                                     revealAnimationEndTime: mergedRevealAnimationEndTime,
@@ -6703,6 +6714,14 @@ export const useApp = () => {
                                                     if (!mergedRevealed.some((r: Point) => r.x === p.x && r.y === p.y))
                                                         mergedRevealed.push(p);
                                                 }
+                                                const mergedHiddenMovesGeneral =
+                                                    (game.hiddenMoves && Object.keys(game.hiddenMoves).length > 0)
+                                                        ? game.hiddenMoves
+                                                        : (existingGame?.hiddenMoves ?? game.hiddenMoves);
+                                                const mergedAiInitialHiddenStoneGeneral =
+                                                    (game as any).aiInitialHiddenStone ?? (existingGame as any)?.aiInitialHiddenStone;
+                                                const mergedAiInitialHiddenStoneIsPrePlacedGeneral =
+                                                    (game as any).aiInitialHiddenStoneIsPrePlaced ?? (existingGame as any)?.aiInitialHiddenStoneIsPrePlaced;
                                                 if (isAnimating || existingGame) {
                                                     // 서버가 슬림 페이로드(boardState 생략)를내도 final*가 기존 판을 유지하므로 항상 반영한다.
                                                     // 그렇지 않으면 클라 board가 비고 buildPveItemActionClientSync → REQUEST_SERVER_AI_MOVE가 영구 스킵된다.
@@ -6710,12 +6729,21 @@ export const useApp = () => {
                                                         ...game,
                                                         boardState: finalBoardState,
                                                         moveHistory: finalMoveHistory,
+                                                        hiddenMoves: mergedHiddenMovesGeneral,
+                                                        aiInitialHiddenStone: mergedAiInitialHiddenStoneGeneral,
+                                                        aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlacedGeneral,
                                                         permanentlyRevealedStones: mergedRevealed,
                                                         totalTurns: preservedTotalTurns !== undefined ? preservedTotalTurns : game.totalTurns,
                                                         captures: preservedCaptures,
                                                     };
                                                 } else {
-                                                    updatedGames[gameId] = { ...game, permanentlyRevealedStones: mergedRevealed };
+                                                    updatedGames[gameId] = {
+                                                        ...game,
+                                                        hiddenMoves: mergedHiddenMovesGeneral,
+                                                        aiInitialHiddenStone: mergedAiInitialHiddenStoneGeneral,
+                                                        aiInitialHiddenStoneIsPrePlaced: mergedAiInitialHiddenStoneIsPrePlacedGeneral,
+                                                        permanentlyRevealedStones: mergedRevealed,
+                                                    };
                                                 }
                                             }
                                         }

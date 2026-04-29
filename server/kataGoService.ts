@@ -142,11 +142,11 @@ const kataGoResponseToAnalysisResult = (session: LiveGameSession, response: any,
         // Check if the returned ownership map is a perfect square and large enough.
         // This handles cases where KataGo might incorrectly return a 19x19 map for a smaller board.
         if (Number.isInteger(ownershipBoardSize) && ownershipBoardSize >= boardSize) {
-            // 빈 점: Kata 소유권 임계값(기존과 동일, 미완성 집·형세 유지).
+            // 빈 점: 계가 소유권 임계값.
             // 공배: BFS로 '흑·백에 모두 닿는' 빈 연결 성분 안에서만, 소유권이 애매한 칸(|prob|≤임계)만 집·오버레이에서 제외.
             // (성분 전체를 무조건 공배로 두면 큰 빈 공간이 흑·백에 한 번씩 닿을 때 전부 0이 되어 영토 표시가 사라짐)
-            const TERRITORY_THRESHOLD = 0.75;
-            const DEAD_STONE_THRESHOLD = parseFloat(process.env.KATAGO_DEAD_STONE_THRESHOLD || '0.55');
+            const TERRITORY_THRESHOLD = parseFloat(process.env.KATAGO_TERRITORY_THRESHOLD || '0.6');
+            const DEAD_STONE_THRESHOLD = parseFloat(process.env.KATAGO_DEAD_STONE_THRESHOLD || '0.45');
             for (let y = 0; y < boardSize; y++) {
                 for (let x = 0; x < boardSize; x++) {
                     // Index into the (potentially larger) ownership grid from KataGo
@@ -819,10 +819,11 @@ export const initializeKataGo = async (): Promise<void> => {
 export function getScoringKataGoLimits(): { maxVisits: number; maxTimeSec: number } {
     const visitsRaw = (process.env.KATAGO_SCORING_MAX_VISITS || '').trim();
     const timeRaw = (process.env.KATAGO_SCORING_MAX_TIME_SEC || '').trim();
-    let maxVisits = visitsRaw ? parseInt(visitsRaw, 10) : 120;
-    let maxTimeSec = timeRaw ? parseInt(timeRaw, 10) : 3;
-    if (!Number.isFinite(maxVisits) || maxVisits <= 0) maxVisits = 120;
-    if (!Number.isFinite(maxTimeSec) || maxTimeSec <= 0) maxTimeSec = 3;
+    // 계가 정확도 우선 기본값(환경변수로 즉시 오버라이드 가능)
+    let maxVisits = visitsRaw ? parseInt(visitsRaw, 10) : 300;
+    let maxTimeSec = timeRaw ? parseInt(timeRaw, 10) : 6;
+    if (!Number.isFinite(maxVisits) || maxVisits <= 0) maxVisits = 300;
+    if (!Number.isFinite(maxTimeSec) || maxTimeSec <= 0) maxTimeSec = 6;
     return { maxVisits, maxTimeSec };
 }
 

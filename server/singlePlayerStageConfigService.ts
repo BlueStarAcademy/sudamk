@@ -177,23 +177,26 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             y: clampInt(v.y, 0, boardSize - 1, 0),
         };
     };
-    const forcedAiResponses = forcedAiResponsesRaw
-        .map((entry) => {
+    type ForcedAiResponse = NonNullable<SinglePlayerStageInfo['forcedAiResponses']>[number];
+    const forcedAiResponses: ForcedAiResponse[] = forcedAiResponsesRaw
+        .map((entry): ForcedAiResponse | null => {
             if (!entry || typeof entry !== 'object') return null;
             const obj = entry as Record<string, unknown>;
             const move = normalizePointInBoard(obj.move);
             if (!move) return null;
             const whenOpponentStoneAt = normalizePointInBoard(obj.whenOpponentStoneAt);
-            return { move, whenOpponentStoneAt: whenOpponentStoneAt ?? undefined };
+            return whenOpponentStoneAt ? { move, whenOpponentStoneAt } : { move };
         })
-        .filter(
-            (
-                entry
-            ): entry is {
-                move: { x: number; y: number };
-                whenOpponentStoneAt?: { x: number; y: number };
-            } => entry != null
-        );
+        .filter((entry): entry is ForcedAiResponse => entry != null);
+    const aiHiddenItemPlacementsRaw = Array.isArray((row as Record<string, unknown>).aiHiddenItemPlacements)
+        ? ((row as Record<string, unknown>).aiHiddenItemPlacements as unknown[])
+        : Array.isArray((fallback as any).aiHiddenItemPlacements)
+          ? ((fallback as any).aiHiddenItemPlacements as unknown[])
+          : [];
+    const aiHiddenItemPlacements = aiHiddenItemPlacementsRaw
+        .map((entry) => normalizePointInBoard(entry))
+        .filter((entry): entry is { x: number; y: number } => entry != null)
+        .slice(0, 12);
 
     const out: SinglePlayerStageInfo = {
         ...fallback,
@@ -221,6 +224,13 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             (fallback as any).aiHiddenItemUseWithinTurn,
             99
         ),
+        aiHiddenItemPlacements: aiHiddenItemPlacements.length > 0 ? aiHiddenItemPlacements : undefined,
+        disableAiHiddenItemUsage:
+            (row as any).disableAiHiddenItemUsage === true
+                ? true
+                : (fallback as any).disableAiHiddenItemUsage === true
+                  ? true
+                  : undefined,
         forceAiResponsesOnHiddenTurnsOnly:
             (row as any).forceAiResponsesOnHiddenTurnsOnly === true
                 ? true

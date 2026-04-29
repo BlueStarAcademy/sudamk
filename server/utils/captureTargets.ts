@@ -37,13 +37,8 @@ function isCaptureTargetEndEnabled(game: LiveGameSession): boolean {
 
     const mixedModes = ((game.settings as any)?.mixedModes ?? []) as GameMode[];
     const hasCaptureInMix = game.mode === GameMode.Mix && Array.isArray(mixedModes) && mixedModes.includes(GameMode.Capture);
-    return (
-        game.mode === GameMode.Capture ||
-        hasCaptureInMix ||
-        // 길드전/모험/탑은 모드 전환 과정에서 stale target이 남을 수 있어도 capture 모드일 때만 발동.
-        ((game.gameCategory === GameCategory.Tower || game.gameCategory === GameCategory.Adventure) &&
-            (game.mode === GameMode.Capture || hasCaptureInMix))
-    );
+    // 길드전/모험/탑은 모드 전환 과정에서 stale target이 남을 수 있어도 capture 모드일 때만 발동한다.
+    return game.mode === GameMode.Capture || hasCaptureInMix;
 }
 
 function resolveSpeedTimeBonusForCaptureTarget(game: LiveGameSession): { black: number; white: number } {

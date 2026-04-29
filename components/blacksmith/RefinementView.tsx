@@ -23,6 +23,7 @@ const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof 
     { id: 'value', itemKey: '옵션 수치 변경권' },
     { id: 'mythic', itemKey: '스페셜 옵션 변경권' },
 ];
+const REFINEMENT_CHARM_ITEM_KEY = '제련의 부적' as const;
 
 /** 보유 변경권: 이미지 + 우하단 개수, 호버/누르고 있을 때 말풍선 */
 const RefinementOwnedTicketSlot: React.FC<{
@@ -299,7 +300,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
     // 보유한 변경권 개수
     const ticketCounts = useMemo(() => {
-        if (!currentUser) return { type: 0, value: 0, mythic: 0 };
+        if (!currentUser) return { type: 0, value: 0, mythic: 0, charm: 0 };
         const inventory = currentUser.inventory || [];
         const countByName = (n: string) =>
             inventory
@@ -309,8 +310,10 @@ const RefinementView: React.FC<RefinementViewProps> = ({
             type: countByName('옵션 종류 변경권'),
             value: countByName('옵션 수치 변경권'),
             mythic: countByName('스페셜 옵션 변경권') + countByName('신화 옵션 변경권'),
+            charm: countByName(REFINEMENT_CHARM_ITEM_KEY),
         };
     }, [currentUser]);
+    const refinementCharmInfo = MATERIAL_ITEMS[REFINEMENT_CHARM_ITEM_KEY];
 
     // 선택된 옵션 정보
     const selectedOptionData = useMemo(() => {
@@ -571,6 +574,22 @@ const RefinementView: React.FC<RefinementViewProps> = ({
             setRefinementType(null);
         }, 2000);
     };
+    const handleUseRefinementCharm = async () => {
+        if (!selectedItem || ticketCounts.charm <= 0) return;
+        const charmItem = (currentUser.inventory || []).find(
+            (item) => item.name === REFINEMENT_CHARM_ITEM_KEY && item.type === 'material' && (item.quantity || 0) > 0,
+        );
+        if (!charmItem) return;
+        await onAction({
+            type: 'USE_ITEM',
+            payload: {
+                itemId: charmItem.id,
+                itemName: charmItem.name,
+                quantity: 1,
+                targetEquipmentId: selectedItem.id,
+            },
+        });
+    };
 
     useEffect(() => {
         return () => {
@@ -654,7 +673,23 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                     {refinementExhausted ? (
                         <div className="flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-sm text-amber-200/95 min-h-[120px]">
                             <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
-                            <p className="text-xs text-gray-400 leading-relaxed">새로운 장비를 획득하면 제련 횟수가 부여됩니다.</p>
+                            <p className="text-xs text-gray-400 leading-relaxed">제련의 부적을 사용하면 제련 가능 횟수를 1회 복원할 수 있습니다.</p>
+                            <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
+                                <div className="flex items-center gap-2">
+                                    <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
+                                    <div className="text-xs leading-tight">
+                                        <p className="font-semibold text-amber-100">{refinementCharmInfo.name}</p>
+                                        <p className="text-gray-300">보유: {ticketCounts.charm}</p>
+                                    </div>
+                                </div>
+                                <Button
+                                    onClick={() => void handleUseRefinementCharm()}
+                                    disabled={ticketCounts.charm <= 0}
+                                    className="!px-3 !py-1.5 !text-xs !font-semibold"
+                                >
+                                    사용하기
+                                </Button>
+                            </div>
                         </div>
                     ) : selectedOption ? (
                         <div className="flex flex-col gap-2 text-xs">
@@ -885,6 +920,13 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                             />
                         );
                     })}
+                    <RefinementOwnedTicketSlot
+                        id="charm"
+                        name={refinementCharmInfo.name}
+                        description={refinementCharmInfo.description}
+                        image={refinementCharmInfo.image}
+                        count={ticketCounts.charm}
+                    />
                 </div>
             </div>
             <RefinementResultModal

@@ -372,7 +372,8 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", dailyLimit: 10, type: 'material' as const },
         { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", dailyLimit: 10, type: 'material' as const },
         { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", dailyLimit: 10, type: 'material' as const },
-        { itemId: 'equipment_unbind_ticket', name: '귀속 해제권', description: '귀속 장비를 거래가능 상태로 변경', price: { diamonds: 50 }, image: '/images/use/change2.png', type: 'material' as const },
+        { itemId: 'equipment_unbind_ticket', name: '귀속 해제권', description: '귀속 장비를 거래가능 상태로 변경', price: { diamonds: 50 }, image: '/images/use/belong.webp', dailyLimit: 10, type: 'material' as const },
+        { itemId: 'refinement_charm', name: '제련의 부적', description: '선택한 장비의 제련 가능 횟수를 1회 복원', price: { diamonds: 100 }, image: '/images/use/refine.webp', dailyLimit: 1, type: 'material' as const },
         { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.png", dailyLimit: 3, type: 'material' as const },
         { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.png", dailyLimit: 10, type: 'material' as const },
         { itemId: 'mythic_option_change_ticket', name: "스페셜 옵션 변경권", description: "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.png", dailyLimit: 10, type: 'material' as const },
@@ -407,6 +408,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 '장비 합성 대성공 확률 +10% (최대 100%)',
                 '장비 분해 대박 확률 +10%',
                 '재료 분해/합성 대박 확률 +10%',
+                '거래소 물품등록 가능(3개)',
                 '챔피언십 경기 SKIP 기능',
             ],
         },
@@ -502,6 +504,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
             itemId === 'option_value_change_ticket' ||
             itemId === 'mythic_option_change_ticket' ||
             itemId === 'equipment_unbind_ticket' ||
+            itemId === 'refinement_charm' ||
             itemId === 'action_point_10' ||
             itemId === 'action_point_20' ||
             itemId === 'action_point_30'
