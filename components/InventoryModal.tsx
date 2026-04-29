@@ -65,6 +65,16 @@ const inventoryTypeRank: Record<InventoryItemType, number> = {
     consumable: 1,
     material: 2,
 };
+const EQUIPMENT_UNBIND_TICKET_NAME = '귀속 해제권';
+const EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE: Record<ItemGrade, number> = {
+    normal: 1,
+    uncommon: 2,
+    rare: 3,
+    epic: 4,
+    legendary: 5,
+    mythic: 6,
+    transcendent: 7,
+};
 
 /** 가방·인벤 모달 내 스크롤 영역 — 매우 얇은 스크롤바 (Firefox `thin` + WebKit 3px) */
 const BAG_SCROLLBAR_Y_CLASS =
@@ -985,61 +995,74 @@ const LocalItemDetailDisplay: React.FC<{
             {/* Top Section: Image (left), Name & Main Option (right) */}
             <div className="flex shrink-0 items-start justify-between mb-2">
                 {/* Left: Image */}
-                <div 
-                    className="relative rounded-lg flex-shrink-0"
-                    style={{
-                        width: `${imgBox}px`,
-                        height: `${imgBox}px`,
-                        aspectRatio: '1 / 1'
-                    }}
-                >
-                    <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                    {(() => {
-                        const imagePath = resolveBagItemDetailImagePath(item);
+                <div className="flex flex-shrink-0 flex-col items-center">
+                    <div
+                        className="relative rounded-lg"
+                        style={{
+                            width: `${imgBox}px`,
+                            height: `${imgBox}px`,
+                            aspectRatio: '1 / 1'
+                        }}
+                    >
+                        <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
+                        {(() => {
+                            const imagePath = resolveBagItemDetailImagePath(item);
 
-                        if (isActionPointConsumable(item.name)) {
-                            const match = item.name.match(/\+(\d+)/);
-                            const apValue = match ? match[1] : null;
-                            return (
-                                <span
-                                    className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-[1.35rem] leading-none"
-                                    aria-hidden
-                                >
-                                    <span className="leading-none">⚡</span>
-                                    {apValue && (
-                                        <span className="mt-0.5 max-w-full truncate text-[10px] font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
-                                            +{apValue}
-                                        </span>
-                                    )}
-                                </span>
-                            );
-                        }
-                        return imagePath ? (
-                            <img 
-                                src={imagePath} 
-                                alt={item.name} 
-                                className="absolute object-contain" 
-                                style={{ 
-                                    width: '80%', 
-                                    height: '80%', 
-                                    padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`, 
-                                    left: '50%', 
-                                    top: '50%', 
-                                    transform: 'translate(-50%, -50%)' 
-                                }} 
-                                onError={(e) => {
-                                    console.error(`[LocalItemDetailDisplay] Failed to load image: ${imagePath} for item:`, item);
-                                    (e.target as HTMLImageElement).style.display = 'none';
-                                }}
-                            />
-                        ) : null;
-                    })()}
-                    {renderStarDisplay(item.stars)}
+                            if (isActionPointConsumable(item.name)) {
+                                const match = item.name.match(/\+(\d+)/);
+                                const apValue = match ? match[1] : null;
+                                return (
+                                    <span
+                                        className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1 text-[1.35rem] leading-none"
+                                        aria-hidden
+                                    >
+                                        <span className="leading-none">⚡</span>
+                                        {apValue && (
+                                            <span className="mt-0.5 max-w-full truncate text-[10px] font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]">
+                                                +{apValue}
+                                            </span>
+                                        )}
+                                    </span>
+                                );
+                            }
+                            return imagePath ? (
+                                <img
+                                    src={imagePath}
+                                    alt={item.name}
+                                    className="absolute object-contain"
+                                    style={{
+                                        width: '80%',
+                                        height: '80%',
+                                        padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`,
+                                        left: '50%',
+                                        top: '50%',
+                                        transform: 'translate(-50%, -50%)'
+                                    }}
+                                    onError={(e) => {
+                                        console.error(`[LocalItemDetailDisplay] Failed to load image: ${imagePath} for item:`, item);
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                />
+                            ) : null;
+                        })()}
+                        {renderStarDisplay(item.stars)}
+                    </div>
+                    {item.type === 'equipment' && (
+                        <div
+                            className={`mt-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                                item.isBound
+                                    ? 'border-rose-500/40 bg-rose-900/30 text-rose-200'
+                                    : 'border-emerald-500/40 bg-emerald-900/25 text-emerald-200'
+                            }`}
+                        >
+                            {item.isBound ? '귀속' : '거래가능'}
+                        </div>
+                    )}
                 </div>
                 {/* Right: Name & Main Option */}
                 <div className="min-w-0 flex-grow text-right ml-2">
                     <div className="flex items-baseline justify-end gap-0.5">
-                        <h3 className={`font-bold break-words ${styles.color}`} style={{ fontSize: `${Math.max(14, Math.round(18 * scaleFactor * mobileTextScale))}px` }}>{item.name}</h3>
+                        <h3 className={`font-bold break-words ${styles.color}`} style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}>{item.name}</h3>
                     </div>
                     <div className="flex items-center justify-end gap-2 mt-0.5" style={{ fontSize: `${Math.max(10, Math.round(11 * scaleFactor * mobileTextScale))}px` }}>
                         <span className={styles.color}>[{styles.name}]</span>
@@ -1351,6 +1374,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const [equipCompareViewerTab, setEquipCompareViewerTab] = useState<'info' | 'mainSub' | 'special' | 'mythic'>('info');
     const [isMobileItemDetailOpen, setIsMobileItemDetailOpen] = useState(false);
     const [isMobileEquippedModalOpen, setIsMobileEquippedModalOpen] = useState(false);
+    const [pendingBindEquipItemId, setPendingBindEquipItemId] = useState<string | null>(null);
 
     /** 논리 뷰포트(폰 가로+portrait-lock 시 세로와 동일). innerWidth만 쓰면 가로 667 등으로 PC 가방 UI가 열린다 */
     const [windowWidth, setWindowWidth] = useState(() =>
@@ -1388,8 +1412,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return Math.max(940, Math.min(1080, adjusted));
     }, [windowWidth, windowHeight]);
     
-    // 좁은 가로 화면에서는 PC 인벤토리 UI를 축소해서 유지한다.
-    const isCompactViewport = useMemo(() => windowWidth < 1025, [windowWidth]);
+    // 작은 PC(예: 1366x768 분할/줌)에서도 모바일형 레이아웃으로 너무 일찍 전환되지 않도록 임계값을 낮춘다.
+    const isCompactViewport = useMemo(() => windowWidth < 860, [windowWidth]);
 
     // PC 16:9 설계 캔버스 안이면 내부 scaleFactor를 뷰포트 compact와 중복 적용하지 않음
     const effectiveIsCompactViewport = modalLayerUsesDesignPixels ? false : isCompactViewport;
@@ -1511,6 +1535,13 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         }
         return found || null;
     }, [selectedItemId, currentUser.inventory, updateTrigger]);
+    const ownedUnbindTickets = useMemo(
+        () =>
+            currentUser.inventory
+                .filter((item) => item.type === 'material' && item.name === EQUIPMENT_UNBIND_TICKET_NAME)
+                .reduce((sum, item) => sum + (item.quantity ?? 0), 0),
+        [currentUser.inventory],
+    );
 
     const expansionCost = useMemo(() => {
         if (activeTab === 'all') return 0;
@@ -1567,15 +1598,32 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                 alert(`착용 레벨 합이 부족합니다. (필요: ${requiredLevel}, 현재: ${userLevelSum})`);
                 return;
             }
+            if (!item.isBound) {
+                setPendingBindEquipItemId(itemId);
+                return;
+            }
         }
 
         onAction({ type: 'TOGGLE_EQUIP_ITEM', payload: { itemId } });
+    };
+    const handleConfirmBindEquip = () => {
+        if (!pendingBindEquipItemId) return;
+        onAction({ type: 'TOGGLE_EQUIP_ITEM', payload: { itemId: pendingBindEquipItemId } });
+        setPendingBindEquipItemId(null);
+    };
+    const handleCancelBindEquip = () => {
+        setPendingBindEquipItemId(null);
+    };
+    const handleUnbindEquipment = (itemId: string) => {
+        onAction({ type: 'UNBIND_EQUIPMENT', payload: { itemId } });
     };
 
     const filteredAndSortedInventory = useMemo(() => {
         let items = [...currentUser.inventory];
         // 도전의 탑 전용 소모품은 가방에서 숨김(탑 대기실에서만 표시)
         items = items.filter((item: InventoryItem) => !(item.type === 'consumable' && isTowerOnlyConsumable(item.name)));
+        // 거래소 등록 중인 장비는 가방에서 숨김 (등록 취소/회수 시 다시 표시)
+        items = items.filter((item: InventoryItem) => !(item.type === 'equipment' && item.isExchangeListed));
         if (activeTab !== 'all') {
             if (activeTab === 'consumable') {
                 // 옵션 변경권 3종은 재료로 분류되어 소모품 탭에서 제외
@@ -1671,50 +1719,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         return userLevelSum >= requiredLevel;
     }, [selectedItem, currentUser.strategyLevel, currentUser.playfulLevel]);
 
-    // 바둑능력 변화 계산 (선택한 장비를 장착했을 때의 바둑능력 변화 - 6가지 능력치 합계)
-    const combatPowerChange = useMemo(() => {
-        if (!selectedItem || selectedItem.type !== 'equipment' || !selectedItem.slot) return null;
-        
-        // 현재 바둑능력 계산 (현재 장착된 장비 기준) - 6가지 능력치 합계
-        const currentStats = calculateTotalStats(currentUser);
-        const currentBadukPower = Object.values(currentStats).reduce((acc, val) => acc + val, 0);
-        
-        // 현재 해당 슬롯에 장착된 아이템 ID 찾기
-        const currentEquippedItemId = currentUser.equipment[selectedItem.slot];
-        
-        // 선택한 장비를 장착한 상태로 가정한 User 생성
-        const hypotheticalEquipment = { ...currentUser.equipment };
-        hypotheticalEquipment[selectedItem.slot] = selectedItem.id;
-        
-        // 인벤토리에서 아이템의 isEquipped 상태 업데이트
-        const hypotheticalInventory = currentUser.inventory.map(item => {
-            // 선택한 아이템은 장착
-            if (item.id === selectedItem.id) {
-                return { ...item, isEquipped: true };
-            }
-            // 현재 해당 슬롯에 장착된 아이템은 해제
-            if (currentEquippedItemId && item.id === currentEquippedItemId) {
-                return { ...item, isEquipped: false };
-            }
-            // 나머지는 그대로 유지
-            return item;
-        });
-        
-        const hypotheticalUser = {
-            ...currentUser,
-            equipment: hypotheticalEquipment,
-            inventory: hypotheticalInventory
-        };
-        
-        // 선택한 장비를 장착했을 때의 바둑능력 계산 - 6가지 능력치 합계
-        const newStats = calculateTotalStats(hypotheticalUser);
-        const newBadukPower = Object.values(newStats).reduce((acc, val) => acc + val, 0);
-        
-        // 차이 계산 (선택한 장비 장착 시 - 현재 장착 장비 기준)
-        const change = newBadukPower - currentBadukPower;
-        return change;
-    }, [selectedItem, currentUser]);
-
     /** 장비 교체 시 6종 바둑 능력치 변화 (비교 모달용) */
     const equipSwapStatPreview = useMemo(() => {
         if (!selectedItem || selectedItem.type !== 'equipment' || !selectedItem.slot) return null;
@@ -1754,6 +1758,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             initialHeight={calculatedHeight}
             variant="store"
             bodyScrollable={false}
+            uniformPcScale
+            bodyAvoidVerticalStretch
             mobileViewportFit={narrowInventoryLayout}
             mobileViewportMaxHeightVh={92}
             bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
@@ -1892,11 +1898,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 <div className="mb-1 flex shrink-0 items-center justify-between gap-2">
                                     <div className="flex min-w-0 items-center gap-2">
                                         <h3 className="font-bold text-on-panel" style={{ fontSize: `${Math.max(15, Math.round(19 * scaleFactor * detailTextScale))}px` }}>선택 장비</h3>
-                                        {combatPowerChange !== null && combatPowerChange !== 0 && (
-                                            <span className={`font-bold ${combatPowerChange > 0 ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: `${Math.max(13, Math.round(15 * scaleFactor * detailTextScale))}px` }}>
-                                                {combatPowerChange > 0 ? '+' : ''}{combatPowerChange}
-                                            </span>
-                                        )}
                                     </div>
                                     {selectedItem.slot && selectedItem.id !== correspondingEquippedItem?.id && (
                                         <Button
@@ -1966,6 +1967,18 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     >
                                         판매
                                     </Button>
+                                    {selectedItem.isBound && (
+                                        <Button
+                                            bare
+                                            colorScheme="none"
+                                            onClick={() => handleUnbindEquipment(selectedItem.id)}
+                                            className={BAG_INVENTORY_FOOTER_BTN.info}
+                                            disabled={ownedUnbindTickets < (EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1)}
+                                            style={{ fontSize: `${Math.max(12, Math.round(13 * scaleFactor * mobileTextScale))}px` }}
+                                        >
+                                            귀속 해제 ({EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1}장)
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -2531,6 +2544,17 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
                                         판매
                                     </Button>
+                                    {selectedItem.isBound && (
+                                        <Button
+                                            bare
+                                            colorScheme="none"
+                                            onClick={() => handleUnbindEquipment(selectedItem.id)}
+                                            className={BAG_INVENTORY_FOOTER_BTN.info}
+                                            disabled={ownedUnbindTickets < (EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1)}
+                                        >
+                                            귀속 해제 ({EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[selectedItem.grade] ?? 1}장)
+                                        </Button>
+                                    )}
                                 </>
                             )}
                             {selectedItem.type === 'consumable' && (
@@ -3241,6 +3265,34 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     isTopmost
                     windowId="preset-save-alert"
                 />
+            )}
+            {pendingBindEquipItemId && (
+                <DraggableWindow
+                    title="장비 귀속 안내"
+                    onClose={handleCancelBindEquip}
+                    windowId="equipmentBindConfirm"
+                    isTopmost
+                    variant="store"
+                    initialWidth={460}
+                    initialHeight={300}
+                    bodyNoScroll
+                >
+                    <div className="flex h-full flex-col justify-between gap-5 p-5">
+                        <p className="whitespace-pre-line text-center text-sm leading-relaxed text-slate-100">
+                            장비가 귀속되어 거래소 판매가 불가능해집니다.
+                            {'\n'}
+                            거래소 판매를 위해서는 귀속 해제권을 사용해야합니다.
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                            <Button onClick={handleConfirmBindEquip} colorScheme="blue" className="min-w-[120px]">
+                                장착
+                            </Button>
+                            <Button onClick={handleCancelBindEquip} colorScheme="gray" className="min-w-[120px]">
+                                취소
+                            </Button>
+                        </div>
+                    </div>
+                </DraggableWindow>
             )}
         </DraggableWindow>
     );

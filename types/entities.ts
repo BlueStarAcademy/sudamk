@@ -47,6 +47,12 @@ export type InventoryItem = {
   mailPreEnhanced?: boolean;
   /** 도전의 탑 상점에서 구매한 소모품만 'tower'. 해당 아이템은 도전의 탑에서만 사용·합산됨 */
   source?: 'tower';
+  /** 장비 귀속 여부: 첫 장착 시도 시 true */
+  isBound?: boolean;
+  /** 귀속 처리 시각(디버깅/로그용) */
+  boundAt?: number;
+  /** 거래소 등록 중 상태(등록 취소/회수 시 해제) */
+  isExchangeListed?: boolean;
 };
 
 // --- User & Associated Data ---
@@ -373,6 +379,39 @@ export type SinglePlayerMissionState = {
     accumulatedCollection: number; // 누적 수령액 (레벨업용)
 };
 
+export type ExchangeState = {
+  listings: Array<{
+    id: string;
+    sellerId: string;
+    sellerNickname: string;
+    itemId: string;
+    itemName: string;
+    itemImage?: string;
+    itemSlot?: EquipmentSlot;
+    itemGrade?: string;
+    itemStars?: number;
+    itemLevel?: number;
+    price: number;
+    currency: 'gold' | 'diamonds';
+    verificationStatus: 'verifying' | 'active';
+    createdAt: number;
+    verificationEndsAt?: number;
+    expiresAt: number;
+    status: 'listed' | 'sold';
+    soldAt?: number;
+  }>;
+  settlements: Array<{
+    listingId: string;
+    itemId: string;
+    itemName: string;
+    soldPrice: number;
+    currency: 'gold' | 'diamonds';
+    soldAt: number;
+    claimed: boolean;
+  }>;
+  history: string[];
+};
+
 export type User = {
   id: string;
   username: string;
@@ -387,6 +426,7 @@ export type User = {
   baseStats: Record<CoreStat, number>;
   spentStatPoints: Record<CoreStat, number>;
   inventory: InventoryItem[];
+  exchangeState?: ExchangeState;
   inventorySlots: { equipment: number; consumable: number; material: number; };
   equipment: Equipment;
   equipmentPresets?: EquipmentPreset[];

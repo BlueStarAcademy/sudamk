@@ -57,12 +57,14 @@ export interface EquipmentDetailPanelProps {
     item: InventoryItem;
     /** 가방 상세: 옵션 영역만 스크롤. 획득 팝업: 본문 높이에 맞춰 내부 스크롤 없음 */
     optionsScrollable?: boolean;
+    /** 거래상태(귀속/거래가능)를 이미지 하단에 표시 */
+    showTradeStatusUnderImage?: boolean;
 }
 
 /**
  * 장비 상세 정보 모달(ItemDetailModal)과 동일한 본문 레이아웃(상단 카드 + 부옵션 영역).
  */
-export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({ item, optionsScrollable = true }) => {
+export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({ item, optionsScrollable = true, showTradeStatusUnderImage = false }) => {
     const { currentUserWithStatus } = useAppContext();
     const styles = gradeStyles[item.grade];
 
@@ -72,6 +74,9 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({ item
 
     const refinementCount = (item as { refinementCount?: number }).refinementCount ?? 0;
     const isTranscendent = item.grade === ItemGrade.Transcendent;
+    const nameLength = (item.name ?? '').length;
+    // 주옵션 텍스트보다 아주 약간 큰 크기만 유지
+    const computedNameFontPx = Math.max(11, Math.min(15, Math.floor(15 - Math.max(0, nameLength - 14) * 0.22)));
 
     const optionsSectionClass = optionsScrollable
         ? 'min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/[0.08] bg-gradient-to-b from-zinc-900/80 to-zinc-950/90 p-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-black/30'
@@ -83,41 +88,64 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({ item
                 className={`relative mb-4 overflow-hidden rounded-xl bg-gradient-to-br p-[1px] shadow-[0_12px_32px_-8px_rgba(0,0,0,0.55)] ${styles.frame}`}
             >
                 <div className="flex items-start justify-between rounded-[11px] bg-zinc-950/90 px-3 py-3 ring-1 ring-inset ring-white/[0.06]">
-                    <div
-                        className={`relative h-24 w-24 shrink-0 overflow-hidden rounded-lg shadow-inner ring-1 ring-black/40 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
-                    >
-                        <img src={styles.background} alt={item.grade} className="absolute inset-0 h-full w-full rounded-lg object-cover" />
-                        {isActionPointConsumable(item.name) ? (
-                            <span
-                                className="absolute inset-0 flex items-center justify-center text-2xl"
-                                style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-                                aria-hidden
-                            >
-                                ⚡
-                            </span>
-                        ) : item.image ? (
-                            <img
-                                src={item.image}
-                                alt={item.name}
-                                className="relative z-[2] object-contain p-2"
-                                style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-                            />
-                        ) : null}
-                        {renderStarDisplay(item.stars)}
-                    </div>
-                    <div className="ml-4 min-w-0 flex-grow text-right">
-                        <div className="flex items-baseline justify-end gap-1">
-                            <h3 className={`text-xl font-bold tracking-tight ${styles.color}`}>{item.name}</h3>
+                    <div className="flex shrink-0 flex-col items-center">
+                        <div
+                            className={`relative h-16 w-16 overflow-hidden rounded-lg shadow-inner ring-1 ring-black/40 sm:h-20 sm:w-20 md:h-24 md:w-24 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                        >
+                            <img src={styles.background} alt={item.grade} className="absolute inset-0 h-full w-full rounded-lg object-cover" />
+                            {isActionPointConsumable(item.name) ? (
+                                <span
+                                    className="absolute inset-0 flex items-center justify-center text-2xl"
+                                    style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                    aria-hidden
+                                >
+                                    ⚡
+                                </span>
+                            ) : item.image ? (
+                                <img
+                                    src={item.image}
+                                    alt={item.name}
+                                    className="relative z-[2] object-contain p-2"
+                                    style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                />
+                            ) : null}
+                            {renderStarDisplay(item.stars)}
                         </div>
-                        <p className={`text-sm font-medium ${styles.color}`}>[{styles.name}]</p>
-                        <p className={`text-xs ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
+                        {showTradeStatusUnderImage && item.type === 'equipment' && (
+                            <div
+                                className={`mt-1 rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                                    item.isBound
+                                        ? 'border-rose-500/40 bg-rose-900/30 text-rose-200'
+                                        : 'border-emerald-500/40 bg-emerald-900/25 text-emerald-200'
+                                }`}
+                            >
+                                {item.isBound ? '귀속' : '거래가능'}
+                            </div>
+                        )}
+                    </div>
+                    <div className="ml-2 min-w-0 flex-grow text-right sm:ml-3 md:ml-4">
+                        <div className="flex items-baseline justify-end gap-1">
+                            <h3
+                                className={`max-w-full whitespace-nowrap text-right font-bold leading-tight tracking-tight ${styles.color}`}
+                                style={{ fontSize: `${computedNameFontPx}px`, letterSpacing: '-0.02em' }}
+                            >
+                                {item.name}
+                            </h3>
+                        </div>
+                        <p className={`text-[11px] font-medium sm:text-xs md:text-sm ${styles.color}`}>[{styles.name}]</p>
+                        {!showTradeStatusUnderImage && (
+                            <p className={`text-[10px] font-semibold sm:text-[11px] md:text-xs ${item.isBound ? 'text-rose-300' : 'text-emerald-300'}`}>
+                                {item.isBound ? '귀속' : '거래가능'}
+                            </p>
+                        )}
+                        <p className={`text-[10px] sm:text-[11px] md:text-xs ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
                         {item.type === 'equipment' && item.grade !== 'normal' && (
-                            <p className={`text-xs font-semibold ${refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                            <p className={`text-[10px] font-semibold sm:text-[11px] md:text-xs ${refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
                                 제련 가능: {refinementCount > 0 ? `${refinementCount}회` : '제련불가'}
                             </p>
                         )}
                         {item.options?.main && (
-                            <p className="mt-1 text-sm font-semibold leading-snug text-amber-300/95 drop-shadow-sm">{item.options.main.display}</p>
+                            <p className="mt-1 text-[11px] font-semibold leading-snug text-amber-300/95 drop-shadow-sm sm:text-xs md:text-sm">{item.options.main.display}</p>
                         )}
                     </div>
                 </div>

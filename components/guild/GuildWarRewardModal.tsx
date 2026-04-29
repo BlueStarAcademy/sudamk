@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import GuildExpBadge from './GuildExpBadge.js';
 
 interface WarResult {
     isWinner: boolean;
@@ -152,7 +153,7 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, onCl
                                 {/* 길드 경험치 보상 */}
                                 <div className="bg-stone-800/50 rounded-lg p-4 border border-stone-700/50">
                                     <div className="flex items-center justify-between gap-3">
-                                        <img src="/images/guild/button/guildlab.png" alt="" className="h-8 w-8 shrink-0 object-contain" title="길드 경험치" />
+                                        <GuildExpBadge className="h-8 min-w-[3rem] rounded-lg" />
                                         <span className="text-blue-300 font-bold text-lg tabular-nums">+{rewards.guildXp.toLocaleString()}</span>
                                     </div>
                                 </div>

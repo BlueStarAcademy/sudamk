@@ -76,7 +76,7 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         <span>
                             {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
                             {disassemblyJackpotBonusPercent > 0 && (
-                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent})</span>
+                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent}%)</span>
                             )}
                             {!isMaxLevel && (
                                 <span className="text-yellow-400"> → {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex]}%</span>
@@ -90,7 +90,7 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         <span>
                             {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
                             {disassemblyJackpotBonusPercent > 0 && (
-                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent})</span>
+                                <span className="text-emerald-300"> (+{disassemblyJackpotBonusPercent}%)</span>
                             )}
                             {!isMaxLevel && (
                                 <span className="text-yellow-400"> → {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[nextLevelIndex]}%</span>
@@ -116,7 +116,7 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                                 <span>
                                     {rate}%
                                     {combinationGreatSuccessBonusPercent > 0 && (
-                                        <span className="text-emerald-300"> (+{combinationGreatSuccessBonusPercent})</span>
+                                        <span className="text-emerald-300"> (+{combinationGreatSuccessBonusPercent}%)</span>
                                     )}
                                     {!isMaxLevel && nextRate !== undefined && (
                                         <span className="text-yellow-400"> → {nextRate}%</span>

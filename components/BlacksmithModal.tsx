@@ -16,6 +16,7 @@ import { BLACKSMITH_MAX_LEVEL, BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL, BLACKSMITH
 import { InventoryItem, EnhancementResult, ServerAction } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import BlacksmithLevelEffectsSummary from './blacksmith/BlacksmithLevelEffectsSummary.js';
+import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
@@ -212,6 +213,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     }, []);
 
     const { blacksmithLevel, blacksmithXp, inventory, inventorySlots } = currentUserWithStatus;
+    const vipBonus = isFunctionVipActive(currentUserWithStatus) ? 10 : 0;
 
     const currentLevel = blacksmithLevel ?? 1;
     const isMaxLevel = currentLevel >= BLACKSMITH_MAX_LEVEL;
@@ -442,7 +444,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
     const filteredInventory = useMemo(() => {
         let filtered: InventoryItem[] = [];
         if (activeTab === 'enhance' || activeTab === 'combine' || activeTab === 'disassemble' || activeTab === 'refine') {
-            filtered = inventory.filter(item => item.type === 'equipment');
+            filtered = inventory.filter(item => item.type === 'equipment' && !item.isExchangeListed);
         } else if (activeTab === 'convert') {
             filtered = inventory.filter(item => item.type === 'material');
         } else {
@@ -741,7 +743,11 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             </div>
                         </div>
                         <div className="w-full min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
-                            <BlacksmithLevelEffectsSummary blacksmithLevel={blacksmithLevel ?? 1} />
+                            <BlacksmithLevelEffectsSummary
+                                blacksmithLevel={blacksmithLevel ?? 1}
+                                disassemblyJackpotBonusPercent={vipBonus}
+                                combinationGreatSuccessBonusPercent={vipBonus}
+                            />
                         </div>
                     </div>
 

@@ -302,6 +302,35 @@ const applyDefaults = (
   prismaUser: PrismaUserWithStatus,
   status?: SerializedUserStatus
 ): User => {
+  const syncItemDescriptionFromTemplate = (item: InventoryItem): InventoryItem => {
+    if (!item || typeof item !== "object") return item;
+
+    let templateDescription: string | undefined;
+    if (item.slot) {
+      const rarityGrade = (item.grade as ItemGrade | undefined) ?? undefined;
+      const poolName = resolveEquipmentTemplateLookupName(item.name, rarityGrade) ?? item.name;
+      const equipmentTemplate =
+        rarityGrade !== undefined
+          ? EQUIPMENT_POOL.find((p) => p.name === poolName && p.grade === rarityGrade) ??
+            EQUIPMENT_POOL.find((p) => p.name === poolName)
+          : EQUIPMENT_POOL.find((p) => p.name === poolName);
+      templateDescription = equipmentTemplate?.description;
+    } else {
+      const materialTemplate = MATERIAL_ITEMS[item.name];
+      const consumableTemplate = CONSUMABLE_ITEMS.find((c) => c.name === item.name);
+      templateDescription = materialTemplate?.description ?? consumableTemplate?.description;
+    }
+
+    if (!templateDescription || templateDescription === item.description) return item;
+    return { ...item, description: templateDescription };
+  };
+
+  const syncedInventory = normalizeInventoryItemList(
+    user.inventory ??
+      status?.serializedUser?.inventory ??
+      parseJson<InventoryItem[]>(prismaUser.inventory as any, [])
+  ).map(syncItemDescriptionFromTemplate);
+
   const savedGameRecordsCandidate = (user as any)?.savedGameRecords;
   const savedGameRecords =
     Array.isArray(savedGameRecordsCandidate) ? savedGameRecordsCandidate : undefined;
@@ -324,11 +353,7 @@ const applyDefaults = (
     playfulXp: user.playfulXp ?? prismaUser.playfulXp ?? 0,
     baseStats: user.baseStats ?? createDefaultBaseStats(),
     spentStatPoints: user.spentStatPoints ?? createDefaultSpentStatPoints(),
-    inventory: normalizeInventoryItemList(
-      user.inventory ??
-        status?.serializedUser?.inventory ??
-        parseJson<InventoryItem[]>(prismaUser.inventory as any, [])
-    ),
+    inventory: syncedInventory,
     inventorySlots:
       user.inventorySlots ??
       status?.serializedUser?.inventorySlots ??

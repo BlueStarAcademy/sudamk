@@ -11,6 +11,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
 import type { User } from '../../types/index.js';
 import { ResultModalVipRewardSlot } from '../game/ResultModalVipRewardSlot.js';
+import GuildExpBadge from './GuildExpBadge.js';
 
 interface GuildBossBattleResultModalProps {
     result: GuildBossBattleResultType & { bossName: string; previousRank?: number; currentRank?: number };
@@ -37,16 +38,10 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
     <>
         {card.type === 'guildXp' ? (
             <div className="flex w-full flex-col items-center justify-center">
-                <div
-                    className={`text-center text-[13px] font-black leading-none sm:text-xl ${card.isSpecial ? 'text-yellow-200' : 'text-blue-400'}`}
-                    style={{
-                        textShadow: '2px 2px 4px rgba(0,0,0,0.8), 0 0 10px rgba(59,130,246,0.5)',
-                        letterSpacing: '1px',
-                    }}
-                >
-                    <span className="block">길드</span>
-                    <span className="block">EXP</span>
-                </div>
+                <GuildExpBadge
+                    className={`h-8 min-w-[2.6rem] rounded-md ${card.isSpecial ? 'border-yellow-200/70 bg-yellow-500/25' : 'border-blue-300/60 bg-blue-950/45'}`}
+                    textClassName={card.isSpecial ? 'text-yellow-100 text-[10px] sm:text-[11px]' : 'text-blue-100 text-[10px] sm:text-[11px]'}
+                />
                 {card.quantity !== undefined && (
                     <div className={`mt-0.5 text-[9px] font-bold sm:text-[11px] ${card.isSpecial ? 'text-yellow-200' : 'text-blue-300'}`}>
                         {card.quantityText ?? card.quantity.toLocaleString()}

@@ -21,6 +21,8 @@ export function getSelectiveUserUpdate(
         'USE_ITEM': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'USE_ALL_ITEMS_OF_TYPE': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'TOGGLE_EQUIP_ITEM': ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate'],
+        'MARK_ITEM_EXCHANGE_LISTED': ['inventory'],
+        'UNMARK_ITEM_EXCHANGE_LISTED': ['inventory'],
         'SELL_ITEM': ['inventory', 'gold'],
         'COMBINE_ITEMS': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
         'ENHANCE_ITEM': ['inventory', 'gold', 'diamonds', 'blacksmithLevel', 'blacksmithXp'],
@@ -40,6 +42,7 @@ export function getSelectiveUserUpdate(
         // 프로필 관련
         'UPDATE_AVATAR': ['avatarId'],
         'UPDATE_BORDER': ['borderId'],
+        'SAVE_EXCHANGE_STATE': ['exchangeState'],
         'ADVANCE_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingSpResultTutorialStep'],
         'BEGIN_ONBOARDING_ON_FIRST_HOME': ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome'],
         'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD': [

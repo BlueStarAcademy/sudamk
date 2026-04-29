@@ -643,6 +643,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     const isHiddenRevealStatus =
         gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal';
     const effectiveNewlyRevealed = isHiddenRevealStatus ? newlyRevealed : undefined;
+    const isMissileSupportedMode =
+        mode === GameMode.Missile ||
+        (mode === GameMode.Mix && Array.isArray(mixedModes) && mixedModes.includes(GameMode.Missile));
+    const isMissileSelectingActive = isMissileSupportedMode && gameStatus === 'missile_selecting';
     const [captureScoreFloats, setCaptureScoreFloats] = useState<
         { id: string; point: Point; label: string; points: number }[]
     >([]);
@@ -702,7 +706,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (gameStatus === 'missile_animating' && animation && (animation.type === 'missile' || animation.type === 'hidden_missile')) {
             lastMissileAnimationToRef.current = animation.to;
         }
-        if (gameStatus === 'missile_selecting') {
+        if (isMissileSelectingActive) {
             missileCaptureScoreAnchorRef.current = null;
             missileCaptureScoreAnchorMoveCountRef.current = null;
         }
@@ -1182,10 +1186,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     }, [mode, gameStatus]);
 
     useEffect(() => {
-        if (gameStatus !== 'missile_selecting') {
+        if (!isMissileSelectingActive) {
             setSelectedMissileStone(null);
         }
-    }, [gameStatus]);
+    }, [isMissileSelectingActive]);
 
     const starPoints = useMemo(() => {
         if (safeBoardSize === 19) return [{ x: 3, y: 3 }, { x: 9, y: 3 }, { x: 15, y: 3 }, { x: 3, y: 9 }, { x: 9, y: 9 }, { x: 15, y: 9 }, { x: 3, y: 15 }, { x: 9, y: 15 }, { x: 15, y: 15 }];
@@ -1261,7 +1265,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (!boardPos) return;
         setHoverPos(boardPos);
     
-        if (gameStatus === 'missile_selecting' && !isBoardDisabled) {
+        if (isMissileSelectingActive && !isBoardDisabled) {
             // 미사일은 "이동 자체"를 수행하므로 인접 liberty 조건에 묶지 않는다.
             // (서버는 미사일 경로 규칙으로 검증하고, hidden/표시 미스매치 케이스에서도 UX를 맞추기 위함)
             const actualPlayerAtPos = boardState?.[boardPos.y]?.[boardPos.x] ?? displayBoardState[boardPos.y]?.[boardPos.x];
@@ -1401,7 +1405,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     
     const isGameFinished = gameStatus === 'ended' || gameStatus === 'no_contest';
 
-    const showHoverPreview = hoverPos && !isBoardDisabled && gameStatus !== 'scanning' && gameStatus !== 'missile_selecting' && (
+    const showHoverPreview = hoverPos && !isBoardDisabled && gameStatus !== 'scanning' && !isMissileSelectingActive && (
         displayBoardState[hoverPos.y][hoverPos.x] === Player.None || 
         isOpponentHiddenStoneAtPos(hoverPos)
     );
@@ -1542,7 +1546,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
     };
     
     const renderMissileLaunchPreview = () => {
-        if (gameStatus !== 'missile_selecting' || !selectedMissileStone || !onMissileLaunch) return null;
+        if (!isMissileSelectingActive || !selectedMissileStone || !onMissileLaunch) return null;
 
         if (isDraggingMissile && dragStartPoint && dragEndPoint) {
             const startCoords = toSvgCoords(selectedMissileStone);
@@ -1895,7 +1899,8 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isKnownHidden = !!effectiveHiddenMoveForRender;
                     const isSelectedMissileForRender = selectedMissileStone?.x === x && selectedMissileStone?.y === y;
                     // 미사일 선택 가능 여부: 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
-                    const isHoverSelectableMissile = gameStatus === 'missile_selecting' && !selectedMissileStone && actualPlayer === myPlayerEnum;
+                    const isHoverSelectableMissile =
+                        isMissileSelectingActive && !selectedMissileStone && actualPlayer === myPlayerEnum;
                     
                     // 문양 결정: 히든 돌이 아닌 경우에만 패턴 문양 표시
                     // 히든 돌(공개 여부와 관계없이)은 히든 문양을 우선 표시하므로 패턴 문양을 표시하지 않음

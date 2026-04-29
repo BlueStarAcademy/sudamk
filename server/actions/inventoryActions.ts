@@ -76,6 +76,16 @@ const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Mythic,
     ItemGrade.Transcendent,
 ];
+const EQUIPMENT_UNBIND_TICKET_NAME = '귀속 해제권';
+const EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE: Record<ItemGrade, number> = {
+    [ItemGrade.Normal]: 1,
+    [ItemGrade.Uncommon]: 2,
+    [ItemGrade.Rare]: 3,
+    [ItemGrade.Epic]: 4,
+    [ItemGrade.Legendary]: 5,
+    [ItemGrade.Mythic]: 6,
+    [ItemGrade.Transcendent]: 7,
+};
 
 export const currencyBundles: Record<string, { type: 'gold' | 'diamonds', min: number, max: number }> = {
     '골드 꾸러미1': { type: 'gold', min: 10, max: 500 },
@@ -903,6 +913,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 itemToToggle.isEquipped = false;
                 delete user.equipment[itemToToggle.slot];
             } else {
+                // 첫 장착 시도 시 장비를 귀속 처리
+                if (!itemToToggle.isBound) {
+                    itemToToggle.isBound = true;
+                    itemToToggle.boundAt = Date.now();
+                }
                 const currentItemInSlot = user.inventory.find(
                     i => i.isEquipped && i.slot === itemToToggle.slot
                 );
@@ -934,6 +949,76 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate']);
             
+            return { clientResponse: { updatedUser } };
+        }
+
+        case 'UNBIND_EQUIPMENT': {
+            const { itemId } = payload as { itemId?: string };
+            if (!itemId) return { error: '유효하지 않은 요청입니다.' };
+
+            const target = user.inventory.find((i) => i.id === itemId);
+            if (!target || target.type !== 'equipment') {
+                return { error: '장비를 찾을 수 없습니다.' };
+            }
+            if (!target.isBound) {
+                return { error: '해당 장비는 이미 거래 가능합니다.' };
+            }
+
+            const requiredTickets = EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE[target.grade] ?? 1;
+            const ownedTickets = user.inventory
+                .filter((i) => i.name === EQUIPMENT_UNBIND_TICKET_NAME && i.type === 'material')
+                .reduce((sum, i) => sum + (i.quantity ?? 0), 0);
+            if (ownedTickets < requiredTickets) {
+                return { error: `귀속 해제권이 부족합니다. (필요: ${requiredTickets}장, 보유: ${ownedTickets}장)` };
+            }
+
+            let remaining = requiredTickets;
+            for (let idx = user.inventory.length - 1; idx >= 0 && remaining > 0; idx -= 1) {
+                const invItem = user.inventory[idx];
+                if (invItem.name !== EQUIPMENT_UNBIND_TICKET_NAME || invItem.type !== 'material') continue;
+                const qty = invItem.quantity ?? 0;
+                if (qty <= remaining) {
+                    remaining -= qty;
+                    user.inventory.splice(idx, 1);
+                } else {
+                    invItem.quantity = qty - remaining;
+                    remaining = 0;
+                }
+            }
+
+            target.isBound = false;
+            delete (target as any).boundAt;
+
+            const updatedUser = getSelectiveUserUpdate(user, 'UNBIND_EQUIPMENT', { includeAll: true });
+            db.updateUser(user).catch((error: any) => {
+                console.error(`[UNBIND_EQUIPMENT] Failed to save user ${user.id}:`, error);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['inventory']);
+
+            return { clientResponse: { updatedUser } };
+        }
+
+        case 'MARK_ITEM_EXCHANGE_LISTED':
+        case 'UNMARK_ITEM_EXCHANGE_LISTED': {
+            const { itemId } = payload as { itemId?: string };
+            if (!itemId) return { error: '유효하지 않은 요청입니다.' };
+            const target = user.inventory.find((i) => i.id === itemId);
+            if (!target || target.type !== 'equipment') {
+                return { error: '장비를 찾을 수 없습니다.' };
+            }
+            if (action.type === 'MARK_ITEM_EXCHANGE_LISTED') {
+                target.isExchangeListed = true;
+            } else {
+                target.isExchangeListed = false;
+            }
+
+            const updatedUser = getSelectiveUserUpdate(user, action.type, { includeAll: true });
+            db.updateUser(user).catch((error: any) => {
+                console.error(`[${action.type}] Failed to save user ${user.id}:`, error);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['inventory']);
             return { clientResponse: { updatedUser } };
         }
 

@@ -53,6 +53,15 @@ const getGuildIconPath = (icon: string | undefined): string => {
     return icon;
 };
 
+const toEpochMs = (value: unknown): number | null => {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim() !== '') {
+        const parsed = Date.parse(value);
+        return Number.isNaN(parsed) ? null : parsed;
+    }
+    return null;
+};
+
 const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
     const { handlers, currentUserWithStatus } = useAppContext();
     const [isDonating, setIsDonating] = useState(false);
@@ -821,46 +830,46 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
     const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
 
     return (
-        <div className={`bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-center text-center w-full relative overflow-hidden h-full ${className || ''}`}>
+        <div className={`bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 ${isMobile ? 'p-2' : 'p-4'} rounded-xl border-2 border-stone-600/60 shadow-lg flex flex-col items-stretch w-full relative overflow-hidden h-full ${className || ''}`}>
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
             <div className="relative z-10 w-full flex flex-col h-full min-h-0">
                 <h3 className={`font-bold ${isMobile ? 'text-sm' : 'text-lg'} text-highlight ${isMobile ? 'mb-1' : 'mb-3'} flex items-center justify-center gap-2 flex-shrink-0`}>
                     <span className={isMobile ? 'text-base' : 'text-2xl'}>⚔️</span>
                     <span>길드 보스전</span>
                 </h3>
-                <div className={`flex flex-col ${isMobile ? 'mb-1' : 'mb-3'} flex-shrink-0`}>
-                    {/* 보스 이름 · 난이도 단계 */}
-                    <p className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-highlight ${isMobile ? 'mb-0.5' : 'mb-2'} text-center`}>
+                <div className={`flex flex-col ${isMobile ? 'mb-1' : 'mb-2'} flex-shrink-0`}>
+                    <p className={`${isMobile ? 'text-xs' : 'text-base'} font-bold text-highlight ${isMobile ? 'mb-1' : 'mb-2'} text-center`}>
                         {currentBoss.name}
                         <span className={`tabular-nums text-amber-200/95 ${isMobile ? 'text-[11px] ml-1' : 'text-sm ml-1.5'}`}>· {bossDifficultyStage}단계</span>
                     </p>
-                    
-                    {/* 가로로 둘로 나눔: 왼쪽(보스+스킬) | 오른쪽(내 기록) */}
-                    <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2 w-full`}>
-                        {/* 왼쪽: 보스 이미지 + 스킬(아래 가로 배치) — 데스크톱에서 열 비중을 조금 더 주어 보스 이미지 확대 */}
-                        <div className={`flex flex-col ${isMobile ? 'items-center' : 'min-w-0 flex-[1.35]'} gap-2`}>
-                                    <div className="flex flex-col items-center w-full">
-                                        {/* 보스 이미지 (확대) */}
-                                        <div className="flex flex-col items-center flex-shrink-0 w-full max-w-[min(100%,18rem)]">
-                                            <div className={`relative ${isMobile ? 'w-32 h-32' : 'w-full aspect-square max-h-[min(18rem,calc(50vh-8rem))]'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg overflow-hidden`}>
-                                                <img src={currentBoss.image} alt={currentBoss.name} className={`${isMobile ? 'w-28 h-28' : 'h-[92%] w-[92%] max-h-[min(16.5rem,calc(50vh-9rem))]'} drop-shadow-lg object-contain`} />
-                                                {/* 체력: 수치는 게이지 바로 위, 게이지는 이미지 하단 오버레이 */}
-                                                <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch ${isMobile ? 'gap-0.5 px-1.5 pb-1.5 pt-6' : 'gap-1 px-2 pb-2 pt-8'} bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
-                                                    <div className={`text-center font-bold tabular-nums text-white ${isMobile ? 'text-[10px]' : 'text-[12px]'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
-                                                        {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
-                                                    </div>
-                                                    <div className={`w-full bg-gray-800/85 rounded-full ${isMobile ? 'h-2' : 'h-3'} border border-gray-600/60 overflow-hidden shadow-inner`}>
-                                                        <div
-                                                            className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
-                                                            style={{ width: `${clampedHpPercent}%` }}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                {/* 스킬들 - 이미지 아래 가로 배치 */}
+                </div>
+
+                <div className={`grid min-h-0 w-full flex-1 ${isMobile ? 'grid-cols-1 gap-1.5' : 'grid-cols-[1.3fr_1fr] gap-2'}`}>
+                    <div className="flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 p-2">
+                        <div className="flex min-h-0 flex-1 flex-col items-center">
+                            <div className={`relative ${isMobile ? 'h-36 w-36' : 'h-full max-h-[19rem] w-full max-w-[19rem]'} bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl flex items-center justify-center border border-stone-600/50 shadow-lg overflow-hidden`}>
+                                <img src={currentBoss.image} alt={currentBoss.name} className={`${isMobile ? 'w-32 h-32' : 'h-[92%] w-[92%]'} drop-shadow-lg object-contain`} />
+                                <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch ${isMobile ? 'gap-0.5 px-1.5 pb-1.5 pt-6' : 'gap-1 px-2 pb-2 pt-8'} bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
+                                    <div className={`text-center font-bold tabular-nums text-white ${isMobile ? 'text-[10px]' : 'text-[12px]'} drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+                                        {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
+                                    </div>
+                                    <div className={`w-full bg-gray-800/85 rounded-full ${isMobile ? 'h-2' : 'h-3'} border border-gray-600/60 overflow-hidden shadow-inner`}>
+                                        <div
+                                            className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                            style={{ width: `${clampedHpPercent}%` }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                            <div className={`${isMobile ? 'mt-1 w-full max-w-[10rem]' : 'mt-2 w-full max-w-[19rem]'} flex shrink-0 justify-center`}>
+                                <p className={`w-full ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
+                            </div>
+                        </div>
+
+                        <div className={`${isMobile ? 'mt-1' : 'mt-2'} flex shrink-0 items-center justify-center`}>
+                            {/* 스킬들 - 이미지 아래 가로 배치 */}
                                 {currentBoss.skills && currentBoss.skills.length > 0 && (
-                                    <div className={`flex relative ${isMobile ? 'flex-row gap-1 mt-1' : 'flex-row gap-2 mt-2'} items-center justify-center`}>
+                                <div className={`flex relative ${isMobile ? 'flex-row gap-1' : 'flex-row gap-2'} items-center justify-center`}>
                                     {currentBoss.skills.slice(0, 3).map((skill) => (
                                         <div key={skill.id} className="relative">
                                             <div
@@ -930,68 +939,62 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                                             )}
                                         </div>
                                     ))}
-                                    </div>
+                                </div>
                                 )}
-                                {/* 남은 시간: 보스 이미지 패널 너비만큼만 사용 (모바일 6rem / 데스크 9rem) */}
-                                <div className={`${isMobile ? 'mt-1 w-full max-w-[8rem]' : 'mt-2 w-full'} flex shrink-0 justify-center`}>
-                                    <p className={`w-full ${isMobile ? 'text-[10px]' : 'text-sm'} text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        {/* 오른쪽: 참여길드원 → 내 기록 → 입장 */}
-                        <div className={`flex flex-col ${isMobile ? 'w-full' : 'min-w-0 flex-[0.95]'} justify-center gap-2`}>
-                            <div className={`flex justify-center ${isMobile ? 'mb-0' : 'mb-0'}`}>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowBossParticipantsModal(true)}
-                                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 text-xs font-semibold transition-colors"
-                                >
-                                    참여길드원
-                                </button>
-                            </div>
-                            <div className={`bg-stone-800/50 rounded-lg ${isMobile ? 'px-1.5 py-0.5' : 'px-3 py-2'}`}>
-                                <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 ${isMobile ? 'mb-0.5' : 'mb-2'} font-semibold`}>나의 기록</div>
-                                <div className={`flex flex-col ${isMobile ? 'gap-0.5' : 'gap-1.5'}`}>
-                                    <div className="flex items-center justify-between">
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>랭킹</span>
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-highlight`}>
-                                            {myRank !== null ? `${myRank}위` : '-'}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>총 데미지</span>
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-amber-300`}>{myDamage.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>현재순위</span>
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-cyan-300`}>
-                                            {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>역대 최고 기록</span>
-                                        <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-yellow-300`}>
-                                            {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                            {/* 입장 버튼: 나의 기록 하단 중앙배열 */}
-                            <div className={`flex justify-center ${isMobile ? 'mt-0.5' : 'mt-1'}`}>
-                                <button
-                                    type="button"
-                                    onClick={() => window.location.hash = '#/guildboss'}
-                                    disabled={!canEnter}
-                                    className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
-                                >
-                                    <img src="/images/guild/ticket.png" alt="보스전 티켓" className="w-4 h-4" />
-                                    <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
-                                    <span>입장</span>
-                                </button>
-                            </div>
                         </div>
                     </div>
+
+                    <div className="flex min-h-0 flex-col gap-2 rounded-xl border border-stone-600/50 bg-black/20 p-2">
+                        <div className="flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => setShowBossParticipantsModal(true)}
+                                className="inline-flex items-center justify-center gap-1 px-3 py-1.5 rounded-md border border-cyan-500/40 bg-cyan-900/20 hover:bg-cyan-800/30 text-cyan-200 text-xs font-semibold transition-colors"
+                            >
+                                참여길드원
+                            </button>
+                        </div>
+                        <div className="min-h-0 flex-1 rounded-lg bg-stone-800/50 px-3 py-2">
+                            <div className={`${isMobile ? 'text-[9px]' : 'text-xs'} text-stone-400 mb-2 font-semibold`}>나의 기록</div>
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>랭킹</span>
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-highlight`}>
+                                        {myRank !== null ? `${myRank}위` : '-'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>총 데미지</span>
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-amber-300`}>{myDamage.toLocaleString()}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>현재순위</span>
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-cyan-300`}>
+                                        {totalParticipants > 0 && myRank !== null ? `${totalParticipants}명 중 ${myRank}위` : '-'}
+                                    </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} text-stone-300`}>역대 최고 기록</span>
+                                    <span className={`${isMobile ? 'text-[10px]' : 'text-sm'} font-bold text-yellow-300`}>
+                                        {(guild.guildBossState?.maxDamageLog?.[effectiveUserId || ''] || 0).toLocaleString()}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex justify-center">
+                            <button
+                                type="button"
+                                onClick={() => window.location.hash = '#/guildboss'}
+                                disabled={!canEnter}
+                                className={`${canEnter ? guildPanelBtn.boss : guildPanelBtn.disabled}`}
+                            >
+                                <img src="/images/guild/ticket.png" alt="보스전 티켓" className="w-4 h-4" />
+                                <span>{myBossTickets}/{GUILD_BOSS_MAX_ATTEMPTS}</span>
+                                <span>입장</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
                     
                     {/* 스킬 상세·참여 기록: 길드 홈 z-10/overflow 스택에 묶이지 않도록 모달 루트로 포털 */}
                     {typeof document !== 'undefined' &&
@@ -1065,7 +1068,6 @@ const BossPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPa
                         )}
                 </div>
             </div>
-        </div>
     );
 };
 
@@ -1142,19 +1144,10 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const [warActionCooldown, setWarActionCooldown] = React.useState<number | null>(null);
     const [cancelDeadline, setCancelDeadline] = React.useState<number | null>(null);
     const [cooldownRemaining, setCooldownRemaining] = React.useState<string>('');
+    const [currentWarRemaining, setCurrentWarRemaining] = React.useState<string>('');
     const [warStats, setWarStats] = React.useState<GuildWarDashboardWarStats | null>(null);
     const [myRecordInCurrentWar, setMyRecordInCurrentWar] = React.useState<GuildWarDashboardMyRecord | null>(null);
-    const [isGuildRoute, setIsGuildRoute] = React.useState(() => window.location.hash === '#/guild');
     const [isUpdatingWarParticipation, setIsUpdatingWarParticipation] = React.useState(false);
-
-    React.useEffect(() => {
-        const onHashChange = () => {
-            const onGuild = window.location.hash === '#/guild';
-            setIsGuildRoute(onGuild);
-        };
-        window.addEventListener('hashchange', onHashChange);
-        return () => window.removeEventListener('hashchange', onHashChange);
-    }, []);
     
     // 길드장/부길드장 권한 확인 (관리자는 effectiveUserId로 비교 - 서버와 동일)
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
@@ -1200,21 +1193,6 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const FETCH_COOLDOWN = 30000; // 30초 쿨다운 (interval과 동일하게)
     
     React.useEffect(() => {
-        // 길드 홈에서는 상세 길드전 정보를 주기적으로 가져오지 않는다.
-        // 최소 정보(매칭 플래그)는 guild 객체 동기화 값만 사용한다.
-        if (isGuildRoute) {
-            setActiveWar(null);
-            setOpponentGuild(null);
-            setWarStats(null);
-            setMyRecordInCurrentWar(null);
-            setCanClaimReward(false);
-            setIsClaimed(false);
-            setMyWarAttempts(0);
-            setWarActionCooldown(null);
-            setCancelDeadline(null);
-            return;
-        }
-
         // 길드전 데이터 가져오기
         const fetchWarData = async () => {
             // 이미 fetch 중이거나 쿨다운 중이면 스킵
@@ -1359,7 +1337,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             }
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [guild.id, isGuildRoute]); // 길드 홈에서는 상세 fetch 비활성화
+    }, [guild.id]);
     
     // 남은 시간 계산
     React.useEffect(() => {
@@ -1394,6 +1372,39 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         const interval = setInterval(updateTimeRemaining, 1000);
         return () => clearInterval(interval);
     }, [isMatching, nextMatchTime]);
+
+    // 진행 중 길드전 남은 시간 계산
+    React.useEffect(() => {
+        const warEndTime = toEpochMs((activeWar as { endTime?: unknown } | null)?.endTime);
+        if (!activeWar || !warEndTime) {
+            setCurrentWarRemaining('');
+            return;
+        }
+
+        const updateCurrentWarRemaining = () => {
+            const now = Date.now();
+            const remaining = warEndTime - now;
+            if (remaining <= 0) {
+                setCurrentWarRemaining('종료');
+                return;
+            }
+            const hours = Math.floor(remaining / (1000 * 60 * 60));
+            const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+
+            if (hours > 0) {
+                setCurrentWarRemaining(`${hours}시간 ${minutes}분`);
+            } else if (minutes > 0) {
+                setCurrentWarRemaining(`${minutes}분 ${seconds}초`);
+            } else {
+                setCurrentWarRemaining(`${seconds}초`);
+            }
+        };
+
+        updateCurrentWarRemaining();
+        const interval = window.setInterval(updateCurrentWarRemaining, 1000);
+        return () => window.clearInterval(interval);
+    }, [activeWar]);
     
     // 쿨타임 타이머 계산
     React.useEffect(() => {
@@ -1550,6 +1561,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             : null);
     const isMobile = forceDesktopPanelLayout ? false : isNativeMobile;
     const showOpponentWarPanel = !!(activeWar && !isMatching && displayOpponent);
+    const hasCurrentWarInfo = !!activeWar || isMatching;
 
     const warStatPill = (label: string, value: string | number, tone: 'emerald' | 'rose' | 'amber') => {
         const ring =
@@ -1601,38 +1613,37 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                         </div>
                     </div>
 
-                    <div className={`${isMobile ? 'mb-1.5 flex w-full flex-shrink-0 flex-col gap-1.5' : 'mb-2 flex min-h-0 w-full flex-1 flex-col gap-2 sm:flex-row'}`}>
-                        {showOpponentWarPanel && (
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner">
-                                <div
-                                    className={`border-b border-stone-600/40 bg-gradient-to-r from-orange-950/55 via-stone-950/60 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-orange-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
-                                >
-                                    이번 상대
-                                </div>
-                                <div className={`flex min-h-0 flex-1 flex-col gap-2 ${isMobile ? 'p-2' : 'p-2.5'} overflow-y-auto`}>
-                                    <p
-                                        className={`truncate text-center font-bold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
-                                        title={displayOpponent!.name}
-                                    >
-                                        {displayOpponent!.name || '상대 길드'}
-                                    </p>
-                                    <GuildWarUnifiedScoreboard
-                                        variant="embedded"
-                                        compact
-                                        blueStars={ourStars}
-                                        redStars={enemyStars}
-                                        blueHouse={ourScore}
-                                        redHouse={enemyScore}
-                                        hideHouseWhenZero
-                                    />
-                                    {(myRecordInCurrentWar || myWarAttempts > 0) && (
+                    <div className={`${isMobile ? 'mb-1.5 grid min-h-0 w-full flex-1 grid-cols-1 gap-1.5' : 'mb-2 grid min-h-0 w-full flex-1 grid-cols-1 gap-2 sm:grid-cols-2'}`}>
+                        <div className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner">
+                            <div
+                                className={`border-b border-stone-600/40 bg-gradient-to-r from-orange-950/55 via-stone-950/60 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-orange-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
+                            >
+                                이번 길드전
+                            </div>
+                            <div className={`flex min-h-0 flex-1 flex-col gap-2 ${isMobile ? 'p-2' : 'p-2.5'} overflow-y-auto`}>
+                                {showOpponentWarPanel ? (
+                                    <>
+                                        <p
+                                            className={`truncate text-center font-bold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                                            title={displayOpponent!.name}
+                                        >
+                                            {displayOpponent!.name || '상대 길드'}
+                                        </p>
+                                        <GuildWarUnifiedScoreboard
+                                            variant="embedded"
+                                            compact
+                                            blueStars={ourStars}
+                                            redStars={enemyStars}
+                                            blueHouse={ourScore}
+                                            redHouse={enemyScore}
+                                            hideHouseWhenZero
+                                        />
                                         <div className="flex flex-wrap items-center justify-center gap-2 border-t border-white/10 pt-2">
                                             <span
-                                                className={`inline-flex items-center gap-1 rounded-lg border border-amber-500/25 bg-black/40 px-2 py-1 font-semibold tabular-nums text-amber-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
+                                                className={`inline-flex items-center gap-1 rounded-lg border border-cyan-500/30 bg-cyan-950/30 px-2 py-1 font-semibold tabular-nums text-cyan-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                                             >
-                                                <img src="/images/guild/warticket.png" alt="" className="h-3.5 w-3.5 opacity-90" />
-                                                {(myRecordInCurrentWar?.attempts ?? myWarAttempts)}/
-                                                {(myRecordInCurrentWar?.maxAttempts ?? GUILD_WAR_PERSONAL_DAILY_ATTEMPTS)}
+                                                <span>남은 시간</span>
+                                                <span>{currentWarRemaining || '확인 중...'}</span>
                                             </span>
                                             {myRecordInCurrentWar?.contributedStars != null && myRecordInCurrentWar.contributedStars > 0 ? (
                                                 <span
@@ -1643,12 +1654,39 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                                 </span>
                                             ) : null}
                                         </div>
-                                    )}
-                                </div>
+                                    </>
+                                ) : isMatching ? (
+                                    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 text-center">
+                                        <span className={`rounded-full border border-cyan-400/35 bg-cyan-950/30 px-2.5 py-0.5 font-bold text-cyan-200 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                                            매칭 진행 중
+                                        </span>
+                                        <p className={`text-stone-200 ${isMobile ? 'text-[11px]' : 'text-sm'}`}>
+                                            {timeRemaining || '이번 길드전 상대를 찾고 있습니다.'}
+                                        </p>
+                                        {nextMatchTime ? (
+                                            <p className={`text-stone-400 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                                                예정 시각: {formatDateTimeKST(nextMatchTime)}
+                                            </p>
+                                        ) : null}
+                                        {cancelDeadline ? (
+                                            <p className={`text-stone-500 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                                                신청 취소 가능: {formatDateTimeKST(cancelDeadline)}
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                ) : hasCurrentWarInfo ? (
+                                    <p className={`py-6 text-center text-stone-400 ${isMobile ? 'text-[10px]' : 'text-sm'}`}>
+                                        이번 길드전 정보를 불러오는 중입니다.
+                                    </p>
+                                ) : (
+                                    <p className={`py-6 text-center text-stone-500 ${isMobile ? 'text-[10px]' : 'text-sm'}`}>
+                                        이번 길드전이 시작되면 여기에 표시됩니다.
+                                    </p>
+                                )}
                             </div>
-                        )}
+                        </div>
                         <div
-                            className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${showOpponentWarPanel ? 'flex-1' : 'w-full flex-1'}`}
+                            className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner"
                         >
                             <div
                                 className={`border-b border-stone-600/40 bg-gradient-to-r from-amber-950/45 via-stone-950/55 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-amber-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
@@ -1684,20 +1722,6 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                                 >
                                                     {warStats.lastOpponent.isWin ? '승리' : '패배'}
                                                 </span>
-                                                {warStats.lastOpponent.guildXp != null && warStats.lastOpponent.researchPoints != null ? (
-                                                    <span className="flex flex-wrap items-center justify-center gap-x-2 text-[10px] font-medium text-stone-400 sm:text-xs">
-                                                        <span className="inline-flex items-center gap-0.5">
-                                                            <img src="/images/guild/tokken.png" alt="" className="h-3.5 w-3.5" />
-                                                            {warStats.lastOpponent.guildXp}
-                                                        </span>
-                                                        <span className="inline-flex items-center gap-0.5">
-                                                            <img src="/images/guild/button/guildlab.png" alt="" className="h-3.5 w-3.5" />
-                                                            {warStats.lastOpponent.researchPoints} RP
-                                                        </span>
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-[10px] text-stone-500">보상 미수령</span>
-                                                )}
                                             </div>
                                             {(warStats as any).myRecordInLastWar != null ? (
                                                 <div className="flex justify-center border-t border-white/10 pt-2">
@@ -1712,7 +1736,21 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                         <p className={`py-6 text-center text-stone-500 ${isMobile ? 'text-[10px]' : 'text-sm'}`}>기록 없음</p>
                                     )}
                                 </div>
-                                <div className="flex shrink-0 justify-center border-t border-stone-600/40 px-2 py-2">
+                                <div className="flex shrink-0 flex-col gap-2 border-t border-stone-600/40 px-2 py-2">
+                                    <div className="rounded-lg border border-stone-700/50 bg-black/25 px-2 py-2">
+                                        {warStats?.lastOpponent?.guildXp != null && warStats?.lastOpponent?.researchPoints != null ? (
+                                            <div className="flex items-center justify-center gap-3">
+                                                <img src="/images/guild/tokken.png" alt="길드 코인 보상" className="h-6 w-6 object-contain drop-shadow" />
+                                                <img src="/images/guild/button/guildlab.png" alt="연구 포인트 보상" className="h-6 w-6 object-contain drop-shadow" />
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center justify-center gap-3 opacity-40">
+                                                <img src="/images/guild/tokken.png" alt="" className="h-6 w-6 object-contain grayscale" />
+                                                <img src="/images/guild/button/guildlab.png" alt="" className="h-6 w-6 object-contain grayscale" />
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex justify-center">
                                     <button
                                         type="button"
                                         disabled={isClaimed || !canClaimReward}
@@ -1721,7 +1759,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                                 ? '이미 직전 길드전 보상을 수령했습니다.'
                                                 : canClaimReward
                                                   ? '직전 길드전 보상을 받습니다.'
-                                                  : '받을 보상이 없거나, 수령 가능 시각 전입니다. (전쟁 종료 1시간 후부터)'
+                                                  : '받을 보상이 없거나 수령 가능 시각이 아닙니다. (전쟁 종료 1시간 후 ~ 이번 길드전 종료 시점)'
                                         }
                                         onClick={(e) => {
                                             e.stopPropagation();
@@ -1731,30 +1769,24 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                     >
                                         {isClaimed ? '보상 수령 완료' : '보상 수령'}
                                     </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div className="w-full flex-1 flex flex-col min-h-0">
-                        {/* 중간 내용 영역 - flex-1로 공간 차지 */}
-                        <div className="min-h-0 flex-1 overflow-y-auto">
-                            {/* 매칭 중 / 전쟁 진행 중 상세는 상단 '이번 상대' 패널에 표시됨 */}
-                        </div>
-                        
-                        {/* 입장 버튼 - 하단 고정 */}
-                        <div className={`flex-shrink-0 ${isMobile ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
-                            <button
-                                type="button"
-                                onClick={() => replaceAppHash('#/guildwar')}
-                                title="길드전 화면으로 이동합니다"
-                                className={guildPanelBtn.war}
-                            >
-                                <img src="/images/guild/warticket.png" alt="길드전 공격권" className="w-4 h-4" />
-                                <span>{myWarTickets}/{GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}</span>
-                                <span>입장</span>
-                            </button>
-                        </div>
+
+                    {/* 입장 버튼 - 하단 고정 */}
+                    <div className={`flex-shrink-0 ${isMobile ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
+                        <button
+                            type="button"
+                            onClick={() => replaceAppHash('#/guildwar')}
+                            title="길드전 화면으로 이동합니다"
+                            className={guildPanelBtn.war}
+                        >
+                            <img src="/images/guild/warticket.png" alt="길드전 공격권" className="w-4 h-4" />
+                            <span>{myWarTickets}/{GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}</span>
+                            <span>입장</span>
+                        </button>
                     </div>
                 </div>
             </div>

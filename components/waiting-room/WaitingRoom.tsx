@@ -37,6 +37,7 @@ const WAITING_LOBBY_PANEL_GLASS =
   'backdrop-blur-xl backdrop-saturate-150 will-change-[backdrop-filter] [transform:translateZ(0)]';
 
 const ROW_HEIGHT_REM = 2.5;
+const ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC = 90;
 
 /** 전략/놀이 집계 대기실에 속하는지 (서버 waitingLobby 우선, 구버전 호환으로 mode 카테고리) */
 function userMatchesAggregateWaitingLobby(u: UserWithStatus, strategic: boolean): boolean {
@@ -55,21 +56,58 @@ function userMatchesAggregateWaitingLobby(u: UserWithStatus, strategic: boolean)
 const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }> = ({ mode }) => {
     const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
     const [currentIndex, setCurrentIndex] = useState(0);
+    const [isMarqueeRunning, setIsMarqueeRunning] = useState(true);
+    const [travelDurationSec, setTravelDurationSec] = useState(12);
+    const [travelDistancePx, setTravelDistancePx] = useState(1000);
+    const waitTimerRef = useRef<number | null>(null);
+    const viewportRef = useRef<HTMLDivElement>(null);
+    const textRef = useRef<HTMLSpanElement>(null);
     const announcementIds = useMemo(() => announcements.map(a => a.id).join(','), [announcements]);
     const strategicModes = useMemo(() => SPECIAL_GAME_MODES.map(m => m.mode), []);
     const playfulModes = useMemo(() => PLAYFUL_GAME_MODES.map(m => m.mode), []);
 
     useEffect(() => {
-        if (!announcements || announcements.length <= 1) {
+        if (!announcements || announcements.length <= 0) {
             setCurrentIndex(0);
+            setIsMarqueeRunning(true);
+        }
+    }, [announcementIds, announcements.length]);
+
+    useEffect(() => {
+        if (!announcements || announcements.length === 0 || !isMarqueeRunning) return;
+        const viewportWidth = viewportRef.current?.clientWidth ?? 0;
+        const textWidth = textRef.current?.scrollWidth ?? 0;
+        if (viewportWidth <= 0 || textWidth <= 0) return;
+
+        const distancePx = viewportWidth + textWidth;
+        const duration = Math.max(6, distancePx / ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC);
+        setTravelDistancePx(distancePx);
+        setTravelDurationSec(duration);
+    }, [currentIndex, announcementIds, isMarqueeRunning, announcements.length]);
+
+    useEffect(() => {
+        return () => {
+            if (waitTimerRef.current != null) {
+                window.clearTimeout(waitTimerRef.current);
+            }
+        };
+    }, []);
+
+    const handleMarqueeEnd = useCallback(() => {
+        if (!announcements || announcements.length <= 1) {
+            setIsMarqueeRunning(true);
             return;
         }
-        const intervalMs = Math.max(2000, (announcementInterval ?? 3) * 1000);
-        const timer = setInterval(() => {
-            setCurrentIndex(prevIndex => (prevIndex + 1) % announcements.length);
-        }, intervalMs);
-        return () => clearInterval(timer);
-    }, [announcementIds, announcements.length, announcementInterval]);
+        if (waitTimerRef.current != null) {
+            window.clearTimeout(waitTimerRef.current);
+        }
+        setIsMarqueeRunning(false);
+        const waitMs = Math.max(1000, (announcementInterval ?? 3) * 1000);
+        waitTimerRef.current = window.setTimeout(() => {
+            setCurrentIndex((prevIndex) => (prevIndex + 1) % announcements.length);
+            setIsMarqueeRunning(true);
+        }, waitMs);
+    }, [announcementInterval, announcements]);
 
     const isLobbyGlass = mode === 'strategic' || mode === 'playful';
     const glassCls = isLobbyGlass ? WAITING_LOBBY_PANEL_GLASS : '';
@@ -86,9 +124,10 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
     if (relevantOverride) {
         return (
             <div
-                className={`rounded-lg border border-yellow-600 shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 ${
-                    isLobbyGlass ? 'bg-yellow-900/60 backdrop-blur-xl backdrop-saturate-150' : 'bg-yellow-800/50'
+                className={`relative rounded-2xl p-2 flex items-center justify-center flex-shrink-0 h-10 ${
+                    isLobbyGlass ? 'bg-gradient-to-r from-yellow-900/70 via-amber-800/65 to-yellow-900/70 backdrop-blur-xl backdrop-saturate-150' : 'bg-yellow-800/50'
                 }`}
+                style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.14)' }}
             >
                 <span className="font-bold text-yellow-300 animate-pulse text-center">{globalOverrideAnnouncement.message}</span>
             </div>
@@ -97,37 +136,58 @@ const AnnouncementBoard: React.FC<{ mode: GameMode | 'strategic' | 'playful'; }>
     
     if (!announcements || announcements.length === 0) {
         return (
-            <div className={`bg-panel rounded-lg shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel border border-color ${glassCls}`}>
+            <div
+                className={`rounded-2xl p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel ${glassCls}`}
+                style={{ background: 'linear-gradient(110deg, rgba(24,24,27,0.9), rgba(63,63,70,0.75), rgba(24,24,27,0.9))', boxShadow: '0 12px 30px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.09)' }}
+            >
                 <span className="font-bold text-tertiary text-center">[현재 등록된 공지사항이 없습니다.]</span>
             </div>
         );
     }
 
+    const currentAnnouncement = announcements[currentIndex];
+    const shouldAnimate = isMarqueeRunning && !!currentAnnouncement;
+
     return (
         <div
-            className={`bg-panel rounded-lg shadow-lg px-4 relative overflow-hidden flex-shrink-0 border border-color text-on-panel ${glassCls}`}
+            ref={viewportRef}
+            className={`relative overflow-hidden flex-shrink-0 rounded-2xl px-4 text-on-panel ${glassCls}`}
             style={{ height: `${ROW_HEIGHT_REM}rem` }}
         >
             <div
-                className="w-full absolute left-0 transition-transform duration-500 ease-in-out will-change-transform"
-                style={{
-                    height: `${announcements.length * ROW_HEIGHT_REM}rem`,
-                    transform: `translateY(-${currentIndex * ROW_HEIGHT_REM}rem)`,
-                }}
-            >
-                {announcements.map((announcement) => (
-                    <div
-                        key={announcement.id}
-                        className="w-full flex items-center justify-center flex-shrink-0"
-                        style={{ height: `${ROW_HEIGHT_REM}rem` }}
-                    >
-                        <span className="font-bold text-center whitespace-nowrap overflow-hidden text-ellipsis max-w-full px-2">
-                            <span className="text-red-500 mr-2">[공지]</span>
-                            <span className="text-highlight">{announcement.message}</span>
+                className="pointer-events-none absolute inset-[1px] rounded-2xl"
+                style={{ background: 'linear-gradient(100deg, rgba(8,14,24,0.9), rgba(26,34,49,0.78), rgba(13,18,30,0.88))' }}
+            />
+            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_18%_50%,rgba(56,189,248,0.16),transparent_45%),radial-gradient(circle_at_82%_50%,rgba(245,158,11,0.14),transparent_45%)]" />
+            <div className="relative h-full w-full overflow-hidden" style={{ boxShadow: '0 14px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
+                {currentAnnouncement && shouldAnimate && (
+                    <div className="absolute inset-y-0 flex items-center" style={{ left: shouldAnimate ? '100%' : '0%' }}>
+                        <span
+                            ref={textRef}
+                            key={`${currentAnnouncement.id}-${currentIndex}`}
+                            onAnimationEnd={handleMarqueeEnd}
+                            className="inline-flex items-center whitespace-nowrap px-2 font-bold will-change-transform"
+                            style={
+                                {
+                                    animation: `waitingLobbyAnnouncementMarquee ${travelDurationSec}s linear 1 forwards`,
+                                    ['--announcement-travel-distance' as string]: `${travelDistancePx}px`,
+                                } as React.CSSProperties
+                            }
+                        >
+                            <span className="mr-2 text-red-400">[공지]</span>
+                            <span className="bg-gradient-to-r from-cyan-100 via-amber-100 to-cyan-100 bg-clip-text text-transparent">
+                                {currentAnnouncement.message}
+                            </span>
                         </span>
                     </div>
-                ))}
+                )}
             </div>
+            <style>{`
+                @keyframes waitingLobbyAnnouncementMarquee {
+                    from { transform: translateX(0); }
+                    to { transform: translateX(calc(-1 * var(--announcement-travel-distance, 1000px))); }
+                }
+            `}</style>
         </div>
     );
 };

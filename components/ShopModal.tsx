@@ -372,6 +372,7 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         { itemId: "material_box_4", name: "재료 상자 IV", description: "중급~최상급강화석 5개", price: { gold: 5000 }, image: "/images/Box/ResourceBox4.png", dailyLimit: 10, type: 'material' as const },
         { itemId: "material_box_5", name: "재료 상자 V", description: "상급~신비의강화석 5개", price: { gold: 10000 }, image: "/images/Box/ResourceBox5.png", dailyLimit: 10, type: 'material' as const },
         { itemId: "material_box_6", name: "재료 상자 VI", description: "상급~신비의강화석 5개", price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.png", dailyLimit: 10, type: 'material' as const },
+        { itemId: 'equipment_unbind_ticket', name: '귀속 해제권', description: '귀속 장비를 거래가능 상태로 변경', price: { diamonds: 50 }, image: '/images/use/change2.png', type: 'material' as const },
         { itemId: 'option_type_change_ticket', name: "옵션 종류 변경권", description: "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류로 변경", price: { gold: 2000 }, image: "/images/use/change1.png", dailyLimit: 3, type: 'material' as const },
         { itemId: 'option_value_change_ticket', name: "옵션 수치 변경권", description: "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경", price: { gold: 500 }, image: "/images/use/change2.png", dailyLimit: 10, type: 'material' as const },
         { itemId: 'mythic_option_change_ticket', name: "스페셜 옵션 변경권", description: "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경", price: { gold: 500 }, image: "/images/use/change3.png", dailyLimit: 10, type: 'material' as const },
@@ -496,7 +497,15 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
         if (itemId.startsWith('condition_potion_')) {
             const potionType = itemId.replace('condition_potion_', '') as 'small' | 'medium' | 'large';
             onAction({ type: 'BUY_CONDITION_POTION', payload: { potionType, quantity } });
-        } else if (itemId === 'option_type_change_ticket' || itemId === 'option_value_change_ticket' || itemId === 'mythic_option_change_ticket' || itemId === 'action_point_10' || itemId === 'action_point_20' || itemId === 'action_point_30') {
+        } else if (
+            itemId === 'option_type_change_ticket' ||
+            itemId === 'option_value_change_ticket' ||
+            itemId === 'mythic_option_change_ticket' ||
+            itemId === 'equipment_unbind_ticket' ||
+            itemId === 'action_point_10' ||
+            itemId === 'action_point_20' ||
+            itemId === 'action_point_30'
+        ) {
             // 변경권·행동력 회복제 구매
             onAction({ type: 'BUY_CONSUMABLE', payload: { itemId, quantity } });
         } else {
@@ -589,9 +598,9 @@ const ShopModal: React.FC<ShopModalProps> = ({ currentUser: propCurrentUser, onC
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '행동력을 회복시키는 기묘한 번개', dailyLimit: 1, prices: [100], badge: '+10' },
-                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '행동력을 회복시키는 기묘한 번개', dailyLimit: 1, prices: [300], badge: '+20' },
-                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '행동력을 회복시키는 기묘한 번개', dailyLimit: 1, prices: [1000], badge: '+30' },
+                    { itemId: 'action_point_10' as const, name: '행동력 회복제(+10)', description: '뭔가 하고싶은 의욕이 생긴다.', dailyLimit: 1, prices: [100], badge: '+10' },
+                    { itemId: 'action_point_20' as const, name: '행동력 회복제(+20)', description: '뭔가 해야 할 것 같다.', dailyLimit: 1, prices: [300], badge: '+20' },
+                    { itemId: 'action_point_30' as const, name: '행동력 회복제(+30)', description: '바로 경기를 하러 가자.', dailyLimit: 1, prices: [1000], badge: '+30' },
                 ];
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
                     const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];

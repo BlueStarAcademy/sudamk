@@ -197,13 +197,15 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
         }
     }, [gameStatus, hasPlayedScoringOverlay, scoringOverlayStorageKey]);
 
+    const allowBackBoardBaseStonesOnMobile = !isMobile || stageDescriptionCollapsed;
     const showPlacedBaseStoneArrays =
-        gameStatus === 'base_placement' ||
-        gameStatus === 'komi_bidding' ||
-        gameStatus === 'komi_bid_reveal' ||
-        gameStatus === 'base_color_roulette' ||
-        gameStatus === 'base_komi_result' ||
-        gameStatus === 'base_game_start_confirmation';
+        allowBackBoardBaseStonesOnMobile &&
+        (gameStatus === 'base_placement' ||
+            gameStatus === 'komi_bidding' ||
+            gameStatus === 'komi_bid_reveal' ||
+            gameStatus === 'base_color_roulette' ||
+            gameStatus === 'base_komi_result' ||
+            gameStatus === 'base_game_start_confirmation');
 
     const myRevealedMoveIndices = useMemo(() => {
         const uid = currentUser?.id;
@@ -341,7 +343,11 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
     const shouldShowMobileStageDescription =
         isMobile &&
         !!singlePlayerStage &&
-        (gameStatus === 'playing' || gameStatus === 'hidden_placing' || gameStatus === 'scoring');
+        (gameStatus === 'playing' ||
+            gameStatus === 'hidden_placing' ||
+            gameStatus === 'scoring' ||
+            gameStatus === 'ended' ||
+            gameStatus === 'no_contest');
     const isMissileAnimating = gameStatus === 'missile_animating';
 
     return (
@@ -443,7 +449,9 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         // 싱글플레이 미사일 선택 구간에서는 AI 턴으로 currentPlayer가 넘어가도 UX상 입력을 허용해야 한다.
                         (isBoardLocked && gameStatus !== 'missile_selecting') ||
                         isBoardDisabledDueToTurnLimit ||
-                        isMissileAnimating
+                        isMissileAnimating ||
+                        // 경기 시작 초반: 두루마리(설명) 펼친 상태에서는 뒤쪽 레이어(베이스 배치) 보이거나 배치되면 안 됨
+                        (isMobile && !stageDescriptionCollapsed && gameStatus === 'base_placement')
                     }
                     stoneColor={myPlayerEnum}
                     winningLine={winningLine}

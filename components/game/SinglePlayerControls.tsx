@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { GameProps, Player } from '../../types.js';
+import { GameProps, Player, GameMode } from '../../types.js';
 import Button from '../Button.js';
 import { SINGLE_PLAYER_STAGES } from '../../constants';
 import AlertModal from '../AlertModal.js';
@@ -120,8 +120,13 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     const hiddenCountSetting = session.settings.hiddenStoneCount ?? 0;
     const scanCountSetting = session.settings.scanCount ?? 0;
     const missileCountSetting = session.settings.missileCount ?? 0;
-    const isHiddenMode = session.isSinglePlayer && hiddenCountSetting > 0;
-    const isMissileMode = session.isSinglePlayer && missileCountSetting > 0;
+    const mixedModes = Array.isArray(session.settings.mixedModes) ? session.settings.mixedModes : [];
+    const isHiddenModeByRule =
+        session.mode === GameMode.Hidden || (session.mode === GameMode.Mix && mixedModes.includes(GameMode.Hidden));
+    const isMissileModeByRule =
+        session.mode === GameMode.Missile || (session.mode === GameMode.Mix && mixedModes.includes(GameMode.Missile));
+    const isHiddenMode = session.isSinglePlayer && isHiddenModeByRule;
+    const isMissileMode = session.isSinglePlayer && isMissileModeByRule;
     const isMissileOnlyMode = isMissileMode && hiddenCountSetting === 0 && scanCountSetting === 0;
     const moveCount = session.moveHistory?.length ?? 0;
     const myMissilesLeftForRefresh = Number.isFinite(Number(session.missiles_p1))

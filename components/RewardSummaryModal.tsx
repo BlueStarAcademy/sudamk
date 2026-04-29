@@ -4,6 +4,7 @@ import Button from './Button.js';
 import { InventoryItem, QuestReward, ItemGrade } from '../types.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
 import { audioService } from '../services/audioService.js';
+import GuildExpBadge from './guild/GuildExpBadge.js';
 
 interface RewardSummaryModalProps {
     summary: {
@@ -142,7 +143,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                 )}
                                 {(reward.guildXp ?? 0) > 0 && (
                                     <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-blue-500/20 bg-blue-950/25 px-4 py-2.5 shadow-inner">
-                                        <img src="/images/guild/button/guildlab.png" alt="" className="h-6 w-6 shrink-0 object-contain" title="길드 경험치" />
+                                        <GuildExpBadge className="h-6 min-w-[2.5rem] rounded-lg" textClassName="text-[8px]" />
                                         <span className="text-lg font-bold tabular-nums text-blue-200 sm:text-xl">
                                             +{reward.guildXp!.toLocaleString()}
                                         </span>

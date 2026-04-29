@@ -229,6 +229,14 @@ export type ServerAction =
     // User Actions
     | { type: 'UPDATE_AVATAR', payload: { avatarId: string } }
     | { type: 'UPDATE_BORDER', payload: { borderId: string } }
+    | {
+          type: 'SAVE_EXCHANGE_STATE';
+          payload: {
+              listings: Array<Record<string, unknown>>;
+              settlements: Array<Record<string, unknown>>;
+              history: string[];
+          };
+      }
     | { type: 'CHANGE_NICKNAME', payload: { newNickname: string } }
     | { type: 'CHANGE_USERNAME', payload: { newUsername: string; password: string } }
     | { type: 'CHANGE_PASSWORD', payload: { currentPassword: string; newPassword: string } }
@@ -276,6 +284,9 @@ export type ServerAction =
     | { type: 'USE_ITEM', payload: { itemId: string; quantity?: number; itemName?: string } }
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
     | { type: 'TOGGLE_EQUIP_ITEM', payload: { itemId: string } }
+    | { type: 'UNBIND_EQUIPMENT', payload: { itemId: string } }
+    | { type: 'MARK_ITEM_EXCHANGE_LISTED', payload: { itemId: string } }
+    | { type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: string } }
     | { type: 'SELL_ITEM', payload: { itemId: string, quantity?: number } }
     | { type: 'ENHANCE_ITEM', payload: { itemId: string } }
     | { type: 'DISASSEMBLE_ITEM', payload: { itemIds: string[] } }

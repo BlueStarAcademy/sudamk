@@ -57,8 +57,20 @@ const getResearchSkillDisplay = (researchId: GuildResearchId, level: number): { 
         }
         case GuildResearchId.ap_regen_boost: {
             const sec = project.baseEffect * level;
-            return { description: `1AP 회복 간격 ${sec}초 감소` };
+            return { description: `행동력 회복시간 -${sec}초` };
         }
+        case GuildResearchId.stat_concentration:
+            return { description: `집중력 +${totalEffect}%` };
+        case GuildResearchId.stat_thinking_speed:
+            return { description: `사고속도 +${totalEffect}%` };
+        case GuildResearchId.stat_judgment:
+            return { description: `판단력 +${totalEffect}%` };
+        case GuildResearchId.stat_calculation:
+            return { description: `계산력 +${totalEffect}%` };
+        case GuildResearchId.stat_combat_power:
+            return { description: `전투력 +${totalEffect}%` };
+        case GuildResearchId.stat_stability:
+            return { description: `안정감 +${totalEffect}%` };
         default:
             return null;
     }

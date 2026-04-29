@@ -1022,6 +1022,7 @@ export const useApp = () => {
     const [isMailboxOpen, setIsMailboxOpen] = useState(false);
     const [isQuestsOpen, setIsQuestsOpen] = useState(false);
     const [isShopOpen, setIsShopOpen] = useState(false);
+    const [isExchangeOpen, setIsExchangeOpen] = useState(false);
     const [shopInitialTab, setShopInitialTab] = useState<
         'equipment' | 'materials' | 'consumables' | 'misc' | 'diamonds' | 'vip' | undefined
     >(undefined);
@@ -4078,12 +4079,16 @@ export const useApp = () => {
                         'USE_CONDITION_POTION',
                         'BUY_BORDER',
                         'BUY_TOWER_ITEM',
+                        'SAVE_EXCHANGE_STATE',
                         'ENHANCE_ITEM',
                         'DISASSEMBLE_ITEM',
                         'COMBINE_ITEMS',
                         'CRAFT_MATERIAL',
                         'EXPAND_INVENTORY',
                         'TOGGLE_EQUIP_ITEM',
+                        'UNBIND_EQUIPMENT',
+                        'MARK_ITEM_EXCHANGE_LISTED',
+                        'UNMARK_ITEM_EXCHANGE_LISTED',
                         'MANNER_ACTION',
                         'START_GUILD_BOSS_BATTLE',
                         'END_TOWER_GAME',
@@ -4156,7 +4161,7 @@ export const useApp = () => {
                     lastHttpActionType.current = action.type;
                     lastHttpHadUpdatedUser.current = false;
                     const actionsThatShouldHaveUpdatedUser = [
-                        'TOGGLE_EQUIP_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'ENHANCE_ITEM', 
+                        'TOGGLE_EQUIP_ITEM', 'UNBIND_EQUIPMENT', 'MARK_ITEM_EXCHANGE_LISTED', 'UNMARK_ITEM_EXCHANGE_LISTED', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'ENHANCE_ITEM',
                         'COMBINE_ITEMS', 'DISASSEMBLE_ITEM', 'CRAFT_MATERIAL', 'BUY_SHOP_ITEM', 
                         'BUY_CONSUMABLE', 'BUY_CONDITION_POTION', 'USE_CONDITION_POTION', 'UPDATE_AVATAR', 
                         'UPDATE_BORDER', 'CHANGE_NICKNAME', 'UPDATE_MBTI', 'ALLOCATE_STAT_POINT',
@@ -4169,6 +4174,7 @@ export const useApp = () => {
                         'MANNER_ACTION',
                         'START_GUILD_BOSS_BATTLE',
                         'BUY_TOWER_ITEM',
+                        'SAVE_EXCHANGE_STATE',
                     ];
                     if (actionsThatShouldHaveUpdatedUser.includes(action.type)) {
                         console.warn(`[handleAction] ${action.type} - No updatedUser in response! Waiting for WebSocket update...`, {
@@ -4454,6 +4460,20 @@ export const useApp = () => {
                                 if (existing.blackPatternStones?.length) merged.blackPatternStones = existing.blackPatternStones;
                                 if (existing.whitePatternStones?.length) merged.whitePatternStones = existing.whitePatternStones;
                             }
+                            // 종료 응답에서 `captures`가 0으로 내려오면 결과 모달/계산이 잘못 표시될 수 있어
+                            // 서버가 더 큰 값만 주는 단조 증가 기준으로 기존 값을 보존한다.
+                            merged.captures = mergeMonotonicCountRecord(
+                                existing?.captures as any,
+                                next?.captures as any,
+                            );
+                            merged.baseStoneCaptures = mergeMonotonicCountRecord(
+                                existing?.baseStoneCaptures as any,
+                                next?.baseStoneCaptures as any,
+                            );
+                            merged.hiddenStoneCaptures = mergeMonotonicCountRecord(
+                                existing?.hiddenStoneCaptures as any,
+                                next?.hiddenStoneCaptures as any,
+                            );
                             return merged;
                         };
 
@@ -8461,7 +8481,7 @@ export const useApp = () => {
         specialStatBonuses,
         aggregatedMythicStats,
         modals: {
-            isSettingsModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, shopInitialTab, lastUsedItemResult,
+            isSettingsModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult,
             disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isAnnouncementsModalOpen, isRankingQuickModalOpen, isChatQuickModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
             isGameRecordListOpen, viewingGameRecord,
             pastRankingsInfo, viewingItem, isProfileEditModalOpen, moderatingUser,
@@ -8510,6 +8530,8 @@ export const useApp = () => {
                 setIsShopOpen(false);
                 setShopInitialTab(undefined);
             },
+            openExchange: () => setIsExchangeOpen(true),
+            closeExchange: () => setIsExchangeOpen(false),
             openActionPointModal: () => setIsActionPointModalOpen(true),
             closeActionPointModal: () => setIsActionPointModalOpen(false),
             closeInsufficientActionPointsModal: () => setIsInsufficientActionPointsModalOpen(false),

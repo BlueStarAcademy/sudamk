@@ -2,7 +2,6 @@ import React from 'react';
 import DraggableWindow from '../DraggableWindow.js';
 import BlacksmithLevelEffectsSummary from './BlacksmithLevelEffectsSummary.js';
 import { User } from '../../types.js';
-import { getMannerEffects } from '../../services/effectService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 
 interface BlacksmithEffectsModalProps {
@@ -13,9 +12,8 @@ interface BlacksmithEffectsModalProps {
 }
 
 const BlacksmithEffectsModal: React.FC<BlacksmithEffectsModalProps> = ({ onClose, isTopmost, blacksmithLevel, currentUser }) => {
-    const mannerEffects = getMannerEffects(currentUser);
     const vipBonus = isFunctionVipActive(currentUser) ? 10 : 0;
-    const disassemblyJackpotBonusPercent = (mannerEffects.disassemblyJackpotBonusPercent ?? 0) + vipBonus;
+    const disassemblyJackpotBonusPercent = vipBonus;
     const combinationGreatSuccessBonusPercent = vipBonus;
 
     return (

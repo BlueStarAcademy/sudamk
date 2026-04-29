@@ -475,10 +475,11 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             }
 
             // 변경권·행동력 회복제 아이템 정의 (행동력 회복제는 품목별 일일 1개, 고정 골드가)
-            const consumableItems: Record<string, { name: string; price?: number; dailyLimit: number; prices?: number[] }> = {
+            const consumableItems: Record<string, { name: string; price?: number; dailyLimit: number; prices?: number[]; currency?: 'gold' | 'diamonds' }> = {
                 'option_type_change_ticket': { name: '옵션 종류 변경권', price: 2000, dailyLimit: 3 },
                 'option_value_change_ticket': { name: '옵션 수치 변경권', price: 500, dailyLimit: 10 },
                 'mythic_option_change_ticket': { name: '스페셜 옵션 변경권', price: 500, dailyLimit: 10 },
+                'equipment_unbind_ticket': { name: '귀속 해제권', price: 50, dailyLimit: 9999, currency: 'diamonds' },
                 'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [180] },
                 'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [540] },
                 'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [1800] },
@@ -518,8 +519,12 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             } else {
                 totalCost = (itemInfo.price ?? 0) * quantity;
             }
+            const priceCurrency = itemInfo.currency ?? 'gold';
             if (!user.isAdmin) {
-                if (user.gold < totalCost) {
+                if (priceCurrency === 'diamonds' && user.diamonds < totalCost) {
+                    return { error: `다이아가 부족합니다. (필요: ${totalCost} 다이아)` };
+                }
+                if (priceCurrency === 'gold' && user.gold < totalCost) {
                     return { error: `골드가 부족합니다. (필요: ${totalCost} 골드)` };
                 }
             }
@@ -553,9 +558,14 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 return { error: '인벤토리 공간이 부족합니다.' };
             }
 
-            // 골드 차감 및 구매 기록 업데이트
+            // 재화 차감 및 구매 기록 업데이트
             if (!user.isAdmin) {
-                user.gold -= totalCost;
+                if (priceCurrency === 'diamonds') user.diamonds -= totalCost;
+                else user.gold -= totalCost;
+                if (priceCurrency === 'diamonds' && totalCost > 0 && user.guildId) {
+                    const guilds = await db.getKV<Record<string, any>>('guilds') || {};
+                    await guildService.updateGuildMissionProgress(user.guildId, 'diamondsSpent', totalCost, guilds);
+                }
                 if (!user.dailyShopPurchases[itemId] || !isSameDayKST(purchaseRecord?.date || 0, now)) {
                     user.dailyShopPurchases[itemId] = { quantity: 0, date: now };
                 }

@@ -124,6 +124,25 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             
             return { clientResponse: { updatedUser } };
         }
+        case 'SAVE_EXCHANGE_STATE': {
+            const { listings, settlements, history } = (payload || {}) as {
+                listings?: unknown[];
+                settlements?: unknown[];
+                history?: unknown[];
+            };
+            user.exchangeState = {
+                listings: Array.isArray(listings) ? (listings as any[]) : [],
+                settlements: Array.isArray(settlements) ? (settlements as any[]) : [],
+                history: Array.isArray(history) ? history.filter((row): row is string => typeof row === 'string').slice(0, 200) : [],
+            };
+            const updatedUser = getSelectiveUserUpdate(user, 'SAVE_EXCHANGE_STATE');
+            db.updateUser(user).catch(err => {
+                console.error(`[UserAction] Failed to save user ${user.id} after SAVE_EXCHANGE_STATE:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['exchangeState']);
+            return { clientResponse: { updatedUser } };
+        }
         case 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST': {
             const { stageId } = (payload || {}) as { stageId?: string };
             if (!stageId || typeof stageId !== 'string') {

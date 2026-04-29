@@ -10,6 +10,7 @@ const InventoryModal = lazy(() => import('./InventoryModal.js'));
 const MailboxModal = lazy(() => import('./MailboxModal.js'));
 const QuestsModal = lazy(() => import('./QuestsModal.js'));
 const ShopModal = lazy(() => import('./ShopModal.js'));
+const ExchangeModal = lazy(() => import('./ExchangeModal.js'));
 const ActionPointModal = lazy(() => import('./ActionPointModal.js'));
 const UserProfileModal = lazy(() => import('./UserProfileModal.js'));
 const EncyclopediaModal = lazy(() => import('./modals/EncyclopediaModal.js'));
@@ -79,6 +80,7 @@ const AppModalLayer: React.FC = () => {
         if (modals.rewardSummary) ids.push('rewardSummary');
         if (modals.isClaimAllSummaryOpen) ids.push('claimAllSummary');
         if (modals.isShopOpen) ids.push('shop');
+        if (modals.isExchangeOpen) ids.push('exchange');
         if (modals.isActionPointModalOpen) ids.push('actionPoint');
         if (modals.viewingUser) ids.push('viewingUser');
         if (modals.isInfoModalOpen) ids.push('infoModal');
@@ -157,6 +159,11 @@ const AppModalLayer: React.FC = () => {
             {modals.isShopOpen && (
                 <Suspense fallback={ModalLoadingFallback()}>
                     <ShopModal currentUser={currentUserWithStatus} onClose={handlers.closeShop} onAction={handlers.handleAction} isTopmost={topmostModalId === 'shop'} initialTab={modals.shopInitialTab} />
+                </Suspense>
+            )}
+            {modals.isExchangeOpen && (
+                <Suspense fallback={ModalLoadingFallback()}>
+                    <ExchangeModal currentUser={currentUserWithStatus} onClose={handlers.closeExchange} onAction={handlers.handleAction} isTopmost={topmostModalId === 'exchange'} />
                 </Suspense>
             )}
             {modals.isActionPointModalOpen && (

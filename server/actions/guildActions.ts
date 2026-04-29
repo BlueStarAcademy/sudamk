@@ -2389,6 +2389,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const claimedRewards = await db.getKV<Record<string, string[]>>('guildWarClaimedRewards') || {};
             let guildWarLatestCompletedRewardClaimed = false;
             let guildWarRewardClaimable = false;
+            const claimWindowActiveWar = activeWars.find(
+                (w: any) =>
+                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                    String((w as { status?: unknown }).status ?? '').toLowerCase() === 'active'
+            );
+            const claimWindowEndsAt = claimWindowActiveWar ? (parseEpochMs((claimWindowActiveWar as any).endTime) ?? null) : null;
             if (latestCompletedWar?.id) {
                 guildWarLatestCompletedRewardClaimed = !!claimedRewards[latestCompletedWar.id]?.includes(effectiveUserId);
                 const latestCompletedEndMs = parseEpochMs((latestCompletedWar as any).endTime) ?? 0;
@@ -2396,7 +2402,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     (latestCompletedWar as any).rewardAvailableAt ??
                     latestCompletedEndMs + 60 * 60 * 1000;
                 guildWarRewardClaimable =
-                    !guildWarLatestCompletedRewardClaimed && now >= rewardAvailableAt;
+                    !guildWarLatestCompletedRewardClaimed &&
+                    now >= rewardAvailableAt &&
+                    (claimWindowEndsAt == null || now <= claimWindowEndsAt);
             }
             
             // 누적 전쟁 기록 및 마지막 상대 기록 계산
@@ -3638,15 +3646,26 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         w.result?.winnerId
                 )
                 .sort((a: any, b: any) => (b.endTime ?? 0) - (a.endTime ?? 0));
+            const claimWindowActiveWar = activeWars.find(
+                (w: any) =>
+                    (w.guild1Id === user.guildId || w.guild2Id === user.guildId) &&
+                    String((w as { status?: unknown }).status ?? '').toLowerCase() === 'active'
+            );
+            const claimWindowEndsAt = claimWindowActiveWar ? (parseEpochMs((claimWindowActiveWar as any).endTime) ?? null) : null;
 
             let myWar: any = null;
             let blockedByCooldown = false;
+            let blockedByClaimWindow = false;
             for (const w of myCompletedWars) {
                 if (claimedRewards[w.id]?.includes(effectiveUserId)) continue;
                 const rewardAvailableAt =
                     (w as any).rewardAvailableAt ?? (w.endTime ?? 0) + 60 * 60 * 1000;
                 if (now < rewardAvailableAt) {
                     blockedByCooldown = true;
+                    continue;
+                }
+                if (claimWindowEndsAt != null && now > claimWindowEndsAt) {
+                    blockedByClaimWindow = true;
                     continue;
                 }
                 myWar = w;
@@ -3659,6 +3678,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
                 if (blockedByCooldown) {
                     return { error: '전쟁 종료 1시간 후(목요일·월요일 0시)부터 보상을 수령할 수 있습니다.' };
+                }
+                if (blockedByClaimWindow) {
+                    return { error: '직전 길드전 보상은 이번 길드전 종료 시점까지만 수령할 수 있습니다.' };
                 }
                 return { error: '이미 보상을 받았습니다.' };
             }

@@ -130,12 +130,13 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
     { name: '스캔', description: '도전의 탑에서 사용할 수 있는 스캔 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/scan.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     { name: '배치변경', description: '도전의 탑에서 사용할 수 있는 배치변경 아이템입니다.', type: 'consumable', slot: null, image: '/images/button/reflesh.png', grade: ItemGrade.Normal, usable: true, sellable: true },
     // 아이콘: 번개 — 헤더「행동력 충전」버튼 전용은 applus(resourceIcons.actionPlus), 아이템·우편·가방은 lightning
-    { name: '행동력 회복제(+10)', description: '행동력을 회복시키는 기묘한 번개', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Normal, usable: true, sellable: false },
-    { name: '행동력 회복제(+20)', description: '행동력을 회복시키는 기묘한 번개', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Uncommon, usable: true, sellable: false },
-    { name: '행동력 회복제(+30)', description: '행동력을 회복시키는 기묘한 번개', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Rare, usable: true, sellable: false },
+    { name: '행동력 회복제(+10)', description: '뭔가 하고싶은 의욕이 생긴다.', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Normal, usable: true, sellable: false },
+    { name: '행동력 회복제(+20)', description: '뭔가 해야 할 것 같다.', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Uncommon, usable: true, sellable: false },
+    { name: '행동력 회복제(+30)', description: '바로 경기를 하러 가자.', type: 'consumable', slot: null, image: '/images/icon/lightning.png', grade: ItemGrade.Rare, usable: true, sellable: false },
 ];
 
 export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = {
+    '귀속 해제권': { name: '귀속 해제권', description: '귀속된 장비를 거래가능 상태로 되돌릴 수 있는 해제권.', type: 'material', slot: null, image: '/images/use/change2.png', grade: ItemGrade.Rare },
     '옵션 종류 변경권': { name: '옵션 종류 변경권', description: '장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change1.png', grade: ItemGrade.Normal },
     '옵션 수치 변경권': { name: '옵션 수치 변경권', description: '장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change2.png', grade: ItemGrade.Normal },
     '스페셜 옵션 변경권': { name: '스페셜 옵션 변경권', description: '신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal },
