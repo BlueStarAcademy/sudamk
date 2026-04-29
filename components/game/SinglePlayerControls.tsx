@@ -216,16 +216,29 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({ session, on
     const myMissilesLeft = Number.isFinite(Number(session.missiles_p1))
         ? Math.max(0, Number(session.missiles_p1))
         : 0;
-    const missileDisabled = isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing' || myMissilesLeft <= 0;
+    
+    const lastMove = session.moveHistory?.length ? session.moveHistory[session.moveHistory.length - 1] : null;
+    const lastMoveWasMine = !!lastMove && lastMove.player === Player.Black;
+    // 서버는 싱글플레이에서 "내 착수 직후(턴은 AI로 넘어갔지만 AI 아직 미착수)"에도 미사일 허용한다.
+    const allowMissileAfterMyMove = session.isSinglePlayer && gameStatus === 'playing' && lastMoveWasMine && !isMyTurn;
+    const canUseMissile = isMyTurn || allowMissileAfterMyMove;
+    
+    const missileDisabled =
+        isMoveInFlight ||
+        isBoardLocked ||
+        hasPendingRevealResolution ||
+        !canUseMissile ||
+        gameStatus !== 'playing' ||
+        myMissilesLeft <= 0;
     
     const handleUseMissile = React.useCallback(() => {
-        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn || gameStatus !== 'playing') return;
+        if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canUseMissile || gameStatus !== 'playing') return;
         const clientSync = buildPveItemActionClientSync(session);
         onAction({
             type: 'START_MISSILE_SELECTION',
             payload: { gameId: session.id, ...(clientSync ? { clientSync } : {}) },
         });
-    }, [gameStatus, session, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, isMyTurn]);
+    }, [gameStatus, session, onAction, isMoveInFlight, isBoardLocked, hasPendingRevealResolution, canUseMissile]);
     
     const handleRefresh = React.useCallback(() => {
         if (!placementRefreshAllowed) {

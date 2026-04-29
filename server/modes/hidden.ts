@@ -320,7 +320,8 @@ export const updateHiddenState = async (game: types.LiveGameSession, now: number
                     }
                 }
                 
-                game.currentPlayer = nextPlayer;
+                const preserveTurnAfterOpponentHiddenReveal = !!(cap as any).preserveTurnAfterOpponentHiddenReveal;
+                game.currentPlayer = preserveTurnAfterOpponentHiddenReveal ? playerWhoMoved : nextPlayer;
 
                 if (shouldEnforceTimeControl(game) && game.settings.timeLimit > 0) {
                     const nextTimeKey = game.currentPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';

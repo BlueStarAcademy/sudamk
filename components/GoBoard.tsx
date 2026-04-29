@@ -1262,21 +1262,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         setHoverPos(boardPos);
     
         if (gameStatus === 'missile_selecting' && !isBoardDisabled) {
-            // 최신 boardState를 기준으로 확인 (새로 놓은 돌도 포함)
+            // 미사일은 "이동 자체"를 수행하므로 인접 liberty 조건에 묶지 않는다.
+            // (서버는 미사일 경로 규칙으로 검증하고, hidden/표시 미스매치 케이스에서도 UX를 맞추기 위함)
             const actualPlayerAtPos = boardState?.[boardPos.y]?.[boardPos.x] ?? displayBoardState[boardPos.y]?.[boardPos.x];
             if (actualPlayerAtPos === myPlayerEnum) {
-                const neighbors = getNeighbors(boardPos);
-                const hasLiberty = neighbors.some(n => {
-                    const neighborPlayer = boardState?.[n.y]?.[n.x] ?? displayBoardState[n.y]?.[n.x];
-                    return neighborPlayer === Player.None;
-                });
-                if (hasLiberty) {
-                    setSelectedMissileStone(boardPos);
-                    setIsDraggingMissile(true);
-                    setDragStartPoint({ x: e.clientX, y: e.clientY });
-                    dragStartBoardPoint.current = boardPos;
-                    (e.target as SVGSVGElement).setPointerCapture(e.pointerId);
-                }
+                setSelectedMissileStone(boardPos);
+                setIsDraggingMissile(true);
+                setDragStartPoint({ x: e.clientX, y: e.clientY });
+                dragStartBoardPoint.current = boardPos;
+                (e.target as SVGSVGElement).setPointerCapture(e.pointerId);
             }
         }
     };
@@ -1848,9 +1842,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     const isHiddenMoveForRender =
                         !!isHiddenMove ||
                         (!!atAiInitialHiddenStone &&
-                            moveIndex === -1 &&
                             actualPlayer !== myPlayerEnum &&
-                            currentPlayer !== myPlayerEnum);
+                            // AI 히든 아이템 좌표는 `moveHistory/hiddenMoves` 동기화가 어긋나도
+                            // 기본 렌더 규칙(상대 비공개)로 즉시 히든처럼 보이도록 처리한다.
+                            true);
                     // 방금 둔 돌 보호 로직은 "실제 히든 착수"에는 적용하지 않는다.
                     // 그래야 히든 아이템 착수 순간부터 즉시 히든 문양으로 보인다.
                     const effectiveHiddenMoveForRender =

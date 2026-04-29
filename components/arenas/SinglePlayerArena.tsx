@@ -440,7 +440,8 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                         !isMyTurn ||
                         isSpectator ||
                         isPaused ||
-                        isBoardLocked ||
+                        // 싱글플레이 미사일 선택 구간에서는 AI 턴으로 currentPlayer가 넘어가도 UX상 입력을 허용해야 한다.
+                        (isBoardLocked && gameStatus !== 'missile_selecting') ||
                         isBoardDisabledDueToTurnLimit ||
                         isMissileAnimating
                     }

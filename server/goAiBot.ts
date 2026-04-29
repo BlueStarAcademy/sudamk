@@ -304,13 +304,39 @@ export interface GoAiBotProfile {
     knowsEndgame: boolean;
 }
 
-const getStrategicAiHiddenWindowMaxTurn = (game: LiveGameSession): number => {
-    const scoringTurnLimit = Number((game.settings as any)?.scoringTurnLimit ?? 0);
-    if (Number.isFinite(scoringTurnLimit) && scoringTurnLimit > 0) {
-        // 40 -> 15, 60 -> 25, 80 -> 35. Other turn limits scale with the same ratio.
-        return Math.max(1, Math.round(scoringTurnLimit / 2) - 5);
+/**
+ * 전략 AI 히든 아이템 연출에서 "사용 타이밍"을 고르는 규칙.
+ * 요구사항: "전체 수순(유저+AI) 기준"으로,
+ * - 계가까지 수순 <= 60: 1회, 전체 수순 번호 1~30 사이에서 랜덤
+ * - 계가까지 수순 >= 70: 2회, 전체 수순 번호 1~30 사이 1회 + 31~50 사이 1회 추가
+ *
+ * 내부 제어는 AI 자신의 턴 index로 되므로,
+ * 여기서는 (전체 수순 번호 범위)만 계획하고 planStrategicAiHiddenTurns에서
+ * "전체 수순 번호 -> AI 턴 index"로 변환한다.
+ */
+const getStrategicAiHiddenScheduleByTotalMoveCount = (
+    game: LiveGameSession
+): { plannedUses: number; firstGlobalMin: number; firstGlobalMax: number; secondGlobalMin?: number; secondGlobalMax?: number } => {
+    const scoringLimit = Number(
+        (game.settings as any)?.autoScoringTurns ?? (game.settings as any)?.scoringTurnLimit ?? 0
+    );
+
+    // 안전 폴백: 최소 1회만 1~30 중 랜덤
+    if (!Number.isFinite(scoringLimit) || scoringLimit <= 0) {
+        return { plannedUses: 1, firstGlobalMin: 1, firstGlobalMax: 30 };
     }
-    return 10;
+
+    if (scoringLimit >= 70) {
+        const firstGlobalMax = Math.min(30, scoringLimit);
+        const secondGlobalMin = 31;
+        const secondGlobalMax = Math.min(50, scoringLimit);
+        const plannedUses = secondGlobalMax >= secondGlobalMin ? 2 : 1;
+        return { plannedUses, firstGlobalMin: 1, firstGlobalMax, secondGlobalMin, secondGlobalMax };
+    }
+
+    // <= 60 또는 60~69: 1회만
+    const firstGlobalMax = Math.min(30, scoringLimit);
+    return { plannedUses: 1, firstGlobalMin: 1, firstGlobalMax };
 };
 
 const normalizeAiHiddenTurns = (value: unknown): number[] => {
@@ -323,29 +349,84 @@ const normalizeAiHiddenTurns = (value: unknown): number[] => {
 
 const planStrategicAiHiddenTurns = (game: LiveGameSession, hiddenCount: number): number[] => {
     const existingTurns = normalizeAiHiddenTurns((game as any).aiHiddenItemTurns);
-    const plannedUses = Math.max(existingTurns.length, hiddenCount >= 2 ? 2 : (hiddenCount > 0 ? 1 : 0));
-    if (plannedUses <= 0) return [];
+    const aiPlayerEnum = game.currentPlayer; // makeGoAiBotMove 호출 시점은 항상 AI 턴
 
-    const windowMaxTurn = getStrategicAiHiddenWindowMaxTurn(game);
-    const legacyTurn = typeof game.aiHiddenItemTurn === 'number' && game.aiHiddenItemTurn > 0
-        ? [game.aiHiddenItemTurn]
-        : [];
-    const mergedTurns = Array.from(new Set([...existingTurns, ...legacyTurn]))
-        .filter(turn => turn <= windowMaxTurn)
-        .sort((a, b) => a - b);
+    const schedule = getStrategicAiHiddenScheduleByTotalMoveCount(game);
+    const desiredUses = Math.min(schedule.plannedUses, hiddenCount >= 2 ? 2 : hiddenCount > 0 ? 1 : 0);
+    if (desiredUses <= 0) return [];
 
-    while (mergedTurns.length < plannedUses) {
-        const randomTurn = 1 + Math.floor(Math.random() * windowMaxTurn);
-        if (!mergedTurns.includes(randomTurn)) {
-            mergedTurns.push(randomTurn);
-            mergedTurns.sort((a, b) => a - b);
+    // 전체 수순 번호 m(1부터)에서 AI의 턴 index로 변환.
+    // - Black: 1,3,5...(홀수)에서 둠 => aiTurnIndex=(m+1)/2
+    // - White: 2,4,6...(짝수)에서 둠 => aiTurnIndex=m/2
+    const aiPlaysOdd = aiPlayerEnum === types.Player.Black;
+    const globalMoveToAiTurnIndex = (globalMoveIndex: number) =>
+        aiPlaysOdd ? (globalMoveIndex + 1) / 2 : globalMoveIndex / 2;
+
+    const matchesAiParity = (globalMoveIndex: number) =>
+        aiPlaysOdd ? globalMoveIndex % 2 === 1 : globalMoveIndex % 2 === 0;
+
+    const firstGlobalCandidates: number[] = [];
+    for (let m = schedule.firstGlobalMin; m <= schedule.firstGlobalMax; m++) {
+        if (Number.isInteger(m) && m > 0 && matchesAiParity(m)) firstGlobalCandidates.push(m);
+    }
+
+    const secondGlobalCandidates: number[] = [];
+    if (schedule.secondGlobalMin != null && schedule.secondGlobalMax != null) {
+        for (let m = schedule.secondGlobalMin; m <= schedule.secondGlobalMax; m++) {
+            if (Number.isInteger(m) && m > 0 && matchesAiParity(m)) secondGlobalCandidates.push(m);
         }
     }
 
-    const finalTurns = mergedTurns.slice(0, plannedUses).sort((a, b) => a - b);
-    (game as any).aiHiddenItemTurns = finalTurns;
-    game.aiHiddenItemTurn = finalTurns[0];
-    return finalTurns;
+    const candidateAiFirstTurns = firstGlobalCandidates.map(globalMoveToAiTurnIndex);
+    const candidateAiSecondTurns = secondGlobalCandidates.map(globalMoveToAiTurnIndex);
+
+    const existingWithLegacy = [...existingTurns];
+    const legacyTurn = typeof game.aiHiddenItemTurn === 'number' && game.aiHiddenItemTurn > 0 ? game.aiHiddenItemTurn : undefined;
+    if (legacyTurn != null) existingWithLegacy.push(legacyTurn);
+
+    const uniqueExisting = Array.from(new Set(existingWithLegacy)).sort((a, b) => a - b);
+    const uniqueAiFirst = Array.from(new Set(candidateAiFirstTurns)).sort((a, b) => a - b);
+    const uniqueAiSecond = Array.from(new Set(candidateAiSecondTurns)).sort((a, b) => a - b);
+
+    const pickExistingOrRandom = (existingCandidates: number[], randomCandidates: number[]) => {
+        const preserved = uniqueExisting.filter((t) => existingCandidates.includes(t));
+        if (preserved.length > 0) return preserved[0]!;
+        if (randomCandidates.length === 0) return undefined;
+        return randomCandidates[Math.floor(Math.random() * randomCandidates.length)]!;
+    };
+
+    const out: number[] = [];
+    if (desiredUses >= 1) {
+        const chosenFirst = pickExistingOrRandom(candidateAiFirstTurns, uniqueAiFirst);
+        if (chosenFirst != null) out.push(chosenFirst);
+    }
+
+    if (desiredUses >= 2) {
+        // second는 반드시 first보다 커야 함(여기서는 범위가 31~50이라 자연스럽게 성립하지만 안전하게 강제)
+        const secondCandidatesFiltered = uniqueAiSecond.filter((t) => out.length === 0 || t > out[0]);
+        const chosenSecond = pickExistingOrRandom(secondCandidatesFiltered, secondCandidatesFiltered);
+        if (chosenSecond != null && (out.length === 0 || chosenSecond > out[0])) out.push(chosenSecond);
+    }
+
+    out.sort((a, b) => a - b);
+    out.splice(desiredUses);
+
+    if (out.length < desiredUses) {
+        // 후보가 비거나(짧은 게임) 기존 턴이 범위를 벗어난 경우에도 최소 desiredUses를 맞춘다.
+        if (out.length === 0 && uniqueAiFirst.length > 0) {
+            out.push(uniqueAiFirst[Math.floor(Math.random() * uniqueAiFirst.length)]!);
+        }
+        if (out.length === 1 && desiredUses === 2 && uniqueAiSecond.length > 0) {
+            const secondFiltered = uniqueAiSecond.filter((t) => t > out[0]);
+            if (secondFiltered.length > 0) {
+                out.push(secondFiltered[Math.floor(Math.random() * secondFiltered.length)]!);
+            }
+        }
+    }
+
+    (game as any).aiHiddenItemTurns = out;
+    game.aiHiddenItemTurn = out[0];
+    return out;
 };
 
 const getCurrentAiTurnIndex = (game: LiveGameSession, aiPlayerEnum: Player): number => {

@@ -1049,6 +1049,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (simResult?.isValid && !adventureHiddenRevealOnly) {
                     const extraCaptures = simResult.capturedStones || [];
                     const preserveDiscovererTurnPve = shouldPreserveDiscovererTurnAfterOpponentHiddenReveal(game);
+                    // PVP/전략 대국에서는 캡처 처리(pendingCapture)는 유지하되, 턴만 발견자(myPlayerEnum)로 되돌려 UX를 고정한다.
+                    // (PVE류에서는 preserveDiscovererTurn로 보드/상태 스냅샷을 되돌리는 기존 로직을 그대로 사용)
+                    const preserveTurnAfterOpponentHiddenReveal = !preserveDiscovererTurnPve;
                     const boardStateBeforeReveal = preserveDiscovererTurnPve
                         ? (game.boardState || []).map((row: types.Player[]) => [...row])
                         : undefined;
@@ -1068,6 +1071,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                   koInfoBeforeReveal,
                                   passCountBeforeReveal,
                               }
+                            : {}),
+                        ...(preserveTurnAfterOpponentHiddenReveal
+                            ? { preserveTurnAfterOpponentHiddenReveal: true }
                             : {}),
                     } as any;
 

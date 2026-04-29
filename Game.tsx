@@ -1015,7 +1015,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
                 return false;
             }
-            case 'playing': case 'hidden_placing': case 'missile_selecting': 
+            case 'missile_selecting': {
+                if (myPlayerEnum === Player.None) return false;
+                if (myPlayerEnum === currentPlayer) return true;
+                // 싱글플레이: 내 착수 직후(turn은 AI로 넘어갔지만) START_MISSILE_SELECTION 허용 구간이 있으므로,
+                // 미사일 선택/발사도 동일하게 허용한다.
+                if (session.isSinglePlayer && !isTower && session.moveHistory?.length) {
+                    const last = session.moveHistory[session.moveHistory.length - 1];
+                    if (last && last.player === myPlayerEnum) return true;
+                }
+                return false;
+            }
+            case 'playing': case 'hidden_placing': 
             case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing': case 'curling_tiebreaker_playing':
             case 'dice_rolling':
             case 'dice_rolling_animating':
