@@ -18,7 +18,7 @@ import {
     MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH,
 } from '../shared/constants/mobileEquipmentDetailModal.js';
 import { gradeBackgrounds, gradeStyles } from '../constants/items.js';
-import { getApiUrl } from '../constants/apiConfig.js';
+import { getApiUrl } from '../utils/apiConfig.js';
 
 type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
 type SaleCurrency = 'gold' | 'diamonds';
