@@ -1,7 +1,7 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { LiveGameSession, ServerAction, SinglePlayerStageInfo, UserWithStatus } from '../types.js';
-import { SINGLE_PLAYER_STAGES, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
+import { getSinglePlayerStages, setSinglePlayerStagesFromServer, SINGLE_PLAYER_STAGES } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
@@ -507,13 +507,13 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 onClose={() => setEditorOpen(false)}
                 onSave={async (nextStage) => {
                     if (!onAction) return;
-                    const nextStages = SINGLE_PLAYER_STAGES.map((row) => (row.id === nextStage.id ? nextStage : row));
+                    const nextStages = getSinglePlayerStages().map((row) => (row.id === nextStage.id ? nextStage : row));
                     const result = (await onAction({
                         type: 'ADMIN_SET_SINGLE_PLAYER_STAGES',
                         payload: { stages: nextStages },
                     } as ServerAction)) as any;
                     if (result?.error) throw new Error(result.error);
-                    setSinglePlayerStagesFromServer(nextStages);
+                    setSinglePlayerStagesFromServer(result?.clientResponse?.singlePlayerStages ?? nextStages);
                     if (session.isSinglePlayer && session.gameStatus === 'pending') {
                         try {
                             await onAction({

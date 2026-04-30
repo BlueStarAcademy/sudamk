@@ -27,7 +27,7 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
         game.hidden_stones_used_p2 = 0;
         // 스테이지 설정 우선순위:
         // 1) 명시 턴 목록(singlePlayerAiHiddenItemTurns)
-        // 2) N턴 이내 랜덤 1회(singlePlayerAiHiddenItemUseWithinTurn)
+        // 2) N턴 이내 랜덤 N회(singlePlayerAiHiddenItemUseWithinTurn + singlePlayerAiHiddenItemUseCount)
         // 3) 기존 기본값(1~10 랜덤)
         if (!disableAiHiddenItemsByStageSetting) {
             const configuredTurnsRaw = (game.settings as any)?.singlePlayerAiHiddenItemTurns;
@@ -40,10 +40,17 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
                 : [];
             const withinTurnRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn ?? 0);
             const withinTurn = Number.isFinite(withinTurnRaw) ? Math.max(1, Math.min(99, Math.floor(withinTurnRaw))) : 10;
+            const configuredUseCountRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseCount ?? 0);
+            const configuredUseCount = Number.isFinite(configuredUseCountRaw)
+                ? Math.max(1, Math.min(12, Math.floor(configuredUseCountRaw)))
+                : 1;
+            const plannedRandomUseCount = (game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn != null
+                ? configuredUseCount
+                : 0;
             const minAiHiddenByConfig =
                 configuredTurns.length > 0
                     ? configuredTurns.length
-                    : ((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn != null ? 1 : 0);
+                    : plannedRandomUseCount;
             const currentAiHidden = Math.max(0, Number(game.hidden_stones_p2 ?? 0));
             if (currentAiHidden < minAiHiddenByConfig) {
                 game.hidden_stones_p2 = minAiHiddenByConfig;
@@ -58,8 +65,16 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
                 game.aiHiddenItemTurns = configuredTurns;
                 game.aiHiddenItemTurn = configuredTurns[0];
             } else {
-                game.aiHiddenItemTurn = 1 + Math.floor(Math.random() * withinTurn); // 1=1번째 AI턴, ..., withinTurn=withinTurn번째 AI턴
-                game.aiHiddenItemTurns = [game.aiHiddenItemTurn];
+                const candidates = Array.from({ length: withinTurn }, (_, i) => i + 1);
+                for (let i = candidates.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+                }
+                const randomTurns = candidates
+                    .slice(0, Math.min(configuredUseCount, candidates.length))
+                    .sort((a, b) => a - b);
+                game.aiHiddenItemTurn = randomTurns[0]; // 1=1번째 AI턴, ..., withinTurn=withinTurn번째 AI턴
+                game.aiHiddenItemTurns = randomTurns;
             }
         }
     }

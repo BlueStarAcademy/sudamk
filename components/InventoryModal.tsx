@@ -147,15 +147,23 @@ const EquipmentSlotDisplay: React.FC<{
             numberColor = "text-white";
         }
 
-        /** PC 장비 상세와 동일: 우측 상단 고정, 셀 크기에 비례 */
-        const starSize = Math.max(8, Math.round(11 * scaleFactor));
-        const fontSize = Math.max(8, Math.round(11 * scaleFactor));
+        /** `EquipmentDetailPanel`과 동일: 테두리 없음, bg-black/45. 모바일·좁은 슬롯은 comfortableTypography와 동일 크기 */
+        const badgeShell =
+            'absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]';
+        if (compactIconLayout) {
+            return (
+                <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
+                    <img src={starImage} alt="" className="h-3.5 w-3.5" />
+                    <span className={`text-[13px] font-bold leading-none ${numberColor}`}>{stars}</span>
+                </div>
+            );
+        }
+
+        const starSize = Math.max(12, Math.round(12 * scaleFactor));
+        const fontSize = Math.max(12, Math.round(12 * scaleFactor));
 
         return (
-            <div
-                className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md border border-white/10 bg-black/55 px-1 py-0.5 backdrop-blur-[2px]"
-                style={{ textShadow: '1px 1px 2px black' }}
-            >
+            <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
                 <img src={starImage} alt="" style={{ width: `${starSize}px`, height: `${starSize}px` }} />
                 <span className={`font-bold leading-none ${numberColor}`} style={{ fontSize: `${fontSize}px` }}>
                     {stars}
@@ -449,14 +457,23 @@ const LocalItemDetailDisplay: React.FC<{
             numberColor = "text-white";
         }
 
-        const starSize = Math.max(8, Math.round(11 * scaleFactor));
-        const fontSize = Math.max(8, Math.round(11 * scaleFactor));
+        const badgeShell =
+            'absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]';
+        /** 아이콘 슬롯이 작을 때 `EquipmentDetailPanel` comfortableTypography와 동일 */
+        if (imgBox <= 96) {
+            return (
+                <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
+                    <img src={starImage} alt="" className="h-3.5 w-3.5" />
+                    <span className={`text-[13px] font-bold leading-none ${numberColor}`}>{stars}</span>
+                </div>
+            );
+        }
+
+        const starSize = Math.max(12, Math.round(12 * scaleFactor));
+        const fontSize = Math.max(12, Math.round(12 * scaleFactor));
 
         return (
-            <div
-                className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md border border-white/10 bg-black/55 px-1 py-0.5 backdrop-blur-[2px]"
-                style={{ textShadow: '1px 1px 2px black' }}
-            >
+            <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
                 <img src={starImage} alt="" style={{ width: `${starSize}px`, height: `${starSize}px` }} />
                 <span className={`font-bold leading-none ${numberColor}`} style={{ fontSize: `${fontSize}px` }}>
                     {stars}
@@ -2276,7 +2293,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                         <h3
                             className="font-bold text-on-panel"
                             style={{
-                                fontSize: `${Math.max(11, Math.round(15 * mobileEquippedLayoutScale * mobileTextScale))}px`,
+                                fontSize: `${Math.max(14, Math.round(17 * mobileEquippedLayoutScale * mobileTextScale))}px`,
                             }}
                         >
                             장착 슬롯
@@ -2318,12 +2335,12 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     const percentBonus = Number(bonusInfo.percent) || 0;
                                     const finalValue = computeCoreStatFinalFromBonuses(baseValue, flatBonus, percentBonus);
                                     const bonus = finalValue - baseValue;
-                                    const eqStatFs = Math.max(9, Math.round(11 * mobileEquippedLayoutScale * mobileTextScale));
-                                    const eqBonusFs = Math.max(8, Math.round(9.5 * mobileEquippedLayoutScale * mobileTextScale));
+                                    const eqStatFs = Math.max(13, Math.round(14.5 * mobileEquippedLayoutScale * mobileTextScale));
+                                    const eqBonusFs = Math.max(11, Math.round(12.5 * mobileEquippedLayoutScale * mobileTextScale));
                                     return (
                                         <div
                                             key={stat}
-                                            className="flex items-center justify-between rounded-md bg-tertiary/40 px-1 py-0.5"
+                                            className="flex items-center justify-between rounded-md bg-tertiary/40 px-1.5 py-1"
                                             style={{ fontSize: `${eqStatFs}px` }}
                                         >
                                             <span className="whitespace-nowrap font-semibold text-secondary">{stat}</span>
@@ -2343,8 +2360,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 <select
                                     value={selectedPreset}
                                     onChange={(e) => handlePresetChange(Number(e.target.value))}
-                                    className="min-w-0 flex-1 rounded-md border border-color bg-secondary py-0.5 pl-1 pr-0.5 focus:border-accent focus:ring-accent"
-                                    style={{ fontSize: `${Math.max(9, Math.round(10.5 * mobileEquippedLayoutScale * mobileTextScale))}px` }}
+                                    className="min-w-0 flex-1 rounded-md border border-color bg-secondary py-1.5 pl-2 pr-1 focus:border-accent focus:ring-accent"
+                                    style={{ fontSize: `${Math.max(13, Math.round(14 * mobileEquippedLayoutScale * mobileTextScale))}px` }}
                                 >
                                     {presets.map((preset, index) => (
                                         <option key={index} value={index}>
@@ -2352,7 +2369,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                         </option>
                                     ))}
                                 </select>
-                                <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-0.5 !px-1.5 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(9, Math.round(10.5 * mobileEquippedLayoutScale * mobileTextScale))}px` }}>
+                                <Button onClick={handleOpenRenameModal} colorScheme="blue" className={`!shrink-0 !py-1.5 !px-2 ${viewerActionButtonClass.info}`} style={{ fontSize: `${Math.max(12, Math.round(13.5 * mobileEquippedLayoutScale * mobileTextScale))}px` }}>
                                     저장
                                 </Button>
                             </div>
@@ -2587,6 +2604,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                 slot={selectedItem.slot}
                                                                 item={correspondingEquippedItem ?? undefined}
                                                                 scaleFactor={Math.max(0.22, Math.min(0.38, MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 0.82))}
+                                                                compactIconLayout
                                                             />
                                                         </div>
                                                         <div className="mt-0.5 text-center leading-tight">
@@ -2607,6 +2625,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                                                 slot={selectedItem.slot}
                                                                 item={selectedItem}
                                                                 scaleFactor={Math.max(0.22, Math.min(0.38, MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE * 0.82))}
+                                                                compactIconLayout
                                                             />
                                                         </div>
                                                         <div className="mt-0.5 text-center leading-tight">
@@ -3334,14 +3353,22 @@ const InventoryItemCard: React.FC<{
             numberColor = "text-white";
         }
 
-        const starSize = Math.max(7, Math.round((compactIconLayout ? 10 : 11) * scaleFactor));
-        const fontSize = Math.max(7, Math.round((compactIconLayout ? 10 : 11) * scaleFactor));
+        const badgeShell =
+            'absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]';
+        if (compactIconLayout) {
+            return (
+                <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
+                    <img src={starImage} alt="" className="h-3.5 w-3.5" />
+                    <span className={`text-[13px] font-bold leading-none ${numberColor}`}>{stars}</span>
+                </div>
+            );
+        }
+
+        const starSize = Math.max(12, Math.round(12 * scaleFactor));
+        const fontSize = Math.max(12, Math.round(12 * scaleFactor));
 
         return (
-            <div
-                className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md border border-white/10 bg-black/55 px-1 py-0.5 backdrop-blur-[2px]"
-                style={{ textShadow: '1px 1px 2px black' }}
-            >
+            <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
                 <img src={starImage} alt="" style={{ width: `${starSize}px`, height: `${starSize}px` }} />
                 <span className={`font-bold leading-none ${numberColor}`} style={{ fontSize: `${fontSize}px` }}>
                     {stars}

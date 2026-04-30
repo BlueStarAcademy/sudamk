@@ -223,6 +223,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { 
     currentUserWithStatus, onlineUsers, allUsers, liveGames, 
     waitingRoomChats, negotiations, handlers, arenaEntranceAvailability,
+    rankedMatchingQueue, rankedMatchFound,
   } = useAppContext();
   const { isNativeMobile } = useNativeMobileShell();
 
@@ -288,46 +289,28 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mode, currentUserWithStatus?.id]);
 
-  // 랭킹전 매칭 상태 업데이트 (WebSocket 메시지 처리)
+  // 랭킹전 매칭 상태 업데이트는 useApp의 중앙 WebSocket 핸들러가 반영한 상태를 구독한다.
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      try {
-        const message = JSON.parse(event.data);
-        if (message.type === 'RANKED_MATCHING_UPDATE') {
-          const queue = message.payload?.queue as Record<string, Record<string, any>> | undefined;
-          if (queue) {
-            // mode를 직접 사용하여 lobbyType 계산
-            const lobbyType: 'strategic' | 'playful' = (mode === 'strategic' || (mode !== 'playful' && SPECIAL_GAME_MODES.some(m => m.mode === mode))) ? 'strategic' : 'playful';
-            const userEntry = currentUserWithStatus?.id ? queue[lobbyType]?.[currentUserWithStatus.id] : undefined;
-            if (userEntry) {
-              setIsRankedMatching(true);
-              setRankedMatchingStartTime(userEntry.startTime);
-            } else {
-              setIsRankedMatching(false);
-              setRankedMatchingStartTime(0);
-            }
-          }
-        } else if (message.type === 'RANKED_MATCH_FOUND') {
-          // 매칭 성공 시 VS 화면 표시
-          setIsRankedMatching(false);
-          setRankedMatchingStartTime(0);
-          setMatchFoundData({
-            gameId: message.payload.gameId,
-            player1: message.payload.player1,
-            player2: message.payload.player2,
-          });
-        }
-      } catch (e) {
-        // 무시
-      }
-    };
-
-    const ws = (window as any).ws;
-    if (ws) {
-      ws.addEventListener('message', handleMessage);
-      return () => ws.removeEventListener('message', handleMessage);
+    const lobbyType: 'strategic' | 'playful' = isStrategic ? 'strategic' : 'playful';
+    const userEntry = currentUserWithStatus?.id ? rankedMatchingQueue?.[lobbyType]?.[currentUserWithStatus.id] : undefined;
+    if (userEntry) {
+      setIsRankedMatching(true);
+      setRankedMatchingStartTime(userEntry.startTime);
+    } else {
+      setIsRankedMatching(false);
+      setRankedMatchingStartTime(0);
     }
-  }, [mode, currentUserWithStatus?.id]);
+  }, [rankedMatchingQueue, isStrategic, currentUserWithStatus?.id]);
+
+  useEffect(() => {
+    if (!rankedMatchFound) return;
+    if (rankedMatchFound.player1?.id !== currentUserWithStatus?.id && rankedMatchFound.player2?.id !== currentUserWithStatus?.id) {
+      return;
+    }
+    setIsRankedMatching(false);
+    setRankedMatchingStartTime(0);
+    setMatchFoundData(rankedMatchFound);
+  }, [rankedMatchFound, currentUserWithStatus?.id]);
 
   const onBackToLobby = () => {
     // 홈 이동은 항상 즉시 수행하고, 대기실 이탈 상태 정리는 비동기로 처리
@@ -855,9 +838,13 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           player1={matchFoundData.player1}
           player2={matchFoundData.player2}
           currentUserId={currentUserWithStatus.id}
-          onClose={() => setMatchFoundData(null)}
+          onClose={() => {
+            setMatchFoundData(null);
+            handlers.clearRankedMatchFound?.();
+          }}
           onEnterGame={(gameId) => {
             setMatchFoundData(null);
+            handlers.clearRankedMatchFound?.();
             window.location.hash = `#/game/${gameId}`;
           }}
         />

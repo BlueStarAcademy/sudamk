@@ -61,6 +61,87 @@ async function runGameActionSerial<T>(gameId: string, task: () => Promise<T>): P
     return nextTask;
 }
 
+const clonePointListFromPayload = (value: unknown): types.Point[] | undefined => {
+    if (!Array.isArray(value)) return undefined;
+    const out = value
+        .map((point) => {
+            if (!point || typeof point !== 'object') return null;
+            const p = point as Record<string, unknown>;
+            const x = Number(p.x);
+            const y = Number(p.y);
+            if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+            return { x: Math.floor(x), y: Math.floor(y) };
+        })
+        .filter((point): point is types.Point => point != null);
+    return out;
+};
+
+const applyPveFinalSnapshotFromPayload = (game: types.LiveGameSession, payload: Record<string, unknown>): void => {
+    const boardSize = Number(game.settings?.boardSize ?? game.boardState?.length ?? 0);
+    const boardState = payload.boardState;
+    if (
+        Number.isFinite(boardSize) &&
+        boardSize > 0 &&
+        Array.isArray(boardState) &&
+        boardState.length === boardSize &&
+        boardState.every((row) => Array.isArray(row) && row.length === boardSize)
+    ) {
+        game.boardState = boardState.map((row) =>
+            (row as unknown[]).map((cell) =>
+                cell === Player.Black || cell === Player.White ? cell : Player.None
+            )
+        );
+    }
+
+    if (Array.isArray(payload.moveHistory)) {
+        game.moveHistory = payload.moveHistory
+            .map((move) => {
+                if (!move || typeof move !== 'object') return null;
+                const m = move as Record<string, unknown>;
+                const player = m.player === Player.Black || m.player === Player.White ? m.player : null;
+                const x = Number(m.x);
+                const y = Number(m.y);
+                if (!player || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+                return { ...m, player, x: Math.floor(x), y: Math.floor(y) } as NonNullable<types.LiveGameSession['moveHistory']>[number];
+            })
+            .filter((move): move is NonNullable<types.LiveGameSession['moveHistory']>[number] => move != null);
+    }
+
+    for (const key of ['captures', 'baseStoneCaptures', 'hiddenStoneCaptures'] as const) {
+        const value = payload[key];
+        if (!value || typeof value !== 'object') continue;
+        const record = value as Record<string, unknown>;
+        (game as any)[key] = {
+            [Player.None]: Math.max(0, Number(record[Player.None]) || 0),
+            [Player.Black]: Math.max(0, Number(record[Player.Black]) || 0),
+            [Player.White]: Math.max(0, Number(record[Player.White]) || 0),
+        };
+    }
+
+    const blackPatternStones = clonePointListFromPayload(payload.blackPatternStones);
+    if (blackPatternStones) game.blackPatternStones = blackPatternStones;
+    const whitePatternStones = clonePointListFromPayload(payload.whitePatternStones);
+    if (whitePatternStones) game.whitePatternStones = whitePatternStones;
+    const permanentlyRevealedStones = clonePointListFromPayload(payload.permanentlyRevealedStones);
+    if (permanentlyRevealedStones) game.permanentlyRevealedStones = permanentlyRevealedStones;
+    const consumedPatternIntersections = clonePointListFromPayload(payload.consumedPatternIntersections);
+    if (consumedPatternIntersections) (game as any).consumedPatternIntersections = consumedPatternIntersections;
+    if (payload.hiddenMoves && typeof payload.hiddenMoves === 'object' && !Array.isArray(payload.hiddenMoves)) {
+        game.hiddenMoves = { ...(payload.hiddenMoves as Record<number, boolean>) };
+    }
+    if (typeof payload.totalTurns === 'number' && Number.isFinite(payload.totalTurns)) {
+        game.totalTurns = Math.max(0, Math.floor(payload.totalTurns));
+    }
+    if (payload.lastMove && typeof payload.lastMove === 'object') {
+        const lastMove = payload.lastMove as Record<string, unknown>;
+        const x = Number(lastMove.x);
+        const y = Number(lastMove.y);
+        if (Number.isFinite(x) && Number.isFinite(y)) {
+            game.lastMove = { x: Math.floor(x), y: Math.floor(y) };
+        }
+    }
+};
+
 // --- Helper Functions (moved from the old gameActions) ---
 const normalizeLegacyQuestTexts = (user: User): boolean => {
     if (!user.quests) return false;
@@ -1138,6 +1219,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 let freshGame = await getCachedGame(game.id);
                 if (!freshGame) freshGame = await db.getLiveGame(game.id);
                 if (!freshGame) return { error: 'Game not found.' };
+                applyPveFinalSnapshotFromPayload(freshGame, payload as Record<string, unknown>);
                 const { endGame } = await import('./summaryService.js');
                 await endGame(freshGame, winner, winReason || 'capture_limit');
                 const savedGame = await db.getLiveGame(game.id);

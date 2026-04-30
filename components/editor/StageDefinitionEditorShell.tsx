@@ -60,12 +60,7 @@ function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameM
     }
     if (!modes.includes(GameMode.Base)) delete (next as { baseStones?: number }).baseStones;
     if (!modes.includes(GameMode.Capture)) delete (next as { blackTurnLimit?: number }).blackTurnLimit;
-    const keepAutoScoringTurns =
-        modes.includes(GameMode.Speed) ||
-        modes.includes(GameMode.Missile) ||
-        modes.includes(GameMode.Hidden) ||
-        modes.includes(GameMode.Base) ||
-        !modes.includes(GameMode.Capture);
+    const keepAutoScoringTurns = !modes.includes(GameMode.Capture);
     if (!keepAutoScoringTurns) delete (next as { autoScoringTurns?: number }).autoScoringTurns;
     delete (next as { survivalTurns?: number }).survivalTurns;
     return next;
@@ -1090,6 +1085,22 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                                     disabled={draft.disableAiHiddenItemUsage === true}
                                                 />
                                             </label>
+                                            <label className="text-xs">AI 히든 사용 횟수
+                                                <input
+                                                    className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 px-2 py-1"
+                                                    type="number"
+                                                    min={0}
+                                                    max={12}
+                                                    value={Number((draft as { aiHiddenItemUseCount?: number }).aiHiddenItemUseCount ?? 0)}
+                                                    onChange={(e) =>
+                                                        setDraft((p) => ({
+                                                            ...p,
+                                                            aiHiddenItemUseCount: Number(e.target.value) || 0,
+                                                        }))
+                                                    }
+                                                    disabled={draft.disableAiHiddenItemUsage === true}
+                                                />
+                                            </label>
                                             <label className="col-span-2 flex items-center gap-2 rounded border border-zinc-800 bg-zinc-900/60 px-2 py-2 text-xs">
                                                 <input
                                                     type="checkbox"
@@ -1220,19 +1231,25 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                             setSaving(true);
                             try {
                                 setErrorMessage('');
+                                const cleanedDraft =
+                                    rulePreset === 'auto'
+                                        ? draft
+                                        : nextDraftAfterStrategicRulePresetChange(draft, rulePreset);
                                 const normalizedHiddenTurns = normalizeHiddenTurnsFromCsv(aiHiddenTurnsCsv);
-                                const normalizedHiddenPlacements = normalizeHiddenPlacementsFromCsv(aiHiddenPlacementsCsv, draft.boardSize);
+                                const normalizedHiddenPlacements = normalizeHiddenPlacementsFromCsv(aiHiddenPlacementsCsv, cleanedDraft.boardSize);
+                                const aiHiddenItemUseCount = Number((cleanedDraft as { aiHiddenItemUseCount?: number }).aiHiddenItemUseCount ?? 0);
                                 await onSave({
-                                    ...draft,
+                                    ...cleanedDraft,
                                     strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
                                     aiHiddenItemTurns: normalizedHiddenTurns.length > 0 ? normalizedHiddenTurns : undefined,
-                                    aiHiddenItemUseWithinTurn: Number(draft.aiHiddenItemUseWithinTurn ?? 0) > 0
-                                        ? Number(draft.aiHiddenItemUseWithinTurn)
+                                    aiHiddenItemUseWithinTurn: Number(cleanedDraft.aiHiddenItemUseWithinTurn ?? 0) > 0
+                                        ? Number(cleanedDraft.aiHiddenItemUseWithinTurn)
                                         : undefined,
+                                    aiHiddenItemUseCount: aiHiddenItemUseCount > 0 ? Math.min(12, Math.floor(aiHiddenItemUseCount)) : undefined,
                                     aiHiddenItemPlacements: normalizedHiddenPlacements.length > 0 ? normalizedHiddenPlacements : undefined,
-                                    disableAiHiddenItemUsage: draft.disableAiHiddenItemUsage === true ? true : undefined,
-                                    forceAiResponsesOnHiddenTurnsOnly: draft.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
-                                    fixedOpening: cellsToFixedOpening(resizeCells(cells, draft.boardSize)),
+                                    disableAiHiddenItemUsage: cleanedDraft.disableAiHiddenItemUsage === true ? true : undefined,
+                                    forceAiResponsesOnHiddenTurnsOnly: cleanedDraft.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
+                                    fixedOpening: cellsToFixedOpening(resizeCells(cells, cleanedDraft.boardSize)),
                                 });
                             } catch (error) {
                                 setErrorMessage(getErrorMessage(error));

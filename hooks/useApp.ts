@@ -87,6 +87,32 @@ const CONNECTION_OK_STATUS: AppConnectionStatus = {
 
 const isTransientServerStatus = (status: number): boolean => status === 0 || status === 503 || status === 504;
 
+const buildPveEndGameSnapshotPayload = (game: LiveGameSession | null | undefined): Record<string, unknown> => {
+    if (!game) return {};
+    return {
+        boardState: Array.isArray(game.boardState) ? game.boardState.map((row) => [...row]) : undefined,
+        moveHistory: Array.isArray(game.moveHistory) ? game.moveHistory.map((move) => ({ ...move })) : undefined,
+        captures: game.captures ? { ...game.captures } : undefined,
+        baseStoneCaptures: game.baseStoneCaptures ? { ...game.baseStoneCaptures } : undefined,
+        hiddenStoneCaptures: game.hiddenStoneCaptures ? { ...game.hiddenStoneCaptures } : undefined,
+        permanentlyRevealedStones: Array.isArray(game.permanentlyRevealedStones)
+            ? game.permanentlyRevealedStones.map((point) => ({ ...point }))
+            : undefined,
+        blackPatternStones: Array.isArray(game.blackPatternStones)
+            ? game.blackPatternStones.map((point) => ({ ...point }))
+            : undefined,
+        whitePatternStones: Array.isArray(game.whitePatternStones)
+            ? game.whitePatternStones.map((point) => ({ ...point }))
+            : undefined,
+        consumedPatternIntersections: Array.isArray((game as any).consumedPatternIntersections)
+            ? (game as any).consumedPatternIntersections.map((point: Point) => ({ ...point }))
+            : undefined,
+        hiddenMoves: game.hiddenMoves ? { ...game.hiddenMoves } : undefined,
+        totalTurns: game.totalTurns,
+        lastMove: game.lastMove ? { ...game.lastMove } : undefined,
+    };
+};
+
 /** 플레이어별 누적치(따내기 점수 등): 더 큰 값만 유지 — 서버·클라 중 한쪽만 갱신된 경우에도 감소하지 않게 함 */
 function mergeMonotonicCountRecord<T extends LiveGameSession['captures'] | LiveGameSession['baseStoneCaptures']>(
     a: T,
@@ -1071,6 +1097,8 @@ export const useApp = () => {
     const [moderatingUser, setModeratingUser] = useState<UserWithStatus | null>(null);
     const [isMbtiInfoModalOpen, setIsMbtiInfoModalOpen] = useState(false);
     const [mutualDisconnectMessage, setMutualDisconnectMessage] = useState<string | null>(null);
+    const [rankedMatchingQueue, setRankedMatchingQueue] = useState<Record<string, Record<string, any>>>({});
+    const [rankedMatchFound, setRankedMatchFound] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
     /** 로그인 응답에 포함된 진행 중 경기 (다른 PC에서 로그인 후 즉시 이어하기용, INITIAL_STATE 수신 시 해제) */
     const [activeGameFromLogin, setActiveGameFromLogin] = useState<LiveGameSession | null>(null);
     /** 다른 기기에서 로그인되어 자동 로그아웃 안내 모달 표시 여부 */
@@ -3092,7 +3120,8 @@ export const useApp = () => {
                                     payload: {
                                         gameId,
                                         winner: result.winner,
-                                        winReason: result.winReason
+                                        winReason: result.winReason,
+                                        ...buildPveEndGameSnapshotPayload(updateResult.updatedGame),
                                     }
                                 } as any);
                             } catch (err) {
@@ -3147,7 +3176,8 @@ export const useApp = () => {
                     payload: {
                         gameId,
                         winner: endGameWinnerSurvival,
-                        winReason: 'capture_limit'
+                        winReason: 'capture_limit',
+                        ...buildPveEndGameSnapshotPayload(finalUpdatedGame),
                     }
                 } as any).catch(err => {
                     console.error(`[handleAction] Failed to end single player game:`, err);
@@ -3162,7 +3192,8 @@ export const useApp = () => {
                     payload: {
                         gameId,
                         winner: endGameWinnerTurnLimit,
-                        winReason: 'timeout'
+                        winReason: 'timeout',
+                        ...buildPveEndGameSnapshotPayload(finalUpdatedGame),
                     }
                 } as any).catch(err => {
                     console.error(`[handleAction] Failed to end ${gameType} game (turn limit):`, err);
@@ -3177,7 +3208,8 @@ export const useApp = () => {
                     payload: {
                         gameId,
                         winner: endGameWinnerCaptureTarget,
-                        winReason: 'capture_limit'
+                        winReason: 'capture_limit',
+                        ...buildPveEndGameSnapshotPayload(finalUpdatedGame),
                     }
                 } as any).catch(err => {
                     console.error(`[handleAction] Failed to end ${gameType} game (capture target):`, err);
@@ -3886,7 +3918,8 @@ export const useApp = () => {
                             payload: {
                                 gameId,
                                 winner,
-                                winReason: 'score'
+                                winReason: 'score',
+                                ...buildPveEndGameSnapshotPayload(game),
                             }
                         } as any);
                     } catch (err) {
@@ -6059,6 +6092,21 @@ export const useApp = () => {
                                 // currentUser 상태 업데이트 (clearedSinglePlayerStages 반영)
                                 setCurrentUser(mergedUser);
                                 currentUserRef.current = mergedUser;
+                            }
+                            return;
+                        }
+                        case 'RANKED_MATCHING_UPDATE': {
+                            const queue = message.payload?.queue;
+                            setRankedMatchingQueue(queue && typeof queue === 'object' ? queue : {});
+                            return;
+                        }
+                        case 'RANKED_MATCH_FOUND': {
+                            if (message.payload?.gameId && message.payload?.player1 && message.payload?.player2) {
+                                setRankedMatchFound({
+                                    gameId: message.payload.gameId,
+                                    player1: message.payload.player1,
+                                    player2: message.payload.player2,
+                                });
                             }
                             return;
                         }
@@ -8489,6 +8537,8 @@ export const useApp = () => {
         gameChats,
         adminLogs,
         gameModeAvailability,
+        rankedMatchingQueue,
+        rankedMatchFound,
         arenaEntranceAvailability: arenaEntranceAvailabilityResolved,
         arenaEntranceFromServer,
         announcements,
@@ -8583,6 +8633,7 @@ export const useApp = () => {
             closeInsufficientActionPointsModal: () => setIsInsufficientActionPointsModalOpen(false),
             openOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(true),
             closeOpponentInsufficientActionPointsModal: () => setIsOpponentInsufficientActionPointsModalOpen(false),
+            clearRankedMatchFound: () => setRankedMatchFound(null),
             closeItemObtained: async () => {
                 setLastUsedItemResult(null);
                 setTournamentScoreChange(null);

@@ -7,7 +7,7 @@ import { containsProfanity } from '../../profanity.js';
 import * as tournamentService from '../tournamentService.js';
 import * as summaryService from '../summaryService.js';
 import { broadcast } from '../socket.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/index.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, NO_CONTEST_MOVE_THRESHOLD, RANKED_ELO_BASE_SCORE, RANKED_MATCH_MAX_RATING_DIFF } from '../../constants/index.js';
 import { clearAiSession } from '../aiSessionManager.js';
 import { aiUserId } from '../aiPlayer.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
@@ -20,7 +20,22 @@ type HandleActionResult = {
     error?: string;
 };
 
+type RankedLobbyType = 'strategic' | 'playful';
+type RankedQueueEntry = NonNullable<NonNullable<VolatileState['rankedMatchingQueue']>[RankedLobbyType]>[string];
+
 const GREETINGS = ['안녕', '하이', '헬로', 'hi', 'hello', '반가', '잘 부탁', '잘부탁'];
+const rankedMatchingLocks: Record<RankedLobbyType, boolean> = { strategic: false, playful: false };
+
+const getRankedRatingForMode = (user: Pick<User, 'stats'> | null | undefined, mode: GameMode): number => {
+    const rating = user?.stats?.[mode]?.rankingScore;
+    return Number.isFinite(rating) ? Number(rating) : RANKED_ELO_BASE_SCORE;
+};
+
+const getEntryRatingForMode = (entry: RankedQueueEntry, mode: GameMode): number => {
+    const modeRating = entry.modeRatings?.[mode];
+    if (Number.isFinite(modeRating)) return Number(modeRating);
+    return Number.isFinite(entry.rating) ? Number(entry.rating) : RANKED_ELO_BASE_SCORE;
+};
 
 /**
  * PVP 인게임 유저가 로그아웃하거나 마지막 WebSocket이 끊긴 경우: 즉시 disconnectionState·GAME_UPDATE.
@@ -50,7 +65,7 @@ export async function applyPvpInGameDisconnect(volatileState: VolatileState, dis
         await summaryService.endGame(game, winner, 'disconnect');
     } else {
         game.disconnectionState = { disconnectedPlayerId: disconnectedUserId, timerStartedAt: now };
-        if ((game.moveHistory?.length ?? 0) < 20) {
+        if ((game.moveHistory?.length ?? 0) < NO_CONTEST_MOVE_THRESHOLD) {
             const otherPlayerId = game.player1.id === disconnectedUserId ? game.player2.id : game.player1.id;
             if (!game.canRequestNoContest) game.canRequestNoContest = {};
             game.canRequestNoContest[otherPlayerId] = true;
@@ -629,10 +644,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 return { error: '믹스룰은 랭킹전에서 사용할 수 없습니다.' };
             }
             
-            // 사용자 랭킹 점수 계산 (선택된 모드 중 첫 번째 모드의 점수 사용)
+            // 사용자 랭킹 점수 계산: 큐에는 전체 선택 모드별 점수를 함께 저장
             const userStats = user.stats || {};
             const firstMode = selectedModes[0];
-            const userRating = userStats[firstMode]?.rankingScore || 1200;
+            const userRating = userStats[firstMode]?.rankingScore || RANKED_ELO_BASE_SCORE;
+            const modeRatings = selectedModes.reduce<Partial<Record<GameMode, number>>>((acc, mode) => {
+                acc[mode] = userStats[mode]?.rankingScore || RANKED_ELO_BASE_SCORE;
+                return acc;
+            }, {});
             
             // 매칭 큐 초기화
             if (!volatileState.rankedMatchingQueue) {
@@ -649,6 +668,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 selectedModes,
                 startTime: now,
                 rating: userRating,
+                modeRatings,
             };
             
             // 사용자 상태를 매칭 중으로 변경
@@ -696,15 +716,49 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
     }
 };
 
-// 매칭 알고리즘: 가장 비슷한 랭킹 점수 유저 매칭 (500점 이내)
+// 매칭 알고리즘: 실제 공통 모드 기준으로 가장 비슷한 랭킹 점수 유저 매칭
 export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: 'strategic' | 'playful'): Promise<void> => {
+    if (rankedMatchingLocks[lobbyType]) return;
+    rankedMatchingLocks[lobbyType] = true;
+    try {
+        await tryMatchPlayersUnlocked(volatileState, lobbyType);
+    } finally {
+        rankedMatchingLocks[lobbyType] = false;
+    }
+};
+
+const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: RankedLobbyType): Promise<void> => {
     const queue = volatileState.rankedMatchingQueue?.[lobbyType];
     if (!queue || Object.keys(queue).length < 2) return;
-    
+
+    let queueChanged = false;
+    for (const [userId, entry] of Object.entries(queue)) {
+        const status = volatileState.userStatuses[userId];
+        if (!entry || !Array.isArray(entry.selectedModes) || entry.selectedModes.length === 0) {
+            delete queue[userId];
+            queueChanged = true;
+            continue;
+        }
+        if (status?.status === UserStatus.InGame || status?.status === UserStatus.Negotiating) {
+            delete queue[userId];
+            queueChanged = true;
+        }
+    }
+    if (queueChanged) {
+        broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+    }
+    if (Object.keys(queue).length < 2) return;
+
     const entries = Object.values(queue);
     
     // 모든 가능한 쌍을 확인하여 가장 비슷한 점수 차이의 쌍 찾기
-    let bestMatch: { player1: typeof entries[0], player2: typeof entries[0], scoreDiff: number } | null = null;
+    let bestMatch: {
+        player1: typeof entries[0];
+        player2: typeof entries[0];
+        selectedMode: GameMode;
+        scoreDiff: number;
+        prioritySum: number;
+    } | null = null;
     
     for (let i = 0; i < entries.length; i++) {
         for (let j = i + 1; j < entries.length; j++) {
@@ -715,13 +769,21 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: '
             const commonModes = entry1.selectedModes.filter(m => entry2.selectedModes.includes(m));
             if (commonModes.length === 0) continue;
             
-            // 점수 차이 확인 (500점 이내)
-            const scoreDiff = Math.abs(entry1.rating - entry2.rating);
-            if (scoreDiff > 500) continue;
-            
-            // 더 나은 매칭이면 업데이트
-            if (!bestMatch || scoreDiff < bestMatch.scoreDiff) {
-                bestMatch = { player1: entry1, player2: entry2, scoreDiff };
+            for (const mode of commonModes) {
+                const scoreDiff = Math.abs(getEntryRatingForMode(entry1, mode) - getEntryRatingForMode(entry2, mode));
+                if (scoreDiff > RANKED_MATCH_MAX_RATING_DIFF) continue;
+
+                const prioritySum = entry1.selectedModes.indexOf(mode) + entry2.selectedModes.indexOf(mode);
+                const olderStart = Math.min(entry1.startTime, entry2.startTime);
+                const bestOlderStart = bestMatch ? Math.min(bestMatch.player1.startTime, bestMatch.player2.startTime) : Infinity;
+                if (
+                    !bestMatch ||
+                    scoreDiff < bestMatch.scoreDiff ||
+                    (scoreDiff === bestMatch.scoreDiff && prioritySum < bestMatch.prioritySum) ||
+                    (scoreDiff === bestMatch.scoreDiff && prioritySum === bestMatch.prioritySum && olderStart < bestOlderStart)
+                ) {
+                    bestMatch = { player1: entry1, player2: entry2, selectedMode: mode, scoreDiff, prioritySum };
+                }
             }
         }
     }
@@ -729,24 +791,7 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: '
     if (!bestMatch) return;
     
     // 매칭 성공: 게임 생성
-    const { player1: entry1, player2: entry2 } = bestMatch;
-    const commonModes = entry1.selectedModes.filter(m => entry2.selectedModes.includes(m));
-    
-    // 우선순위를 고려하여 가장 높은 우선순위의 공통 모드 선택
-    // 각 플레이어의 selectedModes 배열 인덱스 합이 가장 작은 모드를 선택
-    let selectedMode: GameMode = commonModes[0];
-    let minPrioritySum = Infinity;
-    
-    for (const mode of commonModes) {
-        const player1Priority = entry1.selectedModes.indexOf(mode);
-        const player2Priority = entry2.selectedModes.indexOf(mode);
-        const prioritySum = player1Priority + player2Priority;
-        
-        if (prioritySum < minPrioritySum) {
-            minPrioritySum = prioritySum;
-            selectedMode = mode;
-        }
-    }
+    const { player1: entry1, player2: entry2, selectedMode } = bestMatch;
     
     // 랭킹전 기본 설정 가져오기
     const { getRankedGameSettings } = await import('../../constants/rankedGameSettings.js');
@@ -756,7 +801,12 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: '
     const player1 = await db.getUser(entry1.userId);
     const player2 = await db.getUser(entry2.userId);
     
-    if (!player1 || !player2) return;
+    if (!player1 || !player2) {
+        if (!player1) delete queue[entry1.userId];
+        if (!player2) delete queue[entry2.userId];
+        broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+        return;
+    }
     
     const negotiation: Negotiation = {
         id: `neg-ranked-${randomUUID()}`,
@@ -767,7 +817,7 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: '
         proposerId: player1.id,
         status: 'pending',
         turnCount: 0,
-        deadline: Date.now() + 5000, // 5초 후 자동 수락
+        deadline: Date.now(),
         isRanked: true, // 랭킹전
     };
     
@@ -788,28 +838,14 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: '
     
     // 예상 랭킹 점수 변동 계산
     const { calculateEloChange } = await import('../summaryService.js');
-    const player1Rating = player1.stats?.[selectedMode]?.rankingScore || 1200;
-    const player2Rating = player2.stats?.[selectedMode]?.rankingScore || 1200;
+    const player1Rating = getRankedRatingForMode(player1, selectedMode);
+    const player2Rating = getRankedRatingForMode(player2, selectedMode);
     const player1WinChange = calculateEloChange(player1Rating, player2Rating, 'win');
     const player1LossChange = calculateEloChange(player1Rating, player2Rating, 'loss');
     const player2WinChange = calculateEloChange(player2Rating, player1Rating, 'win');
     const player2LossChange = calculateEloChange(player2Rating, player1Rating, 'loss');
     
-    // 클래식바둑 특별 처리
-    let player1WinChangeFinal = player1WinChange;
-    let player1LossChangeFinal = player1LossChange;
-    let player2WinChangeFinal = player2WinChange;
-    let player2LossChangeFinal = player2LossChange;
-    
-    if (selectedMode === GameMode.Standard) {
-        player1WinChangeFinal = player1WinChange * 2;
-        player1LossChangeFinal = Math.round(player1LossChange / 2);
-        player2WinChangeFinal = player2WinChange * 2;
-        player2LossChangeFinal = Math.round(player2LossChange / 2);
-    }
-    
     // 매칭 성공 알림 브로드캐스트
-    const { broadcast } = await import('../socket.js');
     broadcast({ 
         type: 'RANKED_MATCH_FOUND', 
         payload: { 
@@ -818,15 +854,15 @@ export const tryMatchPlayers = async (volatileState: VolatileState, lobbyType: '
                 id: player1.id,
                 nickname: player1.nickname,
                 rating: player1Rating,
-                winChange: player1WinChangeFinal,
-                lossChange: player1LossChangeFinal,
+                winChange: player1WinChange,
+                lossChange: player1LossChange,
             },
             player2: {
                 id: player2.id,
                 nickname: player2.nickname,
                 rating: player2Rating,
-                winChange: player2WinChangeFinal,
-                lossChange: player2LossChangeFinal,
+                winChange: player2WinChange,
+                lossChange: player2LossChange,
             },
         } 
     });

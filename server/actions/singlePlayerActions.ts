@@ -86,23 +86,10 @@ const getSinglePlayerKataServerLevel = (level: SinglePlayerLevel): number => {
     }
 };
 
-/** 미리 깔리는 일반 백돌(placements.white)만 구간별로 줄여 난이도 조절 (문양 백돌은 그대로). */
-const singlePlayerPlainWhiteReduction = (level: SinglePlayerLevel): number => {
-    switch (level) {
-        case SinglePlayerLevel.입문:
-            return 0;
-        case SinglePlayerLevel.초급:
-            return 2;
-        case SinglePlayerLevel.중급:
-            return 3;
-        case SinglePlayerLevel.고급:
-            return 4;
-        case SinglePlayerLevel.유단자:
-            return 5;
-        default:
-            return 0;
-    }
-};
+const resolveStageKataServerLevel = (stage: SinglePlayerStageInfo): number =>
+    typeof stage.kataServerLevel === 'number' && Number.isFinite(stage.kataServerLevel)
+        ? Math.max(-31, Math.min(9, Math.floor(stage.kataServerLevel)))
+        : getSinglePlayerKataServerLevel(stage.level);
 
 const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: BoardState, blackPattern: Point[], whitePattern: Point[] } => {
     if (stage.fixedOpening?.length) {
@@ -126,8 +113,7 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
         }
 
         const center = Math.floor(stage.boardSize / 2);
-        let blackToPlace = stage.placements.black;
-        const whitePlain = Math.max(0, stage.placements.white - singlePlayerPlainWhiteReduction(stage.level));
+        const whitePlain = Math.max(0, stage.placements.white);
         let baseBoard: BoardState | undefined = board;
 
         if (
@@ -145,14 +131,13 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
             if (!isInvalidStrategicInitialStonePlacement(template, center, center, Player.Black)) {
                 template[center][center] = Player.Black;
                 baseBoard = template;
-                blackToPlace = Math.max(0, blackToPlace - 1);
             }
         }
 
         const generated = generateStrategicRandomBoard(
             stage.boardSize,
             {
-                black: blackToPlace,
+                black: stage.placements.black,
                 white: whitePlain,
                 blackPattern: stage.placements.blackPattern,
                 whitePattern: stage.placements.whitePattern,
@@ -168,11 +153,7 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
     }
 
     const center = Math.floor(stage.boardSize / 2);
-    let blackToPlace = stage.placements.black;
-    const whitePlain = Math.max(
-        0,
-        stage.placements.white - singlePlayerPlainWhiteReduction(stage.level)
-    );
+    const whitePlain = Math.max(0, stage.placements.white);
     let baseBoard: BoardState | undefined;
 
     if (
@@ -184,14 +165,13 @@ const generateSinglePlayerBoard = (stage: SinglePlayerStageInfo): { board: Board
         if (!isInvalidStrategicInitialStonePlacement(template, center, center, Player.Black)) {
             template[center][center] = Player.Black;
             baseBoard = template;
-            blackToPlace = Math.max(0, blackToPlace - 1);
         }
     }
 
     return generateStrategicRandomBoard(
         stage.boardSize,
         {
-            black: blackToPlace,
+            black: stage.placements.black,
             white: whitePlain,
             blackPattern: stage.placements.blackPattern,
             whitePattern: stage.placements.whitePattern,
@@ -212,6 +192,8 @@ const applyLatestPendingSinglePlayerStage = async (
     const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
     const survivalTurnsResolved = isSurvivalMode ? resolveSinglePlayerSurvivalTurnCount(stage) : undefined;
     const hasAutoScoring = resolveSinglePlayerHasAutoScoringTurns(stage);
+    const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
+    const kataServerLevel = resolveStageKataServerLevel(stage);
     const preserveExistingPlacement =
         options?.preserveExistingPlacement === true &&
         Array.isArray(game.boardState) &&
@@ -278,13 +260,16 @@ const applyLatestPendingSinglePlayerStage = async (
         byoyomiCount: 0,
         timeIncrement: enforcedIncrement,
         captureTarget: isCaptureGoalMode && !hasAutoScoring ? stage.targetScore.black : undefined,
+        aiDifficulty: kataProfileStep,
+        kataServerLevel,
+        goAiBotLevel: kataProfileStep,
         survivalTurns: survivalTurnsResolved,
         isSurvivalMode: isSurvivalMode,
         hiddenStoneCount: stage.hiddenCount,
         scanCount: stage.scanCount,
         missileCount: stage.missileCount,
         singlePlayerPlacementRefreshAllowed: stage.allowPlacementRefresh !== false,
-        autoScoringTurns: stage.autoScoringTurns,
+        autoScoringTurns: hasAutoScoring ? stage.autoScoringTurns : undefined,
         // 따내기/살리기에서만 턴 제한을 사용한다.
         blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
         baseStones: stage.baseStones,
@@ -292,6 +277,7 @@ const applyLatestPendingSinglePlayerStage = async (
         singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
         singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
         singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
+        singlePlayerAiHiddenItemUseCount: stage.aiHiddenItemUseCount,
         singlePlayerAiHiddenItemPlacements: stage.aiHiddenItemPlacements,
         singlePlayerDisableAiHiddenItemUsage: stage.disableAiHiddenItemUsage === true,
         singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,
@@ -393,10 +379,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             // 싱글플레이용 AI: 반별 프로필 1~5 + KataServer levelbot (`kataServerLevel`)
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
-            const kataServerLevel =
-                typeof stage.kataServerLevel === 'number' && Number.isFinite(stage.kataServerLevel)
-                    ? Math.max(-31, Math.min(9, Math.floor(stage.kataServerLevel)))
-                    : getSinglePlayerKataServerLevel(stage.level);
+            const kataServerLevel = resolveStageKataServerLevel(stage);
             const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
                              stage.level === SinglePlayerLevel.초급 ? '초급' :
                              stage.level === SinglePlayerLevel.중급 ? '중급' :
@@ -466,13 +449,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     scanCount: stage.scanCount, // 히든바둑: 스캔 아이템 개수
                     missileCount: stage.missileCount, // 미사일바둑: 미사일 아이템 개수
                     singlePlayerPlacementRefreshAllowed: stage.allowPlacementRefresh !== false,
-                    autoScoringTurns: stage.autoScoringTurns, // 자동 계가 턴 수
+                    autoScoringTurns: hasAutoScoring ? stage.autoScoringTurns : undefined, // 자동 계가 턴 수
                     blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
                     baseStones: stage.baseStones, // 베이스바둑: 베이스 돌 개수
                     singlePlayerForcedAiResponses: stage.forcedAiResponses,
                     singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
                     singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
                     singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
+                    singlePlayerAiHiddenItemUseCount: stage.aiHiddenItemUseCount,
                     singlePlayerAiHiddenItemPlacements: stage.aiHiddenItemPlacements,
                     singlePlayerDisableAiHiddenItemUsage: stage.disableAiHiddenItemUsage === true,
                     singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,

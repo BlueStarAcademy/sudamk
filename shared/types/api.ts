@@ -83,6 +83,7 @@ export interface RankedMatchingEntry {
     selectedModes: GameMode[];
     startTime: number;
     rating: number;
+    modeRatings?: Partial<Record<GameMode, number>>;
 }
 
 /** 동일 공인 IP 기준 일반 계정 1슬롯(관리자는 별도 슬롯으로 공존 가능) */

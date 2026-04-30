@@ -4,9 +4,15 @@ import { UserWithStatus, InventoryItem, ServerAction, ItemGrade, ItemOption } fr
 import Button from '../Button.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { ENHANCEMENT_SUCCESS_RATES, ENHANCEMENT_COSTS, MATERIAL_ITEMS, ENHANCEMENT_FAIL_BONUS_RATES, GRADE_LEVEL_REQUIREMENTS, calculateEnhancementGoldCost } from '../../constants';
+import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { MythicSubsPartitioned } from '../MythicSubsPartitioned.js';
 import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
+
+const formatEnhancePercent = (n: number): string => {
+    const rounded = Math.round(n * 10) / 10;
+    return Number.isInteger(rounded) ? `${rounded}` : rounded.toFixed(1);
+};
 
 const gradeStyles: Record<ItemGrade, { name: string; color: string; background: string; }> = {
     normal: { name: '일반', color: 'text-gray-300', background: '/images/equipments/normalbgi.png' },
@@ -397,9 +403,20 @@ useEffect(() => {
         );
     }
 
-    const baseSuccessRate = ENHANCEMENT_SUCCESS_RATES[selectedItem.stars];
+    const baseSuccessRate =
+        selectedItem.stars >= 10 ? 0 : ENHANCEMENT_SUCCESS_RATES[selectedItem.stars] ?? 0;
     const failBonusRate = ENHANCEMENT_FAIL_BONUS_RATES[selectedItem.grade] || 0.5;
     const failBonus = (selectedItem.enhancementFails || 0) * failBonusRate;
+    const vipEnhanceBonus = isFunctionVipActive(currentUser) ? 10 : 0;
+    const totalSuccessRate =
+        selectedItem.stars >= 10 ? 0 : Math.min(100, baseSuccessRate + failBonus + vipEnhanceBonus);
+    const successRateBreakdownParts: string[] = [];
+    if (selectedItem.stars < 10) {
+        successRateBreakdownParts.push(`기본 ${baseSuccessRate}%`);
+        if (failBonus > 0) successRateBreakdownParts.push(`실패 보너스 +${formatEnhancePercent(failBonus)}%`);
+        if (vipEnhanceBonus > 0) successRateBreakdownParts.push(`기능 VIP +${vipEnhanceBonus}%`);
+    }
+    const successRateDisplay = selectedItem.stars >= 10 ? '—' : `${formatEnhancePercent(totalSuccessRate)}%`;
 
     const handleEnhanceClick = () => {
         if (!canEnhance || isEnhancing || !selectedItem) return;
@@ -445,14 +462,19 @@ useEffect(() => {
         }, duration);
     };
 
+    const detailValueClass = 'text-xs font-mono';
+    const rateMainClass = stackedViewport
+        ? 'text-base font-bold leading-tight text-yellow-300'
+        : 'text-lg font-bold leading-tight text-yellow-300 sm:text-xl';
+
     return (
             <div className={`relative flex min-h-0 flex-col ${stackedViewport ? 'flex-1' : 'h-full'}`}>
             <div
-                className={`flex min-h-0 ${stackedViewport ? 'min-h-0 flex-1 flex-row gap-2' : 'h-full flex-row gap-4'}`}
+                className={`flex min-h-0 ${stackedViewport ? 'min-h-0 flex-1 flex-col gap-2' : 'h-full flex-row gap-4'}`}
             >
                 <div
                     className={`flex min-h-0 min-w-0 flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#1a1f2d]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                        stackedViewport ? 'min-h-0 flex-1 overflow-y-auto' : 'h-full w-[55%]'
+                        stackedViewport ? 'max-h-[min(16rem,42dvh)] shrink-0 overflow-y-auto' : 'h-full w-[55%]'
                     }`}
                 >
                     <ItemDisplay 
@@ -463,72 +485,93 @@ useEffect(() => {
                 </div>
 
                 <div
-                    className={`flex min-h-0 min-w-0 flex-col gap-2 ${stackedViewport ? 'w-[min(11.25rem,40vw)] max-w-[13rem] shrink-0 overflow-y-auto' : 'h-full flex-1'}`}
+                    className={`flex min-h-0 min-w-0 flex-col gap-2 ${stackedViewport ? 'min-h-0 w-full flex-1 overflow-y-auto' : 'h-full flex-1'}`}
                 >
                     {/* 강화 성공 시 정보 */}
                     <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2">
                         <h4 className="mb-1.5 text-center text-xs font-bold text-emerald-200">강화 성공 시</h4>
-                        <div className="space-y-1.5 text-xs text-left">
+                        <div className={`space-y-1.5 text-left ${stackedViewport ? 'text-xs' : 'text-xs'}`}>
                             <div className="flex justify-between items-center gap-2 min-w-0">
-                                <span className="text-gray-400 whitespace-nowrap flex-shrink-0 text-xs">등급:</span>
-                                <div className="font-mono text-white flex items-center gap-1 whitespace-nowrap" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
+                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">등급:</span>
+                                <div className={`flex min-w-0 items-center gap-1 whitespace-nowrap text-white ${detailValueClass}`}>
                                     <span className={starInfoCurrent.colorClass}>{starInfoCurrent.text || '(★0)'}</span>
                                     <span>→</span>
                                     {starInfoNext ? <span className={starInfoNext.colorClass}>{starInfoNext.text}</span> : '-'}
                                 </div> 
                             </div>
                             <div className="flex justify-between items-center gap-2 min-w-0">
-                                <span className="text-gray-400 whitespace-nowrap flex-shrink-0 text-xs">주옵션:</span>
-                                <span className="font-mono text-yellow-300 whitespace-nowrap overflow-hidden text-ellipsis text-right" style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={mainOptionPreview}>{mainOptionPreview}</span> 
+                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">주옵션:</span>
+                                <span className={`min-w-0 truncate text-right text-yellow-300 ${detailValueClass}`} title={mainOptionPreview}>{mainOptionPreview}</span> 
                             </div>
                             <div className="flex justify-between items-center gap-2 min-w-0">
-                                <span className="text-gray-400 whitespace-nowrap flex-shrink-0 text-xs">부옵션:</span>
-                                <span className={`font-mono whitespace-nowrap overflow-hidden text-ellipsis text-right ${selectedItem && selectedItem.options && selectedItem.options.combatSubs.length > 0 ? 'text-blue-300' : 'text-gray-400'}`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }} title={selectedItem.stars < 10 ? subOptionPreview : ''}>{selectedItem.stars < 10 ? subOptionPreview : ''}</span>
+                                <span className="flex-shrink-0 whitespace-nowrap text-gray-400">부옵션:</span>
+                                <span className={`min-w-0 truncate text-right ${detailValueClass} ${selectedItem && selectedItem.options && selectedItem.options.combatSubs.length > 0 ? 'text-blue-300' : 'text-gray-400'}`} title={selectedItem.stars < 10 ? subOptionPreview : ''}>{selectedItem.stars < 10 ? subOptionPreview : ''}</span>
                             </div>
                         </div>
                     </div>
                     
-                    {/* 필요 재료 | 강화 성공 확률 — 나란히 두 패널 */}
-                    <div className="flex min-w-0 flex-shrink-0 flex-row items-stretch gap-2">
+                    {/* 필요 재료 | 성공확률 */}
+                    <div className={`flex min-w-0 flex-shrink-0 items-stretch gap-2 ${stackedViewport ? 'flex-col' : 'flex-row'}`}>
                         <div className="min-w-0 flex-1 rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/75 via-black/35 to-black/45 p-2">
                             <h4 className="mb-2 text-center text-xs font-bold text-amber-100">필요 재료</h4>
-                            <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
-                                <div className="relative flex flex-col items-center px-1" title={`골드: ${(currentUser?.gold || 0).toLocaleString()} / ${goldCost.toLocaleString()}`}>
+                            <div className="flex flex-wrap items-end justify-center gap-x-3 gap-y-2">
+                                <div className="relative flex min-w-[3.25rem] flex-col items-center px-0.5" title={`골드: ${(currentUser?.gold || 0).toLocaleString()} / ${goldCost.toLocaleString()}`}>
                                     <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
                                         <img src="/images/icon/Gold.png" alt="골드" className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
                                         {!hasEnoughGold && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
                                     </div>
-                                    <span className={`mt-0.5 font-mono whitespace-nowrap ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
-                                        {goldCost.toLocaleString()}
+                                    <span className={`mt-0.5 w-full text-center font-mono text-xs leading-tight ${hasEnoughGold ? 'text-green-400' : 'text-red-400'}`}>
+                                        {stackedViewport ? (
+                                            <>
+                                                <span className="block text-[10px] font-medium text-slate-400">보유 / 필요</span>
+                                                <span className="whitespace-nowrap">
+                                                    {(currentUser?.gold ?? 0).toLocaleString()} / {goldCost.toLocaleString()}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="whitespace-nowrap">{goldCost.toLocaleString()}</span>
+                                        )}
                                     </span>
                                 </div>
                                 {costs?.map((cost) => {
                                     const userHas = userMaterials[cost.name] || 0;
                                     const hasEnough = userHas >= cost.amount;
                                     return (
-                                        <div key={cost.name} className="relative flex flex-col items-center px-1" title={`${cost.name}: ${userHas.toLocaleString()} / ${cost.amount.toLocaleString()}`}>
-                                            <div className="relative h-8 w-8" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
+                                        <div key={cost.name} className="relative flex min-w-[3.25rem] max-w-[5.5rem] flex-col items-center px-0.5" title={`${cost.name}: ${userHas.toLocaleString()} / ${cost.amount.toLocaleString()}`}>
+                                            <div className="relative h-8 w-8 shrink-0" style={{ background: 'transparent', borderRadius: 0, overflow: 'hidden' }}>
                                                 <img src={MATERIAL_ITEMS[cost.name].image!} alt={cost.name} className="h-full w-full" style={{ background: 'transparent', borderRadius: 0, padding: 0, margin: 0, objectFit: 'contain', display: 'block', border: 'none', boxShadow: 'none' }} />
                                                 {!hasEnough && <div className="absolute inset-0 rounded-full bg-red-500/30" />}
                                             </div>
-                                            <span className={`mt-0.5 font-mono whitespace-nowrap ${hasEnough ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: 'clamp(0.625rem, 1.5vw, 0.75rem)' }}>
-                                                {cost.amount.toLocaleString()}
+                                            <span className={`mt-0.5 w-full max-w-full text-center font-mono text-xs leading-tight ${hasEnough ? 'text-green-400' : 'text-red-400'}`}>
+                                                {stackedViewport ? (
+                                                    <>
+                                                        <span className="block truncate text-[10px] font-semibold text-slate-300" title={cost.name}>
+                                                            {cost.name}
+                                                        </span>
+                                                        <span className="block text-[10px] font-medium text-slate-400">보유 / 필요</span>
+                                                        <span className="whitespace-nowrap">
+                                                            {userHas.toLocaleString()} / {cost.amount.toLocaleString()}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <span className="whitespace-nowrap">{cost.amount.toLocaleString()}</span>
+                                                )}
                                             </span>
                                         </div>
                                     );
                                 })}
                             </div>
                         </div>
-                        <div className="flex w-[7.25rem] min-w-[6.5rem] shrink-0 flex-col justify-center rounded-xl border border-amber-300/20 bg-gradient-to-b from-amber-950/25 via-black/45 to-black/30 p-2 text-center sm:w-32">
-                            <h4 className="mb-1 text-xs font-bold leading-tight text-amber-100">강화 성공 확률</h4>
-                            <p className="font-bold leading-tight text-yellow-300" style={{ fontSize: 'clamp(0.95rem, 2.8vw, 1.35rem)' }}>
-                                {baseSuccessRate}%
-                                {failBonus > 0 && (
-                                    <span className="block text-[10px] font-semibold text-green-400 sm:inline sm:ml-1 sm:text-[11px]">
-                                        (+{failBonus.toFixed(1).replace(/\.0$/, '')}%)
-                                    </span>
-                                )}
-                            </p>
+                        <div
+                            className={`flex min-w-0 flex-col justify-center rounded-xl border border-amber-300/20 bg-gradient-to-b from-amber-950/25 via-black/45 to-black/30 p-2 text-center ${
+                                stackedViewport ? 'w-full shrink-0' : 'w-[7.25rem] min-w-[6.5rem] shrink-0 sm:w-32'
+                            }`}
+                        >
+                            <h4 className="mb-1 text-xs font-bold leading-tight text-amber-100">성공확률</h4>
+                            <p className={rateMainClass}>{successRateDisplay}</p>
+                            {selectedItem.stars < 10 && successRateBreakdownParts.length > 1 ? (
+                                <p className="mt-1 text-[10px] leading-snug text-slate-400">{successRateBreakdownParts.join(' · ')}</p>
+                            ) : null}
                         </div>
                     </div>
 
@@ -538,8 +581,8 @@ useEffect(() => {
                                 onClick={handleEnhanceClick}
                                 disabled={!canEnhance || isEnhancing || selectedItem.stars >= 10}
                                 variant="gold"
-                                className="w-full py-2 whitespace-nowrap"
-                                style={{ fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}
+                                className={`w-full whitespace-nowrap py-2 ${stackedViewport ? '!text-xs' : ''}`}
+                                style={stackedViewport ? undefined : { fontSize: 'clamp(0.75rem, 2vw, 0.875rem)' }}
                             >
                                 {buttonText}
                             </ResourceActionButton>

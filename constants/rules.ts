@@ -82,6 +82,13 @@ export const NO_CONTEST_TIME_THRESHOLD_SECONDS = 180;
 export const NO_CONTEST_MANNER_PENALTY = 20;
 export const NO_CONTEST_RANKING_PENALTY = 50;
 
+// --- Ranked Matchmaking / ELO Rules ---
+export const RANKED_ELO_BASE_SCORE = 1200;
+export const RANKED_ELO_K_FACTOR = 32;
+export const RANKED_ELO_MIN_CHANGE = 6;
+export const RANKED_ELO_MAX_CHANGE = 32;
+export const RANKED_MATCH_MAX_RATING_DIFF = 400;
+
 // --- Blacksmith XP Gain ---
 export const BLACKSMITH_MAX_LEVEL = 20;
 

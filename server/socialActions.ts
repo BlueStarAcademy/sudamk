@@ -9,6 +9,7 @@ import { containsProfanity } from './../profanity.js';
 import * as tournamentService from './tournamentService.js';
 import * as summaryService from './summaryService.js';
 import { broadcast } from './socket.js';
+import { NO_CONTEST_MOVE_THRESHOLD } from '../constants';
 
 
 type HandleActionResult = { 
@@ -66,7 +67,7 @@ export const handleSocialAction = async (volatileState: types.VolatileState, act
                             await summaryService.endGame(game, winner, 'disconnect');
                         } else {
                             game.disconnectionState = { disconnectedPlayerId: user.id, timerStartedAt: now };
-                            if (game.moveHistory.length < 10) {
+                            if (game.moveHistory.length < NO_CONTEST_MOVE_THRESHOLD) {
                                 const otherPlayerId = game.player1.id === user.id ? game.player2.id : game.player1.id;
                                 if (!game.canRequestNoContest) game.canRequestNoContest = {};
                                 game.canRequestNoContest[otherPlayerId] = true;

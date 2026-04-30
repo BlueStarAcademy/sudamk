@@ -93,6 +93,10 @@ export const resolveSinglePlayerSurvivalTurnCount = (stage: SinglePlayerStageInf
 export const resolveSinglePlayerHasAutoScoringTurns = (stage: SinglePlayerStageInfo): boolean => {
     const p = stage.strategicRulePreset;
     if (p === 'speed') return stage.autoScoringTurns !== undefined;
+    if (p === 'mix') {
+        const modes = resolveSinglePlayerMixedModes(stage);
+        return !modes.includes(GameMode.Capture) && stage.autoScoringTurns !== undefined;
+    }
     if (p && p !== 'auto') return false;
     return stage.autoScoringTurns !== undefined;
 };

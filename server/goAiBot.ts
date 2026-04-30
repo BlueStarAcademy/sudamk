@@ -1693,6 +1693,7 @@ export async function makeGoAiBotMove(
         isHiddenMode &&
         (
             (Array.isArray(plannedAiHiddenTurns) && plannedAiHiddenTurns.includes(currentAiTurnIndex)) ||
+            (Array.isArray(configuredSinglePlayerHiddenTurns) && configuredSinglePlayerHiddenTurns.includes(currentAiTurnIndex)) ||
             (typeof game.aiHiddenItemTurn === 'number' && game.aiHiddenItemTurn === currentAiTurnIndex)
         );
     const shouldApplyForcedResponsesThisTurn =

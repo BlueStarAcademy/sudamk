@@ -38,7 +38,7 @@ const findGroupLibertiesOnBoard = (
         const { x: cx, y: cy } = q.shift()!;
         for (const n of getBoardNeighbors(boardSize, cx, cy)) {
             const key = `${n.x},${n.y}`;
-            const neighborContent = currentBoard[n.y][n.x];
+            const neighborContent = currentBoard[n.y]?.[n.x] ?? Player.None;
 
             if (neighborContent === Player.None) {
                 libertyPointKeys.add(key);
@@ -61,9 +61,9 @@ const findGroupLibertiesOnBoard = (
 /** @returns true if this empty cell must not receive `player` (따냄/자살/즉시 잡힘 등) */
 export const isInvalidStrategicInitialStonePlacement = (board: BoardState, x: number, y: number, player: Player): boolean => {
     const boardSize = board.length;
-    if (y < 0 || y >= boardSize || x < 0 || x >= boardSize || board[y][x] !== Player.None) {
-        return true;
-    }
+    if (y < 0 || y >= boardSize || x < 0 || x >= boardSize) return true;
+    const cell = board[y]?.[x];
+    if (cell !== Player.None) return true;
 
     const result = processMove(board, { x, y, player }, null, 0, { ignoreSuicide: true });
 
@@ -97,8 +97,8 @@ export const strategicBoardHasDeadGroup = (board: BoardState, boardSize: number)
     const visited = new Set<string>();
     for (let y = 0; y < boardSize; y++) {
         for (let x = 0; x < boardSize; x++) {
-            const c = board[y][x];
-            if (c === Player.None || visited.has(`${x},${y}`)) continue;
+            const c = board[y]?.[x];
+            if (c == null || c === Player.None || visited.has(`${x},${y}`)) continue;
             const g = findGroupLibertiesOnBoard(board, boardSize, x, y, c);
             if (!g || g.libertyCells.length === 0) return true;
             g.stones.forEach(s => visited.add(`${s.x},${s.y}`));
@@ -120,14 +120,14 @@ const placePlainStonesOnBoard = (board: BoardState, boardSize: number, count: nu
     const empty: Point[] = [];
     for (let y = 0; y < boardSize; y++) {
         for (let x = 0; x < boardSize; x++) {
-            if (board[y][x] === Player.None) empty.push({ x, y });
+            if (board[y]?.[x] === Player.None) empty.push({ x, y });
         }
     }
     const shuffled = shufflePoints(empty);
     const placedStones: Point[] = [];
     for (const { x, y } of shuffled) {
         if (placedStones.length >= count) break;
-        if (board[y][x] !== Player.None) continue;
+        if (board[y]?.[x] !== Player.None) continue;
         if (isInvalidStrategicInitialStonePlacement(board, x, y, player)) continue;
         board[y][x] = player;
         placedStones.push({ x, y });
@@ -141,7 +141,7 @@ const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: 
         const empty: Point[] = [];
         for (let y = 0; y < boardSize; y++) {
             for (let x = 0; x < boardSize; x++) {
-                if (board[y][x] !== Player.None) continue;
+                if (board[y]?.[x] !== Player.None) continue;
                 if (isInvalidStrategicInitialStonePlacement(board, x, y, player)) continue;
                 empty.push({ x, y });
             }
@@ -155,22 +155,41 @@ const placePatternStonesOnBoard = (board: BoardState, boardSize: number, count: 
     return result;
 };
 
-const cloneBoard = (b: BoardState): BoardState => b.map(row => [...row]);
-
 const emptyBoard = (boardSize: number): BoardState =>
     Array(boardSize)
         .fill(null)
         .map(() => Array(boardSize).fill(Player.None));
+
+/**
+ * `boardSize`×`boardSize` 정사각 판으로 정규화한다. 범위 밖 좌표·짧은 행·빈 행은 빈 칸으로 두고,
+ * 흑/백만 유지한다(잘못된 값은 빈 칸).
+ */
+export function sanitizeSquareStrategicBoard(baseBoard: BoardState | undefined | null, boardSize: number): BoardState {
+    const out: BoardState = emptyBoard(boardSize);
+    if (!baseBoard || !Array.isArray(baseBoard)) return out;
+    const h = Math.min(boardSize, baseBoard.length);
+    for (let y = 0; y < h; y++) {
+        const row = baseBoard[y];
+        if (!Array.isArray(row)) continue;
+        const w = Math.min(boardSize, row.length);
+        for (let x = 0; x < w; x++) {
+            const c = row[x];
+            if (c === Player.Black || c === Player.White) out[y][x] = c;
+        }
+    }
+    return out;
+}
+
+const countStonesOnBoard = (board: BoardState): number =>
+    board.reduce((sum, row) => sum + (Array.isArray(row) ? row.filter((c) => c !== Player.None).length : 0), 0);
 
 const tryOneStrategicLayout = (
     boardSize: number,
     placements: StrategicInitialPlacements,
     baseBoard?: BoardState
 ): { board: BoardState; blackPattern: Point[]; whitePattern: Point[] } | null => {
-    const board = baseBoard ? cloneBoard(baseBoard) : emptyBoard(boardSize);
-    if (board.length !== boardSize || (board[0] && board[0].length !== boardSize)) {
-        return null;
-    }
+    const board = sanitizeSquareStrategicBoard(baseBoard, boardSize);
+    const stonesBeforeRandom = countStonesOnBoard(board);
 
     const blackCount = placements.black ?? 0;
     const whiteCount = placements.white ?? 0;
@@ -190,14 +209,15 @@ const tryOneStrategicLayout = (
         board[p.y][p.x] = Player.White;
     }
 
-    const expectedStones = blackCount + whiteCount + blackPatternCount + whitePatternCount;
-    const actualStones = board.flat().filter(c => c !== Player.None).length;
+    const expectedTotalStones =
+        stonesBeforeRandom + blackCount + whiteCount + blackPatternCount + whitePatternCount;
+    const actualStones = countStonesOnBoard(board);
     const countsOk =
         blackStones.length === blackCount &&
         whiteStones.length === whiteCount &&
         blackPattern.length === blackPatternCount &&
         whitePattern.length === whitePatternCount &&
-        actualStones === expectedStones;
+        actualStones === expectedTotalStones;
 
     if (!countsOk || strategicBoardHasDeadGroup(board, boardSize)) return null;
     return { board, blackPattern, whitePattern };
@@ -234,7 +254,8 @@ export function generateStrategicRandomBoard(
         boardSize,
         placements,
     });
-    const board = baseBoard ? cloneBoard(baseBoard) : emptyBoard(boardSize);
+    const board = sanitizeSquareStrategicBoard(baseBoard, boardSize);
+    const stonesBeforeRandom = countStonesOnBoard(board);
     const blackCount = placements.black ?? 0;
     const whiteCount = placements.white ?? 0;
     const blackPatternCount = placements.blackPattern ?? 0;
@@ -250,8 +271,8 @@ export function generateStrategicRandomBoard(
     for (const p of whitePattern) {
         board[p.y][p.x] = Player.White;
     }
-    const expectedStones = blackCount + whiteCount + blackPatternCount + whitePatternCount + (baseBoard?.flat().filter(c => c !== Player.None).length ?? 0);
-    const actualStones = board.flat().filter(c => c !== Player.None).length;
+    const expectedStones = stonesBeforeRandom + blackCount + whiteCount + blackPatternCount + whitePatternCount;
+    const actualStones = countStonesOnBoard(board);
     if (
         blackStones.length !== blackCount ||
         whiteStones.length !== whiteCount ||

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { User } from '../../../shared/types/index.js';
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../../shared/constants/singlePlayerConstants.js';
+import { GameMode } from '../../../shared/types/enums.js';
 import { reconcileSinglePlayerProgress } from '../../../shared/utils/singlePlayerProgress.js';
 import { isFullSinglePlayerStagesPermutation, normalizeSinglePlayerStagesOverride } from '../../singlePlayerStageConfigService.js';
 import { remapUserSinglePlayerProgressFields } from '../../singlePlayerStageIdMigration.js';
@@ -127,5 +128,86 @@ describe('single-player stage stability', () => {
 
         expect(stage.fixedOpening).toHaveLength(1);
         expect(totalRandomStones).toBeLessThanOrEqual(48);
+    });
+
+    it('does not revive default rule fields after admin editor saves a clean mix stage', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.hiddenCount != null && s.autoScoringTurns != null) ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'mix',
+                mixedStrategicModes: [GameMode.Speed, GameMode.Base],
+                autoScoringTurns: 33,
+                hiddenCount: undefined,
+                scanCount: undefined,
+                missileCount: undefined,
+                blackTurnLimit: undefined,
+                survivalTurns: undefined,
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+
+        expect(stage.strategicRulePreset).toBe('mix');
+        expect(stage.mixedStrategicModes).toEqual([GameMode.Speed, GameMode.Base]);
+        expect(stage.autoScoringTurns).toBe(33);
+        expect(stage.hiddenCount).toBeUndefined();
+        expect(stage.scanCount).toBeUndefined();
+        expect(stage.missileCount).toBeUndefined();
+        expect(stage.blackTurnLimit).toBeUndefined();
+    });
+
+    it('drops auto scoring turns for admin-configured capture mix stages', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.autoScoringTurns != null) ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'mix',
+                mixedStrategicModes: [GameMode.Capture, GameMode.Hidden],
+                blackTurnLimit: 15,
+                hiddenCount: 2,
+                scanCount: 1,
+                autoScoringTurns: 40,
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+
+        expect(stage.strategicRulePreset).toBe('mix');
+        expect(stage.mixedStrategicModes).toEqual([GameMode.Capture, GameMode.Hidden]);
+        expect(stage.blackTurnLimit).toBe(15);
+        expect(stage.hiddenCount).toBe(2);
+        expect(stage.autoScoringTurns).toBeUndefined();
+    });
+
+    it('preserves admin-configured AI hidden use count', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                strategicRulePreset: 'hidden',
+                hiddenCount: 2,
+                scanCount: 1,
+                aiHiddenItemUseWithinTurn: 8,
+                aiHiddenItemUseCount: 3,
+            },
+        ]);
+
+        expect(normalized[0].aiHiddenItemUseWithinTurn).toBe(8);
+        expect(normalized[0].aiHiddenItemUseCount).toBe(3);
+    });
+
+    it('keeps class-based KataServer defaults instead of weakening every normalized stage', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.level === '중급') ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([{ ...base, kataServerLevel: undefined }]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+
+        expect(stage.kataServerLevel).toBe(base.level === '중급' ? -29 : -31);
+    });
+
+    it('preserves admin-configured KataServer level through normalization', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.level === '유단자') ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
+        const normalized = normalizeSinglePlayerStagesOverride([{ ...base, kataServerLevel: 9 }]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+
+        expect(stage.kataServerLevel).toBe(9);
     });
 });

@@ -380,11 +380,13 @@ function singlePlayerStageHighlights(
   const h: PreGameSpecialHighlight[] = [];
   const isSurvivalRules = resolveSinglePlayerSurvivalModeForSession(session, stage);
   const isLegacyRuleInference = stage.strategicRulePreset == null || stage.strategicRulePreset === 'auto';
-  const isCaptureMode =
-    !isSurvivalRules &&
-    (session.mode === GameMode.Capture || (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
   const mix = mixedList(session.settings);
   const em = effectiveModesForRules(session.mode, mix);
+  const isCaptureMode =
+    !isSurvivalRules &&
+    (session.mode === GameMode.Capture ||
+      em.includes(GameMode.Capture) ||
+      (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
   const bs = defaultBaseStoneCount(session.settings);
 
   if (
@@ -410,6 +412,7 @@ function singlePlayerStageHighlights(
   if (
     stage.autoScoringTurns &&
     stage.autoScoringTurns > 0 &&
+    !isCaptureMode &&
     usesTerritoryScoring(session.mode, mix)
   ) {
     h.push({ img: '/images/simbols/simbol7.png', text: `${stage.autoScoringTurns}수 후 자동 계가` });
@@ -719,11 +722,14 @@ function getSinglePlayerStageSummary(
   const whiteTarget = effectiveTargets?.[Player.White];
   const isSurvivalRules = resolveSinglePlayerSurvivalModeForSession(session, stage);
   const isLegacyRuleInference = stage.strategicRulePreset == null || stage.strategicRulePreset === 'auto';
-  const isCaptureMode =
-    !isSurvivalRules && (session.mode === GameMode.Capture || (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
-  const isSpeedMode = !isCaptureMode && !isSurvivalRules && stage.timeControl.type === 'fischer';
   const sessionMix = mixedList(session.settings);
   const sessionEm = effectiveModesForRules(session.mode, sessionMix);
+  const isCaptureMode =
+    !isSurvivalRules &&
+    (session.mode === GameMode.Capture ||
+      sessionEm.includes(GameMode.Capture) ||
+      (isLegacyRuleInference && stage.blackTurnLimit !== undefined));
+  const isSpeedMode = !isCaptureMode && !isSurvivalRules && stage.timeControl.type === 'fischer';
 
   /** 싱글/탑: 플레이어는 항상 흑 — 짧은 문구 + 유저(흑) 시점 */
   let winGoal = '스테이지 조건 충족 시 승리';

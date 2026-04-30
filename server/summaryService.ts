@@ -3,7 +3,7 @@
 import { LiveGameSession, Player, User, GameSummary, StatChange, GameMode, InventoryItem, SpecialStat, WinReason, SinglePlayerStageInfo, QuestReward, Mail } from '../types/index.js';
 import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
-import { SPECIAL_GAME_MODES, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS, ENABLE_PVP_SKILL_REWARD_MULTIPLIER, getPvpSkillRewardMultiplier } from '../constants';
+import { SPECIAL_GAME_MODES, NO_CONTEST_MOVE_THRESHOLD, NO_CONTEST_MANNER_PENALTY, NO_CONTEST_RANKING_PENALTY, CONSUMABLE_ITEMS, MATERIAL_ITEMS, PLAYFUL_GAME_MODES, STRATEGIC_LOOT_TABLE, PLAYFUL_LOOT_TABLES_BY_ROUNDS, ENABLE_PVP_SKILL_REWARD_MULTIPLIER, getPvpSkillRewardMultiplier, RANKED_ELO_BASE_SCORE, RANKED_ELO_K_FACTOR, RANKED_ELO_MIN_CHANGE, RANKED_ELO_MAX_CHANGE } from '../constants';
 import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
 import { getSelectiveUserUpdate } from './utils/userUpdateHelper.js';
@@ -1190,11 +1190,16 @@ function calculateAdventureMonsterBattleRewards(
 
 
 export const calculateEloChange = (playerRating: number, opponentRating: number, result: 'win' | 'loss' | 'draw'): number => {
-    const K = 32;
-    const expectedScore = 1 / (1 + Math.pow(10, (opponentRating - playerRating) / 400));
+    const normalizedPlayerRating = Number.isFinite(playerRating) ? playerRating : RANKED_ELO_BASE_SCORE;
+    const normalizedOpponentRating = Number.isFinite(opponentRating) ? opponentRating : RANKED_ELO_BASE_SCORE;
+    const expectedScore = 1 / (1 + Math.pow(10, (normalizedOpponentRating - normalizedPlayerRating) / 400));
     const actualScore = result === 'win' ? 1 : result === 'draw' ? 0.5 : 0;
-    const ratingChange = K * (actualScore - expectedScore);
-    return Math.round(ratingChange);
+    const rawChange = RANKED_ELO_K_FACTOR * (actualScore - expectedScore);
+    const rounded = Math.round(rawChange);
+    if (rounded === 0) return 0;
+    const sign = rounded > 0 ? 1 : -1;
+    const magnitude = Math.min(RANKED_ELO_MAX_CHANGE, Math.max(RANKED_ELO_MIN_CHANGE, Math.abs(rounded)));
+    return sign * magnitude;
 };
 
 const processPlayerSummary = async (
@@ -1361,14 +1366,6 @@ const processPlayerSummary = async (
             const result = isWinner ? 'win' : isDraw ? 'draw' : 'loss';
             ratingChange = calculateEloChange(initialRating, opponentRating, result);
             
-            // 클래식바둑 특별 처리: 승리시 2배, 패배시 절반
-            if (mode === GameMode.Standard) {
-                if (isWinner) {
-                    ratingChange = ratingChange * 2;
-                } else if (!isDraw) {
-                    ratingChange = Math.round(ratingChange / 2);
-                }
-            }
         }
     }
     
@@ -1418,8 +1415,6 @@ const processPlayerSummary = async (
             updatedPlayer.cumulativeRankingScore = {};
         }
         
-        const ELO_BASE_SCORE = 1200; // ELO 기준 점수
-        
         if (isStrategic) {
             // 전략바둑: 모든 전략바둑 모드의 rankingScore 평균 계산 후 1200에서의 차이를 저장
             let totalScore = 0;
@@ -1434,7 +1429,7 @@ const processPlayerSummary = async (
             if (modeCount > 0) {
                 const averageScore = Math.round(totalScore / modeCount);
                 // 1200에서의 차이를 저장 (예: 826점이면 -374점)
-                updatedPlayer.cumulativeRankingScore['standard'] = averageScore - ELO_BASE_SCORE;
+                updatedPlayer.cumulativeRankingScore['standard'] = averageScore - RANKED_ELO_BASE_SCORE;
             }
         } else if (isPlayful) {
             // 놀이바둑: 모든 놀이바둑 모드의 rankingScore 평균 계산 후 1200에서의 차이를 저장
@@ -1450,7 +1445,7 @@ const processPlayerSummary = async (
             if (modeCount > 0) {
                 const averageScore = Math.round(totalScore / modeCount);
                 // 1200에서의 차이를 저장 (예: 826점이면 -374점)
-                updatedPlayer.cumulativeRankingScore['playful'] = averageScore - ELO_BASE_SCORE;
+                updatedPlayer.cumulativeRankingScore['playful'] = averageScore - RANKED_ELO_BASE_SCORE;
             }
         }
     }
@@ -1922,8 +1917,8 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
                 await db.updateUser(p1);
                 broadcastUserUpdate(p1, ['actionPoints']);
             }
-        } else if (winReason === 'disconnect' && game.moveHistory.length < 20) {
-            // 20수 이내 접속장애로 무효처리된 경우: 접속이 끊어진 유저는 행동력 소모 유지, 무효처리를 당한 유저는 행동력 환불
+        } else if (winReason === 'disconnect' && game.moveHistory.length < NO_CONTEST_MOVE_THRESHOLD) {
+            // 초반 접속장애로 무효처리된 경우: 접속이 끊어진 유저는 행동력 소모 유지, 무효처리를 당한 유저는 행동력 환불
             // 접속이 끊어진 유저 찾기 (disconnectionCounts가 있는 유저)
             const disconnectedPlayerId = game.disconnectionCounts?.[p1.id] > 0 ? p1.id : p2.id;
             

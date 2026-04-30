@@ -680,6 +680,8 @@ export type SinglePlayerStageInfo = {
     aiHiddenItemTurns?: number[];
     /** AI 히든 연출을 n번째 AI 턴 이내에서 무작위 1회 사용 (aiHiddenItemTurns 미지정 시 사용) */
     aiHiddenItemUseWithinTurn?: number;
+    /** AI 히든 연출을 몇 번 사용할지 지정. 직접 턴 목록이 있으면 목록 길이를 우선한다. */
+    aiHiddenItemUseCount?: number;
     /** AI 히든 아이템 사용 시 착수할 좌표(순서대로 사용, 예: [{x:2,y:3}, {x:5,y:4}]) */
     aiHiddenItemPlacements?: Point[];
     /** true면 싱글 스테이지에서 AI 히든 아이템 사용(연출+실사용)을 비활성화 */
@@ -748,6 +750,8 @@ export type GameSettings = {
   singlePlayerAiHiddenItemTurns?: number[];
   /** 싱글 스테이지 히든 연출 AI 턴 지정(무작위 상한) */
   singlePlayerAiHiddenItemUseWithinTurn?: number;
+  /** 싱글 스테이지 히든 연출 사용 횟수 */
+  singlePlayerAiHiddenItemUseCount?: number;
   /** 싱글 스테이지 AI 히든 아이템 착수 좌표(순서대로 사용) */
   singlePlayerAiHiddenItemPlacements?: Point[];
   /** true면 싱글 스테이지에서 AI 히든 아이템 사용(연출+실사용)을 비활성화 */

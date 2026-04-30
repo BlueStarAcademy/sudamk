@@ -66,13 +66,16 @@ const normalizeTimeControl = (
     };
 };
 
-const normalizeOptionalPositiveInt = (
-    value: unknown,
-    fallback: number | undefined,
+const hasOwn = (row: Record<string, unknown>, key: string): boolean =>
+    Object.prototype.hasOwnProperty.call(row, key);
+
+const normalizeOptionalPositiveIntFromRow = (
+    row: Record<string, unknown>,
+    key: string,
     max: number
 ): number | undefined => {
-    if (value == null) return fallback;
-    const n = clampInt(value, 0, max, fallback ?? 0);
+    if (!hasOwn(row, key)) return undefined;
+    const n = clampInt(row[key], 0, max, 0);
     return n > 0 ? n : undefined;
 };
 
@@ -96,6 +99,23 @@ const normalizeOptionalText = (value: unknown, fallback: string | undefined, max
     if (typeof value !== 'string') return fallback;
     const text = value.trim();
     return text ? text.slice(0, maxLength) : undefined;
+};
+
+const defaultSinglePlayerKataServerLevel = (level: SinglePlayerStageInfo['level']): number => {
+    switch (level) {
+        case '입문':
+            return -31;
+        case '초급':
+            return -30;
+        case '중급':
+            return -29;
+        case '고급':
+            return -28;
+        case '유단자':
+            return -27;
+        default:
+            return -31;
+    }
 };
 
 const clampPlacementsToCapacity = (
@@ -164,11 +184,9 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         boardSize * boardSize - (Boolean(row.mergeRandomPlacementsWithFixed) ? (fixedOpening?.length ?? 0) : 0)
     );
 
-    const forcedAiResponsesRaw = Array.isArray((row as Record<string, unknown>).forcedAiResponses)
-        ? ((row as Record<string, unknown>).forcedAiResponses as unknown[])
-        : Array.isArray(fallback.forcedAiResponses)
-          ? (fallback.forcedAiResponses as unknown[])
-          : [];
+    const forcedAiResponsesRaw = Array.isArray(row.forcedAiResponses)
+        ? (row.forcedAiResponses as unknown[])
+        : [];
     const normalizePointInBoard = (value: unknown): { x: number; y: number } | null => {
         if (!value || typeof value !== 'object') return null;
         const v = value as Record<string, unknown>;
@@ -188,11 +206,9 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             return whenOpponentStoneAt ? { move, whenOpponentStoneAt } : { move };
         })
         .filter((entry): entry is ForcedAiResponse => entry != null);
-    const aiHiddenItemPlacementsRaw = Array.isArray((row as Record<string, unknown>).aiHiddenItemPlacements)
-        ? ((row as Record<string, unknown>).aiHiddenItemPlacements as unknown[])
-        : Array.isArray((fallback as any).aiHiddenItemPlacements)
-          ? ((fallback as any).aiHiddenItemPlacements as unknown[])
-          : [];
+    const aiHiddenItemPlacementsRaw = Array.isArray(row.aiHiddenItemPlacements)
+        ? (row.aiHiddenItemPlacements as unknown[])
+        : [];
     const aiHiddenItemPlacements = aiHiddenItemPlacementsRaw
         .map((entry) => normalizePointInBoard(entry))
         .filter((entry): entry is { x: number; y: number } => entry != null)
@@ -212,33 +228,18 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         },
         placements: normalizedPlacements,
         timeControl: normalizeTimeControl(row.timeControl, fallback.timeControl),
-        blackTurnLimit: normalizeOptionalPositiveInt(row.blackTurnLimit, fallback.blackTurnLimit, 999),
-        survivalTurns: normalizeOptionalPositiveInt(row.survivalTurns, fallback.survivalTurns, 999),
-        hiddenCount: normalizeOptionalPositiveInt(row.hiddenCount, fallback.hiddenCount, 99),
-        scanCount: normalizeOptionalPositiveInt(row.scanCount, fallback.scanCount, 99),
-        aiHiddenItemTurns:
-            normalizeOptionalPositiveIntList((row as any).aiHiddenItemTurns, 99, 12)
-            ?? normalizeOptionalPositiveIntList((fallback as any).aiHiddenItemTurns, 99, 12),
-        aiHiddenItemUseWithinTurn: normalizeOptionalPositiveInt(
-            (row as any).aiHiddenItemUseWithinTurn,
-            (fallback as any).aiHiddenItemUseWithinTurn,
-            99
-        ),
+        blackTurnLimit: normalizeOptionalPositiveIntFromRow(row, 'blackTurnLimit', 999),
+        survivalTurns: normalizeOptionalPositiveIntFromRow(row, 'survivalTurns', 999),
+        hiddenCount: normalizeOptionalPositiveIntFromRow(row, 'hiddenCount', 99),
+        scanCount: normalizeOptionalPositiveIntFromRow(row, 'scanCount', 99),
+        aiHiddenItemTurns: normalizeOptionalPositiveIntList(row.aiHiddenItemTurns, 99, 12),
+        aiHiddenItemUseWithinTurn: normalizeOptionalPositiveIntFromRow(row, 'aiHiddenItemUseWithinTurn', 99),
+        aiHiddenItemUseCount: normalizeOptionalPositiveIntFromRow(row, 'aiHiddenItemUseCount', 12),
         aiHiddenItemPlacements: aiHiddenItemPlacements.length > 0 ? aiHiddenItemPlacements : undefined,
-        disableAiHiddenItemUsage:
-            (row as any).disableAiHiddenItemUsage === true
-                ? true
-                : (fallback as any).disableAiHiddenItemUsage === true
-                  ? true
-                  : undefined,
-        forceAiResponsesOnHiddenTurnsOnly:
-            (row as any).forceAiResponsesOnHiddenTurnsOnly === true
-                ? true
-                : (fallback as any).forceAiResponsesOnHiddenTurnsOnly === true
-                  ? true
-                  : undefined,
-        missileCount: normalizeOptionalPositiveInt(row.missileCount, fallback.missileCount, 99),
-        autoScoringTurns: normalizeOptionalPositiveInt(row.autoScoringTurns, fallback.autoScoringTurns, 999),
+        disableAiHiddenItemUsage: row.disableAiHiddenItemUsage === true ? true : undefined,
+        forceAiResponsesOnHiddenTurnsOnly: row.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
+        missileCount: normalizeOptionalPositiveIntFromRow(row, 'missileCount', 99),
+        autoScoringTurns: normalizeOptionalPositiveIntFromRow(row, 'autoScoringTurns', 999),
         rewards: {
             firstClear: {
                 gold: clampInt((row.rewards as any)?.firstClear?.gold, 0, 9999999, fallback.rewards.firstClear.gold),
@@ -259,23 +260,25 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
                 items: normalizeItemRewardList((row.rewards as any)?.repeatClear?.items) ?? fallback.rewards.repeatClear.items,
             },
         },
-        baseStones: clampInt((row as any).baseStones, 0, 20, (fallback as any).baseStones ?? 0),
+        baseStones: normalizeOptionalPositiveIntFromRow(row, 'baseStones', 20),
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,
         mergeRandomPlacementsWithFixed: Boolean(row.mergeRandomPlacementsWithFixed),
         allowPlacementRefresh: row.allowPlacementRefresh === false ? false : fallback.allowPlacementRefresh !== false,
-        kataServerLevel: clampInt((row as any).kataServerLevel, -31, 9, (fallback as any).kataServerLevel ?? -31),
+        kataServerLevel: clampInt(
+            (row as any).kataServerLevel,
+            -31,
+            9,
+            (fallback as any).kataServerLevel ?? defaultSinglePlayerKataServerLevel(fallback.level)
+        ),
         forcedAiResponses: forcedAiResponses.length > 0 ? forcedAiResponses : undefined,
-        strictForcedAiResponses:
-            row.strictForcedAiResponses === true
-                ? true
-                : fallback.strictForcedAiResponses === true
-                  ? true
-                  : undefined,
+        strictForcedAiResponses: row.strictForcedAiResponses === true ? true : undefined,
     };
 
     const presetRaw = (row as Record<string, unknown>).strategicRulePreset;
     if (typeof presetRaw === 'string' && (RULE_PRESETS as readonly string[]).includes(presetRaw)) {
         out.strategicRulePreset = presetRaw as SinglePlayerStrategicRulePreset;
+    } else {
+        delete (out as { strategicRulePreset?: SinglePlayerStrategicRulePreset }).strategicRulePreset;
     }
     const mixRaw = (row as Record<string, unknown>).mixedStrategicModes;
     if (Array.isArray(mixRaw) && mixRaw.length >= 2) {
@@ -285,7 +288,14 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             .filter((m): m is GameMode => m != null);
         if (cleaned.length >= 2) {
             out.mixedStrategicModes = cleaned.slice(0, 5);
+        } else {
+            delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
         }
+    } else {
+        delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
+    }
+    if (out.strategicRulePreset === 'mix' && out.mixedStrategicModes?.includes(GameMode.Capture)) {
+        delete (out as { autoScoringTurns?: number }).autoScoringTurns;
     }
 
     return out;

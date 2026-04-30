@@ -42,7 +42,7 @@ import { processGameSummary, endGame } from './summaryService.js';
 import * as aiPlayer from './aiPlayer.js';
 import { processRankingRewards, processWeeklyLeagueUpdates, updateWeeklyCompetitorsIfNeeded, processWeeklyTournamentReset, resetAllTournamentScores, resetAllUsersLeagueScoresForNewWeek, processDailyRankings, processDailyQuestReset, resetAllChampionshipScoresToZero, processTowerRankingRewards } from './scheduledTasks.js';
 import * as tournamentService from './tournamentService.js';
-import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_PLAYER_MISSIONS, GRADE_LEVEL_REQUIREMENTS, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH } from '../shared/constants';
+import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_PLAYER_MISSIONS, GRADE_LEVEL_REQUIREMENTS, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH, NO_CONTEST_MOVE_THRESHOLD } from '../shared/constants';
 import { calculateTotalStats } from './statService.js';
 import { isSameDayKST, getKSTDate } from '../shared/utils/timeUtils.js';
 import { createDefaultBaseStats, createDefaultUser } from './initialData.ts';
@@ -2058,7 +2058,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                         await endGame(activeGame, winner, 'disconnect');
                                     } else {
                                         activeGame.disconnectionState = { disconnectedPlayerId: userId, timerStartedAt: now };
-                                        if (activeGame.moveHistory.length < 10) {
+                                        if (activeGame.moveHistory.length < NO_CONTEST_MOVE_THRESHOLD) {
                                             const otherPlayerId = activeGame.player1.id === userId ? activeGame.player2.id : activeGame.player1.id;
                                             if (!activeGame.canRequestNoContest) activeGame.canRequestNoContest = {};
                                             activeGame.canRequestNoContest[otherPlayerId] = true;
@@ -2295,13 +2295,32 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     });
 
                     if (!p1Online && !p2Online && !isSpectatorPresent) {
-                        console.log(`[Game ${game.id}] Both players disconnected and no spectators. Deleting game and notifying on reconnect.`);
+                        console.log(`[Game ${game.id}] Both players disconnected and no spectators. ${game.isRankedGame ? 'Settling ranked game as no contest.' : 'Deleting game and notifying on reconnect.'}`);
                             try {
                                 const p1Id = game.player1?.id;
                                 const p2Id = game.player2?.id;
-                                clearAiSession(game.id);
-                                await db.deleteGame(game.id);
-                                delete volatileState.gameChats[game.id];
+                                if (game.isRankedGame) {
+                                    game.gameStatus = 'no_contest';
+                                    game.winner = Player.None;
+                                    game.winReason = 'disconnect';
+                                    game.disconnectionState = null;
+                                    game.noContestInitiatorIds = [p1Id, p2Id].filter((id): id is string => Boolean(id));
+                                    if (!game.disconnectionCounts) game.disconnectionCounts = {};
+                                    if (p1Id) game.disconnectionCounts[p1Id] = Math.max(1, game.disconnectionCounts[p1Id] || 0);
+                                    if (p2Id) game.disconnectionCounts[p2Id] = Math.max(1, game.disconnectionCounts[p2Id] || 0);
+                                    await processGameSummary(game);
+                                    const humanIds = [p1Id, p2Id].filter((id): id is string => Boolean(id));
+                                    game.statsUpdated = humanIds.every((id) => !!game.summary?.[id]);
+                                    clearAiSession(game.id);
+                                    await db.saveGame(game);
+                                    disconnectedGamesToBroadcast[game.id] = game;
+                                } else {
+                                    clearAiSession(game.id);
+                                    await db.deleteGame(game.id);
+                                    delete volatileState.gameChats[game.id];
+                                    mutualDisconnectGameIds.add(game.id);
+                                    broadcast({ type: 'GAME_DELETED', payload: { gameId: game.id, reason: 'mutual_disconnect' } });
+                                }
                                 if (!volatileState.pendingMutualDisconnectByUser) volatileState.pendingMutualDisconnectByUser = {};
                             if (p1Id) volatileState.pendingMutualDisconnectByUser[p1Id] = MUTUAL_DISCONNECT_MESSAGE;
                             if (p2Id) volatileState.pendingMutualDisconnectByUser[p2Id] = MUTUAL_DISCONNECT_MESSAGE;
@@ -2313,8 +2332,6 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                 delete volatileState.userStatuses[p2Id].gameId;
                                 volatileState.userStatuses[p2Id].status = types.UserStatus.Waiting;
                             }
-                            mutualDisconnectGameIds.add(game.id);
-                            broadcast({ type: 'GAME_DELETED', payload: { gameId: game.id, reason: 'mutual_disconnect' } });
                         } catch (delError: any) {
                             console.error(`[MainLoop] Failed to delete mutually disconnected game ${game.id}:`, delError?.message);
                         }

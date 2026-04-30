@@ -10,14 +10,9 @@ const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ session, curren
     const { disconnectionState, player1, player2, disconnectionCounts, gameStatus } = session;
     const [timeLeft, setTimeLeft] = useState(90);
 
-    // 게임이 종료되었거나 disconnectionState가 없으면 모달 표시하지 않음
-    if (!disconnectionState || gameStatus === 'ended' || gameStatus === 'no_contest') return null;
-
-    const disconnectedPlayer = disconnectionState.disconnectedPlayerId === player1.id ? player1 : player2;
-    const isDisconnectedMe = disconnectedPlayer.id === currentUser.id;
-    const count = disconnectionCounts?.[disconnectedPlayer.id] || 1;
-
     useEffect(() => {
+        if (!disconnectionState) return;
+
         const updateTimer = () => {
             const elapsed = (Date.now() - disconnectionState.timerStartedAt) / 1000;
             const remaining = Math.max(0, 90 - Math.floor(elapsed));
@@ -28,7 +23,14 @@ const DisconnectionModal: React.FC<DisconnectionModalProps> = ({ session, curren
         updateTimer(); // Initial call
 
         return () => clearInterval(timerId);
-    }, [disconnectionState.timerStartedAt]);
+    }, [disconnectionState]);
+
+    // 게임이 종료되었거나 disconnectionState가 없으면 모달 표시하지 않음
+    if (!disconnectionState || gameStatus === 'ended' || gameStatus === 'no_contest') return null;
+
+    const disconnectedPlayer = disconnectionState.disconnectedPlayerId === player1.id ? player1 : player2;
+    const isDisconnectedMe = disconnectedPlayer.id === currentUser.id;
+    const count = disconnectionCounts?.[disconnectedPlayer.id] || 1;
     
     // 원형 프로그레스 계산
     const totalTime = 90;
