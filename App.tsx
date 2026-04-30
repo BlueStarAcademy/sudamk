@@ -441,7 +441,9 @@ const AppContent: React.FC = () => {
                     aria-live="polite"
                 >
                     <div className="pointer-events-auto mt-2 w-full max-w-md animate-fade-in">
-                        <div className={`rounded-xl border bg-zinc-900/95 p-3 text-center text-sm font-medium leading-snug shadow-2xl backdrop-blur-sm ${connectionBannerClass}`}>
+                        <div
+                            className={`rounded-xl border bg-zinc-900/95 p-3 text-center text-sm font-medium leading-relaxed shadow-2xl backdrop-blur-sm whitespace-pre-line ${connectionBannerClass}`}
+                        >
                             {connectionBannerMessage}
                         </div>
                     </div>

@@ -32,6 +32,8 @@ export interface BlacksmithLevelEffectsSummaryProps {
     disassemblyJackpotBonusPercent?: number;
     combinationGreatSuccessBonusPercent?: number;
     className?: string;
+    /** 모바일·좁은 화면: 본문·헤더를 13px 계열로 통일 */
+    compact?: boolean;
 }
 
 /** 대장간 레벨별 수치 효과 (합성 등급, 대박·대성공 확률 등) */
@@ -40,24 +42,32 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
     disassemblyJackpotBonusPercent = 0,
     combinationGreatSuccessBonusPercent = 0,
     className = '',
+    compact = false,
 }) => {
     const currentLevel = blacksmithLevel ?? 1;
     const isMaxLevel = currentLevel >= BLACKSMITH_MAX_LEVEL;
     const currentLevelIndex = currentLevel - 1;
     const nextLevelIndex = isMaxLevel ? currentLevelIndex : currentLevel;
 
+    const headerRowClass = compact
+        ? 'mb-1.5 flex justify-between border-b border-gray-600 px-1.5 pb-1 text-[13px] font-bold leading-snug text-gray-400'
+        : 'mb-2 flex justify-between border-b border-gray-600 px-2 pb-1 text-sm font-bold text-gray-400';
+    const bodyClass = compact ? 'space-y-1.5 text-[13px] leading-snug text-secondary' : 'space-y-2 text-sm text-secondary';
+    const cardClass = compact ? 'rounded-md bg-black/20 p-1.5' : 'rounded-md bg-black/20 p-2';
+    const comboTitleClass = compact ? 'font-semibold leading-snug' : 'font-semibold';
+
     return (
         <div className={`text-left ${className}`}>
-            <div className="mb-2 flex justify-between border-b border-gray-600 px-2 pb-1 text-sm font-bold text-gray-400">
+            <div className={headerRowClass}>
                 <span>효과</span>
                 <span>
                     Lv.{currentLevel}
                     {!isMaxLevel && <span className="text-yellow-400"> → Lv.{currentLevel + 1}</span>}
                 </span>
             </div>
-            <div className="space-y-2 text-sm text-secondary">
-                <div className="rounded-md bg-black/20 p-2">
-                    <div className="flex justify-between">
+            <div className={bodyClass}>
+                <div className={cardClass}>
+                    <div className="flex justify-between gap-2">
                         <span>합성 가능 최대등급</span>
                         <span>
                             {GRADE_NAMES_KO[BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[currentLevelIndex]]}
@@ -70,8 +80,8 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         </span>
                     </div>
                 </div>
-                <div className="rounded-md bg-black/20 p-2">
-                    <div className="flex justify-between">
+                <div className={cardClass}>
+                    <div className="flex justify-between gap-2">
                         <span>장비 분해 대박 확률</span>
                         <span>
                             {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
@@ -84,8 +94,8 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         </span>
                     </div>
                 </div>
-                <div className="rounded-md bg-black/20 p-2">
-                    <div className="flex justify-between">
+                <div className={cardClass}>
+                    <div className="flex justify-between gap-2">
                         <span>재료 분해/합성 대박 확률</span>
                         <span>
                             {BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[currentLevelIndex]}%
@@ -98,8 +108,8 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         </span>
                     </div>
                 </div>
-                <div className="rounded-md bg-black/20 p-2">
-                    <p className="font-semibold">장비합성 대성공 확률:</p>
+                <div className={cardClass}>
+                    <p className={comboTitleClass}>장비합성 대성공 확률:</p>
                     {GRADE_ORDER.slice(0, -1).map((grade, index) => {
                         const rateKey = grade as Exclude<ItemGrade, ItemGrade.Transcendent>;
                         const rate = BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES[currentLevelIndex]?.[rateKey] ?? 0;
@@ -109,7 +119,7 @@ const BlacksmithLevelEffectsSummary: React.FC<BlacksmithLevelEffectsSummaryProps
                         const nextGradeName = GRADE_NAMES_KO[nextGrade];
 
                         return (
-                            <div key={grade} className="flex justify-between pl-2">
+                            <div key={grade} className={`flex justify-between gap-2 ${compact ? 'pl-1' : 'pl-2'}`}>
                                 <span>
                                     {currentGradeName} → {nextGradeName}
                                 </span>

@@ -46,7 +46,10 @@ const renderStarDisplay = (stars: number, previousStars?: number, isAnimating?: 
     );
 
     return (
-        <div className="absolute top-0.5 left-1.5 flex items-center gap-0.5 bg-black/40 rounded-br-md px-1 py-0.5 z-10" style={{ textShadow: '1px 1px 2px black' }}>
+        <div
+            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
+            style={{ textShadow: '1px 1px 2px black' }}
+        >
             <img 
                 src={starImage} 
                 alt="star" 
@@ -89,22 +92,29 @@ const ItemDisplay: React.FC<{ item: InventoryItem; previousStars?: number; isAni
     return (
         <div className="flex flex-col w-full h-full p-1">
             {/* Top section: Image and Name/Main Option */}
-            <div className="flex mb-2">
+            <div className="mb-1.5 flex">
                 <div className={`relative w-20 h-20 rounded-lg flex-shrink-0 mr-3 ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}>
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                     {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                     {renderStarDisplay(item.stars, previousStars, isAnimating)}
                 </div>
-                <div className="flex-grow pt-2 min-w-0">
-                    <h3 className={`text-base font-bold whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>{item.name}</h3>
-                    <p className={`text-xs ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
+                <div className="min-w-0 flex-grow pt-1">
+                    <h3 className={`text-sm font-bold leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
+                        {item.name}
+                    </h3>
+                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
                     {item.options?.main && (
-                        <p className="font-semibold text-yellow-300 text-xs whitespace-nowrap overflow-hidden text-ellipsis" title={item.options.main.display}>{item.options.main.display}</p>
+                        <p
+                            className="text-[11px] font-semibold leading-snug text-yellow-300 whitespace-nowrap overflow-hidden text-ellipsis"
+                            title={item.options.main.display}
+                        >
+                            {item.options.main.display}
+                        </p>
                     )}
                 </div>
             </div>
             {/* Bottom section: Full-width sub-options */}
-            <div className="w-full text-sm text-left space-y-1 bg-black/30 p-2 rounded-lg flex-grow overflow-y-auto">
+            <div className="w-full flex-grow space-y-0.5 overflow-y-auto rounded-lg bg-black/30 p-1.5 text-left text-[11px] leading-snug">
                 {item.options?.combatSubs && item.options.combatSubs.length > 0 && (
                     <div className="space-y-0.5">
                         {item.options.combatSubs.map((opt, i) => (
@@ -436,13 +446,13 @@ useEffect(() => {
     };
 
     return (
-            <div className="relative flex h-full flex-col">
+            <div className={`relative flex min-h-0 flex-col ${stackedViewport ? 'flex-1' : 'h-full'}`}>
             <div
-                className={`flex h-full min-h-0 gap-4 ${stackedViewport ? 'min-h-0 flex-col' : 'flex-row'}`}
+                className={`flex min-h-0 ${stackedViewport ? 'min-h-0 flex-1 flex-row gap-2' : 'h-full flex-row gap-4'}`}
             >
                 <div
-                    className={`flex h-full min-h-0 min-w-0 flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#1a1f2d]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
-                        stackedViewport ? 'w-full max-h-[min(42dvh,16rem)] shrink-0' : 'w-[55%]'
+                    className={`flex min-h-0 min-w-0 flex-col rounded-xl border border-amber-400/20 bg-gradient-to-b from-[#1a1f2d]/80 via-[#121724]/90 to-[#0c1018]/95 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${
+                        stackedViewport ? 'min-h-0 flex-1 overflow-y-auto' : 'h-full w-[55%]'
                     }`}
                 >
                     <ItemDisplay 
@@ -453,7 +463,7 @@ useEffect(() => {
                 </div>
 
                 <div
-                    className={`flex min-h-0 min-w-0 flex-col gap-2 ${stackedViewport ? 'h-auto flex-1' : 'h-full flex-1'}`}
+                    className={`flex min-h-0 min-w-0 flex-col gap-2 ${stackedViewport ? 'w-[min(11.25rem,40vw)] max-w-[13rem] shrink-0 overflow-y-auto' : 'h-full flex-1'}`}
                 >
                     {/* 강화 성공 시 정보 */}
                     <div className="flex-shrink-0 rounded-xl border border-emerald-400/25 bg-gradient-to-b from-emerald-950/25 via-black/40 to-black/30 p-2">

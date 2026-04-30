@@ -18,6 +18,11 @@ import {
     RESULT_MODAL_BOX_GOLD_CLASS,
     RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
 } from './game/ResultModalRewardSlot.js';
+import {
+    MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS,
+    MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
+    MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH,
+} from '../shared/constants/mobileEquipmentDetailModal.js';
 
 interface ItemObtainedModalProps {
     item: InventoryItem;
@@ -103,25 +108,36 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                 title="장비 상세 정보"
                 onClose={onClose}
                 windowId="item-obtained-equipment"
-                initialWidth={350}
+                initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
                 shrinkHeightToContent
                 isTopmost={isTopmost}
                 zIndex={70}
                 skipSavedPosition
+                variant="store"
                 hideFooter
                 mobileViewportFit
-                mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - 16px))"
+                mobileViewportMaxHeightVh={98}
+                mobileViewportMaxHeightCss={MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS}
+                mobileViewportDvhBottomGapPx={8}
+                bodyScrollable
+                bodyPaddingClassName={MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS}
             >
-                <>
-                    <div className="min-h-0 shrink-0 px-2 pt-2">
-                        <EquipmentDetailPanel item={item} optionsScrollable={false} />
+                <div className="flex min-h-0 w-full min-w-0 flex-col gap-1.5">
+                    <div className="min-h-0 w-full min-w-0 flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:thin]">
+                        <EquipmentDetailPanel
+                            item={item}
+                            optionsScrollable={false}
+                            comfortableTypography
+                            optionRowsSingleLine
+                            showTradeStatusUnderImage
+                        />
                     </div>
-                    <div className={ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS}>
-                        <button type="button" onClick={onClose} className={ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS}>
+                    <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50 pt-2`}>
+                        <button type="button" onClick={onClose} className={`${ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS} !text-xs !leading-snug`}>
                             확인
                         </button>
                     </div>
-                </>
+                </div>
             </DraggableWindow>
         );
     }

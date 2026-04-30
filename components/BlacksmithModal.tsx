@@ -298,6 +298,11 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         setEquipmentPickerOpen(false);
     }, [activeTab, pickerSingle, pickerCombine, pickerDisassemble]);
 
+    const handlePickSingleCompleteMobile = useCallback((item: InventoryItem) => {
+        setSelectedItem(item);
+        setEquipmentPickerOpen(false);
+    }, []);
+
     const handlePickerSelectSingle = useCallback((item: InventoryItem) => {
         setPickerSingle(item);
     }, []);
@@ -492,9 +497,10 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         }
         return '가방'; // Default or fallback
     }, [activeTab]);
-    /** 뷰포트에 비례해 작업 영역·가방 높이 분배 (고정 px 상한은 짤림 유발) */
+    /** 재료 변환만 그리드·스크롤용 최소 높이; 장비 탭(선택/작업 안내)은 콘텐츠 높이로 두어 하단 여백 제거 */
     const mobileViewerMinH =
-        activeTab === 'convert' ? 'min(clamp(11rem, 36dvh, 22rem), 50dvh)' : 'min(clamp(10rem, 32dvh, 20rem), 46dvh)';
+        activeTab === 'convert' ? 'min(clamp(11rem, 32dvh, 20rem), 46dvh)' : undefined;
+    const stackedMobileFillHeight = useStackedBlacksmithLayout && activeTab === 'convert';
 
     const mobilePickHint = useMemo(() => {
         switch (activeTab) {
@@ -561,7 +567,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     !disassemblyAutoSelectOpen &&
                     !equipmentPickerOpen &&
                     !equipmentFeatureModalOpen &&
-                    !modals.isBlacksmithHelpOpen &&
                     !modals.isBlacksmithEffectsModalOpen &&
                     !modals.disassemblyResult
                 }
@@ -570,60 +575,47 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                 windowId="blacksmith"
                 zIndex={useStackedBlacksmithLayout ? 120 : 50}
                 variant="store"
-                headerContent={
-                    <button
-                        type="button"
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            handlers.openBlacksmithHelp();
-                        }}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        className="z-30 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-amber-400/45 bg-gradient-to-br from-amber-900/70 to-stone-900/90 text-base font-bold text-amber-100 shadow-md transition hover:border-amber-300/70 hover:from-amber-800/80 active:scale-95"
-                        title="대장간 도움말"
-                        aria-label="대장간 도움말"
-                    >
-                        ?
-                    </button>
-                }
             >
                 <div
-                    className={`flex min-h-0 w-full flex-1 ${useStackedBlacksmithLayout ? 'flex-col' : 'h-full flex-row'}`}
+                    className={`flex min-h-0 w-full ${stackedMobileFillHeight ? 'flex-1' : useStackedBlacksmithLayout ? 'shrink-0' : 'flex-1'} ${useStackedBlacksmithLayout ? 'flex-col' : 'h-full flex-row'}`}
                 >
                     {useStackedBlacksmithLayout ? (
-                        <div className="flex min-h-0 w-full flex-1 flex-col gap-2">
+                        <div
+                            className={`flex min-h-0 w-full flex-col gap-2 ${stackedMobileFillHeight ? 'min-h-0 flex-1' : 'shrink-0'}`}
+                        >
                             <div className="shrink-0 rounded-xl border border-cyan-400/25 bg-gradient-to-b from-stone-900/80 to-cyan-950/30 p-2 shadow-inner">
-                                <div className="flex min-h-0 w-full items-stretch gap-2">
-                                    <div className="min-h-[9.5rem] min-w-0 flex-1">
-                                        <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-cyan-300/30 bg-gradient-to-b from-stone-900/95 to-black/90 shadow-md">
-                                            <div className="flex min-h-0 flex-1 items-center justify-center px-1.5 py-2 sm:px-2 sm:py-3">
+                                <div className="flex min-h-[12rem] w-full items-stretch gap-2 sm:min-h-[12.5rem]">
+                                    <div className="min-h-0 min-w-0 flex-1">
+                                        <div className="relative flex h-full min-h-[11rem] flex-col overflow-hidden rounded-lg border border-cyan-300/30 bg-gradient-to-b from-stone-900/95 to-black/90 shadow-md sm:min-h-[12rem]">
+                                            {/* 이미지: 패널 가용 영역을 object-cover로 채움 (PC 좌측 패널과 동일 계열) */}
+                                            <div className="relative min-h-[6.75rem] min-w-0 flex-1">
                                                 <img
                                                     src="/images/equipments/moru.png"
                                                     alt="Blacksmith"
-                                                    className="mx-auto block h-auto max-h-[min(6.5rem,26vw)] w-auto max-w-full object-contain object-center sm:max-h-[min(7.5rem,28vw)]"
+                                                    className="absolute inset-0 h-full w-full object-cover object-center"
                                                     decoding="async"
                                                 />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handlers.openBlacksmithEffectsModal()}
+                                                    title="대장간 효과"
+                                                    aria-label="대장간 효과 보기"
+                                                    className="absolute left-1.5 top-1.5 z-[2] max-w-[calc(100%-4.5rem)] rounded-md border border-amber-500/45 bg-black/75 px-2 py-1 text-left shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/85 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 sm:left-2 sm:top-2 sm:px-2.5 sm:py-1"
+                                                >
+                                                    <span className="block text-[13px] font-bold leading-tight text-white drop-shadow-sm">
+                                                        대장간 <span className="text-amber-300">Lv.{blacksmithLevel ?? 1}</span>
+                                                    </span>
+                                                </button>
                                             </div>
-                                            <button
-                                                type="button"
-                                                onClick={() => handlers.openBlacksmithEffectsModal()}
-                                                title="대장간 효과"
-                                                aria-label="대장간 효과 보기"
-                                                className="absolute left-1.5 top-1.5 z-[1] max-w-[calc(100%-4.5rem)] rounded-md border border-amber-500/45 bg-black/75 px-1.5 py-0.5 text-left shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/85 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 sm:left-2 sm:top-2 sm:px-2.5 sm:py-1"
-                                            >
-                                                <span className="block text-[10px] font-bold leading-tight text-white drop-shadow-sm sm:text-xs">
-                                                    대장간 <span className="text-amber-300">Lv.{blacksmithLevel ?? 1}</span>
-                                                </span>
-                                            </button>
-                                            <div className="shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-black/90 via-black/78 to-black/20 px-2 pb-1.5 pt-2 sm:px-3 sm:pb-2 sm:pt-3">
-                                                <div className="mb-0.5 flex items-center justify-between gap-1 text-[10px] font-semibold tabular-nums text-stone-200 sm:mb-1 sm:text-[11px] sm:text-xs">
+                                            <div className="relative z-[3] shrink-0 border-t border-amber-500/20 bg-gradient-to-t from-black/90 via-black/78 to-black/20 px-2 pb-1.5 pt-2 sm:px-3 sm:pb-2 sm:pt-3">
+                                                <div className="mb-0.5 flex items-center justify-between gap-1 text-[13px] font-semibold tabular-nums text-stone-200">
                                                     <span className="shrink-0 text-stone-400">경험치</span>
                                                     {isMaxLevel ? (
                                                         <span className="min-w-0 truncate text-right text-amber-200/95">
                                                             {(blacksmithXp ?? 0).toLocaleString()} (Max)
                                                         </span>
                                                     ) : (
-                                                        <span className="min-w-0 truncate text-right text-[9px] sm:text-[11px]">
+                                                        <span className="min-w-0 truncate text-right text-[13px]">
                                                             {(blacksmithXp ?? 0).toLocaleString()} /{' '}
                                                             {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
                                                         </span>
@@ -643,7 +635,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                         </div>
                                     </div>
                                     <nav
-                                        className="flex w-[4.85rem] shrink-0 flex-col justify-center gap-1 sm:w-[5.65rem]"
+                                        className="flex w-[5.15rem] shrink-0 flex-col justify-center gap-1 sm:w-[5.75rem]"
                                         aria-label="대장간 기능"
                                     >
                                         {tabs.map(tab => (
@@ -655,7 +647,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                                         tab.id as 'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine'
                                                     )
                                                 }
-                                                className={`min-h-[2.35rem] flex-1 rounded-lg border px-1 py-1 text-center text-[9px] font-bold leading-[1.15] shadow-sm transition sm:min-h-0 sm:px-1.5 sm:text-[10px] sm:leading-tight ${
+                                                className={`min-h-[2.35rem] flex-1 rounded-lg border px-1 py-1 text-center text-[13px] font-bold leading-[1.2] shadow-sm transition sm:min-h-0 sm:px-1.5 sm:leading-tight ${
                                                     activeTab === tab.id
                                                         ? 'border-amber-400/70 bg-gradient-to-br from-amber-600/40 via-amber-500/25 to-orange-900/30 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_0_14px_-6px_rgba(251,191,36,0.55)]'
                                                         : 'border-stone-600/55 bg-stone-800/50 text-stone-300 hover:border-cyan-500/35 hover:bg-stone-700/55 hover:text-stone-100'
@@ -669,27 +661,27 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             </div>
 
                             <div
-                                className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2 [scrollbar-gutter:stable]"
-                                style={{ minHeight: mobileViewerMinH }}
+                                className={`flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2 [scrollbar-gutter:stable] ${stackedMobileFillHeight ? 'flex-1' : 'shrink-0'}`}
+                                style={mobileViewerMinH ? { minHeight: mobileViewerMinH } : undefined}
                             >
                                 {activeTab === 'convert' && renderContent()}
                                 {isMobileEquipmentTab && !mobileShowEquipmentWorkPanel && (
-                                    <div className="flex min-h-[11rem] flex-col items-center justify-center gap-4 px-2 py-5">
-                                        <p className="max-w-sm text-center text-sm leading-relaxed text-slate-400">
+                                    <div className="flex flex-col items-center justify-center gap-3 px-2 py-4">
+                                        <p className="max-w-sm text-center text-[13px] leading-relaxed text-slate-400">
                                             {mobilePickHint}
                                         </p>
                                         <button
                                             type="button"
                                             onClick={openEquipmentPicker}
-                                            className="w-full max-w-xs rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-4 py-3.5 text-base font-bold text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.65)] transition hover:border-amber-300/80 active:scale-[0.99]"
+                                            className="w-full max-w-xs rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-4 py-3.5 text-[13px] font-bold text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.65)] transition hover:border-amber-300/80 active:scale-[0.99]"
                                         >
                                             장비 선택
                                         </button>
                                     </div>
                                 )}
                                 {isMobileEquipmentTab && mobileShowEquipmentWorkPanel && (
-                                    <div className="flex min-h-[10rem] flex-col items-center justify-center gap-3 px-2 py-6">
-                                        <p className="max-w-sm text-center text-sm leading-relaxed text-slate-400">
+                                    <div className="flex flex-col items-center justify-center gap-3 px-2 py-4">
+                                        <p className="max-w-sm text-center text-[13px] leading-relaxed text-slate-400">
                                             {equipmentFeatureModalOpen
                                                 ? '작업 창에서 진행 중입니다. 창을 닫은 경우 아래 버튼으로 다시 열 수 있습니다.'
                                                 : '아래 버튼을 눌러 작업 화면을 여세요.'}
@@ -697,14 +689,14 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                                         <button
                                             type="button"
                                             onClick={() => setEquipmentFeatureModalOpen(true)}
-                                            className="w-full max-w-xs rounded-xl border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-4 py-3 text-base font-bold text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99]"
+                                            className="w-full max-w-xs rounded-xl border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-4 py-3 text-[13px] font-bold text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99]"
                                         >
                                             {mobileFeatureOpenButtonLabel}
                                         </button>
                                         <button
                                             type="button"
                                             onClick={handleMobileEquipmentBack}
-                                            className="rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-xs font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
+                                            className="rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
                                         >
                                             ← 장비 다시 선택
                                         </button>
@@ -822,6 +814,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                     mode={activeTab}
                     onClose={() => setEquipmentPickerOpen(false)}
                     onConfirm={handlePickerConfirm}
+                    onPickSingleComplete={
+                        activeTab === 'enhance' || activeTab === 'refine' ? handlePickSingleCompleteMobile : undefined
+                    }
                     filteredInventory={filteredInventory}
                     inventorySlots={inventorySlotsToDisplay}
                     sortOption={sortOption}
@@ -840,6 +835,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                         activeTab === 'disassemble' ? () => setDisassemblyAutoSelectOpen(true) : undefined
                     }
                     disassemblyAutoSelectOpen={disassemblyAutoSelectOpen}
+                    isTopmost={Boolean(isTopmost)}
                 />
             )}
 
@@ -855,7 +851,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             isTopmost &&
                             !disassemblyAutoSelectOpen &&
                             !equipmentPickerOpen &&
-                            !modals.isBlacksmithHelpOpen &&
                             !modals.isBlacksmithEffectsModalOpen &&
                             !modals.disassemblyResult
                         }
@@ -874,7 +869,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
                             <button
                                 type="button"
                                 onClick={handleMobileEquipmentBack}
-                                className="shrink-0 self-start rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-xs font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
+                                className="shrink-0 self-start rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
                             >
                                 ← 장비 다시 선택
                             </button>

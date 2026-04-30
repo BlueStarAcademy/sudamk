@@ -124,7 +124,10 @@ const renderStarDisplay = (stars: number) => {
     }
 
     return (
-        <div className="absolute top-0.5 left-1.5 flex items-center gap-0.5 bg-black/40 rounded-br-md px-1 py-0.5 z-10" style={{ textShadow: '1px 1px 2px black' }}>
+        <div
+            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
+            style={{ textShadow: '1px 1px 2px black' }}
+        >
             <img 
                 src={starImage} 
                 alt="star" 
@@ -157,23 +160,24 @@ const ItemDisplay: React.FC<{
     return (
         <div className="flex flex-col w-full h-full p-1">
             {/* Top section: Image and Name/Main Option */}
-            <div className="flex mb-2">
-                <div className={`relative w-16 h-16 rounded-lg flex-shrink-0 mr-2 ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}>
+            <div className="mb-1.5 flex">
+                <div className={`relative mr-2 h-16 w-16 flex-shrink-0 rounded-lg ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}>
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
                     {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
                     {renderStarDisplay(item.stars)}
                 </div>
-                <div className="flex-grow pt-1 min-w-0">
-                    <h3 className={`text-sm font-bold whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>{item.name}</h3>
-                    <p className={`text-xs ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
-                    {/* 제련 가능 횟수 표시 */}
-                    <p className={`text-xs font-semibold ${(item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
+                <div className="min-w-0 flex-grow pt-0.5">
+                    <h3 className={`text-[12px] font-bold leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>
+                        {item.name}
+                    </h3>
+                    <p className={`text-[11px] leading-snug ${canEquip ? 'text-gray-500' : 'text-red-500'}`}>(착용레벨: {requiredLevel})</p>
+                    <p className={`text-[11px] font-semibold leading-snug ${(item as any).refinementCount > 0 ? 'text-amber-400' : 'text-red-400'}`}>
                         제련 가능: {(item as any).refinementCount > 0 ? `${(item as any).refinementCount}회` : '제련불가'}
                     </p>
                 </div>
             </div>
             {/* Bottom section: Clickable options */}
-            <div className="w-full text-xs text-left space-y-0.5 bg-black/30 p-1.5 rounded-lg flex-grow overflow-y-auto">
+            <div className="w-full flex-grow space-y-0.5 overflow-y-auto rounded-lg bg-black/30 p-1.5 text-left text-[11px] leading-snug">
                 {/* Main Option */}
                 <button
                     onClick={() => onOptionClick('main', 0)}
@@ -215,7 +219,7 @@ const ItemDisplay: React.FC<{
                 ))}
                 {/* Mythic / Transcendent 스페셜 — 원본 mythicSubs 인덱스 유지 */}
                 {mythicGradeRows.length > 0 ? (
-                    <p className="px-1 pt-0.5 text-[9px] font-semibold text-rose-200/85">신화 스페셜 옵션</p>
+                    <p className="px-1 pt-0.5 text-[11px] font-semibold leading-snug text-rose-200/85">신화 스페셜 옵션</p>
                 ) : null}
                 {mythicGradeRows.map(({ sub, index: idx }) => (
                     <button
@@ -234,7 +238,7 @@ const ItemDisplay: React.FC<{
                     </button>
                 ))}
                 {transcendentGradeRows.length > 0 ? (
-                    <p className="px-1 pt-1 text-[9px] font-semibold text-cyan-200/85">초월 스페셜 옵션</p>
+                    <p className="px-1 pt-1 text-[11px] font-semibold leading-snug text-cyan-200/85">초월 스페셜 옵션</p>
                 ) : null}
                 {transcendentGradeRows.map(({ sub, index: idx }) => (
                     <button
@@ -276,7 +280,6 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     onResultConfirm,
     stackedViewport = false,
 }) => {
-    const isMobile = stackedViewport;
     const [selectedOption, setSelectedOption] = useState<{ type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null>(null);
     const [refinementType, setRefinementType] = useState<RefinementType | null>(null);
     const [isRefining, setIsRefining] = useState(false);
@@ -634,46 +637,53 @@ const RefinementView: React.FC<RefinementViewProps> = ({
         <div className="flex h-full flex-col gap-2 p-2">
             {/* 좌우 분할 레이아웃(모바일: 단계형 전환) */}
             <div
-                className={`min-h-0 min-w-0 gap-3 ${stackedViewport ? 'flex flex-1 flex-col' : 'grid flex-1 grid-cols-2'}`}
+                className={`min-h-0 min-w-0 ${stackedViewport ? 'flex flex-1 flex-row gap-2' : 'grid flex-1 grid-cols-2 gap-3'}`}
             >
-                {(!isMobile || !selectedOption) && (
-                    <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
-                        <h3 className="mb-1 text-xs font-bold text-amber-100">선택된 장비</h3>
-                        <div className="flex-1 min-h-0">
-                            <ItemDisplay
-                                item={selectedItem}
-                                selectedOption={selectedOption}
-                                onOptionClick={(type, index) => {
-                                    setSelectedOption({ type, index });
+                <div
+                    className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
+                        stackedViewport ? 'min-h-0 flex-1 overflow-y-auto' : ''
+                    }`}
+                >
+                    <h3 className="mb-1 text-xs font-bold text-amber-100">선택된 장비</h3>
+                    <div className="min-h-0 flex-1">
+                        <ItemDisplay
+                            item={selectedItem}
+                            selectedOption={selectedOption}
+                            onOptionClick={(type, index) => {
+                                setSelectedOption({ type, index });
+                                setRefinementType(null);
+                            }}
+                        />
+                    </div>
+                </div>
+
+                <div
+                    className={`flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2 ${
+                        stackedViewport ? 'w-[min(11.5rem,42vw)] max-w-[14rem] shrink-0' : ''
+                    }`}
+                >
+                    <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+                        <h3 className="text-xs font-bold text-amber-100">제련 정보</h3>
+                        {stackedViewport && selectedOption && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSelectedOption(null);
                                     setRefinementType(null);
                                 }}
-                            />
-                        </div>
+                                className="rounded border border-slate-500/60 bg-slate-800/70 px-2 py-1 text-[10px] font-semibold text-slate-200 hover:border-cyan-400/50"
+                            >
+                                초기화
+                            </button>
+                        )}
                     </div>
-                )}
-
-                {(!isMobile || selectedOption) && (
-                    <div className="flex min-h-0 min-w-0 flex-col rounded-lg border border-amber-400/20 bg-gradient-to-b from-[#181d2a]/80 via-[#111623]/90 to-[#0b1018]/95 p-2">
-                        <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-                            <h3 className="text-xs font-bold text-amber-100">제련 정보</h3>
-                            {isMobile && selectedOption && (
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setSelectedOption(null);
-                                        setRefinementType(null);
-                                    }}
-                                    className="rounded border border-slate-500/60 bg-slate-800/70 px-2 py-1 text-[10px] font-semibold text-slate-200 hover:border-cyan-400/50"
-                                >
-                                    옵션 다시 선택
-                                </button>
-                            )}
-                        </div>
                         <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden">
                     {refinementExhausted ? (
                         <div className="flex flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-sm text-amber-200/95 min-h-[120px]">
                             <p className="font-semibold leading-snug">제련 가능 횟수가 모두 소진되었습니다.</p>
-                            <p className="text-xs text-gray-400 leading-relaxed">제련의 부적을 사용하면 제련 가능 횟수를 1회 복원할 수 있습니다.</p>
+                            <p className="text-xs text-gray-400 leading-relaxed">
+                                제련이 불가능한 장비의 제련가능 횟수를 1추가합니다. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택
+                            </p>
                             <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
                                 <div className="flex items-center gap-2">
                                     <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
@@ -897,8 +907,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                                 </div>
                             </div>
                         )}
-                    </div>
-                )}
+                </div>
             </div>
 
             <div

@@ -51,10 +51,10 @@ const renderStarDisplay = (stars: number, compact?: boolean) => {
 
     return (
         <div
-            className={`absolute z-10 flex items-center rounded-br-md bg-black/40 ${
+            className={`absolute z-10 flex items-center rounded-bl-md bg-black/45 backdrop-blur-[2px] ${
                 compact
-                    ? 'left-0.5 top-0.5 gap-0 px-0.5 py-0'
-                    : 'left-1.5 top-0.5 gap-0.5 px-1 py-0.5'
+                    ? 'right-0.5 top-0.5 gap-0 px-0.5 py-0'
+                    : 'right-1.5 top-0.5 gap-0.5 px-1 py-0.5'
             }`}
             style={{ textShadow: '1px 1px 2px black' }}
         >

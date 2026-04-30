@@ -594,8 +594,8 @@ export const broadcastLiveGameToList = (game: any) => {
 export const broadcastServerRestarting = (reason: 'memory' | 'maintenance' = 'memory'): void => {
     const message =
         reason === 'memory'
-            ? '서버가 곧 재시작됩니다. 잠시 후 자동으로 다시 연결됩니다.'
-            : '서버 점검으로 곧 재시작됩니다. 잠시 후 자동으로 다시 연결됩니다.';
+            ? '서버가 곧 재시작됩니다.\n잠시 후 자동으로 다시 연결됩니다.'
+            : '서버 점검으로 곧 재시작됩니다.\n잠시 후 자동으로 다시 연결됩니다.';
     broadcast({
         type: 'SERVER_RESTARTING',
         payload: {

@@ -438,6 +438,9 @@ const applyDefaults = (
     // 기보 저장/삭제는 DB 스키마에 별도 컬럼이 없고, status.serializedUser에 포함되어 저장됩니다.
     // deserialize 시 applyDefaults가 savedGameRecords를 누락하면 "저장이 안된 것처럼" 보이므로 반드시 포함합니다.
     savedGameRecords,
+    // 거래소 등록·정산·이력도 serializedUser에만 있으므로 역직렬화 시 반드시 복원합니다.
+    exchangeState:
+      user.exchangeState ?? (status?.serializedUser as User | undefined)?.exchangeState ?? undefined,
     dungeonProgress: user.dungeonProgress ?? (status?.serializedUser as User | undefined)?.dungeonProgress ?? undefined,
     dungeonConditionSnapshot: user.dungeonConditionSnapshot ?? (status?.serializedUser as User | undefined)?.dungeonConditionSnapshot ?? undefined,
     lastLoginAt: user.lastLoginAt ?? (status?.leagueMetadata?.lastLoginAt != null ? safeNumber(status.leagueMetadata.lastLoginAt, 0) : undefined) ?? (status?.serializedUser as User | undefined)?.lastLoginAt ?? undefined,

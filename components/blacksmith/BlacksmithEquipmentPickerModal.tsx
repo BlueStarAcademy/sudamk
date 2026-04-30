@@ -81,6 +81,11 @@ export interface BlacksmithEquipmentPickerModalProps {
     mode: 'enhance' | 'combine' | 'disassemble' | 'refine';
     onClose: () => void;
     onConfirm: () => void;
+    /**
+     * 강화·제련(모바일 등): 장비 한 번 탭으로 선택 확정·피커 닫기.
+     * 지정 시 그리드 탭에서 호출되며, 하단「선택 완료」는 숨깁니다.
+     */
+    onPickSingleComplete?: (item: InventoryItem) => void;
     filteredInventory: InventoryItem[];
     inventorySlots: number;
     sortOption: SortOption;
@@ -99,12 +104,14 @@ export interface BlacksmithEquipmentPickerModalProps {
     onOpenDisassemblyAutoSelect?: () => void;
     /** 분해 자동 선택 모달이 열려 있을 때 피커가 위로 덮이지 않도록 */
     disassemblyAutoSelectOpen?: boolean;
+    isTopmost?: boolean;
 }
 
 const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalProps> = ({
     mode,
     onClose,
     onConfirm,
+    onPickSingleComplete,
     filteredInventory,
     inventorySlots,
     sortOption,
@@ -121,6 +128,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
     onToggleDisassembly,
     onOpenDisassemblyAutoSelect,
     disassemblyAutoSelectOpen = false,
+    isTopmost = true,
 }) => {
     const canCombine =
         pickerCombine.every(i => i !== null) &&
@@ -138,6 +146,8 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
             onSelectForCombine(item);
         } else if (mode === 'disassemble') {
             onToggleDisassembly(item.id);
+        } else if (onPickSingleComplete && (mode === 'enhance' || mode === 'refine')) {
+            onPickSingleComplete(item);
         } else {
             onSelectSingle(item);
         }
@@ -151,6 +161,8 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
             ? '같은 등급 장비 3개를 슬롯에 담은 뒤 선택 완료를 누르세요.'
             : mode === 'disassemble'
               ? '분해할 장비를 탭하여 선택·해제할 수 있습니다.'
+              : onPickSingleComplete
+              ? '강화·제련할 장비 하나를 탭하면 작업 화면으로 이동합니다.'
               : '강화·제련할 장비 하나를 탭한 뒤 선택 완료를 누르세요.';
 
     return (
@@ -158,7 +170,7 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
             title="장비 선택"
             onClose={onClose}
             windowId="blacksmith-equipment-picker"
-            isTopmost={!disassemblyAutoSelectOpen}
+            isTopmost={Boolean(isTopmost) && !disassemblyAutoSelectOpen}
             zIndex={135}
             variant="store"
             mobileViewportFit
@@ -232,19 +244,21 @@ const BlacksmithEquipmentPickerModal: React.FC<BlacksmithEquipmentPickerModalPro
                         type="button"
                         onClick={onClose}
                         variant="neutral"
-                        className="min-h-[44px] flex-1 !py-2.5 text-sm font-bold"
+                        className={`min-h-[44px] !py-2.5 text-sm font-bold ${onPickSingleComplete ? 'w-full' : 'flex-1'}`}
                     >
                         취소
                     </ResourceActionButton>
-                    <ResourceActionButton
-                        type="button"
-                        onClick={onConfirm}
-                        variant="accent"
-                        disabled={!canConfirm}
-                        className="min-h-[44px] flex-1 !py-2.5 text-sm font-bold"
-                    >
-                        선택 완료
-                    </ResourceActionButton>
+                    {!onPickSingleComplete && (
+                        <ResourceActionButton
+                            type="button"
+                            onClick={onConfirm}
+                            variant="accent"
+                            disabled={!canConfirm}
+                            className="min-h-[44px] flex-1 !py-2.5 text-sm font-bold"
+                        >
+                            선택 완료
+                        </ResourceActionButton>
+                    )}
                 </div>
             </div>
         </DraggableWindow>

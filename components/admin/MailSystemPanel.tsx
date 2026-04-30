@@ -19,6 +19,7 @@ import {
     CORE_STATS_DATA,
     gradeBackgrounds,
     gradeStyles,
+    isActionPointConsumable,
 } from '../../constants';
 import AdminPageHeader from './AdminPageHeader.js';
 import { adminCard, adminCardTitle, adminInput, adminPageWide, adminSectionGap } from './adminChrome.js';
@@ -88,6 +89,12 @@ interface ItemSelectionModalProps {
 }
 
 type ModalSelectedItem = { name: string; type: InventoryItemType; grade?: ItemGrade };
+
+/** 상점 `ShopItemCard` 소모품 탭과 동일: ⚡ + 우상단 +N 배지 */
+function actionPointPotionShopBadge(name: string): string | null {
+    const m = name.match(/\+(\d+)/);
+    return m ? `+${m[1]}` : null;
+}
 
 function isMailModalItemSelected(
     selected: ModalSelectedItem | null,
@@ -204,7 +211,23 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                                 </>
                             ) : (
                                 <>
-                                    <img src={item.image!} alt={item.name} className="h-16 w-16 shrink-0 object-contain" />
+                                    {isActionPointConsumable(item.name) ? (() => {
+                                        const apBadge = actionPointPotionShopBadge(item.name);
+                                        return (
+                                            <div className="relative mb-0.5 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)]">
+                                                <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-hidden>
+                                                    ⚡
+                                                </span>
+                                                {apBadge ? (
+                                                    <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
+                                                        {apBadge}
+                                                    </span>
+                                                ) : null}
+                                            </div>
+                                        );
+                                    })() : (
+                                        <img src={item.image!} alt={item.name} className="h-16 w-16 shrink-0 object-contain" />
+                                    )}
                                     <span className="mt-1 line-clamp-2 text-center text-xs">{item.name}</span>
                                 </>
                             )}

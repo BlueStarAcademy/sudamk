@@ -567,7 +567,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 broadcastUserUpdate(user, ['inventory']);
                 return { clientResponse: { updatedUser, tradeListingTicketUsed: useQuantity } };
             }
-            // 제련의 부적: 선택 장비의 제련 가능 횟수 1회 복원
+            // 제련의 부적: 제련불가(0회) 장비에 제련 가능 횟수 +1
             if (item.name === '제련의 부적') {
                 if (!targetEquipmentId) {
                     return { error: '제련의 부적을 사용할 장비를 선택해주세요.' };

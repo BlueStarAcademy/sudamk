@@ -265,7 +265,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                                         style={{ width: '82%', height: '82%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
                                     />
                                 )}
-                                <div className="absolute left-1 top-1">{renderStarBadge(after.stars || 0)}</div>
+                                <div className="absolute right-1 top-1">{renderStarBadge(after.stars || 0)}</div>
                             </div>
                             <div className="min-w-0 flex-1 pt-0.5">
                                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500/80">완료</p>

@@ -17,7 +17,6 @@ const EncyclopediaModal = lazy(() => import('./modals/EncyclopediaModal.js'));
 const PastRankingsModal = lazy(() => import('./modals/PastRankingsModal.js'));
 const AdminModerationModal = lazy(() => import('./AdminModerationModal.js'));
 const BlacksmithModal = lazy(() => import('./BlacksmithModal.js'));
-const BlacksmithHelpModal = lazy(() => import('./blacksmith/BlacksmithHelpModal.js'));
 const BlacksmithEffectsModal = lazy(() => import('./blacksmith/BlacksmithEffectsModal.js'));
 const GameRecordListModal = lazy(() => import('./GameRecordListModal.js'));
 const GameRecordViewerModal = lazy(() => import('./GameRecordViewerModal.js'));
@@ -96,7 +95,6 @@ const AppModalLayer: React.FC = () => {
         if (modals.enhancingItem) ids.push('enhancingItem');
         if (modals.isBlacksmithModalOpen) ids.push('blacksmith');
         if (modals.isBlacksmithEffectsModalOpen) ids.push('blacksmithEffects');
-        if (modals.isBlacksmithHelpOpen) ids.push('blacksmithHelp');
         if (modals.isEquipmentEffectsModalOpen) ids.push('equipmentEffects');
         if (modals.isGameRecordListOpen) ids.push('gameRecordList');
         if (modals.viewingGameRecord) ids.push('gameRecordViewer');
@@ -163,7 +161,13 @@ const AppModalLayer: React.FC = () => {
             )}
             {modals.isExchangeOpen && (
                 <Suspense fallback={ModalLoadingFallback()}>
-                    <ExchangeModal currentUser={currentUserWithStatus} onClose={handlers.closeExchange} onAction={handlers.handleAction} isTopmost={topmostModalId === 'exchange'} />
+                    <ExchangeModal
+                        currentUser={currentUserWithStatus}
+                        onClose={handlers.closeExchange}
+                        onAction={handlers.handleAction}
+                        isTopmost={topmostModalId === 'exchange'}
+                        onViewListedEquipment={(item) => handlers.openViewingItem(item, true, { hideEnhanceActions: true })}
+                    />
                 </Suspense>
             )}
             {modals.isActionPointModalOpen && (
@@ -260,7 +264,17 @@ const AppModalLayer: React.FC = () => {
                     <AdminModerationModal user={modals.moderatingUser} currentUser={currentUserWithStatus} onClose={handlers.closeModerationModal} onAction={handlers.handleAction} isTopmost={topmostModalId === 'moderatingUser'} />
                 </Suspense>
             )}
-            {modals.viewingItem && <ItemDetailModal item={modals.viewingItem.item} isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser} onClose={handlers.closeViewingItem} onStartEnhance={handlers.openEnhancementFromDetail} onStartRefine={handlers.openRefinementFromDetail} isTopmost={topmostModalId === 'viewingItem'} />}
+            {modals.viewingItem && (
+                <ItemDetailModal
+                    item={modals.viewingItem.item}
+                    isOwnedByCurrentUser={modals.viewingItem.isOwnedByCurrentUser}
+                    hideEnhanceActions={Boolean(modals.viewingItem.hideEnhanceActions)}
+                    onClose={handlers.closeViewingItem}
+                    onStartEnhance={handlers.openEnhancementFromDetail}
+                    onStartRefine={handlers.openRefinementFromDetail}
+                    isTopmost={topmostModalId === 'viewingItem'}
+                />
+            )}
             {activeNegotiation && (() => {
                 const isReceivedChallenge = activeNegotiation.status === 'pending' &&
                     (activeNegotiation.opponent.id === currentUserWithStatus.id &&
@@ -381,11 +395,6 @@ const AppModalLayer: React.FC = () => {
                         blacksmithLevel={currentUserWithStatus.blacksmithLevel ?? 1}
                         currentUser={currentUserWithStatus}
                     />
-                </Suspense>
-            )}
-            {modals.isBlacksmithHelpOpen && (
-                <Suspense fallback={ModalLoadingFallback()}>
-                    <BlacksmithHelpModal onClose={handlers.closeBlacksmithHelp} isTopmost={topmostModalId === 'blacksmithHelp'} currentUser={currentUserWithStatus} />
                 </Suspense>
             )}
             {modals.isEnhancementResultModalOpen && enhancementOutcome && <EnhancementResultModal result={enhancementOutcome} onClose={handlers.closeEnhancementModal} isTopmost={topmostModalId === 'enhancementResult'} />}

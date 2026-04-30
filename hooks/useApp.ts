@@ -1052,7 +1052,12 @@ export const useApp = () => {
     const [enhancementAnimationTarget, setEnhancementAnimationTarget] = useState<{ itemId: string; stars: number } | null>(null);
     const [pastRankingsInfo, setPastRankingsInfo] = useState<{ user: UserWithStatus; mode: GameMode | 'strategic' | 'playful'; } | null>(null);
     const [enhancingItem, setEnhancingItem] = useState<InventoryItem | null>(null);
-    const [viewingItem, setViewingItem] = useState<{ item: InventoryItem; isOwnedByCurrentUser: boolean; } | null>(null);
+    const [viewingItem, setViewingItem] = useState<{
+        item: InventoryItem;
+        isOwnedByCurrentUser: boolean;
+        /** 거래소 등록분 등: 강화/제련 비활성, 확인만 */
+        hideEnhanceActions?: boolean;
+    } | null>(null);
     const [showExitToast, setShowExitToast] = useState(false);
     const exitToastTimer = useRef<number | null>(null);
     /** 서버 재시작·WS 끊김 안내 (전역 토스트) */
@@ -1077,7 +1082,6 @@ export const useApp = () => {
     const [blacksmithSelectedItemForEnhancement, setBlacksmithSelectedItemForEnhancement] = useState<InventoryItem | null>(null);
     const [blacksmithActiveTab, setBlacksmithActiveTab] = useState<'enhance' | 'combine' | 'disassemble' | 'convert' | 'refine'>('enhance');
     const [combinationResult, setCombinationResult] = useState<{ item: InventoryItem; xpGained: number; isGreatSuccess: boolean; } | null>(null);
-    const [isBlacksmithHelpOpen, setIsBlacksmithHelpOpen] = useState(false);
     const [isBlacksmithEffectsModalOpen, setIsBlacksmithEffectsModalOpen] = useState(false);
     const [isEnhancementResultModalOpen, setIsEnhancementResultModalOpen] = useState(false);
     const [isInsufficientActionPointsModalOpen, setIsInsufficientActionPointsModalOpen] = useState(false);
@@ -1598,6 +1602,13 @@ export const useApp = () => {
                checkMilestones(weekly, WEEKLY_MILESTONE_THRESHOLDS) ||
                checkMilestones(monthly, MONTHLY_MILESTONE_THRESHOLDS);
     }, [currentUser?.quests]);
+
+    /** 거래소: 미수령 정산(claimed 아님) 1건 이상 */
+    const hasClaimableExchangeSettlement = useMemo(() => {
+        const list = currentUser?.exchangeState?.settlements;
+        if (!Array.isArray(list)) return false;
+        return list.some((entry) => entry && typeof entry === 'object' && (entry as { claimed?: boolean }).claimed !== true);
+    }, [currentUser?.exchangeState?.settlements]);
     
     const showError = (message: string) => {
         let displayMessage = message;
@@ -5819,7 +5830,7 @@ export const useApp = () => {
                             const msg =
                                 typeof message.payload?.message === 'string'
                                     ? message.payload.message
-                                    : '서버가 곧 재시작됩니다. 잠시 후 자동으로 다시 연결됩니다.';
+                                    : '서버가 곧 재시작됩니다.\n잠시 후 자동으로 다시 연결됩니다.';
                             const ms =
                                 typeof message.payload?.noticeMs === 'number' && message.payload.noticeMs > 0
                                     ? message.payload.noticeMs
@@ -8311,9 +8322,16 @@ export const useApp = () => {
         setIsBlacksmithModalOpen(true);
     }, []);
 
-    const openViewingItem = useCallback((item: InventoryItem, isOwnedByCurrentUser: boolean) => {
-        setViewingItem({ item, isOwnedByCurrentUser });
-    }, []);
+    const openViewingItem = useCallback(
+        (item: InventoryItem, isOwnedByCurrentUser: boolean, opts?: { hideEnhanceActions?: boolean }) => {
+            setViewingItem({
+                item,
+                isOwnedByCurrentUser,
+                ...(opts?.hideEnhanceActions ? { hideEnhanceActions: true as const } : {}),
+            });
+        },
+        []
+    );
 
     const clearRefinementResult = useCallback(() => {
         setRefinementResult(null);
@@ -8489,6 +8507,7 @@ export const useApp = () => {
         enhancementOutcome,
         unreadMailCount,
         hasClaimableQuest,
+        hasClaimableExchangeSettlement,
         settings,
         isNarrowViewport,
         isNativeMobile,
@@ -8523,7 +8542,6 @@ export const useApp = () => {
             blacksmithSelectedItemForEnhancement,
             blacksmithActiveTab,
             combinationResult,
-            isBlacksmithHelpOpen,
             isBlacksmithEffectsModalOpen,
             enhancingItem,
             isEnhancementResultModalOpen,
@@ -8633,10 +8651,7 @@ export const useApp = () => {
                 setBlacksmithSelectedItemForEnhancement(null);
                 setBlacksmithActiveTab('enhance'); // Reset to default tab
                 setIsBlacksmithEffectsModalOpen(false);
-                setIsBlacksmithHelpOpen(false);
             },
-            openBlacksmithHelp: () => setIsBlacksmithHelpOpen(true),
-            closeBlacksmithHelp: () => setIsBlacksmithHelpOpen(false),
             openBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(true),
             closeBlacksmithEffectsModal: () => setIsBlacksmithEffectsModalOpen(false),
             openGameRecordList: () => setIsGameRecordListOpen(true),

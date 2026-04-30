@@ -55,7 +55,8 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     className = '',
     mobileHeaderStrip = false,
 }) => {
-    const { handlers, hasClaimableQuest, hasUnreadHomeBoardPosts, currentUserWithStatus } = useAppContext();
+    const { handlers, hasClaimableQuest, hasClaimableExchangeSettlement, hasUnreadHomeBoardPosts, currentUserWithStatus } =
+        useAppContext();
 
     const onboardingPhase = currentUserWithStatus?.onboardingTutorialPhase ?? 0;
     const onboardingActive = isOnboardingTutorialActive(currentUserWithStatus);
@@ -106,7 +107,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 iconUrl: '/images/quickmenu/trade.webp',
                 handler: handlers.openExchange,
                 disabled: tutorialQuickDisabled('거래소'),
-                notification: false,
+                notification: hasClaimableExchangeSettlement,
             },
             {
                 label: '대장간',
@@ -185,7 +186,16 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 notification: false,
             },
         ],
-        [handlers, hasClaimableQuest, hasUnreadHomeBoardPosts, onboardingActive, onboardingPhase, badukSnap, currentUserWithStatus?.isAdmin],
+        [
+            handlers,
+            hasClaimableQuest,
+            hasClaimableExchangeSettlement,
+            hasUnreadHomeBoardPosts,
+            onboardingActive,
+            onboardingPhase,
+            badukSnap,
+            currentUserWithStatus?.isAdmin,
+        ],
     );
 
     const gameplayButtons = buttons.filter((b) => b.gameplay);

@@ -1,13 +1,22 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import type { InventoryItem, UserWithStatus, ServerAction, ItemGrade, EquipmentSlot } from '../types.js';
+import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import DraggableWindow, {
     ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
     ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS,
+    SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS,
 } from './DraggableWindow.js';
 import Button from './Button.js';
+import InventoryGrid from './blacksmith/InventoryGrid.js';
+import ResourceActionButton from './ui/ResourceActionButton.js';
 import AlertModal from './AlertModal.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
+import {
+    MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS,
+    MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
+    MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH,
+} from '../shared/constants/mobileEquipmentDetailModal.js';
 import { gradeBackgrounds, gradeStyles } from '../constants/items.js';
 
 type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
@@ -80,6 +89,8 @@ interface ExchangeModalProps {
     onClose: () => void;
     onAction?: (action: ServerAction) => void | Promise<void>;
     isTopmost?: boolean;
+    /** 네이티브 모바일 판매 탭「등록된 아이템」행 클릭 시 장비 상세 모달 */
+    onViewListedEquipment?: (item: InventoryItem) => void;
 }
 
 const MAX_SELL_SLOTS = 3;
@@ -132,7 +143,9 @@ const BUY_GRADE_FILTER_OPTIONS: Array<{ value: BuyGradeFilter; label: string }> 
     { value: 'transcendent', label: '초월' },
 ];
 
-const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onAction, isTopmost }) => {
+const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onAction, isTopmost, onViewListedEquipment }) => {
+    const { isNativeMobile } = useNativeMobileShell();
+    const mobileExchange = Boolean(isNativeMobile);
     const [activeTab, setActiveTab] = useState<ExchangeTab>('buy');
     const [saleCurrency, setSaleCurrency] = useState<SaleCurrency>('gold');
     const [salePrice, setSalePrice] = useState<string>('100');
@@ -149,12 +162,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
     const [nowMs, setNowMs] = useState<number>(Date.now());
     const [walletGold, setWalletGold] = useState<number>(currentUser.gold ?? 0);
     const [walletDiamonds, setWalletDiamonds] = useState<number>(currentUser.diamonds ?? 0);
-    const [history, setHistory] = useState<string[]>([]);
+    const [history, setHistory] = useState<string[]>(() => (currentUser.exchangeState?.history as string[] | undefined) ?? []);
+    /** 마운트 직후 SAVE_EXCHANGE_STATE가 빈 history로 서버를 덮어쓰지 않도록 첫 1회 저장 생략 */
+    const skipInitialExchangePersist = useRef(true);
     const [pendingRegistration, setPendingRegistration] = useState<PendingRegistration | null>(null);
     const [pendingCancelListing, setPendingCancelListing] = useState<PendingCancelListing | null>(null);
     const [purchaseSuccessData, setPurchaseSuccessData] = useState<PurchaseSuccessData | null>(null);
     const [settlementClaimResult, setSettlementClaimResult] = useState<SettlementClaimResultData | null>(null);
     const [showAlreadySoldModal, setShowAlreadySoldModal] = useState(false);
+    const [sellPickerOpen, setSellPickerOpen] = useState(false);
+    const [sellComposerOpen, setSellComposerOpen] = useState(false);
+    const [sellSlotFocusItemId, setSellSlotFocusItemId] = useState<string>('');
     const [listings, setListings] = useState<ExchangeListing[]>(() => (currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? []);
     const [settlements, setSettlements] = useState<SettlementItem[]>(() => (currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? []);
 
@@ -259,6 +277,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         return () => window.clearInterval(timer);
     }, []);
     React.useEffect(() => {
+        skipInitialExchangePersist.current = true;
         const serverListings = (currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
         const serverSettlements = (currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? [];
         const serverHistory = (currentUser.exchangeState?.history as string[] | undefined) ?? [];
@@ -266,7 +285,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         setSettlements(serverSettlements);
         setHistory(serverHistory);
     }, [currentUser.id]);
+    /** exchangeState가 id 변경 없이 늦게 도착한 경우(로컬 이력이 아직 비어 있을 때만 서버로 채움) */
     React.useEffect(() => {
+        const serverHistory = (currentUser.exchangeState?.history as string[] | undefined) ?? [];
+        if (!Array.isArray(serverHistory) || serverHistory.length === 0) return;
+        setHistory((prev) => (prev.length === 0 ? serverHistory : prev));
+    }, [currentUser.id, currentUser.exchangeState?.history?.length]);
+    React.useEffect(() => {
+        if (skipInitialExchangePersist.current) {
+            skipInitialExchangePersist.current = false;
+            return;
+        }
         void onAction?.({
             type: 'SAVE_EXCHANGE_STATE',
             payload: {
@@ -275,11 +304,20 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                 history,
             },
         });
-    }, [listings, settlements, history]);
+    }, [listings, settlements, history, onAction]);
+
+    React.useEffect(() => {
+        if (activeTab !== 'sell') {
+            setSellPickerOpen(false);
+            setSellComposerOpen(false);
+            setSellSlotFocusItemId('');
+            setSelectedItemId('');
+        }
+    }, [activeTab]);
 
     const appendHistory = (message: string) => {
         const timestamp = new Date().toLocaleString();
-        setHistory((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 40));
+        setHistory((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 200));
     };
 
     const executeRegisterSale = async (item: InventoryItem, parsedPrice: number, currency: SaleCurrency, fee: number) => {
@@ -289,6 +327,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         if (alreadyListed) {
             setPendingRegistration(null);
             setSelectedItemId('');
+            setSellComposerOpen(false);
+            setSellPickerOpen(false);
             return;
         }
         if (!functionVipActive && !isAdminUser) {
@@ -298,6 +338,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
             if (!ticketItem) {
                 window.alert('거래 등록권이 부족합니다.');
                 setPendingRegistration(null);
+                setSellComposerOpen(false);
+                setSellPickerOpen(false);
                 return;
             }
             await onAction?.({
@@ -332,6 +374,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         appendHistory(`판매 등록: ${item.name} / ${formatCurrency(parsedPrice, currency)} (등록 수수료 ${formatCurrency(fee, currency)})`);
         setPendingRegistration(null);
         setSelectedItemId('');
+        setSellComposerOpen(false);
+        setSellPickerOpen(false);
         setSalePrice(String(minPriceByCurrency[currency]));
     };
 
@@ -374,6 +418,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
             window.alert(`등록 수수료가 부족합니다. 필요: ${saleFee.toLocaleString()}다이아`);
             return;
         }
+        setSellComposerOpen(false);
+        setSellPickerOpen(false);
         setPendingRegistration({ item, price: parsedPrice, currency: saleCurrency, fee: saleFee });
     };
 
@@ -561,7 +607,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         });
         return map;
     }, [filteredAndSortedBuyItems]);
-    const selectedBuyListing = filteredAndSortedBuyItems.find((entry) => entry.id === selectedBuyListingId) ?? filteredAndSortedBuyItems[0] ?? null;
+    const selectedBuyListing = useMemo(() => {
+        const byId = selectedBuyListingId
+            ? filteredAndSortedBuyItems.find((entry) => entry.id === selectedBuyListingId)
+            : undefined;
+        if (byId) return byId;
+        if (!mobileExchange) return filteredAndSortedBuyItems[0] ?? null;
+        return null;
+    }, [filteredAndSortedBuyItems, selectedBuyListingId, mobileExchange]);
     const selectedBuyListingIsMine = Boolean(selectedBuyListing && selectedBuyListing.sellerId === currentUser.id);
     const selectedBuyInventoryItem = selectedBuyListing
         ? allEquipmentItems.find((item) => item.id === selectedBuyListing.itemId)
@@ -579,10 +632,19 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
             if (selectedBuyListingId) setSelectedBuyListingId('');
             return;
         }
-        if (!selectedBuyListingId || !filteredAndSortedBuyItems.some((entry) => entry.id === selectedBuyListingId)) {
+        const idValid = selectedBuyListingId && filteredAndSortedBuyItems.some((entry) => entry.id === selectedBuyListingId);
+        if (mobileExchange) {
+            if (selectedBuyListingId && !idValid) setSelectedBuyListingId('');
+            return;
+        }
+        if (!selectedBuyListingId || !idValid) {
             setSelectedBuyListingId(filteredAndSortedBuyItems[0].id);
         }
-    }, [filteredAndSortedBuyItems, selectedBuyListingId]);
+    }, [filteredAndSortedBuyItems, selectedBuyListingId, mobileExchange]);
+    React.useEffect(() => {
+        if (!mobileExchange) return;
+        if (activeTab !== 'buy' && selectedBuyListingId) setSelectedBuyListingId('');
+    }, [mobileExchange, activeTab, selectedBuyListingId]);
     const currentLowestForSelected =
         selectedItem
             ? listingsWithComputed
@@ -727,9 +789,27 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         });
         return { totals, rows };
     }, [history, listings, allEquipmentItems]);
-    const vipStatusText = `기능VIP ${functionVipActive ? '활성' : '비활성'}`;
     const exchangeTabButtonBase =
         'rounded-md border px-2 py-2 text-sm font-semibold tracking-wide transition-all duration-150';
+    /** 네이티브 모바일 거래소: 탭·본문·표 공통 11px 전후 */
+    const exchangeTabButtonMobile =
+        'rounded-md border px-1.5 py-1.5 text-[11px] font-semibold leading-tight tracking-wide transition-all duration-150';
+    const exchM = 'text-[11px] leading-snug';
+    /** 모바일 구매: 가로 스크롤 방지 — 첫 열 shrink, 좁은 고정 가격열, 작은 간격 */
+    const buyListColsMobile = 'grid-cols-[minmax(0,1fr)_5.75rem_5.75rem] gap-1.5';
+    const buyListColsDesktop = 'grid-cols-[minmax(0,1fr)_105px_105px] gap-4';
+    const buyListCols = mobileExchange ? buyListColsMobile : buyListColsDesktop;
+    const buyRowInnerCols = 'grid grid-cols-[56px_minmax(0,1fr)_56px] gap-5';
+    /** 모바일 구매: 좌측 썸네일(+내 등록), 우측 등급·이름만 (PC는 대칭용 빈 칸 유지) */
+    const buyRowInnerColsMobile = 'grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-1.5';
+    const buyRowInner = mobileExchange ? buyRowInnerColsMobile : buyRowInnerCols;
+    const historyGridTemplate = mobileExchange
+        ? 'grid-cols-[2.25rem_minmax(3rem,4.5rem)_minmax(0,1fr)_minmax(3.75rem,1fr)_minmax(3.75rem,1fr)]'
+        : 'grid-cols-[48px_96px_minmax(0,1fr)_120px_120px]';
+    const historyHeaderText = mobileExchange ? 'text-[10px] font-semibold leading-tight' : 'text-xs font-semibold';
+    const settlementListCols = mobileExchange
+        ? 'grid-cols-[minmax(0,1fr)_minmax(3.5rem,20vw)_minmax(3.5rem,20vw)_minmax(3.5rem,20vw)] gap-1.5'
+        : 'grid-cols-[minmax(0,1fr)_108px_108px_108px] gap-2';
     const exchangePrimaryButtonClass =
         'mx-auto !block w-[70%] min-h-[38px] py-2 text-sm font-semibold !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90';
     const exchangeSecondaryButtonClass =
@@ -742,6 +822,245 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         setBuySortColumn(column);
         setBuySortDirection('asc');
     };
+
+    const buyListingSelectedByUser = Boolean(selectedBuyListingId && selectedBuyListing && selectedBuyListing.id === selectedBuyListingId);
+
+    const renderBuyEquipmentOrFallback = (opts?: { comfortableTypography?: boolean; optionRowsSingleLine?: boolean }) => {
+        if (!selectedBuyListing) return null;
+        const cozy = Boolean(opts?.comfortableTypography);
+        const singleLineOpts = Boolean(opts?.optionRowsSingleLine);
+        if (selectedBuyInventoryItem) {
+            return (
+                <EquipmentDetailPanel
+                    item={selectedBuyInventoryItem}
+                    showTradeStatusUnderImage
+                    comfortableTypography={cozy}
+                    optionsScrollable={!cozy}
+                    optionRowsSingleLine={singleLineOpts}
+                />
+            );
+        }
+        return (
+            <div className={`rounded-lg border border-slate-700/60 bg-slate-950/45 ${mobileExchange ? 'p-2' : 'p-3'}`}>
+                <div className="flex items-center gap-2">
+                    {selectedBuyListing.itemImage ? (
+                        <img src={selectedBuyListing.itemImage} alt={selectedBuyListing.itemName} className="h-14 w-14 rounded bg-black/35 object-contain p-1" />
+                    ) : null}
+                    <div className="min-w-0">
+                        <p
+                            className={`font-bold break-words ${
+                                cozy ? 'text-[13px] leading-snug' : mobileExchange ? 'text-[12px] leading-snug' : 'text-base'
+                            }`}
+                        >
+                            {selectedBuyListing.itemName}
+                        </p>
+                    </div>
+                </div>
+                <div className="mt-2 flex items-center justify-between rounded border border-slate-700/60 bg-slate-900/45 px-2 py-1.5">
+                    <span className={cozy ? 'text-[13px] text-slate-300' : mobileExchange ? 'text-[12px] text-slate-300' : 'text-xs text-slate-300'}>가격</span>
+                    <span
+                        className={`flex items-center gap-1 font-semibold text-amber-100 ${
+                            cozy ? 'text-[13px]' : mobileExchange ? 'text-[12px]' : 'text-sm'
+                        }`}
+                    >
+                        <span className="tabular-nums">{selectedBuyListing.price.toLocaleString()}</span>
+                        <img
+                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                            alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
+                            className="h-4 w-4 object-contain"
+                        />
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
+    const renderBuyStatsCard = (opts?: { comfortableTypography?: boolean }) => {
+        if (!selectedBuyListing) return null;
+        const cozy = Boolean(opts?.comfortableTypography);
+        const cardText =
+            cozy && mobileExchange ? 'text-[13px] leading-snug' : mobileExchange ? 'text-[12px] leading-snug' : 'text-xs';
+        const statIcon = cozy && mobileExchange ? 'h-4 w-4 object-contain' : 'h-3.5 w-3.5 object-contain';
+        return (
+            <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-2 py-2 text-slate-200 ${cardText}`}>
+                <div className="flex items-center justify-between">
+                    <span>현재가</span>
+                    <span className="flex items-center gap-1 font-semibold text-amber-200">
+                        <span className="tabular-nums">{selectedBuyListing.price.toLocaleString()}</span>
+                        <img
+                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                            alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
+                            className={statIcon}
+                        />
+                    </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                    <span>최저가</span>
+                    <span className="flex items-center gap-1 font-semibold text-cyan-200">
+                        <span className="tabular-nums">
+                            {(lowestPriceByBuyGroup.get(getBuyListingGroupKey(selectedBuyListing)) ?? selectedBuyListing.price).toLocaleString()}
+                        </span>
+                        <img
+                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                            alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
+                            className={statIcon}
+                        />
+                    </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                    <span>최근 거래가</span>
+                    <span className="flex items-center gap-1 font-semibold">
+                        <span className="tabular-nums">{recentSoldForBuySelection ? recentSoldForBuySelection.price.toLocaleString() : '-'}</span>
+                        {recentSoldForBuySelection ? (
+                            <img
+                                src={recentSoldForBuySelection.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                alt={recentSoldForBuySelection.currency === 'gold' ? '골드' : '다이아'}
+                                className={statIcon}
+                            />
+                        ) : null}
+                    </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                    <span>남은 시간</span>
+                    <span className="tabular-nums font-semibold text-cyan-200">
+                        {buyRemainingDays}일 {buyRemainingHours}시간
+                    </span>
+                </div>
+            </div>
+        );
+    };
+
+    const renderExchangeBuyDetailScrollableMobile = () => {
+        if (!selectedBuyListing) return null;
+        return (
+            <div className="flex flex-col gap-2">
+                {renderBuyEquipmentOrFallback({ comfortableTypography: true, optionRowsSingleLine: true })}
+                {renderBuyStatsCard({ comfortableTypography: true })}
+            </div>
+        );
+    };
+
+    const sellFormText = mobileExchange
+        ? 'text-[11px] font-medium leading-snug text-slate-200'
+        : 'text-xs font-medium leading-snug text-slate-200';
+    const sellFormLabel = mobileExchange
+        ? 'text-[11px] font-semibold leading-snug text-slate-300'
+        : 'text-xs font-semibold leading-snug text-slate-300';
+    const sellFormInputNums = mobileExchange ? 'text-[11px]' : 'text-xs';
+    const sellFormFeeBox = mobileExchange ? 'text-[11px] font-medium leading-snug text-cyan-100' : 'text-xs font-medium leading-snug text-cyan-100';
+    const sellCurrencyRadioIcon = mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain';
+    const sellPrimarySidebarButtonClass = `${exchangePrimaryButtonClass} ${mobileExchange ? '!text-[11px] !leading-snug' : '!text-xs !leading-snug'}`;
+
+    const renderSellRegistrationSidebar = (opts?: { hideSubmitButton?: boolean }) => (
+        <div className="flex min-h-0 flex-col">
+            <div className="space-y-1.5">
+                <p className={sellFormLabel}>판매 재화 종류</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                    <label className={`flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 ${saleCurrency === 'gold' ? 'border-amber-400/70 bg-amber-900/30' : 'border-slate-600 bg-slate-800/70'}`}>
+                        <input
+                            type="radio"
+                            name="sale-currency"
+                            value="gold"
+                            checked={saleCurrency === 'gold'}
+                            onChange={() => {
+                                setSaleCurrency('gold');
+                                setSalePrice(String(minPriceByCurrency.gold));
+                            }}
+                            className="sr-only"
+                        />
+                        <img src="/images/icon/Gold.png" alt="" className={sellCurrencyRadioIcon} aria-hidden />
+                        <span className={`${sellFormText} font-semibold text-amber-100`}>골드</span>
+                    </label>
+                    <label className={`flex cursor-pointer flex-col items-center justify-center gap-0.5 rounded border px-1 py-1 ${saleCurrency === 'diamonds' ? 'border-sky-400/70 bg-sky-900/30' : 'border-slate-600 bg-slate-800/70'}`}>
+                        <input
+                            type="radio"
+                            name="sale-currency"
+                            value="diamonds"
+                            checked={saleCurrency === 'diamonds'}
+                            onChange={() => {
+                                setSaleCurrency('diamonds');
+                                setSalePrice(String(minPriceByCurrency.diamonds));
+                            }}
+                            className="sr-only"
+                        />
+                        <img src="/images/icon/Zem.png" alt="" className={sellCurrencyRadioIcon} aria-hidden />
+                        <span className={`${sellFormText} font-semibold text-sky-100`}>다이아</span>
+                    </label>
+                </div>
+                <label className={`flex flex-col gap-1 ${sellFormText}`}>
+                    <span className={sellFormLabel}>판매 가격 입력</span>
+                    <div
+                        className={`flex items-center gap-1.5 rounded border px-1.5 py-1 ${
+                            saleCurrency === 'gold' ? 'border-amber-500/55 bg-amber-950/35' : 'border-sky-500/55 bg-sky-950/30'
+                        }`}
+                    >
+                        <input
+                            type="number"
+                            value={salePrice}
+                            min={minimumPrice}
+                            onChange={(e) => setSalePrice(e.target.value)}
+                            className={`w-full bg-transparent text-center font-semibold tabular-nums leading-snug outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${sellFormInputNums} ${
+                                saleCurrency === 'gold' ? 'text-amber-100 placeholder:text-amber-200/45' : 'text-sky-100 placeholder:text-sky-200/45'
+                            }`}
+                        />
+                        <img
+                            src={saleCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                            alt={saleCurrency === 'gold' ? '골드' : '다이아'}
+                            className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} shrink-0 object-contain`}
+                        />
+                    </div>
+                </label>
+                <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-1.5 py-1 ${sellFormText}`}>
+                    <div className="flex items-center justify-between gap-1.5">
+                        <span>현재 최저가</span>
+                        {currentLowestForSelected ? (
+                            <span className="flex items-center gap-0.5 font-semibold">
+                                <span className="tabular-nums">{currentLowestForSelected.price.toLocaleString()}</span>
+                                <img
+                                    src={currentLowestForSelected.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                    alt={currentLowestForSelected.currency === 'gold' ? '골드' : '다이아'}
+                                    className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} object-contain`}
+                                />
+                            </span>
+                        ) : (
+                            <span className="font-semibold">-</span>
+                        )}
+                    </div>
+                </div>
+                <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-1.5 py-1 ${sellFormText}`}>
+                    <div className="flex items-center justify-between gap-1.5">
+                        <span>최근 거래가</span>
+                        <span className={`max-w-[min(8.5rem,52%)] text-right font-semibold leading-snug ${sellFormInputNums}`}>
+                            {lastSoldForSelected ? formatCurrency(lastSoldForSelected.price, lastSoldForSelected.currency) : '-'}
+                        </span>
+                    </div>
+                </div>
+                <div className={`rounded border border-cyan-700/50 bg-cyan-950/35 px-1.5 py-1 ${sellFormFeeBox}`}>
+                    <div className="flex items-center justify-between gap-1.5">
+                        <span>수수료(10%)</span>
+                        <span className="flex items-center gap-0.5 tabular-nums font-semibold">
+                            <span>{saleFee.toLocaleString()}</span>
+                            <img
+                                src={saleCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                alt={saleCurrency === 'gold' ? '골드' : '다이아'}
+                                className={`${mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'} object-contain`}
+                            />
+                        </span>
+                    </div>
+                </div>
+            </div>
+            {!opts?.hideSubmitButton ? (
+                <div className="mt-2 shrink-0">
+                    <Button onClick={handleRegisterSale} disabled={!selectedItem || selectedItemAlreadyListedByMe} className={sellPrimarySidebarButtonClass}>
+                        판매 등록
+                    </Button>
+                </div>
+            ) : null}
+        </div>
+    );
+
+    const exchangeSellAuxOpen = mobileExchange && (sellPickerOpen || sellComposerOpen);
+    const mobileBuyDetailOpen = mobileExchange && activeTab === 'buy' && buyListingSelectedByUser;
 
     return (
         <>
@@ -1023,93 +1342,262 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                     </>
                 </DraggableWindow>
             )}
+            {mobileBuyDetailOpen && selectedBuyListing ? (
+                <DraggableWindow
+                    title="구매"
+                    windowId="exchange-buy-item"
+                    onClose={() => setSelectedBuyListingId('')}
+                    initialWidth={MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH}
+                    shrinkHeightToContent
+                    isTopmost={Boolean(isTopmost)}
+                    variant="store"
+                    mobileViewportFit
+                    mobileViewportMaxHeightVh={98}
+                    mobileViewportMaxHeightCss={MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS}
+                    mobileViewportDvhBottomGapPx={8}
+                    hideFooter
+                    bodyScrollable
+                    bodyPaddingClassName={MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS}
+                >
+                    <div className="flex w-full min-w-0 flex-col gap-1.5">
+                        {renderExchangeBuyDetailScrollableMobile()}
+                        <div className="shrink-0 border-t border-slate-700/50 pt-2">
+                            <Button
+                                onClick={() => handleBuy(selectedBuyListing.id)}
+                                disabled={selectedBuyListingIsMine}
+                                className={`${exchangePrimaryButtonClass} !text-xs !leading-snug`}
+                            >
+                                {selectedBuyListingIsMine ? '내 등록 물품' : '구매'}
+                            </Button>
+                        </div>
+                    </div>
+                </DraggableWindow>
+            ) : null}
+            {mobileExchange && sellPickerOpen && activeTab === 'sell' && (
+                <DraggableWindow
+                    title="장비 선택"
+                    windowId="exchange-sell-picker"
+                    onClose={() => setSellPickerOpen(false)}
+                    initialWidth={520}
+                    initialHeight={920}
+                    isTopmost={Boolean(isTopmost) && !mobileBuyDetailOpen}
+                    variant="store"
+                    mobileViewportFit
+                    mobileViewportMaxHeightCss="min(100dvh, calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)))"
+                    mobileViewportDvhBottomGapPx={0}
+                    bodyScrollable={false}
+                    bodyNoScroll
+                    bodyPaddingClassName="!p-0 !flex !flex-col !min-h-0 !h-full"
+                    mobileLockViewportHeight
+                    mobileViewportMaxHeightVh={100}
+                >
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <div className="flex min-h-0 max-h-[min(50dvh,360px)] flex-[1.1_1_0] flex-row gap-2 border-b border-slate-600/40 bg-slate-950/40 px-2 pb-1.5 pt-1.5">
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-slate-700/60 bg-slate-900/50">
+                                {selectedItem ? (
+                                    <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.35)_transparent]">
+                                        <EquipmentDetailPanel
+                                            item={selectedItem}
+                                            showTradeStatusUnderImage
+                                            comfortableTypography={mobileExchange}
+                                            optionRowsSingleLine={mobileExchange}
+                                        />
+                                    </div>
+                                ) : (
+                                    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-0.5 px-2 py-2 text-center">
+                                        <p className="text-[11px] font-semibold leading-snug text-slate-300">장비를 선택하세요</p>
+                                        <p className="text-[11px] font-medium leading-snug text-slate-500">아래 그리드에서 탭한 뒤 오른쪽에서 가격·수수료를 확인하세요.</p>
+                                    </div>
+                                )}
+                            </div>
+                            <div
+                                className={`flex w-[min(42%,11.75rem)] shrink-0 flex-col overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-900/45 px-1.5 py-1.5 sm:w-[min(40%,12.25rem)] ${BAG_SCROLLBAR_Y_CLASS}`}
+                            >
+                                {renderSellRegistrationSidebar({ hideSubmitButton: true })}
+                            </div>
+                        </div>
+                        <div className="flex min-h-[10rem] max-h-[min(42dvh,320px)] shrink-0 flex-[1_1_0] flex-col overflow-hidden px-2 pb-1 pt-1.5">
+                            <div className="mb-1.5 flex shrink-0 items-center justify-end">
+                                <select
+                                    value={inventorySortKey}
+                                    onChange={(e) => setInventorySortKey(e.target.value as InventorySortKey)}
+                                    className="rounded border border-slate-600 bg-slate-800 px-1.5 py-0.5 text-[11px] font-semibold leading-snug text-slate-200"
+                                    aria-label="인벤토리 정렬"
+                                >
+                                    <option value="createdAt">최신순</option>
+                                    <option value="grade">등급순</option>
+                                    <option value="name">이름순</option>
+                                </select>
+                            </div>
+                            <div className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1 [scrollbar-gutter:stable] ${BAG_SCROLLBAR_Y_CLASS}`}>
+                                <InventoryGrid
+                                    inventory={sortedSellableItems}
+                                    inventorySlots={Math.max(sortedSellableItems.length, 30)}
+                                    onSelectItem={(item) => setSelectedItemId(item.id)}
+                                    selectedItemId={selectedItemId || null}
+                                    disabledItemIds={[]}
+                                    columnCount={6}
+                                    gapPx={6}
+                                />
+                            </div>
+                        </div>
+                        <div className={`flex shrink-0 border-t border-slate-600/50 bg-slate-900/80 px-2.5 py-2.5 ${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS}`}>
+                            <Button
+                                type="button"
+                                onClick={handleRegisterSale}
+                                disabled={!selectedItem || selectedItemAlreadyListedByMe}
+                                className={`${exchangePrimaryButtonClass} min-h-[42px] !mx-0 !w-full !py-2 !text-[11px] font-bold leading-snug`}
+                            >
+                                판매등록
+                            </Button>
+                        </div>
+                    </div>
+                </DraggableWindow>
+            )}
             <DraggableWindow
                 title="거래소"
-                titleContent={
-                    <div className="flex w-full items-center justify-start">
-                        <span className={`text-sm font-bold ${functionVipActive ? 'text-emerald-300' : 'text-rose-300'}`}>{vipStatusText}</span>
-                    </div>
-                }
                 onClose={onClose}
                 windowId="exchange"
                 initialWidth={980}
                 initialHeight={820}
-                isTopmost={isTopmost}
+                isTopmost={Boolean(isTopmost) && !mobileBuyDetailOpen && !exchangeSellAuxOpen}
                 variant="store"
-                headerShowTitle
+                headerShowTitle={!mobileExchange}
+                mobileViewportFit={mobileExchange}
+                mobileViewportMaxHeightVh={98}
+                mobileLockViewportHeight={mobileExchange}
+                bodyScrollable={!mobileExchange}
+                bodyPaddingClassName={
+                    mobileExchange
+                        ? 'flex min-h-0 min-w-0 flex-1 flex-col !px-2.5 !pb-[max(0.6rem,env(safe-area-inset-bottom,0px))] !pt-2'
+                        : undefined
+                }
                 headerContent={
-                    <div className="flex items-center gap-3 text-xs sm:text-sm">
-                        <div className="flex items-center gap-1 rounded-md border border-amber-500/35 bg-amber-900/20 px-2 py-1 text-amber-200">
-                            <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 object-contain" />
-                            <span className="tabular-nums font-semibold">{walletGold.toLocaleString()}</span>
+                    <div
+                        className={
+                            mobileExchange
+                                ? 'flex flex-wrap items-center gap-1.5 text-[11px] font-semibold leading-tight text-slate-100'
+                                : 'flex items-center gap-3 text-xs sm:text-sm'
+                        }
+                    >
+                        <div
+                            className={`flex items-center gap-1 rounded-md border border-amber-500/35 bg-amber-900/20 text-amber-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
+                        >
+                            <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                            <span className="tabular-nums">{walletGold.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center gap-1 rounded-md border border-sky-500/35 bg-sky-900/20 px-2 py-1 text-sky-200">
-                            <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
-                            <span className="tabular-nums font-semibold">{walletDiamonds.toLocaleString()}</span>
+                        <div
+                            className={`flex items-center gap-1 rounded-md border border-sky-500/35 bg-sky-900/20 text-sky-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
+                        >
+                            <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                            <span className="tabular-nums">{walletDiamonds.toLocaleString()}</span>
                         </div>
-                        <div className="flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-900/20 px-2 py-1 text-emerald-200">
-                            <img src="/images/use/allowtrade.webp" alt="거래 등록권" className="h-4 w-4 object-contain" />
-                            <span className="tabular-nums font-semibold">{tradeListingTicketCount.toLocaleString()}</span>
+                        <div
+                            className={`flex items-center gap-1 rounded-md border border-emerald-500/35 bg-emerald-900/20 text-emerald-200 ${mobileExchange ? 'px-1.5 py-0.5' : 'px-2 py-1'}`}
+                        >
+                            <img src="/images/use/allowtrade.webp" alt="거래 등록권" className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
+                            <span className="tabular-nums">{tradeListingTicketCount.toLocaleString()}</span>
                         </div>
                     </div>
                 }
             >
-                <div className="flex h-full min-h-0 flex-col text-slate-100">
-                    <div className="mb-3 grid grid-cols-4 gap-1 rounded-lg border border-slate-700/60 bg-slate-900/70 p-1">
-                        <button onClick={() => setActiveTab('buy')} className={`${exchangeTabButtonBase} ${activeTab === 'buy' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}>구매</button>
-                        <button onClick={() => setActiveTab('sell')} className={`${exchangeTabButtonBase} ${activeTab === 'sell' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}>판매등록</button>
-                        <button onClick={() => setActiveTab('settlement')} className={`${exchangeTabButtonBase} ${activeTab === 'settlement' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}>정산</button>
-                        <button onClick={() => setActiveTab('history')} className={`${exchangeTabButtonBase} ${activeTab === 'history' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}>거래이력</button>
+                <div className={`flex h-full min-h-0 flex-col text-slate-100 ${mobileExchange ? exchM : ''}`}>
+                    <div className={`grid grid-cols-4 gap-1 rounded-lg border border-slate-700/60 bg-slate-900/70 p-1 ${mobileExchange ? 'mb-2' : 'mb-3'}`}>
+                        <button
+                            onClick={() => setActiveTab('buy')}
+                            className={`${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'buy' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
+                        >
+                            구매
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('sell')}
+                            className={`${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'sell' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
+                        >
+                            판매등록
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('settlement')}
+                            className={`relative overflow-visible ${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'settlement' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
+                        >
+                            정산
+                            {unclaimedSettlements.length > 0 ? (
+                                <span
+                                    className="pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5"
+                                    aria-hidden
+                                />
+                            ) : null}
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('history')}
+                            className={`${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'history' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
+                        >
+                            거래이력
+                        </button>
                     </div>
-    
-                    <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-700/60 bg-slate-950/55 p-3">
+
+                    <div
+                        className={`min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-700/60 bg-slate-950/55 ${mobileExchange ? 'p-2' : 'p-3'} ${
+                            (activeTab === 'settlement' && mobileExchange) || activeTab === 'history' ? 'flex min-h-0 flex-col' : ''
+                        }`}
+                    >
                         {activeTab === 'buy' && (
-                            <div className="grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]">
-                                <div className="flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
-                                    <div className="mb-2 grid grid-cols-1 gap-2 sm:grid-cols-[auto_auto_auto_1fr]">
-                                        <select
-                                            value={buySlotFilter}
-                                            onChange={(e) => setBuySlotFilter(e.target.value as BuySlotFilter)}
-                                            className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-200"
-                                        >
-                                            {BUY_SLOT_FILTER_OPTIONS.map((opt) => (
-                                                <option key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <select
-                                            value={buyGradeFilter}
-                                            onChange={(e) => setBuyGradeFilter(e.target.value as BuyGradeFilter)}
-                                            className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-200"
-                                        >
-                                            {BUY_GRADE_FILTER_OPTIONS.map((opt) => (
-                                                <option key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </option>
-                                            ))}
-                                        </select>
-                                        <select
-                                            value={buyCurrencyFilter}
-                                            onChange={(e) => setBuyCurrencyFilter(e.target.value as BuyCurrencyFilter)}
-                                            className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-200"
-                                        >
-                                            {BUY_CURRENCY_FILTER_OPTIONS.map((opt) => (
-                                                <option key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </option>
-                                            ))}
-                                        </select>
+                            <div
+                                className={
+                                    mobileExchange
+                                        ? 'flex h-full min-h-0 flex-col gap-2'
+                                        : 'grid h-full min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_340px]'
+                                }
+                            >
+                                <div className={`flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/40 ${mobileExchange ? 'p-2' : 'p-3'}`}>
+                                    <div className="mb-2 flex flex-col gap-2 sm:grid sm:grid-cols-[auto_auto_auto_1fr] sm:items-stretch">
+                                        <div className="grid min-w-0 grid-cols-3 gap-1.5 sm:contents">
+                                            <select
+                                                value={buySlotFilter}
+                                                onChange={(e) => setBuySlotFilter(e.target.value as BuySlotFilter)}
+                                                className="min-w-0 rounded border border-slate-600 bg-slate-800 px-1.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-200 sm:px-2 sm:text-xs"
+                                            >
+                                                {BUY_SLOT_FILTER_OPTIONS.map((opt) => (
+                                                    <option key={opt.value} value={opt.value}>
+                                                        {opt.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={buyGradeFilter}
+                                                onChange={(e) => setBuyGradeFilter(e.target.value as BuyGradeFilter)}
+                                                className="min-w-0 rounded border border-slate-600 bg-slate-800 px-1.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-200 sm:px-2 sm:text-xs"
+                                            >
+                                                {BUY_GRADE_FILTER_OPTIONS.map((opt) => (
+                                                    <option key={opt.value} value={opt.value}>
+                                                        {opt.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <select
+                                                value={buyCurrencyFilter}
+                                                onChange={(e) => setBuyCurrencyFilter(e.target.value as BuyCurrencyFilter)}
+                                                className="min-w-0 rounded border border-slate-600 bg-slate-800 px-1.5 py-1.5 text-[11px] font-semibold leading-snug text-slate-200 sm:px-2 sm:text-xs"
+                                            >
+                                                {BUY_CURRENCY_FILTER_OPTIONS.map((opt) => (
+                                                    <option key={opt.value} value={opt.value}>
+                                                        {opt.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
                                         <input
                                             type="text"
                                             value={buySearchText}
                                             onChange={(e) => setBuySearchText(e.target.value)}
                                             placeholder="아이템 검색"
-                                            className="rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-400"
+                                            className={`min-w-0 w-full rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100 outline-none placeholder:text-slate-400 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}
                                         />
                                     </div>
                                     <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
-                                        <div className="sticky top-0 z-10 mb-2 grid grid-cols-[minmax(0,1fr)_105px_105px] gap-4 rounded border border-slate-600/70 bg-slate-900/95 px-2 py-1.5 text-[11px] font-semibold text-slate-300 backdrop-blur-sm">
+                                        <div
+                                            className={`sticky top-0 z-10 mb-2 grid rounded border border-slate-600/70 bg-slate-900/95 font-semibold text-slate-300 backdrop-blur-sm ${buyListCols} ${mobileExchange ? 'px-1.5 py-1 text-[11px] leading-tight' : 'px-2 py-1.5 text-[11px]'}`}
+                                        >
                                             <div className="flex items-center justify-center gap-1">
                                                 <span>이름</span>
                                                 <button
@@ -1142,11 +1630,13 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                             </div>
                                         </div>
                                         {filteredAndSortedBuyItems.length === 0 && (
-                                            <div className="rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-sm text-slate-300">
+                                            <div
+                                                className={`rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-slate-300 ${mobileExchange ? `${exchM}` : 'text-sm'}`}
+                                            >
                                                 등록된 판매 물품이 없습니다.
                                             </div>
                                         )}
-                                        <div className="space-y-2">
+                                        <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>
                                         {filteredAndSortedBuyItems.map((listing) => {
                                             const gradeKey = (listing.itemGrade ?? 'normal') as ItemGrade;
                                             const gradeLabel = gradeStyles[gradeKey]?.name ?? '일반';
@@ -1158,56 +1648,84 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                 key={listing.id}
                                                 type="button"
                                                 onClick={() => setSelectedBuyListingId(listing.id)}
-                                                className={`grid w-full grid-cols-[minmax(0,1fr)_105px_105px] items-center gap-4 rounded-lg border px-2 py-2 text-left transition ${
-                                                    selectedBuyListing?.id === listing.id
+                                                className={`grid w-full min-w-0 items-center rounded-lg border py-2 text-left transition ${buyListCols} ${
+                                                    mobileExchange ? 'px-1.5' : 'px-2'
+                                                } ${
+                                                    selectedBuyListingId === listing.id
                                                         ? 'border-cyan-400/70 bg-cyan-900/25'
                                                         : 'border-slate-700/60 bg-slate-900/50 hover:border-slate-500/70'
                                                 }`}
                                             >
-                                                <div className="grid min-w-0 grid-cols-[56px_minmax(0,1fr)_56px] items-center gap-5">
-                                                    <div className="relative h-14 w-14 overflow-hidden rounded bg-black/25">
-                                                        <img
-                                                            src={gradeBackgrounds[gradeKey]}
-                                                            alt={gradeLabel}
-                                                            className="absolute inset-0 h-full w-full object-cover"
-                                                        />
-                                                        {listing.itemImage ? (
-                                                            <img src={listing.itemImage} alt={listing.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" />
-                                                        ) : null}
-                                                        {starVisual ? (
-                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                                <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                                <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{listing.itemStars}</span>
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-                                                    <div className="min-w-0 pl-1 text-center">
-                                                        <span className={`block text-xs font-semibold leading-none ${gradeColor}`}>[{gradeLabel}]</span>
-                                                        <span className="mt-0.5 block whitespace-nowrap text-sm font-semibold leading-none">{listing.itemName}</span>
+                                                <div className={`min-w-0 items-center ${buyRowInner}`}>
+                                                    <div
+                                                        className={`relative shrink-0 ${mobileExchange ? 'h-10 w-10' : 'h-14 w-14'}`}
+                                                        title={isMyListing ? '내가 등록한 판매' : undefined}
+                                                    >
+                                                        <div className="relative h-full w-full overflow-hidden rounded bg-black/25">
+                                                            <img
+                                                                src={gradeBackgrounds[gradeKey]}
+                                                                alt={gradeLabel}
+                                                                className="absolute inset-0 h-full w-full object-cover"
+                                                            />
+                                                            {listing.itemImage ? (
+                                                                <img src={listing.itemImage} alt={listing.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" />
+                                                            ) : null}
+                                                            {starVisual ? (
+                                                                <div
+                                                                    className={`absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 ${mobileExchange ? 'px-0.5 py-px' : 'px-1 py-0.5'}`}
+                                                                >
+                                                                    <img src={starVisual.image} alt="" className={mobileExchange ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
+                                                                    <span className={`font-bold leading-none ${mobileExchange ? 'text-[8px]' : 'text-[10px]'} ${starVisual.color}`}>{listing.itemStars}</span>
+                                                                </div>
+                                                            ) : null}
+                                                        </div>
                                                         {isMyListing ? (
-                                                            <span className="mt-0.5 inline-block rounded-full border border-violet-400/50 bg-violet-900/35 px-1.5 py-0.5 text-[10px] font-bold leading-none text-violet-200">
+                                                            <span
+                                                                className={`pointer-events-none absolute bottom-0 left-1/2 z-20 max-w-[calc(100%+0.25rem)] -translate-x-1/2 translate-y-1/2 truncate rounded-full border border-violet-400/60 bg-violet-950/95 px-0.5 py-px font-bold leading-none text-violet-100 shadow-md ring-1 ring-black/20 ${mobileExchange ? 'text-[8px]' : 'px-1 text-[10px]'}`}
+                                                            >
                                                                 내 등록
                                                             </span>
                                                         ) : null}
                                                     </div>
-                                                    <div className="h-14 w-14" aria-hidden />
+                                                    <div className={`min-w-0 ${mobileExchange ? 'text-center' : 'pl-1 text-center'}`}>
+                                                        <span
+                                                            className={`block font-semibold leading-none ${gradeColor} ${mobileExchange ? 'text-[10px] leading-tight' : 'text-xs'}`}
+                                                        >
+                                                            [{gradeLabel}]
+                                                        </span>
+                                                        {mobileExchange ? (
+                                                            <span
+                                                                className="mt-0.5 block break-words text-center text-[11px] font-semibold leading-snug text-slate-100 [overflow-wrap:anywhere] line-clamp-2"
+                                                                title={listing.itemName}
+                                                            >
+                                                                {listing.itemName}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="mt-0.5 block whitespace-nowrap text-sm font-semibold leading-none text-slate-100">{listing.itemName}</span>
+                                                        )}
+                                                    </div>
+                                                    {!mobileExchange ? <div className="h-14 w-14" aria-hidden /> : null}
                                                 </div>
-                                                <div className="flex items-center justify-center gap-1 text-sm font-bold text-amber-200">
-                                                    <span className="tabular-nums">{listing.price.toLocaleString()}</span>
+                                                <div
+                                                    className={`flex w-full min-w-0 max-w-full flex-row items-center justify-center font-bold text-amber-200 ${mobileExchange ? 'gap-0.5 text-[11px] leading-tight' : 'gap-1 text-sm leading-tight'}`}
+                                                >
+                                                    <span className={`min-w-0 tabular-nums ${mobileExchange ? 'max-w-[calc(100%-1rem)] truncate' : ''}`}>{listing.price.toLocaleString()}</span>
                                                     <img
                                                         src={listing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                         alt={listing.currency === 'gold' ? '골드' : '다이아'}
-                                                        className="h-4 w-4 object-contain"
+                                                        className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                     />
                                                 </div>
-                                                <div className="flex items-center justify-center gap-1 text-sm font-bold text-cyan-200">
-                                                    <span className="tabular-nums">
+                                                <div
+                                                    className={`flex w-full min-w-0 max-w-full flex-row items-center justify-center font-bold text-cyan-200 ${mobileExchange ? 'gap-0.5 text-[11px] leading-tight' : 'gap-1 text-sm leading-tight'}`}
+                                                >
+                                                    <span className={`min-w-0 tabular-nums ${mobileExchange ? 'max-w-[calc(100%-1rem)] truncate' : ''}`}>
                                                         {(lowestPriceByBuyGroup.get(getBuyListingGroupKey(listing)) ?? listing.price).toLocaleString()}
                                                     </span>
                                                     <img
                                                         src={listing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                         alt={listing.currency === 'gold' ? '골드' : '다이아'}
-                                                        className="h-4 w-4 object-contain"
+                                                        className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
                                                     />
                                                 </div>
                                             </button>
@@ -1216,109 +1734,38 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
-                                    <div className="min-h-0 flex-1 overflow-hidden">
-                                        {selectedBuyListing ? (
-                                            <div className="flex h-full min-h-0 flex-col gap-2">
-                                                <div className="min-h-0 flex-1">
-                                                    {selectedBuyInventoryItem ? (
-                                                        <EquipmentDetailPanel item={selectedBuyInventoryItem} showTradeStatusUnderImage />
-                                                    ) : (
-                                                        <div className="rounded-lg border border-slate-700/60 bg-slate-950/45 p-3">
-                                                            <div className="flex items-center gap-2">
-                                                                {selectedBuyListing.itemImage ? (
-                                                                    <img src={selectedBuyListing.itemImage} alt={selectedBuyListing.itemName} className="h-14 w-14 rounded bg-black/35 object-contain p-1" />
-                                                                ) : null}
-                                                                <div className="min-w-0">
-                                                                    <p className="text-base font-bold break-words">{selectedBuyListing.itemName}</p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="mt-3 flex items-center justify-between rounded border border-slate-700/60 bg-slate-900/45 px-2 py-2">
-                                                                <span className="text-xs text-slate-300">가격</span>
-                                                                <span className="flex items-center gap-1 text-sm font-semibold text-amber-100">
-                                                                    <span className="tabular-nums">{selectedBuyListing.price.toLocaleString()}</span>
-                                                                    <img
-                                                                        src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                                        alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
-                                                                        className="h-4 w-4 object-contain"
-                                                                    />
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                {!mobileExchange ? (
+                                    <div className="flex h-full min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
+                                        <div className="min-h-0 flex-1 overflow-hidden">
+                                            {selectedBuyListing ? (
+                                                <div className="flex h-full min-h-0 flex-col gap-2">
+                                                    <div className="min-h-0 flex-1 overflow-hidden">{renderBuyEquipmentOrFallback()}</div>
+                                                    {renderBuyStatsCard()}
                                                 </div>
-                                                <div className="rounded border border-slate-700/60 bg-slate-950/55 px-2 py-2 text-xs text-slate-200">
-                                                    <div className="flex items-center justify-between">
-                                                        <span>현재가</span>
-                                                        <span className="flex items-center gap-1 font-semibold text-amber-200">
-                                                            <span className="tabular-nums">{selectedBuyListing.price.toLocaleString()}</span>
-                                                            <img
-                                                                src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                                alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
-                                                                className="h-3.5 w-3.5 object-contain"
-                                                            />
-                                                        </span>
-                                                    </div>
-                                                    <div className="mt-1 flex items-center justify-between">
-                                                        <span>최저가</span>
-                                                        <span className="flex items-center gap-1 font-semibold text-cyan-200">
-                                                            <span className="tabular-nums">
-                                                                {(lowestPriceByBuyGroup.get(getBuyListingGroupKey(selectedBuyListing)) ?? selectedBuyListing.price).toLocaleString()}
-                                                            </span>
-                                                            <img
-                                                                src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                                alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
-                                                                className="h-3.5 w-3.5 object-contain"
-                                                            />
-                                                        </span>
-                                                    </div>
-                                                    <div className="mt-1 flex items-center justify-between">
-                                                        <span>최근 거래가</span>
-                                                        <span className="flex items-center gap-1 font-semibold">
-                                                            <span className="tabular-nums">{recentSoldForBuySelection ? recentSoldForBuySelection.price.toLocaleString() : '-'}</span>
-                                                            {recentSoldForBuySelection ? (
-                                                                <img
-                                                                    src={recentSoldForBuySelection.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                                    alt={recentSoldForBuySelection.currency === 'gold' ? '골드' : '다이아'}
-                                                                    className="h-3.5 w-3.5 object-contain"
-                                                                />
-                                                            ) : null}
-                                                        </span>
-                                                    </div>
-                                                    <div className="mt-1 flex items-center justify-between">
-                                                        <span>남은 시간</span>
-                                                        <span className="tabular-nums font-semibold text-cyan-200">{buyRemainingDays}일 {buyRemainingHours}시간</span>
-                                                    </div>
-                                                    <div className="mt-1 flex items-center justify-between">
-                                                        <span>판매자</span>
-                                                        <span className={`font-semibold ${selectedBuyListingIsMine ? 'text-violet-200' : 'text-slate-200'}`}>
-                                                            {selectedBuyListing.sellerNickname}
-                                                            {selectedBuyListingIsMine ? ' (나)' : ''}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="h-full rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
-                                        )}
+                                            ) : (
+                                                <div className="h-full rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
+                                            )}
+                                        </div>
+                                        <div className="mt-2 shrink-0">
+                                            <Button
+                                                onClick={() => {
+                                                    if (selectedBuyListing) handleBuy(selectedBuyListing.id);
+                                                }}
+                                                disabled={!selectedBuyListing || selectedBuyListingIsMine}
+                                                className={exchangePrimaryButtonClass}
+                                            >
+                                                {selectedBuyListingIsMine ? '내 등록 물품' : '구매'}
+                                            </Button>
+                                        </div>
                                     </div>
-                                    <div className="mt-2">
-                                        <Button
-                                            onClick={() => selectedBuyListing && handleBuy(selectedBuyListing.id)}
-                                            disabled={!selectedBuyListing || selectedBuyListingIsMine}
-                                            className={exchangePrimaryButtonClass}
-                                        >
-                                            {selectedBuyListingIsMine ? '내 등록 물품' : '구매'}
-                                        </Button>
-                                    </div>
-                                </div>
+                                ) : null}
                             </div>
                         )}
-                        {activeTab === 'sell' && (
-                            <div className="flex h-full min-h-0 flex-col gap-3">
-                                <div className="shrink-0 grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[380px_minmax(0,1.15fr)_220px]">
-                                    <div className="flex h-[380px] min-h-[380px] max-h-[380px] min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
-                                        <p className="text-xs font-semibold text-amber-200">등록된 아이템</p>
+                        {activeTab === 'sell' &&
+                            (mobileExchange ? (
+                                <div className="flex h-full min-h-0 flex-col gap-2">
+                                    <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-amber-500/35 bg-gradient-to-b from-slate-900/95 to-slate-950/98 p-2.5 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.45)]">
+                                        <p className="mb-1.5 shrink-0 text-[11px] font-bold text-amber-200">등록된 아이템</p>
                                         <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                             <div className="space-y-2">
                                                 {isAdminUser && sellSlots.length === 0 && (
@@ -1340,15 +1787,22 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                     const remainingMs = Math.max(0, (slot.expiresAt ?? nowMs) - nowMs);
                                                     const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
                                                     const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                                                    const slotGradeKey = (slot.itemGrade ?? 'normal') as ItemGrade;
+                                                    const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
+                                                    const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
                                                     return (
                                                         <button
                                                             key={`sell-slot-${idx}`}
                                                             type="button"
-                                                            onClick={() => setSelectedItemId(slot.itemId)}
-                                                            className={`w-full rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${selectedItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
+                                                            onClick={() => {
+                                                                setSellSlotFocusItemId(slot.itemId);
+                                                                const inv = allEquipmentItems.find((entry) => entry.id === slot.itemId);
+                                                                if (inv) onViewListedEquipment?.(inv);
+                                                            }}
+                                                            className={`w-full rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${sellSlotFocusItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
                                                         >
-                                                            <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
-                                                                <div className="relative h-14 w-14 overflow-hidden rounded bg-black/25">
+                                                            <div className="grid min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-start gap-2">
+                                                                <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-black/25">
                                                                     {slot.itemGrade ? (
                                                                         <img
                                                                             src={gradeBackgrounds[slot.itemGrade as ItemGrade]}
@@ -1368,25 +1822,34 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                                         const starVisual = getStarVisual(stars);
                                                                         if (!starVisual || stars <= 0) return null;
                                                                         return (
-                                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                                                <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                                                <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{stars}</span>
+                                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-0.5 py-px">
+                                                                                <img src={starVisual.image} alt="" className="h-2.5 w-2.5" />
+                                                                                <span className={`text-[8px] font-bold leading-none ${starVisual.color}`}>{stars}</span>
                                                                             </div>
                                                                         );
                                                                     })()}
                                                                 </div>
-                                                                <div className="min-w-0">
-                                                                    <div className="mt-0.5 flex items-center gap-2 text-sm font-semibold text-slate-100">
-                                                                        <span className="tabular-nums text-[13px]">{slot.price.toLocaleString()}</span>
+                                                                <div className="min-w-0 text-center">
+                                                                    <span className={`block text-[10px] font-semibold leading-none ${slotGradeColor}`}>[{slotGradeLabel}]</span>
+                                                                    <span
+                                                                        className="mt-0.5 block break-words text-center text-[11px] font-semibold leading-snug text-slate-100 [overflow-wrap:anywhere] line-clamp-2"
+                                                                        title={slot.itemName}
+                                                                    >
+                                                                        {slot.itemName}
+                                                                    </span>
+                                                                    <div className="mt-1 flex min-w-0 items-center justify-center gap-1 text-[11px] font-semibold leading-tight text-slate-100">
+                                                                        <span className="max-w-full truncate tabular-nums">{slot.price.toLocaleString()}</span>
                                                                         <img
                                                                             src={slot.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
                                                                             alt={slot.currency === 'gold' ? '골드' : '다이아'}
-                                                                            className="h-4 w-4 object-contain"
+                                                                            className="h-3.5 w-3.5 shrink-0 object-contain"
                                                                         />
                                                                     </div>
                                                                 </div>
-                                                                <div className="flex min-w-[92px] flex-col items-center gap-1">
-                                                                    <span className={`w-full text-center text-[11px] font-semibold ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}>
+                                                                <div className="flex min-w-[5.5rem] shrink-0 flex-col items-center gap-0.5">
+                                                                    <span
+                                                                        className={`w-full text-center text-[11px] font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
+                                                                    >
                                                                         {verification === 'verifying' ? '등록중' : isExpired ? '만료됨' : `${remainingDays}일 ${remainingHours}시간`}
                                                                     </span>
                                                                     <Button
@@ -1394,7 +1857,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                                             e.stopPropagation();
                                                                             isExpired ? handleRecoverListing(slot.id) : handleRequestCancelListing(slot.id);
                                                                         }}
-                                                                        className={`!flex !w-[78px] !items-center !justify-center min-h-[24px] rounded-md !border px-1.5 py-0.5 text-[10px] leading-none font-semibold tracking-wide ${
+                                                                        className={`!flex !min-h-[22px] !w-[4.85rem] !items-center !justify-center !border !px-1.5 !py-0.5 !text-[11px] !font-semibold !leading-none !tracking-wide rounded-md ${
                                                                             isExpired
                                                                                 ? '!border-rose-300/40 !bg-gradient-to-b !from-rose-500/80 !to-rose-700/90'
                                                                                 : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
@@ -1410,199 +1873,231 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div className="min-h-0 rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
-                                        {selectedItem ? (
-                                            <div className="h-[380px] min-h-[380px] max-h-[380px] overflow-hidden">
-                                                <EquipmentDetailPanel item={selectedItem} showTradeStatusUnderImage />
+                                    <div className="shrink-0 rounded-xl border border-amber-500/35 bg-gradient-to-b from-slate-900/95 to-slate-950/98 p-2.5 shadow-[0_-10px_28px_-14px_rgba(0,0,0,0.55)]">
+                                        <p className="mb-2.5 text-center text-[11px] font-medium leading-relaxed text-slate-400">
+                                            새로 판매할 장비는 <span className="font-semibold text-amber-200/95">「장비 선택」</span>에서 고릅니다. 위 목록에서 등록된 물품 상태를
+                                            확인하고 취소할 수 있습니다.
+                                        </p>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setSellComposerOpen(false);
+                                                setSelectedItemId('');
+                                                setSellSlotFocusItemId('');
+                                                setSellPickerOpen(true);
+                                            }}
+                                            className="w-full rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-3 py-2.5 text-[11px] font-bold leading-snug text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.55)] transition hover:border-amber-300/80 active:scale-[0.99]"
+                                        >
+                                            장비 선택
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex h-full min-h-0 flex-col gap-3">
+                                    <div className="shrink-0 grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[380px_minmax(0,1.15fr)_220px]">
+                                        <div className="flex h-[380px] min-h-[380px] max-h-[380px] min-w-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
+                                            <p className="text-xs font-semibold text-amber-200">등록된 아이템</p>
+                                            <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
+                                                <div className="space-y-2">
+                                                    {isAdminUser && sellSlots.length === 0 && (
+                                                        <div className="rounded-lg border border-slate-700/60 bg-slate-900/45 px-3 py-2">
+                                                            <div className="h-12 rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
+                                                        </div>
+                                                    )}
+                                                    {sellSlots.map((slot, idx) => {
+                                                        if (!slot) {
+                                                            return (
+                                                                <div key={`sell-slot-pc-${idx}`} className="rounded-lg border border-slate-700/60 bg-slate-900/45 px-3 py-2">
+                                                                    <div className="h-12 rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
+                                                                </div>
+                                                            );
+                                                        }
+                                                        const computed = listingsWithComputed.find((entry) => entry.id === slot.id);
+                                                        const isExpired = Boolean(computed?.isExpired);
+                                                        const verification = computed?.effectiveVerification ?? 'verifying';
+                                                        const remainingMs = Math.max(0, (slot.expiresAt ?? nowMs) - nowMs);
+                                                        const remainingDays = Math.floor(remainingMs / (24 * 60 * 60 * 1000));
+                                                        const remainingHours = Math.floor((remainingMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                                                        const slotGradeKey = (slot.itemGrade ?? 'normal') as ItemGrade;
+                                                        const slotGradeLabel = gradeStyles[slotGradeKey]?.name ?? '일반';
+                                                        const slotGradeColor = gradeStyles[slotGradeKey]?.color ?? 'text-slate-200';
+                                                        return (
+                                                            <button
+                                                                key={`sell-slot-pc-${idx}`}
+                                                                type="button"
+                                                                onClick={() => setSelectedItemId(slot.itemId)}
+                                                                className={`w-full rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${selectedItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
+                                                            >
+                                                                <div className="grid min-w-0 grid-cols-[56px_minmax(0,1fr)_auto] items-center gap-2">
+                                                                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded bg-black/25">
+                                                                        {slot.itemGrade ? (
+                                                                            <img
+                                                                                src={gradeBackgrounds[slot.itemGrade as ItemGrade]}
+                                                                                alt={slot.itemGrade}
+                                                                                className="absolute inset-0 h-full w-full object-cover"
+                                                                            />
+                                                                        ) : null}
+                                                                        {slot.itemImage ? (
+                                                                            <img
+                                                                                src={slot.itemImage}
+                                                                                alt={slot.itemName}
+                                                                                className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain"
+                                                                            />
+                                                                        ) : null}
+                                                                        {(() => {
+                                                                            const stars = slot.itemStars ?? 0;
+                                                                            const starVisual = getStarVisual(stars);
+                                                                            if (!starVisual || stars <= 0) return null;
+                                                                            return (
+                                                                                <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
+                                                                                    <img src={starVisual.image} alt="" className="h-3 w-3" />
+                                                                                    <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{stars}</span>
+                                                                                </div>
+                                                                            );
+                                                                        })()}
+                                                                    </div>
+                                                                    <div className="min-w-0 pl-1 text-center">
+                                                                        <span className={`block text-xs font-semibold leading-none ${slotGradeColor}`}>[{slotGradeLabel}]</span>
+                                                                        <span
+                                                                            className="mt-0.5 block truncate whitespace-nowrap text-sm font-semibold leading-none text-slate-100"
+                                                                            title={slot.itemName}
+                                                                        >
+                                                                            {slot.itemName}
+                                                                        </span>
+                                                                        <div className="mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold leading-tight text-slate-100">
+                                                                            <span className="tabular-nums">{slot.price.toLocaleString()}</span>
+                                                                            <img
+                                                                                src={slot.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                                alt={slot.currency === 'gold' ? '골드' : '다이아'}
+                                                                                className="h-3.5 w-3.5 object-contain"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                    <div className="flex min-w-[5.5rem] shrink-0 flex-col items-center gap-1">
+                                                                        <span
+                                                                            className={`w-full text-center text-xs font-semibold leading-tight ${verification === 'verifying' ? 'text-cyan-200' : isExpired ? 'text-rose-300' : 'text-emerald-200'}`}
+                                                                        >
+                                                                            {verification === 'verifying' ? '등록중' : isExpired ? '만료됨' : `${remainingDays}일 ${remainingHours}시간`}
+                                                                        </span>
+                                                                        <Button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                isExpired ? handleRecoverListing(slot.id) : handleRequestCancelListing(slot.id);
+                                                                            }}
+                                                                            className={`!flex !w-[78px] !items-center !justify-center min-h-[26px] rounded-md !border px-1.5 py-0.5 text-xs leading-none font-semibold tracking-wide ${
+                                                                                isExpired
+                                                                                    ? '!border-rose-300/40 !bg-gradient-to-b !from-rose-500/80 !to-rose-700/90'
+                                                                                    : '!border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95'
+                                                                            }`}
+                                                                        >
+                                                                            {isExpired ? '회수' : '판매취소'}
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
+                                        </div>
+                                        <div className="min-h-0 rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
+                                            {selectedItem ? (
+                                                <div className="h-[380px] min-h-[380px] max-h-[380px] overflow-hidden">
+                                                    <EquipmentDetailPanel
+                                            item={selectedItem}
+                                            showTradeStatusUnderImage
+                                            comfortableTypography={mobileExchange}
+                                            optionRowsSingleLine={mobileExchange}
+                                        />
+                                                </div>
+                                            ) : (
+                                                <div className="h-[380px] min-h-[380px] max-h-[380px] rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
+                                            )}
+                                        </div>
+                                        <div className="flex min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">{renderSellRegistrationSidebar()}</div>
+                                    </div>
+                                    <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
+                                        <div className="mb-2 flex items-center justify-end">
+                                            <select
+                                                value={inventorySortKey}
+                                                onChange={(e) => setInventorySortKey(e.target.value as InventorySortKey)}
+                                                className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-xs font-semibold leading-snug text-slate-200"
+                                                aria-label="인벤토리 정렬"
+                                            >
+                                                <option value="createdAt">최신순</option>
+                                                <option value="grade">등급순</option>
+                                                <option value="name">이름순</option>
+                                            </select>
+                                        </div>
+                                        {sellableItems.length === 0 ? (
+                                            <div className="h-14 rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
                                         ) : (
-                                            <div className="h-[380px] min-h-[380px] max-h-[380px] rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
+                                            <div className={`min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-950/55 p-2 ${BAG_SCROLLBAR_Y_CLASS}`}>
+                                                <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8 lg:grid-cols-12">
+                                                    {sortedSellableItems.map((item) => (
+                                                        <button
+                                                            key={item.id}
+                                                            type="button"
+                                                            onClick={() => setSelectedItemId(item.id)}
+                                                            className={`relative aspect-square rounded-lg border transition ${
+                                                                selectedItemId === item.id
+                                                                    ? 'border-cyan-400/75 bg-cyan-900/25 ring-2 ring-cyan-400/70'
+                                                                    : 'border-slate-700/70 bg-slate-900/55 hover:border-slate-500/70'
+                                                            }`}
+                                                            title={item.name}
+                                                        >
+                                                            <img
+                                                                src={gradeBackgrounds[item.grade as ItemGrade]}
+                                                                alt={item.grade}
+                                                                className="absolute inset-0 h-full w-full rounded-lg object-cover opacity-90"
+                                                            />
+                                                            <img
+                                                                src={item.image}
+                                                                alt={item.name}
+                                                                className="absolute inset-0 m-auto h-[64%] w-[64%] object-contain"
+                                                            />
+                                                            {(() => {
+                                                                const starVisual = getStarVisual(item.stars ?? 0);
+                                                                if (!starVisual) return null;
+                                                                return (
+                                                                    <div className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
+                                                                        <img src={starVisual.image} alt="" className="h-3 w-3" />
+                                                                        <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{item.stars}</span>
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
-
-                                    <div className="flex min-h-0 flex-col rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
-                                        <div className="space-y-2.5">
-                                            <p className="text-xs font-semibold text-slate-300">판매 재화 종류</p>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <label className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border px-2 py-2 ${saleCurrency === 'gold' ? 'border-amber-400/70 bg-amber-900/30' : 'border-slate-600 bg-slate-800/70'}`}>
-                                                    <input
-                                                        type="radio"
-                                                        name="sale-currency"
-                                                        value="gold"
-                                                        checked={saleCurrency === 'gold'}
-                                                        onChange={() => {
-                                                            setSaleCurrency('gold');
-                                                            setSalePrice(String(minPriceByCurrency.gold));
-                                                        }}
-                                                        className="sr-only"
-                                                    />
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="h-5 w-5 object-contain" />
-                                                    <span className="text-sm font-semibold text-amber-100">골드</span>
-                                                </label>
-                                                <label className={`flex cursor-pointer items-center justify-center gap-1.5 rounded border px-2 py-2 ${saleCurrency === 'diamonds' ? 'border-sky-400/70 bg-sky-900/30' : 'border-slate-600 bg-slate-800/70'}`}>
-                                                    <input
-                                                        type="radio"
-                                                        name="sale-currency"
-                                                        value="diamonds"
-                                                        checked={saleCurrency === 'diamonds'}
-                                                        onChange={() => {
-                                                            setSaleCurrency('diamonds');
-                                                            setSalePrice(String(minPriceByCurrency.diamonds));
-                                                        }}
-                                                        className="sr-only"
-                                                    />
-                                                    <img src="/images/icon/Zem.png" alt="다이아" className="h-5 w-5 object-contain" />
-                                                    <span className="text-sm font-semibold text-sky-100">다이아</span>
-                                                </label>
-                                            </div>
-                                            <label className="flex flex-col gap-1.5 text-sm">
-                                                <span>판매 가격 입력</span>
-                                                <div
-                                                    className={`flex items-center gap-2 rounded border px-2 py-1.5 ${
-                                                        saleCurrency === 'gold'
-                                                            ? 'border-amber-500/55 bg-amber-950/35'
-                                                            : 'border-sky-500/55 bg-sky-950/30'
-                                                    }`}
-                                                >
-                                                    <input
-                                                        type="number"
-                                                        value={salePrice}
-                                                        min={minimumPrice}
-                                                        onChange={(e) => setSalePrice(e.target.value)}
-                                                        className={`w-full bg-transparent text-center text-sm font-semibold tabular-nums outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
-                                                            saleCurrency === 'gold' ? 'text-amber-100 placeholder:text-amber-200/45' : 'text-sky-100 placeholder:text-sky-200/45'
-                                                        }`}
-                                                    />
-                                                    <img
-                                                        src={saleCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                        alt={saleCurrency === 'gold' ? '골드' : '다이아'}
-                                                        className="h-5 w-5 shrink-0 object-contain"
-                                                    />
-                                                </div>
-                                            </label>
-                                            <div className="rounded border border-slate-700/60 bg-slate-950/55 px-2 py-2 text-xs text-slate-200">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span>현재 최저가</span>
-                                                    {currentLowestForSelected ? (
-                                                        <span className="flex items-center gap-1 font-semibold">
-                                                            <span className="tabular-nums">{currentLowestForSelected.price.toLocaleString()}</span>
-                                                            <img
-                                                                src={currentLowestForSelected.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                                alt={currentLowestForSelected.currency === 'gold' ? '골드' : '다이아'}
-                                                                className="h-4 w-4 object-contain"
-                                                            />
-                                                        </span>
-                                                    ) : (
-                                                        <span className="font-semibold">-</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="rounded border border-slate-700/60 bg-slate-950/55 px-2 py-2 text-xs text-slate-200">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span>최근 거래가</span>
-                                                    <span className="text-right font-semibold">
-                                                        {lastSoldForSelected ? formatCurrency(lastSoldForSelected.price, lastSoldForSelected.currency) : '-'}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            <div className="rounded border border-cyan-700/50 bg-cyan-950/35 px-2 py-2 text-xs text-cyan-100">
-                                                <div className="flex items-center justify-between gap-2">
-                                                    <span>수수료(10%)</span>
-                                                    <span className="flex items-center gap-1 tabular-nums font-semibold">
-                                                        <span>{saleFee.toLocaleString()}</span>
-                                                        <img
-                                                            src={saleCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                            alt={saleCurrency === 'gold' ? '골드' : '다이아'}
-                                                            className="h-4 w-4 object-contain"
-                                                        />
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="mt-auto pt-3">
-                                            <Button
-                                                onClick={handleRegisterSale}
-                                                disabled={!selectedItem || selectedItemAlreadyListedByMe}
-                                                className={exchangePrimaryButtonClass}
-                                            >
-                                                판매 등록
-                                            </Button>
-                                        </div>
-                                    </div>
                                 </div>
-
-                                <div className="flex min-h-0 flex-1 flex-col rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
-                                    <div className="mb-2 flex items-center justify-end">
-                                        <select
-                                            value={inventorySortKey}
-                                            onChange={(e) => setInventorySortKey(e.target.value as InventorySortKey)}
-                                            className="rounded border border-slate-600 bg-slate-800 px-2 py-1 text-[11px] font-semibold text-slate-200"
-                                            aria-label="인벤토리 정렬"
-                                        >
-                                            <option value="createdAt">최신순</option>
-                                            <option value="grade">등급순</option>
-                                            <option value="name">이름순</option>
-                                        </select>
-                                    </div>
-                                    {sellableItems.length === 0 ? (
-                                        <div className="h-14 rounded border border-dashed border-slate-700/70 bg-slate-950/40" />
-                                    ) : (
-                                        <div className={`min-h-0 flex-1 overflow-y-auto rounded-lg border border-slate-700/60 bg-slate-950/55 p-2 ${BAG_SCROLLBAR_Y_CLASS}`}>
-                                            <div className="grid grid-cols-6 gap-1.5 sm:grid-cols-8 lg:grid-cols-12">
-                                            {sortedSellableItems.map((item) => (
-                                                <button
-                                                    key={item.id}
-                                                    type="button"
-                                                    onClick={() => setSelectedItemId(item.id)}
-                                                    className={`relative aspect-square rounded-lg border transition ${
-                                                        selectedItemId === item.id
-                                                            ? 'border-cyan-400/75 bg-cyan-900/25 ring-2 ring-cyan-400/70'
-                                                            : 'border-slate-700/70 bg-slate-900/55 hover:border-slate-500/70'
-                                                    }`}
-                                                    title={item.name}
-                                                >
-                                                    <img
-                                                        src={gradeBackgrounds[item.grade as ItemGrade]}
-                                                        alt={item.grade}
-                                                        className="absolute inset-0 h-full w-full rounded-lg object-cover opacity-90"
-                                                    />
-                                                    <img
-                                                        src={item.image}
-                                                        alt={item.name}
-                                                        className="absolute inset-0 m-auto h-[64%] w-[64%] object-contain"
-                                                    />
-                                                    {(() => {
-                                                        const starVisual = getStarVisual(item.stars ?? 0);
-                                                        if (!starVisual) return null;
-                                                        return (
-                                                            <div className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                                <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                                <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{item.stars}</span>
-                                                            </div>
-                                                        );
-                                                    })()}
-                                                </button>
-                                            ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                            ))}
 
                         {activeTab === 'settlement' && (
-                            <div className="grid min-h-0 grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
-                                <div className="min-h-0 rounded-lg border border-slate-700/60 bg-slate-900/40 p-3">
-                                    <div className={`overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`} style={{ maxHeight: 'calc(100vh - 360px)' }}>
-                                        <div className="sticky top-0 z-10 mb-2 grid grid-cols-[minmax(0,1fr)_108px_108px_108px] gap-2 rounded border border-slate-600/70 bg-slate-900/95 px-2 py-1.5 text-[11px] font-semibold text-slate-300 backdrop-blur-sm">
+                            <div className="flex min-h-0 flex-1 flex-col gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-3">
+                                <div
+                                    className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-slate-700/60 bg-slate-900/40 ${mobileExchange ? 'min-h-0 flex-1 p-2' : 'min-h-0 p-3'}`}
+                                >
+                                    <div
+                                        className={`min-h-0 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS} ${mobileExchange ? 'flex-1' : ''}`}
+                                        style={mobileExchange ? undefined : { maxHeight: 'calc(100vh - 360px)' }}
+                                    >
+                                        <div
+                                            className={`sticky top-0 z-10 mb-2 grid items-center rounded border border-slate-600/70 bg-slate-900/95 font-semibold text-slate-300 backdrop-blur-sm ${settlementListCols} ${
+                                                mobileExchange ? 'px-1.5 py-1 text-[10px] leading-tight' : 'px-2 py-1.5 text-[11px]'
+                                            }`}
+                                        >
                                             <span className="text-center">이름</span>
                                             <span className="text-center">판매가</span>
                                             <span className="text-center">수수료</span>
                                             <span className="text-center">수령액</span>
                                         </div>
                                         {settlementDisplayItems.length === 0 && (
-                                            <div className="rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-sm text-slate-300">
+                                            <div
+                                                className={`rounded border border-slate-700/60 bg-slate-900/40 text-center text-slate-300 ${mobileExchange ? `px-2 py-6 ${exchM}` : 'px-3 py-8 text-xs leading-snug'}`}
+                                            >
                                                 정산 가능한 판매 내역이 없습니다.
                                             </div>
                                         )}
@@ -1618,14 +2113,18 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                         key={entry.listingId}
                                                         type="button"
                                                         onClick={() => setSelectedSettlementId(entry.listingId)}
-                                                        className={`grid w-full grid-cols-[minmax(0,1fr)_108px_108px_108px] items-center gap-2 rounded-lg border px-2 py-2 text-left transition ${
+                                                        className={`grid w-full items-center rounded-lg border text-left transition ${settlementListCols} ${
+                                                            mobileExchange ? 'gap-1.5 px-1.5 py-1.5' : 'gap-2 px-2 py-2'
+                                                        } ${
                                                             selectedSettlement?.listingId === entry.listingId
                                                                 ? 'border-cyan-400/70 bg-cyan-900/25'
                                                                 : 'border-slate-700/60 bg-slate-900/50 hover:border-slate-500/70'
                                                         }`}
                                                     >
-                                                        <div className="grid min-w-0 grid-cols-[56px_minmax(0,1fr)_56px] items-center gap-2">
-                                                            <div className="relative h-14 w-14 overflow-hidden rounded bg-black/25">
+                                                        <div
+                                                            className={`min-w-0 items-center ${mobileExchange ? 'grid grid-cols-[48px_minmax(0,1fr)_48px] gap-1' : 'grid grid-cols-[56px_minmax(0,1fr)_56px] gap-2'}`}
+                                                        >
+                                                            <div className={`relative overflow-hidden rounded bg-black/25 ${mobileExchange ? 'h-12 w-12' : 'h-14 w-14'}`}>
                                                                 <img src={gradeBackgrounds[gradeKey]} alt={gradeLabel} className="absolute inset-0 h-full w-full object-cover" />
                                                                 {entry.itemImage ? <img src={entry.itemImage} alt={entry.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" /> : null}
                                                                 {starVisual ? (
@@ -1635,29 +2134,42 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                                     </div>
                                                                 ) : null}
                                                             </div>
-                                                            <p
-                                                                className="min-w-0 whitespace-nowrap text-center font-semibold"
-                                                                style={{
-                                                                    fontSize: `${Math.max(10, Math.min(14, Math.floor(14 - Math.max(0, (`[${gradeLabel}] ${entry.itemName}`).length - 16) * 0.24)))}px`,
-                                                                    letterSpacing: '-0.015em',
-                                                                }}
-                                                            >
-                                                                <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
-                                                                <span>{entry.itemName}</span>
-                                                            </p>
-                                                            <div className="h-14 w-14" aria-hidden />
+                                                            {mobileExchange ? (
+                                                                <p className="min-w-0 text-center text-[11px] font-semibold leading-tight text-slate-100">
+                                                                    <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
+                                                                    <span className="line-clamp-2 break-words">{entry.itemName}</span>
+                                                                </p>
+                                                            ) : (
+                                                                <p
+                                                                    className="min-w-0 whitespace-nowrap text-center font-semibold"
+                                                                    style={{
+                                                                        fontSize: `${Math.max(10, Math.min(14, Math.floor(14 - Math.max(0, (`[${gradeLabel}] ${entry.itemName}`).length - 16) * 0.24)))}px`,
+                                                                        letterSpacing: '-0.015em',
+                                                                    }}
+                                                                >
+                                                                    <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
+                                                                    <span>{entry.itemName}</span>
+                                                                </p>
+                                                            )}
+                                                            <div className={mobileExchange ? 'h-12 w-12' : 'h-14 w-14'} aria-hidden />
                                                         </div>
-                                                        <div className="flex items-center justify-center gap-1 text-sm font-semibold text-amber-100">
+                                                        <div
+                                                            className={`flex items-center justify-center gap-1 font-semibold text-amber-100 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
+                                                        >
                                                             <span className="tabular-nums">{entry.soldPrice.toLocaleString()}</span>
-                                                            <img src={currencyIcon} alt={currencyAlt} className="h-4 w-4 object-contain" />
+                                                            <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                                                         </div>
-                                                        <div className="flex items-center justify-center gap-1 text-sm font-semibold text-rose-200">
+                                                        <div
+                                                            className={`flex items-center justify-center gap-1 font-semibold text-rose-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
+                                                        >
                                                             <span className="tabular-nums">{entry.fee.toLocaleString()}</span>
-                                                            <img src={currencyIcon} alt={currencyAlt} className="h-4 w-4 object-contain" />
+                                                            <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                                                         </div>
-                                                        <div className="flex items-center justify-center gap-1 text-sm font-bold text-emerald-200">
+                                                        <div
+                                                            className={`flex items-center justify-center gap-1 font-bold text-emerald-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}
+                                                        >
                                                             <span className="tabular-nums">{entry.net.toLocaleString()}</span>
-                                                            <img src={currencyIcon} alt={currencyAlt} className="h-4 w-4 object-contain" />
+                                                            <img src={currencyIcon} alt={currencyAlt} className={mobileExchange ? 'h-3.5 w-3.5 object-contain' : 'h-4 w-4 object-contain'} />
                                                         </div>
                                                     </button>
                                                 );
@@ -1665,10 +2177,16 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                         </div>
                                     </div>
                                 </div>
-                                <div className="rounded-lg border border-slate-700/60 bg-slate-900/45 p-3">
+                                <div
+                                    className={`shrink-0 rounded-lg border border-slate-700/60 bg-slate-900/45 ${mobileExchange ? 'p-2' : 'p-3'} ${
+                                        mobileExchange
+                                            ? 'border-t border-amber-500/35 bg-gradient-to-b from-slate-900/95 to-slate-950/98 shadow-[0_-10px_28px_-14px_rgba(0,0,0,0.5)]'
+                                            : ''
+                                    }`}
+                                >
                                     {selectedSettlement ? (
                                         <div className="space-y-2">
-                                            <div className="rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2 text-xs text-slate-100">
+                                            <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2 text-slate-100 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}>
                                                 <p className="mb-1 text-[11px] font-semibold text-slate-300">선택 항목</p>
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-rose-200">수수료</span>
@@ -1693,7 +2211,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2 text-xs text-slate-100">
+                                            <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2 text-slate-100 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}>
                                                 <p className="mb-1 text-[11px] font-semibold text-slate-300">모든 항목</p>
                                                 <div className="space-y-1">
                                                     <div className="flex items-center justify-between">
@@ -1732,7 +2250,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                                             </Button>
                                         </div>
                                     ) : (
-                                        <div className="rounded border border-dashed border-slate-700/70 bg-slate-950/40 px-3 py-10 text-center text-sm text-slate-300">
+                                        <div
+                                            className={`rounded border border-dashed border-slate-700/70 bg-slate-950/40 text-center text-slate-300 ${mobileExchange ? `px-2 py-6 ${exchM}` : 'px-3 py-10 text-xs leading-snug'}`}
+                                        >
                                             정산 대기 항목이 없습니다.
                                         </div>
                                     )}
@@ -1741,92 +2261,146 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
                         )}
 
                         {activeTab === 'history' && (
-                            <div className="space-y-2">
-                                <div className="mx-auto flex w-full max-w-[560px] items-stretch gap-2">
-                                    <div className="flex w-[260px] items-center justify-center whitespace-nowrap rounded border border-slate-700/60 bg-slate-900/45 px-3 py-2.5 text-center text-lg font-semibold text-slate-100">
-                                        총 거래 이력 {history.length}건
-                                    </div>
-                                    <div className="flex-1 space-y-2 rounded border border-slate-700/60 bg-slate-900/45 px-3 py-2.5 text-base text-slate-200">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-base font-semibold text-rose-400">총 지출</span>
-                                            <div className="grid grid-cols-2 items-center gap-1">
-                                                <span className="flex min-w-[98px] items-center justify-end gap-1 tabular-nums text-base font-semibold text-rose-400">
-                                                    <span>{historySummary.totals.outGold.toLocaleString()}</span>
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 object-contain" />
-                                                </span>
-                                                <span className="flex min-w-[98px] items-center justify-end gap-1 tabular-nums text-base font-semibold text-rose-400">
-                                                    <span>{historySummary.totals.outDiamonds.toLocaleString()}</span>
-                                                    <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
-                                                </span>
-                                            </div>
+                            <div className={`flex min-h-0 flex-1 flex-col ${mobileExchange ? 'gap-1.5' : 'gap-2'}`}>
+                                <div className="shrink-0">
+                                    <div
+                                        className={`mx-auto flex w-full max-w-[560px] ${mobileExchange ? 'flex-col gap-1.5' : 'flex-col gap-2 sm:flex-row sm:items-stretch'}`}
+                                    >
+                                        <div
+                                            className={`flex w-full items-center justify-center rounded border border-slate-700/60 bg-slate-900/45 text-center font-semibold text-slate-100 ${
+                                                mobileExchange
+                                                    ? 'min-h-0 whitespace-normal px-2 py-2 text-[11px] leading-snug'
+                                                    : 'min-h-[3.25rem] whitespace-nowrap px-3 py-2.5 text-base sm:w-[260px] sm:text-lg'
+                                            }`}
+                                        >
+                                            총 거래 이력 {history.length}건
                                         </div>
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-base font-semibold text-emerald-400">총 수입</span>
-                                            <div className="grid grid-cols-2 items-center gap-1">
-                                                <span className="flex min-w-[98px] items-center justify-end gap-1 tabular-nums text-base font-semibold text-emerald-400">
-                                                    <span>{historySummary.totals.inGold.toLocaleString()}</span>
-                                                    <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 object-contain" />
-                                                </span>
-                                                <span className="flex min-w-[98px] items-center justify-end gap-1 tabular-nums text-base font-semibold text-emerald-400">
-                                                    <span>{historySummary.totals.inDiamonds.toLocaleString()}</span>
-                                                    <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
-                                                </span>
+                                        <div
+                                            className={`flex-1 rounded border border-slate-700/60 bg-slate-900/45 text-slate-200 ${
+                                                mobileExchange ? 'space-y-1.5 px-2 py-2 text-[11px] leading-snug' : 'space-y-2 px-3 py-2.5 text-base'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className={`font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}>총 지출</span>
+                                                <div className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1">
+                                                    <span
+                                                        className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
+                                                    >
+                                                        <span className="min-w-0 truncate">{historySummary.totals.outGold.toLocaleString()}</span>
+                                                        <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                    </span>
+                                                    <span
+                                                        className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-rose-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
+                                                    >
+                                                        <span className="min-w-0 truncate">{historySummary.totals.outDiamonds.toLocaleString()}</span>
+                                                        <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-1">
+                                                <span className={`font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}>총 수입</span>
+                                                <div className="grid min-w-0 flex-1 grid-cols-2 items-center gap-1">
+                                                    <span
+                                                        className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
+                                                    >
+                                                        <span className="min-w-0 truncate">{historySummary.totals.inGold.toLocaleString()}</span>
+                                                        <img src="/images/icon/Gold.png" alt="골드" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                    </span>
+                                                    <span
+                                                        className={`flex min-w-0 items-center justify-end gap-0.5 tabular-nums font-semibold text-emerald-400 ${mobileExchange ? 'text-[11px]' : 'text-base'}`}
+                                                    >
+                                                        <span className="min-w-0 truncate">{historySummary.totals.inDiamonds.toLocaleString()}</span>
+                                                        <img src="/images/icon/Zem.png" alt="다이아" className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'} />
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
-                                <div className="grid grid-cols-[48px_96px_minmax(0,1fr)_120px_120px] items-center gap-2 rounded border border-slate-600/70 bg-slate-900/95 px-2 py-1.5 text-xs font-semibold text-slate-300">
-                                    <span />
-                                    <span className="text-center">상태</span>
-                                    <span className="text-center">날짜/시간</span>
-                                    <span className="text-center">가격</span>
-                                    <span className="text-center">수수료</span>
+                                <div className="shrink-0">
+                                    <div
+                                        className={`grid items-center rounded border border-slate-600/70 bg-slate-900/95 text-slate-300 ${historyGridTemplate} ${
+                                            mobileExchange ? 'gap-1 px-1.5 py-1' : 'gap-2 px-2 py-1.5'
+                                        } ${historyHeaderText}`}
+                                    >
+                                        <span />
+                                        <span className="text-center">상태</span>
+                                        <span className="text-center">날짜/시간</span>
+                                        <span className="text-center">가격</span>
+                                        <span className="text-center">수수료</span>
+                                    </div>
                                 </div>
-                                {history.length === 0 && (
-                                    <div className="rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-sm text-slate-300">
-                                        거래 이력이 없습니다.
+                                <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
+                                    {history.length === 0 && (
+                                        <div className={`rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-slate-300 ${mobileExchange ? exchM : 'text-sm'}`}>
+                                            거래 이력이 없습니다.
+                                        </div>
+                                    )}
+                                    <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>
+                                        {historySummary.rows.map((row, idx) => (
+                                            <div
+                                                key={`${row.line}-${idx}`}
+                                                className={`grid items-center rounded border border-slate-700/60 bg-slate-900/45 ${historyGridTemplate} ${
+                                                    mobileExchange ? 'gap-1 px-1.5 py-1.5' : 'gap-2 px-2 py-2'
+                                                } ${mobileExchange ? exchM : ''}`}
+                                            >
+                                                <div
+                                                    className={`relative shrink-0 overflow-hidden rounded bg-black/25 ring-1 ring-slate-600/60 ${mobileExchange ? 'h-9 w-9' : 'h-10 w-10'}`}
+                                                >
+                                                    <img src={gradeBackgrounds[row.itemGrade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                                                    <img src={row.itemImage} alt="" className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" />
+                                                    {(() => {
+                                                        const starVisual = getStarVisual(row.itemStars ?? 0);
+                                                        if (!starVisual) return null;
+                                                        return (
+                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/60 px-0.5 py-[1px]">
+                                                                <img src={starVisual.image} alt="" className="h-2.5 w-2.5 object-contain" />
+                                                                <span className={`font-bold leading-none ${starVisual.color} ${mobileExchange ? 'text-[10px]' : 'text-[8px]'}`}>{row.itemStars}</span>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
+                                                <p className={`text-center font-semibold text-slate-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}>{row.statusText}</p>
+                                                <p
+                                                    className={`break-words text-center text-slate-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}
+                                                    title={row.timestampText}
+                                                >
+                                                    {row.timestampText}
+                                                </p>
+                                                <div
+                                                    className={`flex items-center justify-center gap-0.5 font-semibold ${row.statusText === '정산 수령' ? 'text-emerald-400' : 'text-slate-100'} ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}
+                                                >
+                                                    {row.priceCurrency ? (
+                                                        <>
+                                                            <span className="min-w-0 truncate tabular-nums">{row.priceAmount.toLocaleString()}</span>
+                                                            <img
+                                                                src={row.priceCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                alt={row.priceCurrency === 'gold' ? '골드' : '다이아'}
+                                                                className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-slate-500">-</span>
+                                                    )}
+                                                </div>
+                                                <div className={`flex items-center justify-center gap-0.5 font-semibold text-rose-400 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}>
+                                                    {row.feeCurrency ? (
+                                                        <>
+                                                            <span className="min-w-0 truncate tabular-nums">{row.feeAmount.toLocaleString()}</span>
+                                                            <img
+                                                                src={row.feeCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
+                                                                alt={row.feeCurrency === 'gold' ? '골드' : '다이아'}
+                                                                className={mobileExchange ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 object-contain'}
+                                                            />
+                                                        </>
+                                                    ) : (
+                                                        <span className="text-slate-500">-</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                )}
-                                {historySummary.rows.map((row, idx) => (
-                                    <div key={`${row.line}-${idx}`} className="grid grid-cols-[48px_96px_minmax(0,1fr)_120px_120px] items-center gap-2 rounded border border-slate-700/60 bg-slate-900/45 px-2 py-2">
-                                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded bg-black/25 ring-1 ring-slate-600/60">
-                                            <img src={gradeBackgrounds[row.itemGrade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                                            <img src={row.itemImage} alt="" className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" />
-                                            {(() => {
-                                                const starVisual = getStarVisual(row.itemStars ?? 0);
-                                                if (!starVisual) return null;
-                                                return (
-                                                    <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/60 px-0.5 py-[1px]">
-                                                        <img src={starVisual.image} alt="" className="h-2.5 w-2.5 object-contain" />
-                                                        <span className={`text-[8px] font-bold leading-none ${starVisual.color}`}>{row.itemStars}</span>
-                                                    </div>
-                                                );
-                                            })()}
-                                        </div>
-                                        <p className="text-center text-sm font-semibold text-slate-200">{row.statusText}</p>
-                                        <p className="text-center text-base text-slate-200">{row.timestampText}</p>
-                                        <div className={`flex items-center justify-center gap-1 text-base font-semibold ${row.statusText === '정산 수령' ? 'text-emerald-400' : 'text-slate-100'}`}>
-                                            {row.priceCurrency ? (
-                                                <>
-                                                    <span className="tabular-nums">{row.priceAmount.toLocaleString()}</span>
-                                                    <img src={row.priceCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt={row.priceCurrency === 'gold' ? '골드' : '다이아'} className="h-4 w-4 object-contain" />
-                                                </>
-                                            ) : (
-                                                <span className="text-slate-500">-</span>
-                                            )}
-                                        </div>
-                                        <div className="flex items-center justify-center gap-1 text-base font-semibold text-rose-400">
-                                            {row.feeCurrency ? (
-                                                <>
-                                                    <span className="tabular-nums">{row.feeAmount.toLocaleString()}</span>
-                                                    <img src={row.feeCurrency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'} alt={row.feeCurrency === 'gold' ? '골드' : '다이아'} className="h-4 w-4 object-contain" />
-                                                </>
-                                            ) : (
-                                                <span className="text-slate-500">-</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
+                                </div>
                             </div>
                         )}
                     </div>

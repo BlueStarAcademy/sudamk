@@ -14,6 +14,7 @@ import {
     isActionPointConsumable,
 } from '../../constants';
 import { computeEnhancedMainValueAtStars } from '../../shared/utils/equipmentEnhancementStars.js';
+import { getMaterialBagUsageLines } from '../../shared/utils/bagItemDetailHelpers.js';
 import {
     MYTHIC_GRADE_SPECIAL_OPTION_STATS,
     TRANSCENDENT_GRADE_SPECIAL_OPTION_STATS,
@@ -775,9 +776,21 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                 {item.type === 'equipment' && (
                     <p className="mt-0.5 text-center text-[10px] text-slate-500 sm:mt-1 sm:text-[11px]">{`착용 레벨 합: ${GRADE_LEVEL_REQUIREMENTS[item.grade]}`}</p>
                 )}
-                <p className="mt-2 w-full border-t border-white/10 pt-2 text-left text-[11px] leading-snug text-slate-300 sm:mt-3 sm:pt-3 sm:text-center sm:text-base sm:leading-relaxed">
-                    {item.description}
-                </p>
+                {(() => {
+                    const materialUsageLines = mainTab === 'material' ? getMaterialBagUsageLines(item.name) : [];
+                    const appendMaterialUsage =
+                        materialUsageLines.length > 0 && materialUsageLines.length <= 6
+                            ? `\n\n사용처 :\n${materialUsageLines.join('\n')}`
+                            : '';
+                    return (
+                        <p
+                            className={`mt-2 w-full border-t border-white/10 pt-2 text-left text-[11px] leading-snug text-slate-300 sm:mt-3 sm:pt-3 sm:text-center sm:text-base sm:leading-relaxed${appendMaterialUsage ? ' whitespace-pre-line' : ''}`}
+                        >
+                            {item.description}
+                            {appendMaterialUsage}
+                        </p>
+                    );
+                })()}
             </div>
         );
     };

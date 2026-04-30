@@ -136,9 +136,23 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
 ];
 
 export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails'>> = {
-    '제련의 부적': { name: '제련의 부적', description: '[대장간]-[장비제련] 제련불가 장비 선택', type: 'material', slot: null, image: '/images/use/refine.webp', grade: ItemGrade.Legendary },
+    '제련의 부적': {
+        name: '제련의 부적',
+        description: '제련이 불가능한 장비의 제련가능 횟수를 1추가',
+        type: 'material',
+        slot: null,
+        image: '/images/use/refine.webp',
+        grade: ItemGrade.Legendary,
+    },
     '거래 등록권': { name: '거래 등록권', description: '거래소에 판매 물품 1개를 등록할 수 있는 특별 허가권입니다.', type: 'material', slot: null, image: '/images/use/allowtrade.webp', grade: ItemGrade.Rare },
-    '귀속 해제권': { name: '귀속 해제권', description: '[일반] 1장 (각 등급별 필요 개수 표시)', type: 'material', slot: null, image: '/images/use/belong.webp', grade: ItemGrade.Epic },
+    '귀속 해제권': {
+        name: '귀속 해제권',
+        description: '귀속된 장비를 거래가능 상태로 변경',
+        type: 'material',
+        slot: null,
+        image: '/images/use/belong.webp',
+        grade: ItemGrade.Epic,
+    },
     '옵션 종류 변경권': { name: '옵션 종류 변경권', description: '장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change1.png', grade: ItemGrade.Normal },
     '옵션 수치 변경권': { name: '옵션 수치 변경권', description: '장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change2.png', grade: ItemGrade.Normal },
     '스페셜 옵션 변경권': { name: '스페셜 옵션 변경권', description: '신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다.', type: 'material', slot: null, image: '/images/use/change3.png', grade: ItemGrade.Normal },

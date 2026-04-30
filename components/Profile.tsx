@@ -1152,12 +1152,24 @@ const Profile: React.FC<ProfileProps> = () => {
 
     const EquipmentPanelContent = useMemo(() => {
         const nh = isNativeMobile && !usePcHomePanelStyle;
+        /** 모바일 홈 세로형: 2행이 1fr로 늘어나며 슬롯 간 세로 간격이 들쭉날쭉해지지 않도록 고정 gap·auto 행 + 가로 중앙 */
+        const mobileVerticalSlotGridClass =
+            'mx-auto grid w-full max-w-[min(100%,18rem)] grid-cols-3 gap-2 auto-rows-auto [&>*]:min-w-0';
+        const pcHomeSlotGridClass =
+            'grid min-h-0 min-w-0 w-full flex-1 grid-cols-3 grid-rows-[repeat(2,minmax(0,1fr))] gap-[clamp(0.15rem,0.55dvh,0.3rem)] [&>*]:min-h-0 [&>*]:min-w-0';
         const slotGrid = (
-            <div className="grid min-h-0 min-w-0 w-full flex-1 grid-cols-3 grid-rows-[repeat(2,minmax(0,1fr))] gap-[clamp(0.15rem,0.55dvh,0.3rem)] [&>*]:min-h-0 [&>*]:min-w-0">
+            <div className={usePcHomePanelStyle ? pcHomeSlotGridClass : mobileVerticalSlotGridClass}>
                 {(['fan', 'top', 'bottom', 'board', 'bowl', 'stones'] as EquipmentSlot[]).map(slot => {
                     const item = equippedItems.find(it => it.slot === slot);
                     return (
-                        <div key={slot} className="flex min-h-0 min-w-0 h-full w-full items-center justify-center">
+                        <div
+                            key={slot}
+                            className={
+                                usePcHomePanelStyle
+                                    ? 'flex min-h-0 min-w-0 h-full w-full items-center justify-center'
+                                    : 'flex w-full min-w-0 items-center justify-center'
+                            }
+                        >
                             <EquipmentSlotDisplay
                                 slot={slot}
                                 item={item}
@@ -1214,9 +1226,13 @@ const Profile: React.FC<ProfileProps> = () => {
                         </div>
                     </div>
                 ) : (
-                    <div className={`flex min-h-0 w-full flex-1 flex-col justify-center ${profileStackPanelGap}`}>
+                    <div
+                        className={`flex min-h-0 w-full flex-1 flex-col items-center justify-start gap-2 ${
+                            nh ? '' : profileStackPanelGap
+                        }`}
+                    >
                         {slotGrid}
-                        <div className="flex w-full min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-[clamp(0.2rem,0.8dvh,0.35rem)]">
+                        <div className="mx-auto flex w-full max-w-[min(100%,18rem)] min-w-0 shrink-0 items-stretch gap-1 border-t border-color/40 pt-2">
                             <select
                                 value={selectedPreset}
                                 onChange={handlePresetChange}

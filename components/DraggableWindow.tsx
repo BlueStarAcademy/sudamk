@@ -89,10 +89,22 @@ interface DraggableWindowProps {
     mobileViewportMaxHeightCss?: string;
 
     /**
+     * mobileViewportFit일 때 `min(..., calc(100dvh - Npx))`의 N(픽셀).
+     * 미지정 시 네이티브 32, 그 외 28. 0에 가깝게 두면 모달 세로를 최대한 키울 수 있음.
+     */
+    mobileViewportDvhBottomGapPx?: number;
+
+    /**
      * 모바일·좁은 뷰포트에서 기본은 콘텐츠 높이에 맞춤(auto)이나,
      * true면 initialHeight를 기준으로 한 고정 높이(뷰포트 상한까지)를 유지 — 채팅 등 본문이 flex로 꽉 차야 할 때.
      */
     mobileLockViewportHeight?: boolean;
+
+    /**
+     * 뷰포트 맞춤 셸에서 본문 래퍼의 flex-1 성장을 끄고, 창 높이를 자식 콘텐츠에 맞춤(짧은 확인·상세 팝업용).
+     * `mobileLockViewportHeight`와 함께 쓰지 않는 것을 권장합니다.
+     */
+    bodyShrinkToContent?: boolean;
 
     /** 본문 영역 세로 스크롤(기본 true). 가방·상점 등 내부에 전용 스크롤이 있으면 false */
     bodyScrollable?: boolean;
@@ -355,7 +367,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     mobileViewportFit,
     mobileViewportMaxHeightVh,
     mobileViewportMaxHeightCss,
+    mobileViewportDvhBottomGapPx,
     mobileLockViewportHeight = false,
+    bodyShrinkToContent = false,
     bodyScrollable = true,
     bodyNoScroll = false,
     hideFooter = false,
@@ -666,7 +680,9 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const bodyScaleToFitNaturalLayout = useCompactScaleToFitLayout;
 
     const bodyInnerNoFlexGrow =
-        bodyScaleToFitNaturalLayout || (bodyAvoidVerticalStretch && useUniformPcScaleLayout);
+        bodyScaleToFitNaturalLayout ||
+        (bodyAvoidVerticalStretch && useUniformPcScaleLayout) ||
+        (Boolean(bodyShrinkToContent) && useMobileViewportFitLayout);
 
     const compactFitScaleEstimate = useMemo(() => {
         if (!useCompactScaleToFitLayout) return 1;
@@ -714,9 +730,11 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         }
         const ih = resolvedInitialHeight ?? 600;
         const layoutH = getLayoutViewportSize().height;
+        const layoutHeightBottomGap =
+            mobileViewportDvhBottomGapPx !== undefined ? mobileViewportDvhBottomGapPx : isNativeMobile ? 0 : 28;
         const capH = isNativeMobile
             ? layoutH * (effectiveMobileMaxHeightVh / 100)
-            : Math.max(280, layoutH - 28);
+            : Math.max(280, layoutH - layoutHeightBottomGap);
         return Math.max(240, Math.min(ih, capH));
     }, [
         useMobileViewportFitLayout,
@@ -728,6 +746,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         windowWidth,
         windowHeight,
         effectiveMobileMaxHeightVh,
+        mobileViewportDvhBottomGapPx,
         shrinkHeightToContent,
         initialHeight,
     ]);
@@ -1114,6 +1133,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
     const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? viewportMaxHeightCss;
+    const mobileViewportFitDvhBottomGapPx =
+        mobileViewportDvhBottomGapPx !== undefined ? mobileViewportDvhBottomGapPx : isNativeMobile ? 32 : 28;
     /** 균일 scale(모든 화면)·실측 scale: max-height로 레이아웃이 먼저 잘리면 스크롤·하단 버튼 잘림 유발 */
     const relaxOuterMaxHeight = useCompactScaleToFitLayout || uniformLayout;
     /** 실측·uniform 균일 scale 시 본문 스크롤 없음(줄바꿈·비율은 transform으로 유지). 뷰포트 맞춤만 스크롤 허용 */
@@ -1210,9 +1231,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                         : uniformLayout
                           ? `${uniformDesignH}px`
                           : useMobileViewportFitLayout
-                            ? isNativeMobile
-                              ? `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - 32px)))`
-                              : `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - 28px)))`
+                            ? `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px)))`
                             : isNativeMobile
                               ? `min(${viewportMaxHeightCss}, min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%))`
                               : modalLayerUsesDesignPixels
