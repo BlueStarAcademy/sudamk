@@ -49,6 +49,7 @@ const ModalLoadingFallback = () => null;
 const AppModalLayer: React.FC = () => {
     const { isNativeMobile } = useNativeMobileShell();
     const {
+        users,
         currentUserWithStatus,
         activeNegotiation,
         modals,
@@ -163,6 +164,7 @@ const AppModalLayer: React.FC = () => {
                 <Suspense fallback={ModalLoadingFallback()}>
                     <ExchangeModal
                         currentUser={currentUserWithStatus}
+                        allUsers={users}
                         onClose={handlers.closeExchange}
                         onAction={handlers.handleAction}
                         isTopmost={topmostModalId === 'exchange'}

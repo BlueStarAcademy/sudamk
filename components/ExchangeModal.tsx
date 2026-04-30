@@ -86,6 +86,7 @@ type SettlementClaimResultData = {
 
 interface ExchangeModalProps {
     currentUser: UserWithStatus;
+    allUsers?: Record<string, UserWithStatus>;
     onClose: () => void;
     onAction?: (action: ServerAction) => void | Promise<void>;
     isTopmost?: boolean;
@@ -143,7 +144,7 @@ const BUY_GRADE_FILTER_OPTIONS: Array<{ value: BuyGradeFilter; label: string }> 
     { value: 'transcendent', label: '초월' },
 ];
 
-const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onAction, isTopmost, onViewListedEquipment }) => {
+const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, onClose, onAction, isTopmost, onViewListedEquipment }) => {
     const { isNativeMobile } = useNativeMobileShell();
     const mobileExchange = Boolean(isNativeMobile);
     const [activeTab, setActiveTab] = useState<ExchangeTab>('buy');
@@ -242,6 +243,25 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
     const minimumPrice = minPriceByCurrency[saleCurrency];
     const selectedItem = allEquipmentItems.find((entry) => entry.id === selectedItemId);
     const myActiveListings = listings.filter((listing) => listing.sellerId === currentUser.id && listing.status === 'listed');
+    const marketListings = useMemo(() => {
+        const merged = new Map<string, ExchangeListing>();
+        Object.values(allUsers ?? {}).forEach((user) => {
+            const userListings = (user.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
+            userListings.forEach((entry) => {
+                if (!entry || !entry.id) return;
+                const existing = merged.get(entry.id);
+                if (!existing || (entry.createdAt ?? 0) >= (existing.createdAt ?? 0)) {
+                    merged.set(entry.id, entry);
+                }
+            });
+        });
+        // 내 로컬 상태를 우선 반영해 저장 지연/수신 지연 중에도 구매 탭 표시를 유지
+        listings.forEach((entry) => {
+            if (!entry || !entry.id) return;
+            merged.set(entry.id, entry);
+        });
+        return Array.from(merged.values());
+    }, [allUsers, listings]);
     const sellSlots = isAdminUser
         ? myActiveListings
         : Array.from({ length: MAX_SELL_SLOTS }, (_, idx) => myActiveListings[idx] ?? null);
@@ -424,7 +444,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
     };
 
     const handleBuy = (listingId: string) => {
-        const listing = listings.find((entry) => entry.id === listingId);
+        const listing = marketListings.find((entry) => entry.id === listingId);
         if (!listing) {
             setShowAlreadySoldModal(true);
             return;
@@ -553,7 +573,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         appendHistory(`판매 만료 회수: ${target.itemName}`);
     };
 
-    const listingsWithComputed = listings.map((entry) => {
+    const listingsWithComputed = marketListings.map((entry) => {
         const verificationDone = entry.verificationStatus === 'active' || (entry.verificationEndsAt ?? 0) <= nowMs;
         const effectiveVerification: 'verifying' | 'active' = verificationDone ? 'active' : 'verifying';
         const isExpired = entry.expiresAt <= nowMs;
@@ -620,7 +640,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, onClose, onA
         ? allEquipmentItems.find((item) => item.id === selectedBuyListing.itemId)
         : null;
     const recentSoldForBuySelection = selectedBuyListing
-        ? [...listings]
+        ? [...marketListings]
               .filter((entry) => entry.status === 'sold' && entry.itemId === selectedBuyListing.itemId)
               .sort((a, b) => (b.soldAt ?? 0) - (a.soldAt ?? 0))[0]
         : null;
