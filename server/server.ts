@@ -4163,6 +4163,31 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         }
     });
 
+    // 거래소 전역 목록 (구매 탭용): 모든 유저 exchangeState.listings 병합
+    app.get('/api/exchange/listings', async (_req, res) => {
+        try {
+            const users = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
+            const merged = new Map<string, Record<string, unknown>>();
+            users.forEach((user) => {
+                const listings = ((user.exchangeState as types.ExchangeState | undefined)?.listings ?? []) as Array<Record<string, unknown>>;
+                listings.forEach((entry) => {
+                    const id = typeof entry?.id === 'string' ? entry.id : '';
+                    if (!id) return;
+                    const existing = merged.get(id);
+                    const createdAt = Number(entry?.createdAt ?? 0);
+                    const existingCreatedAt = Number(existing?.createdAt ?? 0);
+                    if (!existing || createdAt >= existingCreatedAt) {
+                        merged.set(id, entry);
+                    }
+                });
+            });
+            res.json({ listings: Array.from(merged.values()) });
+        } catch (error: any) {
+            console.error('[/api/exchange/listings] Error:', error);
+            res.status(500).json({ error: 'Failed to fetch exchange listings' });
+        }
+    });
+
     // 유저 프로필 정보 가져오기 (공개 정보만)
     app.get('/api/user/:userId', async (req, res) => {
         try {

@@ -18,6 +18,7 @@ import {
     MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH,
 } from '../shared/constants/mobileEquipmentDetailModal.js';
 import { gradeBackgrounds, gradeStyles } from '../constants/items.js';
+import { getApiUrl } from '../constants/apiConfig.js';
 
 type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
 type SaleCurrency = 'gold' | 'diamonds';
@@ -159,6 +160,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const [buySlotFilter, setBuySlotFilter] = useState<BuySlotFilter>('all');
     const [buyGradeFilter, setBuyGradeFilter] = useState<BuyGradeFilter>('all');
     const [buyCurrencyFilter, setBuyCurrencyFilter] = useState<BuyCurrencyFilter>('all');
+    const [marketListingsRemote, setMarketListingsRemote] = useState<ExchangeListing[]>([]);
+    const [isRefreshingBuyListings, setIsRefreshingBuyListings] = useState(false);
     const [inventorySortKey, setInventorySortKey] = useState<InventorySortKey>('createdAt');
     const [nowMs, setNowMs] = useState<number>(Date.now());
     const [walletGold, setWalletGold] = useState<number>(currentUser.gold ?? 0);
@@ -243,8 +246,29 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const minimumPrice = minPriceByCurrency[saleCurrency];
     const selectedItem = allEquipmentItems.find((entry) => entry.id === selectedItemId);
     const myActiveListings = listings.filter((listing) => listing.sellerId === currentUser.id && listing.status === 'listed');
+    const refreshMarketListings = React.useCallback(async () => {
+        setIsRefreshingBuyListings(true);
+        try {
+            const response = await fetch(getApiUrl('/api/exchange/listings'));
+            if (!response.ok) return;
+            const data = (await response.json()) as { listings?: ExchangeListing[] };
+            setMarketListingsRemote(Array.isArray(data?.listings) ? data.listings : []);
+        } catch {
+            // noop: keep previous data on fetch failure
+        } finally {
+            setIsRefreshingBuyListings(false);
+        }
+    }, []);
+    React.useEffect(() => {
+        if (activeTab !== 'buy') return;
+        void refreshMarketListings();
+    }, [activeTab, refreshMarketListings]);
     const marketListings = useMemo(() => {
         const merged = new Map<string, ExchangeListing>();
+        marketListingsRemote.forEach((entry) => {
+            if (!entry || !entry.id) return;
+            merged.set(entry.id, entry);
+        });
         Object.values(allUsers ?? {}).forEach((user) => {
             const userListings = (user.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
             userListings.forEach((entry) => {
@@ -261,7 +285,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             merged.set(entry.id, entry);
         });
         return Array.from(merged.values());
-    }, [allUsers, listings]);
+    }, [allUsers, listings, marketListingsRemote]);
     const sellSlots = isAdminUser
         ? myActiveListings
         : Array.from({ length: MAX_SELL_SLOTS }, (_, idx) => myActiveListings[idx] ?? null);
@@ -1606,13 +1630,25 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                 ))}
                                             </select>
                                         </div>
-                                        <input
-                                            type="text"
-                                            value={buySearchText}
-                                            onChange={(e) => setBuySearchText(e.target.value)}
-                                            placeholder="아이템 검색"
-                                            className={`min-w-0 w-full rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100 outline-none placeholder:text-slate-400 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}
-                                        />
+                                        <div className="flex min-w-0 items-stretch gap-1.5">
+                                            <input
+                                                type="text"
+                                                value={buySearchText}
+                                                onChange={(e) => setBuySearchText(e.target.value)}
+                                                placeholder="아이템 검색"
+                                                className={`min-w-0 w-full rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100 outline-none placeholder:text-slate-400 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => void refreshMarketListings()}
+                                                aria-label="거래소 목록 새로고침"
+                                                title="새로고침"
+                                                className={`shrink-0 rounded border border-slate-600 bg-slate-800 text-slate-200 transition hover:border-slate-400 hover:text-white ${mobileExchange ? 'w-8 text-[13px]' : 'w-9 text-sm'} ${isRefreshingBuyListings ? 'opacity-70' : ''}`}
+                                                disabled={isRefreshingBuyListings}
+                                            >
+                                                ↻
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
                                         <div
