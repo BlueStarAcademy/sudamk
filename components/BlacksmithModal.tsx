@@ -17,6 +17,7 @@ import { InventoryItem, EnhancementResult, ServerAction } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import BlacksmithLevelEffectsSummary from './blacksmith/BlacksmithLevelEffectsSummary.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
+import { isPairArenaExclusiveBagItem } from '../shared/constants/petLobby.js';
 
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
@@ -451,7 +452,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({ onClose, isTopmost, s
         if (activeTab === 'enhance' || activeTab === 'combine' || activeTab === 'disassemble' || activeTab === 'refine') {
             filtered = inventory.filter(item => item.type === 'equipment' && !item.isExchangeListed);
         } else if (activeTab === 'convert') {
-            filtered = inventory.filter(item => item.type === 'material');
+            filtered = inventory.filter(
+                (item) => !isPairArenaExclusiveBagItem(item) && item.type === 'material'
+            );
         } else {
             filtered = inventory;
         }

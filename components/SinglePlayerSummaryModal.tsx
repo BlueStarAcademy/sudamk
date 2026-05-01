@@ -462,6 +462,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             initialHeight={780}
             uniformPcScale={false}
             mobileViewportFit
+            mobileLockViewportHeight={isMobile}
             mobileViewportMaxHeightVh={97}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}

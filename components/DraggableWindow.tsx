@@ -725,7 +725,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         if (useContentDrivenHeight) {
             return undefined;
         }
-        if (shrinkHeightToContent && initialHeight === undefined) {
+        /** `mobileLockViewportHeight`로 셸 높이를 고정할 때는 shrink 전용 분기를 쓰지 않음(그대로 두면 flex 본문 높이 0) */
+        if (shrinkHeightToContent && initialHeight === undefined && !mobileLockViewportHeight) {
             return undefined;
         }
         const ih = resolvedInitialHeight ?? 600;

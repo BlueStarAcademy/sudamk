@@ -21,9 +21,10 @@ export function getSelectiveUserUpdate(
         'USE_ITEM': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'USE_ALL_ITEMS_OF_TYPE': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'TOGGLE_EQUIP_ITEM': ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate'],
-        'MARK_ITEM_EXCHANGE_LISTED': ['inventory'],
+        'MARK_ITEM_EXCHANGE_LISTED': ['inventory', 'gold', 'diamonds'],
         'UNMARK_ITEM_EXCHANGE_LISTED': ['inventory'],
-        'SELL_ITEM': ['inventory', 'gold'],
+        'CLAIM_EXCHANGE_SETTLEMENT': ['exchangeState', 'gold', 'diamonds'],
+        'SELL_ITEM': ['inventory', 'gold', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId'],
         'COMBINE_ITEMS': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
         'ENHANCE_ITEM': ['inventory', 'gold', 'diamonds', 'blacksmithLevel', 'blacksmithXp'],
         'DISASSEMBLE_ITEM': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
@@ -43,6 +44,8 @@ export function getSelectiveUserUpdate(
         'UPDATE_AVATAR': ['avatarId'],
         'UPDATE_BORDER': ['borderId'],
         'SAVE_EXCHANGE_STATE': ['exchangeState'],
+        'PURCHASE_EXCHANGE_LISTING': ['inventory', 'gold', 'diamonds'],
+        'EXCHANGE_PURCHASE_APPLY_SELLER': ['inventory', 'exchangeState'],
         'ADVANCE_ONBOARDING_TUTORIAL': ['onboardingTutorialPhase', 'onboardingSpResultTutorialStep'],
         'BEGIN_ONBOARDING_ON_FIRST_HOME': ['onboardingTutorialPhase', 'onboardingTutorialPendingFirstHome'],
         'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD': [
@@ -110,6 +113,14 @@ export function getSelectiveUserUpdate(
         
         // 소셜 관련
         'LOGOUT': [], // 로그아웃은 사용자 데이터 반환 불필요
+        'PAIR_PET_START_TRAINING': ['pairPetTrainingSlots'],
+        'PAIR_PET_CLAIM_TRAINING': ['inventory', 'gold', 'pairPetTrainingSlots'],
+        'PAIR_PET_HATCHERY_UNLOCK': ['pairPetHatcherySlotUnlocked', 'gold'],
+        'PAIR_PET_HATCHERY_START': ['inventory', 'pairPetHatcherySessions'],
+        'PAIR_PET_HATCHERY_CLAIM': ['inventory', 'pairPetHatcherySessions'],
+        'PAIR_PET_HATCHERY_CANCEL': ['inventory', 'pairPetHatcherySessions'],
+        'PAIR_PET_HATCHERY_INSTANT_FINISH': ['inventory', 'pairPetHatcherySessions', 'diamonds'],
+        'PAIR_PET_UPGRADE_GRADE': ['inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId'],
     };
     
     // 모든 필드를 포함해야 하는 경우

@@ -7,17 +7,30 @@ import { SINGLE_PLAYER_STAGES } from "../../shared/constants/singlePlayerConstan
 import { EQUIPMENT_POOL, MATERIAL_ITEMS, CONSUMABLE_ITEMS, resolveEquipmentTemplateLookupName } from "../../shared/constants/index.js";
 import {
   normalizeLegacyDivineMythicInventoryItem,
-  mapNormalizeInventoryList,
   normalizeInventoryEquipmentItem,
   normalizeEquipmentOptionNumbers,
 } from "../../shared/utils/inventoryLegacyNormalize.js";
-import { consolidateRefinementTicketStacks } from "../../utils/inventoryUtils.js";
+import { normalizeInventoryAfterLoad } from "../../utils/inventoryUtils.js";
 import { normalizeQuestLogProgressCaps } from "../../utils/questProgressCap.js";
 import { normalizeAdventureProfile } from "../../utils/adventureUnderstanding.js";
 import { ADVENTURE_STAGES } from "../../constants/adventureConstants.js";
 import { isRecognizedAdminUser } from "../../shared/utils/adminRecognition.js";
+import { PAIR_PET_MAX_LEVEL } from "../../shared/constants/pairPetGrade.js";
+import { getPairPetDefinition, pairPetLobbyInventorySlots } from "../../shared/constants/petLobby.js";
+import { reconcileEquippedPairPetInventoryItem } from "../../shared/utils/pairEquippedPet.js";
+import { normalizePairPetTrainingSlots } from "../../shared/constants/pairTraining.js";
+import {
+    normalizePairPetHatcherySessions,
+    normalizePairPetHatcherySlotUnlocked,
+} from "../../shared/constants/pairHatchery.js";
 
 export { normalizeLegacyDivineMythicInventoryItem } from "../../shared/utils/inventoryLegacyNormalize.js";
+
+const ITEM_GRADE_VALUES = new Set<string>(Object.values(ItemGrade));
+
+function coerceStoredItemGrade(raw: unknown): ItemGrade {
+  return typeof raw === "string" && ITEM_GRADE_VALUES.has(raw) ? (raw as ItemGrade) : ItemGrade.Normal;
+}
 
 const DEFAULT_INVENTORY_SLOTS: User["inventorySlots"] = {
   equipment: 30,
@@ -233,7 +246,7 @@ const ensureMail = (value: unknown): Mail[] =>
  */
 function normalizeInventoryItemList(inv: unknown): InventoryItem[] {
   const raw = Array.isArray(inv) ? inv : parseJson<InventoryItem[]>(inv, []);
-  return consolidateRefinementTicketStacks(mapNormalizeInventoryList(raw));
+  return normalizeInventoryAfterLoad(raw);
 }
 
 const normalizeMailAttachmentItems = (mails: Mail[]): Mail[] => {
@@ -335,7 +348,7 @@ const applyDefaults = (
   const savedGameRecords =
     Array.isArray(savedGameRecordsCandidate) ? savedGameRecordsCandidate : undefined;
 
-  return {
+  const out: User = {
     id: prismaUser.id,
     username:
       user.username ??
@@ -428,6 +441,37 @@ const applyDefaults = (
     cumulativeTournamentScore: (user.cumulativeTournamentScore != null ? user.cumulativeTournamentScore : 0),
     inventorySlotsMigrated: user.inventorySlotsMigrated ?? false,
     dailyRankings: user.dailyRankings ?? {},
+    equippedPairPetTemplateId:
+        user.equippedPairPetTemplateId ??
+        (status?.serializedUser as User | undefined)?.equippedPairPetTemplateId ??
+        null,
+    equippedPairPetInventoryItemId:
+        user.equippedPairPetInventoryItemId ??
+        (status?.serializedUser as User | undefined)?.equippedPairPetInventoryItemId ??
+        null,
+    pairPetLobbyPetSlotCount: pairPetLobbyInventorySlots(
+        user.pairPetLobbyPetSlotCount ??
+            (status?.serializedUser as User | undefined)?.pairPetLobbyPetSlotCount ??
+            user.pairPetLobbySlotCount ??
+            (status?.serializedUser as User | undefined)?.pairPetLobbySlotCount ??
+            null
+    ),
+    pairPetLobbyEggSlotCount: pairPetLobbyInventorySlots(
+        user.pairPetLobbyEggSlotCount ??
+            (status?.serializedUser as User | undefined)?.pairPetLobbyEggSlotCount ??
+            user.pairPetLobbySlotCount ??
+            (status?.serializedUser as User | undefined)?.pairPetLobbySlotCount ??
+            null
+    ),
+    pairPetTrainingSlots: normalizePairPetTrainingSlots(
+        user.pairPetTrainingSlots ?? (status?.serializedUser as User | undefined)?.pairPetTrainingSlots
+    ),
+    pairPetHatcherySlotUnlocked: normalizePairPetHatcherySlotUnlocked(
+        user.pairPetHatcherySlotUnlocked ?? (status?.serializedUser as User | undefined)?.pairPetHatcherySlotUnlocked
+    ),
+    pairPetHatcherySessions: normalizePairPetHatcherySessions(
+        user.pairPetHatcherySessions ?? (status?.serializedUser as User | undefined)?.pairPetHatcherySessions
+    ),
     adventureProfile: normalizeAdventureProfile(
       user.adventureProfile ??
       (status?.serializedUser as User | undefined)?.adventureProfile
@@ -455,6 +499,8 @@ const applyDefaults = (
     vvipExpiresAt:
         user.vvipExpiresAt ?? (status?.serializedUser as User | undefined)?.vvipExpiresAt ?? 0,
   };
+  reconcileEquippedPairPetInventoryItem(out);
+  return out;
 };
 
 const ensureAdminSinglePlayerAccess = (user: User): User => {
@@ -525,9 +571,45 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
           itemInfo = MATERIAL_ITEMS[inv.templateId] ||
                      CONSUMABLE_ITEMS.find(c => c.name === inv.templateId);
         }
-        
-        // UserInventory를 InventoryItem으로 변환
+
         const meta = (inv.metadata as any) || {};
+        // 페어 펫: UserInventory.templateId에 pair-pet-* 가 들어가며 MATERIAL_ITEMS에 없음
+        if (!inv.slot && typeof inv.templateId === "string" && inv.templateId.startsWith("pair-pet-")) {
+          const def = getPairPetDefinition(inv.templateId);
+          if (def) {
+            const petLvRaw = meta.pairPetMeta?.level;
+            const petLv =
+              typeof petLvRaw === "number" && Number.isFinite(petLvRaw)
+                ? Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(petLvRaw)))
+                : null;
+            const item: InventoryItem = {
+              id: inv.id,
+              name: def.displayName,
+              description: def.description,
+              type: "material",
+              slot: null,
+              quantity: inv.quantity,
+              level: petLv ?? inv.enhancementLvl ?? 1,
+              isEquipped: inv.isEquipped,
+              createdAt: inv.createdAt?.getTime
+                ? inv.createdAt.getTime()
+                : typeof inv.createdAt === "number"
+                  ? inv.createdAt
+                  : Date.now(),
+              image: def.image,
+              grade: coerceStoredItemGrade(inv.rarity),
+              stars: inv.stars,
+              options: meta?.options || [],
+              enhancementFails: meta?.enhancementFails || 0,
+              templateId: def.templateId,
+              pairPetMeta: meta.pairPetMeta,
+            };
+            inventoryFromTable.push(normalizeInventoryEquipmentItem(item));
+            continue;
+          }
+        }
+
+        // UserInventory를 InventoryItem으로 변환
         let grade = (inv.rarity as any) || itemInfo?.grade || 'normal';
         let name = itemInfo?.name || inv.templateId;
         if (meta.isDivineMythic === true && grade === ItemGrade.Mythic) {

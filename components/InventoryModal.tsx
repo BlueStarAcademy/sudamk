@@ -4,6 +4,7 @@ import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
 import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial } from '../constants/items';
+import { isPairArenaExclusiveBagItem, isPairPetMaterial } from '../shared/constants/petLobby.js';
 
 import { calculateUserEffects } from '../services/effectService.js';
 import { calculateTotalStats } from '../services/statService.js';
@@ -34,6 +35,7 @@ import {
     resolveBagItemDetailImagePath,
 } from '../shared/utils/bagItemDetailHelpers.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
+import InventorySlotExpandDiamondBody from './inventory/InventorySlotExpandDiamondBody.js';
 import {
     MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS,
     MOBILE_EQUIPMENT_DETAIL_LAYOUT_SCALE,
@@ -1159,7 +1161,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const inventoryOnboardingShell = onboardingPhase9 && bagTutorialStep === 4;
     const inventoryOnboardingCloseTarget = inventoryOnboardingShell ? 'onboarding-inv-modal-close' : undefined;
     const showObEquippedStatsPreset = onboardingPhase9 && bagTutorialStep === 3;
-    /** 모바일 가방: 가로 한 줄 6칸 고정 */
+    /** 모바일 가방: 가로 한 줄 6칸. PC는 기존처럼 한 줄 12칸 */
     const mobileInventoryColumns = useMemo(() => {
         if (!narrowInventoryLayout) return 12;
         return 6;
@@ -1236,6 +1238,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
     const inventoryWithLatestItemMeta = useMemo(
         () =>
             currentUser.inventory.map((item) => {
+                // 페어 펫 인스턴스는 인벤 행·DB rarity 기준 등급을 유지한다.
+                // 이름만으로 재료 마스터를 매칭하면 다른 재료와 동명 시 잘못된 등급(예: 희귀)으로 덮인다.
+                if (isPairPetMaterial(item)) return item;
                 const template = itemTemplateByName.get(item.name);
                 if (!template) return item;
                 // 기존 보유 아이템도 최신 마스터 정의(등급/설명/아이콘)를 우선 반영한다.
@@ -1403,6 +1408,8 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
         items = items.filter((item: InventoryItem) => !(item.type === 'consumable' && isTowerOnlyConsumable(item.name)));
         // 거래소 등록 중인 장비는 가방에서 숨김 (등록 취소/회수 시 다시 표시)
         items = items.filter((item: InventoryItem) => !(item.type === 'equipment' && item.isExchangeListed));
+        // 페어 알·AI 펫·영혼석은 페어 경기장 로비 인벤에서만 표시(재료 타입으로 분류하지 않음)
+        items = items.filter((item: InventoryItem) => !isPairArenaExclusiveBagItem(item));
         if (activeTab !== 'all') {
             if (activeTab === 'consumable') {
                 // 옵션 변경권 3종은 재료로 분류되어 소모품 탭에서 제외
@@ -1538,7 +1545,6 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
             variant="store"
             bodyScrollable={false}
             uniformPcScale
-            bodyAvoidVerticalStretch
             mobileViewportFit={narrowInventoryLayout}
             mobileViewportMaxHeightVh={92}
             bodyPaddingClassName={narrowInventoryLayout ? 'p-2 sm:p-3' : undefined}
@@ -2136,13 +2142,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     </div>
                 )}
 
-                {/* Bottom section: Inventory grid — 모바일은 flex-1+min-h-0으로 남는 영역만 쓰고 내부 스크롤 (상단 뷰어가 밀리지 않게) */}
+                {/* Bottom section: 가방 슬롯 — 부모가 flex-1·min-h-0일 때만 세로 스크롤이 생김(bodyAvoidVerticalStretch 제거로 체인 유지) */}
                 <div
                     className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gray-900"
                     style={{
-                        minHeight: narrowInventoryLayout
-                            ? `${Math.max(120, Math.round(140 * scaleFactor))}px`
-                            : `${Math.max(320, Math.max(280 * scaleFactor, Math.round(windowHeight * 0.38)))}px`,
                         padding: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingTop: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
                         paddingBottom: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
@@ -2197,7 +2200,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                             </div>
                         )}
                     </div>
-                    <div className={`overflow-y-auto flex-1 min-h-0 ${BAG_SCROLLBAR_Y_CLASS}`} style={{ width: '100%', minWidth: 0, paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
+                    <div className={`min-h-0 flex-1 overflow-y-auto overscroll-y-contain ${BAG_SCROLLBAR_Y_CLASS}`} style={{ width: '100%', minWidth: 0, paddingRight: `${Math.max(6, Math.round(8 * scaleFactor))}px`, WebkitOverflowScrolling: 'touch' }}>
                         <div 
                             className="grid gap-2" 
                             style={{ 
@@ -2207,7 +2210,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                 gap: `${Math.max(narrowInventoryLayout ? 2 : 3, Math.round((narrowInventoryLayout ? 3 : 7) * scaleFactor))}px`,
                                 width: '100%',
                                 minWidth: 0,
-                                paddingBottom: `${Math.max(200, Math.round(250 * scaleFactor))}px`
+                                paddingBottom: `${Math.max(12, Math.round(20 * scaleFactor))}px`
                             }}
                         >
                         {Array.from({ length: currentSlots }).map((_, index) => {
@@ -2474,45 +2477,57 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                                     )}
                                 </>
                             )}
-                            {selectedItem.type === 'consumable' && (
-                                <>
-                                    {!isConditionPotionConsumable(selectedItem.name) && (
+                            {selectedItem.type === 'consumable' &&
+                                (() => {
+                                    const consumableItem = findConsumableItem(selectedItem.name);
+                                    const isUsable = consumableItem?.usable !== false;
+                                    const isSellable = consumableItem?.sellable !== false;
+                                    const isRefinementTicket = isRefinementTicketMaterial(selectedItem.name);
+                                    const hideBagUse = isConditionPotionConsumable(selectedItem.name);
+                                    return (
                                         <>
-                                            <Button
-                                                bare
-                                                colorScheme="none"
-                                                onClick={() => {
-                                                    void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
-                                                }}
-                                                className={BAG_INVENTORY_FOOTER_BTN.info}
-                                            >
-                                                사용
-                                            </Button>
-                                            {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                                <Button
-                                                    bare
-                                                    colorScheme="none"
-                                                    onClick={() => {
-                                                        setItemToUseBulk(selectedItem);
-                                                        setShowUseQuantityModal(true);
-                                                    }}
-                                                    className={BAG_INVENTORY_FOOTER_BTN.accent}
-                                                >
-                                                    일괄 사용
-                                                </Button>
+                                            {isUsable && !hideBagUse && (
+                                                <>
+                                                    <Button
+                                                        bare
+                                                        colorScheme="none"
+                                                        onClick={() => {
+                                                            void onAction({ type: 'USE_ITEM', payload: { itemId: selectedItem.id, itemName: selectedItem.name } });
+                                                        }}
+                                                        className={BAG_INVENTORY_FOOTER_BTN.info}
+                                                    >
+                                                        사용
+                                                    </Button>
+                                                    {!isRefinementTicket && selectedItem.quantity && selectedItem.quantity > 1 && (
+                                                        <Button
+                                                            bare
+                                                            colorScheme="none"
+                                                            onClick={() => {
+                                                                setItemToUseBulk(selectedItem);
+                                                                setShowUseQuantityModal(true);
+                                                            }}
+                                                            className={BAG_INVENTORY_FOOTER_BTN.accent}
+                                                        >
+                                                            일괄 사용
+                                                        </Button>
+                                                    )}
+                                                </>
+                                            )}
+                                            {isSellable && (
+                                                <>
+                                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
+                                                        판매
+                                                    </Button>
+                                                    {selectedItem.quantity && selectedItem.quantity > 1 && (
+                                                        <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
+                                                            일괄 판매
+                                                        </Button>
+                                                    )}
+                                                </>
                                             )}
                                         </>
-                                    )}
-                                    <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
-                                        판매
-                                    </Button>
-                                    {selectedItem.quantity && selectedItem.quantity > 1 && (
-                                        <Button bare colorScheme="none" onClick={() => setItemToSellBulk(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.warning}>
-                                            일괄 판매
-                                        </Button>
-                                    )}
-                                </>
-                            )}
+                                    );
+                                })()}
                             {selectedItem.type === 'material' && (
                                 <>
                                     <Button bare colorScheme="none" onClick={() => setItemToSell(selectedItem)} className={BAG_INVENTORY_FOOTER_BTN.danger}>
@@ -2999,113 +3014,21 @@ const InventoryModal: React.FC<InventoryModalProps> = ({ currentUser: propCurren
                     isTopmost={isTopmost}
                     variant="store"
                     initialWidth={400}
-                    initialHeight={520}
+                    shrinkHeightToContent
                     bodyNoScroll
                     bodyPaddingClassName="p-0"
                 >
-                    <div className="relative flex flex-col overflow-hidden rounded-b-[inherit] bg-gradient-to-b from-amber-950/25 via-stone-950 to-zinc-950 px-4 pb-5 pt-2 sm:px-5 sm:pb-6 sm:pt-2.5">
-                        <div
-                            className="pointer-events-none absolute -left-20 top-0 h-40 w-40 rounded-full bg-amber-500/12 blur-3xl"
-                            aria-hidden
-                        />
-                        <div
-                            className="pointer-events-none absolute -right-16 bottom-24 h-36 w-36 rounded-full bg-cyan-500/10 blur-3xl"
-                            aria-hidden
-                        />
-                        <div
-                            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/20 to-transparent"
-                            aria-hidden
-                        />
-
-                        <div className="relative mx-auto flex w-full max-w-[22rem] flex-col gap-4">
-                            <div className="text-center">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-200/55">Inventory upgrade</p>
-                                <p className="mt-2 text-balance text-base font-bold leading-snug text-amber-50/95 sm:text-lg">
-                                    {activeTabLabel} 가방을 확장하시겠습니까?
-                                </p>
-                            </div>
-
-                            <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/50 via-stone-900/75 to-stone-950/95 p-4 shadow-[0_20px_50px_-28px_rgba(16,185,129,0.45)] ring-1 ring-inset ring-white/[0.06] sm:p-5">
-                                <div className="mb-3 flex items-center justify-center gap-2 border-b border-emerald-500/15 pb-2.5">
-                                    <span
-                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-400/25 bg-emerald-950/60 text-emerald-300/90 shadow-inner"
-                                        aria-hidden
-                                    >
-                                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-                                            <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M6 7h12l1 10a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L6 7z" />
-                                            <path d="M9 11v2M15 11v2" />
-                                        </svg>
-                                    </span>
-                                    <span className="text-xs font-bold uppercase tracking-wider text-emerald-200/80">수납 공간</span>
-                                </div>
-                                <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-on-panel">
-                                    <span className="rounded-lg border border-stone-600/50 bg-stone-900/70 px-3 py-1.5 font-mono text-sm font-bold tabular-nums text-stone-400 shadow-inner sm:text-base">
-                                        {currentCategorySlots}칸
-                                    </span>
-                                    <span className="text-lg font-black text-emerald-500/70 sm:text-xl" aria-hidden>
-                                        →
-                                    </span>
-                                    <span className="rounded-lg border border-emerald-400/35 bg-emerald-950/40 px-3 py-1.5 font-mono text-sm font-bold tabular-nums text-emerald-200 shadow-[0_0_24px_-8px_rgba(52,211,153,0.5)] sm:text-base">
-                                        {nextCategorySlots}칸
-                                    </span>
-                                    {slotsIncrease > 0 && (
-                                        <span className="w-full text-center text-xs font-semibold text-emerald-400/90 sm:w-auto sm:text-sm">
-                                            +{slotsIncrease}칸 추가
-                                        </span>
-                                    )}
-                                </div>
-                            </div>
-
-                            <div
-                                className={`rounded-2xl border p-4 shadow-[0_16px_40px_-24px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-white/[0.05] sm:p-4 ${
-                                    hasEnoughDiamonds
-                                        ? 'border-cyan-400/35 bg-gradient-to-br from-sky-950/40 via-stone-900/80 to-indigo-950/30'
-                                        : 'border-rose-500/40 bg-gradient-to-br from-rose-950/35 via-stone-900/80 to-stone-950'
-                                }`}
-                            >
-                                <p className="mb-2.5 text-center text-[11px] font-bold uppercase tracking-wider text-stone-400">필요 다이아</p>
-                                <div className="flex items-center justify-center gap-2.5">
-                                    <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-white/10 bg-black/30 shadow-inner">
-                                        <img src="/images/icon/Zem.png" alt="" className="h-7 w-7 object-contain drop-shadow-[0_0_12px_rgba(56,189,248,0.45)]" />
-                                    </div>
-                                    <span
-                                        className={`font-mono text-2xl font-black tabular-nums tracking-tight sm:text-[1.65rem] ${
-                                            hasEnoughDiamonds ? 'text-cyan-100' : 'text-rose-200'
-                                        }`}
-                                    >
-                                        {expansionCost.toLocaleString()}
-                                    </span>
-                                </div>
-                                {!hasEnoughDiamonds && (
-                                    <p className="mt-3 text-center text-xs font-medium text-rose-300/95">다이아가 부족합니다.</p>
-                                )}
-                            </div>
-
-                            <div className="flex flex-wrap items-stretch justify-center gap-3 pt-0.5">
-                                <Button
-                                    onClick={() => setIsExpandModalOpen(false)}
-                                    colorScheme="none"
-                                    className="min-h-[2.75rem] min-w-[6.5rem] rounded-xl border-2 border-stone-500/45 bg-gradient-to-b from-stone-700/90 to-stone-900/95 px-5 py-2.5 text-sm font-bold text-stone-100 shadow-[0_8px_24px_-12px_rgba(0,0,0,0.8)] transition hover:border-stone-400/55 hover:brightness-110 active:scale-[0.99] focus:ring-2 focus:ring-stone-500/40 focus:ring-offset-2 focus:ring-offset-stone-950"
-                                >
-                                    취소
-                                </Button>
-                                <ResourceActionButton
-                                    onClick={handleConfirmExpand}
-                                    disabled={!hasEnoughDiamonds}
-                                    variant="diamonds"
-                                    className="!w-auto min-h-[2.75rem] min-w-[9.5rem] !rounded-xl !border-2 !px-5 !py-2.5 !text-sm !font-bold !shadow-[0_12px_36px_-16px_rgba(56,189,248,0.55)]"
-                                >
-                                    <span className="flex items-center justify-center gap-2">
-                                        <span>확장</span>
-                                        <span className="flex items-center gap-1 opacity-95">
-                                            <img src="/images/icon/Zem.png" alt="" className="h-4 w-4 object-contain" />
-                                            <span className="font-mono tabular-nums">{expansionCost.toLocaleString()}</span>
-                                        </span>
-                                    </span>
-                                </ResourceActionButton>
-                            </div>
-                        </div>
-                    </div>
+                    <InventorySlotExpandDiamondBody
+                        eyebrow="Inventory upgrade"
+                        question={`${activeTabLabel} 가방을 확장하시겠습니까?`}
+                        currentSlots={currentCategorySlots}
+                        nextSlots={nextCategorySlots}
+                        slotsHint={slotsIncrease > 0 ? `+${slotsIncrease}칸 추가` : undefined}
+                        diamondCost={expansionCost}
+                        hasEnoughDiamonds={hasEnoughDiamonds}
+                        onCancel={() => setIsExpandModalOpen(false)}
+                        onConfirm={handleConfirmExpand}
+                    />
                 </DraggableWindow>
             )}
 

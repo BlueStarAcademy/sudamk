@@ -233,6 +233,8 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const [isRankedMatching, setIsRankedMatching] = useState(false);
   const [rankedMatchingStartTime, setRankedMatchingStartTime] = useState(0);
   const [matchFoundData, setMatchFoundData] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
+  /** 전략·놀이 대기실 유저 목록 패널: 전체 / 친구 / 길드원 */
+  const [waitingUserListScope, setWaitingUserListScope] = useState<'all' | 'friends' | 'guild'>('all');
   const desktopContainerRef = useRef<HTMLDivElement>(null);
   const navigateToWaitingLobby = useCallback((targetMode: 'strategic' | 'playful') => {
     if (mode === targetMode) return;
@@ -312,6 +314,10 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     setMatchFoundData(rankedMatchFound);
   }, [rankedMatchFound, currentUserWithStatus?.id]);
 
+  useEffect(() => {
+    if (mode === 'strategic' || mode === 'playful') setWaitingUserListScope('all');
+  }, [mode]);
+
   const onBackToLobby = () => {
     // 홈 이동은 항상 즉시 수행하고, 대기실 이탈 상태 정리는 비동기로 처리
     window.location.hash = '#/profile';
@@ -383,6 +389,75 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         
         return [me, ...all.filter(u => u.id !== currentUserWithStatus.id)];
   }, [onlineUsers, mode, currentUserWithStatus]);
+
+  const friendIdsSet = useMemo(
+    () => new Set(currentUserWithStatus?.friendIds || []),
+    [currentUserWithStatus?.friendIds]
+  );
+
+  const playersForListPanel = useMemo(() => {
+    if (mode !== 'strategic' && mode !== 'playful') return usersInThisRoom;
+    const uid = currentUserWithStatus.id;
+    const gid = currentUserWithStatus.guildId;
+    if (waitingUserListScope === 'friends') {
+      return usersInThisRoom.filter((u) => u.id === uid || friendIdsSet.has(u.id));
+    }
+    if (waitingUserListScope === 'guild') {
+      return usersInThisRoom.filter((u) => u.id === uid || (!!gid && u.guildId === gid));
+    }
+    return usersInThisRoom;
+  }, [mode, usersInThisRoom, waitingUserListScope, currentUserWithStatus.id, currentUserWithStatus.guildId, friendIdsSet]);
+
+  const waitingUserScopeTabs =
+    mode === 'strategic' || mode === 'playful' ? (
+      <div className="grid shrink-0 grid-cols-3 gap-1 border-b border-white/10 bg-black/25 p-1">
+        <button
+          type="button"
+          onClick={() => setWaitingUserListScope('all')}
+          className={`rounded-lg px-2 py-1 text-xs font-bold ${
+            waitingUserListScope === 'all'
+              ? mode === 'strategic'
+                ? 'bg-cyan-500 text-cyan-950'
+                : 'bg-amber-500 text-amber-950'
+              : mode === 'strategic'
+                ? 'text-cyan-100 hover:bg-cyan-950/45'
+                : 'text-amber-100 hover:bg-amber-900/40'
+          }`}
+        >
+          전체
+        </button>
+        <button
+          type="button"
+          onClick={() => setWaitingUserListScope('friends')}
+          className={`rounded-lg px-2 py-1 text-xs font-bold ${
+            waitingUserListScope === 'friends'
+              ? mode === 'strategic'
+                ? 'bg-violet-500 text-violet-950'
+                : 'bg-orange-500 text-orange-950'
+              : mode === 'strategic'
+                ? 'text-violet-100 hover:bg-violet-950/45'
+                : 'text-orange-100 hover:bg-orange-950/40'
+          }`}
+        >
+          친구
+        </button>
+        <button
+          type="button"
+          onClick={() => setWaitingUserListScope('guild')}
+          className={`rounded-lg px-2 py-1 text-xs font-bold ${
+            waitingUserListScope === 'guild'
+              ? mode === 'strategic'
+                ? 'bg-amber-500 text-amber-950'
+                : 'bg-yellow-500 text-yellow-950'
+              : mode === 'strategic'
+                ? 'text-amber-100 hover:bg-amber-950/45'
+                : 'text-yellow-100 hover:bg-yellow-950/30'
+          }`}
+        >
+          길드원
+        </button>
+      </div>
+    ) : null;
 
   // 허용된 위치만 설정
   let locationPrefix: string;
@@ -574,16 +649,19 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     <div
                       className={`flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-color bg-panel shadow-lg ${waitingLobbyGlass}`}
                     >
-                      <PlayerList
-                        users={usersInThisRoom}
-                        mode={mode}
-                        onAction={handlers.handleAction}
-                        currentUser={currentUserWithStatus}
-                        negotiations={Object.values(negotiations)}
-                        onViewUser={handlers.openViewingUser}
-                        lobbyType={isStrategic ? 'strategic' : 'playful'}
-                        userCount={usersInThisRoom.length}
-                      />
+                      {waitingUserScopeTabs}
+                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <PlayerList
+                          users={playersForListPanel}
+                          mode={mode}
+                          onAction={handlers.handleAction}
+                          currentUser={currentUserWithStatus}
+                          negotiations={Object.values(negotiations)}
+                          onViewUser={handlers.openViewingUser}
+                          lobbyType={isStrategic ? 'strategic' : 'playful'}
+                          userCount={playersForListPanel.length}
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
@@ -709,16 +787,19 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                       <AiChallengePanel mode={mode} onOpenModal={() => setIsAiChallengeModalOpen(true)} />
                     </div>
                     <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${waitingLobbyPcShellClass}`}>
-                      <PlayerList
-                        users={usersInThisRoom}
-                        mode={mode}
-                        onAction={handlers.handleAction}
-                        currentUser={currentUserWithStatus}
-                        negotiations={Object.values(negotiations)}
-                        onViewUser={handlers.openViewingUser}
-                        lobbyType={isStrategic ? 'strategic' : 'playful'}
-                        userCount={usersInThisRoom.length}
-                      />
+                      {waitingUserScopeTabs}
+                      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                        <PlayerList
+                          users={playersForListPanel}
+                          mode={mode}
+                          onAction={handlers.handleAction}
+                          currentUser={currentUserWithStatus}
+                          negotiations={Object.values(negotiations)}
+                          onViewUser={handlers.openViewingUser}
+                          lobbyType={isStrategic ? 'strategic' : 'playful'}
+                          userCount={playersForListPanel.length}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

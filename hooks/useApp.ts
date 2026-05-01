@@ -2,7 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect, useLayoutEffect, useR
 import { flushSync } from 'react-dom';
 // FIX: The main types barrel file now exports settings types. Use it for consistency.
 import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiation, ChatMessage, UserStatus, UserStatusInfo, AdminLog, Announcement, OverrideAnnouncement, InventoryItem, AppState, InventoryItemType, AppRoute, QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle, CoreStat, SpecialStat, MythicStat, EquipmentSlot, EquipmentPreset, Player, HomeBoardPost, GameRecord, Guild } from '../types.js';
-import { HandleActionResult } from '../types/api.js';
+import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
 import { stableStringify, parseHash, replaceAppHash, navigateFromGameIfApplicable } from '../utils/appUtils.js';
@@ -38,8 +38,16 @@ import {
     type ArenaEntranceKey,
 } from '../constants/arenaEntrance.js';
 import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
+import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
+
+function isPairHatcheryPetInventoryFullError(action: ServerAction, errorMessage: string): boolean {
+    return (
+        (action.type === 'PAIR_PET_HATCHERY_CLAIM' || action.type === 'PAIR_PET_HATCHERY_INSTANT_FINISH') &&
+        errorMessage === PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE
+    );
+}
 import {
     applyUserProgressionArenaLocks,
     getBadukAbilitySnapshotFromStats,
@@ -52,7 +60,7 @@ import { processMoveClient } from '../client/goLogicClient.js';
 import { applyMissileCaptureProcessResult } from '../shared/utils/missileLandingCapture.js';
 import { isIntersectionRecordedAsBaseStone } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { isDiceGoLibertyPlacement, isThiefGoValidPlacement } from '../client/logic/goLogic.js';
-import { mapNormalizeInventoryList } from '../shared/utils/inventoryLegacyNormalize.js';
+import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
 import type { LevelUpCelebrationPayload } from '../types/levelUpModal.js';
 import type { MannerGradeChangePayload } from '../types/mannerGradeChangeModal.js';
@@ -537,7 +545,7 @@ export const useApp = () => {
             if (stored) {
                 const u = JSON.parse(stored) as User;
                 if (u?.inventory && Array.isArray(u.inventory)) {
-                    u.inventory = mapNormalizeInventoryList(u.inventory);
+                    u.inventory = normalizeInventoryAfterLoad(u.inventory);
                 }
                 return u;
             }
@@ -583,7 +591,7 @@ export const useApp = () => {
                 ? (JSON.parse(JSON.stringify(patch.inventory)) as InventoryItem[])
                 : base.inventory;
         const mergedInventory = Array.isArray(mergedInventoryRaw)
-            ? mapNormalizeInventoryList(mergedInventoryRaw)
+            ? normalizeInventoryAfterLoad(mergedInventoryRaw)
             : mergedInventoryRaw;
         
         // 중첩된 객체들을 깊게 병합
@@ -1053,6 +1061,7 @@ export const useApp = () => {
         'equipment' | 'materials' | 'consumables' | 'misc' | 'diamonds' | 'vip' | undefined
     >(undefined);
     const [lastUsedItemResult, setLastUsedItemResult] = useState<InventoryItem[] | null>(null);
+    const [pairPetDetailModal, setPairPetDetailModal] = useState<{ item: InventoryItem; mode: 'obtain' | 'view' } | null>(null);
     const [tournamentScoreChange, setTournamentScoreChange] = useState<{ oldScore: number; newScore: number; scoreReward: number } | null>(null);
     const [disassemblyResult, setDisassemblyResult] = useState<{ gained: { name: string, amount: number }[], jackpot: boolean } | null>(null);
     const [craftResult, setCraftResult] = useState<{ gained: { name: string; amount: number }[]; used: { name: string; amount: number }[]; craftType: 'upgrade' | 'downgrade'; jackpot?: boolean } | null>(null);
@@ -1099,6 +1108,11 @@ export const useApp = () => {
     const [mutualDisconnectMessage, setMutualDisconnectMessage] = useState<string | null>(null);
     const [rankedMatchingQueue, setRankedMatchingQueue] = useState<Record<string, Record<string, any>>>({});
     const [rankedMatchFound, setRankedMatchFound] = useState<{ gameId: string; player1: any; player2: any } | null>(null);
+    const [pairRooms, setPairRooms] = useState<Record<string, any>>({});
+    /** 페어 방 채팅(전체+우리팀 본인 기준 병합본) — PAIR_ROOM_CHAT·PAIR_ROOM_UPDATE·HTTP pairRoomChatHistory로 동기 */
+    const [pairRoomChatByRoomId, setPairRoomChatByRoomId] = useState<Record<string, PairRoomChatLine[]>>({});
+    const [pairPartnerInvites, setPairPartnerInvites] = useState<Record<string, any>>({});
+    const [pairInviteCooldownUntilByInviteeId, setPairInviteCooldownUntilByInviteeId] = useState<Record<string, number>>({});
     /** 로그인 응답에 포함된 진행 중 경기 (다른 PC에서 로그인 후 즉시 이어하기용, INITIAL_STATE 수신 시 해제) */
     const [activeGameFromLogin, setActiveGameFromLogin] = useState<LiveGameSession | null>(null);
     /** 다른 기기에서 로그인되어 자동 로그아웃 안내 모달 표시 여부 */
@@ -3663,6 +3677,11 @@ export const useApp = () => {
                     setIsOpponentInsufficientActionPointsModalOpen(true);
                 } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
                     setIsInsufficientActionPointsModalOpen(true);
+                } else if (
+                    typeof errorMessage === 'string' &&
+                    isPairHatcheryPetInventoryFullError(action, errorMessage)
+                ) {
+                    // PairPetLobbyPanel 전용 모달로만 안내
                 } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                     showError(errorMessage);
                 }
@@ -3684,6 +3703,11 @@ export const useApp = () => {
                         setIsOpponentInsufficientActionPointsModalOpen(true);
                     } else if (typeof errorMessage === 'string' && (errorMessage.includes('액션 포인트') || errorMessage.includes('행동력'))) {
                         setIsInsufficientActionPointsModalOpen(true);
+                    } else if (
+                        typeof errorMessage === 'string' &&
+                        isPairHatcheryPetInventoryFullError(action, errorMessage)
+                    ) {
+                        // PairPetLobbyPanel 전용 모달로만 안내
                     } else if (!shouldSuppressModalForKoPlaceStone(action, typeof errorMessage === 'string' ? errorMessage : '')) {
                         showError(errorMessage);
                     }
@@ -4124,6 +4148,8 @@ export const useApp = () => {
                         'BUY_BORDER',
                         'BUY_TOWER_ITEM',
                         'SAVE_EXCHANGE_STATE',
+                        'CLAIM_EXCHANGE_SETTLEMENT',
+                        'PURCHASE_EXCHANGE_LISTING',
                         'ENHANCE_ITEM',
                         'DISASSEMBLE_ITEM',
                         'COMBINE_ITEMS',
@@ -4137,6 +4163,19 @@ export const useApp = () => {
                         'START_GUILD_BOSS_BATTLE',
                         'END_TOWER_GAME',
                         'CLAIM_ONBOARDING_INTRO1_FAN',
+                        'PAIR_PET_PURCHASE',
+                        'PAIR_PET_HATCH_EGG',
+                        'PAIR_PET_CONVERT_PET',
+                        'PAIR_PET_SET_EQUIPPED',
+                        'PAIR_PET_EXPAND_LOBBY_SLOTS',
+                        'PAIR_PET_START_TRAINING',
+                        'PAIR_PET_CLAIM_TRAINING',
+                        'PAIR_PET_HATCHERY_UNLOCK',
+                        'PAIR_PET_HATCHERY_START',
+                        'PAIR_PET_HATCHERY_CLAIM',
+                        'PAIR_PET_HATCHERY_CANCEL',
+                        'PAIR_PET_HATCHERY_INSTANT_FINISH',
+                        'PAIR_PET_UPGRADE_GRADE',
                     ];
                     const isInventoryCriticalAction = inventoryCriticalActions.includes(action.type);
                     
@@ -4147,6 +4186,45 @@ export const useApp = () => {
                             inventoryLength: updatedUserFromResponse.inventory?.length,
                             inventoryItems: updatedUserFromResponse.inventory?.slice(0, 3).map((i: any) => i.name)
                         });
+                    }
+
+                    if (
+                        isInventoryCriticalAction &&
+                        Array.isArray((updatedUserFromResponse as { pairPetTrainingSlots?: unknown }).pairPetTrainingSlots)
+                    ) {
+                        try {
+                            (updatedUserFromResponse as { pairPetTrainingSlots: unknown }).pairPetTrainingSlots = JSON.parse(
+                                JSON.stringify((updatedUserFromResponse as { pairPetTrainingSlots: unknown[] }).pairPetTrainingSlots)
+                            );
+                        } catch (e) {
+                            console.warn(`[handleAction] ${action.type} - Failed to deep copy pairPetTrainingSlots`, e);
+                        }
+                    }
+
+                    if (
+                        isInventoryCriticalAction &&
+                        Array.isArray((updatedUserFromResponse as { pairPetHatcherySessions?: unknown }).pairPetHatcherySessions)
+                    ) {
+                        try {
+                            (updatedUserFromResponse as { pairPetHatcherySessions: unknown }).pairPetHatcherySessions = JSON.parse(
+                                JSON.stringify((updatedUserFromResponse as { pairPetHatcherySessions: unknown[] }).pairPetHatcherySessions)
+                            );
+                        } catch (e) {
+                            console.warn(`[handleAction] ${action.type} - Failed to deep copy pairPetHatcherySessions`, e);
+                        }
+                    }
+
+                    if (
+                        isInventoryCriticalAction &&
+                        Array.isArray((updatedUserFromResponse as { pairPetHatcherySlotUnlocked?: unknown }).pairPetHatcherySlotUnlocked)
+                    ) {
+                        try {
+                            (updatedUserFromResponse as { pairPetHatcherySlotUnlocked: unknown }).pairPetHatcherySlotUnlocked = JSON.parse(
+                                JSON.stringify((updatedUserFromResponse as { pairPetHatcherySlotUnlocked: unknown[] }).pairPetHatcherySlotUnlocked)
+                            );
+                        } catch (e) {
+                            console.warn(`[handleAction] ${action.type} - Failed to deep copy pairPetHatcherySlotUnlocked`, e);
+                        }
                     }
 
                     if ((action.type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' || action.type === 'CLAIM_ALL_TRAINING_QUEST_REWARDS') && updatedUserFromResponse.singlePlayerMissions) {
@@ -4219,6 +4297,8 @@ export const useApp = () => {
                         'START_GUILD_BOSS_BATTLE',
                         'BUY_TOWER_ITEM',
                         'SAVE_EXCHANGE_STATE',
+                        'CLAIM_EXCHANGE_SETTLEMENT',
+                        'PURCHASE_EXCHANGE_LISTING',
                     ];
                     if (actionsThatShouldHaveUpdatedUser.includes(action.type)) {
                         console.warn(`[handleAction] ${action.type} - No updatedUser in response! Waiting for WebSocket update...`, {
@@ -4274,7 +4354,9 @@ export const useApp = () => {
                         id: item.id || `reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
                         quantity: item.quantity ?? 1,
                     }));
-                    setLastUsedItemResult(stampedItems);
+                    flushSync(() => {
+                        setLastUsedItemResult(stampedItems);
+                    });
                     
                     // USE_ITEM의 경우 obtainedItemsBulk가 있으면 result를 반환하여 모달에서 확인할 수 있도록 함
                     if (action.type === 'USE_ITEM') {
@@ -5011,6 +5093,27 @@ export const useApp = () => {
                         setGuilds(prev => ({ ...prev, ...guildsFromResponse }));
                     }
                 }
+
+                // 페어 방: PAIR_ROOM_UPDATE와 동일 소스 — WS보다 HTTP가 먼저/늦게 올 때도 목록이 맞도록 병합
+                const pairRoomsFromResponse = (result as any)?.pairRooms ?? result?.clientResponse?.pairRooms;
+                if (pairRoomsFromResponse && typeof pairRoomsFromResponse === 'object') {
+                    setPairRooms(pairRoomsFromResponse);
+                }
+                const pairRoomChatHistory = (result as any)?.pairRoomChatHistory ?? result?.clientResponse?.pairRoomChatHistory;
+                if (pairRoomChatHistory && typeof pairRoomChatHistory === 'object') {
+                    setPairRoomChatByRoomId((prev) => {
+                        const next = { ...prev };
+                        for (const [rid, msgs] of Object.entries(pairRoomChatHistory)) {
+                            if (Array.isArray(msgs)) next[rid] = msgs as PairRoomChatLine[];
+                        }
+                        return next;
+                    });
+                }
+                const pairInvitesFromResponse =
+                    (result as any)?.pairPartnerInvites ?? result?.clientResponse?.pairPartnerInvites;
+                if (pairInvitesFromResponse && typeof pairInvitesFromResponse === 'object') {
+                    setPairPartnerInvites(pairInvitesFromResponse);
+                }
                 
                 // Return result for actions that need it (preserve original structure)
                 // Include donationResult and other specific response fields
@@ -5020,9 +5123,12 @@ export const useApp = () => {
                     result.guild || 
                     result.game ||
                     result.gameId ||
+                    (result as any).pairRooms ||
                     result.donationResult ||
                     result.clientResponse?.donationResult ||
                     result.guilds ||
+                    /** `/api/action` 평탄화: `updatedUser`만 최상위에 있는 응답(페어 부화 수령 등)도 호출부에 전달 */
+                    !!(result as any).updatedUser ||
                     /** `/api/action` 평탄화: `clientResponse` 키 없이 최상위에만 오는 필드 (예: 보물상자 PREPARE/CONFIRM) */
                     (result as any).adventureTreasurePick ||
                     (result as any).grantedTreasureRolls != null ||
@@ -6057,11 +6163,13 @@ export const useApp = () => {
                                 const timeSinceLastHttpUpdate = now - lastHttpUpdateTime.current;
                                 const hasNicknameUpdate = updatedCurrentUser.nickname !== undefined && updatedCurrentUser.nickname !== currentUser.nickname;
                                 const hasAdventureProfileUpdate = updatedCurrentUser.adventureProfile !== undefined;
+                                /** 타 유저 구매 등으로 서버가 보낸 거래소 상태 — HTTP 디바운스로 버리면 판매 완료·정산 동기화가 깨짐 */
+                                const hasExchangeStatePayload = updatedCurrentUser.exchangeState !== undefined;
 
                                 const hadHttpUpdate = lastHttpUpdateTime.current > 0;
                                 const httpUpdateHadUser = lastHttpHadUpdatedUser.current;
 
-                                if (!hasNicknameUpdate && !hasAdventureProfileUpdate) {
+                                if (!hasNicknameUpdate && !hasAdventureProfileUpdate && !hasExchangeStatePayload) {
                                     if (hadHttpUpdate && httpUpdateHadUser && timeSinceLastHttpUpdate < HTTP_UPDATE_DEBOUNCE_MS) {
                                         console.log(`[WebSocket] USER_UPDATE ignored (${timeSinceLastHttpUpdate}ms since HTTP update with user, debounce: ${HTTP_UPDATE_DEBOUNCE_MS}ms, last action: ${lastHttpActionType.current})`);
                                         return;
@@ -6107,6 +6215,60 @@ export const useApp = () => {
                                     player1: message.payload.player1,
                                     player2: message.payload.player2,
                                 });
+                            }
+                            return;
+                        }
+                        case 'PAIR_ROOM_UPDATE': {
+                            const rooms = message.payload?.rooms;
+                            if (rooms && typeof rooms === 'object') {
+                                setPairRooms(rooms);
+                                setPairRoomChatByRoomId((prev) => {
+                                    const next = { ...prev };
+                                    const activeIds = new Set(Object.keys(rooms as Record<string, unknown>));
+                                    for (const k of Object.keys(next)) {
+                                        if (!activeIds.has(k)) delete next[k];
+                                    }
+                                    for (const [rid, room] of Object.entries(rooms as Record<string, any>)) {
+                                        const pub = room?.pairChatMessages as PairRoomChatLine[] | undefined;
+                                        if (!pub?.length) continue;
+                                        const existing = next[rid] || [];
+                                        const byId = new Map<string, PairRoomChatLine>(existing.map((m) => [m.id, m]));
+                                        for (const m of pub) {
+                                            if (m.scope === 'room') byId.set(m.id, m);
+                                        }
+                                        next[rid] = [...byId.values()].sort((a, b) => a.timestamp - b.timestamp).slice(-120);
+                                    }
+                                    return next;
+                                });
+                            } else {
+                                setPairRooms({});
+                            }
+                            return;
+                        }
+                        case 'PAIR_ROOM_CHAT': {
+                            const roomId = message.payload?.roomId as string | undefined;
+                            const chatMsg = message.payload?.message as PairRoomChatLine | undefined;
+                            if (!roomId || !chatMsg?.id) return;
+                            setPairRoomChatByRoomId((prev) => ({
+                                ...prev,
+                                [roomId]: [...(prev[roomId] || []), chatMsg].slice(-120),
+                            }));
+                            return;
+                        }
+                        case 'PAIR_PARTNER_INVITE_UPDATE': {
+                            const invites = message.payload?.invites;
+                            setPairPartnerInvites(invites && typeof invites === 'object' ? invites : {});
+                            return;
+                        }
+                        case 'PAIR_PARTNER_INVITE_DECLINED': {
+                            const inviterId = message.payload?.inviterId;
+                            const inviteeId = message.payload?.inviteeId;
+                            const meId = currentUserRef.current?.id;
+                            if (meId && inviterId === meId && typeof inviteeId === 'string') {
+                                setPairInviteCooldownUntilByInviteeId((prev) => ({
+                                    ...prev,
+                                    [inviteeId]: Date.now() + 10000,
+                                }));
                             }
                             return;
                         }
@@ -6217,18 +6379,24 @@ export const useApp = () => {
                                                         const gameIdFromHash = currentHash.replace('#/game/', '');
                                                         const currentGame = liveGames[gameIdFromHash] || singlePlayerGames[gameIdFromHash] || towerGames[gameIdFromHash];
                                                         if (currentGame && !currentGame.isSinglePlayer && currentGame.mode) {
-                                                        // 게임 모드를 strategic/playful로 변환
-                                                        let waitingRoomMode: 'strategic' | 'playful' | null = null;
-                                                        if (SPECIAL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
-                                                            waitingRoomMode = 'strategic';
-                                                        } else if (PLAYFUL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
-                                                            waitingRoomMode = 'playful';
-                                                        }
-                                                            if (waitingRoomMode) {
-                                                                console.log('[WebSocket] Routing to waiting room based on game mode:', waitingRoomMode);
+                                                            if ((currentGame.settings as { pairGame?: unknown } | undefined)?.pairGame) {
+                                                                console.log('[WebSocket] Pair game session → 페어 경기장');
                                                                 setTimeout(() => {
-                                                                    replaceAppHash(`#/waiting/${waitingRoomMode}`);
+                                                                    replaceAppHash('#/pair');
                                                                 }, 100);
+                                                            } else {
+                                                                let waitingRoomMode: 'strategic' | 'playful' | null = null;
+                                                                if (SPECIAL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
+                                                                    waitingRoomMode = 'strategic';
+                                                                } else if (PLAYFUL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
+                                                                    waitingRoomMode = 'playful';
+                                                                }
+                                                                if (waitingRoomMode) {
+                                                                    console.log('[WebSocket] Routing to waiting room based on game mode:', waitingRoomMode);
+                                                                    setTimeout(() => {
+                                                                        replaceAppHash(`#/waiting/${waitingRoomMode}`);
+                                                                    }, 100);
+                                                                }
                                                             }
                                                         }
                                                     } else if (mode) {
@@ -7762,7 +7930,7 @@ export const useApp = () => {
                                 setGuilds(prev => ({ ...prev, ...message.payload.guilds }));
                             }
                             // 기존 default 처리 (이미 다른 case에서 처리되지 않은 경우)
-                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE'].includes(message.type)) {
+                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'PAIR_ROOM_UPDATE', 'PAIR_ROOM_CHAT', 'PAIR_PARTNER_INVITE_UPDATE', 'PAIR_PARTNER_INVITE_DECLINED', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE'].includes(message.type)) {
                                 console.warn('[WebSocket] Unhandled message type:', message.type);
                             }
                             return;
@@ -8381,6 +8549,14 @@ export const useApp = () => {
         []
     );
 
+    const openPairPetDetailModal = useCallback((item: InventoryItem, mode: 'obtain' | 'view') => {
+        setPairPetDetailModal({ item: JSON.parse(JSON.stringify(item)) as InventoryItem, mode });
+    }, []);
+
+    const closePairPetDetailModal = useCallback(() => {
+        setPairPetDetailModal(null);
+    }, []);
+
     const clearRefinementResult = useCallback(() => {
         setRefinementResult(null);
     }, []);
@@ -8539,6 +8715,10 @@ export const useApp = () => {
         gameModeAvailability,
         rankedMatchingQueue,
         rankedMatchFound,
+        pairRooms,
+        pairRoomChatByRoomId,
+        pairPartnerInvites,
+        pairInviteCooldownUntilByInviteeId,
         arenaEntranceAvailability: arenaEntranceAvailabilityResolved,
         arenaEntranceFromServer,
         announcements,
@@ -8578,7 +8758,7 @@ export const useApp = () => {
         specialStatBonuses,
         aggregatedMythicStats,
         modals: {
-            isSettingsModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult,
+            isSettingsModalOpen, isInventoryOpen, isMailboxOpen, isQuestsOpen, isShopOpen, isExchangeOpen, shopInitialTab, lastUsedItemResult, pairPetDetailModal,
             disassemblyResult, craftResult, rewardSummary, viewingUser, isInfoModalOpen, isAnnouncementsModalOpen, isRankingQuickModalOpen, isChatQuickModalOpen, isEncyclopediaOpen, isStatAllocationModalOpen, enhancementAnimationTarget,
             isGameRecordListOpen, viewingGameRecord,
             pastRankingsInfo, viewingItem, isProfileEditModalOpen, moderatingUser,
@@ -8669,6 +8849,8 @@ export const useApp = () => {
             openPastRankings: (info: { user: UserWithStatus; mode: GameMode | 'strategic' | 'playful'; }) => setPastRankingsInfo(info),
             closePastRankings: () => setPastRankingsInfo(null),
             openViewingItem,
+            openPairPetDetailModal,
+            closePairPetDetailModal,
             closeViewingItem: () => setViewingItem(null),
             openEnhancingItem,
             startEnhancement,

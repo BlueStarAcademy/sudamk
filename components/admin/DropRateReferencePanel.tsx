@@ -19,14 +19,25 @@ import {
     ADVENTURE_MAP_KEY_CHAPTER_CONFIG,
     formatAdventureTreasureChestAdminLines,
 } from '../../shared/utils/adventureMapTreasureRewards.js';
+import {
+    PAIR_TRAINING_SLOT_DEFS,
+    getPairTrainingSlotDisplayName,
+} from '../../shared/constants/pairTraining.js';
 
 interface DropRateReferencePanelProps {
     onBack: () => void;
 }
 
-type RateSectionKey = 'shop' | 'pvp' | 'championship' | 'blacksmith' | 'adventure';
+type RateSectionKey = 'shop' | 'pvp' | 'championship' | 'blacksmith' | 'adventure' | 'pairPet';
 const DROP_RATE_SECTION_STORAGE_KEY = 'admin.dropRateReference.activeSection';
-const RATE_SECTION_KEYS: readonly RateSectionKey[] = ['shop', 'pvp', 'championship', 'blacksmith', 'adventure'] as const;
+const RATE_SECTION_KEYS: readonly RateSectionKey[] = [
+    'shop',
+    'pvp',
+    'championship',
+    'blacksmith',
+    'adventure',
+    'pairPet',
+] as const;
 
 const gradeLabel = (grade: string): string =>
     EQUIPMENT_GRADE_LABEL_KO[grade as ItemGrade] ?? grade;
@@ -114,6 +125,30 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
     const showChampionshipSection = activeSection === 'championship';
     const showBlacksmithToggleSection = activeSection === 'blacksmith';
     const showAdventureSection = activeSection === 'adventure';
+    const showPairPetSection = activeSection === 'pairPet';
+
+    const pairTrainingAdminRows = useMemo(
+        () =>
+            PAIR_TRAINING_SLOT_DEFS.map((def) => {
+                const slotLabel = getPairTrainingSlotDisplayName(def.slotIndex);
+                const soulBranchLine = formatRateLine(
+                    def.soulTable.map((r) => ({
+                        label: `${r.materialName} ×${r.quantity}`,
+                        rateText: `${r.weight}%`,
+                    }))
+                );
+                const searchText = [
+                    `슬롯${def.slotIndex + 1}`,
+                    slotLabel,
+                    formatPercent(def.soulDropChance),
+                    soulBranchLine,
+                    ...def.soulTable.map((r) => r.materialName),
+                ].join(' ');
+                return { def, slotLabel, soulBranchLine, searchText };
+            }),
+        []
+    );
+    const filteredPairTrainingRows = pairTrainingAdminRows.filter((row) => matches(row.searchText));
 
     const sectionTabs: { key: RateSectionKey; label: string }[] = [
         { key: 'shop', label: '상점' },
@@ -121,6 +156,7 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
         { key: 'championship', label: '챔피언십' },
         { key: 'blacksmith', label: '대장간' },
         { key: 'adventure', label: '모험' },
+        { key: 'pairPet', label: '페어 펫' },
     ];
 
     useEffect(() => {
@@ -149,7 +185,7 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
         <div className={`${adminPageNarrow} ${adminSectionGap}`}>
             <AdminPageHeader
                 title="확률 정보"
-                subtitle="상점 상자, 챔피언십 보상, 대장간, 모험 맵 보물상자·열쇠 관련 확률 테이블을 내부 운영용으로 확인합니다."
+                subtitle="상점 상자, 챔피언십 보상, 대장간, 모험 맵 보물상자·열쇠, 페어 펫 수련 영혼석 등 확률 테이블을 내부 운영용으로 확인합니다."
                 onBack={onBack}
             />
             <section className={adminCard}>
@@ -389,6 +425,50 @@ const DropRateReferencePanel: React.FC<DropRateReferencePanelProps> = ({ onBack 
                                 </div>
                             ))}
                         </div>
+                    </div>
+                </section>
+            )}
+
+            {showPairPetSection && (
+                <section className={adminCard}>
+                    <h2 className={adminCardTitle}>페어 경기장 · AI 펫 수련 (영혼석)</h2>
+                    <p className="mb-3 text-xs leading-relaxed text-gray-400">
+                        일반 유저 UI에는 영혼석 드롭 확률이 표시되지 않습니다. 수련 보상 수령 시 서버는{' '}
+                        <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">pairTraining.ts</code>의{' '}
+                        <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">soulDropChance</code>로 추가 판정 후, 성공 시{' '}
+                        <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">soulTable</code> 가중치로{' '}
+                        <span className="font-semibold text-gray-200">한 종류</span>만 지급합니다. 펫 특성(영혼 드롭)은 동일 판정에 가산됩니다 (
+                        <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">socialActions.ts</code> ·{' '}
+                        <code className="rounded bg-black/30 px-1 py-px text-amber-200/90">trainingSoulChance</code>).
+                    </p>
+                    <div className="overflow-x-auto">
+                        <table className="w-full min-w-[720px] text-left text-xs">
+                            <thead className="uppercase text-gray-400">
+                                <tr>
+                                    <th className="px-2 py-2">슬롯</th>
+                                    <th className="px-2 py-2">이름</th>
+                                    <th className="px-2 py-2">영혼 추가 판정 확률</th>
+                                    <th className="px-2 py-2">판정 성공 시 후보 (비중 합 100%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredPairTrainingRows.map(({ def, slotLabel, soulBranchLine }) => (
+                                    <tr key={`pair-train-${def.slotIndex}`} className="border-t border-color/40 text-gray-200">
+                                        <td className="px-2 py-2 font-semibold text-violet-300">{def.slotIndex + 1}</td>
+                                        <td className="px-2 py-2">{slotLabel}</td>
+                                        <td className="px-2 py-2">{formatPercent(def.soulDropChance)}</td>
+                                        <td className="px-2 py-2 font-mono text-[0.72rem] leading-relaxed">{soulBranchLine}</td>
+                                    </tr>
+                                ))}
+                                {filteredPairTrainingRows.length === 0 && (
+                                    <tr className="border-t border-color/40 text-gray-500">
+                                        <td className="px-2 py-3" colSpan={4}>
+                                            검색 결과가 없습니다.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 </section>
             )}

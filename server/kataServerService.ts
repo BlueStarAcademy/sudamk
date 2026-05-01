@@ -103,15 +103,16 @@ type KataMoveApiData = {
     bestMove?: string;
 };
 
-/** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. PASS·중복 제거. */
-function buildGtpCandidatesFromKataResponse(data: KataMoveApiData): string[] {
+/** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. 중복 제거. */
+function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: boolean): string[] {
     const best = data.bestMove?.trim();
     const reported = data.move?.trim();
     const out: string[] = [];
     const pushUnique = (s?: string) => {
         if (!s) return;
         const u = s.toUpperCase();
-        if (u === 'PASS' || u === '') return;
+        if (u === '') return;
+        if (u === 'PASS' && !allowPass) return;
         if (!out.some((g) => g.toUpperCase() === u)) out.push(s);
     };
     pushUnique(reported);
@@ -132,6 +133,8 @@ export interface GenerateKataServerMoveParams {
      * 재입장(/api/game/rejoin) 시에는 settings.kataSessionResumeSeq 기반 `rsN`이 태그에 포함된다(goAiBot).
      */
     kataSessionTag?: string;
+    /** true면 KataServer PASS 응답을 후보로 유지한다. */
+    allowPass?: boolean;
 }
 
 /**
@@ -144,6 +147,7 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
     }
 
     const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, player } = params;
+    const allowPass = params.allowPass === true;
     for (let i = 0; i < moveHistory.length; i++) {
         const m = moveHistory[i]!;
         if (m.x < 0 || m.y < 0) continue;
@@ -165,8 +169,7 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
         moves,
         firstMove: isFirstMove,
         player,
-        // 수순 내 PASS 유무와 무관하게 항상 PASS 금지 요청
-        allowPass: false,
+        allowPass,
     };
 
     const url = `${KATA_SERVER_URL}/move`;
@@ -205,7 +208,7 @@ export async function generateKataServerMoveCandidates(params: GenerateKataServe
 
         console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
 
-        const gtps = buildGtpCandidatesFromKataResponse(data);
+        const gtps = buildGtpCandidatesFromKataResponse(data, allowPass);
         const best = data.bestMove?.trim();
         const reported = data.move?.trim();
         if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {

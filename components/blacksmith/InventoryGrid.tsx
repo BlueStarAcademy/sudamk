@@ -1,6 +1,7 @@
 import React from 'react';
 import { InventoryItem, ItemGrade } from '../../types.js';
 import { isRefinementTicketMaterial } from '../../constants/items.js';
+import { isPairArenaExclusiveBagItem } from '../../shared/constants/petLobby.js';
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.png',
@@ -123,6 +124,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
                                 {renderStarDisplay(item.stars)}
                                 {item.isEquipped && <div className="absolute top-0.5 right-0.5 text-xs font-bold text-white bg-blue-600/80 px-1 rounded-bl-md">E</div>}
                                 {(() => {
+                                    if (isPairArenaExclusiveBagItem(item)) return null;
                                     const stackQty = item.quantity ?? 1;
                                     const isTicket = isRefinementTicketMaterial(item.name);
                                     if (!isTicket && stackQty <= 1) return null;

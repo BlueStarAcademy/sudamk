@@ -1,0 +1,308 @@
+import { ItemGrade } from '../types/enums.js';
+import type { InventoryItem } from '../types/entities.js';
+
+/** 페어 펫·알 로비 인벤: 기본 슬롯 수(빈 칸 포함 표시) */
+export const PAIR_PET_LOBBY_INV_BASE_SLOTS = 10;
+/** 확장 1회당 추가 슬롯 수(가방은 10칸, 펫·알 로비는 5칸) */
+export const PAIR_PET_LOBBY_INV_EXPAND_STEP = 5;
+/** 펫·알 로비 인벤 최대 슬롯 */
+export const PAIR_PET_LOBBY_INV_MAX_SLOTS = 50;
+
+export function pairPetLobbyInventorySlots(stored?: number | null): number {
+    if (typeof stored !== 'number' || !Number.isFinite(stored)) {
+        return PAIR_PET_LOBBY_INV_BASE_SLOTS;
+    }
+    const n = Math.floor(stored);
+    if (n < PAIR_PET_LOBBY_INV_BASE_SLOTS) return PAIR_PET_LOBBY_INV_BASE_SLOTS;
+    if (n > PAIR_PET_LOBBY_INV_MAX_SLOTS) return PAIR_PET_LOBBY_INV_MAX_SLOTS;
+    const extra = n - PAIR_PET_LOBBY_INV_BASE_SLOTS;
+    const steps = Math.floor(extra / PAIR_PET_LOBBY_INV_EXPAND_STEP);
+    return PAIR_PET_LOBBY_INV_BASE_SLOTS + steps * PAIR_PET_LOBBY_INV_EXPAND_STEP;
+}
+
+/** 완료한 확장 횟수(0이면 기본 슬롯만) */
+export function pairPetLobbyExpansionCount(currentSlots: number): number {
+    const s = pairPetLobbyInventorySlots(currentSlots);
+    return Math.max(0, (s - PAIR_PET_LOBBY_INV_BASE_SLOTS) / PAIR_PET_LOBBY_INV_EXPAND_STEP);
+}
+
+/**
+ * 다음 확장 1회에 필요한 다이아 — 가방(`EXPAND_INVENTORY`)과 동일 규칙:
+ * `100 + (이미 완료한 확장 횟수) * 20`, 확장 횟수 = (정규화된 현재 슬롯 - BASE) / STEP.
+ */
+export function pairPetLobbyExpandDiamondCost(normalizedCurrentSlots: number): number {
+    const expansionsMade = pairPetLobbyExpansionCount(normalizedCurrentSlots);
+    return 100 + expansionsMade * 20;
+}
+
+export const PAIR_EGG_TEMPLATE_ID = 'pair-egg-mystery';
+
+/** 상점 지급·MATERIAL_ITEMS 키와 동일한 알 이름 */
+export const PAIR_EGG_MATERIAL_NAME = '신비로운알';
+
+/** 알 썸네일(상점 카드·부화장 등 공통) */
+export const PAIR_EGG_DISPLAY_IMAGE = '/images/pets/egg.webp';
+
+/** 페어 로비·상점 표기용 영혼석 이름 (등급 순) */
+export const PAIR_SOULSTONE_NAMES = ['새싹영혼석', '파동영혼석', '심연영혼석', '화염영혼석', '천광영혼석'] as const;
+
+export function isPairSoulStoneMaterialName(name: string): boolean {
+    return (PAIR_SOULSTONE_NAMES as readonly string[]).includes(name);
+}
+
+export function pairSoulTierFromMaterialName(name: string): number {
+    const idx = (PAIR_SOULSTONE_NAMES as readonly string[]).indexOf(name);
+    if (idx >= 0) return idx + 1;
+    return 1;
+}
+
+export function pairSoulTemplateIdFromTier(tier: number): string {
+    const t = Math.min(5, Math.max(1, Math.floor(tier)));
+    return `pair-soul-${t}`;
+}
+
+export const PAIR_SOULSTONE_TEMPLATE_IDS = [
+    'pair-soul-1',
+    'pair-soul-2',
+    'pair-soul-3',
+    'pair-soul-4',
+    'pair-soul-5',
+] as const;
+
+/** 재료·상점·로비 UI 공통: 영혼석 짧은 풍미 설명 */
+export const PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS: Record<(typeof PAIR_SOULSTONE_NAMES)[number], string> = {
+    새싹영혼석: '막 돋은 영기 한 알. 성장의 첫 스파크!',
+    파동영혼석: '결의 물결이 번져요—다음 층으로 밀어줍니다.',
+    심연영혼석: '깊은 심연에서 건져 올린 결정. 깊이 인증!',
+    화염영혼석: '작열하는 영혼의 숨. 진지 모드, 가동!',
+    천광영혼석: '하늘빛을 머금은 에이스 정수. 정점 각인!',
+};
+
+/** 알 수 없는 이름이면 빈 문자열 */
+export function getPairSoulStoneDisplayDescription(name: string): string {
+    if (!isPairSoulStoneMaterialName(name)) return '';
+    return PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[name as (typeof PAIR_SOULSTONE_NAMES)[number]];
+}
+
+/** 페어 펫상점 SKU (BUY_ 접두사 없음 → gameActions에서 상점 핸들러와 충돌하지 않음) */
+export type PairPetShopSkuId =
+    | 'pair_shop_egg_gold'
+    | 'pair_shop_egg_diamond'
+    | 'pair_shop_soul_1'
+    | 'pair_shop_soul_2'
+    | 'pair_shop_soul_3'
+    | 'pair_shop_soul_4'
+    | 'pair_shop_soul_5';
+
+export type PairPetShopSku = {
+    id: PairPetShopSkuId;
+    /** 카드 제목 */
+    label: string;
+    gold: number;
+    diamonds: number;
+    /** 지급할 재료의 MATERIAL_ITEMS 키(이름) */
+    materialName: string;
+    quantity: number;
+    /** KST 일일 구매 상한 (`dailyShopPurchases[sku]`와 연동) */
+    dailyLimit: number;
+    /** 상점 카드 이미지(추후 교체 예정) */
+    image: string;
+    description: string;
+};
+
+/** 일괄 표시·구매 처리 순서 */
+export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
+    {
+        id: 'pair_shop_egg_gold',
+        label: PAIR_EGG_MATERIAL_NAME,
+        gold: 5000,
+        diamonds: 0,
+        materialName: PAIR_EGG_MATERIAL_NAME,
+        quantity: 1,
+        dailyLimit: 1,
+        image: PAIR_EGG_DISPLAY_IMAGE,
+        description: '부화장에서 무작위 AI 펫으로 부화할 수 있는 알입니다.',
+    },
+    {
+        id: 'pair_shop_egg_diamond',
+        label: PAIR_EGG_MATERIAL_NAME,
+        gold: 0,
+        diamonds: 50,
+        materialName: PAIR_EGG_MATERIAL_NAME,
+        quantity: 1,
+        dailyLimit: 1,
+        image: PAIR_EGG_DISPLAY_IMAGE,
+        description: '부화장에서 무작위 AI 펫으로 부화할 수 있는 알입니다.',
+    },
+    {
+        id: 'pair_shop_soul_1',
+        label: PAIR_SOULSTONE_NAMES[0],
+        gold: 500,
+        diamonds: 0,
+        materialName: PAIR_SOULSTONE_NAMES[0],
+        quantity: 1,
+        dailyLimit: 10,
+        image: '/images/materials/soulstone1.webp',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[0]],
+    },
+    {
+        id: 'pair_shop_soul_2',
+        label: PAIR_SOULSTONE_NAMES[1],
+        gold: 1500,
+        diamonds: 0,
+        materialName: PAIR_SOULSTONE_NAMES[1],
+        quantity: 1,
+        dailyLimit: 10,
+        image: '/images/materials/soulstone2.webp',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[1]],
+    },
+    {
+        id: 'pair_shop_soul_3',
+        label: PAIR_SOULSTONE_NAMES[2],
+        gold: 3000,
+        diamonds: 0,
+        materialName: PAIR_SOULSTONE_NAMES[2],
+        quantity: 1,
+        dailyLimit: 5,
+        image: '/images/materials/soulstone3.webp',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[2]],
+    },
+    {
+        id: 'pair_shop_soul_4',
+        label: PAIR_SOULSTONE_NAMES[3],
+        gold: 5000,
+        diamonds: 0,
+        materialName: PAIR_SOULSTONE_NAMES[3],
+        quantity: 1,
+        dailyLimit: 3,
+        image: '/images/materials/soulstone4.webp',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[3]],
+    },
+    {
+        id: 'pair_shop_soul_5',
+        label: PAIR_SOULSTONE_NAMES[4],
+        gold: 10000,
+        diamonds: 0,
+        materialName: PAIR_SOULSTONE_NAMES[4],
+        quantity: 1,
+        dailyLimit: 1,
+        image: '/images/materials/soulstone5.webp',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[4]],
+    },
+];
+
+/** `pair-pet-1` … `pair-pet-24` / `pet1.webp` … 순서에 대응하는 표시 이름 */
+export const PAIR_PET_KIND_NAMES = [
+    '루미폭스',
+    '아이스냥',
+    '골디냥',
+    '스노우판다',
+    '펭키',
+    '썬버드',
+    '바니루',
+    '허니베어',
+    '리프캣',
+    '스프라우트',
+    '바이올냥',
+    '썬키',
+    '앰버폭스',
+    '크림냥',
+    '윙키트',
+    '마스크독',
+    '아이보리베어',
+    '스노우펫',
+    '치키',
+    '섀도울프',
+    '윙바니',
+    '골드치키',
+    '팬더링',
+    '젤리프로그',
+] as const;
+
+/** 도감·툴팁용 — 이름·컨셉에 맞는 짧은 소개 (pet1~24 순) */
+export const PAIR_PET_KIND_DESCRIPTIONS: readonly string[] = [
+    '은은하게 빛나는 털의 여우 아이. 밤길도 이 친구랑이면 든든해요.',
+    '얼음 결 같은 눈망울의 냥이. 차갑게 굴더도 안으면 금방 녹아요.',
+    '햇살 담은 금빛 털. 보물보다 당신 옆이 더 좋다고 해요.',
+    '눈처럼 하얀 배와 멜빵 무늬. 구르다 넘어져도 먼저 웃는 판다예요.',
+    '비틀거려도 당당한 걸음. 물가 산책을 제일 좋아하는 펭귄 친구.',
+    '햇살 한 줌 등에 이고 날아오는 따스한 새.',
+    '귀는 쫑긋, 당근 냄새면 어디든 깡총 따라가요.',
+    '꿀단지보다 달콤한 건 역시 곁에 있는 당신이래요.',
+    '잎사귀 모자 쓴 듯한 숲속 고양이. 산책길이 더 상쾌해져요.',
+    '머리 위 새싹이 하루가 다르게 자라요. 물 주면 더 신나요.',
+    '보랏빛 향기가 맴도는 듯한, 조금 신비로운 냥이.',
+    '햇볕 쨍한 날 꼬리 흔들며 뛰는 에너지 만점 친구.',
+    '호박처럼 따뜻한 눈빛의 여우. 가을 산책엔 딱이에요.',
+    '크림처럼 부드러운 털, 안으면 기분이 녹아요.',
+    '작은 날개로 풀잎만큼 살짝 떠오르는 상상력 만렙 냥이.',
+    '멋진 마스크 무늬 얼굴, 장난감 앞에서는 아직 애기 강아지.',
+    '아이보리빛 포근함. 말없이 꼭 안아 주는 스타일이에요.',
+    '눈송이처럼 가볍고 하얀 설원의 단짝.',
+    '눈치는 빠른데 애교는 더 많아요. 장난치다 들키면 삐질 수도.',
+    '그림자 속에서도 눈빛만 반짝. 조용히 옆을 지켜줘요.',
+    '날개 달린 토끼, 구름 위 깡총이 꿈이래요.',
+    '금빛 반짝임에 자신감 만점, 무대 없어도 주인공이에요.',
+    '아기 팬더처럼 뭉글뭉글, 반달 눈가가 매력.',
+    '통통 튕기는 젤리 같은 개굴. 웃으면 볼이 출렁해요.',
+];
+
+export const PAIR_PET_CATALOG: Array<{
+    templateId: string;
+    displayName: string;
+    description: string;
+    image: string;
+    grade: ItemGrade;
+}> = Array.from({ length: 24 }, (_, i) => {
+    const n = i + 1;
+    return {
+        templateId: `pair-pet-${n}`,
+        displayName: PAIR_PET_KIND_NAMES[i] ?? `펫 ${n}`,
+        description:
+            PAIR_PET_KIND_DESCRIPTIONS[i] ?? '페어 경기장에서 동행하는 AI 펫입니다.',
+        image: `/images/pets/pet${n}.webp`,
+        grade: ItemGrade.Normal,
+    };
+});
+
+export function isPairPetMaterial(item: Pick<InventoryItem, 'templateId' | 'name'>): boolean {
+    return typeof item.templateId === 'string' && item.templateId.startsWith('pair-pet-');
+}
+
+export function isPairEggItem(item: Pick<InventoryItem, 'templateId' | 'name'>): boolean {
+    return (
+        item.templateId === PAIR_EGG_TEMPLATE_ID ||
+        item.name === PAIR_EGG_MATERIAL_NAME ||
+        item.name === '페어 미스터리 알'
+    );
+}
+
+export function isPairSoulStoneItem(item: Pick<InventoryItem, 'templateId' | 'name'>): boolean {
+    return typeof item.templateId === 'string' && item.templateId.startsWith('pair-soul-');
+}
+
+/**
+ * 일반 가방·대장간 등 공용 UI에서 제외 — 페어 경기장(대기실) 로비 인벤에서만 표시·관리.
+ * `type === 'material'` 여부로 판별하지 않고, 알·펫·영혼석을 도메인 규칙으로만 묶습니다.
+ */
+export function isPairArenaExclusiveBagItem(item: Pick<InventoryItem, 'templateId' | 'name'>): boolean {
+    return isPairEggItem(item) || isPairPetMaterial(item) || isPairSoulStoneItem(item);
+}
+
+export function rollPairPetTemplateId(): string {
+    const idx = Math.floor(Math.random() * PAIR_PET_CATALOG.length);
+    return PAIR_PET_CATALOG[idx]!.templateId;
+}
+
+export function getPairPetDefinition(templateId: string) {
+    return PAIR_PET_CATALOG.find((p) => p.templateId === templateId);
+}
+
+/** 인벤 행 이름이 구버전이어도 `templateId` 기준으로 카탈로그 표기명 사용 */
+export function getPairPetDisplayName(item: Pick<InventoryItem, 'templateId' | 'name'>): string {
+    const tid = item.templateId;
+    if (typeof tid === 'string' && tid.startsWith('pair-pet-')) {
+        return getPairPetDefinition(tid)?.displayName ?? item.name;
+    }
+    return item.name;
+}

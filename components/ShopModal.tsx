@@ -26,6 +26,8 @@ interface PurchasableItem {
     price: { gold?: number; diamonds?: number };
     limit?: number;
     type: InventoryItemType;
+    /** 수량 선택 모달 설명·사용처 보강용 */
+    description?: string;
     /** 행동력 회복제 등 이미지 위 배지 텍스트 (예: +10) */
     badge?: string;
     /** 행동력 회복제 등 가격 배열(회차별 합산용; 현재는 품목당 1단계) */

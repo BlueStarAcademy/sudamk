@@ -31,6 +31,7 @@ if (!process.env.RAILWAY_ENVIRONMENT &&
     console.log('[Server] Railway environment auto-detected');
 }
 import { handleAction, resetAndGenerateQuests, updateQuestProgress } from './gameActions.js';
+import { tickPairPartnerInviteExpiry } from './actions/socialActions.js';
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
 import * as db from './db.js';
@@ -2180,6 +2181,12 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 console.error('[MainLoop] Error in negotiation cleanup loop:', negotiationCleanupError?.message);
             }
 
+            try {
+                tickPairPartnerInviteExpiry(volatileState);
+            } catch (pairInviteExpiryError: any) {
+                console.warn('[MainLoop] tickPairPartnerInviteExpiry:', pairInviteExpiryError?.message);
+            }
+
             const onlineUserIds = Object.keys(volatileState.userConnections);
             let updatedGames: types.LiveGameSession[] = [];
             if (gamesWithOnlinePlayers.length > 0) {
@@ -2812,11 +2819,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     cache = {
                         strategic: [],
                         playful: [],
+                        pair: [],
                         championship: [],
                         combat: [],
                         manner: [],
                         strategicSeason: [],
                         playfulSeason: [],
+                        pairSeason: [],
                         timestamp: Date.now()
                     };
                 }
@@ -2842,9 +2851,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     case 'playful':
                         rankings = Array.isArray(cache?.playfulSeason) ? cache.playfulSeason : [];
                         break;
+                    case 'pair':
+                        rankings = Array.isArray(cache?.pairSeason) ? cache.pairSeason : [];
+                        break;
                     default:
-                        // 시즌 랭킹은 strategic/playful만 지원
-                        return res.status(400).json({ error: 'Season ranking only available for strategic/playful' });
+                        return res.status(400).json({ error: 'Season ranking only available for strategic/playful/pair' });
                 }
             } else {
                 // 누적 랭킹 (기본)
@@ -2854,6 +2865,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         break;
                     case 'playful':
                         rankings = Array.isArray(cache?.playful) ? cache.playful : [];
+                        break;
+                    case 'pair':
+                        rankings = Array.isArray(cache?.pair) ? cache.pair : [];
                         break;
                     case 'championship':
                         rankings = Array.isArray(cache?.championship) ? cache.championship : [];
@@ -4173,6 +4187,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 listings.forEach((entry) => {
                     const id = typeof entry?.id === 'string' ? entry.id : '';
                     if (!id) return;
+                    if (entry?.status === 'sold') return;
                     const existing = merged.get(id);
                     const createdAt = Number(entry?.createdAt ?? 0);
                     const existingCreatedAt = Number(existing?.createdAt ?? 0);

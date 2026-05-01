@@ -466,10 +466,10 @@ export const GUILD_SHOP_ITEMS: GuildShopItem[] = [
     { itemId: '신비의 강화석', name: '신비의 강화석', description: '장비 강화에 사용되는 고대 재료', cost: 500, image: '/images/materials/materials5.png', type: 'material', limit: 2, limitType: 'weekly', grade: ItemGrade.Legendary },
 
     // Consumables
-    { itemId: '골드 꾸러미1', name: '골드 꾸러미1', description: '10 ~ 500 골드 획득', cost: 20, image: '/images/Box/GoldBox1.png', type: 'consumable', limit: 10, limitType: 'weekly', grade: ItemGrade.Normal },
-    { itemId: '골드 꾸러미2', name: '골드 꾸러미2', description: '100 ~ 1,000 골드 획득', cost: 40, image: '/images/Box/GoldBox2.png', type: 'consumable', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
-    { itemId: '골드 꾸러미3', name: '골드 꾸러미3', description: '500 ~ 3,000 골드 획득', cost: 60, image: '/images/Box/GoldBox3.png', type: 'consumable', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
-    { itemId: '골드 꾸러미4', name: '골드 꾸러미4', description: '1,000 ~ 10,000 골드 획득', cost: 80, image: '/images/Box/GoldBox4.png', type: 'consumable', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
+    { itemId: '골드 꾸러미 I', name: '골드 꾸러미 I', description: '10 ~ 500 골드 획득', cost: 20, image: '/images/Box/GoldBox1.png', type: 'consumable', limit: 10, limitType: 'weekly', grade: ItemGrade.Normal },
+    { itemId: '골드 꾸러미 II', name: '골드 꾸러미 II', description: '100 ~ 1,000 골드 획득', cost: 40, image: '/images/Box/GoldBox2.png', type: 'consumable', limit: 5, limitType: 'weekly', grade: ItemGrade.Uncommon },
+    { itemId: '골드 꾸러미 III', name: '골드 꾸러미 III', description: '500 ~ 3,000 골드 획득', cost: 60, image: '/images/Box/GoldBox3.png', type: 'consumable', limit: 3, limitType: 'weekly', grade: ItemGrade.Rare },
+    { itemId: '골드 꾸러미 IV', name: '골드 꾸러미 IV', description: '1,000 ~ 10,000 골드 획득', cost: 80, image: '/images/Box/GoldBox4.png', type: 'consumable', limit: 1, limitType: 'weekly', grade: ItemGrade.Epic },
     { itemId: '보너스 스탯 +5', name: '보너스 스탯 +5', description: '모든 능력치에 자유롭게 분배할 수 있는 보너스 스탯 포인트를 5개 획득합니다.', cost: 10000, image: '/images/button/statpoint.png', type: 'consumable', limit: 10, limitType: 'account', grade: ItemGrade.Legendary },
 ];
 

@@ -497,6 +497,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             shrinkHeightToContent
             uniformPcScale={false}
             mobileViewportFit
+            mobileLockViewportHeight={isMobile}
             mobileViewportMaxHeightVh={97}
             bodyPaddingClassName={isMobile ? 'p-2 pb-0 sm:p-3 sm:pb-0' : 'p-3 sm:p-4'}
             modal={!modalLayerUsesDesignPixels}

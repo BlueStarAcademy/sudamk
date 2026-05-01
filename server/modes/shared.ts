@@ -9,6 +9,12 @@ import * as types from '../../types/index.js';
 import { broadcast } from '../socket.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
+import {
+    getCurrentPairTurnSeat,
+    isPairAiSeat,
+    isPairClassicGame,
+    syncPairTurnOrderWithAssignedColors,
+} from '../../shared/utils/pairGameTurn.js';
 
 // AI 대국 일시정지/재개 쿨다운 (서버 메모리 기반)
 // - "일시정지" 후 5초가 지나야 "대국 재개" 허용
@@ -45,6 +51,14 @@ export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean =
 export const transitionToPlaying = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'playing';
     game.currentPlayer = types.Player.Black;
+    if (isPairClassicGame(game.settings, game.mode) && game.settings.pairGame?.turnOrder?.length) {
+        syncPairTurnOrderWithAssignedColors(game.settings.pairGame, game.blackPlayerId, game.whitePlayerId);
+        const pairSeat = getCurrentPairTurnSeat(game.settings);
+        if (pairSeat) {
+            game.currentPlayer = pairSeat.player;
+        }
+        game.aiTurnStartTime = isPairAiSeat(pairSeat) ? now : undefined;
+    }
     game.turnStartTime = now;
     // 게임 시작 시간 설정 (처음 playing 상태로 전환될 때만)
     if (!game.gameStartTime) {
@@ -96,7 +110,11 @@ export const transitionToPlaying = (game: types.LiveGameSession, now: number) =>
     game.preGameConfirmations = {};
     
     // AI 게임인 경우 첫 턴이 AI면 aiTurnStartTime 설정
-    if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+    if (
+        game.isAiGame &&
+        !isPairClassicGame(game.settings, game.mode) &&
+        (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)
+    ) {
         const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
         if (currentPlayerId === aiUserId) {
             scheduleAiTurnStartForFreshUi(game, now);

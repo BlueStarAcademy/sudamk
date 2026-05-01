@@ -23,6 +23,7 @@ import CurlingStartConfirmationModal from './CurlingStartConfirmationModal.js';
 import AlkkagiStartConfirmationModal from './AlkkagiStartConfirmationModal.js';
 import SinglePlayerSummaryModal from './SinglePlayerSummaryModal.js';
 import TowerSummaryModal from './TowerSummaryModal.js';
+import PairTurnOrderModal from './PairTurnOrderModal.js';
 
 interface GameModalsProps extends GameProps {
     confirmModalType: 'resign' | null;
@@ -74,6 +75,7 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (gameStatus === 'dice_start_confirmation') return <DiceGoStartConfirmationModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'turn_preference_selection') return <TurnPreferenceSelection session={session} currentUser={currentUser} onAction={onAction} tiebreaker={session.turnSelectionTiebreaker} />;
         if (['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus)) return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
+        if (!isSpectator && gameStatus === 'pair_order_reveal' && session.settings.pairGame?.turnOrder?.length) return <PairTurnOrderModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'capture_bidding') return <CaptureBidModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (['capture_tiebreaker', 'capture_reveal'].includes(gameStatus)) return <CaptureTiebreakerModal session={session} currentUser={currentUser} onAction={onAction} />;
         if (gameStatus === 'komi_bidding') return <KomiBiddingPanel session={session} currentUser={currentUser} onAction={onAction} />;

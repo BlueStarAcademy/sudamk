@@ -1,4 +1,5 @@
 import { Player, type LiveGameSession, GameMode } from '../types/index.js';
+import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 
 /** 놀이바둑: moveHistory를 사용하지 않으므로 syncAiSession에서 moveCount로 lastProcessedMoveCount를 덮어쓰면 다음 AI 턴이 막힘 */
 const PLAYFUL_MODES_NO_MOVE_HISTORY: GameMode[] = [
@@ -171,6 +172,7 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
     const moveCount = game.moveHistory?.length ?? 0;
     session.lastUpdatedAt = Date.now();
 
+    const pairCurrentSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
     const isAiGame = game.isAiGame || game.blackPlayerId === aiPlayerId || game.whitePlayerId === aiPlayerId;
     const aiControlledBlack =
         game.blackPlayerId === aiPlayerId ||
@@ -178,10 +180,12 @@ export function syncAiSession(game: LiveGameSession, aiPlayerId: string, options
     const aiControlledWhite =
         game.whitePlayerId === aiPlayerId ||
         (game.whitePlayerId != null && String(game.whitePlayerId).startsWith('dungeon-bot-'));
-    const aiShouldMove = isAiGame &&
+    const aiShouldMove =
         game.currentPlayer !== Player.None &&
-        ((game.currentPlayer === Player.Black && aiControlledBlack) ||
-         (game.currentPlayer === Player.White && aiControlledWhite));
+        (Boolean(pairCurrentSeat && isPairAiSeat(pairCurrentSeat)) ||
+            (isAiGame &&
+                ((game.currentPlayer === Player.Black && aiControlledBlack) ||
+                    (game.currentPlayer === Player.White && aiControlledWhite))));
 
     if (aiShouldMove && !options.allowAdvanceOnAiTurn) {
         // AI 차례의 stale state가 들어와도 lastProcessedMoveCount를 뒤로 되감지 않는다.

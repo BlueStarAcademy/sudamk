@@ -1263,6 +1263,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+    const isPairGame = Boolean(session.settings.pairGame?.turnOrder?.length);
+    const isMobilePairGame = Boolean(isMobile && isPairGame);
     const aiLobbyRematchActionPointCost =
         SPECIAL_GAME_MODES.some(m => m.mode === mode)
             ? STRATEGIC_ACTION_POINT_COST
@@ -1613,7 +1615,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         const isPlayingState = gameStatus === 'playing';
         const currentGold = currentUser.gold ?? 0;
         const placementRefreshAllowed =
-            session.settings.singlePlayerPlacementRefreshAllowed !== false &&
+            (session.settings as { singlePlayerPlacementRefreshAllowed?: boolean }).singlePlayerPlacementRefreshAllowed !== false &&
             currentStage?.allowPlacementRefresh !== false;
         const canRefreshNow = placementRefreshAllowed && !isGameEnded && isPlayingState && moveCount === 0 && remainingRefreshes > 0;
         const canAffordRefresh = currentGold >= nextCost;
@@ -1691,6 +1693,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 redirectHash = '#/guildwar';
             } else if (session.gameCategory === 'tower') {
                 redirectHash = '#/tower';
+            } else if (session.settings?.pairGame) {
+                redirectHash = '#/pair';
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
                 redirectHash = `#/waiting/${waitingRoomMode}`;
@@ -2084,7 +2088,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 <>
                     {isStrategic &&
                         mode !== GameMode.Capture &&
-                        !isAiLobbyGame &&
+                        (!isAiLobbyGame || isPairGame) &&
                         session.gameCategory !== 'adventure' && (
                         <LabeledControlButton
                             key="pass"
@@ -2142,10 +2146,10 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
     return (
         <footer
-            className={`${arenaGameRoomControlsFooterCompactClass} ${onlineGameControlsCompactFooterMinHeightClass(!!isMobile)}`}
+            className={`${arenaGameRoomControlsFooterCompactClass} ${isMobilePairGame ? '!gap-1 !p-1' : onlineGameControlsCompactFooterMinHeightClass(!!isMobile)}`}
         >
             {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
-            {!isSinglePlayer && !session.isAiGame ? (
+            {!isSinglePlayer && !session.isAiGame && !isMobilePairGame ? (
                 <div
                     className={`flex w-full min-w-0 flex-row items-center ${arenaGameRoomControlsInnerPanelClass} ${
                         isMobile ? 'gap-2' : 'gap-3 min-[1025px]:gap-2'
@@ -2158,7 +2162,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         <ActionButtonsPanel session={session} isSpectator={isSpectator} onAction={onAction} currentUser={currentUser} isMobile={isMobile} />
                     </div>
                 </div>
-            ) : !isSinglePlayer && session.isAiGame ? (
+            ) : !isSinglePlayer && session.isAiGame && !isMobilePairGame ? (
                 <div className={`${arenaGameRoomControlsInnerPanelClass} flex flex-row items-center justify-center gap-4 w-full min-w-0 min-[1025px]:py-1 min-[1025px]:px-1.5`}>
                     <p className="text-xs min-[1025px]:text-[11px] text-slate-500 italic whitespace-nowrap truncate">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
                 </div>
@@ -2192,23 +2196,23 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             ) : isMobile ? (
                 isGameEnded ? (
                     <div
-                        className={`flex min-h-[5.35rem] w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
+                        className={`flex ${isMobilePairGame ? 'min-h-[3.15rem]' : 'min-h-[5.35rem]'} w-full min-w-0 items-center justify-center ${arenaGameRoomControlsInnerPanelClass}`}
                     >
                         <div className={`${arenaPostGameIngameEndedRowClass} max-w-full`}>{primaryControlsInner}</div>
                     </div>
                 ) : (
-                    <div className="flex w-full min-w-0 max-w-full gap-2 overflow-hidden">
-                        <div className={`flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelClass}`}>
+                    <div className={`flex w-full min-w-0 max-w-full overflow-hidden ${isMobilePairGame ? 'gap-1' : 'gap-2'}`}>
+                        <div className={`flex ${isMobilePairGame ? 'min-h-[3.15rem] !p-1' : 'min-h-[5.35rem]'} min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelClass}`}>
                             <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
-                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2 sm:gap-4">
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass={isMobilePairGame ? 'gap-1.5' : 'gap-2 sm:gap-4'}>
                                     {primaryControlsInner}
                                 </ArenaControlStrip>
                             </div>
                         </div>
                         <div className={`${arenaGameRoomControlsDividerClass} w-0.5 shrink-0`} aria-hidden />
-                        <div className={`flex min-h-[5.35rem] min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelAccentClass}`}>
+                        <div className={`flex ${isMobilePairGame ? 'min-h-[3.15rem] !p-1' : 'min-h-[5.35rem]'} min-w-0 flex-1 flex-col justify-center overflow-hidden ${arenaGameRoomControlsInnerPanelAccentClass}`}>
                             <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
-                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-2 sm:gap-4">
+                                <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass={isMobilePairGame ? 'gap-1.5' : 'gap-2 sm:gap-4'}>
                                     {specialControlsInner}
                                 </ArenaControlStrip>
                             </div>

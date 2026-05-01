@@ -12,8 +12,18 @@ import {
     MYTHIC_STATS_DATA,
     GRADE_LEVEL_REQUIREMENTS,
     isActionPointConsumable,
+    PAIR_PET_CATALOG,
 } from '../../constants';
 import { computeEnhancedMainValueAtStars } from '../../shared/utils/equipmentEnhancementStars.js';
+import {
+    PAIR_PET_HATCH_DISPOSITION_ENCYCLOPEDIA_LINES,
+    PAIR_PET_HATCH_SPECIALIZATION_ENCYCLOPEDIA_LINES,
+} from '../../shared/utils/pairPetRoll.js';
+import {
+    isPairSoulStoneMaterialName,
+    PAIR_EGG_MATERIAL_NAME,
+    PAIR_SOULSTONE_NAMES,
+} from '../../shared/constants/petLobby.js';
 import { getMaterialBagUsageLines } from '../../shared/utils/bagItemDetailHelpers.js';
 import {
     MYTHIC_GRADE_SPECIAL_OPTION_STATS,
@@ -64,6 +74,11 @@ function encyclopediaItemKey(item: EncyclopediaItem): string {
 
 function encyclopediaItemsEqual(a: EncyclopediaItem, b: EncyclopediaItem): boolean {
     return a.name === b.name && a.grade === b.grade && a.type === b.type && (a.slot ?? null) === (b.slot ?? null);
+}
+
+/** 도감 재료 탭에서 제외 — 펫 탭(알·영혼석)으로만 표시 */
+function isPetTabExclusiveMaterial(item: Pick<InventoryItem, 'name'>): boolean {
+    return isPairSoulStoneMaterialName(item.name) || item.name === PAIR_EGG_MATERIAL_NAME;
 }
 
 function formatEncyclopediaMainStatNumber(v: number): string {
@@ -216,7 +231,7 @@ const EncyclopediaIconCell: React.FC<{
 );
 
 const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmost }) => {
-    type MainTab = 'equipment' | 'material' | 'consumable';
+    type MainTab = 'equipment' | 'material' | 'consumable' | 'pet';
 
     const [mainTab, setMainTab] = useState<MainTab>('equipment');
 
@@ -259,9 +274,9 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         return map;
     }, []);
 
-    /** 도감 재료 탭: 변경권 / 강화석 구분 (이름 기준) */
+    /** 도감 재료 탭: 변경권 / 강화석 구분 (이름 기준). 알·영혼석은 펫 탭 전용 */
     const materialItemsByGroup = useMemo(() => {
-        const all = Object.values(MATERIAL_ITEMS) as InventoryItem[];
+        const all = (Object.values(MATERIAL_ITEMS) as InventoryItem[]).filter((i) => !isPetTabExclusiveMaterial(i));
         const byGrade = (a: InventoryItem, b: InventoryItem) => gradeOrder[a.grade] - gradeOrder[b.grade];
         const tickets = all.filter((i) => i.name.includes('변경권')).sort(byGrade);
         const stones = all.filter((i) => i.name.includes('강화석')).sort(byGrade);
@@ -309,6 +324,48 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         }
 
         return sections;
+    }, []);
+
+    /** 도감 펫 탭: 알 → 영혼석 → 페어 펫 종류 */
+    const petTabSections = useMemo((): { key: string; title: string; items: EncyclopediaItem[] }[] => {
+        const eggRow = MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS];
+        const eggItems: EncyclopediaItem[] = eggRow
+            ? [
+                  {
+                      name: eggRow.name,
+                      description: eggRow.description,
+                      type: 'material',
+                      slot: null,
+                      image: eggRow.image,
+                      grade: eggRow.grade,
+                  },
+              ]
+            : [];
+        const soulItems: EncyclopediaItem[] = PAIR_SOULSTONE_NAMES.map((name) => {
+            const row = MATERIAL_ITEMS[name as keyof typeof MATERIAL_ITEMS];
+            if (!row) return null;
+            return {
+                name: row.name,
+                description: row.description,
+                type: 'material' as const,
+                slot: null,
+                image: row.image,
+                grade: row.grade,
+            };
+        }).filter(Boolean) as EncyclopediaItem[];
+        const speciesItems: EncyclopediaItem[] = PAIR_PET_CATALOG.map((p) => ({
+            name: p.displayName,
+            description: p.description,
+            type: 'material',
+            slot: null,
+            image: p.image,
+            grade: p.grade,
+        }));
+        return [
+            { key: 'egg', title: '알', items: eggItems },
+            { key: 'soul', title: '영혼석', items: soulItems },
+            { key: 'species', title: '페어 펫', items: speciesItems },
+        ];
     }, []);
 
     useEffect(() => {
@@ -676,121 +733,184 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         );
     };
 
+    const encyclopediaGradeChipClass = (grade: ItemGrade) =>
+        grade === 'mythic'
+            ? 'border-amber-300/40 bg-amber-300/15 text-amber-100'
+            : grade === 'transcendent'
+              ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-100'
+              : 'border-white/15 bg-white/5 text-slate-200';
+
     const renderItemBubbleInner = (item: EncyclopediaItem) => {
         const isEquipmentDetail = item.type === 'equipment' && item.slot;
 
-        if (mainTab === 'equipment' && isEquipmentDetail) {
-            return (
-                <div className="flex flex-col gap-2.5 sm:gap-3.5">
-                    <div className="rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/20 via-white/[0.02] to-indigo-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-3">
-                        <div className="flex items-start gap-2 sm:gap-3">
-                            <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg ring-2 ring-amber-400/30 shadow-lg sm:h-16 sm:w-16">
-                                <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                                {item.image ? (
-                                    <img
-                                        src={item.image}
-                                        alt=""
-                                        className="absolute object-contain"
-                                        style={{
-                                            width: '80%',
-                                            height: '80%',
-                                            left: '50%',
-                                            top: '50%',
-                                            transform: 'translate(-50%, -50%)',
-                                        }}
-                                    />
-                                ) : null}
-                            </div>
-                            <div className="min-w-0 flex-1">
-                                <h3 className={`line-clamp-2 text-sm font-black leading-tight sm:truncate sm:text-base sm:leading-tight lg:text-lg ${gradeStyles[item.grade].color}`}>
-                                    {item.name}
-                                </h3>
-                                <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] sm:gap-1.5 sm:text-xs">
-                                    <span className="rounded-full border border-white/15 bg-black/35 px-2 py-0.5 text-slate-100">
-                                        {item.slot ? slotNames[item.slot] : '—'}
-                                    </span>
-                                    <span
-                                        className={`rounded-full border px-2 py-0.5 ${
-                                            item.grade === 'mythic'
-                                                ? 'border-amber-300/40 bg-amber-300/15 text-amber-100'
-                                                : item.grade === 'transcendent'
-                                                  ? 'border-cyan-300/40 bg-cyan-300/15 text-cyan-100'
-                                                  : 'border-white/15 bg-white/5 text-slate-200'
-                                        }`}
-                                    >
-                                        {gradeStyles[item.grade].name}
-                                    </span>
-                                    <span className="rounded-full border border-emerald-300/25 bg-emerald-500/10 px-2 py-0.5 text-emerald-200/90">
-                                        착용 레벨 합 {GRADE_LEVEL_REQUIREMENTS[item.grade]}
-                                    </span>
-                                </div>
-                                <p className="mt-1.5 rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] leading-snug text-slate-300 sm:mt-2 sm:px-2.5 sm:py-2 sm:text-sm sm:leading-relaxed">
-                                    {item.description}
-                                </p>
-                            </div>
+        const kindLabel =
+            isEquipmentDetail && item.slot
+                ? slotNames[item.slot]
+                : item.type === 'equipment'
+                  ? '장비'
+                  : mainTab === 'pet'
+                    ? isPairSoulStoneMaterialName(item.name)
+                        ? '영혼석'
+                        : item.name === PAIR_EGG_MATERIAL_NAME
+                          ? '알'
+                          : '페어 펫'
+                    : mainTab === 'material'
+                      ? '재료'
+                      : mainTab === 'consumable'
+                        ? '소모품'
+                        : item.type;
+
+        const materialUsageLines = mainTab === 'material' ? getMaterialBagUsageLines(item.name) : [];
+
+        const headerCard = (
+            <div className="rounded-xl border border-amber-300/25 bg-gradient-to-r from-amber-950/20 via-white/[0.02] to-indigo-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-3">
+                <div className="flex items-start gap-2 sm:gap-3">
+                    <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg ring-2 ring-amber-400/30 shadow-lg sm:h-16 sm:w-16">
+                        <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                        {isActionPointConsumable(item.name) ? (
+                            <ActionPointIconOverlay name={item.name} compact />
+                        ) : item.image ? (
+                            <img
+                                src={item.image}
+                                alt=""
+                                className="absolute object-contain"
+                                style={{
+                                    width: '80%',
+                                    height: '80%',
+                                    left: '50%',
+                                    top: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                }}
+                            />
+                        ) : null}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <h3
+                            className={`line-clamp-3 text-sm font-black leading-tight sm:text-base sm:leading-tight lg:text-lg ${gradeStyles[item.grade].color}`}
+                        >
+                            {item.name}
+                        </h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] sm:gap-1.5 sm:text-xs">
+                            <span className="rounded-full border border-white/15 bg-black/35 px-2 py-0.5 text-slate-100">{kindLabel}</span>
+                            <span className={`rounded-full border px-2 py-0.5 ${encyclopediaGradeChipClass(item.grade)}`}>
+                                {gradeStyles[item.grade].name}
+                            </span>
+                            {isEquipmentDetail ? (
+                                <span className="rounded-full border border-emerald-300/25 bg-emerald-500/10 px-2 py-0.5 text-emerald-200/90">
+                                    착용 레벨 합 {GRADE_LEVEL_REQUIREMENTS[item.grade]}
+                                </span>
+                            ) : null}
                         </div>
+                        <p className="mt-1.5 rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-left text-[11px] leading-snug text-slate-300 sm:mt-2 sm:px-2.5 sm:py-2 sm:text-sm sm:leading-relaxed">
+                            {item.description}
+                        </p>
                     </div>
-                    <div className="min-h-0 min-w-0 flex-1 pr-0.5 text-left">
-                        {renderEquipmentSubOptions(item, encyclopediaEquipStars)}
+                </div>
+            </div>
+        );
+
+        let footer: React.ReactNode = null;
+
+        if (mainTab === 'equipment' && isEquipmentDetail) {
+            footer = <div className="min-h-0 min-w-0 pr-0.5">{renderEquipmentSubOptions(item, encyclopediaEquipStars)}</div>;
+        } else if (mainTab === 'pet') {
+            if (isPairSoulStoneMaterialName(item.name)) {
+                footer = (
+                    <p className="text-[11px] leading-snug text-slate-300 sm:text-sm">
+                        페어 경기장 동료 AI 펫의 성장·등급 상승 등에 소모되는 재료입니다.
+                    </p>
+                );
+            } else if (item.name === PAIR_EGG_MATERIAL_NAME) {
+                footer = (
+                    <p className="text-[11px] leading-snug text-slate-300 sm:text-sm">
+                        부화장에서 무작위 종류의 AI 펫으로 부화할 수 있습니다. 페어 경기장 상점 등에서 구할 수 있습니다.
+                    </p>
+                );
+            } else {
+                footer = (
+                    <div className="space-y-3">
+                        <div>
+                            <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-wider text-fuchsia-200/85">부화 시 성향</p>
+                            <ul className="space-y-1 pl-4 text-[11px] leading-snug text-slate-300 sm:text-xs marker:text-fuchsia-400/70">
+                                {PAIR_PET_HATCH_DISPOSITION_ENCYCLOPEDIA_LINES.map((line, i) => (
+                                    <li key={`dis-${i}`}>{line}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div>
+                            <p className="mb-1.5 text-[0.65rem] font-bold uppercase tracking-wider text-amber-200/85">부화 시 특화</p>
+                            <ul className="space-y-1 pl-4 text-[11px] leading-snug text-slate-300 sm:text-xs marker:text-amber-400/70">
+                                {PAIR_PET_HATCH_SPECIALIZATION_ENCYCLOPEDIA_LINES.map((line, i) => (
+                                    <li key={`spec-${i}`}>{line}</li>
+                                ))}
+                            </ul>
+                        </div>
+                        <p className="text-[10px] leading-snug text-slate-500 sm:text-[11px]">
+                            신비로운알·부화장 등으로 펫을 얻을 때 무작위로 적용됩니다.
+                        </p>
                     </div>
+                );
+            }
+        } else if (mainTab === 'material' && materialUsageLines.length > 0) {
+            footer = (
+                <div className="max-h-[min(40vh,14rem)] overflow-y-auto overscroll-y-contain pr-0.5 [-webkit-overflow-scrolling:touch]">
+                    <h5 className="text-[10px] font-extrabold uppercase tracking-wide text-sky-200/95 sm:text-xs">사용처</h5>
+                    <ul className="mt-1.5 space-y-1 text-[11px] leading-snug text-slate-300 sm:text-sm">
+                        {materialUsageLines.map((line, i) => (
+                            <li key={`use-${i}`} className="border-l-2 border-sky-500/35 py-0.5 pl-2.5 text-slate-300">
+                                {line}
+                            </li>
+                        ))}
+                    </ul>
                 </div>
             );
         }
 
         return (
-            <div className="flex flex-col items-center">
-                <div className="relative h-20 w-20 overflow-hidden rounded-xl ring-2 ring-amber-400/25 shadow-lg sm:h-28 sm:w-28">
-                    <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                    {isActionPointConsumable(item.name) ? (
-                        <ActionPointIconOverlay name={item.name} compact />
-                    ) : item.image ? (
-                        <img
-                            src={item.image}
-                            alt=""
-                            className="absolute object-contain"
-                            style={{
-                                width: '78%',
-                                height: '78%',
-                                padding: '10%',
-                                left: '50%',
-                                top: '50%',
-                                transform: 'translate(-50%, -50%)',
-                            }}
-                        />
-                    ) : null}
+            <div className="flex flex-col gap-2.5 sm:gap-3.5">
+                {headerCard}
+                {footer ? (
+                    <div className="min-h-0 min-w-0 border-t border-white/10 pt-2.5 text-left sm:pt-3">{footer}</div>
+                ) : null}
+            </div>
+        );
+    };
+
+    const renderPetIconGrid = () => {
+        const hasAny = petTabSections.some((s) => s.items.length > 0);
+        return (
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div className={listScrollClass}>
+                    {!hasAny ? (
+                        <div className="flex h-24 items-center justify-center text-sm text-slate-500">표시할 항목이 없습니다.</div>
+                    ) : (
+                        <div className="flex flex-col gap-4">
+                            {petTabSections.map(({ key, title, items }) =>
+                                items.length === 0 ? null : (
+                                    <div key={key} className="min-w-0">
+                                        <div className="mb-2 flex items-center gap-2 border-b border-amber-500/20 pb-1.5">
+                                            <span className="text-[11px] font-black uppercase tracking-[0.12em] text-amber-200/75 sm:text-xs">펫</span>
+                                            <h4 className="text-sm font-bold tracking-tight text-amber-100 sm:text-base">{title}</h4>
+                                            <span className="ml-auto rounded-md bg-black/35 px-2 py-0.5 text-[10px] tabular-nums text-slate-400">
+                                                {items.length}
+                                            </span>
+                                        </div>
+                                        <div className={miscIconGridClass}>
+                                            {items.map((item) => (
+                                                <EncyclopediaIconCell
+                                                    key={encyclopediaItemKey(item)}
+                                                    item={item}
+                                                    bubbleOpen={isBubbleForItem(item)}
+                                                    onToggleBubble={(el) => toggleItemBubble(item, el)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            )}
+                        </div>
+                    )}
                 </div>
-                <h3 className={`mt-2 text-center text-base font-black leading-snug tracking-tight sm:mt-3 sm:text-xl ${gradeStyles[item.grade].color}`}>
-                    {item.name}
-                </h3>
-                <p
-                    className={`mt-0.5 text-center text-[11px] sm:mt-1 sm:text-sm ${
-                        item.type === 'equipment' ? gradeStyles[item.grade].color : 'text-slate-400'
-                    }`}
-                >
-                    {item.type === 'equipment'
-                        ? `${gradeStyles[item.grade].name} · ${item.slot ? slotNames[item.slot] : ''}`
-                        : mainTab === 'material'
-                          ? '재료'
-                          : '소모품'}
-                </p>
-                {item.type === 'equipment' && (
-                    <p className="mt-0.5 text-center text-[10px] text-slate-500 sm:mt-1 sm:text-[11px]">{`착용 레벨 합: ${GRADE_LEVEL_REQUIREMENTS[item.grade]}`}</p>
-                )}
-                {(() => {
-                    const materialUsageLines = mainTab === 'material' ? getMaterialBagUsageLines(item.name) : [];
-                    const appendMaterialUsage =
-                        materialUsageLines.length > 0 && materialUsageLines.length <= 6
-                            ? `\n\n사용처 :\n${materialUsageLines.join('\n')}`
-                            : '';
-                    return (
-                        <p
-                            className={`mt-2 w-full border-t border-white/10 pt-2 text-left text-[11px] leading-snug text-slate-300 sm:mt-3 sm:pt-3 sm:text-center sm:text-base sm:leading-relaxed${appendMaterialUsage ? ' whitespace-pre-line' : ''}`}
-                        >
-                            {item.description}
-                            {appendMaterialUsage}
-                        </p>
-                    );
-                })()}
             </div>
         );
     };
@@ -812,6 +932,13 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
             return (
                 <div className={leftPanelShellClass}>
                     {renderMaterialIconGrid()}
+                </div>
+            );
+        }
+        if (mainTab === 'pet') {
+            return (
+                <div className={leftPanelShellClass}>
+                    {renderPetIconGrid()}
                 </div>
             );
         }
@@ -840,6 +967,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                     {mainTabBtn('equipment', '장비')}
                     {mainTabBtn('material', '재료')}
                     {mainTabBtn('consumable', '소모품')}
+                    {mainTabBtn('pet', '펫')}
                 </div>
                 <div className="flex min-h-0 flex-col">{renderLeftPanel()}</div>
             </div>

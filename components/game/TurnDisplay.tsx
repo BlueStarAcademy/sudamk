@@ -11,6 +11,7 @@ import {
 import { audioService } from '../../services/audioService.js';
 import { arenaGameRoomTurnDisplayBgClass } from './arenaGameRoomStyles.js';
 import { getSessionPlayerDisplayName } from '../../utils/gameDisplayNames.js';
+import { getCurrentPairTurnSeat } from '../../shared/utils/pairGameTurn.js';
 
 const AI_HIDDEN_ITEM_MESSAGE = 'AI봇이 히든 아이템을 사용했습니다!';
 const MONSTER_HIDDEN_ITEM_MESSAGE = '몬스터가 히든 아이템을 사용했습니다!';
@@ -44,6 +45,18 @@ function usePrevious<T>(value: T): T | undefined {
 
 const getGameStatusText = (session: LiveGameSession): string => {
     const { gameStatus, currentPlayer, blackPlayerId, whitePlayerId, player1, player2, mode, settings, passCount, moveHistory, alkkagiRound } = session;
+    const pairGame = session.settings.pairGame;
+    const pairCurrentSeat = getCurrentPairTurnSeat(session.settings);
+    const pairSeatLabel =
+        pairCurrentSeat?.seatId === 'black1'
+            ? '흑1'
+            : pairCurrentSeat?.seatId === 'black2'
+              ? '흑2'
+              : pairCurrentSeat?.seatId === 'white1'
+                ? '백1'
+                : pairCurrentSeat?.seatId === 'white2'
+                  ? '백2'
+                  : null;
 
     const getPlayerByEnum = (playerEnum: Player): User | null => {
         const targetId = playerEnum === Player.Black ? blackPlayerId : whitePlayerId;
@@ -87,7 +100,15 @@ const getGameStatusText = (session: LiveGameSession): string => {
     // 싱글플레이어 게임에서는 통과 기능이 없으므로 통과 텍스트를 표시하지 않음
     const isSinglePlayer = session.isSinglePlayer || session.gameCategory === 'singleplayer';
     
-    if (!isSinglePlayer) {
+    if (pairGame?.turnOrder?.length) {
+        const passCountPair = pairGame.passSeatIds?.length ?? 0;
+        if (gameStatus === 'scoring') {
+            return '4명 모두 통과하여 계가를 진행합니다.';
+        }
+        if (gameStatus !== 'ended' && passCountPair > 0 && lastMoveInHistory?.x === -1) {
+            return `통과 ${passCountPair}/4`;
+        }
+    } else if (!isSinglePlayer) {
         if (passCount >= 2 && lastMoveInHistory?.x === -1) {
             return "양측 모두 통과하여 계가를 시작합니다.";
         }
@@ -103,6 +124,9 @@ const getGameStatusText = (session: LiveGameSession): string => {
 
     switch (gameStatus) {
         case 'playing':
+            if (pairCurrentSeat) {
+                return `${pairSeatLabel} ${pairCurrentSeat.name}님의 차례입니다.`;
+            }
             return player ? `${getSessionPlayerDisplayName(session, player)}님의 차례입니다.` : '대국 진행 중';
         case 'nigiri_choosing':
         case 'nigiri_guessing':
@@ -135,6 +159,9 @@ const getGameStatusText = (session: LiveGameSession): string => {
         case 'hidden_final_reveal':
             return "모든 히든돌을 공개하고 계가를 시작합니다.";
         case 'scoring': {
+            if (pairGame?.turnOrder?.length) {
+                return '4명 모두 통과하여 계가를 진행합니다.';
+            }
             const limit = (settings as any)?.scoringTurnLimit ?? (settings as any)?.autoScoringTurns;
             const isOnlineStrategic =
                 !isSinglePlayer &&

@@ -52,28 +52,29 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
             windowId="sellItemConfirm"
             isTopmost={isTopmost}
             variant="store"
-            initialWidth={440}
-            initialHeight={580}
+            initialWidth={460}
+            initialHeight={640}
+            shrinkHeightToContent
             mobileViewportFit
-            mobileViewportMaxHeightVh={92}
+            mobileViewportMaxHeightVh={96}
             bodyPaddingClassName="p-0 sm:p-0"
         >
             <>
-            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-3 pb-2 text-slate-100 sm:p-5 sm:pb-4">
+            <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto overscroll-contain p-3 pb-2 text-slate-100 sm:gap-2.5 sm:p-3 sm:pb-2">
                 <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-br from-slate-900/95 via-slate-950/90 to-zinc-950/95 p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-4">
                     <p className="text-center text-xs font-bold tracking-wide text-amber-200/90 sm:text-[11px] sm:font-semibold sm:uppercase sm:tracking-[0.2em] sm:text-amber-200/70">
                         판매 확인
                     </p>
-                    <h3 className="mt-2 text-center text-xl font-black leading-snug tracking-tight text-slate-50 sm:mt-1 sm:text-lg">
+                    <h3 className="mt-1 text-center text-xl font-black leading-snug tracking-tight text-slate-50 sm:text-lg">
                         이 아이템을 판매할까요?
                     </h3>
-                    <p className="mt-2 text-center text-sm leading-relaxed text-slate-300 sm:mt-1 sm:text-xs sm:text-slate-400">
+                    <p className="mt-1 text-center text-sm text-slate-300 sm:mt-1 sm:text-xs sm:text-slate-400">
                         확인하면 가방에서 사라지고, 아래 금액만큼 골드를 받습니다.
                     </p>
 
-                    <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-white/[0.06] bg-black/25 p-3 sm:mt-5 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+                    <div className="mt-2 flex flex-col items-center gap-2 rounded-xl border border-white/[0.06] bg-black/25 p-2.5 sm:mt-3 sm:flex-row sm:items-center sm:gap-3 sm:p-3">
                         <div
-                            className={`relative flex h-[7.25rem] w-[7.25rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-black/30 sm:h-[7.25rem] sm:w-[7.25rem] ${
+                            className={`relative flex h-[6rem] w-[6rem] shrink-0 overflow-hidden rounded-xl ring-1 ring-black/30 sm:h-[6.5rem] sm:w-[6.5rem] ${
                                 isTranscendent ? 'transcendent-grade-slot' : ''
                             }`}
                         >
@@ -106,9 +107,9 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
                                     보유{' '}
                                     <span className="font-semibold text-slate-100">{item.quantity.toLocaleString()}</span>개
                                     {item.type === 'material' ? (
-                                        <span className="block text-slate-400 sm:inline sm:text-slate-500">이번 판매: 1개만 빠집니다</span>
+                                        <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500"> · 이번 판매: 1개만 빠집니다</span>
                                     ) : (
-                                        <span className="block text-slate-400 sm:inline sm:text-slate-500">소모품은 전부 판매됩니다</span>
+                                        <span className="mt-0.5 block text-slate-400 sm:mt-0 sm:inline sm:text-slate-500"> · 소모품은 전부 판매됩니다</span>
                                     )}
                                 </p>
                             )}
@@ -116,50 +117,48 @@ const SellItemConfirmModal: React.FC<SellItemConfirmModalProps> = ({ item, onClo
                     </div>
                 </div>
 
-                <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-yellow-950/35 to-amber-950/50 p-3 shadow-[0_0_32px_-12px_rgba(245,158,11,0.35)] sm:p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                        <div className="flex items-center justify-center gap-3 sm:justify-start">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-900/40 shadow-inner sm:h-10 sm:w-10">
-                                <img src="/images/icon/Gold.png" alt="" className="h-8 w-8 object-contain opacity-95 sm:h-7 sm:w-7" />
+                <div className="rounded-2xl border border-amber-500/25 bg-gradient-to-r from-amber-950/50 via-yellow-950/35 to-amber-950/50 p-3 shadow-[0_0_32px_-12px_rgba(245,158,11,0.35)] sm:p-3">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <div className="flex items-center justify-center gap-2 sm:justify-start">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-900/40 sm:h-9 sm:w-9">
+                                <img src="/images/icon/Gold.png" alt="" className="h-7 w-7 object-contain opacity-95 sm:h-6 sm:w-6" />
                             </div>
                             <div className="min-w-0 text-left">
-                                <p className="text-xs font-bold text-amber-200/85 sm:text-[10px] sm:uppercase sm:tracking-wider sm:text-amber-200/60">
+                                <p className="text-xs font-bold uppercase tracking-wider text-amber-200/85 sm:text-[11px] sm:text-amber-200/65">
                                     {isDeleteOnly ? '정산 안내' : '받을 골드'}
                                 </p>
-                                <p className="text-sm text-amber-100/80 sm:text-xs sm:text-amber-100/50">
+                                <p className="text-sm text-amber-100/80 sm:text-xs sm:text-amber-100/55">
                                     {isDeleteOnly ? '골드 0 — 인벤에서만 삭제됩니다' : '판매 후 지급'}
                                 </p>
                             </div>
                         </div>
                         <p
-                            className={`text-center text-3xl font-black tabular-nums tracking-tight sm:text-right ${
-                                isDeleteOnly ? 'text-slate-500' : 'text-amber-200 [text-shadow:0_0_24px_rgba(251,191,36,0.35)]'
+                            className={`text-center text-2xl font-black tabular-nums tracking-tight sm:text-right sm:text-xl md:text-2xl ${
+                                isDeleteOnly ? 'text-slate-500' : 'text-amber-200 [text-shadow:0_0_20px_rgba(251,191,36,0.3)]'
                             }`}
                         >
                             {isDeleteOnly ? '0' : sellPrice.toLocaleString()}
                         </p>
                     </div>
                     {isDeleteOnly && (
-                        <p className="mt-3 border-t border-amber-500/15 pt-3 text-center text-sm text-slate-400 sm:text-xs sm:text-slate-500">
+                        <p className="mt-2 border-t border-amber-500/15 pt-2 text-center text-sm text-slate-400 sm:text-[11px] sm:text-slate-500">
                             골드는 오르지 않고, 아이템만 사라집니다.
                         </p>
                     )}
                 </div>
             </div>
-                <div
-                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex gap-3 border-t border-white/[0.08] bg-slate-950/95 p-3 pt-3 sm:p-5`}
-                >
+                <div className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex gap-2 border-t border-white/[0.08] bg-slate-950/95 p-2.5 sm:p-3`}>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="min-h-[48px] flex-1 rounded-xl border border-white/12 bg-slate-800/70 px-4 py-3.5 text-base font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all hover:border-slate-500/40 hover:bg-slate-700/80 active:scale-[0.98] sm:min-h-0 sm:text-sm"
+                        className="min-h-[42px] flex-1 rounded-xl border border-white/12 bg-slate-800/70 px-3 py-2.5 text-sm font-bold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition-all hover:border-slate-500/40 hover:bg-slate-700/80 active:scale-[0.98] sm:min-h-0"
                     >
                         취소
                     </button>
                     <button
                         type="button"
                         onClick={onConfirm}
-                        className="group min-h-[48px] flex-1 rounded-xl border border-rose-400/40 bg-gradient-to-b from-rose-500/95 via-rose-600 to-rose-950 px-4 py-3.5 text-base font-black text-rose-50 shadow-[0_6px_24px_-6px_rgba(244,63,94,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-rose-300/50 hover:from-rose-400 hover:via-rose-500 hover:shadow-[0_8px_28px_-6px_rgba(244,63,94,0.6)] active:scale-[0.98] sm:min-h-0 sm:text-sm"
+                        className="min-h-[42px] flex-1 rounded-xl border border-rose-400/40 bg-gradient-to-b from-rose-500/95 via-rose-600 to-rose-950 px-3 py-2.5 text-sm font-black text-rose-50 shadow-[0_6px_24px_-6px_rgba(244,63,94,0.55),inset_0_1px_0_rgba(255,255,255,0.15)] transition-all hover:border-rose-300/50 hover:from-rose-400 hover:via-rose-500 active:scale-[0.98] sm:min-h-0"
                     >
                         판매 확정
                     </button>

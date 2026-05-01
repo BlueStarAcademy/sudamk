@@ -11,6 +11,7 @@ import {
     FeatureSettings,
 } from './types/index.js';
 import GameArena from './components/GameArena.js';
+import Avatar from './components/Avatar.js';
 import Header from './components/Header.js';
 import Sidebar from './components/game/Sidebar.js';
 import PlayerPanel from './components/game/PlayerPanel.js';
@@ -19,7 +20,7 @@ import TurnDisplay from './components/game/TurnDisplay.js';
 import { audioService } from './services/audioService.js';
 import { TerritoryAnalysisWindow, HintWindow } from './components/game/AnalysisWindows.js';
 import GameControls from './components/game/GameControls.js';
-import { PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, aiUserId } from './constants.js';
+import { AVATAR_POOL, BORDER_POOL, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, aiUserId } from './constants.js';
 import { useAppContext } from './hooks/useAppContext.js';
 import DisconnectionModal from './components/DisconnectionModal.js';
 // FIX: Import TimeoutFoulModal component to resolve 'Cannot find name' error.
@@ -47,6 +48,10 @@ import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { replaceAppHash } from './utils/appUtils.js';
 import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
+import { getCurrentPairTurnSeat, PAIR_TURN_SEAT_IDS } from './shared/utils/pairGameTurn.js';
+import { getPairPetDefinition } from './shared/constants/petLobby.js';
+import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
+import { resolvePairPetMetaFromInventoryRow } from './shared/utils/pairPetRoll.js';
 import {
     isOnboardingTutorialActive,
     ONBOARDING_INGAME_SP_STEP_EVENT,
@@ -129,6 +134,275 @@ const MoveConfirmDraggable: React.FC<MoveConfirmDraggableProps> = ({
         </div>
     </DraggableMoveConfirmPanel>
 );
+
+type PairSeat = NonNullable<NonNullable<LiveGameSession['settings']['pairGame']>['turnOrder']>[number];
+type PairClientTimes = { black: number; white: number };
+
+function sortPairSeatsBySeatId(seats: PairSeat[]): PairSeat[] {
+    return [...seats].sort((a, b) => PAIR_TURN_SEAT_IDS.indexOf(a.seatId) - PAIR_TURN_SEAT_IDS.indexOf(b.seatId));
+}
+
+const pairSeatShortLabel = (seatId: string): string =>
+    seatId === 'black1' ? '흑1' : seatId === 'black2' ? '흑2' : seatId === 'white1' ? '백1' : seatId === 'white2' ? '백2' : seatId;
+
+function pairSeatOwnerUser(session: LiveGameSession, seat: PairSeat) {
+    const directUser = session.player1.id === seat.participantId ? session.player1 : session.player2.id === seat.participantId ? session.player2 : null;
+    if (directUser) return directUser;
+    if (seat.participantId.startsWith('pet-ai-')) {
+        const uid = seat.participantId.slice('pet-ai-'.length);
+        return session.player1.id === uid ? session.player1 : session.player2.id === uid ? session.player2 : null;
+    }
+    return null;
+}
+
+function pairSeatDisplayInfo(session: LiveGameSession, seat: PairSeat): { name: string; avatarUrl: string | null; borderUrl: string | null } {
+    const owner = pairSeatOwnerUser(session, seat);
+    if (seat.kind === 'user') {
+        const level = Math.max(1, Number(owner?.strategyLevel ?? 1) || 1);
+        return {
+            name: `Lv.${level} ${owner?.nickname ?? seat.name}`,
+            avatarUrl: owner ? AVATAR_POOL.find((a) => a.id === owner.avatarId)?.url ?? null : null,
+            borderUrl: owner ? BORDER_POOL.find((b) => b.id === owner.borderId)?.url ?? null : null,
+        };
+    }
+
+    if (owner) {
+        const row = getEquippedPairPetInventoryRow(owner);
+        const tid = row?.templateId ?? owner.equippedPairPetTemplateId ?? undefined;
+        const def = tid ? getPairPetDefinition(tid) : null;
+        const meta = row ? resolvePairPetMetaFromInventoryRow(row) : null;
+        const level = Math.max(1, Number(meta?.level ?? 1) || 1);
+        return {
+            name: `Lv.${level} ${def?.displayName ?? row?.name ?? seat.name}`,
+            avatarUrl: row?.image ?? def?.image ?? null,
+            borderUrl: null,
+        };
+    }
+
+    const fallbackIndex = seat.participantId === 'pair-opponent-pet' ? 1 : 0;
+    const fallbackDef = getPairPetDefinition(`pair-pet-${fallbackIndex + 1}`);
+    return {
+        name: `Lv.1 ${fallbackDef?.displayName ?? seat.name}`,
+        avatarUrl: fallbackDef?.image ?? '/images/pets/pet1.webp',
+        borderUrl: null,
+    };
+}
+
+const formatPairClock = (seconds: number): string => {
+    const total = Math.max(0, Math.floor(seconds));
+    const hrs = Math.floor(total / 3600);
+    const min = Math.floor((total % 3600) / 60);
+    const sec = total % 60;
+    return hrs > 0
+        ? `${String(hrs).padStart(2, '0')}:${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`
+        : `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+};
+
+const PairIngamePlayerCard: React.FC<{ session: LiveGameSession; seat: PairSeat; compact?: boolean; mirror?: boolean }> = ({ session, seat, compact = false, mirror = false }) => {
+    const currentSeat = getCurrentPairTurnSeat(session.settings);
+    const active = currentSeat?.seatId === seat.seatId && session.gameStatus === 'playing';
+    const black = seat.player === Player.Black;
+    const passed = session.settings.pairGame?.passSeatIds?.includes(seat.seatId);
+    const display = pairSeatDisplayInfo(session, seat);
+    const seatNumber = pairSeatShortLabel(seat.seatId).replace(/\D/g, '');
+    const nameMatch = /^Lv\.(\d+)\s+(.+)$/.exec(display.name);
+    const levelText = nameMatch ? `Lv.${nameMatch[1]}` : '';
+    const nickname = nameMatch ? nameMatch[2] : display.name;
+    return (
+        <div
+            className={`relative min-w-0 overflow-hidden rounded-xl border shadow-xl ${
+                compact ? 'px-2 py-2' : 'px-3 py-3'
+            } ${
+                active
+                    ? 'border-amber-300/85 bg-gradient-to-br from-amber-700 via-stone-950 to-black text-amber-50 shadow-[0_0_24px_rgba(251,191,36,0.30)]'
+                    : black
+                      ? 'border-slate-500/55 bg-gradient-to-br from-slate-900 via-slate-950 to-black text-slate-100'
+                      : 'border-amber-200/75 bg-gradient-to-br from-amber-50 via-stone-100 to-white text-slate-950'
+            }`}
+        >
+            {seatNumber ? (
+                <span className={`absolute left-2 top-2 z-[1] flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-black ${black ? 'bg-black/75 text-slate-100' : 'bg-white/85 text-slate-950'}`}>
+                    {seatNumber}
+                </span>
+            ) : null}
+            {passed ? (
+                <span className={`absolute right-2 top-2 z-[1] text-[10px] font-black ${black ? 'text-sky-200' : 'text-sky-700'}`}>통과</span>
+            ) : null}
+            <div className="flex h-full min-w-0 items-center justify-center gap-2 text-center">
+                <Avatar
+                    userId={seat.participantId}
+                    userName={display.name}
+                    avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
+                    borderUrl={display.borderUrl}
+                    size={compact ? 42 : 48}
+                />
+                <div className="flex min-w-0 items-center justify-center gap-1.5">
+                    {levelText ? (
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-black ${black ? 'bg-slate-100/12 text-amber-100' : 'bg-slate-900/10 text-slate-700'}`}>
+                            {levelText}
+                        </span>
+                    ) : null}
+                    <span className={`${compact ? 'text-xs' : 'text-sm'} min-w-0 truncate font-black`} title={nickname}>
+                        {nickname}
+                    </span>
+                </div>
+            </div>
+            {active ? <div className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-amber-300" aria-hidden /> : null}
+        </div>
+    );
+};
+
+const PairTeamSummaryPanel: React.FC<{ session: LiveGameSession; player: Player.Black | Player.White; clientTimes: PairClientTimes; mirror?: boolean; compact?: boolean }> = ({ session, player, clientTimes, mirror = false, compact = false }) => {
+    const black = player === Player.Black;
+    const colorTime = black ? clientTimes.black : clientTimes.white;
+    const mainTime = black ? session.blackTimeLeft : session.whiteTimeLeft;
+    const byoyomiPeriods = black ? session.blackByoyomiPeriodsLeft : session.whiteByoyomiPeriodsLeft;
+    const byoyomiTime = Math.max(1, Number(session.settings.byoyomiTime ?? 0));
+    const mainTimeTotal = Math.max(1, Number(session.settings.timeLimit ?? 0) * 60);
+    const inByoyomi = Number(mainTime ?? 0) <= 0 && byoyomiTime > 0;
+    const timerDenominator = inByoyomi ? byoyomiTime : mainTimeTotal;
+    const timerPercent = Math.max(0, Math.min(100, (colorTime / timerDenominator) * 100));
+    const score = session.captures?.[player] ?? 0;
+    const scoreBox = (
+        <div className={`min-w-[5.25rem] rounded-xl border ${compact ? 'px-4 py-2.5' : 'px-5 py-3'} text-center ${black ? 'border-slate-600 bg-black' : 'border-amber-300 bg-white'}`}>
+            <div className="text-xs font-black opacity-70">점수</div>
+            <div className={`font-mono ${compact ? 'text-4xl' : 'text-5xl'} font-black leading-none tabular-nums`}>{score}</div>
+        </div>
+    );
+    const timerBox = (
+        <div className="min-w-0 flex-1">
+            <div className={`flex items-center gap-2 ${mirror ? 'justify-end text-right' : ''}`}>
+                <span className="font-mono text-lg font-black tabular-nums">{formatPairClock(colorTime)}</span>
+                <span className={`flex items-center gap-1 font-mono text-sm font-black tabular-nums ${inByoyomi ? 'text-red-400' : ''}`}>
+                    <img src="/images/timer.webp" alt="초읽기" className="h-5 w-5 object-contain" />
+                    {Math.max(0, Number(byoyomiPeriods ?? session.settings.byoyomiCount ?? 0))}
+                </span>
+            </div>
+            <div className={`mt-1.5 h-2.5 w-full overflow-hidden rounded-full ${black ? 'bg-slate-700' : 'bg-amber-200'}`}>
+                <div
+                    className={`h-full rounded-full ${inByoyomi ? 'bg-red-500' : black ? 'bg-sky-400' : 'bg-amber-500'}`}
+                    style={{ width: `${timerPercent}%` }}
+                />
+            </div>
+        </div>
+    );
+    return (
+        <div className={`rounded-xl border p-2 shadow-xl ${compact ? 'min-w-[18rem]' : ''} ${black ? 'border-slate-500/65 bg-slate-950 text-slate-100' : 'border-amber-200/85 bg-amber-50 text-slate-950'}`}>
+            <div className="flex items-center gap-2">
+                {mirror ? <>{scoreBox}{timerBox}</> : <>{timerBox}{scoreBox}</>}
+            </div>
+        </div>
+    );
+};
+
+const PairMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) => {
+    const moveCount = session.moveHistory?.length ?? 0;
+    return (
+        <div className="flex h-full min-w-[5.25rem] flex-col items-center justify-center rounded-2xl border border-amber-300/60 bg-black/75 px-3 py-2 text-center text-amber-50 shadow-xl ring-1 ring-amber-400/20">
+            <div className="text-[11px] font-black tracking-[0.22em] text-amber-200/85">수순</div>
+            <div className="font-mono text-3xl font-black leading-none tabular-nums">{moveCount}</div>
+        </div>
+    );
+};
+
+const PairMobileTeamPanel: React.FC<{
+    session: LiveGameSession;
+    clientTimes: PairClientTimes;
+    player: Player.Black | Player.White;
+}> = ({ session, clientTimes, player }) => {
+    const black = player === Player.Black;
+    const seats = sortPairSeatsBySeatId((session.settings.pairGame?.turnOrder ?? []).filter((seat) => seat.player === player));
+    const colorTime = black ? clientTimes.black : clientTimes.white;
+    const score = session.captures?.[player] ?? 0;
+
+    return (
+        <div className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-xl border px-1.5 py-1 shadow-lg ${black ? 'border-slate-500/65 bg-slate-950 text-slate-100' : 'border-amber-200/85 bg-amber-50 text-slate-950'}`}>
+            <div className="flex shrink-0 -space-x-2">
+                {seats.map((seat) => {
+                    const display = pairSeatDisplayInfo(session, seat);
+                    return (
+                        <div key={seat.seatId} className={`rounded-full ring-2 ${black ? 'ring-slate-950' : 'ring-amber-50'}`}>
+                            <Avatar
+                                userId={seat.participantId}
+                                userName={display.name}
+                                avatarUrl={display.avatarUrl || (seat.kind === 'pet' ? '/images/pets/pet1.webp' : '/images/profiles/profile1.png')}
+                                borderUrl={display.borderUrl}
+                                size={28}
+                            />
+                        </div>
+                    );
+                })}
+            </div>
+            <div className={`min-w-0 flex-1 ${black ? 'text-left' : 'text-right'}`}>
+                <div className="truncate font-mono text-[12px] font-black leading-none tabular-nums">
+                    {formatPairClock(colorTime)}
+                </div>
+                <div className={`mt-0.5 flex items-baseline gap-1 ${black ? 'justify-start' : 'justify-end'}`}>
+                    <span className="text-[9px] font-black opacity-70">점수</span>
+                    <span className="font-mono text-lg font-black leading-none tabular-nums">{score}</span>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const PairMobileMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) => {
+    const moveCount = session.moveHistory?.length ?? 0;
+    return (
+        <div className="flex min-w-[3.6rem] flex-col items-center justify-center rounded-xl border border-amber-300/55 bg-black/75 px-2 py-1 text-center text-amber-50 shadow-lg ring-1 ring-amber-400/15">
+            <div className="text-[9px] font-black tracking-[0.16em] text-amber-200/85">수순</div>
+            <div className="font-mono text-xl font-black leading-none tabular-nums">{moveCount}</div>
+        </div>
+    );
+};
+
+const PairIngameTeamGroup: React.FC<{
+    session: LiveGameSession;
+    clientTimes: PairClientTimes;
+    player: Player.Black | Player.White;
+}> = ({ session, clientTimes, player }) => {
+    const all = session.settings.pairGame?.turnOrder ?? [];
+    const seats = sortPairSeatsBySeatId(all.filter((seat) => seat.player === player));
+    const black = player === Player.Black;
+    const mirror = !black;
+
+    if (!seats.length) return null;
+
+    return (
+        <div className={`flex min-w-0 flex-1 items-stretch gap-2 ${mirror ? 'flex-row-reverse justify-start' : 'justify-end'}`}>
+            <div className="grid min-w-0 flex-1 grid-cols-2 gap-2">
+                {seats.map((seat) => (
+                    <PairIngamePlayerCard key={seat.seatId} session={session} seat={seat} compact mirror={mirror} />
+                ))}
+            </div>
+            <PairTeamSummaryPanel session={session} player={player} clientTimes={clientTimes} mirror={mirror} compact />
+        </div>
+    );
+};
+
+const PairIngameTopPanel: React.FC<{ session: LiveGameSession; clientTimes: PairClientTimes; mobile?: boolean }> = ({
+    session,
+    clientTimes,
+    mobile = false,
+}) => {
+    if (mobile) {
+        return (
+            <div className="flex w-full shrink-0 items-stretch gap-1 px-1 pb-1">
+                <PairMobileTeamPanel session={session} player={Player.Black} clientTimes={clientTimes} />
+                <PairMobileMoveCountBox session={session} />
+                <PairMobileTeamPanel session={session} player={Player.White} clientTimes={clientTimes} />
+            </div>
+        );
+    }
+
+    return (
+        <div className="flex w-full shrink-0 flex-col gap-2 px-1 pb-2 lg:flex-row lg:items-stretch">
+            <PairIngameTeamGroup session={session} player={Player.Black} clientTimes={clientTimes} />
+            <PairMoveCountBox session={session} />
+            <PairIngameTeamGroup session={session} player={Player.White} clientTimes={clientTimes} />
+        </div>
+    );
+};
 
 const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
 
@@ -986,13 +1260,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (PLAYFUL_GAME_MODES.some(m => m.mode === mode)) return Player.Black;
             return Player.None;
         }
+        const pairSeat = session.settings.pairGame?.turnOrder?.find((seat) => seat.participantId === currentUser.id);
+        if (pairSeat) return pairSeat.player;
         if (blackPlayerId === currentUser.id) return Player.Black;
         if (whitePlayerId === currentUser.id) return Player.White;
         if ((mode === GameMode.Base || (mode === GameMode.Mix && session.settings.mixedModes?.includes(GameMode.Base))) && gameStatus === 'base_placement') {
              return currentUser.id === player1.id ? Player.Black : Player.White;
         }
         return Player.None;
-    }, [currentUser.id, blackPlayerId, whitePlayerId, isSpectator, mode, gameStatus, player1.id, player2.id, session.settings.mixedModes]);
+    }, [currentUser.id, blackPlayerId, whitePlayerId, isSpectator, mode, gameStatus, player1.id, player2.id, session.settings.mixedModes, session.settings.pairGame?.turnOrder]);
 
     const pendingMoveForBoard = useMemo(() => {
         if (!settings.features.moveConfirmButtonBox || !settings.features.mobileConfirm || !pendingMove) return null;
@@ -1002,6 +1278,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     const isMyTurn = useMemo(() => {
         if (isSpectator) return false;
+        const pairCurrentSeat = getCurrentPairTurnSeat(session.settings);
         if (gameStatus === 'alkkagi_simultaneous_placement' && session.settings.alkkagiPlacementType === '일괄 배치') {
             const myStonesOnBoard = (session.alkkagiStones || []).filter(s => s.player === myPlayerEnum).length;
             const myStonesInPlacement = (currentUser.id === player1.id ? session.alkkagiStones_p1 : session.alkkagiStones_p2)?.length || 0;
@@ -1032,6 +1309,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return false;
             }
             case 'playing': case 'hidden_placing': 
+                if (pairCurrentSeat) return pairCurrentSeat.participantId === currentUser.id;
+                return myPlayerEnum !== Player.None && myPlayerEnum === currentPlayer;
             case 'alkkagi_placement': case 'alkkagi_playing': case 'curling_playing': case 'curling_tiebreaker_playing':
             case 'dice_rolling':
             case 'dice_rolling_animating':
@@ -2472,6 +2751,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else if (session.gameCategory === 'adventure') {
                 const stageId = session.adventureStageId;
                 sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
+            } else if (session.settings?.pairGame) {
+                sessionStorage.setItem('postGameRedirect', '#/pair');
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
                 sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
@@ -2500,6 +2781,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.gameCategory,
         session.adventureStageId,
         session.mode,
+        session.settings?.pairGame,
         gameId,
         gameStatus,
         isNoContestLeaveAvailable,
@@ -3266,9 +3548,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (isTowerSingleOrAdventure || isLobbyAiGame) return;
         // 그 외(PVP 등): 경기 종료 후 결과 모달 "확인" 시 퇴장 + 해당 대기실로 이동
         if ((gameStatus === 'ended' || gameStatus === 'no_contest') && gameId) {
-            // 전략이면 전략 대기실, 그 외는 놀이바둑 대기실로 이동
-            const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
-            sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
+            if (session.settings?.pairGame) {
+                sessionStorage.setItem('postGameRedirect', '#/pair');
+            } else {
+                const waitingRoomMode = SPECIAL_GAME_MODES.some(m => m.mode === session.mode) ? 'strategic' as const : 'playful' as const;
+                sessionStorage.setItem('postGameRedirect', `#/waiting/${waitingRoomMode}`);
+            }
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             handlers.handleAction({ type: actionType, payload: { gameId } });
         }
@@ -3277,6 +3562,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.gameCategory,
         session.isSinglePlayer,
         session.mode,
+        session.settings?.pairGame,
         gameStatus,
         gameId,
         session.isAiGame,
@@ -3765,7 +4051,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }
 
     // PVP 게임 배경 이미지 결정
+    const isPairIngame = Boolean(session.settings.pairGame?.turnOrder?.length);
+    const pairBackgroundImage = session.settings.pairGame ? '/images/bg/pairbg.webp' : null;
     const pvpBackgroundClass = useMemo(() => {
+        if (isPairIngame) {
+            return '';
+        }
         if (isGuildWarGame) {
             return '';
         }
@@ -3776,7 +4067,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return 'bg-playful-background';
         }
         return 'bg-tertiary';
-    }, [mode, isGuildWarGame]);
+    }, [mode, isGuildWarGame, isPairIngame]);
 
     // AI 게임도 클라이언트 일시 정지 상태 사용 (싱글플레이어와 동일한 방식)
     // isPausableAiGame은 위에서 이미 정의됨
@@ -3785,14 +4076,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     return (
         <InGameModalLayoutProvider>
         <div
-            className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${adventureBackgroundImage ? '' : pvpBackgroundClass}`}
+            className={`w-full flex flex-col p-1 lg:p-2 relative max-w-full min-h-0 ${adventureBackgroundImage || pairBackgroundImage ? '' : pvpBackgroundClass}`}
             style={{
                 height: '100%',
                 maxHeight: '100%',
                 paddingBottom: isMobileSafeArea ? 'env(safe-area-inset-bottom, 0px)' : '0px',
-                ...(adventureBackgroundImage
+                ...(adventureBackgroundImage || pairBackgroundImage
                     ? {
-                          backgroundImage: `url(${adventureBackgroundImage})`,
+                          backgroundImage: `url(${adventureBackgroundImage || pairBackgroundImage})`,
                           backgroundSize: 'cover',
                           backgroundPosition: 'center',
                           backgroundRepeat: 'no-repeat',
@@ -3836,25 +4127,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     }
                 >
                     <div className="w-full h-full max-h-full max-w-full flex min-h-0 flex-col items-stretch gap-1 lg:gap-2">
-                        <div
-                            className={
-                                isAdventureGame
-                                    ? 'flex w-full flex-shrink-0 justify-center'
-                                    : 'flex-shrink-0 w-full flex justify-center'
-                            }
-                        >
-                            <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
-                                <PlayerPanel
-                                    {...gameProps}
-                                    clientTimes={clientTimes.clientTimes}
-                                    isMobile={isMobile}
-                                    isSinglePlayer={isSinglePlayer}
-                                    singlePlayerOnboardingBarHighlight={
-                                        isSinglePlayer ? singlePlayerOnboardingBarHighlight : null
-                                    }
-                                />
+                        {!isPairIngame && (
+                            <div
+                                className={
+                                    isAdventureGame
+                                        ? 'flex w-full flex-shrink-0 justify-center'
+                                        : 'flex-shrink-0 w-full flex justify-center'
+                                }
+                            >
+                                <div className="min-w-0 w-full flex-1 px-2 pt-1 min-[1025px]:px-1">
+                                    <PlayerPanel
+                                        {...gameProps}
+                                        clientTimes={clientTimes.clientTimes}
+                                        isMobile={isMobile}
+                                        isSinglePlayer={isSinglePlayer}
+                                        singlePlayerOnboardingBarHighlight={
+                                            isSinglePlayer ? singlePlayerOnboardingBarHighlight : null
+                                        }
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
                         <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
                             <div className="absolute inset-0 flex min-h-0 flex-col">
                                 <div className="relative flex h-full w-full min-h-0 min-w-0 flex-col overflow-hidden">
@@ -3863,39 +4156,80 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                             isAdventureGame ? 'overflow-hidden' : 'overflow-auto'
                                         } ${effectivePaused ? 'opacity-0 pointer-events-none' : 'opacity-100'} transition-opacity duration-500`}
                                     >
-                                        <GameArena 
-                                            {...gameProps}
-                                            isMyTurn={isMyTurn} 
-                                            myPlayerEnum={myPlayerEnum} 
-                                            handleBoardClick={handleBoardClick} 
-                                            isItemModeActive={isItemModeActive} 
-                                            showTerritoryOverlay={showFinalTerritory} 
-                                            isMobile={isMobile}
-                                            pendingMove={pendingMoveForBoard}
-                                            myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
-                                            showLastMoveMarker={settings.features.lastMoveMarker}
-                                            captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
-                                            isBoardRotated={isBoardRotated}
-                                            onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
-                                            showBoardGlow={
-                                                boardGlowForHiddenScanItem
-                                            }
-                                            diceGoPlaceUi={
-                                                settings.features.moveConfirmButtonBox
-                                                    ? {
-                                                          mobileConfirm: settings.features.mobileConfirm,
-                                                          onToggleMobileConfirm: (checked) => {
-                                                              updateFeatureSetting('mobileConfirm', checked);
-                                                              if (!checked) setPendingMove(null);
-                                                          },
-                                                          onConfirmMove: handleConfirmMove,
-                                                      }
-                                                    : undefined
-                                            }
-                                            onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
-                                            onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
-                                            intro1TutorialHighlight={intro1OnboardingDemoPoint}
-                                        />
+                                        {isPairIngame ? (
+                                            <div className="flex h-full w-full min-w-0 flex-col overflow-hidden px-1 py-1">
+                                                <PairIngameTopPanel
+                                                    session={session}
+                                                    clientTimes={clientTimes.clientTimes}
+                                                    mobile={isMobile}
+                                                />
+                                                <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-auto">
+                                                    <GameArena
+                                                        {...gameProps}
+                                                        isMyTurn={isMyTurn}
+                                                        myPlayerEnum={myPlayerEnum}
+                                                        handleBoardClick={handleBoardClick}
+                                                        isItemModeActive={isItemModeActive}
+                                                        showTerritoryOverlay={showFinalTerritory}
+                                                        isMobile={isMobile}
+                                                        pendingMove={pendingMoveForBoard}
+                                                        myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
+                                                        showLastMoveMarker={settings.features.lastMoveMarker}
+                                                        captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
+                                                        isBoardRotated={isBoardRotated}
+                                                        onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
+                                                        showBoardGlow={boardGlowForHiddenScanItem}
+                                                        diceGoPlaceUi={
+                                                            settings.features.moveConfirmButtonBox
+                                                                ? {
+                                                                      mobileConfirm: settings.features.mobileConfirm,
+                                                                      onToggleMobileConfirm: (checked) => {
+                                                                          updateFeatureSetting('mobileConfirm', checked);
+                                                                          if (!checked) setPendingMove(null);
+                                                                      },
+                                                                      onConfirmMove: handleConfirmMove,
+                                                                  }
+                                                                : undefined
+                                                        }
+                                                        onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
+                                                        onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
+                                                        intro1TutorialHighlight={intro1OnboardingDemoPoint}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <GameArena
+                                                {...gameProps}
+                                                isMyTurn={isMyTurn}
+                                                myPlayerEnum={myPlayerEnum}
+                                                handleBoardClick={handleBoardClick}
+                                                isItemModeActive={isItemModeActive}
+                                                showTerritoryOverlay={showFinalTerritory}
+                                                isMobile={isMobile}
+                                                pendingMove={pendingMoveForBoard}
+                                                myRevealedMoves={session.revealedHiddenMoves?.[currentUser.id] || []}
+                                                showLastMoveMarker={settings.features.lastMoveMarker}
+                                                captureScoreFloatMinPoints={settings.features.captureScoreAnimation ? 1 : 2}
+                                                isBoardRotated={isBoardRotated}
+                                                onToggleBoardRotation={() => setIsBoardRotated((prev: boolean) => !prev)}
+                                                showBoardGlow={boardGlowForHiddenScanItem}
+                                                diceGoPlaceUi={
+                                                    settings.features.moveConfirmButtonBox
+                                                        ? {
+                                                              mobileConfirm: settings.features.mobileConfirm,
+                                                              onToggleMobileConfirm: (checked) => {
+                                                                  updateFeatureSetting('mobileConfirm', checked);
+                                                                  if (!checked) setPendingMove(null);
+                                                              },
+                                                              onConfirmMove: handleConfirmMove,
+                                                          }
+                                                        : undefined
+                                                }
+                                                onboardingDemoAnchorPoint={intro1OnboardingDemoPoint}
+                                                onboardingForcedFirstMovePoint={intro1OnboardingDemoPoint}
+                                                intro1TutorialHighlight={intro1OnboardingDemoPoint}
+                                            />
+                                        )}
                                     </div>
                                     {/* 착수 확정: 드래그로 위치 조절 가능 (위치는 기기별 localStorage 저장) */}
                                     {showMoveConfirmPanel && (
@@ -3928,16 +4262,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     <ScoringOverlay />
                                 )}
                         </div>
-                        <div className="flex-shrink-0 w-full flex flex-col gap-1">
-                            <TurnDisplay
-                                session={turnDisplaySession}
-                                isMobile={isMobile}
-                                onOpenSidebar={isMobile ? openMobileSidebar : undefined}
-                                sidebarNotification={hasNewMessage}
-                                onAction={handlers.handleAction}
-                                boardRuleFlashMessage={boardRuleFlashMessage}
-                                viewerUserId={isSpectator ? undefined : currentUser.id}
-                            />
+                        <div className={`flex-shrink-0 w-full flex flex-col ${isPairIngame && isMobile ? 'gap-0.5' : 'gap-1'}`}>
+                            {!(isPairIngame && isMobile) && (
+                                <TurnDisplay
+                                    session={turnDisplaySession}
+                                    isMobile={isMobile}
+                                    onOpenSidebar={isMobile ? openMobileSidebar : undefined}
+                                    sidebarNotification={hasNewMessage}
+                                    onAction={handlers.handleAction}
+                                    boardRuleFlashMessage={boardRuleFlashMessage}
+                                    viewerUserId={isSpectator ? undefined : currentUser.id}
+                                />
+                            )}
                             {isGuildWarTowerStyleUi && mode === GameMode.Missile ? (
                                 <GuildWarMissileTowerControls
                                     session={session}

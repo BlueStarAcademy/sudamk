@@ -18,6 +18,16 @@ import { initializeMissile, updateMissileState, handleMissileAction } from './mi
 import { handleSharedAction, transitionToPlaying, hasTimeControl, shouldEnforceTimeControl } from './shared.js';
 import { isFischerStyleTimeControl, getFischerIncrementSeconds } from '../../shared/utils/gameTimeControl.js';
 import {
+    advancePairTurn,
+    confirmPairOrderReveal,
+    getCurrentPairTurnSeat,
+    isPairAiSeat,
+    isPairClassicGame,
+    markPairSeatPassed,
+    pairOrderRevealNeedsConfirmation,
+    resetPairPasses,
+} from '../../shared/utils/pairGameTurn.js';
+import {
     consumeOpponentPatternStoneIfAny,
     recordPatternStoneConsumed,
     stripPatternStonesAtConsumedIntersections,
@@ -133,6 +143,36 @@ function nextAiTurnStartTimeAfterHumanStrategicMove(game: types.LiveGameSession,
         return now + PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS;
     }
     return now;
+}
+
+function schedulePairAiTurnIfNeeded(game: types.LiveGameSession, now: number): void {
+    if (!isPairClassicGame(game.settings, game.mode)) return;
+    const seat = getCurrentPairTurnSeat(game.settings);
+    if (isPairAiSeat(seat)) {
+        game.aiTurnStartTime = nextAiTurnStartTimeAfterHumanStrategicMove(game, now);
+    } else {
+        game.aiTurnStartTime = undefined;
+    }
+}
+
+function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): void {
+    if (!isPairClassicGame(game.settings, game.mode)) return;
+    const nextSeat = advancePairTurn(game.settings);
+    if (nextSeat) {
+        game.currentPlayer = nextSeat.player;
+        schedulePairAiTurnIfNeeded(game, now);
+    }
+}
+
+function updatePairOrderRevealState(game: types.LiveGameSession, now: number): void {
+    if (game.gameStatus !== 'pair_order_reveal' || !isPairClassicGame(game.settings, game.mode)) return;
+    if (pairOrderRevealNeedsConfirmation(game.settings)) return;
+    const firstSeat = getCurrentPairTurnSeat(game.settings);
+    transitionToPlaying(game, now);
+    if (firstSeat) {
+        game.currentPlayer = firstSeat.player;
+    }
+    schedulePairAiTurnIfNeeded(game, now);
 }
 
 /** 모험 히든: 유저 히든이 따냄/따임 연출에 포함되면 같은 턴에 유저의 나머지 미공개 히든도 모두 완전 공개 */
@@ -384,6 +424,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     // This is the core update logic for all Go-based games.
 
     syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
+    updatePairOrderRevealState(game, now);
 
     if (await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer)) {
         return;
@@ -560,6 +601,22 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 };
 
 export const handleStrategicGameAction = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction & { userId: string }, user: types.User): Promise<types.HandleActionResult | undefined> => {
+    if ((action as any).type === 'CONFIRM_COLOR_START' && isPairClassicGame(game.settings, game.mode) && game.settings.pairGame?.turnOrder?.length) {
+        if (game.gameStatus !== 'pair_order_reveal') {
+            return {};
+        }
+        const humanIds = game.settings.pairGame.turnOrder
+            .filter((s) => s.kind === 'user')
+            .map((s) => s.participantId);
+        if (!humanIds.includes(user.id)) {
+            return { error: '페어 순서 확인 대상이 아닙니다.' };
+        }
+        confirmPairOrderReveal(game.settings, user.id);
+        game.preGameConfirmations = { ...(game.settings.pairGame?.orderRevealConfirmed ?? {}) };
+        updatePairOrderRevealState(game, Date.now());
+        return {};
+    }
+
     // Try shared actions first
     const sharedResult = await handleSharedAction(volatileState, game, action, user);
     if (sharedResult) return sharedResult;
@@ -624,8 +681,19 @@ const handleStandardAction = async (
 const handleStandardActionCore = async (volatileState: types.VolatileState, game: types.LiveGameSession, action: types.ServerAction, user: types.User): Promise<types.HandleActionResult | null> => {
     const { type, payload } = action as any;
     const now = Date.now();
-    const myPlayerEnum = user.id === game.blackPlayerId ? types.Player.Black : (user.id === game.whitePlayerId ? types.Player.White : types.Player.None);
-    const isMyTurn = myPlayerEnum === game.currentPlayer;
+    const pairCurrentSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    const myPlayerEnum = pairCurrentSeat
+        ? user.id === pairCurrentSeat.participantId
+            ? pairCurrentSeat.player
+            : types.Player.None
+        : user.id === game.blackPlayerId
+          ? types.Player.Black
+          : user.id === game.whitePlayerId
+            ? types.Player.White
+            : types.Player.None;
+    const isMyTurn = pairCurrentSeat
+        ? user.id === pairCurrentSeat.participantId && pairCurrentSeat.player === game.currentPlayer
+        : myPlayerEnum === game.currentPlayer;
     const resolveFixedScoringTurnState = async () => {
         let fixedScoringTurnLimit: number | undefined;
         let countPassAsTurn = false;
@@ -1009,7 +1077,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     tempBoardState[y][x] = types.Player.None;
                 }
 
-                const moveAttempt = { x, y, player: myPlayerEnum };
+                const moveAttempt = {
+                    x,
+                    y,
+                    player: myPlayerEnum,
+                    ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
+                };
                 const treatAsPveLike = treatAsPveLikeForHiddenOpponentReveal(game);
                 const simResult = processMove(
                     tempBoardState,
@@ -1109,7 +1182,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 return {};
             }
 
-            const move = { x, y, player: myPlayerEnum };
+            const move = {
+                x,
+                y,
+                player: myPlayerEnum,
+                ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
+            };
             
             // 치명적 버그 방지: 자신의 돌 위에 착점 시도 차단 (모든 게임 모드)
             const finalStoneCheck = game.boardState[y][x];
@@ -1311,6 +1389,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             game.moveHistory.push(move);
             game.koInfo = result.newKoInfo;
             game.passCount = 0;
+            if (pairCurrentSeat) resetPairPasses(game.settings);
 
             if (effectiveIsHidden) {
                 if (!game.hiddenMoves) game.hiddenMoves = {};
@@ -1483,7 +1562,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
 
-            game.currentPlayer = opponentPlayerEnum;
+            if (pairCurrentSeat) {
+                advancePairTurnAfterAction(game, now);
+            } else {
+                game.currentPlayer = opponentPlayerEnum;
+            }
             game.missileUsedThisTurn = false;
             
             game.gameStatus = 'playing';
@@ -1600,7 +1683,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
             
             // AI 턴인 경우 즉시 처리할 수 있도록 aiTurnStartTime 설정 (모험/길드전은 메인루프·인라인 경쟁 완화를 위해 지연)
-            if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+            if (pairCurrentSeat) {
+                schedulePairAiTurnIfNeeded(game, now);
+            } else if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                 const { aiUserId } = await import('../aiPlayer.js');
                 const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                 if (currentPlayerId === aiUserId) {
@@ -1641,6 +1726,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 const gc = (game as any).gameCategory;
                 const isAiLobbyGame =
                     game.isAiGame &&
+                    !pairCurrentSeat &&
                     !game.isSinglePlayer &&
                     gc !== 'tower' &&
                     gc !== 'singleplayer' &&
@@ -1654,7 +1740,13 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             game.passCount++;
             game.lastMove = { x: -1, y: -1 };
             game.lastTurnStones = null;
-            game.moveHistory.push({ player: myPlayerEnum, x: -1, y: -1 });
+            game.moveHistory.push({
+                player: myPlayerEnum,
+                x: -1,
+                y: -1,
+                ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
+            });
+            const pairAllPassed = pairCurrentSeat ? markPairSeatPassed(game.settings, pairCurrentSeat) : false;
             {
                 // PASS 포함 카운트 모드(scoringTurnLimit)에서는 PASS 직후에도 즉시 수순 종료 계가를 트리거한다.
                 const { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount } = await resolveFixedScoringTurnState();
@@ -1676,7 +1768,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 }
             }
 
-            if (game.passCount >= 2) {
+            if (pairAllPassed || (!pairCurrentSeat && game.passCount >= 2)) {
                 const isHiddenMode = game.mode === types.GameMode.Hidden || (game.mode === types.GameMode.Mix && game.settings.mixedModes?.includes(types.GameMode.Hidden));
 
                 if (isHiddenMode) {
@@ -1727,7 +1819,11 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         game[timeKey] = timeRemaining;
                     }
                 }
-                game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+                if (pairCurrentSeat) {
+                    advancePairTurnAfterAction(game, now);
+                } else {
+                    game.currentPlayer = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+                }
                 if (hasTimeControl(game.settings) && shouldEnforceTimeControl(game)) {
                     const nextPlayer = game.currentPlayer;
                     const nextTimeKey = nextPlayer === types.Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
@@ -1745,7 +1841,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     game.turnStartTime = undefined;
                 }
                 // AI 턴인 경우 aiTurnStartTime 설정 (모험/길드전은 메인루프·인라인 경쟁 완화를 위해 지연)
-                if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
+                if (pairCurrentSeat) {
+                    schedulePairAiTurnIfNeeded(game, now);
+                } else if (game.isAiGame && (game.currentPlayer === types.Player.Black || game.currentPlayer === types.Player.White)) {
                     const { aiUserId } = await import('../aiPlayer.js');
                     const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
                     if (currentPlayerId === aiUserId) {

@@ -7,14 +7,9 @@ import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
 import { GRADE_LEVEL_REQUIREMENTS, MATERIAL_ITEMS, isActionPointConsumable } from '../constants/items';
-import {
-    ITEM_OBTAIN_UNDER_ICON_AMOUNT_AMBER,
-    ITEM_OBTAIN_UNDER_ICON_AMOUNT_SKY,
-    ITEM_OBTAIN_UNDER_ICON_AMOUNT_SLATE,
-    RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS,
-    RESULT_MODAL_BOX_GOLD_CLASS,
-    RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS,
-} from './game/ResultModalRewardSlot.js';
+import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS } from './game/ResultModalRewardSlot.js';
+import { ITEM_OBTAIN_COUNT_BADGE_CLASS } from './game/ItemObtainModalShared.js';
+import { isPairPetMaterial } from '../shared/constants/petLobby.js';
 
 interface BulkItemObtainedModalProps {
     items: InventoryItem[];
@@ -142,18 +137,19 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                     return (
                                         <div
                                             key={index}
-                                            className="group flex min-w-0 max-w-[6.75rem] flex-col items-center gap-0.5 justify-self-center sm:max-w-[7.25rem]"
+                                            className="group relative aspect-square w-full min-w-0 max-w-[6.75rem] justify-self-center sm:max-w-[7.25rem]"
                                         >
+                                            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-amber-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                             <div
-                                                className={`${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center shadow-[0_10px_24px_-12px_rgba(245,158,11,0.28)] ring-1 ring-amber-400/25 transition-transform duration-200 group-hover:scale-[1.03]`}
+                                                className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-amber-400/30 ${RESULT_MODAL_BOX_GOLD_CLASS}`}
                                             >
                                                 <img
                                                     src="/images/icon/Gold.png"
                                                     alt=""
-                                                    className="h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-9 sm:w-9"
+                                                    className="relative z-[1] h-[58%] w-[58%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[56%] sm:w-[56%]"
                                                 />
+                                                <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{currencyQty.toLocaleString()}</span>
                                             </div>
-                                            <span className={ITEM_OBTAIN_UNDER_ICON_AMOUNT_AMBER}>+{currencyQty.toLocaleString()}</span>
                                         </div>
                                     );
                                 }
@@ -162,18 +158,19 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                     return (
                                         <div
                                             key={index}
-                                            className="group flex min-w-0 max-w-[6.75rem] flex-col items-center gap-0.5 justify-self-center sm:max-w-[7.25rem]"
+                                            className="group relative aspect-square w-full min-w-0 max-w-[6.75rem] justify-self-center sm:max-w-[7.25rem]"
                                         >
+                                            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-b from-sky-400/10 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                             <div
-                                                className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center ring-1 ring-sky-400/20 transition-transform duration-200 group-hover:scale-[1.03]`}
+                                                className={`relative flex h-full w-full items-center justify-center overflow-hidden rounded-2xl ring-1 ring-sky-400/25 ${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS}`}
                                             >
                                                 <img
                                                     src="/images/icon/Zem.png"
                                                     alt=""
-                                                    className="h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-9 sm:w-9"
+                                                    className="relative z-[1] h-[58%] w-[58%] object-contain p-0.5 drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)] sm:h-[56%] sm:w-[56%]"
                                                 />
+                                                <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>+{currencyQty.toLocaleString()}</span>
                                             </div>
-                                            <span className={ITEM_OBTAIN_UNDER_ICON_AMOUNT_SKY}>+{currencyQty.toLocaleString()}</span>
                                         </div>
                                     );
                                 }
@@ -193,7 +190,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                     <span className="text-[clamp(1.1rem,5.5vw,1.45rem)] leading-none" aria-hidden>
                                                         ⚡
                                                     </span>
-                                                    <span className="mt-0.5 max-w-[95%] truncate text-center text-[9px] font-extrabold leading-tight text-amber-100 drop-shadow sm:text-[10px]">
+                                                    <span className="mt-0.5 max-w-[95%] text-center text-[9px] font-extrabold leading-tight text-amber-100 drop-shadow sm:text-[10px]">
                                                         +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
                                                     </span>
                                                 </div>
@@ -211,13 +208,11 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                     }}
                                                 />
                                             ) : null}
-                                            {item.quantity != null && item.quantity > 1 && (
-                                                <span
-                                                    className={`absolute bottom-1 right-1 z-10 min-w-[1.35rem] rounded-full border border-white/15 bg-gradient-to-b from-zinc-800/95 to-zinc-950/95 px-1.5 py-0.5 text-center shadow-[0_4px_12px_-4px_rgba(0,0,0,0.65)] ${ITEM_OBTAIN_UNDER_ICON_AMOUNT_SLATE}`}
-                                                >
-                                                    ×{item.quantity.toLocaleString()}
+                                            {!isPairPetMaterial(item) ? (
+                                                <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>
+                                                    ×{(item.quantity != null && item.quantity > 0 ? item.quantity : 1).toLocaleString()}
                                                 </span>
-                                            )}
+                                            ) : null}
                                         </div>
                                     </div>
                                 );

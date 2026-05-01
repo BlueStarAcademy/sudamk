@@ -32,6 +32,7 @@ import {
 import { ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE } from '../shared/constants/adventureStrategicGold.js';
 import { rollAdventureEnhancementStoneQuantity } from '../shared/utils/adventureEnhancementStoneQty.js';
 import { ItemGrade } from '../types/enums.js';
+import { enrichPairRoomsForClientPayload } from './utils/pairRoomClientPayload.js';
 import {
     applyAdventureMonsterDefeatToProfile,
     applyAdventureMonsterMapSuppressAfterPlayerLoss,
@@ -49,6 +50,32 @@ import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 import { isAdventureChapterBossCodexId } from '../constants/adventureMonstersCodex.js';
 import { getEffectiveSinglePlayerStages } from './singlePlayerStageConfigService.js';
 import { reconcileSinglePlayerProgress } from '../shared/utils/singlePlayerProgress.js';
+import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
+import { resolvePairPetMetaFromInventoryRow, rollSingleLevelUpCoreBonuses } from '../shared/utils/pairPetRoll.js';
+import {
+    effectivePairPetGradeFromRow,
+    PAIR_PET_MAX_LEVEL,
+    pairPetXpGainBlockedByGrade,
+} from '../shared/constants/pairPetGrade.js';
+import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
+
+function resetPairRoomAfterGame(room: any): void {
+    room.matchStartedAt = undefined;
+    room.phase = 'waiting';
+    room.ownerReady = false;
+    room.partnerReady = room.pairMode === 'ai' || room.roomKind === 'friendly_4p';
+    for (const team of [room.teamA, room.teamB]) {
+        for (const member of team?.members ?? []) {
+            if (member.id === room.ownerId) {
+                member.ready = false;
+            } else if (member.id === room.partnerId) {
+                member.ready = room.partnerReady;
+            } else if (member.kind === 'ai' || member.kind === 'pet') {
+                member.ready = true;
+            }
+        }
+    }
+}
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -609,7 +636,11 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         }
     }
 
-    const participantIds = [game.player1?.id, game.player2?.id].filter((id): id is string => typeof id === 'string');
+    const pairHumanParticipantIds = isPairGoRewardGame(game) ? getPairGoHumanParticipantIds(game) : [];
+    const participantIds =
+        pairHumanParticipantIds.length > 0
+            ? pairHumanParticipantIds
+            : [game.player1?.id, game.player2?.id].filter((id): id is string => typeof id === 'string');
     const humanParticipantIds = participantIds.filter((id) => id !== aiUserId);
     const hasAllHumanSummaries = humanParticipantIds.every((id) => !!game.summary?.[id]);
     game.statsUpdated = hasAllHumanSummaries;
@@ -661,6 +692,40 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: freshGame } }, freshGame);
     // PVP 종료 시 진행중인 대국 목록에서 제거되도록 전체에 경량 업데이트
     if (!freshGame.isAiGame) broadcastLiveGameToList(freshGame);
+
+    const pairShellRoomId = freshGame.settings?.pairGame?.roomId;
+    if (typeof pairShellRoomId === 'string' && pairShellRoomId) {
+        try {
+            const { volatileState } = await import('./state.js');
+            const { broadcast } = await import('./socket.js');
+            const roomsToRestore = Object.values(volatileState.pairRooms || {}).filter((room: any) => {
+                if (!room) return false;
+                if (room.id === pairShellRoomId) return true;
+                return freshGame.settings?.pairGame?.turnOrder?.some(
+                    (seat: any) => seat.kind === 'user' && (seat.participantId === room.ownerId || seat.participantId === room.partnerId),
+                );
+            });
+            if (roomsToRestore.length > 0) {
+                if (volatileState.pairPartnerInvites) {
+                    for (const key of Object.keys(volatileState.pairPartnerInvites)) {
+                        if (roomsToRestore.some((room: any) => volatileState.pairPartnerInvites?.[key]?.roomId === room.id)) {
+                            delete volatileState.pairPartnerInvites[key];
+                        }
+                    }
+                }
+                for (const room of roomsToRestore) {
+                    resetPairRoomAfterGame(room);
+                }
+                broadcast({
+                    type: 'PAIR_ROOM_UPDATE',
+                    payload: { rooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) },
+                });
+                broadcast({ type: 'PAIR_PARTNER_INVITE_UPDATE', payload: { invites: volatileState.pairPartnerInvites || {} } });
+            }
+        } catch (e: any) {
+            console.warn('[endGame] pair shell room cleanup failed:', e?.message);
+        }
+    }
 };
 
 // 행동력 환불 함수
@@ -878,6 +943,102 @@ export function rollAndResolveRewardVipPlayGrant(): RewardVipResolvedGrant {
 // --- START NEW REWARD CONSTANTS ---
 
 const STRATEGIC_GOLD_REWARDS = ADVENTURE_STRATEGIC_WIN_BASE_GOLD_BY_BOARD_SIZE;
+
+type PairGoRewardBand = {
+    gold: [number, number];
+    petXp: [number, number];
+    strategyXp: [number, number];
+};
+
+const PAIR_GO_REWARD_BANDS: Record<9 | 13 | 19, PairGoRewardBand> = {
+    9: { gold: [100, 200], petXp: [10, 15], strategyXp: [10, 15] },
+    13: { gold: [300, 500], petXp: [20, 30], strategyXp: [20, 30] },
+    19: { gold: [500, 1000], petXp: [30, 50], strategyXp: [30, 50] },
+};
+
+const rollInclusive = ([min, max]: [number, number]): number => {
+    const lo = Math.ceil(min);
+    const hi = Math.floor(max);
+    return lo + Math.floor(Math.random() * (hi - lo + 1));
+};
+
+function isPairGoRewardGame(game: LiveGameSession): boolean {
+    const pairModes: GameMode[] = [
+        GameMode.Standard,
+        GameMode.Capture,
+        GameMode.Speed,
+        GameMode.Base,
+        GameMode.Hidden,
+        GameMode.Missile,
+        GameMode.Mix,
+    ];
+    return Boolean(game.settings?.pairGame?.turnOrder?.length && pairModes.includes(game.mode));
+}
+
+function getPairGoHumanParticipantIds(game: LiveGameSession): string[] {
+    const ids = new Set<string>();
+    for (const seat of game.settings?.pairGame?.turnOrder ?? []) {
+        if (seat.kind === 'user' && seat.participantId !== aiUserId) {
+            ids.add(seat.participantId);
+        }
+    }
+    return [...ids];
+}
+
+function applyPairPetRewardXp(user: User, rawGain: number): StatChange | undefined {
+    const row = getEquippedPairPetInventoryRow(user);
+    if (!row) return undefined;
+    const idx = user.inventory.findIndex((it) => it.id === row.id);
+    if (idx < 0) return undefined;
+
+    const meta = { ...resolvePairPetMetaFromInventoryRow(row) };
+    const grade = effectivePairPetGradeFromRow(row);
+    const oldLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
+    const initialXp = Math.max(0, Math.floor(meta.xp ?? 0));
+    let level = oldLevel;
+    let xp = initialXp;
+    let gain = Math.max(0, Math.floor(rawGain));
+
+    while (gain > 0 && level < PAIR_PET_MAX_LEVEL) {
+        if (pairPetXpGainBlockedByGrade(grade, level)) {
+            xp = 0;
+            break;
+        }
+        const need = getXpRequirementForLevel(level);
+        if (!Number.isFinite(need) || need <= 0) break;
+        const room = need - xp;
+        if (room <= 0) {
+            level += 1;
+            xp = 0;
+            continue;
+        }
+        const take = Math.min(room, gain);
+        xp += take;
+        gain -= take;
+        if (xp >= need) {
+            level += 1;
+            xp = 0;
+        }
+    }
+
+    if (pairPetXpGainBlockedByGrade(grade, level)) xp = 0;
+    meta.level = level;
+    meta.xp = level >= PAIR_PET_MAX_LEVEL ? 0 : xp;
+    if (level > oldLevel) {
+        meta.levelUpCoreBonuses = { ...(meta.levelUpCoreBonuses ?? {}) };
+        for (let i = oldLevel; i < level; i += 1) {
+            const inc = rollSingleLevelUpCoreBonuses(grade, () => Math.random());
+            for (const [stat, add] of Object.entries(inc)) {
+                if (typeof add !== 'number' || add === 0) continue;
+                meta.levelUpCoreBonuses[stat as keyof typeof meta.levelUpCoreBonuses] =
+                    (meta.levelUpCoreBonuses[stat as keyof typeof meta.levelUpCoreBonuses] ?? 0) + add;
+            }
+        }
+    }
+
+    user.inventory[idx] = { ...user.inventory[idx]!, pairPetMeta: meta };
+    return { initial: initialXp, change: rawGain, final: meta.xp ?? 0 };
+}
 
 // Playful Gold Map
 const PLAYFUL_GOLD_REWARDS: Record<number, number> = {
@@ -1840,7 +2001,133 @@ const processPlayerSummary = async (
     return { summary, updatedPlayer };
 };
 
+async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
+    const boardSize = game.settings.boardSize as 9 | 13 | 19;
+    const band = PAIR_GO_REWARD_BANDS[boardSize];
+    if (!band) {
+        console.warn(`[PairGo Summary] Unsupported boardSize=${game.settings.boardSize}, game=${game.id}`);
+        return;
+    }
+
+    if (!game.summary) game.summary = {};
+    const isDraw = game.winner === Player.None;
+    const isNoContest = game.gameStatus === 'no_contest';
+    const resignLoserColor =
+        game.winReason === 'resign' && game.winner !== Player.None
+            ? game.winner === Player.Black
+                ? Player.White
+                : Player.Black
+            : Player.None;
+
+    const seats = game.settings.pairGame?.turnOrder ?? [];
+    const humanIds = getPairGoHumanParticipantIds(game);
+    const { broadcastUserUpdate } = await import('./socket.js');
+    const initialRatingByUserId: Record<string, number> = {};
+    if (game.isRankedGame && !game.isAiGame) {
+        for (const id of humanIds) {
+            const ratingUser = await db.getUser(id);
+            initialRatingByUserId[id] = ratingUser?.stats?.[game.mode]?.rankingScore ?? RANKED_ELO_BASE_SCORE;
+        }
+    }
+
+    for (const userId of humanIds) {
+        const user = await db.getUser(userId);
+        if (!user) {
+            console.warn(`[PairGo Summary] User not found: ${userId}, game=${game.id}`);
+            continue;
+        }
+
+        const seat = seats.find((s) => s.participantId === userId);
+        const isWinner = !isDraw && !isNoContest && seat?.player === game.winner;
+        const isResignLoser = resignLoserColor !== Player.None && seat?.player === resignLoserColor;
+        const multiplier = isNoContest || isDraw || isResignLoser ? 0 : isWinner ? 1 : 0.5;
+
+        const initialStrategyLevel = user.strategyLevel;
+        const initialStrategyXp = Math.max(0, Number(user.strategyXp) || 0);
+        const initialManner = user.mannerScore;
+        if (!user.stats) user.stats = {};
+        const modeStats = user.stats[game.mode] ?? { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
+        const initialRating = initialRatingByUserId[userId] ?? modeStats.rankingScore ?? RANKED_ELO_BASE_SCORE;
+        const rankedOpponentId = game.isRankedGame ? humanIds.find((id) => id !== userId) : undefined;
+        const opponentRating = rankedOpponentId ? initialRatingByUserId[rankedOpponentId] ?? RANKED_ELO_BASE_SCORE : RANKED_ELO_BASE_SCORE;
+
+        const rolledGold = rollInclusive(band.gold);
+        const rolledStrategyXp = rollInclusive(band.strategyXp);
+        const rolledPetXp = rollInclusive(band.petXp);
+        const goldGain = Math.floor(rolledGold * multiplier);
+        const strategyXpGain = Math.floor(rolledStrategyXp * multiplier);
+        const petXpGain = Math.floor(rolledPetXp * multiplier);
+
+        user.gold += goldGain;
+        let currentXp = initialStrategyXp + strategyXpGain;
+        let currentLevel = initialStrategyLevel;
+        const requiredXpForInitialLevel = getXpForLevel(currentLevel);
+        let requiredXpForCurrentLevel = requiredXpForInitialLevel;
+        while (requiredXpForCurrentLevel > 0 && currentXp >= requiredXpForCurrentLevel) {
+            currentXp -= requiredXpForCurrentLevel;
+            currentLevel += 1;
+            requiredXpForCurrentLevel = getXpForLevel(currentLevel);
+        }
+        user.strategyLevel = currentLevel;
+        user.strategyXp = currentXp;
+
+        const pairPetXpSummary = petXpGain > 0 ? applyPairPetRewardXp(user, petXpGain) : undefined;
+
+        let ratingChange = 0;
+        if (game.isRankedGame && !game.isAiGame && !isNoContest && rankedOpponentId) {
+            const result = isDraw ? 'draw' : isWinner ? 'win' : 'loss';
+            ratingChange = calculateEloChange(initialRating, opponentRating, result);
+            modeStats.rankingScore = Math.max(0, initialRating + ratingChange);
+        }
+        if (!isNoContest && !isDraw) {
+            if (isWinner) modeStats.wins += 1;
+            else modeStats.losses += 1;
+        }
+        user.stats[game.mode] = modeStats;
+
+        updateQuestProgress(user, 'participate', game.mode, 1, { gameCategory: 'pair' });
+        if (isWinner) updateQuestProgress(user, 'win', game.mode, 1, { gameCategory: 'pair' });
+
+        const xpSummary: StatChange = { initial: initialStrategyXp, change: strategyXpGain, final: currentXp };
+        game.summary[userId] = {
+            xp: xpSummary,
+            rating: { initial: initialRating, change: ratingChange, final: modeStats.rankingScore ?? initialRating },
+            manner: { initial: initialManner, change: 0, final: user.mannerScore },
+            overallRecord: {
+                wins: modeStats.wins,
+                losses: modeStats.losses,
+            },
+            gold: goldGain,
+            matchGold: goldGain,
+            items: [],
+            level: {
+                initial: initialStrategyLevel,
+                final: currentLevel,
+                progress: {
+                    initial: initialStrategyXp,
+                    final: currentXp,
+                    max: requiredXpForInitialLevel,
+                },
+            },
+            ...(pairPetXpSummary ? { pairPetXp: pairPetXpSummary } : {}),
+        };
+
+        await db.updateUser(user);
+        const fields = ['gold', 'strategyXp', 'strategyLevel', 'stats', 'quests'];
+        if (pairPetXpSummary) fields.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
+        broadcastUserUpdate(user, fields);
+    }
+
+    game.statsUpdated = humanIds.every((id) => !!game.summary?.[id]);
+    await db.saveGame(game);
+}
+
 export const processGameSummary = async (game: LiveGameSession): Promise<void> => {
+    if (isPairGoRewardGame(game)) {
+        await processPairGoGameSummary(game);
+        return;
+    }
+
     const { winner, player1, player2, blackPlayerId, whitePlayerId, noContestInitiatorIds, winReason } = game;
     if (!player1 || !player2) {
         console.error(`[Summary] Missing player data for game ${game.id}`);

@@ -92,6 +92,17 @@ export interface IpLoginSlot {
     adminIds?: Record<string, true>;
 }
 
+/** 페어 방 내부 채팅 한 줄 */
+export interface PairRoomChatLine {
+    id: string;
+    userId: string;
+    nickname: string;
+    text: string;
+    timestamp: number;
+    scope: 'room' | 'team';
+    teamId: 'teamA' | 'teamB';
+}
+
 export interface VolatileState {
     userConnections: Record<string, number>;
     userStatuses: Record<string, UserStatusInfo>;
@@ -111,12 +122,103 @@ export interface VolatileState {
         strategic?: Record<string, RankedMatchingEntry>;
         playful?: Record<string, RankedMatchingEntry>;
     };
+    pairRooms?: Record<string, PairRoomState>;
+    pairPartnerInvites?: Record<string, PairPartnerInvite>;
+    pairPartnerInviteCooldowns?: Record<string, number>;
+    pairRoomTeamChats?: Record<string, { teamA?: PairRoomChatLine[]; teamB?: PairRoomChatLine[] }>;
+    /** 페어 펫 랭크: 상대 확정 후 양 방장 수락 전까지(서버 메모리) */
+    pairRankedPetProposals?: Record<
+        string,
+        {
+            roomAId: string;
+            roomBId: string;
+            ownerAId: string;
+            ownerBId: string;
+            acceptOwnerA: boolean;
+            acceptOwnerB: boolean;
+            createdAt: number;
+        }
+    >;
     // PVP 양쪽 접속 끊김 시 재접속 후 안내 메시지 (userId -> 메시지)
     pendingMutualDisconnectByUser?: Record<string, string>;
     /** 클라이언트 IP(정규화)별 로그인 슬롯 — 일반 1명 + 관리자 다수 허용 */
     ipLoginSlots?: Record<string, IpLoginSlot>;
     /** userId가 마지막으로 점유한 클라이언트 IP (ipLoginSlots와 동기) */
     connectionIpByUserId?: Record<string, string>;
+}
+
+export interface PairRoomState {
+    id: string;
+    code: string;
+    mode: 'pvp' | 'ai';
+    pairMode: 'pvp' | 'ai';
+    roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p';
+    visibility: 'public' | 'private';
+    passwordProtected: boolean;
+    phase: 'waiting' | 'ready' | 'matching' | 'match_pending' | 'in_game';
+    title: string;
+    ownerId: string;
+    ownerName: string;
+    partnerId?: string;
+    partnerName?: string;
+    selectedGameMode: GameMode;
+    settings: GameSettings;
+    teamA: PairTeamState;
+    teamB: PairTeamState;
+    futurePetAi?: PairPetAiPlaceholder;
+    ownerReady: boolean;
+    partnerReady: boolean;
+    matchStartedAt?: number;
+    pairPetMatchingQueuedAt?: number;
+    pairRankedPetProposal?: {
+        proposalId: string;
+        opponentOwnerId: string;
+        opponentNickname: string;
+        myRating: number;
+        opponentRating: number;
+        myAccepted: boolean;
+        peerAccepted: boolean;
+    };
+    createdAt: number;
+    pairChatMessages?: PairRoomChatLine[];
+    pairSeatAssignments?: { teamA: string[]; teamB: string[] };
+    extraPairMembers?: Array<{ id: string; name: string; ready?: boolean }>;
+    /** 클라이언트 목록용 — 서버가 브로드캐스트·동기 시 채움 */
+    listOccupiedHumans?: number;
+}
+
+export interface PairTeamState {
+    id: 'teamA' | 'teamB';
+    name: string;
+    members: PairParticipantState[];
+}
+
+export interface PairParticipantState {
+    id: string;
+    name: string;
+    kind: 'user' | 'ai' | 'pet';
+    slot: 'owner' | 'partner' | 'ownerPet' | 'opponentAi' | 'opponentPet';
+    ready?: boolean;
+}
+
+export interface PairPetAiPlaceholder {
+    enabled: boolean;
+    source: 'future-pet-system';
+    notes: string;
+}
+
+/** 페어 방 파트너 초대(휘발성) */
+export interface PairPartnerInvite {
+    id: string;
+    roomId: string;
+    roomCode: string;
+    roomTitle: string;
+    inviterId: string;
+    inviterName: string;
+    inviteeId: string;
+    targetTeam?: 'teamA' | 'teamB';
+    targetIndex?: 0 | 1;
+    createdAt: number;
 }
 
 export interface UserStatusInfo {
@@ -127,6 +229,7 @@ export interface UserStatusInfo {
     gameId?: string;
     spectatingGameId?: string;
     gameCategory?: GameCategory;
+    inPairLobby?: boolean;
 }
 
 export type ServerAction =
@@ -158,6 +261,38 @@ export type ServerAction =
     // Ranked Matching
     | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic' | 'playful'; selectedModes: GameMode[] } }
     | { type: 'CANCEL_RANKED_MATCHING', payload?: never }
+    | { type: 'PAIR_CREATE_ROOM', payload: { mode?: 'pvp' | 'ai'; title?: string; roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p'; visibility?: 'public' | 'private'; password?: string } }
+    | { type: 'PAIR_JOIN_ROOM', payload: { roomId?: string; code?: string; password?: string } }
+    | { type: 'PAIR_LEAVE_ROOM', payload?: never }
+    | { type: 'PAIR_SET_READY', payload: { ready: boolean } }
+    | { type: 'PAIR_SET_ROOM_KIND', payload: { roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' } }
+    | { type: 'PAIR_SEND_ROOM_CHAT', payload: { roomId: string; text: string; scope: 'room' | 'team' } }
+    | { type: 'PAIR_SET_SEAT_ASSIGNMENTS', payload: { roomId: string; teamA: string[]; teamB: string[] } }
+    | { type: 'PAIR_START_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
+    | { type: 'PAIR_CANCEL_PAIR_PET_MATCHING', payload?: never }
+    | { type: 'PAIR_RESPOND_PAIR_PET_RANKED_MATCH', payload: { proposalId: string; accept: boolean } }
+    | { type: 'PAIR_START_AI_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
+    | { type: 'PAIR_SYNC', payload?: never }
+    | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean } }
+    | { type: 'PAIR_INVITE_PARTNER', payload: { targetUserId: string; targetTeam?: 'teamA' | 'teamB'; targetIndex?: 0 | 1 } }
+    | { type: 'PAIR_RESPOND_PARTNER_INVITE', payload: { inviteId: string; accept: boolean } }
+    | { type: 'PAIR_PET_PURCHASE', payload: { sku: string; quantity?: number } }
+    | { type: 'PAIR_PET_SET_EQUIPPED', payload: { templateId: string | null; inventoryItemId?: string | null } }
+    | { type: 'PAIR_PET_HATCH_EGG', payload?: { itemId?: string } }
+    | { type: 'PAIR_PET_HATCHERY_UNLOCK', payload: { slotIndex: number } }
+    | { type: 'PAIR_PET_HATCHERY_START', payload: { slotIndex: number; itemId?: string } }
+    | { type: 'PAIR_PET_HATCHERY_CLAIM', payload: { slotIndex: number } }
+    | { type: 'PAIR_PET_HATCHERY_CANCEL', payload: { slotIndex: number } }
+    | { type: 'PAIR_PET_HATCHERY_INSTANT_FINISH', payload: { slotIndex: number } }
+    | { type: 'PAIR_PET_CONVERT_PET', payload: { itemId: string } }
+    | { type: 'PAIR_PET_UPGRADE_GRADE', payload: { mainItemId: string } }
+    | { type: 'PAIR_PET_EXPAND_LOBBY_SLOTS', payload: { category: 'pet' | 'egg' } }
+    | { type: 'PAIR_PET_START_TRAINING', payload: { slotIndex: number; itemId: string } }
+    | { type: 'PAIR_PET_CLAIM_TRAINING', payload: { slotIndex: number } }
+    | { type: 'FRIEND_SYNC', payload?: never }
+    | { type: 'FRIEND_SEND_REQUEST', payload: { targetUserId: string } }
+    | { type: 'FRIEND_ACCEPT_REQUEST', payload: { requesterUserId: string } }
+    | { type: 'FRIEND_REMOVE', payload: { targetUserId: string } }
     // Game
     | { type: 'PLACE_STONE', payload: { gameId: string; x: number; y: number, isHidden?: boolean, isClientAiMove?: boolean, clientSideAiMove?: boolean } }
     | { type: 'PASS_TURN', payload: { gameId: string } }
@@ -238,6 +373,8 @@ export type ServerAction =
               history: string[];
           };
       }
+    | { type: 'CLAIM_EXCHANGE_SETTLEMENT'; payload: { listingId?: string; claimAll?: boolean } }
+    | { type: 'PURCHASE_EXCHANGE_LISTING'; payload: { listingId: string; sellerId: string } }
     | { type: 'CHANGE_NICKNAME', payload: { newNickname: string } }
     | { type: 'CHANGE_USERNAME', payload: { newUsername: string; password: string } }
     | { type: 'CHANGE_PASSWORD', payload: { currentPassword: string; newPassword: string } }
@@ -286,7 +423,7 @@ export type ServerAction =
     | { type: 'USE_ALL_ITEMS_OF_TYPE', payload: { itemName: string } }
     | { type: 'TOGGLE_EQUIP_ITEM', payload: { itemId: string } }
     | { type: 'UNBIND_EQUIPMENT', payload: { itemId: string } }
-    | { type: 'MARK_ITEM_EXCHANGE_LISTED', payload: { itemId: string } }
+    | { type: 'MARK_ITEM_EXCHANGE_LISTED'; payload: { itemId: string; listPrice: number; listCurrency: 'gold' | 'diamonds' } }
     | { type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: string } }
     | { type: 'SELL_ITEM', payload: { itemId: string, quantity?: number } }
     | { type: 'ENHANCE_ITEM', payload: { itemId: string } }

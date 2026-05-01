@@ -114,10 +114,11 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
     const rowDense = Boolean(dense && !mobileSplitLarge);
     const wide = Boolean(mobileSplitLarge);
     const { currentUserWithStatus, handlers } = useAppContext();
-    const [activeTab, setActiveTab] = useState<'strategic' | 'playful'>('strategic');
+    const [activeTab, setActiveTab] = useState<'strategic' | 'playful' | 'pair'>('strategic');
 
-    const rankingType = activeTab === 'strategic' ? 'strategic' : 'playful';
-    const { rankings: rankingEntries, loading, error } = useRanking(rankingType);
+    const rankingType = activeTab === 'strategic' ? 'strategic' : activeTab === 'playful' ? 'playful' : 'pair';
+    const pairSeason = activeTab === 'pair';
+    const { rankings: rankingEntries, loading, error } = useRanking(rankingType, undefined, undefined, pairSeason ? true : false);
 
     const rankings = useMemo(() => {
         return rankingEntries.map(entry => ({
@@ -178,6 +179,24 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
         }
         
         // rankings에 없으면 값만 계산 (10판 이상이어야 표시)
+        if (activeTab === 'pair') {
+            const pairStats = currentUserWithStatus.stats?.['pair' as keyof typeof currentUserWithStatus.stats] as { wins?: number; losses?: number } | undefined;
+            const wins = pairStats?.wins || 0;
+            const losses = pairStats?.losses || 0;
+            const totalGames = wins + losses;
+            if (totalGames < 5) return null;
+            const rankInList = rankings.findIndex(r => r.user && r.user.id === currentUserWithStatus.id);
+            if (rankInList !== -1) {
+                return {
+                    user: currentUserWithStatus,
+                    value: rankings[rankInList].value,
+                    rank: rankings[rankInList].rank,
+                };
+            }
+            const score = Number(currentUserWithStatus.dailyRankings?.pair?.score ?? 1200);
+            return { user: currentUserWithStatus, value: score, rank: 'N/A' as const };
+        }
+
         const mode = activeTab === 'strategic' ? 'strategic' : 'playful';
         const scoreMode = mode === 'strategic' ? 'standard' : 'playful';
         const gameModes = mode === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
@@ -222,11 +241,11 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
             >
                 바둑 랭킹
             </h3>
-            <div className={`relative z-[1] flex flex-shrink-0 rounded-xl border border-white/10 bg-black/45 p-1 shadow-inner ${wide ? '' : rowDense ? 'p-px' : ''}`}>
+            <div className={`relative z-[1] grid flex-shrink-0 grid-cols-3 gap-0.5 rounded-xl border border-white/10 bg-black/45 p-1 shadow-inner ${wide ? '' : rowDense ? 'p-px' : ''}`}>
                 <button
                     type="button"
                     onClick={() => setActiveTab('strategic')}
-                    className={`flex-1 rounded-lg font-semibold transition-all ${
+                    className={`rounded-lg font-semibold transition-all ${
                         wide ? 'py-1.5 text-[11px]' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
                     } ${
                         activeTab === 'strategic'
@@ -239,7 +258,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                 <button
                     type="button"
                     onClick={() => setActiveTab('playful')}
-                    className={`flex-1 rounded-lg font-semibold transition-all ${
+                    className={`rounded-lg font-semibold transition-all ${
                         wide ? 'py-1.5 text-[11px]' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
                     } ${
                         activeTab === 'playful'
@@ -248,6 +267,19 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                     }`}
                 >
                     놀이바둑
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setActiveTab('pair')}
+                    className={`rounded-lg font-semibold transition-all ${
+                        wide ? 'py-1.5 text-[11px]' : rowDense ? 'py-0.5 text-[7px]' : 'py-1.5 text-xs'
+                    } ${
+                        activeTab === 'pair'
+                            ? 'bg-gradient-to-r from-cyan-600 to-sky-700 text-white shadow-md shadow-cyan-500/25'
+                            : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
+                    }`}
+                >
+                    페어
                 </button>
             </div>
             <div
@@ -316,7 +348,7 @@ const BadukRankingBoard: React.FC<BadukRankingBoardProps> = ({ isTopmost, dense,
                         </>
                     )}
                 </div>
-                {wide && !hideInlineGuide && (
+                {wide && !hideInlineGuide && (activeTab === 'strategic' || activeTab === 'playful') && (
                     <div className="flex min-h-0 flex-[3] flex-col overflow-hidden">
                         <MobileRankingGuidePanel variant={activeTab === 'strategic' ? 'baduk-strategic' : 'baduk-playful'} />
                     </div>

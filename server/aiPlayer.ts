@@ -20,6 +20,7 @@ import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDifficulty.js';
 import { getTowerKataServerLevelByFloor } from '../shared/utils/towerKataServerLevel.js';
+import { getCurrentPairTurnSeat, isPairAiSeat } from '../shared/utils/pairGameTurn.js';
 
 
 export const aiUserId = 'ai-player-01';
@@ -1225,7 +1226,8 @@ const makeCurlingAiMove = async (game: types.LiveGameSession) => {
 
 
 export const makeAiMove = async (game: LiveGameSession) => {
-    const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+    const pairCurrentSeat = getCurrentPairTurnSeat(game.settings);
+    const currentPlayerId = pairCurrentSeat?.participantId ?? (game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId);
     const isAlkkagiSimultaneousAiPlacement =
         game.mode === types.GameMode.Alkkagi &&
         game.isAiGame &&
@@ -1234,7 +1236,9 @@ export const makeAiMove = async (game: LiveGameSession) => {
     const isAiControlledTurn =
         (
             game.currentPlayer !== types.Player.None &&
-            (currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')))
+            (currentPlayerId === aiUserId ||
+                (pairCurrentSeat && isPairAiSeat(pairCurrentSeat)) ||
+                (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-')))
         ) ||
         isAlkkagiSimultaneousAiPlacement;
     if (!isAiControlledTurn) {

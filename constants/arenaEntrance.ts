@@ -7,6 +7,7 @@ export const ARENA_ENTRANCE_KEYS = [
     'tower',
     'strategicLobby',
     'playfulLobby',
+    'pairLobby',
     'championship',
     'adventure',
 ] as const;
@@ -18,6 +19,7 @@ export const ARENA_ENTRANCE_LABELS: Record<ArenaEntranceKey, string> = {
     tower: '도전의 탑',
     strategicLobby: '전략바둑 대기실',
     playfulLobby: '놀이바둑 대기실',
+    pairLobby: '페어 경기장',
     championship: '챔피언십',
     adventure: '모험',
 };
@@ -27,6 +29,7 @@ export const ARENA_ENTRANCE_CLOSED_MESSAGE: Record<ArenaEntranceKey, string> = {
     tower: '도전의 탑 입장이 일시적으로 닫혀 있습니다.',
     strategicLobby: '전략바둑 대기실이 일시적으로 닫혀 있습니다.',
     playfulLobby: '놀이바둑 대기실이 일시적으로 닫혀 있습니다.',
+    pairLobby: '페어 경기장 입장이 일시적으로 닫혀 있습니다.',
     championship: '챔피언십이 일시적으로 닫혀 있습니다.',
     adventure: '모험이 일시적으로 닫혀 있습니다.',
 };
@@ -36,6 +39,7 @@ const DEFAULT_OPEN: Record<ArenaEntranceKey, boolean> = {
     tower: true,
     strategicLobby: true,
     playfulLobby: true,
+    pairLobby: true,
     championship: true,
     adventure: true,
 };

@@ -20,11 +20,13 @@ interface RankingEntry {
 interface RankingCache {
     strategic: RankingEntry[];
     playful: RankingEntry[];
+    pair: RankingEntry[];
     championship: RankingEntry[];
     combat: RankingEntry[];
     manner: RankingEntry[];
     strategicSeason: RankingEntry[]; // 시즌별 티어 랭킹
     playfulSeason: RankingEntry[]; // 시즌별 티어 랭킹
+    pairSeason: RankingEntry[]; // 페어 시즌 랭킹
     timestamp: number;
 }
 
@@ -105,11 +107,13 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 const emptyCache = {
                     strategic: [],
                     playful: [],
+                    pair: [],
                     championship: [],
                     combat: [],
                     manner: [],
                     strategicSeason: [],
                     playfulSeason: [],
+                    pairSeason: [],
                     timestamp: now
                 };
                 rankingCache = emptyCache;
@@ -125,13 +129,17 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 });
             
             // 병렬로 여러 랭킹 계산
-            const [strategicRankings, playfulRankings, championshipRankings, mannerRankings, combatRankings, strategicSeasonRankings, playfulSeasonRankings] = await Promise.all([
+            const [strategicRankings, playfulRankings, pairRankings, championshipRankings, mannerRankings, combatRankings, strategicSeasonRankings, playfulSeasonRankings, pairSeasonRankings] = await Promise.all([
                 Promise.resolve(calculateRanking(allUsers, SPECIAL_GAME_MODES, 'strategic', 'standard')).catch((err) => {
                     console.error('[RankingCache] Error calculating strategic rankings:', err);
                     return [];
                 }),
                 Promise.resolve(calculateRanking(allUsers, PLAYFUL_GAME_MODES, 'playful', 'playful')).catch((err) => {
                     console.error('[RankingCache] Error calculating playful rankings:', err);
+                    return [];
+                }),
+                Promise.resolve(calculatePairRanking(allUsers)).catch((err) => {
+                    console.error('[RankingCache] Error calculating pair rankings:', err);
                     return [];
                 }),
                 Promise.resolve(calculateChampionshipRankings(allUsers)).catch((err) => {
@@ -150,17 +158,23 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 Promise.resolve(calculateSeasonRanking(allUsers, PLAYFUL_GAME_MODES, 'playful')).catch((err) => {
                     console.error('[RankingCache] Error calculating playful season rankings:', err);
                     return [];
+                }),
+                Promise.resolve(calculatePairSeasonRanking(allUsers)).catch((err) => {
+                    console.error('[RankingCache] Error calculating pair season rankings:', err);
+                    return [];
                 })
             ]);
             
             rankingCache = {
                 strategic: strategicRankings || [],
                 playful: playfulRankings || [],
+                pair: pairRankings || [],
                 championship: championshipRankings || [],
                 combat: combatRankings || [],
                 manner: mannerRankings || [],
                 strategicSeason: strategicSeasonRankings || [],
                 playfulSeason: playfulSeasonRankings || [],
+                pairSeason: pairSeasonRankings || [],
                 timestamp: now
             };
             
@@ -218,11 +232,13 @@ export async function buildRankingCache(): Promise<RankingCache> {
             const emptyCache = {
                 strategic: [],
                 playful: [],
+                pair: [],
                 championship: [],
                 combat: [],
                 manner: [],
                 strategicSeason: [],
                 playfulSeason: [],
+                pairSeason: [],
                 timestamp: errorNow
             };
             rankingCache = emptyCache;
@@ -471,6 +487,60 @@ function calculateSeasonRanking(
     }));
 }
 
+function calculatePairRanking(allUsers: any[]): RankingEntry[] {
+    const rankings: RankingEntry[] = [];
+    for (const user of allUsers) {
+        if (!user || !user.id) continue;
+        const pairStats = user.stats?.[String('pair')];
+        const wins = pairStats?.wins || 0;
+        const losses = pairStats?.losses || 0;
+        const totalGames = wins + losses;
+        if (totalGames < 5) continue;
+        const score = user.cumulativeRankingScore?.['pair'] ?? 0;
+        rankings.push({
+            id: user.id,
+            nickname: user.nickname || user.username,
+            avatarId: user.avatarId,
+            borderId: user.borderId,
+            rank: 0,
+            score,
+            totalGames,
+            wins,
+            losses,
+            league: user.league,
+        });
+    }
+    rankings.sort((a, b) => b.score - a.score);
+    return rankings.map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
+function calculatePairSeasonRanking(allUsers: any[]): RankingEntry[] {
+    const rankings: RankingEntry[] = [];
+    for (const user of allUsers) {
+        if (!user || !user.id) continue;
+        const pairStats = user.stats?.[String('pair')];
+        const wins = pairStats?.wins || 0;
+        const losses = pairStats?.losses || 0;
+        const totalGames = wins + losses;
+        if (totalGames < 5) continue;
+        const score = Number(user.dailyRankings?.pair?.score ?? 1200);
+        rankings.push({
+            id: user.id,
+            nickname: user.nickname || user.username,
+            avatarId: user.avatarId,
+            borderId: user.borderId,
+            rank: 0,
+            score,
+            totalGames,
+            wins,
+            losses,
+            league: user.league,
+        });
+    }
+    rankings.sort((a, b) => b.score - a.score);
+    return rankings.map((entry, index) => ({ ...entry, rank: index + 1 }));
+}
+
 // 총 게임 수 계산
 function calculateTotalGames(user: any, gameModes: any[]): number {
     let totalGames = 0;
@@ -495,6 +565,7 @@ export function invalidateRankingCache(): void {
 export async function getUserRankings(userId: string): Promise<{
     strategic?: { rank: number; score: number; totalPlayers: number };
     playful?: { rank: number; score: number; totalPlayers: number };
+    pair?: { rank: number; score: number; totalPlayers: number };
     championship?: { rank: number; score: number; totalPlayers: number };
     combat?: { rank: number; score: number; totalPlayers: number };
     manner?: { rank: number; score: number; totalPlayers: number };
@@ -513,6 +584,7 @@ export async function getUserRankings(userId: string): Promise<{
     return {
         strategic: findRank(cache.strategic, userId),
         playful: findRank(cache.playful, userId),
+        pair: findRank(cache.pair, userId),
         championship: findRank(cache.championship, userId),
         combat: findRank(cache.combat, userId),
         manner: findRank(cache.manner, userId)

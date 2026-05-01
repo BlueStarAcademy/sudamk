@@ -202,7 +202,7 @@ export const GameInfoPanel: React.FC<{
              details.push(renderSetting("아이템", "대기실 보유 개수 사용"));
         }
 
-        if (SPECIAL_GAME_MODES.some(m => m.mode === mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
+        if (!settings.pairGame && SPECIAL_GAME_MODES.some(m => m.mode === mode) && settings.scoringTurnLimit != null && settings.scoringTurnLimit > 0) {
             details.push(renderSetting("계가까지 턴", `${settings.scoringTurnLimit}턴`));
         }
         

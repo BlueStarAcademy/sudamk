@@ -1,29 +1,71 @@
-import { randomUUID } from 'crypto';
 import { InventoryItem, InventoryItemType } from '../types/index.js';
+
+/** Vite 브라우저 번들에서는 Node `crypto`를 쓸 수 없음 — Web Crypto + 폴백 */
+function randomUUID(): string {
+    const c = globalThis.crypto;
+    if (c && typeof c.randomUUID === 'function') return c.randomUUID();
+    return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}-${Math.random().toString(36).slice(2, 11)}`;
+}
 import { ItemGrade } from '../types/enums.js';
 import {
     applyEnhancementStarsToEquipmentItem,
     getMailEquipmentDisplayStars,
     isMailAttachmentEquipment,
 } from '../shared/utils/equipmentEnhancementStars.js';
-import { normalizeInventoryEquipmentItem } from '../shared/utils/inventoryLegacyNormalize.js';
+import {
+    mapNormalizeInventoryList,
+    normalizeInventoryEquipmentItem,
+} from '../shared/utils/inventoryLegacyNormalize.js';
 import { isActionPointConsumable, isRefinementTicketMaterial } from '../constants/items.js';
 import { getItemTemplateByName, normalizeBoxItemName } from './itemTemplateLookup.js';
+import {
+    isPairArenaExclusiveBagItem,
+    isPairEggItem,
+    isPairPetMaterial,
+    isPairSoulStoneMaterialName,
+    pairSoulTemplateIdFromTier,
+    pairSoulTierFromMaterialName,
+    PAIR_EGG_MATERIAL_NAME,
+} from '../shared/constants/petLobby.js';
+import {
+    effectivePairPetGradeFromRow,
+    PAIR_PET_MAX_LEVEL,
+    pairPetXpGainBlockedByGrade,
+} from '../shared/constants/pairPetGrade.js';
+import { derivePairPetMetaFallback } from '../shared/utils/pairPetRoll.js';
 
 export { getItemTemplateByName, normalizeBoxItemName };
 
 /** 옵션 변경권 3종: 슬롯당 최대 겹침, 초과 시 다음 슬롯 */
 export const REFINEMENT_TICKET_MAX_STACK = 100;
 
-export const addItemsToInventory = (currentInventory: InventoryItem[], inventorySlots: { equipment: number; consumable: number; material: number; }, itemsToAdd: InventoryItem[]): { success: boolean, finalItemsToAdd: InventoryItem[], updatedInventory: InventoryItem[] } => {
+export type AddItemsToInventoryOptions = {
+    /**
+     * 재료 칸이 가득 차도 지급을 허용합니다.
+     * 신비로운알 상점 구매 등 — 부화장용 알은 로비 펫 슬롯과 별도이나 가방 재료 슬롯과는 공유될 수 있어,
+     * 구매만은 슬롯 초과 시에도 인벤에 합쳐지도록 할 때 사용합니다.
+     */
+    allowMaterialSlotOverflow?: boolean;
+};
+
+export const addItemsToInventory = (
+    currentInventory: InventoryItem[],
+    inventorySlots: { equipment: number; consumable: number; material: number },
+    itemsToAdd: InventoryItem[],
+    options?: AddItemsToInventoryOptions
+): { success: boolean; finalItemsToAdd: InventoryItem[]; updatedInventory: InventoryItem[] } => {
     const tempInventory = JSON.parse(JSON.stringify(currentInventory));
     const finalItemsToAdd: InventoryItem[] = [];
 
     const getMaxStackSize = (name: string): number => {
+        // 페어 AI 펫 인스턴스: 슬롯당 1마리(합치지 않음)
+        if (name.startsWith('AI 펫·') || name.startsWith('AI 펫 #')) return 1;
         // 행동력 회복제: 한 묶음 최대 20개
         if (isActionPointConsumable(name)) return 20;
         // 옵션 변경권: 한 슬롯 최대 100개
         if (isRefinementTicketMaterial(name)) return REFINEMENT_TICKET_MAX_STACK;
+        // 페어: 알·영혼석(동일 이름 누적). 펫 본체는 위에서 1로 처리됨
+        if (name === PAIR_EGG_MATERIAL_NAME || name === '페어 미스터리 알' || isPairSoulStoneMaterialName(name)) return 99;
         // 그 외 소모품/재료: 한 묶음 최대 100개
         return 100;
     };
@@ -57,7 +99,9 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
         if (items.length === 0) continue;
 
         const currentCategoryItems = tempInventory.filter((item: InventoryItem) => item.type === category);
-        let currentCategorySlotsUsed = currentCategoryItems.length;
+        const excludesFromMainBagMaterialSlots = (it: InventoryItem) =>
+            category === 'material' && it.type === 'material' && isPairArenaExclusiveBagItem(it);
+        let currentCategorySlotsUsed = currentCategoryItems.filter((it: InventoryItem) => !excludesFromMainBagMaterialSlots(it)).length;
 
         const stackableToAdd: Record<string, number> = {};
         for (const item of items) {
@@ -65,12 +109,26 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
             stackableToAdd[key] = (stackableToAdd[key] || 0) + (item.quantity || 1);
         }
 
-        let neededNewSlots = 0;
+        const resolveMaxStackSizeForKey = (key: string): number => {
+            const donor = items.find((it) => getStackKey(it as InventoryItem) === key);
+            if (
+                donor &&
+                donor.type === 'material' &&
+                isPairPetMaterial(donor) &&
+                !isPairEggItem(donor)
+            ) {
+                return 1;
+            }
+            const { name } = parseStackKey(key);
+            return getMaxStackSize(name);
+        };
+
+        let neededNewSlotsForBagCap = 0;
         for (const key in stackableToAdd) {
             const { name, source } = parseStackKey(key);
             let quantityToPlace = stackableToAdd[key];
             const existingSource = source ?? (undefined as 'tower' | undefined);
-            const maxStackSize = getMaxStackSize(name);
+            const maxStackSize = resolveMaxStackSizeForKey(key);
 
             for (const existingItem of currentCategoryItems) {
                 if (quantityToPlace <= 0) break;
@@ -79,15 +137,26 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
                     const space = maxStackSize - (existingItem.quantity || 0);
                     const toAdd = Math.min(quantityToPlace, space);
                     existingItem.quantity = (existingItem.quantity || 0) + toAdd;
+                    if (isPairSoulStoneMaterialName(name) && !existingItem.templateId) {
+                        existingItem.templateId = pairSoulTemplateIdFromTier(pairSoulTierFromMaterialName(name));
+                    }
                     quantityToPlace -= toAdd;
                 }
             }
             if (quantityToPlace > 0) {
-                neededNewSlots += Math.ceil(quantityToPlace / maxStackSize);
+                const inc = Math.ceil(quantityToPlace / maxStackSize);
+                const donor = items.find((it) => getStackKey(it as InventoryItem) === key);
+                const skipCap =
+                    category === 'material' &&
+                    donor &&
+                    donor.type === 'material' &&
+                    isPairArenaExclusiveBagItem(donor);
+                if (!skipCap) neededNewSlotsForBagCap += inc;
             }
         }
 
-        if ((currentCategorySlotsUsed + neededNewSlots) > inventorySlots[category]) {
+        const skipMaterialSlotCap = category === 'material' && Boolean(options?.allowMaterialSlotOverflow);
+        if (!skipMaterialSlotCap && (currentCategorySlotsUsed + neededNewSlotsForBagCap) > inventorySlots[category]) {
             return { success: false, finalItemsToAdd: [], updatedInventory: currentInventory };
         }
 
@@ -95,7 +164,7 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
             const { name, source } = parseStackKey(key);
             let quantityLeft = stackableToAdd[key];
             const existingSource = source ?? (undefined as 'tower' | undefined);
-            const maxStackSize = getMaxStackSize(name);
+            const maxStackSize = resolveMaxStackSizeForKey(key);
 
             for (const existingItem of currentCategoryItems) {
                 if (quantityLeft <= 0) break;
@@ -124,24 +193,50 @@ export const addItemsToInventory = (currentInventory: InventoryItem[], inventory
                     const template = getItemTemplateByName(name);
                     const newItemSource = source === 'tower' ? { source: 'tower' as const } : {};
                     if (template) {
-                        finalItemsToAdd.push({ ...template, ...newItemSource, id: `item-${randomUUID()}`, quantity: toAdd, createdAt: Date.now(), isEquipped: false, stars: 0, level: 1 });
-                    } else {
-                        console.error(`[addItemsToInventory] Unable to find template for stackable item '${name}'.`);
+                        const soulTid = isPairSoulStoneMaterialName(name)
+                            ? pairSoulTemplateIdFromTier(pairSoulTierFromMaterialName(name))
+                            : undefined;
                         finalItemsToAdd.push({
-                            name,
-                            description: '보상 아이템',
-                            type: 'consumable',
-                            slot: null,
-                            image: '/images/icon/Reward.png',
-                            grade: 'normal',
+                            ...template,
+                            ...(soulTid ? { templateId: soulTid } : {}),
+                            ...newItemSource,
                             id: `item-${randomUUID()}`,
                             quantity: toAdd,
                             createdAt: Date.now(),
                             isEquipped: false,
                             stars: 0,
                             level: 1,
-                            ...newItemSource,
-                        } as InventoryItem);
+                        });
+                    } else {
+                        const donor = items.find((it) => getStackKey(it as InventoryItem) === key);
+                        if (donor && donor.type === category) {
+                            const row = JSON.parse(JSON.stringify(donor)) as InventoryItem;
+                            row.id = `item-${randomUUID()}`;
+                            row.quantity = toAdd;
+                            row.createdAt = Date.now();
+                            row.isEquipped = false;
+                            if (source === 'tower') {
+                                (row as InventoryItem & { source?: string }).source = 'tower';
+                            }
+                            finalItemsToAdd.push(row);
+                        } else {
+                            console.error(`[addItemsToInventory] Unable to find template for stackable item '${name}'.`);
+                            finalItemsToAdd.push({
+                                name,
+                                description: '보상 아이템',
+                                type: 'consumable',
+                                slot: null,
+                                image: '/images/icon/Reward.png',
+                                grade: 'normal',
+                                id: `item-${randomUUID()}`,
+                                quantity: toAdd,
+                                createdAt: Date.now(),
+                                isEquipped: false,
+                                stars: 0,
+                                level: 1,
+                                ...newItemSource,
+                            } as InventoryItem);
+                        }
                     }
                     quantityLeft -= toAdd;
                 }
@@ -272,6 +367,81 @@ export function consolidateRefinementTicketStacks(inventory: InventoryItem[]): I
     }
 
     return [...rest.slice(0, insertAt), ...merged, ...rest.slice(insertAt)];
+}
+
+/** 레거시: AI 펫이 quantity>1로 한 슬롯에 쌓인 경우 → 마리당 한 행으로 분리 */
+export function splitStackedPairPetInstances(inventory: InventoryItem[]): InventoryItem[] {
+    if (!Array.isArray(inventory) || inventory.length === 0) return inventory;
+    let changed = false;
+    const out: InventoryItem[] = [];
+    for (const item of inventory) {
+        if (!item || item.type !== 'material' || !isPairPetMaterial(item)) {
+            out.push(item);
+            continue;
+        }
+        const rawQ = Number(item.quantity ?? 1);
+        const q = Number.isFinite(rawQ) && rawQ >= 1 ? Math.floor(rawQ) : 1;
+        if (q <= 1) {
+            if (item.quantity != null && item.quantity !== 1) changed = true;
+            out.push(item.quantity === 1 ? item : { ...item, quantity: 1 });
+            continue;
+        }
+        changed = true;
+        for (let i = 0; i < q; i += 1) {
+            const id = i === 0 ? item.id : `item-${randomUUID()}`;
+            const createdAt = i === 0 ? item.createdAt ?? Date.now() : Date.now();
+            const pairPetMeta = i === 0 ? item.pairPetMeta : derivePairPetMetaFallback(id, createdAt);
+            out.push({
+                ...item,
+                id,
+                quantity: 1,
+                createdAt,
+                pairPetMeta,
+            });
+        }
+    }
+    return changed ? out : inventory;
+}
+
+/** 등급 강화 구간(Lv10·20…)에 도달했는데 아직 다음 등급이 없으면 경험치 바를 0으로 맞춤 */
+function normalizePairPetXpGates(items: InventoryItem[]): InventoryItem[] {
+    let changed = false;
+    const out = items.map((it) => {
+        if (!isPairPetMaterial(it) || isPairEggItem(it)) return it;
+        const meta = it.pairPetMeta;
+        if (!meta) return it;
+        const grade = effectivePairPetGradeFromRow(it);
+        const level = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
+        if (!pairPetXpGainBlockedByGrade(grade, level)) return it;
+        const xp = meta.xp ?? 0;
+        if (xp === 0) return it;
+        changed = true;
+        return { ...it, pairPetMeta: { ...meta, xp: 0 } };
+    });
+    return changed ? out : items;
+}
+
+/** 레거시: 이름만 있고 `templateId` 없는 페어 영혼석 → 로비·등급 강화 식별용 id 보정 */
+function normalizePairSoulStoneTemplateIds(items: InventoryItem[]): InventoryItem[] {
+    let changed = false;
+    const out = items.map((it) => {
+        if (it.type !== 'material' || !isPairSoulStoneMaterialName(it.name) || it.templateId) return it;
+        changed = true;
+        return {
+            ...it,
+            templateId: pairSoulTemplateIdFromTier(pairSoulTierFromMaterialName(it.name)),
+        };
+    });
+    return changed ? out : items;
+}
+
+/** DB/소켓 로드 후 인벤 정규화: 장비 수치 → 펫 스택 분리 → 변경권 합산 */
+export function normalizeInventoryAfterLoad(items: InventoryItem[]): InventoryItem[] {
+    return normalizePairPetXpGates(
+        consolidateRefinementTicketStacks(
+            splitStackedPairPetInstances(mapNormalizeInventoryList(normalizePairSoulStoneTemplateIds(items)))
+        )
+    );
 }
 
 export const createItemInstancesFromReward = (itemRefs: (InventoryItem | { itemId: string; quantity: number })[]): InventoryItem[] => {

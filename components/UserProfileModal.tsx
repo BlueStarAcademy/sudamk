@@ -204,6 +204,11 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
     const isConnectionBanned = !!user.connectionBanUntil && user.connectionBanUntil > now;
     const onlineStatus = (user as any).status as string | undefined;
     const isConnected = Boolean((user as any).isConnected);
+    const myFriendIds = new Set(currentUserWithStatus?.friendIds || []);
+    const myIncoming = new Set(currentUserWithStatus?.incomingFriendRequestIds || []);
+    const isSelfProfile = currentUserWithStatus?.id === user.id;
+    const isFriend = myFriendIds.has(user.id);
+    const hasIncomingRequest = myIncoming.has(user.id);
 
     const runAdminAction = async (action: ServerAction) => {
         try {
@@ -243,6 +248,21 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
             type: 'ADMIN_FORCE_LOGOUT',
             payload: { targetUserId: user.id },
         });
+    };
+
+    const sendFriendRequest = async () => {
+        if (isSelfProfile) return;
+        await handlers.handleAction({ type: 'FRIEND_SEND_REQUEST', payload: { targetUserId: user.id } } as any);
+    };
+
+    const acceptFriendRequest = async () => {
+        if (isSelfProfile) return;
+        await handlers.handleAction({ type: 'FRIEND_ACCEPT_REQUEST', payload: { requesterUserId: user.id } } as any);
+    };
+
+    const removeFriend = async () => {
+        if (isSelfProfile) return;
+        await handlers.handleAction({ type: 'FRIEND_REMOVE', payload: { targetUserId: user.id } } as any);
     };
     
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === avatarId)?.url, [avatarId]);
@@ -388,6 +408,17 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                                         </span>
                                     )}
                                 </div>
+                                {!isSelfProfile && (
+                                    <div className="mt-2 flex flex-wrap gap-1.5">
+                                        {isFriend ? (
+                                            <button onClick={removeFriend} className="rounded-md border border-rose-300/45 bg-rose-900/45 px-2 py-1 text-xs font-bold text-rose-100">친구삭제</button>
+                                        ) : hasIncomingRequest ? (
+                                            <button onClick={acceptFriendRequest} className="rounded-md border border-emerald-300/45 bg-emerald-900/45 px-2 py-1 text-xs font-bold text-emerald-100">친구수락</button>
+                                        ) : (
+                                            <button onClick={sendFriendRequest} className="rounded-md border border-cyan-300/45 bg-cyan-900/45 px-2 py-1 text-xs font-bold text-cyan-100">친구신청</button>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </div>
                         {user.guildId ? (

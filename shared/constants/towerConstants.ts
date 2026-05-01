@@ -69,7 +69,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         placements: { black: 12, white: 12, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
         blackTurnLimit: 10,
-        rewards: { firstClear: { gold: 0, exp: 30, items: [{ itemId: '골드 꾸러미1', quantity: 1 }] }, repeatClear: { gold: 10, exp: 30 } }
+        rewards: { firstClear: { gold: 0, exp: 30, items: [{ itemId: '골드 꾸러미 I', quantity: 1 }] }, repeatClear: { gold: 10, exp: 30 } }
     },
     // 6층
     {
@@ -264,7 +264,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         placements: { black: 12, white: 13, blackPattern: 0, whitePattern: 0, centerBlackStoneChance: 0 },
         timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 5 },
         blackTurnLimit: 15,
-        rewards: { firstClear: { gold: 0, exp: 50, items: [{ itemId: '다이아꾸러미1', quantity: 1 }] }, repeatClear: { gold: 15, exp: 50 } }
+        rewards: { firstClear: { gold: 0, exp: 50, items: [{ itemId: '다이아 꾸러미 I', quantity: 1 }] }, repeatClear: { gold: 15, exp: 50 } }
     },
     // 21-30층: 자동계가 턴 40턴, 미사일+히든 합쳐진 형태
     {
@@ -335,7 +335,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         autoScoringTurns: 40,
         missileCount: 1,
         hiddenCount: 1,
-        rewards: { firstClear: { gold: 0, exp: 50, items: [{ itemId: '골드 꾸러미2', quantity: 1 }] }, repeatClear: { gold: 20, exp: 50 } }
+        rewards: { firstClear: { gold: 0, exp: 50, items: [{ itemId: '골드 꾸러미 II', quantity: 1 }] }, repeatClear: { gold: 20, exp: 50 } }
     },
     {
         id: 'tower-26',
@@ -546,7 +546,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         autoScoringTurns: 50,
         missileCount: 1,
         hiddenCount: 1,
-        rewards: { firstClear: { gold: 0, exp: 80, items: [{ itemId: '다이아꾸러미2', quantity: 1 }] }, repeatClear: { gold: 25, exp: 80 } }
+        rewards: { firstClear: { gold: 0, exp: 80, items: [{ itemId: '다이아 꾸러미 II', quantity: 1 }] }, repeatClear: { gold: 25, exp: 80 } }
     },
     {
         id: 'tower-41',
@@ -616,7 +616,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         autoScoringTurns: 50,
         missileCount: 1,
         hiddenCount: 1,
-        rewards: { firstClear: { gold: 0, exp: 80, items: [{ itemId: '골드 꾸러미3', quantity: 1 }] }, repeatClear: { gold: 30, exp: 80 } }
+        rewards: { firstClear: { gold: 0, exp: 80, items: [{ itemId: '골드 꾸러미 III', quantity: 1 }] }, repeatClear: { gold: 30, exp: 80 } }
     },
     {
         id: 'tower-46',
@@ -827,7 +827,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         autoScoringTurns: 60,
         missileCount: 1,
         hiddenCount: 1,
-        rewards: { firstClear: { gold: 0, exp: 80, items: [{ itemId: '다이아꾸러미3', quantity: 1 }] }, repeatClear: { gold: 40, exp: 80 } }
+        rewards: { firstClear: { gold: 0, exp: 80, items: [{ itemId: '다이아 꾸러미 III', quantity: 1 }] }, repeatClear: { gold: 40, exp: 80 } }
     },
     // 61-80층: 자동계가 턴 70턴, 바둑판크기 13줄
     {
@@ -898,7 +898,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         autoScoringTurns: 70,
         missileCount: 1,
         hiddenCount: 1,
-        rewards: { firstClear: { gold: 0, exp: 150, items: [{ itemId: '골드 꾸러미4', quantity: 1 }] }, repeatClear: { gold: 50, exp: 150 } }
+        rewards: { firstClear: { gold: 0, exp: 150, items: [{ itemId: '골드 꾸러미 IV', quantity: 1 }] }, repeatClear: { gold: 50, exp: 150 } }
     },
     {
         id: 'tower-66',
@@ -1108,7 +1108,7 @@ export const TOWER_STAGES: SinglePlayerStageInfo[] = [
         autoScoringTurns: 70,
         missileCount: 1,
         hiddenCount: 1,
-        rewards: { firstClear: { gold: 0, exp: 150, items: [{ itemId: '다이아꾸러미4', quantity: 1 }] }, repeatClear: { gold: 60, exp: 150 } }
+        rewards: { firstClear: { gold: 0, exp: 150, items: [{ itemId: '다이아 꾸러미 IV', quantity: 1 }] }, repeatClear: { gold: 60, exp: 150 } }
     },
     // 81-100층: 자동계가 턴 80턴
     {

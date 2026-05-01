@@ -16,6 +16,7 @@ import WaitingRoom from './waiting-room/WaitingRoom.js';
 import Game from '../Game.js';
 import Admin from './Admin.js';
 import TournamentLobby from './TournamentLobby.js';
+import PairWaitingLobby from './PairWaitingLobby.js';
 import TournamentArena from './arenas/TournamentArena.js';
 import SinglePlayerLobby from './SinglePlayerLobby.js';
 import TowerLobby from './TowerLobby.js';
@@ -123,6 +124,7 @@ const Router: React.FC = () => {
         }
         if (v === 'singleplayer' && !mergedArena.singleplayer) replaceAppHash('#/profile');
         if (v === 'tower' && !mergedArena.tower) replaceAppHash('#/profile');
+        if (v === 'pair' && !mergedArena.pairLobby) replaceAppHash('#/profile');
         if (v === 'tournament' && !mergedArena.championship) replaceAppHash('#/profile');
         if (v === 'adventure' && !mergedArena.adventure) replaceAppHash('#/profile');
         const guildOk = userMeetsGuildFeatureLevelRequirement(currentUser);
@@ -225,6 +227,12 @@ const Router: React.FC = () => {
             // Fallback if mode is missing
             window.location.hash = '#/profile';
             return null;
+        case 'pair':
+            return (
+                <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
+                    <PairWaitingLobby />
+                </div>
+            );
         case 'game':
             if (currentRoute.params.id) {
                 const gameId = currentRoute.params.id;

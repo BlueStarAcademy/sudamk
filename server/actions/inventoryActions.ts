@@ -34,6 +34,9 @@ import {
     MAIN_ENHANCEMENT_STEP_MULTIPLIER,
 } from '../../constants/index.js';
 import { mythicStatPoolForItemGrade } from '../../shared/utils/specialOptionGearEffects.js';
+import { isPairEggItem, isPairPetMaterial } from '../../shared/constants/petLobby.js';
+import { reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
+import { isItemIdInPairTraining, normalizePairPetTrainingSlots } from '../../shared/constants/pairTraining.js';
 import {
     BLACKSMITH_ENHANCEMENT_XP_GAIN,
     BLACKSMITH_DISASSEMBLY_XP_GAIN,
@@ -88,6 +91,15 @@ const EQUIPMENT_UNBIND_TICKET_COST_BY_GRADE: Record<ItemGrade, number> = {
 };
 
 export const currencyBundles: Record<string, { type: 'gold' | 'diamonds', min: number, max: number }> = {
+    '골드 꾸러미 I': { type: 'gold', min: 10, max: 500 },
+    '골드 꾸러미 II': { type: 'gold', min: 100, max: 1000 },
+    '골드 꾸러미 III': { type: 'gold', min: 500, max: 3000 },
+    '골드 꾸러미 IV': { type: 'gold', min: 1000, max: 10000 },
+    '다이아 꾸러미 I': { type: 'diamonds', min: 1, max: 20 },
+    '다이아 꾸러미 II': { type: 'diamonds', min: 10, max: 30 },
+    '다이아 꾸러미 III': { type: 'diamonds', min: 20, max: 50 },
+    '다이아 꾸러미 IV': { type: 'diamonds', min: 30, max: 100 },
+    /** 레거시 인벤 이름(숫자 접미·무공백) */
     '골드 꾸러미1': { type: 'gold', min: 10, max: 500 },
     '골드 꾸러미2': { type: 'gold', min: 100, max: 1000 },
     '골드 꾸러미3': { type: 'gold', min: 500, max: 3000 },
@@ -417,7 +429,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 
                 // 정확한 이름으로 찾기 (다양한 변형 모두 시도). 도전의 탑 전용 아이템은 비(非)탑 소스만 사용
                 itemIndex = user.inventory.findIndex(i => {
-                    if (!i || i.type !== 'consumable') return false;
+                    if (!i) return false;
+                    const isMaterialUsableByName =
+                        i.type === 'material' && (i.name === '거래 등록권' || i.name === '제련의 부적');
+                    if (i.type !== 'consumable' && !isMaterialUsableByName) return false;
                     const itemNameNormalized = normalizeItemNameForSearch(i.name);
                     const nameMatch = (
                         i.name === itemName || i.name === normalizedName ||
@@ -475,6 +490,22 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const currencyBundleKeyForBulk = resolveCurrencyBundleConsumableKey(item.name);
             const isCurrencyBundleBulk =
                 !!currencyBundleKeyForBulk && !!currencyBundles[currencyBundleKeyForBulk];
+            const stacksForQuantity =
+                item.name === '거래 등록권' || item.name === '제련의 부적'
+                    ? user.inventory.filter(
+                          i =>
+                              i &&
+                              i.name === item.name &&
+                              (i.type === 'consumable' || i.type === 'material') &&
+                              (!isTowerOnlyItemName(item.name) || !isTowerSource(i)),
+                      )
+                    : user.inventory.filter(
+                          i =>
+                              i &&
+                              i.name === item.name &&
+                              i.type === 'consumable' &&
+                              (!isTowerOnlyItemName(item.name) || !isTowerSource(i)),
+                      );
             const totalAvailableQuantity = isCurrencyBundleBulk
                 ? user.inventory
                       .filter(
@@ -485,15 +516,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                               (!isTowerOnlyItemName(i.name) || !isTowerSource(i))
                       )
                       .reduce((sum, i) => sum + (i.quantity || 1), 0)
-                : user.inventory
-                      .filter(
-                          i =>
-                              i &&
-                              i.name === item.name &&
-                              i.type === 'consumable' &&
-                              (!isTowerOnlyItemName(item.name) || !isTowerSource(i))
-                      )
-                      .reduce((sum, i) => sum + (i.quantity || 1), 0);
+                : stacksForQuantity.reduce((sum, i) => sum + (i.quantity || 1), 0);
             
             const useQuantity = Math.min(quantity || 1, totalAvailableQuantity);
             if (useQuantity <= 0) return { error: '사용할 수량이 없습니다.' };
@@ -545,7 +568,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 let remainingToRemove = useQuantity;
                 const tempInventoryAfterUse: InventoryItem[] = [];
                 for (const invItem of user.inventory) {
-                    if (invItem.name === item.name && invItem.type === 'consumable' && remainingToRemove > 0) {
+                    if (
+                        invItem.name === item.name &&
+                        (invItem.type === 'consumable' || invItem.type === 'material') &&
+                        remainingToRemove > 0
+                    ) {
                         const itemQuantity = invItem.quantity || 1;
                         if (itemQuantity <= remainingToRemove) {
                             remainingToRemove -= itemQuantity;
@@ -1076,24 +1103,66 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
         case 'MARK_ITEM_EXCHANGE_LISTED':
         case 'UNMARK_ITEM_EXCHANGE_LISTED': {
-            const { itemId } = payload as { itemId?: string };
+            const payloadParsed = payload as {
+                itemId?: string;
+                listPrice?: number;
+                listCurrency?: 'gold' | 'diamonds';
+            };
+            const { itemId } = payloadParsed;
             if (!itemId) return { error: '유효하지 않은 요청입니다.' };
             const target = user.inventory.find((i) => i.id === itemId);
             if (!target || target.type !== 'equipment') {
                 return { error: '장비를 찾을 수 없습니다.' };
             }
             if (action.type === 'MARK_ITEM_EXCHANGE_LISTED') {
+                if (target.isExchangeListed) {
+                    return { error: '이미 거래소에 등록된 장비입니다.' };
+                }
+                if (target.isEquipped) {
+                    return { error: '장착 중인 장비는 등록할 수 없습니다.' };
+                }
+                if (target.isBound) {
+                    return { error: '귀속된 장비는 등록할 수 없습니다.' };
+                }
+                const listPrice = Math.floor(Number(payloadParsed.listPrice));
+                const listCurrency = payloadParsed.listCurrency;
+                if (!Number.isFinite(listPrice) || (listCurrency !== 'gold' && listCurrency !== 'diamonds')) {
+                    return { error: '유효하지 않은 요청입니다.' };
+                }
+                const minBy = listCurrency === 'gold' ? 100 : 10;
+                if (listPrice < minBy) {
+                    return { error: listCurrency === 'gold' ? '최소 판매가는 100골드입니다.' : '최소 판매가는 10다이아입니다.' };
+                }
+                const listingFee = Math.floor((listPrice * 10) / 100);
+                if (!user.isAdmin && listingFee > 0) {
+                    if (listCurrency === 'gold') {
+                        if ((user.gold ?? 0) < listingFee) {
+                            return { error: '골드가 부족합니다.' };
+                        }
+                        user.gold = Math.max(0, (user.gold ?? 0) - listingFee);
+                    } else {
+                        if ((user.diamonds ?? 0) < listingFee) {
+                            return { error: '다이아가 부족합니다.' };
+                        }
+                        user.diamonds = Math.max(0, (user.diamonds ?? 0) - listingFee);
+                    }
+                }
                 target.isExchangeListed = true;
             } else {
                 target.isExchangeListed = false;
             }
 
             const updatedUser = getSelectiveUserUpdate(user, action.type, { includeAll: true });
-            db.updateUser(user).catch((error: any) => {
+            try {
+                await db.updateUser(user);
+            } catch (error: any) {
                 console.error(`[${action.type}] Failed to save user ${user.id}:`, error);
-            });
+                return { error: '저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory']);
+            const broadcastFields =
+                action.type === 'MARK_ITEM_EXCHANGE_LISTED' ? (['inventory', 'gold', 'diamonds'] as const) : (['inventory'] as const);
+            broadcastUserUpdate(user, [...broadcastFields]);
             return { clientResponse: { updatedUser } };
         }
 
@@ -1103,6 +1172,12 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             if (itemIndex === -1) return { error: '아이템을 찾을 수 없습니다.' };
 
             const item = user.inventory[itemIndex];
+            if (item.type === 'material' && isPairPetMaterial(item) && !isPairEggItem(item)) {
+                const slots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
+                if (isItemIdInPairTraining(slots, item.id)) {
+                    return { error: '수련 중인 펫은 판매할 수 없습니다.' };
+                }
+            }
             let sellPrice = 0;
             let sellQuantity = quantity || 1;
 
@@ -1170,9 +1245,22 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
 
             user.gold += sellPrice;
-            
+
+            const soldPairPetTemplateId =
+                item.type === 'material' && item.templateId && isPairPetMaterial(item) ? item.templateId : null;
+
             // 인벤토리를 깊은 복사하여 새로운 배열로 할당 (참조 문제 방지)
             user.inventory = JSON.parse(JSON.stringify(user.inventory));
+
+            let pairEquipFieldsChanged = false;
+            if (soldPairPetTemplateId) {
+                const beforeTid = user.equippedPairPetTemplateId;
+                const beforeItemId = user.equippedPairPetInventoryItemId;
+                reconcileEquippedPairPetInventoryItem(user);
+                pairEquipFieldsChanged =
+                    beforeTid !== user.equippedPairPetTemplateId ||
+                    beforeItemId !== user.equippedPairPetInventoryItemId;
+            }
 
             // 선택적 필드만 반환 (메시지 크기 최적화)
             const updatedUser = getSelectiveUserUpdate(user, 'SELL_ITEM');
@@ -1184,7 +1272,12 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
 
             // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'gold']);
+            broadcastUserUpdate(
+                user,
+                pairEquipFieldsChanged
+                    ? ['inventory', 'gold', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId']
+                    : ['inventory', 'gold']
+            );
             
             return { 
                 clientResponse: { 

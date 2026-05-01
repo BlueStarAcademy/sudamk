@@ -5,7 +5,7 @@ import { RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './ResultModalRewardSl
 const COMFORTABLE_BOX_CLASS =
     'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
 
-export type ResultModalXpVariant = 'strategy' | 'playful';
+export type ResultModalXpVariant = 'strategy' | 'playful' | 'pet';
 
 const VARIANT = {
     strategy: {
@@ -31,6 +31,17 @@ const VARIANT = {
         labelExpCompact:
             'mt-px text-[0.56rem] min-[360px]:text-[0.58rem] min-[400px]:text-[0.6rem] font-black leading-none tracking-[0.06em] text-violet-100',
         amountCompact: 'text-[0.72rem] font-bold tabular-nums leading-tight text-sky-100',
+    },
+    pet: {
+        box: 'border-fuchsia-400/45 bg-gradient-to-br from-fuchsia-600/55 via-purple-950/90 to-slate-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.14)] ring-fuchsia-400/35',
+        labelMode: 'text-[0.62rem] font-bold leading-none text-fuchsia-100/95 min-[1024px]:text-[0.76rem]',
+        labelExp: 'mt-[3px] text-[0.72rem] font-black leading-none tracking-[0.08em] text-pink-100 min-[1024px]:text-[0.86rem]',
+        amount: 'text-sm font-bold tabular-nums leading-tight text-fuchsia-100 min-[1024px]:text-base',
+        labelModeCompact:
+            'text-[0.56rem] min-[360px]:text-[0.6rem] min-[400px]:text-[0.64rem] font-bold leading-none text-fuchsia-100/95',
+        labelExpCompact:
+            'mt-px text-[0.64rem] min-[360px]:text-[0.68rem] min-[400px]:text-[0.72rem] font-black leading-none tracking-[0.06em] text-pink-100',
+        amountCompact: 'text-[0.72rem] font-bold tabular-nums leading-tight text-fuchsia-100',
     },
 } as const;
 
@@ -59,7 +70,7 @@ export const ResultModalXpRewardBadge: React.FC<{
 }> = ({ variant, amount, density = 'compact', className = '', title, hideAmount = false }) => {
     if (amount <= 0) return null;
     const v = VARIANT[variant];
-    const modeLabel = variant === 'strategy' ? '전략' : '놀이';
+    const modeLabel = variant === 'strategy' ? '전략' : variant === 'playful' ? '놀이' : '펫';
     const defaultTitle = `${modeLabel} 경험치 +${amount.toLocaleString()}`;
 
     const isPreGameInline = density === 'preGameInline';

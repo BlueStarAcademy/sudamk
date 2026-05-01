@@ -398,12 +398,16 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
     
     // Get guilds from database
     const guilds = (await db.getKV<Record<string, Guild>>('guilds')) || {};
-    
+    const chatWeekNow = Date.now();
+
     // Import guildRepository to check GuildMember
     const guildRepo = await import('../prisma/guildRepository.js');
 
     // Lazy migration for chat message IDs to support deleting old messages
     for (const guild of Object.values(guilds)) {
+        if (guildService.applyWeeklyGuildChatResetIfNeeded(guild, chatWeekNow)) {
+            needsSave = true;
+        }
         if (guild.chatHistory) {
             for (const msg of guild.chatHistory) {
                 // Only add IDs to user messages that are missing one and have a valid user object

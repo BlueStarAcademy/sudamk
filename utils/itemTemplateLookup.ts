@@ -56,12 +56,16 @@ export const normalizeBoxItemName = (name: string): string => {
         '6': 'VI',
     };
     let normalized = trimmed;
+    normalized = normalized.replace(/골드꾸러미/g, '골드 꾸러미');
+    normalized = normalized.replace(/다이아꾸러미/g, '다이아 꾸러미');
     normalized = normalized.replace(/장비상자(\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/재료상자(\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/장비 상자(\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/재료 상자(\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/장비 상자 (\d)/g, (_, num) => `장비 상자 ${numToRoman[num] || num}`);
     normalized = normalized.replace(/재료 상자 (\d)/g, (_, num) => `재료 상자 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/골드 꾸러미(\d)/g, (_, num) => `골드 꾸러미 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/다이아 꾸러미(\d)/g, (_, num) => `다이아 꾸러미 ${numToRoman[num] || num}`);
     return normalized.trim();
 };
 

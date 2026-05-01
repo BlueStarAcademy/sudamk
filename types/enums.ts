@@ -41,6 +41,7 @@ export type GameStatus =
   | 'nigiri_choosing'
   | 'nigiri_guessing'
   | 'nigiri_reveal'
+  | 'pair_order_reveal'
   | 'base_placement'
   | 'komi_bidding'
   | 'komi_bid_reveal'
@@ -253,5 +254,5 @@ export enum GuildResearchId {
 
 // --- Game Primitives ---
 export type Point = { x: number; y: number; };
-export type Move = { player: Player; x: number; y: number; capturedHiddenStones?: Point[]; };
+export type Move = { player: Player; x: number; y: number; capturedHiddenStones?: Point[]; actorId?: string; pairSeatId?: string; };
 export type BoardState = Player[][];

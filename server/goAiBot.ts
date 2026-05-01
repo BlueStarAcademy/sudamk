@@ -14,6 +14,18 @@ import * as db from './db.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMoveCandidates, isKataServerAvailable } from './kataServerService.js';
+import {
+    advancePairTurn,
+    getCurrentPairTurnSeat,
+    isPairAiSeat,
+    isPairClassicGame,
+    markPairSeatPassed,
+    resetPairPasses,
+} from '../shared/utils/pairGameTurn.js';
+import {
+    pairPetKataLevelForTotalPly,
+    pairPetKataPhaseFromTotalPly,
+} from '../shared/constants/pairArena.js';
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import {
     consumeOpponentPatternStoneIfAny,
@@ -1538,7 +1550,8 @@ export async function makeGoAiBotMove(
         return;
     }
     
-    const aiPlayerEnum = game.currentPlayer;
+    const pairCurrentSeat = isPairClassicGame(game.settings, game.mode) ? getCurrentPairTurnSeat(game.settings) : null;
+    const aiPlayerEnum = pairCurrentSeat?.player ?? game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
 
@@ -1733,7 +1746,33 @@ export async function makeGoAiBotMove(
             (game.settings as any).kataServerLevel = configuredKataLevel;
         }
     }
-    const resolvedKataLevel = configuredKataLevel ?? (DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12);
+    let resolvedKataLevel = configuredKataLevel ?? (DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12);
+    const pairValidPlyForNextMove = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
+    const pairKataPhase = pairCurrentSeat
+        ? pairPetKataPhaseFromTotalPly(game.settings.boardSize || 19, pairValidPlyForNextMove)
+        : null;
+    const pairKataStats =
+        pairCurrentSeat && isPairAiSeat(pairCurrentSeat)
+            ? game.settings.pairGame?.petKataStatsByParticipantId?.[pairCurrentSeat.participantId] ??
+              {
+                  concentration: 100,
+                  thinkingSpeed: 100,
+                  judgment: 100,
+                  calculation: 100,
+                  combatPower: 100,
+                  stability: 100,
+              }
+            : null;
+    const pairFixedKataLevel =
+        pairCurrentSeat && isPairAiSeat(pairCurrentSeat)
+            ? game.settings.pairGame?.pairKataFixedLevelByParticipantId?.[pairCurrentSeat.participantId]
+            : undefined;
+    if (pairCurrentSeat && Number.isFinite(pairFixedKataLevel)) {
+        resolvedKataLevel = Number(pairFixedKataLevel);
+    } else if (pairCurrentSeat && pairKataStats) {
+        resolvedKataLevel = pairPetKataLevelForTotalPly(game.settings.boardSize || 19, pairValidPlyForNextMove, pairKataStats);
+    }
+    const pairKataAllowPass = Boolean(pairCurrentSeat && pairKataStats && pairKataPhase === 'endgame');
     if (process.env.NODE_ENV === 'development') {
         console.log(
             `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel}`
@@ -1897,6 +1936,7 @@ export async function makeGoAiBotMove(
             komi: game.settings.komi,
             gameId: game.id,
             kataSessionTag: composeKataSessionTagForGame(game, undefined),
+            allowPass: pairKataAllowPass,
         };
         let kataCandidates: Point[] = [];
         if (isKataServerAvailable()) {
@@ -1910,7 +1950,11 @@ export async function makeGoAiBotMove(
             }
         }
 
-        if (
+        const kataPassCandidate = kataCandidates.find((cand) => cand.x === -1 && cand.y === -1) ?? null;
+        if (pairKataAllowPass && kataPassCandidate) {
+            selectedMove = kataPassCandidate;
+            console.log(`[makeGoAiBotMove] Pair pet Kata selected PASS in endgame, game=${game.id}`);
+        } else if (
             kataCandidates.length === 0 ||
             (kataCandidates.length === 1 &&
                 kataCandidates[0]!.x === -1 &&
@@ -1922,7 +1966,7 @@ export async function makeGoAiBotMove(
         }
 
         let pickedFromKata: Point | null = null;
-        for (const cand of kataCandidates) {
+        for (const cand of selectedMove ? [] : kataCandidates) {
             if (cand.x === -1 && cand.y === -1) continue;
             const trial = processMove(
                 game.boardState,
@@ -1947,7 +1991,7 @@ export async function makeGoAiBotMove(
             );
         }
 
-        if (!pickedFromKata) {
+        if (!selectedMove && !pickedFromKata) {
             const logicFb = getGoLogic(game);
             let legalFb = findAllValidMoves(game, logicFb, aiPlayerEnum);
             if (
@@ -1969,10 +2013,12 @@ export async function makeGoAiBotMove(
             );
         }
 
-        selectedMove = { x: pickedFromKata.x, y: pickedFromKata.y };
-        console.log(
-            `[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${pickedFromKata.x},${pickedFromKata.y})`
-        );
+        if (!selectedMove && pickedFromKata) {
+            selectedMove = { x: pickedFromKata.x, y: pickedFromKata.y };
+            console.log(
+                `[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${pickedFromKata.x},${pickedFromKata.y})`
+            );
+        }
     }
 
     if (!selectedMove) {
@@ -2005,6 +2051,36 @@ export async function makeGoAiBotMove(
                 break;
             }
         }
+    }
+
+    if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {
+        game.koInfo = null;
+        game.passCount++;
+        game.lastMove = { x: -1, y: -1 };
+        game.lastTurnStones = null;
+        game.moveHistory.push({
+            player: aiPlayerEnum,
+            x: -1,
+            y: -1,
+            actorId: pairCurrentSeat.participantId,
+            pairSeatId: pairCurrentSeat.seatId,
+        });
+        const allPassed = markPairSeatPassed(game.settings, pairCurrentSeat);
+        if (allPassed) {
+            game.gameStatus = 'scoring';
+            await db.saveGame(game);
+            const { getGameResult } = await import('./gameModes.js');
+            await getGameResult(game);
+            return;
+        }
+        const nextSeat = advancePairTurn(game.settings);
+        game.currentPlayer = nextSeat?.player ?? opponentPlayerEnum;
+        if (nextSeat && isPairAiSeat(nextSeat)) {
+            game.aiTurnStartTime = now;
+        } else {
+            game.aiTurnStartTime = undefined;
+        }
+        return;
     }
 
     // 히든 규칙: 유저의 미공개 히든 돌 위에 착점 시 공개 애니메이션 후 Kata 재질의.
@@ -2042,6 +2118,7 @@ export async function makeGoAiBotMove(
                 komi: game.settings.komi,
                 gameId: game.id,
                 kataSessionTag: composeKataSessionTagForGame(game, hiddenRevealTag),
+                allowPass: pairKataAllowPass,
             };
             let kataCandidatesReveal: Point[] = [];
             if (isKataServerAvailable()) {
@@ -2186,7 +2263,12 @@ export async function makeGoAiBotMove(
     // 5. 최종 수 적용
     game.boardState = result.newBoardState;
     game.lastMove = { x: selectedMove.x, y: selectedMove.y };
-    game.moveHistory.push({ player: aiPlayerEnum, x: selectedMove.x, y: selectedMove.y });
+    game.moveHistory.push({
+        player: aiPlayerEnum,
+        x: selectedMove.x,
+        y: selectedMove.y,
+        ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
+    });
     if (shouldApplyHiddenOnThisMove) {
         if (!game.hiddenMoves) game.hiddenMoves = {};
         game.hiddenMoves[game.moveHistory.length - 1] = true;
@@ -2211,6 +2293,7 @@ export async function makeGoAiBotMove(
     }
     game.koInfo = result.newKoInfo;
     game.passCount = 0;
+    if (pairCurrentSeat) resetPairPasses(game.settings);
     game.gameStatus = 'playing';
     game.itemUseDeadline = undefined;
     game.pausedTurnTimeLeft = undefined;
@@ -2453,7 +2536,12 @@ export async function makeGoAiBotMove(
     
     if (!isAiReTurnAfterReveal) {
         // 일반적인 경우: 턴 넘기기
-        game.currentPlayer = opponentPlayerEnum;
+        if (pairCurrentSeat) {
+            const nextSeat = advancePairTurn(game.settings);
+            game.currentPlayer = nextSeat?.player ?? opponentPlayerEnum;
+        } else {
+            game.currentPlayer = opponentPlayerEnum;
+        }
         
         // 살리기 바둑 모드: 백이 수를 둔 후 턴을 넘긴 직후 승리 조건 체크
         const isSurvivalMode = (game.settings as any)?.isSurvivalMode === true;
@@ -2490,8 +2578,9 @@ export async function makeGoAiBotMove(
         // aiTurnStartTime은 undefined로 설정하여 다음 AI 턴까지 대기
         // (사용자가 수를 두면 standard.ts의 PLACE_STONE에서 aiTurnStartTime이 설정됨)
         const { aiUserId } = await import('./aiPlayer.js');
-        const nextPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-        if (nextPlayerId === aiUserId) {
+        const nextPairSeat = pairCurrentSeat ? getCurrentPairTurnSeat(game.settings) : null;
+        const nextPlayerId = nextPairSeat?.participantId ?? (game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId);
+        if ((nextPairSeat && isPairAiSeat(nextPairSeat)) || nextPlayerId === aiUserId) {
             // 다음 턴도 AI인 경우 (히든 돌 공개 후 재턴 등)
             game.aiTurnStartTime = now;
             console.log(`[makeGoAiBotMove] Next turn is also AI, setting aiTurnStartTime to now: ${now}, game ${game.id}`);

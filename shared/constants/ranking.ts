@@ -83,15 +83,15 @@ export const RANKING_TIERS: { name: string; icon: string; color: string; thresho
 ];
 
 export const SEASONAL_TIER_REWARDS: Record<string, QuestReward> = {
-    '새싹': { diamonds: 55, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 I', quantity: 1 }, { itemId: '골드 꾸러미1', quantity: 1 }] },
-    '루키': { diamonds: 75, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미2', quantity: 1 }] },
-    '브론즈': { diamonds: 95, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미2', quantity: 1 }] },
-    '실버': { diamonds: 115, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미3', quantity: 1 }] },
-    '골드': { diamonds: 150, items: [{ itemId: '장비 상자 III', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미3', quantity: 1 }] },
-    '플래티넘': { diamonds: 190, items: [{ itemId: '장비 상자 IV', quantity: 1 }, { itemId: '재료 상자 IV', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
-    '다이아': { diamonds: 230, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 V', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
-    '마스터': { diamonds: 300, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
-    '챌린저': { diamonds: 375, items: [{ itemId: '장비 상자 VI', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미4', quantity: 1 }] },
+    '새싹': { diamonds: 55, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 I', quantity: 1 }, { itemId: '골드 꾸러미 I', quantity: 1 }] },
+    '루키': { diamonds: 75, items: [{ itemId: '장비 상자 I', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미 II', quantity: 1 }] },
+    '브론즈': { diamonds: 95, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 II', quantity: 1 }, { itemId: '골드 꾸러미 II', quantity: 1 }] },
+    '실버': { diamonds: 115, items: [{ itemId: '장비 상자 II', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미 III', quantity: 1 }] },
+    '골드': { diamonds: 150, items: [{ itemId: '장비 상자 III', quantity: 1 }, { itemId: '재료 상자 III', quantity: 1 }, { itemId: '골드 꾸러미 III', quantity: 1 }] },
+    '플래티넘': { diamonds: 190, items: [{ itemId: '장비 상자 IV', quantity: 1 }, { itemId: '재료 상자 IV', quantity: 1 }, { itemId: '골드 꾸러미 IV', quantity: 1 }] },
+    '다이아': { diamonds: 230, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 V', quantity: 1 }, { itemId: '골드 꾸러미 IV', quantity: 1 }] },
+    '마스터': { diamonds: 300, items: [{ itemId: '장비 상자 V', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미 IV', quantity: 1 }] },
+    '챌린저': { diamonds: 375, items: [{ itemId: '장비 상자 VI', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미 IV', quantity: 1 }] },
 };
 
 export const SEASONAL_TIER_BORDERS: Record<string, string> = {

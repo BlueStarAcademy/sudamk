@@ -3,6 +3,42 @@ import { Player, GameMode, LeagueTier, UserStatus, WinReason, RPSChoice, DiceGoV
 import { UserStatusInfo, ChatMessage } from './api.js';
 
 // --- Item & Equipment ---
+
+/** 페어 AI 펫 인스턴스 메타(인벤 `pair-pet-*` 행에 부착) */
+export type PairPetDisposition =
+    | { kind: 'single'; stat: CoreStat; pct: number }
+    | { kind: 'all'; pct: 5 };
+
+export type PairPetSpecialization =
+    | { kind: 'trainingXp'; pct: number }
+    | { kind: 'trainingGold'; pct: number }
+    | { kind: 'trainingTime'; pct: number }
+    | { kind: 'soulDrop'; pct: number };
+
+export type PairPetMeta = {
+    level: number;
+    xp: number;
+    disposition: PairPetDisposition;
+    specialization: PairPetSpecialization;
+    /** 레벨업 시 등급별 풀을 6코어에 랜덤 분배한 누적 보너스 */
+    levelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
+};
+
+/** 페어 펫 수련 슬롯(인덱스 0~4)에 배치된 세션 */
+export type PairPetTrainingSlotState = {
+    slotIndex: number;
+    itemId: string;
+    startedAt: number;
+};
+
+/** 부화장 슬롯에 올려둔 알(부화 진행 중) */
+export type PairPetHatcherySession = {
+    slotIndex: number;
+    startedAt: number;
+    /** 부화 시작 시 차감한 알 인벤 행 id (취소 시 복구) */
+    eggItemId?: string;
+};
+
 export type Equipment = Partial<Record<EquipmentSlot, string>>;
 
 export type EquipmentPreset = {
@@ -53,6 +89,10 @@ export type InventoryItem = {
   boundAt?: number;
   /** 거래소 등록 중 상태(등록 취소/회수 시 해제) */
   isExchangeListed?: boolean;
+  /** 장비 템플릿·재료 구분·페어 펫(pair-pet-*) 등 */
+  templateId?: string;
+  /** 페어 AI 펫 전용(부화 시 생성) */
+  pairPetMeta?: PairPetMeta;
 };
 
 // --- User & Associated Data ---
@@ -399,6 +439,8 @@ export type ExchangeState = {
     expiresAt: number;
     status: 'listed' | 'sold';
     soldAt?: number;
+    /** 등록 시점 장비 전체(주/부옵션 등) — 구매자 미리보기용 */
+    listedEquipment?: InventoryItem;
   }>;
   settlements: Array<{
     listingId: string;
@@ -537,6 +579,7 @@ export type User = {
   dailyRankings?: {
     strategic?: { rank: number; score: number; lastUpdated: number };
     playful?: { rank: number; score: number; lastUpdated: number };
+    pair?: { rank: number; score: number; lastUpdated: number };
     championship?: {
       score?: number;
       neighborhood?: { rank: number; maxStage: number; maxScoreDiff: number; totalAbility: number; lastUpdated: number };
@@ -554,6 +597,25 @@ export type User = {
   /** 당일(KST) 사용한 보스전 참여 횟수 (0|1|2). 날짜가 바뀌면 0으로 리셋, 미사용 시 누적 없음 */
   guildBossAttemptsUsedToday?: number;
   guildApplications?: Array<{ guildId: string; appliedAt: number }>;
+  friendIds?: string[];
+  incomingFriendRequestIds?: string[];
+  outgoingFriendRequestIds?: string[];
+  /** 페어 AI 동료 펫: 인벤 `templateId`(pair-pet-*) 중 전투/프로필에 반영할 템플릿 */
+  equippedPairPetTemplateId?: string | null;
+  /** 동종 펫이 여러 마리일 때 대표로 쓸 정확한 인벤 행 (`inventory[].id`) */
+  equippedPairPetInventoryItemId?: string | null;
+  /** 페어 경기장 펫 탭 로비 인벤 슬롯 수(기본 10, 최대 50, 확장 시 +5) */
+  pairPetLobbyPetSlotCount?: number;
+  /** 페어 경기장 알 탭 로비 인벤 슬롯 수(기본 10, 최대 50, 확장 시 +5) */
+  pairPetLobbyEggSlotCount?: number;
+  /** @deprecated 예전 단일 필드 — pet/egg 미저장 시 마이그레이션용 */
+  pairPetLobbySlotCount?: number;
+  /** 페어 펫 수련장: 슬롯별 진행 중 세션(null = 비어 있음) */
+  pairPetTrainingSlots?: (PairPetTrainingSlotState | null)[];
+  /** 부화장 일반 슬롯 0~3 해금(0번은 항상 true로 정규화). VIP 슬롯은 별도 플래그 없음 */
+  pairPetHatcherySlotUnlocked?: boolean[];
+  /** 부화장: 일반 4칸 + VIP 1칸 진행 세션 */
+  pairPetHatcherySessions?: (PairPetHatcherySession | null)[];
   adventureProfile?: AdventureProfile;
   /** VIP 만료 시각(ms). Header 등에서 활성 여부 판별. 관리자 테스트용으로 직접 설정 가능. */
   rewardVipExpiresAt?: number;
@@ -730,6 +792,36 @@ export type GameSettings = {
   timeLimit: number; // in minutes
   byoyomiTime: number; // in seconds
   byoyomiCount: number;
+  pairGame?: {
+    roomId: string;
+    pairMode: 'pvp' | 'ai';
+    teamA: {
+      name: string;
+      members: Array<{ id: string; name: string; kind: 'user' | 'ai' | 'pet'; slot: string }>;
+    };
+    teamB: {
+      name: string;
+      members: Array<{ id: string; name: string; kind: 'user' | 'ai' | 'pet'; slot: string }>;
+    };
+    futurePetAi?: {
+      enabled: boolean;
+      source: 'future-pet-system';
+      notes: string;
+    };
+    /** 페어바둑 인게임: 흑1→백1→흑2→백2 순환 좌석 */
+    turnOrder?: import('../shared/utils/pairGameTurn.js').PairGameTurnSeat[];
+    /** `turnOrder`의 현재 인덱스 */
+    currentTurnIndex?: number;
+    /** 4명 모두 패스해야 계가. 착수 시 초기화 */
+    passSeatIds?: import('../shared/utils/pairGameTurn.js').PairGameTurnSeatId[];
+    /** 순서 공개 모달 확인 상태(인간 참가자만) */
+    orderRevealConfirmed?: Record<string, boolean>;
+    orderSeededAt?: number;
+    /** 펫/AI 좌석별 KATA 산출용 6코어 스냅샷 */
+    petKataStatsByParticipantId?: Record<string, import('../shared/constants/pairArena.js').PairPetCoreStatsSix>;
+    /** 고정 KATA 레벨을 쓰는 AI 좌석(펫 페어 AI 대전 상대 등) */
+    pairKataFixedLevelByParticipantId?: Record<string, number>;
+  };
   
   // Mode-specific settings
   captureTarget?: number;
@@ -958,6 +1050,8 @@ export type GameSummary = {
   gold?: number;
   /** 경기 자체 정산 골드( VIP 슬롯 골드 제외 ) */
   matchGold?: number;
+  /** 페어바둑 장착 펫 경험치 변화 */
+  pairPetXp?: StatChange;
   /** VIP 슬롯에서 추가 지급된 골드 */
   vipGoldBonus?: number;
   diamonds?: number;
@@ -1392,6 +1486,8 @@ export type Guild = {
   } | null;
   weeklyMissions?: GuildMission[];
   lastMissionReset?: number;
+  /** KST 주간(월요일 시작) 길드 채팅 마지막 초기화 시각 — `lastMissionReset`과 별도로 두어 스케줄 누락 시에도 채팅만 주간 초기화 */
+  lastGuildChatWeekResetMs?: number;
   applicants?: Array<{ userId: string; appliedAt: number }>;
   recruitmentBanUntil?: number;
   createdAt: number;

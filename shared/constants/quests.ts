@@ -53,25 +53,25 @@ export const WEEKLY_MILESTONE_THRESHOLDS = [20, 40, 60, 80, 100];
 export const MONTHLY_MILESTONE_THRESHOLDS = [20, 40, 60, 80, 100];
 
 export const DAILY_MILESTONE_REWARDS: QuestReward[] = [
-    { items: [{ itemId: '골드 꾸러미1', quantity: 1 }] },
+    { items: [{ itemId: '골드 꾸러미 I', quantity: 1 }] },
     { items: [{ itemId: 'action_point_10', quantity: 1 }] },
     { items: [{ itemId: '재료 상자 II', quantity: 1 }] },
     { items: [{ itemId: '장비 상자 II', quantity: 1 }] },
-    { items: [{ itemId: '골드 꾸러미3', quantity: 1 }] },
+    { items: [{ itemId: '골드 꾸러미 III', quantity: 1 }] },
 ];
 
 export const WEEKLY_MILESTONE_REWARDS: QuestReward[] = [
-    { items: [{ itemId: '골드 꾸러미2', quantity: 1 }] },
+    { items: [{ itemId: '골드 꾸러미 II', quantity: 1 }] },
     { items: [{ itemId: 'action_point_20', quantity: 1 }] },
     { items: [{ itemId: '재료 상자 III', quantity: 1 }] },
     { items: [{ itemId: '장비 상자 III', quantity: 1 }] },
-    { items: [{ itemId: '다이아 꾸러미1', quantity: 1 }] },
+    { items: [{ itemId: '다이아 꾸러미 I', quantity: 1 }] },
 ];
 
 export const MONTHLY_MILESTONE_REWARDS: QuestReward[] = [
-    { items: [{ itemId: '골드 꾸러미3', quantity: 1 }] },
+    { items: [{ itemId: '골드 꾸러미 III', quantity: 1 }] },
     { items: [{ itemId: 'action_point_30', quantity: 1 }] },
     { items: [{ itemId: '재료 상자 IV', quantity: 1 }] },
     { items: [{ itemId: '장비 상자 IV', quantity: 1 }] },
-    { items: [{ itemId: '다이아 꾸러미2', quantity: 1 }] },
+    { items: [{ itemId: '다이아 꾸러미 II', quantity: 1 }] },
 ];

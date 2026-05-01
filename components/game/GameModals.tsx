@@ -28,6 +28,7 @@ import SinglePlayerSummaryModal from '../SinglePlayerSummaryModal.js';
 import TowerSummaryModal from '../TowerSummaryModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import ColorStartConfirmationModal from '../ColorStartConfirmationModal.js';
+import PairTurnOrderModal from '../PairTurnOrderModal.js';
 interface GameModalsProps extends GameProps {
     confirmModalType: 'resign' | null;
     onHideConfirmModal: () => void;
@@ -72,6 +73,10 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         if (!isSpectator && ['nigiri_choosing', 'nigiri_guessing', 'nigiri_reveal'].includes(gameStatus)) {
             if (!session.blackPlayerId || !session.whitePlayerId) return null;
             return <NigiriModal session={session} currentUser={currentUser} onAction={onAction} />;
+        }
+
+        if (!isSpectator && gameStatus === 'pair_order_reveal' && session.settings.pairGame?.turnOrder?.length) {
+            return <PairTurnOrderModal session={session} currentUser={currentUser} onAction={onAction} />;
         }
 
         if (activeNegotiation) {

@@ -26,9 +26,16 @@ import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDi
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
     onClose: () => void;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => void | Promise<unknown>;
     /** 인게임 AI 재대결: 직전 대국 모드·설정을 그대로 반영하고 preferredGameSettings에도 저장 */
     seedFromSession?: { mode: GameMode; settings: GameSettings };
+    /** 페어 경기장 등에서 같은 설정 UI를 쓰되 시작 액션만 바꿔야 하는 경우 */
+    startActionType?: 'START_AI_GAME' | 'PAIR_START_AI_MATCH' | 'PAIR_START_MATCH';
+    transformSettingsBeforeStart?: (mode: GameMode, settings: GameSettings) => GameSettings;
+    hideScoringTurnLimit?: boolean;
+    title?: string;
+    submitLabel?: string;
+    showActionPointCost?: boolean;
 }
 
 /** 전략바둑 대기실 「AI와 대결하기」: 베이스돌 최대 4개 */
@@ -153,7 +160,18 @@ const GameCard: React.FC<{
     );
 };
 
-const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose, onAction, seedFromSession }) => {
+const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
+    lobbyType,
+    onClose,
+    onAction,
+    seedFromSession,
+    startActionType = 'START_AI_GAME',
+    transformSettingsBeforeStart,
+    hideScoringTurnLimit = false,
+    title = 'AI와 대결하기',
+    submitLabel = '시작',
+    showActionPointCost = true,
+}) => {
     const availableGameModes = lobbyType === 'strategic' ? SPECIAL_GAME_MODES : PLAYFUL_GAME_MODES;
     const [selectedGameMode, setSelectedGameMode] = useState<GameMode | null>(() => {
         if (seedFromSession?.mode && availableGameModes.some(m => m.mode === seedFromSession.mode)) {
@@ -246,6 +264,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
     }, [selectedGameMode, settings.boardSize, lobbyType]);
 
     useEffect(() => {
+        if (hideScoringTurnLimit) return;
         if (selectedGameMode === GameMode.Capture) return;
         const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
         const nonZeroOptions = scoringTurnLimitOptions.filter(l => l > 0);
@@ -254,7 +273,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
             // "제한없음(0)" 옵션 제거 정책: 항상 0보다 큰 값만 허용
             handleSettingChange('scoringTurnLimit', nonZeroOptions[0] ?? 1);
         }
-    }, [selectedGameMode, settings.boardSize, settings.scoringTurnLimit]);
+    }, [hideScoringTurnLimit, selectedGameMode, settings.boardSize, settings.scoringTurnLimit]);
 
     const handleSettingChange = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
         setSettings(prev => {
@@ -312,7 +331,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         });
     }, [selectedGameMode]);
 
-    const handleChallenge = () => {
+    const handleChallenge = async () => {
         if (selectedGameMode) {
             if (selectedGameMode === GameMode.Mix && (!settings.mixedModes || settings.mixedModes.length < 2)) {
                 window.alert('믹스룰은 규칙을 2개 이상 선택해야 합니다.');
@@ -356,13 +375,17 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                 delete (mergedSettings as any).autoScoringTurns;
             }
 
-            onAction({ 
-                type: 'START_AI_GAME', 
+            const finalSettings = transformSettingsBeforeStart
+                ? transformSettingsBeforeStart(selectedGameMode, mergedSettings)
+                : mergedSettings;
+
+            await onAction({ 
+                type: startActionType, 
                 payload: { 
                     mode: selectedGameMode, 
-                    settings: mergedSettings,
+                    settings: finalSettings,
                 } 
-            });
+            } as ServerAction);
             onClose();
         }
     };
@@ -397,7 +420,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
         const showTtamokForbiddenRules = selectedGameMode === GameMode.Ttamok;
 
         const showGoAiLevel = lobbyType === 'strategic';
-        const showScoringTurnLimit = showGoAiLevel && selectedGameMode !== GameMode.Capture;
+        const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && selectedGameMode !== GameMode.Capture;
 
         const AI_LEVELS = [
             { value: -31, label: '1단계' },
@@ -1043,7 +1066,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
 
     return (
         <DraggableWindow
-            title="AI와 대결하기"
+            title={title}
             onClose={onClose}
             windowId="ai-challenge"
             initialWidth={calculatedWidth}
@@ -1140,7 +1163,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                                     disabled={!selectedGameMode}
                                     className={`${LOBBY_MOBILE_BTN_PRIMARY_CLASS} sm:flex-[1.35] ${!selectedGameMode ? '!cursor-not-allowed !opacity-45 !hover:brightness-100' : ''}`}
                                 >
-                                    시작 (⚡{actionPointCost})
+                                    {showActionPointCost ? `${submitLabel} (⚡${actionPointCost})` : submitLabel}
                                 </Button>
                             </div>
                         </div>
@@ -1214,7 +1237,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({ lobbyType, onClose,
                                 className="min-h-[2.75rem] px-5 py-2.5 font-semibold"
                                 style={{ fontSize: `${Math.max(15, Math.round(17 * mobileTextScale))}px` }}
                             >
-                                시작 (⚡{actionPointCost})
+                                {showActionPointCost ? `${submitLabel} (⚡${actionPointCost})` : submitLabel}
                             </Button>
                         </div>
                     </div>

@@ -114,8 +114,11 @@ export const createWebSocketServer = (server: Server) => {
                         userIdToClients.delete(userId);
                         // PVP: 탭 닫기·네트워크 끊김 등 로그아웃 API 없이 WS만 끊긴 경우에도 상대에게 즉시 접속 끊김 표시
                         void import('./actions/socialActions.js')
-                            .then(({ applyPvpInGameDisconnect }) =>
+                            .then(({ applyPvpInGameDisconnect, leavePairWaitingRoomIfPresent }) =>
                                 applyPvpInGameDisconnect(volatileState, userId).then((touched) => {
+                                    if (!touched) {
+                                        leavePairWaitingRoomIfPresent(volatileState, userId);
+                                    }
                                     if (touched) {
                                         releaseIpBindingForUser(volatileState, userId);
                                         delete volatileState.userConnections[userId];
@@ -375,6 +378,15 @@ export const createWebSocketServer = (server: Server) => {
                         homeBoardPosts = kvResults[5]?.status === 'fulfilled' ? (kvResults[5].value || []) : [];
                         guilds = kvResults[6]?.status === 'fulfilled' ? (kvResults[6].value || {}) : {};
                         arenaEntranceKv = kvResults[7]?.status === 'fulfilled' ? (kvResults[7].value || {}) : {};
+                    }
+                    const wsGuildChatNow = Date.now();
+                    const { applyWeeklyGuildChatResetIfNeededAll } = await import('./guildService.js');
+                    if (applyWeeklyGuildChatResetIfNeededAll(guilds, wsGuildChatNow)) {
+                        try {
+                            await db.setKV('guilds', guilds);
+                        } catch (persistErr) {
+                            console.warn('[WebSocket] Failed to persist guild chat week reset:', persistErr);
+                        }
                     }
                 } catch (error) {
                     console.warn('[WebSocket] Failed to load KV data:', error);
@@ -644,6 +656,33 @@ export const broadcast = (message: any) => {
 };
 
 // 특정 사용자에게만 메시지 전송 (1000명 규모: O(1) 조회)
+/** 지정 유저(다중 탭 포함)에게만 동일 메시지 전송 — 페어 방 채팅 등 */
+export const broadcastToUserIds = (userIds: Iterable<string>, message: any) => {
+    if (!wss) return;
+    let messageString: string;
+    try {
+        messageString = JSON.stringify(message);
+    } catch {
+        return;
+    }
+    const seen = new Set<string>();
+    for (const uid of userIds) {
+        if (seen.has(uid)) continue;
+        seen.add(uid);
+        const clients = userIdToClients.get(uid);
+        if (!clients) continue;
+        for (const client of clients) {
+            if (client.readyState === WebSocket.OPEN) {
+                try {
+                    client.send(messageString);
+                } catch {
+                    // ignore
+                }
+            }
+        }
+    }
+};
+
 export const sendToUser = (userId: string, message: any) => {
     if (!wss) return;
     const messageString = JSON.stringify({ ...message, targetUserId: userId });

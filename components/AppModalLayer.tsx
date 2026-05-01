@@ -1,4 +1,4 @@
-import React, { useMemo, Suspense, lazy } from 'react';
+import React, { useMemo, useState, Suspense, lazy } from 'react';
 import { clearOnboardingBagTutorialStep, getOnboardingBagTutorialStep } from '../utils/onboardingBagTutorialStep.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -29,6 +29,7 @@ import StatAllocationModal from './StatAllocationModal.js';
 import ItemDetailModal from './ItemDetailModal.js';
 import ProfileEditModal from './ProfileEditModal.js';
 import ItemObtainedModal from './ItemObtainedModal.js';
+import PairPetObtainedModal from './PairPetObtainedModal.js';
 import BulkItemObtainedModal from './BulkItemObtainedModal.js';
 import RewardSummaryModal from './RewardSummaryModal.js';
 import CraftingResultModal from './CraftingResultModal.js';
@@ -43,6 +44,7 @@ import OpponentInsufficientActionPointsModal from './OpponentInsufficientActionP
 import LevelUpCelebrationModal from './LevelUpCelebrationModal.js';
 import MannerGradeChangeModal from './MannerGradeChangeModal.js';
 import ContentUnlockNoticeModal from './ContentUnlockNoticeModal.js';
+import PairIncomingPartnerInviteModal from './pair/PairIncomingPartnerInviteModal.js';
 
 const ModalLoadingFallback = () => null;
 
@@ -65,7 +67,25 @@ const AppModalLayer: React.FC = () => {
         homeBoardPosts,
         unreadHomeBoardPostIds,
         waitingRoomChats,
+        pairPartnerInvites,
     } = useAppContext();
+
+    const incomingPairPartnerInvite = useMemo(() => {
+        if (!currentUserWithStatus) return null;
+        const uid = currentUserWithStatus.id;
+        const raw = pairPartnerInvites || {};
+        const list = Object.values(raw) as Array<{
+            id: string;
+            inviteeId: string;
+            inviterName: string;
+            roomTitle: string;
+            roomCode: string;
+            createdAt: number;
+        }>;
+        return list.find((i) => i.inviteeId === uid) ?? null;
+    }, [pairPartnerInvites, currentUserWithStatus?.id]);
+
+    const [pairInviteRespondBusy, setPairInviteRespondBusy] = useState(false);
 
     const hasItemObtainedResult = Array.isArray(modals.lastUsedItemResult) && modals.lastUsedItemResult.length > 0;
     const hasScoreOnlyItemObtained = Boolean(modals.tournamentScoreChange) && !hasItemObtainedResult;
@@ -113,6 +133,7 @@ const AppModalLayer: React.FC = () => {
         if (modals.levelUpCelebration) ids.push('levelUpCelebration');
         if (modals.mannerGradeChange) ids.push('mannerGradeChange');
         if (modals.contentUnlockNotice) ids.push('contentUnlockNotice');
+        if (modals.pairPetDetailModal) ids.push('pairPetDetail');
         return ids;
     }, [modals, activeNegotiation, hasItemObtainedResult, hasScoreOnlyItemObtained]);
 
@@ -135,8 +156,27 @@ const AppModalLayer: React.FC = () => {
         handlers.closeInventory();
     };
 
+    const respondIncomingPairInvite = async (inviteId: string, accept: boolean) => {
+        setPairInviteRespondBusy(true);
+        try {
+            const result = await handlers.handleAction({ type: 'PAIR_RESPOND_PARTNER_INVITE', payload: { inviteId, accept } });
+            const err = (result as any)?.error;
+            if (err) window.alert(err);
+        } finally {
+            setPairInviteRespondBusy(false);
+        }
+    };
+
     return (
         <>
+            {incomingPairPartnerInvite && currentUserWithStatus && (
+                <PairIncomingPartnerInviteModal
+                    invite={incomingPairPartnerInvite}
+                    isBusy={pairInviteRespondBusy}
+                    onAccept={() => respondIncomingPairInvite(incomingPairPartnerInvite.id, true)}
+                    onDecline={() => respondIncomingPairInvite(incomingPairPartnerInvite.id, false)}
+                />
+            )}
             {modals.isSettingsModalOpen && <SettingsModal onClose={handlers.closeSettingsModal} isTopmost={topmostModalId === 'settings'} />}
             {modals.isInventoryOpen && (
                 <Suspense fallback={ModalLoadingFallback()}>
@@ -168,7 +208,9 @@ const AppModalLayer: React.FC = () => {
                         onClose={handlers.closeExchange}
                         onAction={handlers.handleAction}
                         isTopmost={topmostModalId === 'exchange'}
-                        onViewListedEquipment={(item) => handlers.openViewingItem(item, true, { hideEnhanceActions: true })}
+                        onViewListedEquipment={(item, isOwned) =>
+                            handlers.openViewingItem(item, isOwned ?? true, { hideEnhanceActions: true })
+                        }
                     />
                 </Suspense>
             )}
@@ -185,6 +227,15 @@ const AppModalLayer: React.FC = () => {
             {hasItemObtainedResult && modals.lastUsedItemResult!.length === 1 && <ItemObtainedModal item={modals.lastUsedItemResult![0]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} />}
             {hasItemObtainedResult && modals.lastUsedItemResult!.length > 1 && <BulkItemObtainedModal items={modals.lastUsedItemResult!} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
             {hasScoreOnlyItemObtained && <BulkItemObtainedModal items={[]} onClose={handlers.closeItemObtained} isTopmost={topmostModalId === 'itemObtained'} tournamentScoreChange={modals.tournamentScoreChange} />}
+            {modals.pairPetDetailModal && (
+                <PairPetObtainedModal
+                    currentUser={currentUserWithStatus}
+                    item={modals.pairPetDetailModal.item}
+                    mode={modals.pairPetDetailModal.mode}
+                    onClose={handlers.closePairPetDetailModal}
+                    isTopmost={topmostModalId === 'pairPetDetail'}
+                />
+            )}
             {modals.disassemblyResult && <DisassemblyResultModal result={modals.disassemblyResult} onClose={handlers.closeDisassemblyResult} isTopmost={topmostModalId === 'disassemblyResult'} isOpen={true} />}
             {modals.craftResult && <CraftingResultModal result={modals.craftResult} onClose={handlers.closeCraftResult} isTopmost={topmostModalId === 'craftResult'} />}
             {modals.viewingUser && (

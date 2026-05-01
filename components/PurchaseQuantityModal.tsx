@@ -3,6 +3,8 @@ import DraggableWindow from './DraggableWindow.js';
 import { UserWithStatus, InventoryItemType } from '../types.js';
 import { BASE_SLOTS_PER_CATEGORY } from '../constants/items.js';
 import { isActionPointConsumable } from '../constants/items.js';
+import { ITEM_OBTAIN_COUNT_BADGE_CLASS, SingleItemObtainCard } from './game/ItemObtainModalShared.js';
+import { resolvePurchaseModalDescription, resolvePurchaseModalUsageLines } from '../shared/utils/bagItemDetailHelpers.js';
 
 interface PurchaseQuantityModalProps {
     item: {
@@ -15,6 +17,7 @@ interface PurchaseQuantityModalProps {
         purchasesToday?: number;
         image?: string;
         badge?: string;
+        description?: string;
     };
     currentUser: UserWithStatus;
     onClose: () => void;
@@ -108,29 +111,46 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({ item, cur
     const showImage = item.image || isTieredPriceItem;
     const isActionPoint = isTieredPriceItem || (item.name && isActionPointConsumable(item.name));
 
+    const purchaseDescription = useMemo(
+        () => resolvePurchaseModalDescription({ description: item.description, name: item.name, type: item.type }),
+        [item.description, item.name, item.type]
+    );
+    const purchaseUsageLines = useMemo(
+        () => resolvePurchaseModalUsageLines({ name: item.name, type: item.type }),
+        [item.name, item.type]
+    );
+
+    const previewLeftVisual = (
+        <div className="relative flex h-[4.75rem] w-[4.75rem] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-slate-500/40 bg-slate-800/75 shadow-inner sm:h-[5rem] sm:w-[5rem]">
+            {showImage &&
+                (isActionPoint ? (
+                    <div className="flex flex-col items-center justify-center text-amber-300">
+                        <span className="text-3xl leading-none" aria-hidden>
+                            ⚡
+                        </span>
+                        {item.badge ? <span className="mt-0.5 text-sm font-bold text-amber-200">{item.badge}</span> : null}
+                    </div>
+                ) : (
+                    <img src={item.image!} alt="" className="h-full w-full object-contain p-1.5" />
+                ))}
+            {quantity >= 2 ? <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>×{quantity.toLocaleString()}</span> : null}
+        </div>
+    );
+
     return (
         <DraggableWindow title="수량 선택" onClose={onClose} windowId="purchase-quantity" initialWidth={420}>
             <div className="flex flex-col items-stretch p-1">
-                {/* 상단: 아이템 이미지 + 이름 */}
-                <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-br from-slate-800/90 via-slate-900/95 to-slate-800/90 border border-slate-600/50 shadow-inner mb-4">
-                    <div className="relative w-20 h-20 flex-shrink-0 rounded-xl bg-slate-700/60 border border-slate-500/40 flex items-center justify-center overflow-hidden">
-                        {showImage && (
-                            isActionPoint ? (
-                                <div className="flex flex-col items-center justify-center text-amber-300">
-                                    <span className="text-3xl leading-none" aria-hidden>⚡</span>
-                                    {item.badge && <span className="text-sm font-bold text-amber-200 mt-0.5">{item.badge}</span>}
-                                </div>
-                            ) : (
-                                <img src={item.image!} alt={item.name} className="w-full h-full object-contain p-1.5" />
-                            )
-                        )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                        <h3 className="text-lg font-bold text-white truncate">{item.name}</h3>
-                        {remainingDaily !== Infinity && remainingDaily > 0 && (
-                            <p className="text-xs text-slate-400 mt-1">일일 남은 구매 가능: {remainingDaily}개</p>
-                        )}
-                    </div>
+                <div className="mb-4">
+                    <SingleItemObtainCard
+                        leftVisual={previewLeftVisual}
+                        name={item.name}
+                        description={purchaseDescription}
+                        usageLines={purchaseUsageLines}
+                        regionAriaLabel="구매 상품"
+                    />
+                    {remainingDaily !== Infinity && remainingDaily > 0 ? (
+                        <p className="mt-2 text-center text-xs text-slate-400">일일 남은 구매 가능: {remainingDaily}개</p>
+                    ) : null}
                 </div>
 
                 {/* 수량 조절: 고급 스타일 */}

@@ -1,5 +1,6 @@
 import { InventoryItem, EquipmentSlot, CoreStat, SpecialStat, MythicStat, ItemOption } from '../types/index.js';
 import { ItemGrade } from '../types/enums.js';
+import { PAIR_EGG_DISPLAY_IMAGE, PAIR_PET_KIND_NAMES, PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS, PAIR_SOULSTONE_NAMES } from './petLobby.js';
 
 export const emptySlotImages: Record<EquipmentSlot, string> = {
     fan: 'images/equipments/EmptyFanSlot.png',
@@ -101,26 +102,26 @@ export function resolveEquipmentTemplateLookupName(name: string | undefined, gra
 }
 
 export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped'|'level'|'stars'|'options'|'enhancementFails' | 'slot'> & {slot: null, usable?: boolean, sellable?: boolean})[] = [
-    { name: '장비 상자 I', description: '일반~희귀 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox1.png', grade: ItemGrade.Normal },
-    { name: '장비 상자 II', description: '일반~에픽 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox2.png', grade: ItemGrade.Uncommon },
-    { name: '장비 상자 III', description: '고급~전설 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox3.png', grade: ItemGrade.Rare },
-    { name: '장비 상자 IV', description: '희귀~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox4.png', grade: ItemGrade.Epic },
-    { name: '장비 상자 V', description: '에픽~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox5.png', grade: ItemGrade.Legendary },
-    { name: '장비 상자 VI', description: '전설~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox6.png', grade: ItemGrade.Mythic },
-    { name: '재료 상자 I', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox1.png', grade: ItemGrade.Normal },
-    { name: '재료 상자 II', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox2.png', grade: ItemGrade.Uncommon },
-    { name: '재료 상자 III', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox3.png', grade: ItemGrade.Rare },
-    { name: '재료 상자 IV', description: '중급 ~ 최상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox4.png', grade: ItemGrade.Epic },
-    { name: '재료 상자 V', description: '상급 ~ 신비의 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox5.png', grade: ItemGrade.Legendary },
-    { name: '재료 상자 VI', description: '상급 ~ 신비의 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox6.png', grade: ItemGrade.Mythic },
-    { name: '골드 꾸러미1', description: '10 ~ 500 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox1.png', grade: ItemGrade.Normal },
-    { name: '골드 꾸러미2', description: '100 ~ 1,000 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox2.png', grade: ItemGrade.Uncommon },
-    { name: '골드 꾸러미3', description: '500 ~ 3,000 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox3.png', grade: ItemGrade.Rare },
-    { name: '골드 꾸러미4', description: '1,000 ~ 10,000 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox4.png', grade: ItemGrade.Epic },
-    { name: '다이아 꾸러미1', description: '1 ~ 20 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox1.png', grade: ItemGrade.Rare },
-    { name: '다이아 꾸러미2', description: '10 ~ 30 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox2.png', grade: ItemGrade.Epic },
-    { name: '다이아 꾸러미3', description: '20 ~ 50 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox3.png', grade: ItemGrade.Legendary },
-    { name: '다이아 꾸러미4', description: '30 ~ 100 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox4.png', grade: ItemGrade.Mythic },
+    { name: '장비 상자 I', description: '일반~희귀 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox1.png', grade: ItemGrade.Normal, sellable: false },
+    { name: '장비 상자 II', description: '일반~에픽 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox2.png', grade: ItemGrade.Uncommon, sellable: false },
+    { name: '장비 상자 III', description: '고급~전설 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox3.png', grade: ItemGrade.Rare, sellable: false },
+    { name: '장비 상자 IV', description: '희귀~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox4.png', grade: ItemGrade.Epic, sellable: false },
+    { name: '장비 상자 V', description: '에픽~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox5.png', grade: ItemGrade.Legendary, sellable: false },
+    { name: '장비 상자 VI', description: '전설~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox6.png', grade: ItemGrade.Mythic, sellable: false },
+    { name: '재료 상자 I', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox1.png', grade: ItemGrade.Normal, sellable: false },
+    { name: '재료 상자 II', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox2.png', grade: ItemGrade.Uncommon, sellable: false },
+    { name: '재료 상자 III', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox3.png', grade: ItemGrade.Rare, sellable: false },
+    { name: '재료 상자 IV', description: '중급 ~ 최상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox4.png', grade: ItemGrade.Epic, sellable: false },
+    { name: '재료 상자 V', description: '상급 ~ 신비의 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox5.png', grade: ItemGrade.Legendary, sellable: false },
+    { name: '재료 상자 VI', description: '상급 ~ 신비의 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox6.png', grade: ItemGrade.Mythic, sellable: false },
+    { name: '골드 꾸러미 I', description: '10 ~ 500 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox1.png', grade: ItemGrade.Normal, sellable: false },
+    { name: '골드 꾸러미 II', description: '100 ~ 1,000 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox2.png', grade: ItemGrade.Uncommon, sellable: false },
+    { name: '골드 꾸러미 III', description: '500 ~ 3,000 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox3.png', grade: ItemGrade.Rare, sellable: false },
+    { name: '골드 꾸러미 IV', description: '1,000 ~ 10,000 골드 획득', type: 'consumable', slot: null, image: '/images/Box/GoldBox4.png', grade: ItemGrade.Epic, sellable: false },
+    { name: '다이아 꾸러미 I', description: '1 ~ 20 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox1.png', grade: ItemGrade.Rare, sellable: false },
+    { name: '다이아 꾸러미 II', description: '10 ~ 30 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox2.png', grade: ItemGrade.Epic, sellable: false },
+    { name: '다이아 꾸러미 III', description: '20 ~ 50 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox3.png', grade: ItemGrade.Legendary, sellable: false },
+    { name: '다이아 꾸러미 IV', description: '30 ~ 100 다이아 획득', type: 'consumable', slot: null, image: '/images/Box/DiaBox4.png', grade: ItemGrade.Mythic, sellable: false },
     { name: '컨디션회복제(소)', description: '긴장감을 완화시켜주는 컨디션 회복제', type: 'consumable', slot: null, image: '/images/use/con1.png', grade: ItemGrade.Normal },
     { name: '컨디션회복제(중)', description: '머리가 맑아지는 느낌의 컨디션 회복제', type: 'consumable', slot: null, image: '/images/use/con2.png', grade: ItemGrade.Uncommon },
     { name: '컨디션회복제(대)', description: '오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제', type: 'consumable', slot: null, image: '/images/use/con3.png', grade: ItemGrade.Rare },
@@ -161,6 +162,69 @@ export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'
     '상급 강화석': { name: '상급 강화석', description: '장비 강화에 사용되는 최상급 재료.', type: 'material', slot: null, image: '/images/materials/materials3.png', grade: ItemGrade.Rare },
     '최상급 강화석': { name: '최상급 강화석', description: '장비 강화에 사용되는 희귀 재료.', type: 'material', slot: null, image: '/images/materials/materials4.png', grade: ItemGrade.Epic },
     '신비의 강화석': { name: '신비의 강화석', description: '장비 강화에 사용되는 고대 재료.', type: 'material', slot: null, image: '/images/materials/materials5.png', grade: ItemGrade.Legendary },
+    /** 페어 경기장 · AI 펫 / 부화기 / 상점 */
+    신비로운알: {
+        name: '신비로운알',
+        description: '부화장에서 사용하면 무작위 AI 펫을 획득합니다.',
+        type: 'material',
+        slot: null,
+        image: PAIR_EGG_DISPLAY_IMAGE,
+        grade: ItemGrade.Normal,
+    },
+    /** @deprecated 키만 구버전 — 표기·이미지는 신비로운알과 동일 */
+    '페어 미스터리 알': {
+        name: '신비로운알',
+        description: '부화장에서 사용하면 무작위 AI 펫을 획득합니다.',
+        type: 'material',
+        slot: null,
+        image: PAIR_EGG_DISPLAY_IMAGE,
+        grade: ItemGrade.Normal,
+    },
+    '새싹영혼석': {
+        name: '새싹영혼석',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[0]],
+        type: 'material',
+        slot: null,
+        image: '/images/materials/soulstone1.webp',
+        grade: ItemGrade.Normal,
+        templateId: 'pair-soul-1',
+    },
+    '파동영혼석': {
+        name: '파동영혼석',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[1]],
+        type: 'material',
+        slot: null,
+        image: '/images/materials/soulstone2.webp',
+        grade: ItemGrade.Uncommon,
+        templateId: 'pair-soul-2',
+    },
+    '심연영혼석': {
+        name: '심연영혼석',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[2]],
+        type: 'material',
+        slot: null,
+        image: '/images/materials/soulstone3.webp',
+        grade: ItemGrade.Rare,
+        templateId: 'pair-soul-3',
+    },
+    '화염영혼석': {
+        name: '화염영혼석',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[3]],
+        type: 'material',
+        slot: null,
+        image: '/images/materials/soulstone4.webp',
+        grade: ItemGrade.Epic,
+        templateId: 'pair-soul-4',
+    },
+    '천광영혼석': {
+        name: '천광영혼석',
+        description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[4]],
+        type: 'material',
+        slot: null,
+        image: '/images/materials/soulstone5.webp',
+        grade: ItemGrade.Legendary,
+        templateId: 'pair-soul-5',
+    },
 };
 
 const TOWER_ONLY_CONSUMABLE_NAMES = new Set([
@@ -391,11 +455,49 @@ export const MATERIAL_SELL_PRICES: Record<string, number> = {
     '상급 강화석': 50,
     '최상급 강화석': 100,
     '신비의 강화석': 200,
+    신비로운알: 120,
+    /** 구 인벤 호환 */
+    '페어 미스터리 알': 120,
+    '새싹영혼석': 25,
+    '파동영혼석': 45,
+    '심연영혼석': 70,
+    '화염영혼석': 100,
+    '천광영혼석': 150,
 };
 
+for (let n = 1; n <= 24; n += 1) {
+    const gold = 40 + n * 8;
+    MATERIAL_SELL_PRICES[`AI 펫 #${n}`] = gold;
+    const nm = PAIR_PET_KIND_NAMES[n - 1];
+    if (nm) MATERIAL_SELL_PRICES[nm] = gold;
+}
+
 export const CONSUMABLE_SELL_PRICES: Record<string, number> = {
+    '골드 꾸러미 I': 0,
+    '골드 꾸러미 II': 0,
+    '골드 꾸러미 III': 0,
+    '골드 꾸러미 IV': 0,
+    '다이아 꾸러미 I': 0,
+    '다이아 꾸러미 II': 0,
+    '다이아 꾸러미 III': 0,
+    '다이아 꾸러미 IV': 0,
+    /** 레거시(숫자 접미) 인벤·표기 호환 */
     '골드 꾸러미1': 0,
-    '골드꾸러미1': 0, // 이름 변형 대응
+    '골드 꾸러미2': 0,
+    '골드 꾸러미3': 0,
+    '골드 꾸러미4': 0,
+    '다이아 꾸러미1': 0,
+    '다이아 꾸러미2': 0,
+    '다이아 꾸러미3': 0,
+    '다이아 꾸러미4': 0,
+    '골드꾸러미1': 0,
+    '골드꾸러미2': 0,
+    '골드꾸러미3': 0,
+    '골드꾸러미4': 0,
+    '다이아꾸러미1': 0,
+    '다이아꾸러미2': 0,
+    '다이아꾸러미3': 0,
+    '다이아꾸러미4': 0,
     // 도전의 탑 아이템 판매 가격 (구매 가격의 20%)
     '턴 추가': 60, // 300 * 0.2
     '미사일': 60, // 300 * 0.2

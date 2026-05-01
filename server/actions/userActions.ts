@@ -62,6 +62,7 @@ import {
     ONBOARDING_LAST_TUTORIAL_PHASE,
 } from '../../shared/constants/onboardingTutorial.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../../utils/inventoryUtils.js';
+import { normalizeInventoryEquipmentItem } from '../../shared/utils/inventoryLegacyNormalize.js';
 import {
     getRegionalBaseHeadStartPoints,
     getRegionalClassicOrStandardHeadStartPoints,
@@ -1264,6 +1265,247 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['rewardVipExpiresAt', 'functionVipExpiresAt', 'vvipExpiresAt']);
             return { clientResponse: { updatedUser } };
+        }
+        case 'PURCHASE_EXCHANGE_LISTING': {
+            const { listingId, sellerId } = (payload || {}) as { listingId?: string; sellerId?: string };
+            if (!listingId || typeof listingId !== 'string' || !sellerId || typeof sellerId !== 'string') {
+                return { error: '유효하지 않은 요청입니다.' };
+            }
+            const buyer = user;
+            if (sellerId === buyer.id) {
+                return { error: '본인이 등록한 물품은 구매할 수 없습니다.' };
+            }
+
+            const seller = await db.getUser(sellerId, { includeEquipment: true, includeInventory: true });
+            if (!seller) {
+                return { error: '판매자를 찾을 수 없습니다.' };
+            }
+            if (!Array.isArray(seller.inventory)) {
+                return { error: '판매자 데이터가 올바르지 않습니다.' };
+            }
+            if (!Array.isArray(buyer.inventory) || !buyer.inventorySlots) {
+                return { error: '인벤토리 정보를 불러올 수 없습니다.' };
+            }
+
+            const exchange = seller.exchangeState ?? { listings: [], settlements: [], history: [] };
+            const listings = Array.isArray(exchange.listings) ? [...exchange.listings] : [];
+            const li = listings.findIndex((l: any) => l && typeof l === 'object' && l.id === listingId);
+            if (li === -1) {
+                return { error: '거래 목록에서 해당 물품을 찾을 수 없습니다.' };
+            }
+            const row = listings[li] as Record<string, any>;
+            if (row.sellerId !== sellerId) {
+                return { error: '판매 정보가 일치하지 않습니다.' };
+            }
+            if (row.status !== 'listed') {
+                return { error: '이미 판매되었거나 취소된 물품입니다.' };
+            }
+
+            const now = Date.now();
+            const verificationOk =
+                row.verificationStatus === 'active' || (typeof row.verificationEndsAt === 'number' && row.verificationEndsAt <= now);
+            if (!verificationOk) {
+                return { error: '아직 구매할 수 없는 물품입니다.' };
+            }
+            if (typeof row.expiresAt === 'number' && row.expiresAt <= now) {
+                return { error: '만료된 등록입니다.' };
+            }
+
+            const price = Number(row.price);
+            if (!Number.isFinite(price) || price < 0) {
+                return { error: '가격 정보가 올바르지 않습니다.' };
+            }
+            const currency = row.currency === 'diamonds' ? 'diamonds' : 'gold';
+            if (currency === 'gold') {
+                if ((buyer.gold ?? 0) < price) {
+                    return { error: '골드가 부족합니다.' };
+                }
+            } else {
+                if ((buyer.diamonds ?? 0) < price) {
+                    return { error: '다이아가 부족합니다.' };
+                }
+            }
+
+            const itemId = typeof row.itemId === 'string' ? row.itemId : '';
+            if (!itemId) {
+                return { error: '물품 정보가 올바르지 않습니다.' };
+            }
+            const equippedIds = new Set(Object.values(seller.equipment || {}).filter((v): v is string => typeof v === 'string' && v.length > 0));
+            if (equippedIds.has(itemId)) {
+                return { error: '장착 중인 장비는 거래할 수 없습니다.' };
+            }
+
+            const listedSnap = row.listedEquipment as types.InventoryItem | undefined;
+            const fromInv = seller.inventory.find((i) => i && i.id === itemId && i.type === 'equipment');
+            let baseRaw: types.InventoryItem | null = null;
+            if (listedSnap && listedSnap.type === 'equipment') {
+                try {
+                    baseRaw = JSON.parse(JSON.stringify(listedSnap)) as types.InventoryItem;
+                } catch {
+                    baseRaw = null;
+                }
+            }
+            if (!baseRaw && fromInv) {
+                try {
+                    baseRaw = JSON.parse(JSON.stringify(fromInv)) as types.InventoryItem;
+                } catch {
+                    baseRaw = null;
+                }
+            }
+            if (!baseRaw || baseRaw.type !== 'equipment') {
+                return { error: '장비 정보를 찾을 수 없습니다. 판매자에게 문의하거나 목록을 새로고침 해 주세요.' };
+            }
+
+            const purchased = normalizeInventoryEquipmentItem({
+                ...baseRaw,
+                id: `item-${randomUUID()}`,
+                isExchangeListed: false,
+                isEquipped: false,
+            });
+
+            const addResult = addItemsToInventory(buyer.inventory, buyer.inventorySlots, [purchased]);
+            if (!addResult.success) {
+                return { error: '인벤토리 장비 칸이 부족합니다. 공간을 확보한 후 다시 시도해 주세요.' };
+            }
+
+            const invIdx = seller.inventory.findIndex((i) => i && i.id === itemId);
+            if (invIdx === -1) {
+                return { error: '판매 물품을 찾을 수 없습니다. 목록을 새로고침 해 주세요.' };
+            }
+            seller.inventory.splice(invIdx, 1);
+
+            const nextListings = [...listings];
+            nextListings[li] = { ...row, status: 'sold', soldAt: now };
+            const settlements = Array.isArray(exchange.settlements) ? [...exchange.settlements] : [];
+            settlements.unshift({
+                listingId: row.id,
+                itemId,
+                itemName: typeof row.itemName === 'string' ? row.itemName : purchased.name,
+                soldPrice: price,
+                currency,
+                soldAt: now,
+                claimed: false,
+            });
+            const history = Array.isArray(exchange.history) ? [...exchange.history] : [];
+            const histLine = `[${new Date(now).toLocaleString('ko-KR')}] 판매 완료: ${purchased.name} / ${price.toLocaleString()}${currency === 'gold' ? '골드' : '다이아'} (정산 대기)`;
+            seller.exchangeState = {
+                listings: nextListings,
+                settlements,
+                history: [histLine, ...history].filter((h): h is string => typeof h === 'string').slice(0, 200),
+            };
+
+            buyer.inventory = addResult.updatedInventory;
+            if (currency === 'gold') {
+                buyer.gold = Math.max(0, (buyer.gold ?? 0) - price);
+            } else {
+                buyer.diamonds = Math.max(0, (buyer.diamonds ?? 0) - price);
+            }
+
+            const placed = addResult.finalItemsToAdd[0] ?? purchased;
+
+            try {
+                await db.updateUser(seller);
+                await db.updateUser(buyer);
+            } catch (err) {
+                console.error('[PURCHASE_EXCHANGE_LISTING] DB save failed:', err);
+                return { error: '거래 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+
+            db.invalidateUserCache(seller.id);
+            db.invalidateUserCache(buyer.id);
+
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(seller, ['inventory', 'exchangeState']);
+            broadcastUserUpdate(buyer, ['inventory', 'gold', 'diamonds']);
+
+            const updatedUser = getSelectiveUserUpdate(buyer, 'PURCHASE_EXCHANGE_LISTING');
+            return {
+                clientResponse: {
+                    updatedUser,
+                    exchangePurchasedItem: placed,
+                },
+            };
+        }
+        case 'CLAIM_EXCHANGE_SETTLEMENT': {
+            const { listingId, claimAll } = (payload || {}) as { listingId?: string; claimAll?: boolean };
+            const exchange = user.exchangeState ?? { listings: [], settlements: [], history: [] };
+            const settlements = Array.isArray(exchange.settlements) ? [...exchange.settlements] : [];
+
+            const indicesToClaim: number[] = [];
+            if (claimAll === true) {
+                settlements.forEach((row: unknown, idx: number) => {
+                    const r = row as { claimed?: boolean } | null;
+                    if (r && r.claimed !== true) indicesToClaim.push(idx);
+                });
+            } else if (listingId && typeof listingId === 'string') {
+                const idx = settlements.findIndex((row: unknown) => {
+                    const r = row as { listingId?: string; claimed?: boolean } | null;
+                    return Boolean(r && r.listingId === listingId);
+                });
+                if (idx === -1) return { error: '정산 내역을 찾을 수 없습니다.' };
+                if ((settlements[idx] as { claimed?: boolean })?.claimed === true) {
+                    return { error: '이미 수령한 정산입니다.' };
+                }
+                indicesToClaim.push(idx);
+            } else {
+                return { error: '유효하지 않은 요청입니다.' };
+            }
+
+            if (indicesToClaim.length === 0) {
+                return { error: '수령할 정산이 없습니다.' };
+            }
+
+            const toApply: Array<{ idx: number; net: number; currency: 'gold' | 'diamonds' }> = [];
+            for (const idx of indicesToClaim) {
+                const row = settlements[idx] as Record<string, unknown>;
+                if (!row) continue;
+                const soldPrice = Math.floor(Number(row.soldPrice));
+                if (!Number.isFinite(soldPrice) || soldPrice < 0) continue;
+                const currency = row.currency === 'diamonds' ? 'diamonds' : 'gold';
+                const fee = Math.floor((soldPrice * 10) / 100);
+                const net = Math.max(0, soldPrice - fee);
+                toApply.push({ idx, net, currency });
+            }
+
+            if (toApply.length === 0) {
+                return { error: '수령할 정산이 없습니다.' };
+            }
+
+            let goldNet = 0;
+            let diamondsNet = 0;
+            for (const entry of toApply) {
+                if (entry.currency === 'gold') goldNet += entry.net;
+                else diamondsNet += entry.net;
+                const row = settlements[entry.idx] as Record<string, unknown>;
+                row.claimed = true;
+            }
+
+            user.gold = Math.max(0, (user.gold ?? 0) + goldNet);
+            user.diamonds = Math.max(0, (user.diamonds ?? 0) + diamondsNet);
+            user.exchangeState = {
+                listings: Array.isArray(exchange.listings) ? exchange.listings : [],
+                settlements,
+                history: Array.isArray(exchange.history) ? exchange.history : [],
+            };
+
+            try {
+                await db.updateUser(user);
+            } catch (err) {
+                console.error(`[UserAction] Failed to save user ${user.id} after CLAIM_EXCHANGE_SETTLEMENT:`, err);
+                return { error: '정산 처리 저장에 실패했습니다. 잠시 후 다시 시도해 주세요.' };
+            }
+            db.invalidateUserCache(user.id);
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['exchangeState', 'gold', 'diamonds']);
+
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_EXCHANGE_SETTLEMENT');
+            return {
+                clientResponse: {
+                    updatedUser,
+                    exchangeSettlementClaimedGold: goldNet,
+                    exchangeSettlementClaimedDiamonds: diamondsNet,
+                },
+            };
         }
         default:
             return { error: 'Unknown user action.' };

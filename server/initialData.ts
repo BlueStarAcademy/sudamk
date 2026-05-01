@@ -2,6 +2,9 @@ import { type AppState, type User, type UserCredentials, type QuestLog, type Dai
 // FIX: Corrected import paths to resolve circular dependency.
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, BOT_NAMES, AVATAR_POOL, GUILD_MISSIONS_POOL, GUILD_INITIAL_MEMBER_LIMIT, defaultSettings, ACHIEVEMENT_TRACKS } from '../constants/index.js';
 import * as crypto from 'crypto';
+import { MATERIAL_ITEMS } from '../shared/constants/items.js';
+import { PAIR_EGG_MATERIAL_NAME, PAIR_EGG_TEMPLATE_ID, PAIR_PET_CATALOG } from '../shared/constants/petLobby.js';
+import { rollPairPetMetaForHatch } from '../shared/utils/pairPetRoll.js';
 // FIX: Import createDefaultBaseStats from shared utils.
 import { createDefaultBaseStats } from '../utils/statUtils.js';
 import { getDefaultGuildMissionProgress } from './guildService.js';
@@ -50,6 +53,62 @@ export const createDefaultSpentStatPoints = (): Record<CoreStat, number> => ({
 
 export const createDefaultInventory = (): InventoryItem[] => [];
 
+/** 신규 계정: 페어 펫 로비 선택 패널·인벤 동작 확인용 데모(펫·알·영혼석 각 1스택) */
+function createPairPetLobbyDemoStarterItems(): InventoryItem[] {
+    const now = Date.now();
+    const eggMeta = MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS];
+    const soulMeta = MATERIAL_ITEMS['새싹영혼석'];
+    const petDef = PAIR_PET_CATALOG[0]!;
+    return [
+        {
+            id: `pair-lobby-demo-pet-${crypto.randomUUID()}`,
+            name: petDef.displayName,
+            description: petDef.description,
+            type: 'material',
+            slot: null,
+            level: 1,
+            stars: 0,
+            isEquipped: false,
+            createdAt: now,
+            image: petDef.image,
+            grade: petDef.grade,
+            quantity: 1,
+            templateId: petDef.templateId,
+            pairPetMeta: rollPairPetMetaForHatch(),
+        },
+        {
+            id: `pair-lobby-demo-egg-${crypto.randomUUID()}`,
+            name: eggMeta.name,
+            description: eggMeta.description,
+            type: 'material',
+            slot: null,
+            level: 1,
+            stars: 0,
+            isEquipped: false,
+            createdAt: now + 1,
+            image: eggMeta.image,
+            grade: eggMeta.grade,
+            quantity: 2,
+            templateId: PAIR_EGG_TEMPLATE_ID,
+        },
+        {
+            id: `pair-lobby-demo-soul-${crypto.randomUUID()}`,
+            name: soulMeta.name,
+            description: soulMeta.description,
+            type: 'material',
+            slot: null,
+            level: 1,
+            stars: 0,
+            isEquipped: false,
+            createdAt: now + 2,
+            image: soulMeta.image,
+            grade: soulMeta.grade,
+            quantity: 5,
+            templateId: 'pair-soul-1',
+        },
+    ];
+}
+
 /** 랭킹전·시즌 티어와 동일한 시즌 시작 레이팅 (신규 계정은 0이 아닌 1200으로 시작해야 ELO·표시가 맞음) */
 export const DEFAULT_RANKING_SCORE_SEASON_START = 1200;
 
@@ -78,7 +137,7 @@ export const createDefaultUser = (id: string, username: string, nickname: string
         playfulXp: 0,
         baseStats: createDefaultBaseStats(),
         spentStatPoints: createDefaultSpentStatPoints(),
-        inventory: createDefaultInventory(),
+        inventory: [...createDefaultInventory(), ...createPairPetLobbyDemoStarterItems()],
         inventorySlots: {
             equipment: 30,
             consumable: 30,

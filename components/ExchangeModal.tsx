@@ -1,15 +1,13 @@
 import React, { useMemo, useRef, useState } from 'react';
 import type { InventoryItem, UserWithStatus, ServerAction, ItemGrade, EquipmentSlot } from '../types.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
-import DraggableWindow, {
-    ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS,
-    ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS,
-    SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS,
-} from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import InventoryGrid from './blacksmith/InventoryGrid.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
 import AlertModal from './AlertModal.js';
+import ItemObtainedModal from './ItemObtainedModal.js';
+import BulkItemObtainedModal from './BulkItemObtainedModal.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import {
@@ -17,7 +15,7 @@ import {
     MOBILE_EQUIPMENT_DETAIL_MAX_HEIGHT_CSS,
     MOBILE_EQUIPMENT_DETAIL_MODAL_WIDTH,
 } from '../shared/constants/mobileEquipmentDetailModal.js';
-import { gradeBackgrounds, gradeStyles } from '../constants/items.js';
+import { EQUIPMENT_POOL, gradeBackgrounds, gradeStyles } from '../constants/items.js';
 import { getApiUrl } from '../utils/apiConfig.js';
 
 type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
@@ -48,6 +46,8 @@ type ExchangeListing = {
     expiresAt: number;
     status: 'listed' | 'sold';
     soldAt?: number;
+    /** 등록 시점 장비 스냅샷(옵션·제련 등). 구매자 상세 표시에 사용 */
+    listedEquipment?: InventoryItem;
 };
 
 type SettlementItem = {
@@ -76,32 +76,203 @@ type PurchaseSuccessData = {
     listing: ExchangeListing;
     inventoryItem?: InventoryItem | null;
 };
-type SettlementClaimResultData = {
-    isAll: boolean;
-    itemName?: string;
-    amount?: number;
-    currency?: SaleCurrency;
-    totalGold?: number;
-    totalDiamonds?: number;
-};
-
 interface ExchangeModalProps {
     currentUser: UserWithStatus;
     allUsers?: Record<string, UserWithStatus>;
     onClose: () => void;
-    onAction?: (action: ServerAction) => void | Promise<void>;
+    onAction?: (action: ServerAction) => void | Promise<void | { error?: string }>;
     isTopmost?: boolean;
-    /** 네이티브 모바일 판매 탭「등록된 아이템」행 클릭 시 장비 상세 모달 */
-    onViewListedEquipment?: (item: InventoryItem) => void;
+    /** 판매 등록·구매 미리보기 장비를 ItemDetailModal로 표시 (두 번째 인자: 내 소유 여부) */
+    onViewListedEquipment?: (item: InventoryItem, isOwnedByCurrentUser?: boolean) => void;
 }
+
+/** 등록 직후 서버에 아직 없는 id는 유지하고, 동일 id는 서버 행으로 덮어씀 */
+const mergeExchangeListingsPreferServer = (local: ExchangeListing[], server: ExchangeListing[]): ExchangeListing[] => {
+    const serverIds = new Set(server.filter((l) => l?.id).map((l) => l.id));
+    const pendingLocal = local.filter((l) => l?.id && !serverIds.has(l.id));
+    const byId = new Map<string, ExchangeListing>();
+    for (const l of pendingLocal) byId.set(l.id, l);
+    for (const l of server) {
+        if (l?.id) byId.set(l.id, l);
+    }
+    return [...byId.values()].sort((a, b) => (b.createdAt ?? 0) - (a.createdAt ?? 0));
+};
 
 const MAX_SELL_SLOTS = 3;
 const LISTING_MAX_DURATION_MS = 5 * 24 * 60 * 60 * 1000;
 const VERIFICATION_MS = 30 * 1000;
 const TRADE_LISTING_TICKET_NAME = '거래 등록권';
 
+function cloneListedEquipmentSnapshot(item: InventoryItem): InventoryItem {
+    try {
+        return JSON.parse(JSON.stringify(item)) as InventoryItem;
+    } catch {
+        return { ...item, options: item.options ? JSON.parse(JSON.stringify(item.options)) : undefined };
+    }
+}
+
+function isListingEquipmentSnapshot(v: unknown): v is InventoryItem {
+    return Boolean(
+        v &&
+            typeof v === 'object' &&
+            (v as InventoryItem).type === 'equipment' &&
+            typeof (v as InventoryItem).name === 'string' &&
+            typeof (v as InventoryItem).id === 'string',
+    );
+}
+
+/** 타인 등록 건: `listedEquipment` 우선, 없으면 목록 필드 + 풀 템플릿 */
+function normalizeExchangeAssetPath(raw: string): string {
+    const t = raw.trim();
+    if (!t) return '';
+    return t.startsWith('/') ? t : `/${t}`;
+}
+
+/** 거래 이력: 동일 이름 다건일 때 가격·재화(및 정산 시 판매가=실수령+수수료)으로 등록 건 추정 */
+function pickExchangeListingForHistoryLine(
+    listings: ExchangeListing[],
+    line: string,
+    itemName: string | undefined,
+    priceAmount: number,
+    priceCurrency: SaleCurrency | null,
+    feeAmount: number,
+    feeCurrency: SaleCurrency | null,
+): ExchangeListing | null {
+    const name = itemName?.trim();
+    if (!name) return null;
+    const byName = listings.filter((l) => l.itemName === name);
+    if (byName.length === 0) return null;
+    const pickNewest = (arr: ExchangeListing[]) =>
+        [...arr].sort((a, b) => (b.soldAt ?? b.createdAt ?? 0) - (a.soldAt ?? a.createdAt ?? 0))[0] ?? null;
+
+    if (line.includes('구매 완료') && priceCurrency) {
+        const priced = byName.filter((l) => l.price === priceAmount && l.currency === priceCurrency);
+        if (priced.length > 0) return pickNewest(priced);
+    }
+    if (
+        line.includes('정산 수령') &&
+        priceCurrency &&
+        feeCurrency === priceCurrency &&
+        feeAmount > 0 &&
+        priceAmount > 0
+    ) {
+        const soldPrice = priceAmount + feeAmount;
+        const priced = byName.filter((l) => l.price === soldPrice && l.currency === priceCurrency);
+        if (priced.length > 0) return pickNewest(priced);
+    }
+    return pickNewest(byName);
+}
+
+function resolveExchangeHistoryRowVisual(
+    itemName: string | undefined,
+    listing: ExchangeListing | null,
+    inventoryItem: InventoryItem | undefined,
+    line: string,
+): { itemImage: string; itemGrade: ItemGrade; itemStars: number } {
+    const name = itemName?.trim();
+    const genericFallback = '/images/Box/ResourceBox1.png';
+    if (!name) {
+        return {
+            itemImage: line.includes('정산') ? '/images/Box/GoldBox3.png' : genericFallback,
+            itemGrade: 'normal',
+            itemStars: 0,
+        };
+    }
+
+    const imgListed = listing?.itemImage?.trim();
+    if (imgListed) {
+        return {
+            itemImage: imgListed.startsWith('/') ? imgListed : `/${imgListed}`,
+            itemGrade: ((listing?.itemGrade as ItemGrade | undefined) ?? inventoryItem?.grade ?? 'normal') as ItemGrade,
+            itemStars: listing?.itemStars ?? inventoryItem?.stars ?? 0,
+        };
+    }
+
+    const snap = listing?.listedEquipment;
+    if (isListingEquipmentSnapshot(snap) && snap.image?.trim()) {
+        return {
+            itemImage: normalizeExchangeAssetPath(snap.image),
+            itemGrade: (snap.grade as ItemGrade) ?? (listing?.itemGrade as ItemGrade) ?? inventoryItem?.grade ?? 'normal',
+            itemStars: snap.stars ?? listing?.itemStars ?? inventoryItem?.stars ?? 0,
+        };
+    }
+
+    const gradeHint = (listing?.itemGrade as ItemGrade | undefined) ?? inventoryItem?.grade ?? 'normal';
+    const poolMatch =
+        EQUIPMENT_POOL.find((p) => p.name === name && p.grade === gradeHint) ?? EQUIPMENT_POOL.find((p) => p.name === name);
+    const poolImage = poolMatch?.image ? normalizeExchangeAssetPath(poolMatch.image) : '';
+    const invImg = inventoryItem?.image?.trim();
+    const itemImage =
+        poolImage ||
+        (invImg ? (invImg.startsWith('/') ? invImg : `/${invImg}`) : '') ||
+        genericFallback;
+
+    const itemGrade = (poolMatch?.grade as ItemGrade | undefined) ??
+        inventoryItem?.grade ??
+        (listing?.itemGrade as ItemGrade | undefined) ??
+        'normal';
+    const itemStars = listing?.itemStars ?? inventoryItem?.stars ?? 0;
+
+    return { itemImage, itemGrade, itemStars };
+}
+
+function buildBuyPreviewInventoryItem(listing: ExchangeListing): InventoryItem {
+    const raw = listing.listedEquipment as unknown;
+    if (isListingEquipmentSnapshot(raw)) {
+        return {
+            ...raw,
+            id: `exchange-listing:${listing.id}`,
+            isExchangeListed: true,
+            isEquipped: false,
+        };
+    }
+    const grade = (listing.itemGrade ?? 'normal') as ItemGrade;
+    const name = listing.itemName?.trim() || '장비';
+    const templateMatch =
+        EQUIPMENT_POOL.find((p) => p.name === name && p.grade === grade) ?? EQUIPMENT_POOL.find((p) => p.name === name);
+    const image = (listing.itemImage && listing.itemImage.trim()) || templateMatch?.image || '';
+    const slot = (listing.itemSlot ?? templateMatch?.slot ?? null) as InventoryItem['slot'];
+    const levelRaw = listing.itemLevel;
+    const level = typeof levelRaw === 'number' && Number.isFinite(levelRaw) ? levelRaw : 1;
+    return {
+        id: `exchange-listing:${listing.id}`,
+        name,
+        description: templateMatch?.description ?? '',
+        type: 'equipment',
+        slot,
+        level,
+        isEquipped: false,
+        createdAt: listing.createdAt ?? Date.now(),
+        image,
+        grade,
+        stars: listing.itemStars ?? 0,
+        isBound: false,
+        isExchangeListed: true,
+    };
+}
+
 const formatCurrency = (value: number, currency: SaleCurrency): string =>
     `${value.toLocaleString()}${currency === 'gold' ? '골드' : '다이아'}`;
+
+/** 거래소 정산 수령 → 공통 아이템 획득 모달(ItemObtainedModal)용 가상 인벤 행 */
+function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quantity: number): InventoryItem {
+    const now = Date.now();
+    const isGold = currency === 'gold';
+    return {
+        id: `exchange-settlement-reward-${isGold ? 'gold' : 'diamonds'}-${now}-${Math.random().toString(36).slice(2, 9)}`,
+        name: isGold ? '골드' : '다이아몬드',
+        description: '',
+        type: 'consumable',
+        slot: null,
+        quantity: Math.max(0, quantity),
+        level: 1,
+        isEquipped: false,
+        createdAt: now,
+        image: isGold ? '/images/icon/Gold.png' : '/images/icon/Zem.png',
+        grade: 'normal',
+        stars: 0,
+    };
+}
 
 const minPriceByCurrency: Record<SaleCurrency, number> = {
     gold: 100,
@@ -109,6 +280,11 @@ const minPriceByCurrency: Record<SaleCurrency, number> = {
 };
 const BAG_SCROLLBAR_Y_CLASS =
     '[scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/48';
+
+/** 거래 이력 탭에 표시: 구매 완료·정산 수령(판매 대금)만 */
+const isExchangeHistoryLineForDisplay = (line: string): boolean =>
+    line.includes('구매 완료') || line.includes('정산 모두 수령') || line.includes('정산 수령');
+
 const getBuyListingGroupKey = (entry: Pick<ExchangeListing, 'itemName' | 'itemGrade' | 'itemStars' | 'itemSlot' | 'currency'>): string =>
     [entry.itemName, entry.itemGrade ?? 'normal', entry.itemStars ?? 0, entry.itemSlot ?? 'none', entry.currency].join('::');
 
@@ -166,13 +342,18 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const [nowMs, setNowMs] = useState<number>(Date.now());
     const [walletGold, setWalletGold] = useState<number>(currentUser.gold ?? 0);
     const [walletDiamonds, setWalletDiamonds] = useState<number>(currentUser.diamonds ?? 0);
+    React.useEffect(() => {
+        setWalletGold(currentUser.gold ?? 0);
+        setWalletDiamonds(currentUser.diamonds ?? 0);
+    }, [currentUser.gold, currentUser.diamonds]);
     const [history, setHistory] = useState<string[]>(() => (currentUser.exchangeState?.history as string[] | undefined) ?? []);
     /** 마운트 직후 SAVE_EXCHANGE_STATE가 빈 history로 서버를 덮어쓰지 않도록 첫 1회 저장 생략 */
     const skipInitialExchangePersist = useRef(true);
     const [pendingRegistration, setPendingRegistration] = useState<PendingRegistration | null>(null);
+    const [pendingTicketUsageRegistration, setPendingTicketUsageRegistration] = useState<PendingRegistration | null>(null);
     const [pendingCancelListing, setPendingCancelListing] = useState<PendingCancelListing | null>(null);
     const [purchaseSuccessData, setPurchaseSuccessData] = useState<PurchaseSuccessData | null>(null);
-    const [settlementClaimResult, setSettlementClaimResult] = useState<SettlementClaimResultData | null>(null);
+    const [settlementObtainItems, setSettlementObtainItems] = useState<InventoryItem[] | null>(null);
     const [showAlreadySoldModal, setShowAlreadySoldModal] = useState(false);
     const [sellPickerOpen, setSellPickerOpen] = useState(false);
     const [sellComposerOpen, setSellComposerOpen] = useState(false);
@@ -320,15 +501,34 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
         return () => window.clearInterval(timer);
     }, []);
+    const serverListingsSig = useMemo(
+        () => JSON.stringify((currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? []),
+        [currentUser.exchangeState?.listings],
+    );
+    const serverSettlementsSig = useMemo(
+        () => JSON.stringify((currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? []),
+        [currentUser.exchangeState?.settlements],
+    );
+    const exchangeSyncUserIdRef = useRef<string | undefined>(undefined);
+
     React.useEffect(() => {
         skipInitialExchangePersist.current = true;
         const serverListings = (currentUser.exchangeState?.listings as ExchangeListing[] | undefined) ?? [];
         const serverSettlements = (currentUser.exchangeState?.settlements as SettlementItem[] | undefined) ?? [];
         const serverHistory = (currentUser.exchangeState?.history as string[] | undefined) ?? [];
-        setListings(serverListings);
+        const uid = currentUser.id;
+        const userChanged = exchangeSyncUserIdRef.current !== uid;
+        exchangeSyncUserIdRef.current = uid;
+
+        if (userChanged) {
+            setListings(serverListings);
+            setSettlements(serverSettlements);
+            setHistory(serverHistory);
+            return;
+        }
+        setListings((prev) => mergeExchangeListingsPreferServer(prev, serverListings));
         setSettlements(serverSettlements);
-        setHistory(serverHistory);
-    }, [currentUser.id]);
+    }, [currentUser.id, serverListingsSig, serverSettlementsSig]);
     /** exchangeState가 id 변경 없이 늦게 도착한 경우(로컬 이력이 아직 비어 있을 때만 서버로 채움) */
     React.useEffect(() => {
         const serverHistory = (currentUser.exchangeState?.history as string[] | undefined) ?? [];
@@ -364,7 +564,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         setHistory((prev) => [`[${timestamp}] ${message}`, ...prev].slice(0, 200));
     };
 
-    const executeRegisterSale = async (item: InventoryItem, parsedPrice: number, currency: SaleCurrency, fee: number) => {
+    const executeRegisterSale = async (
+        item: InventoryItem,
+        parsedPrice: number,
+        currency: SaleCurrency,
+        consumeTradeListingTicket: boolean,
+    ) => {
         const alreadyListed = listings.some(
             (entry) => entry.sellerId === currentUser.id && entry.status === 'listed' && entry.itemId === item.id,
         );
@@ -375,24 +580,54 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             setSellPickerOpen(false);
             return;
         }
-        if (!functionVipActive && !isAdminUser) {
+        if (consumeTradeListingTicket) {
             const ticketItem = (currentUser.inventory ?? []).find(
                 (inv) => inv.type === 'material' && inv.name === TRADE_LISTING_TICKET_NAME && (inv.quantity ?? 1) > 0,
             );
             if (!ticketItem) {
                 window.alert('거래 등록권이 부족합니다.');
                 setPendingRegistration(null);
+                setPendingTicketUsageRegistration(null);
                 setSellComposerOpen(false);
                 setSellPickerOpen(false);
                 return;
             }
-            await onAction?.({
+            const useItemResult = await onAction?.({
                 type: 'USE_ITEM',
                 payload: { itemId: ticketItem.id, itemName: ticketItem.name, quantity: 1 },
             });
+            if (
+                useItemResult &&
+                typeof useItemResult === 'object' &&
+                'error' in useItemResult &&
+                (useItemResult as { error?: string }).error
+            ) {
+                window.alert(String((useItemResult as { error: string }).error));
+                setPendingRegistration(null);
+                setPendingTicketUsageRegistration(null);
+                setSellComposerOpen(false);
+                setSellPickerOpen(false);
+                return;
+            }
         }
-        if (currency === 'gold') setWalletGold((prev) => prev - fee);
-        else setWalletDiamonds((prev) => prev - fee);
+        const markResult = await onAction?.({
+            type: 'MARK_ITEM_EXCHANGE_LISTED',
+            payload: { itemId: item.id, listPrice: parsedPrice, listCurrency: currency },
+        });
+        if (
+            markResult &&
+            typeof markResult === 'object' &&
+            'error' in markResult &&
+            (markResult as { error?: string }).error
+        ) {
+            window.alert(String((markResult as { error: string }).error));
+            setPendingRegistration(null);
+            setPendingTicketUsageRegistration(null);
+            setSelectedItemId('');
+            setSellComposerOpen(false);
+            setSellPickerOpen(false);
+            return;
+        }
 
         const newListing: ExchangeListing = {
             id: `my-${Date.now()}`,
@@ -405,6 +640,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             itemGrade: item.grade,
             itemStars: item.stars,
             itemLevel: item.level,
+            listedEquipment: cloneListedEquipmentSnapshot(item),
             price: parsedPrice,
             currency,
             verificationStatus: 'verifying',
@@ -414,9 +650,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             status: 'listed',
         };
         setListings((prev) => [newListing, ...prev]);
-        await onAction?.({ type: 'MARK_ITEM_EXCHANGE_LISTED', payload: { itemId: item.id } });
-        appendHistory(`판매 등록: ${item.name} / ${formatCurrency(parsedPrice, currency)} (등록 수수료 ${formatCurrency(fee, currency)})`);
         setPendingRegistration(null);
+        setPendingTicketUsageRegistration(null);
         setSelectedItemId('');
         setSellComposerOpen(false);
         setSellPickerOpen(false);
@@ -466,8 +701,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         setSellPickerOpen(false);
         setPendingRegistration({ item, price: parsedPrice, currency: saleCurrency, fee: saleFee });
     };
+    const requiresTradeListingTicket = !functionVipActive && !isAdminUser;
 
-    const handleBuy = (listingId: string) => {
+    const handleBuy = async (listingId: string) => {
         const listing = marketListings.find((entry) => entry.id === listingId);
         if (!listing) {
             setShowAlreadySoldModal(true);
@@ -497,74 +733,92 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             return;
         }
 
-        if (listing.currency === 'gold') setWalletGold((prev) => prev - listing.price);
-        else setWalletDiamonds((prev) => prev - listing.price);
-
-        setListings((prev) =>
-            prev.map((entry) =>
-                entry.id === listingId ? { ...entry, status: 'sold', soldAt: Date.now() } : entry,
-            ),
-        );
-        const purchasedInventoryItem = allEquipmentItems.find((item) => item.id === listing.itemId) ?? null;
-        setPurchaseSuccessData({ listing, inventoryItem: purchasedInventoryItem });
-
-        if (listing.sellerId === currentUser.id) {
-            setSettlements((prev) => [
-                {
-                    listingId: listing.id,
-                    itemId: listing.itemId,
-                    itemName: listing.itemName,
-                    soldPrice: listing.price,
-                    currency: listing.currency,
-                    soldAt: Date.now(),
-                    claimed: false,
-                },
-                ...prev,
-            ]);
+        const result = await onAction?.({
+            type: 'PURCHASE_EXCHANGE_LISTING',
+            payload: { listingId, sellerId: listing.sellerId },
+        });
+        if (
+            result &&
+            typeof result === 'object' &&
+            'error' in result &&
+            (result as { error?: string }).error
+        ) {
+            window.alert(String((result as { error: string }).error));
+            return;
         }
 
+        const cr = (result as { clientResponse?: { exchangePurchasedItem?: InventoryItem } } | undefined)?.clientResponse;
+        const purchasedInventoryItem =
+            cr?.exchangePurchasedItem ??
+            (isListingEquipmentSnapshot(listing.listedEquipment) ? listing.listedEquipment : null);
+
+        void refreshMarketListings();
+        if (selectedBuyListingId === listingId) setSelectedBuyListingId('');
+        setPurchaseSuccessData({ listing, inventoryItem: purchasedInventoryItem });
         appendHistory(`구매 완료: ${listing.itemName} / ${formatCurrency(listing.price, listing.currency)}`);
     };
 
-    const handleClaimSettlement = (listingId: string) => {
+    const handleClaimSettlement = async (listingId: string) => {
         const settlement = settlements.find((entry) => entry.listingId === listingId && !entry.claimed);
         if (!settlement) return;
 
         const claimFee = Math.floor((settlement.soldPrice * 10) / 100);
         const netAmount = Math.max(0, settlement.soldPrice - claimFee);
 
-        if (settlement.currency === 'gold') setWalletGold((prev) => prev + netAmount);
-        else setWalletDiamonds((prev) => prev + netAmount);
-
-        setSettlements((prev) =>
-            prev.map((entry) => (entry.listingId === listingId ? { ...entry, claimed: true } : entry)),
-        );
-        setSettlementClaimResult({
-            isAll: false,
-            itemName: settlement.itemName,
-            amount: netAmount,
-            currency: settlement.currency,
+        const result = await onAction?.({
+            type: 'CLAIM_EXCHANGE_SETTLEMENT',
+            payload: { listingId },
         });
+        if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
+            window.alert(String((result as { error: string }).error));
+            return;
+        }
+        const cr = (
+            result as
+                | {
+                      clientResponse?: {
+                          exchangeSettlementClaimedGold?: number;
+                          exchangeSettlementClaimedDiamonds?: number;
+                      };
+                  }
+                | undefined
+        )?.clientResponse;
+        const g = Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedGold ?? 0)));
+        const d = Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedDiamonds ?? 0)));
+        const obtain: InventoryItem[] = [];
+        if (g > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('gold', g));
+        if (d > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', d));
+        if (obtain.length > 0) setSettlementObtainItems(obtain);
+
         appendHistory(`정산 수령: ${settlement.itemName} / 실수령 ${formatCurrency(netAmount, settlement.currency)} (판매 수수료 ${formatCurrency(claimFee, settlement.currency)})`);
     };
-    const handleClaimAllSettlements = () => {
+    const handleClaimAllSettlements = async () => {
         if (unclaimedSettlements.length === 0) return;
-        let totalGoldNet = 0;
-        let totalDiamondsNet = 0;
-        unclaimedSettlements.forEach((entry) => {
-            const claimFee = Math.floor((entry.soldPrice * 10) / 100);
-            const netAmount = Math.max(0, entry.soldPrice - claimFee);
-            if (entry.currency === 'gold') totalGoldNet += netAmount;
-            else totalDiamondsNet += netAmount;
+
+        const result = await onAction?.({
+            type: 'CLAIM_EXCHANGE_SETTLEMENT',
+            payload: { claimAll: true },
         });
-        if (totalGoldNet > 0) setWalletGold((prev) => prev + totalGoldNet);
-        if (totalDiamondsNet > 0) setWalletDiamonds((prev) => prev + totalDiamondsNet);
-        setSettlements((prev) => prev.map((entry) => (entry.claimed ? entry : { ...entry, claimed: true })));
-        setSettlementClaimResult({
-            isAll: true,
-            totalGold: totalGoldNet,
-            totalDiamonds: totalDiamondsNet,
-        });
+        if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
+            window.alert(String((result as { error: string }).error));
+            return;
+        }
+        const cr = (
+            result as
+                | {
+                      clientResponse?: {
+                          exchangeSettlementClaimedGold?: number;
+                          exchangeSettlementClaimedDiamonds?: number;
+                      };
+                  }
+                | undefined
+        )?.clientResponse;
+        const totalGoldNet = Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedGold ?? 0)));
+        const totalDiamondsNet = Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedDiamonds ?? 0)));
+        const obtain: InventoryItem[] = [];
+        if (totalGoldNet > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('gold', totalGoldNet));
+        if (totalDiamondsNet > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', totalDiamondsNet));
+        if (obtain.length > 0) setSettlementObtainItems(obtain);
         appendHistory(
             `정산 모두 수령: 골드 ${totalGoldNet.toLocaleString()} / 다이아 ${totalDiamondsNet.toLocaleString()}`,
         );
@@ -575,7 +829,6 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         if (!target || target.status !== 'listed') return;
         setListings((prev) => prev.filter((entry) => entry.id !== listingId));
         void onAction?.({ type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: target.itemId } });
-        appendHistory(`판매 취소: ${target.itemName}`);
     };
     const handleRequestCancelListing = (listingId: string) => {
         const target = listings.find((entry) => entry.id === listingId);
@@ -594,7 +847,6 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         if (!target || target.status !== 'listed') return;
         setListings((prev) => prev.filter((entry) => entry.id !== listingId));
         void onAction?.({ type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId: target.itemId } });
-        appendHistory(`판매 만료 회수: ${target.itemName}`);
     };
 
     const listingsWithComputed = marketListings.map((entry) => {
@@ -660,9 +912,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         return null;
     }, [filteredAndSortedBuyItems, selectedBuyListingId, mobileExchange]);
     const selectedBuyListingIsMine = Boolean(selectedBuyListing && selectedBuyListing.sellerId === currentUser.id);
-    const selectedBuyInventoryItem = selectedBuyListing
-        ? allEquipmentItems.find((item) => item.id === selectedBuyListing.itemId)
-        : null;
+    const buyDetailDisplayItem = useMemo((): InventoryItem | null => {
+        if (!selectedBuyListing) return null;
+        if (selectedBuyListingIsMine) {
+            const mine = allEquipmentItems.find((item) => item.id === selectedBuyListing.itemId);
+            if (mine) return mine;
+        }
+        return buildBuyPreviewInventoryItem(selectedBuyListing);
+    }, [allEquipmentItems, selectedBuyListing, selectedBuyListingIsMine]);
     const recentSoldForBuySelection = selectedBuyListing
         ? [...marketListings]
               .filter((entry) => entry.status === 'sold' && entry.itemId === selectedBuyListing.itemId)
@@ -759,6 +1016,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             setSelectedSettlementId(settlementDisplayItems[0].listingId);
         }
     }, [settlementDisplayItems, selectedSettlementId]);
+    const visibleExchangeHistory = useMemo(
+        () => history.filter(isExchangeHistoryLineForDisplay),
+        [history],
+    );
     const historySummary = useMemo(() => {
         const totals = {
             outGold: 0,
@@ -766,21 +1027,15 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             inGold: 0,
             inDiamonds: 0,
         };
-        const rows = history.map((line) => {
-            const isOut = line.includes('구매 완료') || line.includes('판매 등록');
-            const isIn = line.includes('정산 수령') || line.includes('정산 모두 수령');
+        const rows = visibleExchangeHistory.map((line) => {
             const timestampMatch = line.match(/^\[([^\]]+)\]/);
             const timestampText = timestampMatch?.[1] ?? '-';
             const message = line.replace(/^\[[^\]]+\]\s*/, '');
-            const statusText = line.includes('판매 등록')
-                ? '판매 등록'
-                : line.includes('구매 완료')
-                  ? '구매 완료'
-                  : line.includes('판매 취소')
-                    ? '판매 취소'
-                    : line.includes('정산 수령') || line.includes('정산 모두 수령')
-                      ? '정산 수령'
-                      : '-';
+            const statusText = line.includes('구매 완료')
+                ? '구매 완료'
+                : line.includes('정산 수령') || line.includes('정산 모두 수령')
+                  ? '정산 수령'
+                  : '-';
             const itemNameMatch = message.match(/^[^:]+:\s*([^/]+?)(?:\s*\/|$)/);
             const itemName = itemNameMatch?.[1]?.trim();
             const matches = [...line.matchAll(/([0-9,]+)(골드|다이아)/g)];
@@ -790,12 +1045,12 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             const priceCurrency = (priceMatch?.[2] === '다이아' ? 'diamonds' : priceMatch ? 'gold' : null) as SaleCurrency | null;
             const feeAmount = feeMatch ? Number((feeMatch[1] ?? '0').replace(/,/g, '')) || 0 : 0;
             const feeCurrency = (feeMatch?.[2] === '다이아' ? 'diamonds' : feeMatch ? 'gold' : null) as SaleCurrency | null;
-            // 총 지출은 "수수료" 합계만 집계
-            if (feeMatch) {
-                if (feeMatch[2] === '골드') totals.outGold += feeAmount;
-                else totals.outDiamonds += feeAmount;
+            // 총 지출: 구매 완료 결제 금액만
+            if (line.includes('구매 완료') && priceMatch) {
+                if (priceMatch[2] === '골드') totals.outGold += priceAmount;
+                else totals.outDiamonds += priceAmount;
             }
-            // 총 수입은 "정산 수령" 합계만 집계
+            // 총 수입: 정산 실수령(모두 수령은 줄에 있는 골드·다이아 각각)
             if (line.includes('정산 모두 수령')) {
                 matches.forEach((m) => {
                     const amount = Number((m[1] ?? '0').replace(/,/g, '')) || 0;
@@ -806,18 +1061,56 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                 if (priceMatch[2] === '골드') totals.inGold += priceAmount;
                 else totals.inDiamonds += priceAmount;
             }
-            const matchedListing = itemName ? listings.find((entry) => entry.itemName === itemName) : null;
-            const matchedInventoryItem = itemName ? allEquipmentItems.find((entry) => entry.name === itemName) : null;
-            const itemGrade = ((matchedListing?.itemGrade as ItemGrade | undefined) ?? matchedInventoryItem?.grade ?? 'normal') as ItemGrade;
-            const itemStars = matchedListing?.itemStars ?? matchedInventoryItem?.stars ?? 0;
-            const itemImage =
-                matchedListing?.itemImage ??
-                matchedInventoryItem?.image ??
-                (line.includes('구매 완료')
-                    ? '/images/icon/Zem.png'
-                    : line.includes('정산')
-                      ? '/images/Box/GoldBox3.png'
-                      : '/images/Box/ResourceBox1.png');
+            if (line.includes('정산 모두 수령')) {
+                const goldBulk = line.match(/골드\s*([0-9,]+)/);
+                const diaBulk = line.match(/다이아\s*([0-9,]+)/);
+                const gBulk = goldBulk ? Number((goldBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
+                const dBulk = diaBulk ? Number((diaBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
+                let bulkImage = '/images/Box/GoldBox3.png';
+                if (gBulk > 0 && dBulk === 0) bulkImage = '/images/icon/Gold.png';
+                else if (dBulk > 0 && gBulk === 0) bulkImage = '/images/icon/Zem.png';
+                return {
+                    line,
+                    timestampText,
+                    statusText,
+                    itemImage: bulkImage,
+                    itemGrade: 'normal' as ItemGrade,
+                    itemStars: 0,
+                    priceAmount,
+                    priceCurrency,
+                    feeAmount,
+                    feeCurrency,
+                };
+            }
+            const matchedListing = pickExchangeListingForHistoryLine(
+                listings,
+                line,
+                itemName,
+                priceAmount,
+                priceCurrency,
+                feeAmount,
+                feeCurrency,
+            );
+            const invSameName = itemName
+                ? allEquipmentItems.filter((entry) => entry.name === itemName.trim())
+                : [];
+            let matchedInventoryItem: InventoryItem | undefined;
+            if (invSameName.length === 1) {
+                matchedInventoryItem = invSameName[0];
+            } else if (invSameName.length > 1 && matchedListing) {
+                matchedInventoryItem =
+                    invSameName.find(
+                        (e) =>
+                            e.grade === (matchedListing.itemGrade as ItemGrade | undefined) &&
+                            (e.stars ?? 0) === (matchedListing.itemStars ?? 0),
+                    ) ?? invSameName[0];
+            }
+            const { itemImage, itemGrade, itemStars } = resolveExchangeHistoryRowVisual(
+                itemName,
+                matchedListing,
+                matchedInventoryItem,
+                line,
+            );
             return {
                 line,
                 timestampText,
@@ -832,7 +1125,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
             };
         });
         return { totals, rows };
-    }, [history, listings, allEquipmentItems]);
+    }, [visibleExchangeHistory, listings, allEquipmentItems]);
     const exchangeTabButtonBase =
         'rounded-md border px-2 py-2 text-sm font-semibold tracking-wide transition-all duration-150';
     /** 네이티브 모바일 거래소: 탭·본문·표 공통 11px 전후 */
@@ -870,52 +1163,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
     const buyListingSelectedByUser = Boolean(selectedBuyListingId && selectedBuyListing && selectedBuyListing.id === selectedBuyListingId);
 
     const renderBuyEquipmentOrFallback = (opts?: { comfortableTypography?: boolean; optionRowsSingleLine?: boolean }) => {
-        if (!selectedBuyListing) return null;
+        if (!selectedBuyListing || !buyDetailDisplayItem) return null;
         const cozy = Boolean(opts?.comfortableTypography);
         const singleLineOpts = Boolean(opts?.optionRowsSingleLine);
-        if (selectedBuyInventoryItem) {
-            return (
-                <EquipmentDetailPanel
-                    item={selectedBuyInventoryItem}
-                    showTradeStatusUnderImage
-                    comfortableTypography={cozy}
-                    optionsScrollable={!cozy}
-                    optionRowsSingleLine={singleLineOpts}
-                />
-            );
-        }
         return (
-            <div className={`rounded-lg border border-slate-700/60 bg-slate-950/45 ${mobileExchange ? 'p-2' : 'p-3'}`}>
-                <div className="flex items-center gap-2">
-                    {selectedBuyListing.itemImage ? (
-                        <img src={selectedBuyListing.itemImage} alt={selectedBuyListing.itemName} className="h-14 w-14 rounded bg-black/35 object-contain p-1" />
-                    ) : null}
-                    <div className="min-w-0">
-                        <p
-                            className={`font-bold break-words ${
-                                cozy ? 'text-[13px] leading-snug' : mobileExchange ? 'text-[12px] leading-snug' : 'text-base'
-                            }`}
-                        >
-                            {selectedBuyListing.itemName}
-                        </p>
-                    </div>
-                </div>
-                <div className="mt-2 flex items-center justify-between rounded border border-slate-700/60 bg-slate-900/45 px-2 py-1.5">
-                    <span className={cozy ? 'text-[13px] text-slate-300' : mobileExchange ? 'text-[12px] text-slate-300' : 'text-xs text-slate-300'}>가격</span>
-                    <span
-                        className={`flex items-center gap-1 font-semibold text-amber-100 ${
-                            cozy ? 'text-[13px]' : mobileExchange ? 'text-[12px]' : 'text-sm'
-                        }`}
-                    >
-                        <span className="tabular-nums">{selectedBuyListing.price.toLocaleString()}</span>
-                        <img
-                            src={selectedBuyListing.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                            alt={selectedBuyListing.currency === 'gold' ? '골드' : '다이아'}
-                            className="h-4 w-4 object-contain"
-                        />
-                    </span>
-                </div>
-            </div>
+            <EquipmentDetailPanel
+                item={buyDetailDisplayItem}
+                showTradeStatusUnderImage
+                comfortableTypography={cozy}
+                optionsScrollable={!cozy}
+                optionRowsSingleLine={singleLineOpts}
+            />
         );
     };
 
@@ -1185,12 +1443,60 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                 취소
                             </Button>
                             <Button
-                                onClick={() =>
-                                    executeRegisterSale(
+                                onClick={() => {
+                                    if (requiresTradeListingTicket) {
+                                        setPendingTicketUsageRegistration(pendingRegistration);
+                                        setPendingRegistration(null);
+                                        return;
+                                    }
+                                    void executeRegisterSale(
                                         pendingRegistration.item,
                                         pendingRegistration.price,
                                         pendingRegistration.currency,
-                                        pendingRegistration.fee,
+                                        false,
+                                    );
+                                }}
+                                className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90"
+                            >
+                                등록
+                            </Button>
+                        </div>
+                    </div>
+                </DraggableWindow>
+            )}
+            {pendingTicketUsageRegistration && (
+                <DraggableWindow
+                    title="거래등록권 1장 사용"
+                    windowId="exchange-ticket-usage-confirm"
+                    onClose={() => setPendingTicketUsageRegistration(null)}
+                    initialWidth={390}
+                    initialHeight={280}
+                    hideFooter
+                    isTopmost
+                    variant="store"
+                >
+                    <div className="relative flex min-h-0 flex-col gap-3 overflow-y-auto rounded-xl border border-amber-500/35 bg-gradient-to-b from-[#161d2e] via-[#0e131f] to-[#070a10] p-3 text-slate-100 shadow-[0_0_0_1px_rgba(251,191,36,0.1),0_24px_48px_-24px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.07)]">
+                        <div className="flex flex-col items-center gap-2 text-center">
+                            <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-900/30">
+                                <img src="/images/use/allowtrade.webp" alt="거래 등록권" className="h-10 w-10 object-contain" />
+                            </div>
+                            <p className="text-sm font-semibold text-amber-100">거래등록권 1장 사용</p>
+                        </div>
+                        <div className="mt-auto grid shrink-0 grid-cols-2 gap-2 pt-1">
+                            <Button
+                                onClick={() => setPendingTicketUsageRegistration(null)}
+                                className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-slate-500/50 !bg-gradient-to-b !from-slate-700/90 !to-slate-900/95"
+                                colorScheme="gray"
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                onClick={() =>
+                                    void executeRegisterSale(
+                                        pendingTicketUsageRegistration.item,
+                                        pendingTicketUsageRegistration.price,
+                                        pendingTicketUsageRegistration.currency,
+                                        true,
                                     )
                                 }
                                 className="min-h-[40px] py-2.5 text-sm font-semibold leading-none !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90"
@@ -1320,72 +1626,16 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                     </div>
                 </DraggableWindow>
             )}
-            {settlementClaimResult && (
-                <DraggableWindow
-                    title="정산 수령"
-                    windowId="exchange-settlement-claim-result"
-                    onClose={() => setSettlementClaimResult(null)}
-                    initialWidth={390}
-                    initialHeight={350}
+            {settlementObtainItems && settlementObtainItems.length === 1 ? (
+                <ItemObtainedModal
+                    item={settlementObtainItems[0]}
+                    onClose={() => setSettlementObtainItems(null)}
                     isTopmost
-                    variant="store"
-                >
-                    <>
-                        <div className="flex min-h-0 w-full max-w-[min(100vw-1.5rem,22rem)] flex-col self-center px-2 pt-1 sm:max-w-[22rem] sm:px-3 sm:pt-2">
-                            <div className="relative overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-b from-[#161d2e] via-[#0e131f] to-[#070a10] shadow-[0_0_0_1px_rgba(251,191,36,0.1),0_28px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.07)]">
-                                <div className="relative flex min-h-0 flex-col gap-3 p-3 sm:gap-4 sm:px-6 sm:pb-6 sm:pt-6">
-                                    <div className="flex min-w-0 flex-col items-center gap-3 sm:gap-4">
-                                        <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl border border-white/15 bg-black/25">
-                                            <img src="/images/icon/Gold.png" alt="" className="h-10 w-10 object-contain opacity-90" />
-                                            <img src="/images/icon/Zem.png" alt="" className="absolute bottom-1 right-1 h-5 w-5 object-contain" />
-                                        </div>
-                                        <div className="flex min-w-0 flex-col items-center text-center">
-                                            <span className="inline-flex items-center justify-center rounded-full border border-white/15 bg-slate-800/80 px-3 py-0.5 text-[11px] font-semibold text-amber-100">
-                                                {settlementClaimResult.isAll ? '모두 수령' : '선택 수령'}
-                                            </span>
-                                            <h2 className="mt-1 max-w-full text-center text-base font-black leading-snug tracking-tight text-amber-50 break-words">
-                                                {settlementClaimResult.isAll ? '정산금 수령 완료' : settlementClaimResult.itemName}
-                                            </h2>
-                                            <div className="mt-2 space-y-1 text-sm">
-                                                {settlementClaimResult.isAll ? (
-                                                    <>
-                                                        <p className="flex items-center justify-center gap-1 font-semibold text-amber-100">
-                                                            <span>골드 {settlementClaimResult.totalGold?.toLocaleString() ?? 0}</span>
-                                                            <img src="/images/icon/Gold.png" alt="골드" className="h-4 w-4 object-contain" />
-                                                        </p>
-                                                        <p className="flex items-center justify-center gap-1 font-semibold text-sky-100">
-                                                            <span>다이아 {settlementClaimResult.totalDiamonds?.toLocaleString() ?? 0}</span>
-                                                            <img src="/images/icon/Zem.png" alt="다이아" className="h-4 w-4 object-contain" />
-                                                        </p>
-                                                    </>
-                                                ) : (
-                                                    <p className="flex items-center justify-center gap-1 font-semibold text-emerald-100">
-                                                        <span>{settlementClaimResult.amount?.toLocaleString() ?? 0}</span>
-                                                        <img
-                                                            src={settlementClaimResult.currency === 'gold' ? '/images/icon/Gold.png' : '/images/icon/Zem.png'}
-                                                            alt={settlementClaimResult.currency === 'gold' ? '골드' : '다이아'}
-                                                            className="h-4 w-4 object-contain"
-                                                        />
-                                                    </p>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className={ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS}>
-                            <button
-                                type="button"
-                                onClick={() => setSettlementClaimResult(null)}
-                                className={ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS}
-                            >
-                                확인
-                            </button>
-                        </div>
-                    </>
-                </DraggableWindow>
-            )}
+                />
+            ) : null}
+            {settlementObtainItems && settlementObtainItems.length > 1 ? (
+                <BulkItemObtainedModal items={settlementObtainItems} onClose={() => setSettlementObtainItems(null)} isTopmost />
+            ) : null}
             {mobileBuyDetailOpen && selectedBuyListing ? (
                 <DraggableWindow
                     title="구매"
@@ -1407,7 +1657,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                         {renderExchangeBuyDetailScrollableMobile()}
                         <div className="shrink-0 border-t border-slate-700/50 pt-2">
                             <Button
-                                onClick={() => handleBuy(selectedBuyListing.id)}
+                                onClick={() => void handleBuy(selectedBuyListing.id)}
                                 disabled={selectedBuyListingIsMine}
                                 className={`${exchangePrimaryButtonClass} !text-xs !leading-snug`}
                             >
@@ -1805,7 +2055,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                         <div className="mt-2 shrink-0">
                                             <Button
                                                 onClick={() => {
-                                                    if (selectedBuyListing) handleBuy(selectedBuyListing.id);
+                                                    if (selectedBuyListing) void handleBuy(selectedBuyListing.id);
                                                 }}
                                                 disabled={!selectedBuyListing || selectedBuyListingIsMine}
                                                 className={exchangePrimaryButtonClass}
@@ -1853,7 +2103,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                             onClick={() => {
                                                                 setSellSlotFocusItemId(slot.itemId);
                                                                 const inv = allEquipmentItems.find((entry) => entry.id === slot.itemId);
-                                                                if (inv) onViewListedEquipment?.(inv);
+                                                                if (inv) onViewListedEquipment?.(inv, true);
                                                             }}
                                                             className={`w-full rounded-lg border border-amber-500/35 bg-amber-950/20 px-3 py-2 text-left transition hover:border-amber-300/65 ${sellSlotFocusItemId === slot.itemId ? 'ring-2 ring-amber-300/60' : ''}`}
                                                         >
@@ -2329,7 +2579,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                     : 'min-h-[3.25rem] whitespace-nowrap px-3 py-2.5 text-base sm:w-[260px] sm:text-lg'
                                             }`}
                                         >
-                                            총 거래 이력 {history.length}건
+                                            총 거래 이력 {visibleExchangeHistory.length}건
                                         </div>
                                         <div
                                             className={`flex-1 rounded border border-slate-700/60 bg-slate-900/45 text-slate-200 ${
@@ -2387,7 +2637,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                     </div>
                                 </div>
                                 <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
-                                    {history.length === 0 && (
+                                    {visibleExchangeHistory.length === 0 && (
                                         <div className={`rounded border border-slate-700/60 bg-slate-900/40 px-3 py-8 text-center text-slate-300 ${mobileExchange ? exchM : 'text-sm'}`}>
                                             거래 이력이 없습니다.
                                         </div>

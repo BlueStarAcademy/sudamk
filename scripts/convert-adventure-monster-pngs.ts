@@ -1,5 +1,5 @@
 /**
- * Converts public/images/monster/*.png → chapter subfolders as .webp
+ * Converts public/images/monster/*.png → chapter subfolders as .webp (원본 PNG 유지)
  * Run: npx tsx scripts/convert-adventure-monster-pngs.ts
  */
 import fs from 'node:fs/promises';
@@ -9,6 +9,11 @@ import sharp from 'sharp';
 const ROOT = path.resolve('public/images/monster');
 
 function chapterDirForBasename(base: string): string {
+    if (base.startsWith('lake_park_')) return 'lake_park';
+    if (base.startsWith('neighborhood_hill_')) return 'neighborhood_hill';
+    if (base.startsWith('aquarium_')) return 'aquarium';
+    if (base.startsWith('amusement_park_')) return 'amusement_park';
+    if (base.startsWith('zoo_')) return 'zoo';
     if (base.startsWith('lakesideparkmon')) return 'lake_park';
     if (base.startsWith('forestmon')) return 'neighborhood_hill';
     if (base.startsWith('aquariummon')) return 'aquarium';
@@ -41,7 +46,6 @@ async function main() {
                 smartSubsample: false,
             })
             .toFile(outPath);
-        await fs.unlink(inPath);
         console.log('OK', e.name, '→', path.relative('public', outPath));
     }
     console.log('Done,', pngs.length, 'converted.');

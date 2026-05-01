@@ -1,0 +1,117 @@
+import React, { useMemo } from 'react';
+import { CORE_STATS_DATA } from '../../constants/index.js';
+import { calculateTotalStats } from '../../services/statService.js';
+import type { PairPetMeta, User } from '../../types.js';
+import { CoreStat, ItemGrade } from '../../types/enums.js';
+import { pairPetStatMultiplierFromGrade } from '../../shared/constants/pairPetGrade.js';
+
+const PET_BASE_STAT = 50;
+const CORE_LIST = Object.values(CoreStat) as CoreStat[];
+
+/** 유저 스탯 상한은 유지하되, 펫 등급 기준 기본치보다 낮게 깎이지 않게 함(Lv1 전 코어 50 등). */
+function pairPetShownCoreValue(rawBase: number, rawBaseNoLvl: number, userCap: number): number {
+    const cap = Number.isFinite(userCap) ? userCap : rawBase;
+    return Math.min(rawBase, Math.max(cap, rawBaseNoLvl));
+}
+
+function dispositionFlatBonus(
+    disposition: PairPetMeta['disposition'],
+    stat: CoreStat,
+    baseForDisposition: number
+): number {
+    if (disposition.kind === 'all') {
+        return Math.round((baseForDisposition * disposition.pct) / 100);
+    }
+    if (disposition.kind === 'single' && disposition.stat === stat) {
+        return Math.round((baseForDisposition * disposition.pct) / 100);
+    }
+    return 0;
+}
+
+/** 6코어 표시값+성향 보너스 합 — 그리드와 동일 규칙(등급 배율 반영) */
+export function computePairPetBadukTotalPower(
+    currentUser: User,
+    disposition: PairPetMeta['disposition'],
+    petGrade: ItemGrade = ItemGrade.Normal,
+    levelUpCoreBonuses?: Partial<Record<CoreStat, number>>
+): number {
+    const userTotals = calculateTotalStats(currentUser);
+    const gradeMult = pairPetStatMultiplierFromGrade(petGrade);
+    let sum = 0;
+    for (const stat of CORE_LIST) {
+        const lvlAdd = levelUpCoreBonuses?.[stat] ?? 0;
+        const rawBaseNoLvl = Math.round(PET_BASE_STAT * gradeMult);
+        const rawBase = rawBaseNoLvl + lvlAdd;
+        const cap = userTotals[stat] ?? rawBase;
+        const shown = pairPetShownCoreValue(rawBase, rawBaseNoLvl, cap);
+        sum += shown + dispositionFlatBonus(disposition, stat, rawBaseNoLvl);
+    }
+    return sum;
+}
+
+export interface PairPetCoreStatsGridProps {
+    currentUser: User;
+    disposition: PairPetMeta['disposition'];
+    /** 펫 인벤 행 등급 — 등급당 누적 ×1.1 기본 능력치 */
+    petGrade?: ItemGrade;
+    /** 레벨업 시 누적된 6코어 보너스 */
+    levelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
+    /** 모달(어두운 배경) vs 로비 정보(밝은 카드) 등 톤 */
+    variant?: 'modal' | 'panel';
+    className?: string;
+}
+
+/**
+ * 페어 펫 6코어 능력치 — 라벨·수치(+보너스)를 한 줄로, 3×2 그리드.
+ * 획득 모달·펫 정보 뷰에서 공통 사용.
+ */
+const PairPetCoreStatsGrid: React.FC<PairPetCoreStatsGridProps> = ({
+    currentUser,
+    disposition,
+    petGrade = ItemGrade.Normal,
+    levelUpCoreBonuses,
+    variant = 'modal',
+    className = '',
+}) => {
+    const userTotals = useMemo(() => calculateTotalStats(currentUser), [currentUser]);
+    const gradeMult = useMemo(() => pairPetStatMultiplierFromGrade(petGrade), [petGrade]);
+
+    const cell =
+        variant === 'modal'
+            ? 'rounded-lg border border-white/[0.1] bg-zinc-950/80 px-2 py-1.5 ring-1 ring-inset ring-white/[0.04]'
+            : 'rounded-md border border-white/10 bg-black/30 px-2 py-1.5';
+
+    return (
+        <div className={`grid grid-cols-3 gap-x-2 gap-y-1.5 text-[0.8125rem] leading-tight sm:gap-x-3 sm:gap-y-2 sm:text-sm ${className}`.trim()}>
+            {CORE_LIST.map((stat) => {
+                const lvlAdd = levelUpCoreBonuses?.[stat] ?? 0;
+                const rawBaseNoLvl = Math.round(PET_BASE_STAT * gradeMult);
+                const rawBase = rawBaseNoLvl + lvlAdd;
+                const cap = userTotals[stat] ?? rawBase;
+                const shown = pairPetShownCoreValue(rawBase, rawBaseNoLvl, cap);
+                const corrected = shown < rawBase;
+                const bonus = dispositionFlatBonus(disposition, stat, rawBaseNoLvl);
+                const statLabel = CORE_STATS_DATA[stat]?.name ?? stat;
+                return (
+                    <div
+                        key={stat}
+                        className={`flex min-w-0 items-center justify-between gap-1.5 ${cell}`}
+                        title={`${statLabel} ${shown}${bonus > 0 ? ` (+${bonus})` : ''}`}
+                    >
+                        <span className="min-w-0 shrink truncate font-semibold text-slate-400">{statLabel}</span>
+                        <span
+                            className={`shrink-0 whitespace-nowrap font-mono text-[0.78rem] font-bold tabular-nums sm:text-sm ${corrected ? 'text-rose-300' : 'text-slate-100'}`}
+                        >
+                            {shown}
+                            {bonus > 0 ? (
+                                <span className="font-semibold text-fuchsia-300/95">(+{bonus})</span>
+                            ) : null}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+};
+
+export default PairPetCoreStatsGrid;

@@ -388,7 +388,8 @@ async function syncEquipmentAndInventory(user: User): Promise<void> {
           const inventoryData = {
             id: item.id!,
             userId: user.id,
-            templateId: item.name || item.templateId || '',
+            // 페어 펫 등 templateId가 본 키인 재료는 name(표시명)보다 templateId를 우선 저장
+            templateId: (item as any).templateId || item.name || '',
             quantity: item.quantity || 1,
             slot: item.slot || null,
             enhancementLvl: (item as any).enhancementLvl ?? item.level ?? 0,
@@ -398,10 +399,12 @@ async function syncEquipmentAndInventory(user: User): Promise<void> {
               const m = { ...((item as any).metadata || {}) };
               delete (m as any).isDivineMythic;
               // ...m를 먼저 펼치면 레거시 m.options가 아래에서 덮어써져, 갱신된 item.options가 유실된다.
+              const pairMeta = (item as any).pairPetMeta;
               return {
                 ...m,
                 options: item.options ?? (m as any).options ?? [],
                 enhancementFails: (item as any).enhancementFails ?? (m as any).enhancementFails ?? 0,
+                ...(pairMeta != null ? { pairPetMeta: pairMeta } : {}),
               };
             })(),
             isEquipped: item.isEquipped || false

@@ -53,6 +53,8 @@ interface GameSummaryModalProps {
 const getIsWinner = (session: LiveGameSession, currentUser: User): boolean | null => {
     const { winner, blackPlayerId, whitePlayerId, player1, player2 } = session;
     if (winner === null || winner === Player.None) return null;
+    const pairSeat = session.settings.pairGame?.turnOrder?.find((seat) => seat.participantId === currentUser.id);
+    if (pairSeat) return pairSeat.player === winner;
     const isPlayer = currentUser.id === player1.id || currentUser.id === player2.id;
     if (!isPlayer) return null; // Spectators don't have a win/loss status
 
@@ -1487,6 +1489,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         return (
             (mySummary.gold ?? 0) > 0 ||
             (mySummary.xp?.change ?? 0) > 0 ||
+            (mySummary.pairPetXp?.change ?? 0) > 0 ||
             (mySummary.items?.length ?? 0) > 0
         );
     }, [mySummary, isAdventureGame, sessionShowsVipPlayRewardSlot, vipSlotEffective]);
@@ -1932,6 +1935,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 />
                             </div>
                         )}
+                        {(mySummary.pairPetXp?.change ?? 0) > 0 && (
+                            <div className="flex shrink-0 flex-col items-center justify-center">
+                                <ResultModalXpRewardBadge
+                                    variant="pet"
+                                    amount={mySummary.pairPetXp!.change}
+                                    density={useCompactRewardSlots ? 'compact' : 'comfortable'}
+                                    title={`펫 경험치 +${mySummary.pairPetXp!.change.toLocaleString()}`}
+                                />
+                            </div>
+                        )}
                         {mySummary.items &&
                             mySummary.items.length > 0 &&
                             mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {
@@ -2015,7 +2028,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             pcViewportMaxHeightCss="min(92vh, 840px)"
             uniformPcScale={false}
             mobileViewportFit
-            mobileLockViewportHeight={false}
+            mobileLockViewportHeight={isMobile}
             mobileViewportMaxHeightVh={isMobile ? 96 : 86}
             windowId="game-summary"
             variant="store"

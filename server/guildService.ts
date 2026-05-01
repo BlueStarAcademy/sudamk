@@ -13,6 +13,33 @@ import {
 } from '../utils/guildBossStageUtils.js';
 import { randomUUID } from 'crypto';
 import { calculateGuildMissionXp } from '../utils/guildUtils.js';
+import { isDifferentWeekKST } from '../shared/utils/timeUtils.js';
+
+/** KST 기준 월요일 주 시작과 동일한 주(`isDifferentWeekKST`)에 맞춰 길드 채팅만 초기화 */
+export function applyWeeklyGuildChatResetIfNeeded(guild: Guild, now: number): boolean {
+    const explicit = guild.lastGuildChatWeekResetMs;
+    const anchor =
+        typeof explicit === 'number' && explicit > 0
+            ? explicit
+            : typeof guild.lastMissionReset === 'number' && guild.lastMissionReset > 0
+              ? guild.lastMissionReset
+              : typeof guild.createdAt === 'number' && guild.createdAt > 0
+                ? guild.createdAt
+                : 0;
+    if (!anchor) return false;
+    if (!isDifferentWeekKST(anchor, now)) return false;
+    guild.chatHistory = [];
+    guild.lastGuildChatWeekResetMs = now;
+    return true;
+}
+
+export function applyWeeklyGuildChatResetIfNeededAll(guilds: Record<string, Guild>, now: number): boolean {
+    let dirty = false;
+    for (const g of Object.values(guilds)) {
+        if (applyWeeklyGuildChatResetIfNeeded(g, now)) dirty = true;
+    }
+    return dirty;
+}
 
 export const checkGuildLevelUp = (guild: Guild): boolean => {
     let leveledUp = false;
@@ -95,6 +122,9 @@ export const updateGuildMissionProgress = async (guildId: string, missionType: s
     const guild = guilds[guildId];
     if (!guild || !guild.weeklyMissions) return;
 
+    const now = Date.now();
+    const chatWeekTouched = applyWeeklyGuildChatResetIfNeeded(guild, now);
+
     ensureGuildMissionProgressShape(guild);
 
     let missionUpdated = false;
@@ -153,7 +183,7 @@ export const updateGuildMissionProgress = async (guildId: string, missionType: s
         }
     }
 
-    if (missionUpdated) {
+    if (missionUpdated || chatWeekTouched) {
         await db.setKV('guilds', guilds);
     }
 };
@@ -171,6 +201,10 @@ export const recordGuildEpicPlusEquipmentAcquisition = async (
 };
 
 export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
+    // 주간 미션·보스 리셋(월요일 0시 KST)과 함께 길드 채팅 기록 삭제
+    guild.chatHistory = [];
+    guild.lastGuildChatWeekResetMs = now;
+
     guild.weeklyMissions = GUILD_MISSIONS_POOL.map(m => ({
         ...m,
         id: `quest-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,

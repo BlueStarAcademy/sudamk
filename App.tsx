@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import Header from './components/Header.js';
-import { AppProvider } from './contexts/AppContext.js';
-import { useAppContext } from './hooks/useAppContext.js';
+import { AppProvider, useAppContext } from './contexts/AppContext.js';
 import Router from './components/Router.js';
 import { preloadImages, ALL_IMAGE_URLS } from './services/assetService.js';
 import { audioService } from './services/audioService.js';

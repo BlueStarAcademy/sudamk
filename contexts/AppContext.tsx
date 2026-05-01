@@ -1,21 +1,14 @@
-import React, {
-    createContext,
-    useContext,
-    ReactNode,
-    Component,
-    ErrorInfo,
-    ReactNode as ReactNodeType,
-} from 'react';
+import React, { useContext, ReactNode, Component, ErrorInfo, ReactNode as ReactNodeType } from 'react';
 import { useApp } from '../hooks/useApp.js';
+import { AppContext } from './AppContextInstance.js';
 
 // Infer the type of the context from the hook's return value
 type AppContextType = ReturnType<typeof useApp>;
 
-// Create the context with a default undefined value
-export const AppContext = createContext<AppContextType | undefined>(undefined);
+export { AppContext };
 
 export const useAppContext = (): AppContextType => {
-    const context = useContext(AppContext);
+    const context = useContext(AppContext) as AppContextType | undefined;
     if (context === undefined) {
         console.error('[useAppContext] Context is undefined. This usually means:');
         console.error('1. AppProvider is not wrapping the component');

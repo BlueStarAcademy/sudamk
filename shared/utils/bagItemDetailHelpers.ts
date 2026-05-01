@@ -118,6 +118,8 @@ export const normalizeConsumableName = (name: string): string => {
     for (const [num, roman] of Object.entries(numToRoman)) {
         normalized = normalized.replace(new RegExp(`(장비 상자|재료 상자)[\\s]*${num}`, 'g'), `$1 ${roman}`);
     }
+    normalized = normalized.replace(/골드 꾸러미(\d)/g, (_, num) => `골드 꾸러미 ${numToRoman[num] || num}`);
+    normalized = normalized.replace(/다이아 꾸러미(\d)/g, (_, num) => `다이아 꾸러미 ${numToRoman[num] || num}`);
 
     return normalized.trim();
 };
@@ -209,6 +211,76 @@ export function resolveBagItemDetailImagePath(item: InventoryItem): string | und
     }
 
     return imagePath;
+}
+
+/** 획득 모달 등: 서버 `description`이 비었을 때 템플릿·통화 기본 문구 */
+export function resolveItemObtainDescription(item: InventoryItem): string {
+    const trimmed = (item.description || '').trim();
+    if (trimmed) return trimmed;
+    if (item.image === '/images/icon/Gold.png') {
+        return '바둑계 전역에서 사용되는 대표 화폐입니다.';
+    }
+    if (item.image === '/images/icon/Zem.png') {
+        return '특별한 구매·확장 등에 사용되는 프리미엄 재화입니다.';
+    }
+    if (item.type === 'consumable') {
+        const c = findConsumableItem(item.name);
+        if (c?.description) return (c.description || '').trim();
+    }
+    if (item.type === 'material') {
+        const m = MATERIAL_ITEMS[item.name];
+        if (m?.description) return (m.description || '').trim();
+        const normalized = normalizeConsumableName(item.name);
+        const m2 = MATERIAL_ITEMS[normalized];
+        if (m2?.description) return (m2.description || '').trim();
+    }
+    return '';
+}
+
+export function resolveItemObtainUsageLines(item: InventoryItem): string[] {
+    if (item.image === '/images/icon/Gold.png') {
+        return ['상점, 강화·제작, 입장료 등 골드 소비처에서 사용됩니다.'];
+    }
+    if (item.image === '/images/icon/Zem.png') {
+        return ['다이아 상점, 가방 슬롯 확장 등에서 사용됩니다.'];
+    }
+    if (item.type === 'material') {
+        return getMaterialBagUsageLines(item.name);
+    }
+    if (item.type === 'consumable') {
+        const hint = getBagConsumableUsageHint(item.name);
+        return hint ? [hint] : [];
+    }
+    return [];
+}
+
+/** 상점 수량 모달: 본문 설명(카드에 없는 경우 템플릿 보강) */
+export function resolvePurchaseModalDescription(params: { description?: string; name: string; type: InventoryItem['type'] }): string {
+    const trimmed = (params.description || '').trim();
+    if (trimmed) return trimmed;
+    if (params.type === 'consumable') {
+        const c = findConsumableItem(params.name);
+        if (c?.description) return (c.description || '').trim();
+    }
+    if (params.type === 'material') {
+        const m = MATERIAL_ITEMS[params.name];
+        if (m?.description) return (m.description || '').trim();
+        const m2 = MATERIAL_ITEMS[normalizeConsumableName(params.name)];
+        if (m2?.description) return (m2.description || '').trim();
+    }
+    return '';
+}
+
+export function resolvePurchaseModalUsageLines(params: { name: string; type: InventoryItem['type'] }): string[] {
+    if (params.type === 'material') {
+        return getMaterialBagUsageLines(params.name);
+    }
+    const hint = getBagConsumableUsageHint(params.name);
+    if (hint) return [hint];
+    if (params.type === 'equipment') {
+        return ['가방에서 상자를 사용하면 장비를 획득할 수 있습니다.'];
+    }
+    return [];
 }
 
 export function getBagConsumableUsageHint(name: string): string | null {

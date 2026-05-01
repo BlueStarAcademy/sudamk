@@ -38,6 +38,7 @@ import { handleGuildAction } from './actions/guildActions.js';
 import { broadcast } from './socket.js';
 import { applyPveItemActionClientSync } from './pveItemSync.js';
 import { updateQuestProgress } from './questService.js';
+import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 
 export { updateQuestProgress } from './questService.js';
 
@@ -425,6 +426,25 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             console.log(`[handleAction] GUILD action ${type} result: ERROR: ${result.error}`);
         }
         return result;
+    }
+
+    // 페어 로비 펫 상점·부화·장착 등: payload에 gameId가 끼어 있어도 대국 액션으로 오인하지 않도록 먼저 소셜에서 처리
+    if (
+        type === 'PAIR_PET_PURCHASE' ||
+        type === 'PAIR_PET_SET_EQUIPPED' ||
+        type === 'PAIR_PET_HATCH_EGG' ||
+        type === 'PAIR_PET_CONVERT_PET' ||
+        type === 'PAIR_PET_EXPAND_LOBBY_SLOTS' ||
+        type === 'PAIR_PET_START_TRAINING' ||
+        type === 'PAIR_PET_CLAIM_TRAINING' ||
+        type === 'PAIR_PET_HATCHERY_UNLOCK' ||
+        type === 'PAIR_PET_HATCHERY_START' ||
+        type === 'PAIR_PET_HATCHERY_CLAIM' ||
+        type === 'PAIR_PET_HATCHERY_CANCEL' ||
+        type === 'PAIR_PET_HATCHERY_INSTANT_FINISH' ||
+        type === 'PAIR_PET_UPGRADE_GRADE'
+    ) {
+        return handleSocialAction(volatileState, action, userData);
     }
 
     // Game Actions (require gameId)
@@ -824,7 +844,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (!goModesForServerAi.includes(game.mode as GameMode)) {
                 return { error: 'Server AI move is only available for strategic Go modes.' };
             }
-            if (!game.isAiGame) {
+            const pairClassicForServerAi = isPairClassicGame(game.settings, game.mode as GameMode);
+            const pairSeatForServerAi = pairClassicForServerAi ? getCurrentPairTurnSeat(game.settings) : null;
+            const isPairServerAiSeat = Boolean(pairSeatForServerAi && isPairAiSeat(pairSeatForServerAi));
+            if (!game.isAiGame && !isPairServerAiSeat) {
                 return { error: 'Not an AI game.' };
             }
             // 도전의 탑·싱글플레이·모험: 클라 판이 서버보다 앞설 수 있음 → Kata 호출 전 클라 스냅샷으로 맞춤
@@ -858,9 +881,19 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (game.player1.id !== uid && game.player2.id !== uid) {
                 return { error: '해당 경기 참가자가 아닙니다.' };
             }
-            const currentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const { aiUserId } = await import('./aiPlayer.js');
-            const isAiTurn = currentPlayerId === aiUserId || (currentPlayerId && String(currentPlayerId).startsWith('dungeon-bot-'));
+            const currentActorIdForServerAi =
+                pairClassicForServerAi && pairSeatForServerAi
+                    ? pairSeatForServerAi.participantId
+                    : game.currentPlayer === types.Player.Black
+                      ? game.blackPlayerId
+                      : game.whitePlayerId;
+            const isAiTurn =
+                isPairServerAiSeat ||
+                (!pairClassicForServerAi &&
+                    (currentActorIdForServerAi === aiUserId ||
+                        (currentActorIdForServerAi &&
+                            String(currentActorIdForServerAi).startsWith('dungeon-bot-'))));
             const isPveLikeAiGame =
                 game.gameCategory === 'tower' || game.isSinglePlayer || game.gameCategory === 'adventure';
             const transitionalStatusesForPve = new Set([
@@ -914,6 +947,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             } = await import('./aiSessionManager.js');
             const beforeMoveLen = game.moveHistory?.length ?? 0;
             const beforePlayer = game.currentPlayer;
+            const currentSeatNeedsServerAi = (): boolean => {
+                if (pairClassicForServerAi) {
+                    const s = getCurrentPairTurnSeat(game.settings);
+                    return Boolean(s && isPairAiSeat(s));
+                }
+                const id =
+                    game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+                return (
+                    id === aiUserId || Boolean(id && String(id).startsWith('dungeon-bot-'))
+                );
+            };
             // 세션/락 꼬임으로 shouldProcessAiTurn이 영구 false가 되는 경우를 복구
             await waitUntilAiProcessingReleased(game.id, 3000);
             // AI 차례에서는 allowAdvanceOnAiTurn을 쓰면 lastProcessedMoveCount가 현재 수순으로 고정되어
@@ -940,10 +984,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
             const afterMoveLen = game.moveHistory?.length ?? 0;
             const aiStillToMove =
-                game.currentPlayer === beforePlayer &&
-                (game.currentPlayer === types.Player.Black
-                    ? game.blackPlayerId
-                    : game.whitePlayerId) === aiUserId;
+                game.currentPlayer === beforePlayer && currentSeatNeedsServerAi();
             if (afterMoveLen <= beforeMoveLen && aiStillToMove) {
                 // 1회 더 강제 복구 시도 (락 유실/세션 꼬임 잔존 케이스)
                 cancelAiProcessing(game.id);
@@ -967,10 +1008,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
             const finalMoveLen = game.moveHistory?.length ?? 0;
-            const finalCurrentPlayerId = game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
             const stillAiTurnAfterRetries =
-                game.currentPlayer !== types.Player.None &&
-                (finalCurrentPlayerId === aiUserId || (finalCurrentPlayerId && String(finalCurrentPlayerId).startsWith('dungeon-bot-')));
+                game.currentPlayer !== types.Player.None && currentSeatNeedsServerAi();
             const isPlayingLikeState = game.gameStatus === 'playing' || game.gameStatus === 'hidden_placing';
             if (finalMoveLen <= beforeMoveLen && stillAiTurnAfterRetries && isPlayingLikeState) {
                 // makeAiMove 내부 조기 return(히든 연출/동기화 지연 등)로 무진행이면 요청 단위에서 즉시 재큐잉해 교착을 줄인다.
@@ -1670,7 +1709,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         return handleTournamentAction(volatileState, action, userData);
     }
     if (['TOGGLE_EQUIP_ITEM', 'UNBIND_EQUIPMENT', 'MARK_ITEM_EXCHANGE_LISTED', 'UNMARK_ITEM_EXCHANGE_LISTED', 'SELL_ITEM', 'ENHANCE_ITEM', 'DISASSEMBLE_ITEM', 'USE_ITEM', 'USE_ALL_ITEMS_OF_TYPE', 'CRAFT_MATERIAL', 'COMBINE_ITEMS', 'REFINE_EQUIPMENT'].includes(type)) return handleInventoryAction(volatileState, action, userData);
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.includes('SINGLE_PLAYER')) return handleSinglePlayerAction(volatileState, action, userData);
     if (type === 'MANNER_ACTION') return mannerService.handleMannerAction(volatileState, action, userData);
     // Guild actions are now handled above (before game actions)
