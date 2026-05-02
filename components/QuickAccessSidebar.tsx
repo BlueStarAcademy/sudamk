@@ -277,14 +277,14 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         const topBar = variant === 'topBar';
         const iconShell = topBar
             ? 'flex h-9 w-9 shrink-0 items-center justify-center'
-            : 'flex h-[clamp(1.08rem,5.4vw,1.45rem)] w-[clamp(1.08rem,5.4vw,1.45rem)] shrink-0 items-center justify-center';
+            : 'flex h-[clamp(1.55rem,6.5vw,2.05rem)] w-[clamp(1.55rem,6.5vw,2.05rem)] shrink-0 items-center justify-center';
         const iconInner = btn.iconUrl
             ? topBar
                 ? 'h-full w-full object-contain drop-shadow-sm [image-rendering:-webkit-optimize-contrast]'
                 : 'h-full w-full object-contain drop-shadow-sm'
             : topBar
               ? 'text-[1.2rem] leading-none'
-              : 'text-[clamp(0.85rem,4.2vw,1.15rem)]';
+              : 'text-[clamp(1.15rem,5.5vw,1.5rem)] leading-none';
         const labelClass = topBar
             ? 'w-full truncate text-center text-[10px] font-semibold leading-none text-gray-100'
             : 'w-full truncate text-center text-[clamp(6px,2.5vw,9px)] font-semibold leading-none text-gray-100';
@@ -416,8 +416,9 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
 
     const iconPcGameplay = compact ? 'max-h-full max-w-full object-contain' : 'max-h-full max-w-full object-contain';
     const iconPcUtility = compact ? 'max-h-full max-w-full object-contain' : 'max-h-full max-w-full object-contain';
-    const emojiPcGameplay = compact ? 'text-[min(1.35rem,100%)]' : 'text-[min(1.85rem,100%)]';
-    const emojiPcUtility = compact ? 'text-[min(1.25rem,100%)]' : 'text-[min(1.7rem,100%)]';
+    /** 이모지 버튼: 부모 % 기반 금지(좁은 열에서 과도 축소). 도감·도움말 PNG와 비슷한 시각 무게 */
+    const emojiPcGameplay = compact ? 'text-2xl leading-none' : 'text-3xl leading-none';
+    const emojiPcUtility = compact ? 'text-2xl leading-none' : 'text-3xl leading-none';
 
     const labelPc = compact ? 'text-[9px] font-semibold text-gray-100' : 'text-[10px] font-semibold text-gray-100 sm:text-[11px]';
 
@@ -439,7 +440,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 className={`${base} disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''}`}
             >
                 <div className="flex min-h-0 w-full flex-1 items-center justify-center">
-                    <div className="flex aspect-square h-full max-h-12 min-h-0 max-w-full items-center justify-center">
+                    <div className="flex aspect-square h-full max-h-14 min-h-[2.35rem] min-w-0 max-w-full items-center justify-center">
                     {btn.iconUrl ? (
                         <img src={btn.iconUrl} alt="" className={imgCls} />
                     ) : (

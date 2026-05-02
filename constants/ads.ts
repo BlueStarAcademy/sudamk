@@ -9,6 +9,8 @@ export const SHOP_AD_REWARD_INTERSTITIAL_SECONDS = 30;
 export const AD_SLOTS = {
   bannerTop: '7312967741',
   bannerBottom: '4686804407',
+  /** 인게임 모바일 조작 패널 하단 배너(320×50) — 콘솔에서 전용 슬롯으로 교체 권장 */
+  ingameFooter: '4686804407',
   sidebar: '2060641067',
   skyscraperLeft: '2060641067',   // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
   skyscraperRight: '2060641067',  // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
@@ -57,6 +59,9 @@ export const BANNER_SIZES: Record<'pc' | 'tablet' | 'mobile', AdBannerSize> = {
 
 /** 사이드바 광고 크기 (PC 전용) */
 export const SIDEBAR_AD_SIZE: AdBannerSize = { width: 300, height: 250 };
+
+/** 인게임 모바일 푸터 배너(IAB 모바일 배너) */
+export const INGAME_FOOTER_AD_SIZE: AdBannerSize = { width: 320, height: 50 };
 
 /** 스카이스크래퍼 광고 크기 (좌/우 세로 배너) */
 export const SKYSCRAPER_AD_SIZE: AdBannerSize = { width: 160, height: 600 };

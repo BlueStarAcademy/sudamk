@@ -14,7 +14,20 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 
 const Admin: React.FC = () => {
     const [adminView, setAdminView] = useState<AdminView>('dashboard');
-    const { currentUserWithStatus, allUsers, liveGames, adminLogs, gameModeAvailability, arenaEntranceAvailability, announcements, globalOverrideAnnouncement, announcementInterval, homeBoardPosts, handlers } = useAppContext();
+    const {
+        currentUserWithStatus,
+        allUsers,
+        liveGames,
+        adminLogs,
+        gameModeAvailability,
+        arenaEntranceAvailability,
+        announcements,
+        globalOverrideAnnouncement,
+        announcementInterval,
+        homeBoardPosts,
+        kataServerRuntimeConfig,
+        handlers,
+    } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
 
     const handleBack = () => {
@@ -38,6 +51,7 @@ const Admin: React.FC = () => {
         globalOverrideAnnouncement,
         announcementInterval,
         homeBoardPosts,
+        kataServerRuntimeConfig,
     };
 
     const renderView = () => {

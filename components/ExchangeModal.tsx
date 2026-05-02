@@ -1155,8 +1155,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
         ? 'grid-cols-[2.25rem_minmax(3rem,4.5rem)_minmax(0,1fr)_minmax(3.75rem,1fr)_minmax(3.75rem,1fr)]'
         : 'grid-cols-[48px_96px_minmax(0,1fr)_120px_120px]';
     const historyHeaderText = mobileExchange ? 'text-[10px] font-semibold leading-tight' : 'text-xs font-semibold';
+    /** 모바일 정산: 숫자 3열은 고정 rem(구매 탭과 동일한 밀도) — 20vw×3이 첫 열(썸네일+이름)을 압도하지 않게 */
     const settlementListCols = mobileExchange
-        ? 'grid-cols-[minmax(0,1fr)_minmax(3.5rem,20vw)_minmax(3.5rem,20vw)_minmax(3.5rem,20vw)] gap-1.5'
+        ? 'grid-cols-[minmax(0,1fr)_4.875rem_4.875rem_4.875rem] gap-1'
         : 'grid-cols-[minmax(0,1fr)_108px_108px_108px] gap-2';
     const exchangePrimaryButtonClass =
         'mx-auto !block w-[70%] min-h-[38px] py-2 text-sm font-semibold !border !border-amber-300/45 !bg-gradient-to-b !from-amber-500/85 !to-orange-600/90';
@@ -2431,7 +2432,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         type="button"
                                                         onClick={() => setSelectedSettlementId(entry.listingId)}
                                                         className={`grid w-full items-center rounded-lg border text-left transition ${settlementListCols} ${
-                                                            mobileExchange ? 'gap-1.5 px-1.5 py-1.5' : 'gap-2 px-2 py-2'
+                                                            mobileExchange ? 'px-1.5 py-1.5' : 'px-2 py-2'
                                                         } ${
                                                             selectedSettlement?.listingId === entry.listingId
                                                                 ? 'border-cyan-400/70 bg-cyan-900/25'
@@ -2439,9 +2440,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                         }`}
                                                     >
                                                         <div
-                                                            className={`min-w-0 items-center ${mobileExchange ? 'grid grid-cols-[48px_minmax(0,1fr)_48px] gap-1' : 'grid grid-cols-[56px_minmax(0,1fr)_56px] gap-2'}`}
+                                                            className={`min-w-0 items-center ${mobileExchange ? 'grid grid-cols-[48px_minmax(0,1fr)] gap-1.5' : 'grid grid-cols-[56px_minmax(0,1fr)_56px] gap-2'}`}
                                                         >
-                                                            <div className={`relative overflow-hidden rounded bg-black/25 ${mobileExchange ? 'h-12 w-12' : 'h-14 w-14'}`}>
+                                                            <div className={`relative shrink-0 overflow-hidden rounded bg-black/25 ${mobileExchange ? 'h-12 w-12' : 'h-14 w-14'}`}>
                                                                 <img src={gradeBackgrounds[gradeKey]} alt={gradeLabel} className="absolute inset-0 h-full w-full object-cover" />
                                                                 {entry.itemImage ? <img src={entry.itemImage} alt={entry.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" /> : null}
                                                                 {starVisual ? (
@@ -2452,7 +2453,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                 ) : null}
                                                             </div>
                                                             {mobileExchange ? (
-                                                                <p className="min-w-0 text-center text-[11px] font-semibold leading-tight text-slate-100">
+                                                                <p className="min-w-0 text-left text-[11px] font-semibold leading-tight text-slate-100">
                                                                     <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
                                                                     <span className="line-clamp-2 break-words">{entry.itemName}</span>
                                                                 </p>
@@ -2468,7 +2469,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({ currentUser, allUsers, on
                                                                     <span>{entry.itemName}</span>
                                                                 </p>
                                                             )}
-                                                            <div className={mobileExchange ? 'h-12 w-12' : 'h-14 w-14'} aria-hidden />
+                                                            {!mobileExchange ? <div className="h-14 w-14" aria-hidden /> : null}
                                                         </div>
                                                         <div
                                                             className={`flex items-center justify-center gap-1 font-semibold text-amber-100 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}

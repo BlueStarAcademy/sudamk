@@ -2,10 +2,12 @@ import {
     User, LiveGameSession, Negotiation, KomiBid,
     AdminLog, Announcement, OverrideAnnouncement, InventoryItem, Equipment,
     QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, TournamentState, UserWithStatus, EquipmentPreset, GameSettings, CommentaryLine, HomeBoardPost, SinglePlayerStageInfo,
+    PairPetMeta,
 } from './entities.js';
-import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move } from './enums.js';
+import { GameMode, RPSChoice, Point, Player, UserStatus, TournamentType, InventoryItemType, GameCategory, EquipmentSlot, BoardState, Move, ItemGrade } from './enums.js';
 import type { WinReason } from './enums.js';
 import type { ArenaEntranceKey } from '../constants/arenaEntrance.js';
+import type { KataServerRuntimeOverrides } from '../shared/types/kataServerRuntime.js';
 
 /** 싱글/탑 PVE: 클라 전용 수순 반영 후 서버 캐시가 뒤처질 때 히든·스캔 액션과 함께 전송 */
 export type PveItemActionClientSync = {
@@ -130,6 +132,8 @@ export interface VolatileState {
     pairPartnerInvites?: Record<string, PairPartnerInvite>;
     /** `${inviterId}:${inviteeId}` -> 이 시각(ms)까지 재초대 불가 */
     pairPartnerInviteCooldowns?: Record<string, number>;
+    /** `${userId}` -> pair screen client id -> last heartbeat timestamp */
+    pairLobbyScreenClients?: Record<string, Record<string, number>>;
     /** 페어 방 팀 전용 채팅(room.pairChatMessages는 전체(방) 공개만) */
     pairRoomTeamChats?: Record<string, { teamA?: PairRoomChatLine[]; teamB?: PairRoomChatLine[] }>;
     /** 페어 펫 랭크: 상대 확정 후 양 방장 수락 전까지(서버 메모리) */
@@ -151,6 +155,17 @@ export interface VolatileState {
     ipLoginSlots?: Record<string, IpLoginSlot>;
     /** userId가 마지막으로 점유한 클라이언트 IP (ipLoginSlots와 동기) */
     connectionIpByUserId?: Record<string, string>;
+}
+
+/** 펫 페어 대기실: 장착 펫 표시용 스냅샷(타인 클라이언트에 방장·상대 펫 초상화 전달) */
+export interface PairLobbyPetSnapshot {
+    displayName: string;
+    level: number;
+    image: string | null;
+    /** 상대(또는 방장) 펫 상세 모달용 — 장착 인벤 행에서 채움 */
+    templateId?: string;
+    grade?: ItemGrade;
+    pairPetMeta?: PairPetMeta;
 }
 
 export interface PairRoomState {
@@ -194,8 +209,14 @@ export interface PairRoomState {
     pairSeatAssignments?: { teamA: string[]; teamB: string[] };
     /** 4인 친선 등 owner/partner 외 추가 초대 유저 */
     extraPairMembers?: Array<{ id: string; name: string; ready?: boolean }>;
+    /** 방장이 강퇴한 유저 id — 일반 입장 불가, 해당 유저가 방장 초대를 수락해 입장할 때만 목록에서 제거됨 */
+    pairRoomKickedUserIds?: string[];
     /** 클라이언트 목록용 — 서버가 브로드캐스트·동기 시 채워 넣음 */
     listOccupiedHumans?: number;
+    /** 펫 페어(ai_duel): 방장 장착 펫 — 상대 화면에서 방장 펫 슬롯 표시 */
+    ownerLobbyPet?: PairLobbyPetSnapshot;
+    /** 펫 페어 PVP: 상대(extra 0번) 장착 펫 — 방장 화면에서 상대 펫 슬롯 표시 */
+    opponentLobbyPet?: PairLobbyPetSnapshot;
 }
 
 export interface PairTeamState {
@@ -276,6 +297,7 @@ export type ServerAction =
     | { type: 'PAIR_CREATE_ROOM', payload: { mode?: 'pvp' | 'ai'; title?: string; roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p'; visibility?: 'public' | 'private'; password?: string } }
     | { type: 'PAIR_JOIN_ROOM', payload: { roomId?: string; code?: string; password?: string } }
     | { type: 'PAIR_LEAVE_ROOM', payload?: never }
+    | { type: 'PAIR_KICK_ROOM_MEMBER', payload: { roomId: string; targetUserId: string } }
     | { type: 'PAIR_SET_READY', payload: { ready: boolean } }
     | { type: 'PAIR_SET_ROOM_KIND', payload: { roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' } }
     | { type: 'PAIR_SEND_ROOM_CHAT', payload: { roomId: string; text: string; scope: 'room' | 'team' } }
@@ -285,7 +307,7 @@ export type ServerAction =
     | { type: 'PAIR_RESPOND_PAIR_PET_RANKED_MATCH', payload: { proposalId: string; accept: boolean } }
     | { type: 'PAIR_START_AI_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
     | { type: 'PAIR_SYNC', payload?: never }
-    | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean } }
+    | { type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: boolean; clientId?: string } }
     | { type: 'PAIR_INVITE_PARTNER', payload: { targetUserId: string; targetTeam?: 'teamA' | 'teamB'; targetIndex?: 0 | 1 } }
     | { type: 'PAIR_RESPOND_PARTNER_INVITE', payload: { inviteId: string; accept: boolean } }
     | { type: 'PAIR_PET_PURCHASE', payload: { sku: string; quantity?: number } }
@@ -300,6 +322,7 @@ export type ServerAction =
     | { type: 'PAIR_PET_UPGRADE_GRADE', payload: { mainItemId: string } }
     | { type: 'PAIR_PET_EXPAND_LOBBY_SLOTS', payload: { category: 'pet' | 'egg' } }
     | { type: 'PAIR_PET_START_TRAINING', payload: { slotIndex: number; itemId: string } }
+    | { type: 'PAIR_PET_CANCEL_TRAINING', payload: { slotIndex: number } }
     | { type: 'PAIR_PET_CLAIM_TRAINING', payload: { slotIndex: number } }
     | { type: 'FRIEND_SYNC', payload?: never }
     | { type: 'FRIEND_SEND_REQUEST', payload: { targetUserId: string } }
@@ -405,6 +428,8 @@ export type ServerAction =
     | { type: 'CONFIRM_STAT_ALLOCATION', payload: { newStatPoints: any } }
     | { type: 'RESET_SINGLE_STAT', payload: { mode: GameMode } }
     | { type: 'RESET_STATS_CATEGORY', payload: { category: 'strategic' | 'playful' } }
+    | { type: 'RESET_PAIR_ARENA_SINGLE_STAT', payload: { mode: GameMode } }
+    | { type: 'RESET_PAIR_ARENA_STRATEGIC_ALL' }
     | { type: 'APPLY_PRESET', payload: { presetName: string, equipment?: Partial<Record<EquipmentSlot, string>> } }
     | { type: 'SAVE_PRESET', payload: { preset: EquipmentPreset, index: number } }
     | {
@@ -476,6 +501,8 @@ export type ServerAction =
     | { type: 'ADMIN_CLEAR_OVERRIDE_ANNOUNCEMENT', payload?: never }
     | { type: 'ADMIN_TOGGLE_GAME_MODE', payload: { mode: GameMode; isAvailable: boolean } }
     | { type: 'ADMIN_TOGGLE_ARENA_ENTRANCE', payload: { arena: ArenaEntranceKey; isOpen: boolean } }
+    | { type: 'ADMIN_PATCH_KATA_SERVER_RUNTIME', payload: { patch: KataServerRuntimeOverrides } }
+    | { type: 'ADMIN_RESET_KATA_SERVER_RUNTIME', payload?: never }
     | { type: 'ADMIN_SET_GAME_DESCRIPTION', payload: { gameId: string, description: string } }
     | { type: 'ADMIN_FORCE_DELETE_GAME', payload: { gameId: string } }
     | { type: 'ADMIN_FORCE_WIN', payload: { gameId: string, winnerId: string } }

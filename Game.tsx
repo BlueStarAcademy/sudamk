@@ -10,6 +10,7 @@ import {
     ServerAction,
     FeatureSettings,
 } from './types/index.js';
+import type { ChatMessage } from './types/api.js';
 import GameArena from './components/GameArena.js';
 import Avatar from './components/Avatar.js';
 import Header from './components/Header.js';
@@ -1183,7 +1184,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [hasNewMessage, setHasNewMessage] = useState(false);
     // 우측 사이드바 접기/펼치기 (전략·놀이바둑 경기장)
     const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
-    const gameChat = useMemo(() => gameChats[session.id] || [], [gameChats, session.id]);
+    /** 대국실: 서버 매너/시스템(gameChats) + 유저 텍스트(waitingRoomChats[gameId]) 병합 — id 기준 중복 제거 후 시간순 */
+    const gameChat = useMemo(() => {
+        const fromGame = gameChats[session.id] || [];
+        const fromWaiting = waitingRoomChats[session.id] || [];
+        const byId = new Map<string, ChatMessage>();
+        const take = (m: ChatMessage) => {
+            if (m?.id) byId.set(m.id, m);
+        };
+        fromGame.forEach(take);
+        fromWaiting.forEach(take);
+        return Array.from(byId.values()).sort((a, b) => (a.timestamp ?? 0) - (b.timestamp ?? 0));
+    }, [gameChats, waitingRoomChats, session.id]);
     const prevChatLength = usePrevious(gameChat.length);
 
     useEffect(() => {
@@ -4361,6 +4373,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                         gameChat={gameChat}
                                         onAction={handlers.handleAction}
                                         currentUser={currentUserWithStatus}
+                                        sidebarLayout="mobileDrawer"
                                         onClose={() => setIsMobileSidebarOpen(false)}
                                         onTogglePause={isPausableAiGame ? handlePauseToggle : undefined}
                                         isPaused={effectivePaused}
@@ -4370,6 +4383,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 ) : (
                                     <Sidebar
                                         {...gameProps}
+                                        sidebarLayout="mobileDrawer"
                                         onLeaveOrResign={handleLeaveOrResignClick}
                                         isNoContestLeaveAvailable={isNoContestLeaveAvailable}
                                         onClose={() => setIsMobileSidebarOpen(false)}

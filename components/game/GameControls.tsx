@@ -36,6 +36,8 @@ import {
     pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
 import BaseGameFooterPanel, { BasePlacementControlStrip, isBaseGameFooterPhase } from './BaseGameFooterPanel.js';
+import IngameMobileFooterAd from './IngameMobileFooterAd.js';
+import { isPairCooperativeTwoHumansVsAi } from '../../shared/utils/pairGameTurn.js';
 
 interface ImageButtonProps {
     src: string;
@@ -1270,6 +1272,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const hasCaptureRule = modeIncludesCaptureRule(mode, session.settings);
     const isPairGame = Boolean(session.settings.pairGame?.turnOrder?.length);
     const isMobilePairGame = Boolean(isMobile && isPairGame);
+    const pairCoopTwoHumansVsAi = isPairCooperativeTwoHumansVsAi(session.settings);
+    const showMannerActionRow = !isSinglePlayer && !session.isAiGame && !pairCoopTwoHumansVsAi;
+    const showMannerAiLobbyHintRow = !isSinglePlayer && session.isAiGame && !pairCoopTwoHumansVsAi;
     const aiLobbyRematchActionPointCost =
         SPECIAL_GAME_MODES.some(m => m.mode === mode)
             ? STRATEGIC_ACTION_POINT_COST
@@ -2153,8 +2158,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         <footer
             className={`${arenaGameRoomControlsFooterCompactClass} ${isMobilePairGame ? '!gap-1 !p-1' : onlineGameControlsCompactFooterMinHeightClass(!!isMobile)}`}
         >
-            {/* Row 1: Manner Actions - PVP 모드에서만 표시 */}
-            {!isSinglePlayer && !session.isAiGame && !isMobilePairGame ? (
+            {/* Row 1: 매너 액션 — 팀 간 경쟁(PvP)에서만. 2인 페어 AI 협동전에서는 비표시(모바일도 동일). */}
+            {showMannerActionRow ? (
                 <div
                     className={`flex w-full min-w-0 min-h-[3.25rem] flex-row items-center py-1 ${arenaGameRoomControlsInnerPanelClass} ${
                         isMobile ? 'gap-2 sm:min-h-[3.5rem]' : 'gap-3 min-[1025px]:gap-2 min-[1025px]:min-h-[2.85rem]'
@@ -2167,7 +2172,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         <ActionButtonsPanel session={session} isSpectator={isSpectator} onAction={onAction} currentUser={currentUser} isMobile={isMobile} />
                     </div>
                 </div>
-            ) : !isSinglePlayer && session.isAiGame && !isMobilePairGame ? (
+            ) : showMannerAiLobbyHintRow ? (
                 <div className={`${arenaGameRoomControlsInnerPanelClass} flex flex-row items-center justify-center gap-4 w-full min-w-0 min-[1025px]:py-1 min-[1025px]:px-1.5`}>
                     <p className="text-xs min-[1025px]:text-[11px] text-slate-500 italic whitespace-nowrap truncate">매너 액션 버튼은 PVP모드에서만 생성됩니다.</p>
                 </div>
@@ -2284,6 +2289,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     </div>
                 </div>
             )}
+            <IngameMobileFooterAd isMobile={!!isMobile} />
         </footer>
     );
 };

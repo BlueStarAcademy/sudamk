@@ -390,6 +390,10 @@ const applyDefaults = (
     mail: resolveMailForUser(user, status),
     quests: user.quests ?? createDefaultQuests(),
     stats: user.stats ?? {},
+    pairArenaStatsByMode:
+        user.pairArenaStatsByMode ??
+        (status?.serializedUser as User | undefined)?.pairArenaStatsByMode ??
+        {},
     chatBanUntil: user.chatBanUntil ?? null,
     connectionBanUntil: user.connectionBanUntil ?? null,
     chatBanReason: user.chatBanReason ?? null,

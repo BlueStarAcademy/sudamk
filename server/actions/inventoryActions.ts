@@ -1150,6 +1150,16 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 target.isExchangeListed = true;
             } else {
                 target.isExchangeListed = false;
+                const ex = user.exchangeState ?? { listings: [], settlements: [], history: [] };
+                const prevListings = Array.isArray(ex.listings) ? ex.listings : [];
+                const nextListings = prevListings.filter(
+                    (row: { itemId?: unknown; status?: unknown }) =>
+                        !(row && typeof row === 'object' && row.itemId === itemId && row.status === 'listed'),
+                );
+                user.exchangeState = {
+                    ...ex,
+                    listings: nextListings,
+                };
             }
 
             const updatedUser = getSelectiveUserUpdate(user, action.type, { includeAll: true });
@@ -1161,7 +1171,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
             const { broadcastUserUpdate } = await import('../socket.js');
             const broadcastFields =
-                action.type === 'MARK_ITEM_EXCHANGE_LISTED' ? (['inventory', 'gold', 'diamonds'] as const) : (['inventory'] as const);
+                action.type === 'MARK_ITEM_EXCHANGE_LISTED'
+                    ? (['inventory', 'gold', 'diamonds'] as const)
+                    : (['inventory', 'exchangeState'] as const);
             broadcastUserUpdate(user, [...broadcastFields]);
             return { clientResponse: { updatedUser } };
         }

@@ -37,6 +37,17 @@ export function isPairClassicGame(settings: Pick<GameSettings, 'pairGame'> | und
     return Boolean(settings?.pairGame && (mode == null || PAIR_GO_GAME_MODES.includes(mode)));
 }
 
+/**
+ * 2인이 같은 팀(팀 A)으로 AI 팀만 상대하는 페어 협동전(`pairMode === 'ai'` + 유저 2명).
+ * 매너 액션은 팀 간 경쟁(PvP)에서만 사용한다.
+ */
+export function isPairCooperativeTwoHumansVsAi(settings: Pick<GameSettings, 'pairGame'> | undefined): boolean {
+    const pg = settings?.pairGame;
+    if (!pg || pg.pairMode !== 'ai') return false;
+    const usersOnTeamA = (pg.teamA?.members ?? []).filter((m) => m.kind === 'user').length;
+    return usersOnTeamA >= 2;
+}
+
 function shuffled<T>(items: T[], rng: () => number = Math.random): T[] {
     const out = [...items];
     for (let i = out.length - 1; i > 0; i -= 1) {

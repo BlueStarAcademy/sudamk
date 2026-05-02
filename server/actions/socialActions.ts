@@ -55,10 +55,9 @@ import {
 } from '../../shared/utils/pairPetRoll.js';
 import { getEquippedPairPetInventoryRow, reconcileEquippedPairPetInventoryItem } from '../../shared/utils/pairEquippedPet.js';
 import { getXpRequirementForLevel } from '../../shared/utils/strategyLevelXp.js';
-import {
-    KATA_SERVER_LEVEL_BY_PROFILE_STEP,
-    resolveAiLobbyProfileStepFromSettings,
-} from '../../shared/utils/strategicAiDifficulty.js';
+import { resolveAiLobbyProfileStepFromSettings } from '../../shared/utils/strategicAiDifficulty.js';
+import { strategicKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
+import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import { isSameDayKST } from '../../shared/utils/timeUtils.js';
 import {
     PAIR_TRAINING_SLOT_COUNT,
@@ -69,6 +68,8 @@ import {
     normalizePairPetTrainingSlots,
     trainingEndsAt,
 } from '../../shared/constants/pairTraining.js';
+import type { PairTrainingClaimClientSummary } from '../../shared/types/pairTrainingClaim.js';
+import type { PairPetMeta } from '../../shared/types/entities.js';
 import {
     PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE,
     PAIR_HATCHERY_SESSION_SLOT_COUNT,
@@ -83,6 +84,7 @@ import {
 import type { PairPetMeta } from '../../types/index.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
 import type { PairPetCoreStatsSix } from '../../shared/constants/pairArena.js';
+import { computePairPetKataCoreStatsSixFromMeta } from '../../shared/utils/pairPetKataStatsFromMeta.js';
 import {
     effectivePairPetGradeFromRow,
     nextPairPetGrade,
@@ -313,6 +315,12 @@ const pairModeIncludesCaptureRule = (mode: GameMode, settings: Pick<types.GameSe
 const FRIEND_LIMIT = 30;
 
 const broadcastPairRooms = (volatileState: VolatileState) => {
+    const rooms = volatileState.pairRooms;
+    if (rooms) {
+        for (const room of Object.values(rooms)) {
+            pairLobbyPetSnapshotsFromCache(room, volatileState);
+        }
+    }
     broadcast({
         type: 'PAIR_ROOM_UPDATE',
         payload: {
@@ -364,13 +372,38 @@ function userInActivePairLobbyRoom(room: types.PairRoomState, userId: string): b
     ) && !pairRoomShellInGame(room);
 }
 
+/** 방장이 아닌 멤버를 슬롯·팀에서 제거(방장 퇴장 처리에는 사용하지 않음). */
+function removeNonOwnerPairRoomMember(volatileState: VolatileState, room: types.PairRoomState, memberUserId: string): void {
+    if (room.ownerId === memberUserId) return;
+    if (room.partnerId === memberUserId) {
+        room.partnerId = undefined;
+        room.partnerName = undefined;
+        room.partnerReady = false;
+    }
+    if (room.extraPairMembers?.some((m) => m.id === memberUserId)) {
+        room.extraPairMembers = room.extraPairMembers.filter((m) => m.id !== memberUserId);
+    }
+    room.pairSeatAssignments = {
+        teamA: (room.pairSeatAssignments?.teamA ?? [room.ownerId]).filter((id) => id !== memberUserId),
+        teamB: (room.pairSeatAssignments?.teamB ?? []).filter((id) => id !== memberUserId),
+    };
+    room.matchStartedAt = undefined;
+    refreshPairRoomTeams(room);
+    if (countPairRoomHumanUsers(room) === 0) {
+        clearPairInvitesForRoom(volatileState, room.id);
+        clearPairRoomTeamChatStore(volatileState, room.id);
+        delete volatileState.pairRooms![room.id];
+    }
+}
+
 /**
- * 대기/준비 중 페어 방에서 유저 제거(방장이면 방 삭제, 파트너면 슬롯 비움). 경기 중 껍데기 방은 건드리지 않음.
+ * 페어 방에서 유저 제거(방장이면 방 삭제, 파트너·4인 친선 슬롯이면 해당 칸만 비움).
+ * `phase === 'in_game'` 껍데기 방에서도 동일하게 처리한다(방장 퇴장 시 방 전체 삭제 — 방 나가기가 항상 적용되도록).
  * @returns 방 목록을 변경했으면 true
  */
 export function leavePairWaitingRoomIfPresent(volatileState: VolatileState, userId: string): boolean {
     if (!volatileState.pairRooms) return false;
-    const target = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, userId));
+    const target = Object.values(volatileState.pairRooms).find((room) => userInPairRoomMembership(room, userId));
     if (!target) return false;
     abortPairRankedPetProposalsForRoom(volatileState, target.id);
     if (target.ownerId === userId) {
@@ -378,25 +411,7 @@ export function leavePairWaitingRoomIfPresent(volatileState: VolatileState, user
         clearPairRoomTeamChatStore(volatileState, target.id);
         delete volatileState.pairRooms[target.id];
     } else {
-        if (target.partnerId === userId) {
-            target.partnerId = undefined;
-            target.partnerName = undefined;
-            target.partnerReady = false;
-        }
-        if (target.extraPairMembers?.some((m) => m.id === userId)) {
-            target.extraPairMembers = target.extraPairMembers.filter((m) => m.id !== userId);
-        }
-        target.pairSeatAssignments = {
-            teamA: (target.pairSeatAssignments?.teamA ?? [target.ownerId]).filter((id) => id !== userId),
-            teamB: (target.pairSeatAssignments?.teamB ?? []).filter((id) => id !== userId),
-        };
-        target.matchStartedAt = undefined;
-        refreshPairRoomTeams(target);
-        if (countPairRoomHumanUsers(target) === 0) {
-            clearPairInvitesForRoom(volatileState, target.id);
-            clearPairRoomTeamChatStore(volatileState, target.id);
-            delete volatileState.pairRooms[target.id];
-        }
+        removeNonOwnerPairRoomMember(volatileState, target, userId);
     }
     broadcastPairRooms(volatileState);
     broadcastPairPartnerInvites(volatileState);
@@ -404,6 +419,46 @@ export function leavePairWaitingRoomIfPresent(volatileState: VolatileState, user
 }
 
 const PAIR_PARTNER_INVITE_TTL_MS = 30_000;
+const PAIR_LOBBY_SCREEN_CLIENT_TTL_MS = 45_000;
+
+function normalizePairLobbyScreenClientId(raw: unknown, userId: string): string {
+    const s = typeof raw === 'string' ? raw.trim() : '';
+    if (s && s.length <= 128) return s;
+    return `legacy:${userId}`;
+}
+
+function prunePairLobbyScreenClients(volatileState: VolatileState, userId?: string, now = Date.now()): boolean {
+    const registry = volatileState.pairLobbyScreenClients;
+    if (!registry) return false;
+
+    const targetIds = userId ? [userId] : Object.keys(registry);
+    let changed = false;
+    for (const uid of targetIds) {
+        const clients = registry[uid];
+        if (!clients) continue;
+
+        for (const [clientId, lastSeenAt] of Object.entries(clients)) {
+            if (!Number.isFinite(lastSeenAt) || now - lastSeenAt > PAIR_LOBBY_SCREEN_CLIENT_TTL_MS) {
+                delete clients[clientId];
+                changed = true;
+            }
+        }
+
+        const active = Object.keys(clients).length > 0;
+        if (!active) delete registry[uid];
+
+        const status = volatileState.userStatuses[uid];
+        if (!status) continue;
+        if (active && !status.inPairLobby) {
+            status.inPairLobby = true;
+            changed = true;
+        } else if (!active && status.inPairLobby) {
+            delete status.inPairLobby;
+            changed = true;
+        }
+    }
+    return changed;
+}
 
 /** 30초 무응답 초대 제거 + 동일 대상 10초 재초대 쿨다운(거절·만료 공통) */
 export function tickPairPartnerInviteExpiry(volatileState: VolatileState): void {
@@ -469,6 +524,53 @@ function equippedPairPetDisplayNameForUser(user: User): string {
         : '내 펫';
 }
 
+function pairLobbyPetSnapshotFromUser(user: User): types.PairLobbyPetSnapshot | undefined {
+    reconcileEquippedPairPetInventoryItem(user);
+    if (!hasUsableEquippedPairPet(user)) return undefined;
+    const row = getEquippedPairPetInventoryRow(user)!;
+    const meta = resolvePairPetMetaFromInventoryRow(row);
+    const level = Math.max(1, Math.floor(meta.level) || 1);
+    const displayName = getPairPetDisplayName(row);
+    const def = user.equippedPairPetTemplateId ? getPairPetDefinition(user.equippedPairPetTemplateId) : null;
+    const image = row.image ?? def?.image ?? null;
+    const templateId = row.templateId ?? user.equippedPairPetTemplateId ?? undefined;
+    return {
+        displayName,
+        level,
+        image,
+        templateId,
+        grade: row.grade,
+        pairPetMeta: JSON.parse(JSON.stringify(meta)) as PairPetMeta,
+    };
+}
+
+/** userCache에 있으면 방의 펫 페어 로비 스냅샷을 갱신(브로드캐스트 직전) */
+function pairLobbyPetSnapshotsFromCache(room: types.PairRoomState, volatileState: VolatileState): void {
+    if (room.roomKind !== 'ai_duel') {
+        delete room.ownerLobbyPet;
+        delete room.opponentLobbyPet;
+        return;
+    }
+    const oppId = room.extraPairMembers?.[0]?.id;
+    if (!oppId) {
+        delete room.opponentLobbyPet;
+    }
+    const cache = volatileState.userCache;
+    if (!cache) return;
+    const ownerHit = cache.get(room.ownerId)?.user;
+    if (ownerHit) {
+        const snap = pairLobbyPetSnapshotFromUser(ownerHit);
+        if (snap) room.ownerLobbyPet = snap;
+    }
+    if (oppId) {
+        const oppHit = cache.get(oppId)?.user;
+        if (oppHit) {
+            const os = pairLobbyPetSnapshotFromUser(oppHit);
+            if (os) room.opponentLobbyPet = os;
+        }
+    }
+}
+
 function hasUsableEquippedPairPet(user: User): boolean {
     reconcileEquippedPairPetInventoryItem(user);
     return Boolean(user.equippedPairPetTemplateId && getEquippedPairPetInventoryRow(user));
@@ -480,13 +582,23 @@ const buildPairTeams = (room: types.PairRoomState): { teamA: types.PairTeamState
     const extraMembers = Array.isArray(room.extraPairMembers) ? room.extraPairMembers : [];
     if (room.roomKind === 'ai_duel') {
         const opponent = extraMembers[0];
+        const ownerPetLabel =
+            room.ownerLobbyPet != null
+                ? `Lv.${room.ownerLobbyPet.level} ${room.ownerLobbyPet.displayName}`
+                : room.partnerName || '나의 펫';
+        const opponentPetLabel =
+            opponent && room.opponentLobbyPet != null
+                ? `Lv.${room.opponentLobbyPet.level} ${room.opponentLobbyPet.displayName}`
+                : opponent
+                  ? `${opponent.name}의 펫`
+                  : '상대 펫';
         return {
             teamA: {
                 id: 'teamA',
                 name: '우리 펫 페어',
                 members: [
                     { id: room.ownerId, name: room.ownerName, kind: 'user', slot: 'owner', ready: ownerReady },
-                    { id: `pet-ai-${room.ownerId}`, name: room.partnerName || '나의 펫', kind: 'pet', slot: 'ownerPet', ready: true },
+                    { id: `pet-ai-${room.ownerId}`, name: ownerPetLabel, kind: 'pet', slot: 'ownerPet', ready: true },
                 ],
             },
             teamB: {
@@ -495,7 +607,7 @@ const buildPairTeams = (room: types.PairRoomState): { teamA: types.PairTeamState
                 members: opponent
                     ? [
                           { id: opponent.id, name: opponent.name, kind: 'user', slot: 'partner', ready: Boolean(opponent.ready) },
-                          { id: `pet-ai-${opponent.id}`, name: `${opponent.name}의 펫`, kind: 'pet', slot: 'opponentPet', ready: true },
+                          { id: `pet-ai-${opponent.id}`, name: opponentPetLabel, kind: 'pet', slot: 'opponentPet', ready: true },
                       ]
                     : [],
             },
@@ -576,6 +688,22 @@ function collectPairRoomHumanUserIds(room: types.PairRoomState): Set<string> {
         if (m.kind === 'user') ids.add(m.id);
     }
     return ids;
+}
+
+/** 클라이언트 myRoom·퇴장 처리와 동일: 팀 멤버에만 남아 있어도 방 소속으로 본다(슬롯 필드와 팀 스냅샷 불일치 대비) */
+function userInPairRoomMembership(room: types.PairRoomState, userId: string): boolean {
+    if (room.ownerId === userId || room.partnerId === userId) return true;
+    if ((room.extraPairMembers ?? []).some((m) => m.id === userId)) return true;
+    for (const m of [...(room.teamA?.members ?? []), ...(room.teamB?.members ?? [])]) {
+        if (m && String(m.kind).toLowerCase() === 'user' && m.id === userId) return true;
+    }
+    return false;
+}
+
+/** 방장 초대 허용: 해당 유저를 강퇴 목록에서 제거 */
+function clearPairRoomKickEntry(room: types.PairRoomState, userId: string): void {
+    if (!room.pairRoomKickedUserIds?.length) return;
+    room.pairRoomKickedUserIds = room.pairRoomKickedUserIds.filter((id) => id !== userId);
 }
 
 function getPairRoomUserTeamId(room: types.PairRoomState, userId: string): 'teamA' | 'teamB' | null {
@@ -737,9 +865,10 @@ const makePairPetAiDuelSettings = (room: types.PairRoomState): types.GameSetting
                 { id: 'pair-opponent-pet', name: '상대 펫 AI', kind: 'pet' as const, slot: 'opponentPet' },
             ],
         };
-        const profileStep = resolveAiLobbyProfileStepFromSettings(room.settings || {});
+        const snap = getKataServerRuntimeSnapshot();
+        const profileStep = resolveAiLobbyProfileStepFromSettings(room.settings || {}, snap.strategicLobbyKataByStep);
         const step = Math.max(1, Math.min(10, Math.round(profileStep)));
-        const kataLevel = KATA_SERVER_LEVEL_BY_PROFILE_STEP[step] ?? -31;
+        const kataLevel = strategicKataLevelFromSnapshot(snap, step);
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
         };
@@ -772,9 +901,10 @@ const makeDuoPairAiDuelSettings = (room: types.PairRoomState): types.GameSetting
         },
     };
     if (settings.pairGame) {
-        const profileStep = resolveAiLobbyProfileStepFromSettings(room.settings || {});
+        const snap = getKataServerRuntimeSnapshot();
+        const profileStep = resolveAiLobbyProfileStepFromSettings(room.settings || {}, snap.strategicLobbyKataByStep);
         const step = Math.max(1, Math.min(10, Math.round(profileStep)));
-        const kataLevel = KATA_SERVER_LEVEL_BY_PROFILE_STEP[step] ?? -31;
+        const kataLevel = strategicKataLevelFromSnapshot(snap, step);
         settings.pairGame.pairKataFixedLevelByParticipantId = {
             'pair-opponent-ai': kataLevel,
         };
@@ -795,26 +925,7 @@ function pairPetKataStatsFromEquippedPet(user: User): PairPetCoreStatsSix | null
     if (!row) return null;
     const meta = readPairPetMetaFromRow(row);
     const grade = effectivePairPetGradeFromRow(row);
-    const rawBaseNoLvl = Math.round(50 * pairPetStatMultiplierFromGrade(grade));
-    const valueFor = (stat: CoreStat): number => {
-        const lvl = meta.levelUpCoreBonuses?.[stat] ?? 0;
-        const base = rawBaseNoLvl + lvl;
-        const bonus =
-            meta.disposition.kind === 'all'
-                ? Math.round((rawBaseNoLvl * meta.disposition.pct) / 100)
-                : meta.disposition.kind === 'single' && meta.disposition.stat === stat
-                  ? Math.round((rawBaseNoLvl * meta.disposition.pct) / 100)
-                  : 0;
-        return base + bonus;
-    };
-    return {
-        concentration: valueFor(CoreStat.Concentration),
-        thinkingSpeed: valueFor(CoreStat.ThinkingSpeed),
-        judgment: valueFor(CoreStat.Judgment),
-        calculation: valueFor(CoreStat.Calculation),
-        combatPower: valueFor(CoreStat.CombatPower),
-        stability: valueFor(CoreStat.Stability),
-    };
+    return computePairPetKataCoreStatsSixFromMeta(meta, grade);
 }
 
 function configurePairClassicGameStart(
@@ -1135,6 +1246,27 @@ async function tryMatchPairPetRankedRooms(volatileState: VolatileState): Promise
     return null;
 }
 
+/** `game-…` 채널(인게임 대국실 유저 채팅)은 해당 경기 참가자·관전자에게만 전달. 그 외 채널은 전체 브로드캐스트 */
+async function broadcastWaitingRoomChatChannel(volatileState: VolatileState, channel: string): Promise<void> {
+    const slice = volatileState.waitingRoomChats[channel];
+    if (!Array.isArray(slice)) return;
+    const envelope = {
+        type: 'WAITING_ROOM_CHAT_UPDATE' as const,
+        payload: { [channel]: slice } as Record<string, ChatMessage[]>,
+    };
+    if (typeof channel === 'string' && channel.startsWith('game-')) {
+        const { getCachedGame } = await import('../gameCache.js');
+        const { broadcastToGameParticipants } = await import('../socket.js');
+        let game = await getCachedGame(channel);
+        if (!game) game = await db.getLiveGame(channel);
+        if (game) {
+            broadcastToGameParticipants(channel, envelope, game);
+            return;
+        }
+    }
+    broadcast(envelope);
+}
+
 export const handleSocialAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     const { type } = action;
     const payload = (action as { payload?: unknown }).payload as any;
@@ -1266,13 +1398,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     if (!volatileState.waitingRoomChats[channel]) volatileState.waitingRoomChats[channel] = [];
                     volatileState.waitingRoomChats[channel].push(banMessage);
                     
-                    // 금지 메시지도 브로드캐스트
-                    broadcast({ 
-                        type: 'WAITING_ROOM_CHAT_UPDATE', 
-                        payload: { 
-                            [channel]: volatileState.waitingRoomChats[channel] 
-                        } 
-                    });
+                    await broadcastWaitingRoomChatChannel(volatileState, channel);
                     
                     return { error: `동일한 메시지를 반복하여 ${banDurationMinutes}분간 채팅이 금지되었습니다.` };
                 }
@@ -1305,13 +1431,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 broadcastUserUpdate(user, ['quests']);
             }
 
-            // 채팅 메시지를 모든 클라이언트에 브로드캐스트
-            broadcast({ 
-                type: 'WAITING_ROOM_CHAT_UPDATE', 
-                payload: { 
-                    [channel]: volatileState.waitingRoomChats[channel] 
-                } 
-            });
+            await broadcastWaitingRoomChatChannel(volatileState, channel);
 
             return {};
         }
@@ -1795,6 +1915,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (!volatileState.pairRooms) volatileState.pairRooms = {};
             if (!volatileState.pairPartnerInvites) volatileState.pairPartnerInvites = {};
             tickPairPartnerInviteExpiry(volatileState);
+            if (prunePairLobbyScreenClients(volatileState)) {
+                broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+            }
             broadcastPairRooms(volatileState);
             const myRoomSync = Object.values(volatileState.pairRooms).find((r) => userInActivePairLobbyRoom(r, user.id));
             const pairRoomChatHistory = myRoomSync
@@ -1810,18 +1933,23 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             };
         }
         case 'PAIR_SET_LOBBY_SCREEN': {
-            const { active } = payload as { active?: unknown };
+            const { active, clientId } = payload as { active?: unknown; clientId?: unknown };
             const on = active === true;
             if (!volatileState.userStatuses[user.id]) {
                 volatileState.userStatuses[user.id] = { status: UserStatus.Online };
             }
+            if (!volatileState.pairLobbyScreenClients) volatileState.pairLobbyScreenClients = {};
+            const normalizedClientId = normalizePairLobbyScreenClientId(clientId, user.id);
             const base = volatileState.userStatuses[user.id];
             if (on) {
+                volatileState.pairLobbyScreenClients[user.id] = {
+                    ...(volatileState.pairLobbyScreenClients[user.id] || {}),
+                    [normalizedClientId]: Date.now(),
+                };
                 volatileState.userStatuses[user.id] = { ...base, inPairLobby: true };
             } else {
-                const next = { ...base } as types.UserStatusInfo;
-                delete (next as { inPairLobby?: boolean }).inPairLobby;
-                volatileState.userStatuses[user.id] = next;
+                delete volatileState.pairLobbyScreenClients[user.id]?.[normalizedClientId];
+                prunePairLobbyScreenClients(volatileState, user.id);
             }
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             return {};
@@ -1887,6 +2015,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const friendIds = toFriendArray(user.friendIds);
             const isFriend = friendIds.includes(targetUserId);
             const isGuild = Boolean(user.guildId && user.guildId === targetUser.guildId);
+            prunePairLobbyScreenClients(volatileState, targetUserId);
             const inPairLobby = Boolean(volatileState.userStatuses[targetUserId]?.inPairLobby);
             if (!isFriend && !isGuild && !inPairLobby) {
                 return { error: '전체 목록에서는 페어 경기장에 있는 유저만 초대할 수 있습니다. 친구·길드원은 다른 화면에서도 초대할 수 있습니다.' };
@@ -1979,8 +2108,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 return { error: '방이 가득 찼습니다.' };
             }
 
+            clearPairRoomKickEntry(target, user.id);
+
             if (target.roomKind === 'ai_duel') {
                 target.extraPairMembers = [{ id: user.id, name: user.nickname, ready: false }];
+                const ownerFresh = await db.getUser(target.ownerId);
+                if (ownerFresh) {
+                    const os = pairLobbyPetSnapshotFromUser(ownerFresh);
+                    if (os) target.ownerLobbyPet = os;
+                }
+                const guestSnap = pairLobbyPetSnapshotFromUser(user);
+                if (guestSnap) target.opponentLobbyPet = guestSnap;
             } else if (!hasRealPartner) {
                 target.partnerId = user.id;
                 target.partnerName = user.nickname;
@@ -2063,6 +2201,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 pairChatMessages: [],
                 ...(effectiveMode === 'pvp' ? { pairSeatAssignments: { teamA: [user.id], teamB: [] as string[] } } : {}),
             };
+            if (normalizedKind === 'ai_duel') {
+                const snap = pairLobbyPetSnapshotFromUser(user);
+                if (snap) room.ownerLobbyPet = snap;
+            }
             (room as any).roomPassword = normalizedVisibility === 'private' ? normalizedPassword : undefined;
             volatileState.pairRooms[roomId] = refreshPairRoomTeams(room);
             broadcastPairRooms(volatileState);
@@ -2082,6 +2224,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 (room) => room.id === roomId || (code && room.code === String(code).toUpperCase())
             );
             if (!target) return { error: '해당 페어 방을 찾지 못했습니다.' };
+            if (target.pairRoomKickedUserIds?.includes(user.id)) {
+                return { error: '강퇴된 방에는 방장이 다시 초대할 때까지 입장할 수 없습니다.' };
+            }
             if (pairRoomShellInGame(target)) return { error: '경기 진행 중인 방에는 입장할 수 없습니다.' };
             if (target.phase === 'matching' || target.phase === 'match_pending') {
                 return { error: '매칭 중인 방에는 입장할 수 없습니다.' };
@@ -2097,6 +2242,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 if (countPairRoomHumanUsers(target) >= 2) return { error: '이미 상대가 있는 펫 페어 방입니다.' };
                 target.extraPairMembers = [{ id: user.id, name: user.nickname, ready: false }];
                 target.pairSeatAssignments = { teamA: [target.ownerId], teamB: [user.id] };
+                const ownerFresh = await db.getUser(target.ownerId);
+                if (ownerFresh) {
+                    const os = pairLobbyPetSnapshotFromUser(ownerFresh);
+                    if (os) target.ownerLobbyPet = os;
+                }
+                const guestSnap = pairLobbyPetSnapshotFromUser(user);
+                if (guestSnap) target.opponentLobbyPet = guestSnap;
                 refreshPairRoomTeams(target);
                 clearPairInvitesForRoom(volatileState, target.id);
                 broadcastPairRooms(volatileState);
@@ -2126,16 +2278,28 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         }
         case 'PAIR_LEAVE_ROOM': {
             if (!volatileState.pairRooms) volatileState.pairRooms = {};
-            const shellOnly = Object.values(volatileState.pairRooms).find(
-                (room) =>
-                    room.ownerId === user.id ||
-                    room.partnerId === user.id ||
-                    (room.extraPairMembers ?? []).some((m) => m.id === user.id),
-            );
-            if (shellOnly && pairRoomShellInGame(shellOnly)) {
-                return { clientResponse: { pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
-            }
             leavePairWaitingRoomIfPresent(volatileState, user.id);
+            return { clientResponse: { pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
+        }
+        case 'PAIR_KICK_ROOM_MEMBER': {
+            if (!volatileState.pairRooms) volatileState.pairRooms = {};
+            const { roomId, targetUserId } = payload as { roomId?: string; targetUserId?: string };
+            if (!roomId || !targetUserId) return { error: '유효하지 않은 요청입니다.' };
+            const room = volatileState.pairRooms[roomId];
+            if (!room) return { error: '방을 찾을 수 없습니다.' };
+            if (room.ownerId !== user.id) return { error: '방장만 강퇴할 수 있습니다.' };
+            if (targetUserId === user.id) return { error: '본인은 강퇴할 수 없습니다.' };
+            if (isPetAiId(targetUserId)) return { error: '펫 슬롯은 강퇴할 수 없습니다.' };
+            if (!userInPairRoomMembership(room, targetUserId)) return { error: '해당 유저가 이 방에 없습니다.' };
+            if (pairRoomShellInGame(room) || room.phase === 'matching' || room.phase === 'match_pending' || room.pairRankedPetProposal) {
+                return { error: '매칭·대국 중에는 강퇴할 수 없습니다.' };
+            }
+            if (!room.pairRoomKickedUserIds) room.pairRoomKickedUserIds = [];
+            if (!room.pairRoomKickedUserIds.includes(targetUserId)) room.pairRoomKickedUserIds.push(targetUserId);
+            abortPairRankedPetProposalsForRoom(volatileState, room.id);
+            removeNonOwnerPairRoomMember(volatileState, room, targetUserId);
+            broadcastPairRooms(volatileState);
+            broadcastPairPartnerInvites(volatileState);
             return { clientResponse: { pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
         }
         case 'PAIR_SET_READY': {
@@ -2189,6 +2353,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             applyPairRoomKindTransition(target, normalizedKind);
             if (normalizedKind === 'ai_duel') {
                 target.partnerName = equippedPairPetDisplayNameForUser(user);
+                const snap = pairLobbyPetSnapshotFromUser(user);
+                if (snap) target.ownerLobbyPet = snap;
             }
             refreshPairRoomTeams(target);
             broadcastPairRooms(volatileState);
@@ -3091,6 +3257,27 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             return { clientResponse: { updatedUser } };
         }
 
+        case 'PAIR_PET_CANCEL_TRAINING': {
+            const { slotIndex: rawSi } = payload as { slotIndex?: number };
+            const slotIndex = Math.floor(Number(rawSi));
+            if (slotIndex < 0 || slotIndex >= PAIR_TRAINING_SLOT_COUNT) {
+                return { error: '유효하지 않은 요청입니다.' };
+            }
+            user.pairPetTrainingSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
+            const session = user.pairPetTrainingSlots[slotIndex];
+            if (!session) return { error: '취소할 수련이 없습니다.' };
+            const endAt = trainingEndsAt(session.startedAt, slotIndex);
+            if (Date.now() >= endAt) {
+                return { error: '이미 수련이 완료되어 취소할 수 없습니다. 보상 수령으로 진행해 주세요.' };
+            }
+            user.pairPetTrainingSlots[slotIndex] = null;
+            const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_CANCEL_TRAINING', { includeAll: true });
+            await db.updateUser(user);
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['pairPetTrainingSlots']);
+            return { clientResponse: { updatedUser } };
+        }
+
         case 'PAIR_PET_CLAIM_TRAINING': {
             const { slotIndex: rawSi } = payload as { slotIndex?: number };
             const slotIndex = Math.floor(Number(rawSi));
@@ -3130,11 +3317,50 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             user.gold = (user.gold ?? 0) + goldGain;
 
+            const soulDropPublic = soulDrop ? { materialName: soulDrop.materialName, quantity: soulDrop.quantity } : null;
+
+            let pairTrainingClaimSummary: PairTrainingClaimClientSummary;
+
             if (petIdx >= 0) {
                 const petRow = user.inventory[petIdx]!;
+                const metaBefore = readPairPetMetaFromRow(petRow);
+                const oldLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(metaBefore.level) || 1));
+                const initialXp = Math.max(0, Math.floor(metaBefore.xp ?? 0));
+                const maxXpForInitialLevel = getXpRequirementForLevel(oldLevel);
                 const meta = { ...readPairPetMetaFromRow(petRow) };
                 applyPairPetXp(meta, xpGain, petRow.grade ?? ItemGrade.Normal);
                 user.inventory[petIdx] = { ...petRow, pairPetMeta: meta };
+                const finalLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
+                const finalXp = Math.max(0, Math.floor(meta.xp ?? 0));
+                const petDisplayName = getPairPetDefinition(petRow.templateId!)?.displayName ?? petRow.name;
+                pairTrainingClaimSummary = {
+                    goldGain,
+                    xpGain,
+                    soulDrop: soulDropPublic,
+                    petImage: petRow.image ?? null,
+                    petDisplayName,
+                    pairPetXp: { change: xpGain },
+                    pairPetLevel: {
+                        initial: oldLevel,
+                        final: finalLevel,
+                        progress: {
+                            initial: initialXp,
+                            final: finalXp,
+                            max:
+                                Number.isFinite(maxXpForInitialLevel) && maxXpForInitialLevel > 0 ? maxXpForInitialLevel : 100,
+                        },
+                    },
+                };
+            } else {
+                pairTrainingClaimSummary = {
+                    goldGain,
+                    xpGain,
+                    soulDrop: soulDropPublic,
+                    petImage: null,
+                    petDisplayName: null,
+                    pairPetXp: null,
+                    pairPetLevel: null,
+                };
             }
 
             user.pairPetTrainingSlots[slotIndex] = null;
@@ -3144,7 +3370,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'gold', 'pairPetTrainingSlots']);
-            return { clientResponse: { updatedUser } };
+            return { clientResponse: { updatedUser, pairTrainingClaimSummary } };
         }
 
         case 'PAIR_PET_EXPAND_LOBBY_SLOTS': {

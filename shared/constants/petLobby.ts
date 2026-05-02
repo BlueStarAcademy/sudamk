@@ -142,7 +142,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         materialName: PAIR_SOULSTONE_NAMES[0],
         quantity: 1,
         dailyLimit: 10,
-        image: '/images/materials/soulstone1.webp',
+        image: '/images/pets/soulstone1.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[0]],
     },
     {
@@ -153,7 +153,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         materialName: PAIR_SOULSTONE_NAMES[1],
         quantity: 1,
         dailyLimit: 10,
-        image: '/images/materials/soulstone2.webp',
+        image: '/images/pets/soulstone2.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[1]],
     },
     {
@@ -164,7 +164,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         materialName: PAIR_SOULSTONE_NAMES[2],
         quantity: 1,
         dailyLimit: 5,
-        image: '/images/materials/soulstone3.webp',
+        image: '/images/pets/soulstone3.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[2]],
     },
     {
@@ -175,7 +175,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         materialName: PAIR_SOULSTONE_NAMES[3],
         quantity: 1,
         dailyLimit: 3,
-        image: '/images/materials/soulstone4.webp',
+        image: '/images/pets/soulstone4.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[3]],
     },
     {
@@ -186,7 +186,7 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         materialName: PAIR_SOULSTONE_NAMES[4],
         quantity: 1,
         dailyLimit: 1,
-        image: '/images/materials/soulstone5.webp',
+        image: '/images/pets/soulstone5.webp',
         description: PAIR_SOULSTONE_DISPLAY_DESCRIPTIONS[PAIR_SOULSTONE_NAMES[4]],
     },
 ];

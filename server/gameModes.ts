@@ -20,7 +20,12 @@ import {
     isAiInitialHiddenSoftFoundByAnyPlayer,
     isHiddenMoveIndexSoftRevealedByAnyPlayer,
 } from './modes/hiddenScanShared.js';
-import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
+import {
+    getCurrentPairTurnSeat,
+    isPairAiSeat,
+    isPairClassicGame,
+    isPairCooperativeTwoHumansVsAi,
+} from '../shared/utils/pairGameTurn.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // (특히 히든돌 최종 공개 애니메이션 동안) KataGo 분석을 백그라운드로 미리 시작해
@@ -1444,16 +1449,23 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 if (!game.actionButtonCooldownDeadline) game.actionButtonCooldownDeadline = {};
                 if (!game.actionButtonUsedThisCycle) game.actionButtonUsedThisCycle = {};
 
-                for (const player of players) {
-                    const deadline = game.actionButtonCooldownDeadline?.[player.id];
-                    if (typeof deadline !== 'number' || now >= deadline) {
-                        game.currentActionButtons[player.id] = getNewActionButtons(game);
-
-                        const effects = effectService.calculateUserEffects(player);
-                        const cooldown = 5 * 60 * 1000;
-
-                        game.actionButtonCooldownDeadline[player.id] = now + cooldown;
+                if (isPairCooperativeTwoHumansVsAi(game.settings)) {
+                    for (const player of players) {
+                        game.currentActionButtons[player.id] = [];
                         game.actionButtonUsedThisCycle[player.id] = false;
+                    }
+                } else {
+                    for (const player of players) {
+                        const deadline = game.actionButtonCooldownDeadline?.[player.id];
+                        if (typeof deadline !== 'number' || now >= deadline) {
+                            game.currentActionButtons[player.id] = getNewActionButtons(game);
+
+                            const effects = effectService.calculateUserEffects(player);
+                            const cooldown = 5 * 60 * 1000;
+
+                            game.actionButtonCooldownDeadline[player.id] = now + cooldown;
+                            game.actionButtonUsedThisCycle[player.id] = false;
+                        }
                     }
                 }
             }
@@ -1548,7 +1560,7 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
             const canProcessAiTurn = isAiTurn && game.gameStatus !== 'ended' && 
                 !animatingStatuses.includes(game.gameStatus) &&
                 (game.gameStatus === 'playing' || playfulPlacementStatuses.includes(game.gameStatus) || playfulPlayingStatuses.includes(game.gameStatus));
-            
+
             if (canProcessAiTurn && !didAlkkagiTriggerAiAttack) {
                 const dispatchingAt = Number((game as any)._aiMoveDispatchingAt ?? 0);
                 if ((game as any)._aiMoveDispatching && dispatchingAt > 0 && now - dispatchingAt > 8_000) {

@@ -26,7 +26,6 @@ import {
     getGuildWarStarConditionLines,
     GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
     GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
-    userMeetsGuildFeatureLevelRequirement,
 } from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
 import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
@@ -40,8 +39,10 @@ import {
     arenaGameRoomChatInputClass,
     arenaGameRoomChatShellClass,
     arenaGameRoomChatTabActiveClass,
+    arenaGameRoomChatTabActiveDrawerClass,
     arenaGameRoomChatTabBarClass,
     arenaGameRoomChatTabInactiveClass,
+    arenaGameRoomChatTabInactiveDrawerClass,
     arenaGameRoomGuildStarPanelClass,
     arenaGameRoomPanelClass,
     arenaGameRoomPanelTitleClass,
@@ -56,6 +57,8 @@ import {
 
 
 interface SidebarProps extends GameProps {
+    /** 모바일 인게임 우측 서랍: 광고 제외·타이포 통일 */
+    sidebarLayout?: 'desktop' | 'mobileDrawer';
     onLeaveOrResign: () => void;
     isNoContestLeaveAvailable: boolean;
     onClose?: () => void;
@@ -72,15 +75,18 @@ export const GameInfoPanel: React.FC<{
     currentUser?: UserWithStatus;
     onClose?: () => void;
     onAction?: GameProps['onAction'];
-}> = ({ session, currentUser, onClose, onAction }) => {
+    sidebarLayout?: 'desktop' | 'mobileDrawer';
+}> = ({ session, currentUser, onClose, onAction, sidebarLayout }) => {
+    const drawerUi = sidebarLayout === 'mobileDrawer';
     const [matchGuideOpen, setMatchGuideOpen] = useState(false);
     const { mode, settings, effectiveCaptureTargets } = session;
 
+    const detailText = drawerUi ? 'text-[13px] leading-snug' : 'text-xs leading-snug';
     const renderSetting = (label: string, value: React.ReactNode) => (
         value !== undefined && value !== null && value !== '' && (
             <React.Fragment key={label}>
-                <div className="font-semibold text-slate-400 whitespace-nowrap">{label}:</div>
-                <div className="min-w-0 break-words text-slate-100">{value}</div>
+                <div className={`font-semibold text-slate-400 whitespace-nowrap ${detailText}`}>{label}:</div>
+                <div className={`min-w-0 break-words text-slate-100 ${detailText}`}>{value}</div>
             </React.Fragment>
         )
     );
@@ -247,7 +253,7 @@ export const GameInfoPanel: React.FC<{
                         <button
                             type="button"
                             onClick={() => setMatchGuideOpen(true)}
-                            className={arenaGameRoomSmallCtaClass}
+                            className={`${arenaGameRoomSmallCtaClass}${drawerUi ? ' !text-[13px] sm:!text-[13px] !px-2.5 !py-1.5' : ''}`}
                             title="시작 전 게임 설명과 동일한 규칙·설정 안내"
                             aria-label="경기방법 안내 열기"
                         >
@@ -260,7 +266,7 @@ export const GameInfoPanel: React.FC<{
                         )}
                     </div>
                 </h3>
-                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-1 text-xs">
+                <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-2 gap-y-1">
                     {gameDetails}
                 </div>
             </div>
@@ -302,7 +308,18 @@ export const GameInfoPanel: React.FC<{
     );
 };
 
-const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ session, onlineUsers, currentUser, onClose, onAction, onViewUser }) => {
+const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
+    session,
+    onlineUsers,
+    currentUser,
+    onClose,
+    onAction,
+    onViewUser,
+    sidebarLayout,
+}) => {
+    const drawerUi = sidebarLayout === 'mobileDrawer';
+    const rowText = drawerUi ? 'text-[13px]' : 'text-sm';
+    const roleText = drawerUi ? 'text-[13px]' : 'text-xs';
     const { player1, player2, blackPlayerId, whitePlayerId, gameStatus, isAiGame } = session;
     const isGuildWarGame = session.gameCategory === 'guildwar';
 
@@ -354,11 +371,11 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
                             isAdmin: user.isAdmin,
                             staffNicknameDisplayEligibility: user.staffNicknameDisplayEligibility,
                         }}
-                        className="font-semibold truncate text-sm"
+                        className={`font-semibold truncate ${rowText}`}
                     />
                     {/* 재대결 버튼은 하단 대국 기능 패널로 이동 */}
                 </div>
-                <span className="ml-auto text-xs text-gray-400 flex-shrink-0">{role}</span>
+                <span className={`ml-auto ${roleText} text-gray-400 flex-shrink-0`}>{role}</span>
             </div>
          )
     }
@@ -383,32 +400,22 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({ sess
 
 
 export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoContestLeaveAvailable'>> = (props) => {
-    const { session, isSpectator, onAction, waitingRoomChat, gameChat, onClose, onViewUser } = props;
+    const { session, isSpectator, onAction, waitingRoomChat, gameChat, onClose, onViewUser, sidebarLayout } = props;
+    const drawerUi = sidebarLayout === 'mobileDrawer';
+    const tabActiveClass = drawerUi ? arenaGameRoomChatTabActiveDrawerClass : arenaGameRoomChatTabActiveClass;
+    const tabInactiveClass = drawerUi ? arenaGameRoomChatTabInactiveDrawerClass : arenaGameRoomChatTabInactiveClass;
+    const chatMsgClass = drawerUi ? 'text-[13px] leading-snug' : 'text-sm';
     const { mode } = session;
-    const { currentUserWithStatus, handlers, allUsers, guilds } = useAppContext();
-    const isAiGame = session.isAiGame;
+    const { currentUserWithStatus, handlers, allUsers } = useAppContext();
 
-    const [activeTab, setActiveTab] = useState<'game' | 'global' | 'guild'>(isAiGame ? 'global' : 'game');
-    const [guildMessages, setGuildMessages] = useState<any[]>([]);
+    const [activeTab, setActiveTab] = useState<'game' | 'global'>('game');
     const [chatInput, setChatInput] = useState('');
     const [showQuickChat, setShowQuickChat] = useState(false);
     const [cooldown, setCooldown] = useState(0);
     const quickChatRef = useRef<HTMLDivElement>(null);
     const chatBodyRef = useRef<HTMLDivElement>(null);
 
-    // 길드 채팅 메시지 로드
-    useEffect(() => {
-        if (currentUserWithStatus?.guildId && guilds[currentUserWithStatus.guildId]) {
-            const guild = guilds[currentUserWithStatus.guildId];
-            if (guild.chatHistory) {
-                setGuildMessages(guild.chatHistory);
-            }
-        } else {
-            setGuildMessages([]);
-        }
-    }, [currentUserWithStatus?.guildId, guilds]);
-
-    const activeChatMessages = activeTab === 'game' ? gameChat : (activeTab === 'guild' ? guildMessages : waitingRoomChat);
+    const activeChatMessages = activeTab === 'game' ? gameChat : waitingRoomChat;
     
     useEffect(() => { if (chatBodyRef.current) chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight; }, [activeChatMessages]);
 
@@ -420,17 +427,6 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
             return () => clearTimeout(timer);
         }
     }, [cooldown]);
-
-    const guildChatUnlocked = currentUserWithStatus
-        ? userMeetsGuildFeatureLevelRequirement(currentUserWithStatus)
-        : false;
-    const showGuildChatTab = Boolean(currentUserWithStatus?.guildId) && guildChatUnlocked;
-
-    useEffect(() => {
-        if (!showGuildChatTab && activeTab === 'guild') {
-            setActiveTab(isAiGame ? 'global' : 'game');
-        }
-    }, [showGuildChatTab, activeTab, isAiGame]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -456,19 +452,14 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     const handleSend = (message: { text?: string, emoji?: string }) => {
         if(isSpectator || cooldown > 0) return;
         
-        if (activeTab === 'guild') {
-            // 길드 채팅 전송
-            handlers.handleAction({ type: 'SEND_GUILD_CHAT_MESSAGE', payload: { content: message.text || '' } });
-        } else {
-            const channel = activeTab === 'game' ? session.id : 'global';
-            const payload: any = { channel, ...message };
+        const channel = activeTab === 'game' ? session.id : 'global';
+        const payload: any = { channel, ...message };
 
-            if (channel === 'global') {
-                payload.location = locationPrefix;
-            }
-
-            onAction({ type: 'SEND_CHAT_MESSAGE', payload });
+        if (channel === 'global') {
+            payload.location = locationPrefix;
         }
+
+        onAction({ type: 'SEND_CHAT_MESSAGE', payload });
         setShowQuickChat(false); setChatInput('');
         setCooldown(5);
     };
@@ -506,53 +497,20 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     
     return (
         <div className={arenaGameRoomChatShellClass}>
-            {isAiGame ? (
-                showGuildChatTab ? (
-                    <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
-                        <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>전체채팅</button>
-                        <button type="button" onClick={() => setActiveTab('guild')} className={activeTab === 'guild' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>길드채팅</button>
-                    </div>
-                ) : (
-                    <h3 className={`${arenaGameRoomPanelTitleClass} flex-shrink-0 border-b-0 mb-2 pb-0`}>전체채팅</h3>
-                )
-            ) : (
-                <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
-                    <button type="button" onClick={() => setActiveTab('game')} className={activeTab === 'game' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>대국실</button>
-                    <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>전체채팅</button>
-                    {showGuildChatTab && (
-                        <button type="button" onClick={() => setActiveTab('guild')} className={activeTab === 'guild' ? arenaGameRoomChatTabActiveClass : arenaGameRoomChatTabInactiveClass}>길드채팅</button>
-                    )}
-                </div>
-            )}
+            <div className={`${arenaGameRoomChatTabBarClass} mb-2`}>
+                <button type="button" onClick={() => setActiveTab('game')} className={activeTab === 'game' ? tabActiveClass : tabInactiveClass}>
+                    대국실
+                </button>
+                <button type="button" onClick={() => setActiveTab('global')} className={activeTab === 'global' ? tabActiveClass : tabInactiveClass}>
+                    전체채팅
+                </button>
+            </div>
             <div ref={chatBodyRef} className={arenaGameRoomChatBodyClass}>
-                {activeTab === 'guild' ? (
-                    // 길드 채팅 메시지 표시 (파란색)
-                    activeChatMessages.length > 0 ? (
-                        activeChatMessages.map((msg: any) => {
-                            const senderId = msg.user?.id || msg.authorId;
-                            const sender = senderId && senderId !== 'system' ? allUsers.find(u => u.id === senderId) : undefined;
-                            const isSystem = senderId === 'system';
-                            const displayName = isSystem ? '시스템' : (msg.user?.nickname || (senderId === ADMIN_USER_ID || sender?.isAdmin ? ADMIN_NICKNAME : sender?.nickname) || 'Unknown');
-                            
-                            return (
-                                <div key={msg.id || msg.timestamp || msg.createdAt} className="text-sm">
-                                    <span className={`font-semibold pr-2 ${isSystem ? 'text-blue-400' : 'text-blue-300 cursor-pointer hover:underline'}`}>
-                                        {displayName}:
-                                    </span>
-                                    <span className="text-blue-300">{msg.text || msg.content || ''}</span>
-                                </div>
-                            );
-                        })
-                    ) : (
-                        <div className="h-full flex items-center justify-center text-tertiary text-sm">길드 채팅 메시지가 없습니다.</div>
-                    )
-                ) : (
-                    // 전체 채팅 메시지 표시
-                    <>
+                <>
                         {activeChatMessages.map(msg => {
                             const isBotMessage = msg.system && !msg.actionInfo && msg.user.nickname === 'AI 보안관봇';
                             return (
-                                <div key={msg.id} className="text-sm">
+                                <div key={msg.id} className={chatMsgClass}>
                             {msg.actionInfo ? (
                                 <>
                                     <span className="font-semibold text-gray-400 pr-2">{msg.user.nickname}:</span>
@@ -666,9 +624,10 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                             </div>
                         );
                         })}
-                        {activeChatMessages.length === 0 && <div className="h-full flex items-center justify-center text-gray-500 text-sm">채팅 메시지가 없습니다.</div>}
-                    </>
-                )}
+                        {activeChatMessages.length === 0 && (
+                            <div className={`h-full flex items-center justify-center text-gray-500 ${chatMsgClass}`}>채팅 메시지가 없습니다.</div>
+                        )}
+                </>
             </div>
             {!isSpectator && (
                 <div className="relative flex-shrink-0">
@@ -678,7 +637,17 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                               {GAME_CHAT_EMOJIS.map(emoji => ( <button key={emoji} type="button" onClick={() => handleSend({ emoji })} className={arenaGameRoomQuickChatEmojiBtnClass}> {emoji} </button> ))}
                            </div>
                            <ul className="space-y-1">
-                              {GAME_CHAT_MESSAGES.map(msg => ( <li key={msg}> <button type="button" onClick={() => handleSend({ text: msg })} className={arenaGameRoomQuickChatPhraseBtnClass}> {msg} </button> </li> ))}
+                              {GAME_CHAT_MESSAGES.map(msg => (
+                                  <li key={msg}>
+                                      <button
+                                          type="button"
+                                          onClick={() => handleSend({ text: msg })}
+                                          className={`${arenaGameRoomQuickChatPhraseBtnClass}${drawerUi ? ' !text-[13px] !leading-snug' : ''}`}
+                                      >
+                                          {msg}
+                                      </button>
+                                  </li>
+                              ))}
                            </ul>
                        </div>
                    )}
@@ -691,11 +660,11 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                            value={chatInput}
                            onChange={e => setChatInput(e.target.value)}
                            placeholder={placeholderText}
-                           className={arenaGameRoomChatInputClass}
+                           className={`${arenaGameRoomChatInputClass}${drawerUi ? ' !text-[13px] !py-1.5' : ''}`}
                            maxLength={30}
                            disabled={isInputDisabled}
                        />
-                       <Button type="submit" bare disabled={!chatInput.trim() || isInputDisabled} colorScheme="none" title="보내기" className="!px-3 !py-2 rounded-lg border border-sky-600/40 bg-gradient-to-b from-sky-700/90 to-sky-950 text-sm font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 disabled:opacity-40 disabled:grayscale">
+                       <Button type="submit" bare disabled={!chatInput.trim() || isInputDisabled} colorScheme="none" title="보내기" className={`!px-3 !py-2 rounded-lg border border-sky-600/40 bg-gradient-to-b from-sky-700/90 to-sky-950 font-bold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] hover:brightness-110 disabled:opacity-40 disabled:grayscale ${drawerUi ? '!text-[13px]' : 'text-sm'}`}>
                             💬
                        </Button>
                    </form>
@@ -705,7 +674,13 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     );
 };
 
-const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession; currentUser: User }> = ({ session, currentUser }) => {
+const GuildWarStarConditionsPanel: React.FC<{
+    session: LiveGameSession;
+    currentUser: User;
+    sidebarLayout?: 'desktop' | 'mobileDrawer';
+}> = ({ session, currentUser, sidebarLayout }) => {
+    const drawerUi = sidebarLayout === 'mobileDrawer';
+    const starBodyClass = drawerUi ? 'text-[13px] leading-snug text-gray-200' : 'text-xs text-gray-200';
     if (session.gameCategory !== 'guildwar') return null;
     const boardId = (session as any).guildWarBoardId as string | undefined;
     const boardMode = boardId ? getGuildWarBoardMode(boardId) : 'capture';
@@ -729,7 +704,7 @@ const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession; currentU
                 <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>별 획득 조건</h3>
                 <div className="space-y-1.5">
                     {rows.map((row) => (
-                        <div key={row.label} className="flex items-start justify-between gap-2 text-xs text-gray-200">
+                        <div key={row.label} className={`flex items-start justify-between gap-2 ${starBodyClass}`}>
                             <span className="min-w-0 flex-1 leading-snug">{row.label}</span>
                             <img
                                 src={row.ok ? '/images/guild/guildwar/clearstar.png' : '/images/guild/guildwar/emptystar.png'}
@@ -749,7 +724,7 @@ const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession; currentU
             <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>별 획득 조건</h3>
             <div className="space-y-1">
                 {lines.map((line) => (
-                    <div key={line} className="text-xs text-gray-200">
+                    <div key={line} className={starBodyClass}>
                         {line}
                     </div>
                 ))}
@@ -759,7 +734,18 @@ const GuildWarStarConditionsPanel: React.FC<{ session: LiveGameSession; currentU
 };
 
 const Sidebar: React.FC<SidebarProps> = (props) => {
-    const { session, onLeaveOrResign, isNoContestLeaveAvailable, isSpectator, onTogglePause, isPaused = false, resumeCountdown = 0, pauseButtonCooldown = 0, pauseDisabledBecauseAiTurn = false } = props;
+    const {
+        session,
+        onLeaveOrResign,
+        isNoContestLeaveAvailable,
+        isSpectator,
+        onTogglePause,
+        isPaused = false,
+        resumeCountdown = 0,
+        pauseButtonCooldown = 0,
+        pauseDisabledBecauseAiTurn = false,
+        sidebarLayout = 'desktop',
+    } = props;
     const { gameStatus } = session;
 
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
@@ -785,11 +771,12 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                     currentUser={props.currentUser}
                     onClose={props.onClose}
                     onAction={props.onAction}
+                    sidebarLayout={sidebarLayout}
                 />
                 <UserListPanel {...props} />
-                <GuildWarStarConditionsPanel session={session} currentUser={props.currentUser} />
-                {/* PC 사이드바 광고 (300×250) */}
-                <AdBanner position="sidebar" />
+                <GuildWarStarConditionsPanel session={session} currentUser={props.currentUser} sidebarLayout={sidebarLayout} />
+                {/* PC 사이드바 광고(300×250). 모바일 인게임 서랍에서는 제외 → 푸터 320×50 */}
+                {sidebarLayout !== 'mobileDrawer' ? <AdBanner position="sidebar" /> : null}
             </div>
             <div className="flex-1 mt-2 min-h-0">
                 <ChatPanel {...props} />

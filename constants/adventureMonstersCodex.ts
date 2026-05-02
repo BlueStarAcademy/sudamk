@@ -105,74 +105,85 @@ export const ADVENTURE_MONSTERS_NEIGHBORHOOD_HILL = [
     },
 ] as const satisfies readonly AdventureMonsterCodexEntry[];
 
+/** 호수공원: lake_park_01~11.webp 번호 = 표시 순서(오리판이→…→호수판왕). codexId lake_01~11은 저장용 고정 */
 export const ADVENTURE_MONSTERS_LAKE_PARK = [
     {
         codexId: 'lake_01',
         imageWebp: `${lake}/lake_park_01.webp`,
-        name: '수호판이',
-        codexDescription: '연못가 수초 사이를 순찰하는 수호 형이에요. 물방울이 튀어도 표정은 경비원 그 자체입니다.',
-        codexPercentBossBonus: { target: 'core', stat: CoreStat.Stability },
+        name: '오리판이',
+        codexDescription:
+            '물 위를 걷지 않고 납작하게 미끄러지는 게 특기예요. 떡 하나 주면 하루 종일 따라오는 의리파입니다.',
     },
     {
         codexId: 'lake_02',
         imageWebp: `${lake}/lake_park_02.webp`,
-        name: '방울돌',
-        codexDescription: '몸에서 잔잔한 방울 소리가 난다고 믿는 아이들이 많아요. 사실은 발 구르는 박자가 리듬을 만드는 타입입니다.'
+        name: '수호판이',
+        codexDescription:
+            '연못가 수초 사이를 순찰하는 수호 형이에요. 물방울이 튀어도 표정은 경비원 그 자체입니다.',
+        codexPercentBossBonus: { target: 'core', stat: CoreStat.Stability },
     },
     {
         codexId: 'lake_03',
         imageWebp: `${lake}/lake_park_03.webp`,
-        name: '오리판이',
-        codexDescription: '물 위를 걷지 않고 납작하게 미끄러지는 게 특기예요. 떡 하나 주면 하루 종일 따라오는 의리파입니다.'
+        name: '방울돌이',
+        codexDescription:
+            '몸에서 잔잔한 방울 소리가 난다고 믿는 아이들이 많아요. 사실은 발 구르는 박자가 리듬을 만드는 타입입니다.',
     },
     {
         codexId: 'lake_04',
         imageWebp: `${lake}/lake_park_04.webp`,
         name: '낚돌이',
-        codexDescription: '낚싯바늘만 보이면 반사적으로 달려가 물고기인 척해요. 낚시꾼은 환호하고 돌만 덜렁 건지는 코미디가 자주 열립니다.'
+        codexDescription:
+            '낚싯바늘만 보이면 반사적으로 달려가 물고기인 척해요. 낚시꾼은 환호하고 돌만 덜렁 건지는 코미디가 자주 열립니다.',
     },
     {
         codexId: 'lake_05',
         imageWebp: `${lake}/lake_park_05.webp`,
         name: '개굴판이',
-        codexDescription: '개구리와 납작판의 조합 같은 분위기예요. 밤에 울음 대신 물컹한 “쿠루루”를 보내는 루머가 있습니다.'
+        codexDescription:
+            '개구리와 납작판의 조합 같은 분위기예요. 밤에 울음 대신 물컹한 “쿠루루”를 보내는 루머가 있습니다.',
     },
     {
         codexId: 'lake_06',
         imageWebp: `${lake}/lake_park_06.webp`,
         name: '꽃판이',
-        codexDescription: '연못가 꽃밭에서 색을 빌려 입는 패셔니스타예요. 바람 불면 꽃잎 대신 몸이 펄럭이는 착각을 일으킵니다.'
+        codexDescription:
+            '연못가 꽃밭에서 색을 빌려 입는 패셔니스타예요. 바람 불면 꽃잎 대신 몸이 펄럭이는 착각을 일으킵니다.',
     },
     {
         codexId: 'lake_07',
         imageWebp: `${lake}/lake_park_07.webp`,
         name: '조개돌이',
-        codexDescription: '조개껍질처럼 반짝이는 등을 가졌지만 속은 순한 돌하트예요. 조약돌 친구들과 모래사장에서 소소하게 모입니다.'
+        codexDescription:
+            '조개껍질처럼 반짝이는 등을 가졌지만 속은 순한 돌하트예요. 조약돌 친구들과 모래사장에서 소소하게 모입니다.',
     },
     {
         codexId: 'lake_08',
         imageWebp: `${lake}/lake_park_08.webp`,
-        name: '호수판왕',
-        codexDescription: '이 구역 호수의 대장 포지션이에요. 물결 무늬 망토를 두르고 은은하게 반짝입니다.',
-        codexPercentBossBonus: { target: 'materialDrop' },
+        name: '흑물돌',
+        codexDescription:
+            '깊은 물빛을 머금은 듯 어둑한 몸빛이에요. 가까이 가면 물고기 냄새 대신 산뜻한 이슬 냄새가 난다고 합니다.',
     },
     {
         codexId: 'lake_09',
         imageWebp: `${lake}/lake_park_09.webp`,
-        name: '흑물돌',
-        codexDescription: '깊은 물빛을 머금은 듯 어둑한 몸빛이에요. 가까이 가면 물고기 냄새 대신 산뜻한 이슬 냄새가 난다고 합니다.'
+        name: '달팽판이',
+        codexDescription:
+            '천천히, 그러나 확실히 목표를 향해 미끄러져요. 껍질 대신 납작한 판이 등을 덮었다는 설정이 귀엽습니다.',
     },
     {
         codexId: 'lake_10',
         imageWebp: `${lake}/lake_park_10.webp`,
-        name: '달팽판이',
-        codexDescription: '천천히, 그러나 확실히 목표를 향해 미끄러져요. 껍질 대신 납작한 판이 등을 덮었다는 설정이 귀엽습니다.'
+        name: '겹판이',
+        codexDescription:
+            '판이 여러 겹이라 그림자도 겹쳐 보여요. 햇살 아래서 무지개 얇은 막이 생기는 마법 같은 아이입니다.',
     },
     {
         codexId: 'lake_11',
         imageWebp: `${lake}/lake_park_11.webp`,
-        name: '겹판이',
-        codexDescription: '판이 여러 겹이라 그림자도 겹쳐 보여요. 햇살 아래서 무지개 얇은 막이 생기는 마법 같은 아이입니다.',
+        name: '호수판왕',
+        codexDescription: '이 구역 호수의 대장 포지션이에요. 물결 무늬 망토를 두르고 은은하게 반짝입니다.',
+        codexPercentBossBonus: { target: 'materialDrop' },
     },
 ] as const satisfies readonly AdventureMonsterCodexEntry[];
 

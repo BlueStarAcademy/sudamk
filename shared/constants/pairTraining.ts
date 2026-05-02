@@ -20,7 +20,7 @@ export const PAIR_TRAINING_SLOT_DISPLAY_NAMES = [
     '수상전 훈련',
     '정석 훈련',
     '기보 훈련',
-    'AI 훈련',
+    '수담훈련',
 ] as const;
 
 export function getPairTrainingSlotDisplayName(slotIndex: number): string {
@@ -115,8 +115,8 @@ export const PAIR_TRAINING_SLOT_DEFS: PairTrainingSlotDef[] = [
     {
         slotIndex: 5,
         durationMs: 30 * 60 * 1000,
-        goldMin: 100,
-        goldMax: 100,
+        goldMin: 1000,
+        goldMax: 1000,
         xpMin: 100,
         xpMax: 200,
         soulDropChance: 0.2,

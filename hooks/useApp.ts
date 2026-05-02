@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo, useEffect, useLayoutEffect, useR
 import { flushSync } from 'react-dom';
 // FIX: The main types barrel file now exports settings types. Use it for consistency.
 import { User, LiveGameSession, UserWithStatus, ServerAction, GameMode, Negotiation, ChatMessage, UserStatus, UserStatusInfo, AdminLog, Announcement, OverrideAnnouncement, InventoryItem, AppState, InventoryItemType, AppRoute, QuestReward, DailyQuestData, WeeklyQuestData, MonthlyQuestData, SoundSettings, FeatureSettings, AppSettings, PanelEdgeStyle, CoreStat, SpecialStat, MythicStat, EquipmentSlot, EquipmentPreset, Player, HomeBoardPost, GameRecord, Guild } from '../types.js';
+import type { KataServerRuntimeSnapshot } from '../shared/types/kataServerRuntime.js';
+import { mergeKataServerRuntimeSnapshot } from '../shared/utils/kataServerRuntimeMerge.js';
 import { HandleActionResult, type PairRoomChatLine } from '../types/api.js';
 import { Point } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
@@ -1183,6 +1185,9 @@ export const useApp = () => {
     const [announcements, setAnnouncements] = useState<Announcement[]>([]);
     const [globalOverrideAnnouncement, setGlobalOverrideAnnouncement] = useState<OverrideAnnouncement | null>(null);
     const [announcementInterval, setAnnouncementInterval] = useState(3);
+    const [kataServerRuntimeConfig, setKataServerRuntimeConfig] = useState<KataServerRuntimeSnapshot>(() =>
+        mergeKataServerRuntimeSnapshot(null),
+    );
     const [homeBoardPosts, setHomeBoardPosts] = useState<HomeBoardPost[]>([]);
     const [readHomeBoardPostIds, setReadHomeBoardPostIds] = useState<string[]>([]);
     const [guilds, setGuilds] = useState<Record<string, Guild>>({});
@@ -4216,6 +4221,12 @@ export const useApp = () => {
                         ),
                     );
                 }
+                if (
+                    (action.type === 'ADMIN_PATCH_KATA_SERVER_RUNTIME' || action.type === 'ADMIN_RESET_KATA_SERVER_RUNTIME') &&
+                    result.clientResponse?.kataServerRuntimeConfig
+                ) {
+                    setKataServerRuntimeConfig(result.clientResponse.kataServerRuntimeConfig as KataServerRuntimeSnapshot);
+                }
 
                 // CONFIRM_TOWER_GAME_START 액션에 대한 상세 로깅
                 if (action.type === 'CONFIRM_TOWER_GAME_START') {
@@ -4306,6 +4317,7 @@ export const useApp = () => {
                         'PAIR_PET_SET_EQUIPPED',
                         'PAIR_PET_EXPAND_LOBBY_SLOTS',
                         'PAIR_PET_START_TRAINING',
+                        'PAIR_PET_CANCEL_TRAINING',
                         'PAIR_PET_CLAIM_TRAINING',
                         'PAIR_PET_HATCHERY_UNLOCK',
                         'PAIR_PET_HATCHERY_START',
@@ -5475,6 +5487,7 @@ export const useApp = () => {
             homeBoardPosts?: any[];
             guilds?: Record<string, any>;
             singlePlayerStages?: any[];
+            kataServerRuntimeConfig?: KataServerRuntimeSnapshot;
         }) => {
                 // 이 시점을 기준으로 이후에 도착하는 WAITING_ROOM_CHAT_UPDATE만 과거 메시지를 걸러 냄
                 waitingRoomChatSessionStartRef.current = Date.now();
@@ -5935,6 +5948,9 @@ export const useApp = () => {
                     setArenaEntranceAvailability(mergeArenaEntranceAvailability(otherData.arenaEntranceAvailability));
                 }
                 if (otherData.announcementInterval !== undefined) setAnnouncementInterval(otherData.announcementInterval || 3);
+                if (otherData.kataServerRuntimeConfig !== undefined) {
+                    setKataServerRuntimeConfig(otherData.kataServerRuntimeConfig as KataServerRuntimeSnapshot);
+                }
                 if (otherData.homeBoardPosts !== undefined) setHomeBoardPosts(otherData.homeBoardPosts || []);
                 // 길드: INITIAL_STATE와 기존 상태 병합 (GET_GUILD_INFO 등으로 이미 가져온 데이터 우선)
                 if (otherData.guilds !== undefined) {
@@ -6161,7 +6177,8 @@ export const useApp = () => {
                                 arenaEntranceAvailability: message.payload.arenaEntranceAvailability,
                                 announcementInterval: message.payload.announcementInterval,
                                 homeBoardPosts: message.payload.homeBoardPosts,
-                                guilds: message.payload.guilds || {}
+                                guilds: message.payload.guilds || {},
+                                kataServerRuntimeConfig: message.payload.kataServerRuntimeConfig,
                             };
                             startBuffer.receivedChunks++;
                             if (message.payload.isLast) {
@@ -6205,7 +6222,8 @@ export const useApp = () => {
                                     arenaEntranceAvailability: message.payload.arenaEntranceAvailability,
                                     announcementInterval: message.payload.announcementInterval,
                                     homeBoardPosts: message.payload.homeBoardPosts,
-                                    guilds: message.payload.guilds || chunkBuffer.otherData?.guilds || {}
+                                    guilds: message.payload.guilds || chunkBuffer.otherData?.guilds || {},
+                                    kataServerRuntimeConfig: message.payload.kataServerRuntimeConfig,
                                 };
                                 }
                                 processInitialState(chunkBuffer.users, chunkBuffer.otherData);
@@ -6237,7 +6255,8 @@ export const useApp = () => {
                                 announcementInterval,
                                 homeBoardPosts,
                                 guilds,
-                                singlePlayerStages
+                                singlePlayerStages,
+                                kataServerRuntimeConfig,
                             } = message.payload;
                             processInitialState(users, {
                                 onlineUsers,
@@ -6255,9 +6274,15 @@ export const useApp = () => {
                                 announcementInterval,
                                 homeBoardPosts,
                                 guilds,
-                                singlePlayerStages
+                                singlePlayerStages,
+                                kataServerRuntimeConfig,
                             });
                             completeInitialState();
+                            return;
+                        }
+                        case 'KATA_SERVER_RUNTIME_CONFIG_UPDATE': {
+                            const cfg = (message.payload as any)?.kataServerRuntimeConfig;
+                            if (cfg != null) setKataServerRuntimeConfig(cfg as KataServerRuntimeSnapshot);
                             return;
                         }
                         case 'SINGLE_PLAYER_STAGES_UPDATE': {
@@ -8128,7 +8153,7 @@ export const useApp = () => {
                                 setGuilds(prev => ({ ...prev, ...message.payload.guilds }));
                             }
                             // 기존 default 처리 (이미 다른 case에서 처리되지 않은 경우)
-                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'PAIR_ROOM_UPDATE', 'PAIR_ROOM_CHAT', 'PAIR_PARTNER_INVITE_UPDATE', 'PAIR_PARTNER_INVITE_DECLINED', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE'].includes(message.type)) {
+                            if (message.type && !['USER_UPDATE', 'USER_STATUS_UPDATE', 'GAME_UPDATE', 'NEGOTIATION_UPDATE', 'CHAT_MESSAGE', 'WAITING_ROOM_CHAT', 'GAME_CHAT', 'TOURNAMENT_UPDATE', 'RANKED_MATCHING_UPDATE', 'RANKED_MATCH_FOUND', 'PAIR_ROOM_UPDATE', 'PAIR_ROOM_CHAT', 'PAIR_PARTNER_INVITE_UPDATE', 'PAIR_PARTNER_INVITE_DECLINED', 'GUILD_UPDATE', 'GUILD_MESSAGE', 'GUILD_MISSION_UPDATE', 'GUILD_WAR_UPDATE', 'ERROR', 'INITIAL_STATE', 'INITIAL_STATE_START', 'INITIAL_STATE_CHUNK', 'CONNECTION_ESTABLISHED', 'MUTUAL_DISCONNECT_ENDED', 'OTHER_DEVICE_LOGIN', 'SCHEDULER_MIDNIGHT_COMPLETE', 'ARENA_ENTRANCE_AVAILABILITY_UPDATE', 'KATA_SERVER_RUNTIME_CONFIG_UPDATE'].includes(message.type)) {
                                 console.warn('[WebSocket] Unhandled message type:', message.type);
                             }
                             return;
@@ -8911,6 +8936,7 @@ export const useApp = () => {
         gameChats,
         adminLogs,
         gameModeAvailability,
+        kataServerRuntimeConfig,
         rankedMatchingQueue,
         rankedMatchFound,
         pairRooms,

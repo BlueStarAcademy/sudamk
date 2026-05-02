@@ -14,7 +14,9 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId, getGuildWarKataServerLevelByBoardId } from '../../shared/constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId } from '../../shared/constants/index.js';
+import { guildWarKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
+import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import {
     MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
     userMeetsGuildFeatureLevelRequirement,
@@ -46,6 +48,8 @@ import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/const
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
 import { rollAndResolveRewardVipPlayGrant } from '../summaryService.js';
 import { computeGuildWarAttemptMetrics } from '../../shared/utils/guildWarAttemptMetrics.js';
+
+const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -391,7 +395,7 @@ const getResearchTimeMs = (researchId: GuildResearchId, level: number): number =
 export const handleGuildAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     const { type } = action;
     const payload = (action as { payload?: unknown }).payload as Record<string, any> | undefined;
-    if (process.env.NODE_ENV === 'development') {
+    if (VERBOSE_ACTION_LOGS) {
         console.log(`[handleGuildAction] Received action: ${type}, userId: ${user.id}`);
     }
     let needsSave = false;
@@ -2754,7 +2758,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             // 길드전 9칸: AI 난이도 단계는 모드별, Kata `kataServerLevel`은 좌/중/우 열(-30/-28/-25) 고정
             const guildWarKataProfileStep =
                 normalizedBoardMode === 'capture' ? 3 : normalizedBoardMode === 'hidden' ? 7 : 5;
-            const guildWarKataServerLevel = getGuildWarKataServerLevelByBoardId(
+            const guildWarKataServerLevel = guildWarKataLevelFromSnapshot(
+                getKataServerRuntimeSnapshot(),
                 typeof boardId === 'string' ? boardId : '',
             );
 

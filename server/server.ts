@@ -62,6 +62,8 @@ import { getKakaoAuthUrl, getKakaoAccessToken, getKakaoUserInfo } from './servic
 import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './services/googleAuthService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../shared/constants/rewardConfig.js';
 
+const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
+
 const getTournamentStateByType = (user: types.User, type: types.TournamentType): types.TournamentState | null => {
     switch (type) {
         case 'neighborhood':
@@ -397,6 +399,13 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             dbInitialized = true;
             if (dbInitializedRef) dbInitializedRef.value = true;
             console.log('[Server Startup] Database initialized successfully');
+            try {
+                const { hydrateKataServerRuntimeFromKV } = await import('./kataServerRuntimeStore.js');
+                await hydrateKataServerRuntimeFromKV();
+                console.log('[Server Startup] KataServer runtime config loaded from KV');
+            } catch (kataHydrateErr: any) {
+                console.warn('[Server Startup] KataServer runtime hydrate (non-fatal):', kataHydrateErr?.message);
+            }
             // 길드전 1회 부트스트랩: GUILD_WAR_BOOTSTRAP_MATCH=1 이면 KV에 플래그를 올린 뒤 즉시 매칭 1회(다음 메인루프까지 기다리지 않음). 운영에서 1회만 켠 다음 env 제거 권장.
             if (process.env.GUILD_WAR_BOOTSTRAP_MATCH === '1') {
                 try {
@@ -4705,8 +4714,8 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             
             volatileState.userConnections[userId] = Date.now();
 
-            // 프로덕션에서는 상세 로깅 제거 (성능 향상)
-            if (process.env.NODE_ENV === 'development') {
+            // 반복 액션 로그는 필요할 때만 켠다. 예: DEBUG_ACTION_LOGS=1 npm run start-server
+            if (VERBOSE_ACTION_LOGS) {
                 console.log(`[/api/action] Calling handleAction for type: ${req.body.type}`);
             }
             
@@ -4716,7 +4725,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const handleActionDuration = Date.now() - handleActionStartTime;
             
             if (result.error) {
-                if (process.env.NODE_ENV === 'development') {
+                if (VERBOSE_ACTION_LOGS) {
                     console.log(`[/api/action] Returning 400 error for ${req.body.type}: ${result.error}`);
                 }
                 respondAction(400, { message: result.error });

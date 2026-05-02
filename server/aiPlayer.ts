@@ -19,7 +19,8 @@ import {
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
 import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDifficulty.js';
-import { getTowerKataServerLevelByFloor } from '../shared/utils/towerKataServerLevel.js';
+import { towerKataLevelFromSnapshot } from '../shared/utils/kataServerRuntimeResolvers.js';
+import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { getCurrentPairTurnSeat, isPairAiSeat } from '../shared/utils/pairGameTurn.js';
 
 
@@ -1324,11 +1325,11 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     if (ks === undefined && isTower) {
                         const f = Number((game as any).towerFloor);
                         if (Number.isFinite(f) && f >= 1) {
-                            ks = getTowerKataServerLevelByFloor(f);
+                            ks = towerKataLevelFromSnapshot(getKataServerRuntimeSnapshot(), f);
                         }
                     }
                     if (ks !== undefined) {
-                        const fromKata = profileStepFromKataServerLevel(ks);
+                        const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
                         if (fromKata != null) {
                             difficulty = fromKata;
                         } else if (ks >= 1 && ks <= 10) {
@@ -1340,7 +1341,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
                 } else {
                     const ks = (game.settings as any)?.kataServerLevel;
                     if (typeof ks === 'number' && Number.isFinite(ks)) {
-                        const fromKata = profileStepFromKataServerLevel(ks);
+                        const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
                         if (fromKata != null) {
                             difficulty = fromKata;
                         } else if (ks >= 1 && ks <= 10) {
@@ -1372,7 +1373,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     let difficulty = 1;
                     const ks = (game.settings as any)?.kataServerLevel;
                     if (typeof ks === 'number' && Number.isFinite(ks)) {
-                        const fromKata = profileStepFromKataServerLevel(ks);
+                        const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
                         if (fromKata != null) {
                             difficulty = fromKata;
                         } else if (ks >= 1 && ks <= 10) {

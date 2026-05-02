@@ -27,9 +27,14 @@ const SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP: Record<number, number> = {
   [-27]: 5,
 };
 
-export function profileStepFromKataServerLevel(kataLevel: number): number | undefined {
+export function profileStepFromKataServerLevel(kataLevel: number, strategicLobbyKataByStep?: Record<string, number>): number | undefined {
   const academy = SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP[kataLevel];
   if (academy !== undefined) return academy;
+  if (strategicLobbyKataByStep) {
+    for (let step = 1; step <= 10; step++) {
+      if (strategicLobbyKataByStep[String(step)] === kataLevel) return step;
+    }
+  }
   const entry = Object.entries(KATA_SERVER_LEVEL_BY_PROFILE_STEP).find(([, v]) => v === kataLevel);
   return entry ? Math.max(1, Math.min(10, parseInt(entry[0], 10))) : undefined;
 }
@@ -93,14 +98,17 @@ export function adventureMonsterLevelToKataProfileStep(monsterLevel: number): nu
 }
 
 /** 대기실 AI 대국 설정에서 1~10 프로필 단계 (summary·보상용, 서버 makeAiMove 분기와 동일 규칙) */
-export function resolveAiLobbyProfileStepFromSettings(settings: {
-  kataServerLevel?: number;
-  goAiBotLevel?: number;
-  aiDifficulty?: number;
-}): number {
+export function resolveAiLobbyProfileStepFromSettings(
+  settings: {
+    kataServerLevel?: number;
+    goAiBotLevel?: number;
+    aiDifficulty?: number;
+  },
+  strategicLobbyKataByStep?: Record<string, number>,
+): number {
   const ks = settings.kataServerLevel;
   if (typeof ks === 'number' && Number.isFinite(ks)) {
-    const fromKata = profileStepFromKataServerLevel(ks);
+    const fromKata = profileStepFromKataServerLevel(ks, strategicLobbyKataByStep);
     if (fromKata != null) return fromKata;
     if (ks >= 1 && ks <= 10) return ks;
   }

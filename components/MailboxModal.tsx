@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { UserWithStatus, Mail, ServerAction, InventoryItem } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
-import { audioService } from '../services/audioService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
 
@@ -70,7 +69,6 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
 
     const handleClaim = () => {
         if (selectedMail && selectedMail.attachments && !selectedMail.attachmentsClaimed) {
-            audioService.claimReward();
             onAction({ type: 'CLAIM_MAIL_ATTACHMENTS', payload: { mailId: selectedMail.id } });
         }
     };
@@ -87,7 +85,6 @@ const MailboxModal: React.FC<MailboxModalProps> = ({ currentUser: propCurrentUse
     const hasClaimedMail = mail.some((m) => m.attachmentsClaimed);
 
     const handleClaimAll = () => {
-        audioService.claimReward();
         onAction({ type: 'CLAIM_ALL_MAIL_ATTACHMENTS' });
     };
 

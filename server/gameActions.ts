@@ -49,6 +49,7 @@ export type HandleActionResult = {
 
 const gameActionQueues = new Map<string, Promise<unknown>>();
 const ALKKAGI_AI_FIRST_ATTACK_DELAY_MS = 2000;
+const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
 async function runGameActionSerial<T>(gameId: string, task: () => Promise<T>): Promise<T> {
     const previous = gameActionQueues.get(gameId) ?? Promise.resolve();
@@ -376,8 +377,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
     const { type, payload } = action as any;
     const gameId = payload?.gameId;
     
-    // 프로덕션에서는 상세 로깅 제거 (성능 향상)
-    if (process.env.NODE_ENV === 'development') {
+    // 반복 액션 로그는 필요할 때만 켠다. 예: DEBUG_ACTION_LOGS=1 npm run start-server
+    if (VERBOSE_ACTION_LOGS) {
         console.log(`[handleAction] Received action: ${type}, userId: ${action.userId}, gameId: ${gameId || 'none'}`);
     }
     
@@ -417,12 +418,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type.startsWith('DONATE_TO_GUILD') || 
         type.startsWith('PURCHASE_GUILD') || 
         type.startsWith('END_GUILD')) {
-        if (process.env.NODE_ENV === 'development') {
+        if (VERBOSE_ACTION_LOGS) {
             console.log(`[handleAction] Routing GUILD action: ${type} to handleGuildAction`);
         }
         const { handleGuildAction } = await import('./actions/guildActions.js');
         const result = await handleGuildAction(volatileState, action, userData);
-        if (process.env.NODE_ENV === 'development' && result?.error) {
+        if (VERBOSE_ACTION_LOGS && result?.error) {
             console.log(`[handleAction] GUILD action ${type} result: ERROR: ${result.error}`);
         }
         return result;
@@ -436,6 +437,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         type === 'PAIR_PET_CONVERT_PET' ||
         type === 'PAIR_PET_EXPAND_LOBBY_SLOTS' ||
         type === 'PAIR_PET_START_TRAINING' ||
+        type === 'PAIR_PET_CANCEL_TRAINING' ||
         type === 'PAIR_PET_CLAIM_TRAINING' ||
         type === 'PAIR_PET_HATCHERY_UNLOCK' ||
         type === 'PAIR_PET_HATCHERY_START' ||
@@ -1707,7 +1709,7 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
     }
     
-    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS'].includes(type)) return handleUserAction(volatileState, action, userData);
+    if (['UPDATE_AVATAR', 'UPDATE_BORDER', 'SAVE_EXCHANGE_STATE', 'PURCHASE_EXCHANGE_LISTING', 'CLAIM_EXCHANGE_SETTLEMENT', 'CHANGE_NICKNAME', 'RESET_STAT_POINTS', 'CONFIRM_STAT_ALLOCATION', 'UPDATE_MBTI', 'SAVE_PRESET', 'APPLY_PRESET', 'UPDATE_REJECTION_SETTINGS', 'SAVE_GAME_RECORD', 'DELETE_GAME_RECORD', 'RECORD_ADVENTURE_MONSTER_DEFEAT', 'START_ADVENTURE_MONSTER_BATTLE', 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST', 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST', 'ABANDON_ADVENTURE_MAP_TREASURE_PICK', 'REROLL_ADVENTURE_REGIONAL_BUFF', 'ENHANCE_ADVENTURE_REGIONAL_BUFF', 'ADVANCE_ONBOARDING_TUTORIAL', 'BEGIN_ONBOARDING_ON_FIRST_HOME', 'SKIP_ONBOARDING_TUTORIAL', 'FINISH_ONBOARDING_TUTORIAL_WITH_REWARD', 'CLAIM_ONBOARDING_INTRO1_FAN', 'ACK_ONBOARDING_INTRO1_RESULT_ITEM_MODAL', 'CONFIRM_ONBOARDING_INTRO1_RESULT_BUTTONS_READ', 'ADMIN_SET_VIP_TEST_FLAGS', 'RESET_PAIR_ARENA_SINGLE_STAT', 'RESET_PAIR_ARENA_STRATEGIC_ALL'].includes(type)) return handleUserAction(volatileState, action, userData);
     if (type.startsWith('CLAIM_') || type.startsWith('DELETE_MAIL') || type === 'DELETE_ALL_CLAIMED_MAIL' || type === 'MARK_MAIL_AS_READ') return handleRewardAction(volatileState, action, userData);
     if (type.startsWith('BUY_') || type === 'PURCHASE_ACTION_POINTS' || type === 'EXPAND_INVENTORY' || type === 'BUY_TOWER_ITEM' || type === 'CLAIM_SHOP_AD_REWARD') return handleShopAction(volatileState, action, userData);
     if (type.startsWith('TOURNAMENT') || 

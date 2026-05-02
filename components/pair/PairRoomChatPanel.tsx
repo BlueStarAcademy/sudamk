@@ -10,6 +10,8 @@ type Props = {
     disabled?: boolean;
     /** `interior`: 페어 방 안 — 로비 시안 톤과 구분되는 바이올렛 계열 */
     variant?: 'default' | 'interior';
+    /** 모바일 대기실: 채팅 패널 높이·글자 축소 */
+    compact?: boolean;
     onSend: (payload: { text: string; scope: PairRoomChatScope }) => void | Promise<void>;
 };
 
@@ -18,7 +20,7 @@ const SCOPE_OPTIONS: { value: PairRoomChatScope; label: string }[] = [
     { value: 'team', label: '팀 채팅' },
 ];
 
-const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, disabled, variant = 'default', onSend }) => {
+const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, disabled, variant = 'default', compact = false, onSend }) => {
     const interior = variant === 'interior';
     const [scope, setScope] = useState<PairRoomChatScope>('room');
     const [draft, setDraft] = useState('');
@@ -46,22 +48,22 @@ const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, d
         <div
             className={
                 interior
-                    ? 'flex min-h-[11rem] flex-col rounded-xl border border-violet-400/30 bg-violet-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-violet-500/10'
-                    : 'flex min-h-[11rem] flex-col rounded-xl border border-white/10 bg-black/30'
+                    ? `flex flex-col rounded-xl border border-violet-400/30 bg-violet-950/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-violet-500/10 ${compact ? 'min-h-[8.5rem]' : 'min-h-[11rem]'}`
+                    : `flex flex-col rounded-xl border border-white/10 bg-black/30 ${compact ? 'min-h-[8.5rem]' : 'min-h-[11rem]'}`
             }
         >
             <div
                 className={
                     interior
-                        ? 'flex shrink-0 items-center justify-between gap-2 border-b border-violet-400/25 px-2 py-1.5'
-                        : 'flex shrink-0 items-center justify-between gap-2 border-b border-white/10 px-2 py-1.5'
+                        ? `flex shrink-0 items-center justify-between gap-1.5 border-b border-violet-400/25 ${compact ? 'px-1.5 py-1' : 'px-2 py-1.5'}`
+                        : `flex shrink-0 items-center justify-between gap-1.5 border-b border-white/10 ${compact ? 'px-1.5 py-1' : 'px-2 py-1.5'}`
                 }
             >
                 <span
                     className={
                         interior
-                            ? 'text-[11px] font-extrabold uppercase tracking-wide text-violet-200/95'
-                            : 'text-[11px] font-extrabold uppercase tracking-wide text-cyan-100/90'
+                            ? `font-extrabold uppercase tracking-wide text-violet-200/95 ${compact ? 'text-[10px]' : 'text-[11px]'}`
+                            : `font-extrabold uppercase tracking-wide text-cyan-100/90 ${compact ? 'text-[10px]' : 'text-[11px]'}`
                     }
                 >
                     페어 채팅
@@ -88,9 +90,9 @@ const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, d
                                 className={
                                     active
                                         ? interior
-                                            ? 'rounded-md bg-violet-500/80 px-2 py-0.5 text-[11px] font-extrabold text-white shadow-sm'
-                                            : 'rounded-md bg-cyan-500/75 px-2 py-0.5 text-[11px] font-extrabold text-white shadow-sm'
-                                        : 'rounded-md px-2 py-0.5 text-[11px] font-bold text-slate-300 transition hover:bg-white/8 disabled:pointer-events-none disabled:opacity-45'
+                                            ? `rounded-md bg-violet-500/80 px-1.5 py-0.5 font-extrabold text-white shadow-sm ${compact ? 'text-[10px]' : 'text-[11px]'}`
+                                            : `rounded-md bg-cyan-500/75 px-1.5 py-0.5 font-extrabold text-white shadow-sm ${compact ? 'text-[10px]' : 'text-[11px]'}`
+                                        : `rounded-md px-1.5 py-0.5 font-bold text-slate-300 transition hover:bg-white/8 disabled:pointer-events-none disabled:opacity-45 ${compact ? 'text-[10px]' : 'text-[11px]'}`
                                 }
                             >
                                 {o.label}
@@ -101,10 +103,10 @@ const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, d
             </div>
             <div
                 ref={listRef}
-                className="min-h-[6.5rem] max-h-[10.5rem] flex-1 space-y-1 overflow-y-auto px-2 py-1.5 text-[11px] leading-snug"
+                className={`flex-1 overflow-y-auto leading-snug ${compact ? 'min-h-[4rem] max-h-[6.5rem] space-y-0.5 px-1.5 py-1 text-[10px]' : 'min-h-[6.5rem] max-h-[10.5rem] space-y-1 px-2 py-1.5 text-[11px]'}`}
             >
                 {sorted.length === 0 ? (
-                    <div className={`py-2 text-center text-[10px] font-medium ${interior ? 'text-violet-300/45' : 'text-slate-500'}`}>
+                    <div className={`py-1.5 text-center font-medium ${interior ? 'text-violet-300/45' : 'text-slate-500'} ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
                         {scope === 'team' ? '팀 채팅이 없습니다.' : '대화가 없습니다.'}
                     </div>
                 ) : (
@@ -113,8 +115,8 @@ const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, d
                             key={m.id}
                             className={
                                 interior
-                                    ? 'break-words rounded-md border border-violet-500/10 bg-black/30 px-1.5 py-1'
-                                    : 'break-words rounded-md bg-black/25 px-1.5 py-1'
+                                    ? `break-words rounded-md border border-violet-500/10 bg-black/30 ${compact ? 'px-1 py-0.5' : 'px-1.5 py-1'}`
+                                    : `break-words rounded-md bg-black/25 ${compact ? 'px-1 py-0.5' : 'px-1.5 py-1'}`
                             }
                         >
                             <span
@@ -133,8 +135,8 @@ const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, d
             <form
                 className={
                     interior
-                        ? 'flex shrink-0 gap-1 border-t border-violet-400/25 p-1.5'
-                        : 'flex shrink-0 gap-1 border-t border-white/10 p-1.5'
+                        ? `flex shrink-0 gap-1 border-t border-violet-400/25 ${compact ? 'p-1' : 'p-1.5'}`
+                        : `flex shrink-0 gap-1 border-t border-white/10 ${compact ? 'p-1' : 'p-1.5'}`
                 }
                 onSubmit={(e) => {
                     e.preventDefault();
@@ -149,8 +151,8 @@ const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, d
                     placeholder={scope === 'team' ? '팀원에게만 보낼 메시지…' : '전체 메시지 입력…'}
                     className={
                         interior
-                            ? 'min-w-0 flex-1 rounded-lg border border-violet-400/25 bg-black/45 px-2 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-400/50 disabled:opacity-45'
-                            : 'min-w-0 flex-1 rounded-lg border border-white/12 bg-black/45 px-2 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/40 disabled:opacity-45'
+                            ? `min-w-0 flex-1 rounded-lg border border-violet-400/25 bg-black/45 text-slate-100 outline-none placeholder:text-slate-500 focus:border-violet-400/50 disabled:opacity-45 ${compact ? 'px-1.5 py-1 text-[10px]' : 'px-2 py-1.5 text-xs'}`
+                            : `min-w-0 flex-1 rounded-lg border border-white/12 bg-black/45 text-slate-100 outline-none placeholder:text-slate-500 focus:border-cyan-400/40 disabled:opacity-45 ${compact ? 'px-1.5 py-1 text-[10px]' : 'px-2 py-1.5 text-xs'}`
                     }
                 />
                 <button
@@ -158,8 +160,8 @@ const PairRoomChatPanel: React.FC<Props> = ({ roomId, messages, currentUserId, d
                     disabled={disabled || !draft.trim()}
                     className={
                         interior
-                            ? 'shrink-0 rounded-lg border border-violet-400/55 bg-violet-950/60 px-3 py-1.5 text-xs font-extrabold text-violet-50 transition hover:bg-violet-900/55 disabled:pointer-events-none disabled:opacity-40'
-                            : 'shrink-0 rounded-lg border border-cyan-400/45 bg-cyan-950/55 px-3 py-1.5 text-xs font-extrabold text-cyan-50 transition hover:bg-cyan-900/55 disabled:pointer-events-none disabled:opacity-40'
+                            ? `shrink-0 rounded-lg border border-violet-400/55 bg-violet-950/60 font-extrabold text-violet-50 transition hover:bg-violet-900/55 disabled:pointer-events-none disabled:opacity-40 ${compact ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'}`
+                            : `shrink-0 rounded-lg border border-cyan-400/45 bg-cyan-950/55 font-extrabold text-cyan-50 transition hover:bg-cyan-900/55 disabled:pointer-events-none disabled:opacity-40 ${compact ? 'px-2 py-1 text-[10px]' : 'px-3 py-1.5 text-xs'}`
                     }
                 >
                     전송

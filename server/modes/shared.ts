@@ -6,13 +6,14 @@ import { ALKKAGI_PLACEMENT_TIME_LIMIT, ALKKAGI_SIMULTANEOUS_PLACEMENT_TIME_LIMIT
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { updateQuestProgress } from '../questService.js';
 import * as types from '../../types/index.js';
-import { broadcast } from '../socket.js';
+import { broadcast, broadcastToGameParticipants } from '../socket.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
     getCurrentPairTurnSeat,
     isPairAiSeat,
     isPairClassicGame,
+    isPairCooperativeTwoHumansVsAi,
     syncPairTurnOrderWithAssignedColors,
 } from '../../shared/utils/pairGameTurn.js';
 
@@ -476,6 +477,9 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
                 return { error: 'Game has already ended.' };
             }
+            if (isPairCooperativeTwoHumansVsAi(game.settings)) {
+                return { error: '협동 페어 AI 대전에서는 매너 액션을 사용할 수 없습니다.' };
+            }
             const myButtons = game.currentActionButtons?.[user.id];
             const button = myButtons?.find(b => b.name === payload.buttonName);
             if (!button) return { error: 'Invalid action button.' };
@@ -524,13 +528,14 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
             await db.updateUser(user);
             await db.saveGame(game);
             
-            // 채팅 메시지 브로드캐스트
-            broadcast({ 
-                type: 'GAME_CHAT_UPDATE', 
-                payload: { 
-                    [game.id]: volatileState.gameChats[game.id] 
-                } 
-            });
+            broadcastToGameParticipants(
+                game.id,
+                {
+                    type: 'GAME_CHAT_UPDATE',
+                    payload: { [game.id]: volatileState.gameChats[game.id] },
+                },
+                game,
+            );
             
             // 매너 점수 변경 브로드캐스트
             const updatedUser = JSON.parse(JSON.stringify(user));

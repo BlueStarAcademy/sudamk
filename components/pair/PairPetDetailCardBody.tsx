@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useAppContext } from '../../contexts/AppContext.js';
 import { CORE_STATS_DATA } from '../../constants/index.js';
 import type { InventoryItem, PairPetMeta, User } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
@@ -11,7 +12,9 @@ import {
     pairPetXpGainBlockedByGrade,
 } from '../../shared/constants/pairPetGrade.js';
 import { gradeBackgrounds, gradeStyles, EQUIPMENT_GRADE_LABEL_KO } from '../../shared/constants/items.js';
-import PairPetCoreStatsGrid from './PairPetCoreStatsGrid.js';
+import { pairPetKataAbilityScore, type PairPetKataPhase } from '../../shared/constants/pairArena.js';
+import { computePairPetKataCoreStatsSixFromMeta } from '../../shared/utils/pairPetKataStatsFromMeta.js';
+import PairPetCoreStatsGrid, { computePairPetBadukTotalPower } from './PairPetCoreStatsGrid.js';
 
 function dispositionLabel(meta: PairPetMeta['disposition']): string {
     if (meta.kind === 'all') {
@@ -52,6 +55,7 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
     statsGridVariant,
     showRepresentativeBadge = false,
 }) => {
+    const { kataServerRuntimeConfig } = useAppContext();
     const meta = useMemo(() => resolvePairPetMetaFromInventoryRow(item), [item]);
 
     const petGrade = effectivePairPetGradeFromRow(item);
@@ -69,6 +73,21 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
             : Math.min(100, ((meta.xp ?? 0) / maxXp) * 100);
 
     const isModal = statsGridVariant === 'modal';
+
+    const kataCoreSix = useMemo(() => computePairPetKataCoreStatsSixFromMeta(meta, petGrade), [meta, petGrade]);
+    const badukTotalPower = useMemo(
+        () => computePairPetBadukTotalPower(currentUser, meta.disposition, petGrade, meta.levelUpCoreBonuses),
+        [currentUser, meta.disposition, petGrade, meta.levelUpCoreBonuses],
+    );
+    const phaseScores = useMemo(() => {
+        const phases: PairPetKataPhase[] = ['opening', 'midgame', 'endgame'];
+        const w = kataServerRuntimeConfig?.pairPet?.phaseWeights;
+        const out: Partial<Record<PairPetKataPhase, number>> = {};
+        for (const p of phases) {
+            out[p] = w ? pairPetKataAbilityScore(p, kataCoreSix, w) : pairPetKataAbilityScore(p, kataCoreSix);
+        }
+        return out as Record<PairPetKataPhase, number>;
+    }, [kataCoreSix, kataServerRuntimeConfig?.pairPet?.phaseWeights]);
 
     return (
         <div className={`flex w-full min-w-0 flex-col ${isModal ? 'gap-2.5 sm:gap-4' : 'gap-4'}`}>
@@ -151,11 +170,11 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                             >
                                 {xpBlocked ? (
                                     <span
-                                        className={`font-semibold leading-snug text-amber-200/95 ${
+                                        className={`shrink-0 rounded border border-amber-500/40 bg-amber-950/50 px-1.5 py-0.5 text-[0.62rem] font-extrabold leading-none text-amber-100 sm:text-xs ${
                                             isModal ? 'text-left' : 'text-center sm:text-left'
                                         }`}
                                     >
-                                        등급 강화 전까지 경험치를 더 받을 수 없습니다.
+                                        등급 강화 필요
                                     </span>
                                 ) : (
                                     <span className="font-mono font-semibold tabular-nums text-slate-400">
@@ -222,6 +241,45 @@ const PairPetDetailCardBody: React.FC<PairPetDetailCardBodyProps> = ({
                         {specializationLabel(meta.specialization)}
                     </p>
                 </div>
+            </div>
+
+            <div
+                className={`flex min-w-0 flex-nowrap items-center gap-x-2 overflow-x-auto rounded-xl border border-sky-500/30 bg-gradient-to-r from-sky-950/40 to-zinc-950/80 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] [scrollbar-width:thin] sm:gap-x-3 sm:px-3 sm:py-2 ${
+                    isModal ? 'justify-start' : 'justify-center sm:justify-start'
+                }`}
+            >
+                <span className="inline-flex shrink-0 items-baseline gap-1">
+                    <span className="text-[0.62rem] font-bold text-amber-100 sm:text-xs">바둑능력</span>
+                    <span
+                        className={`font-mono font-black tabular-nums text-amber-50 ${
+                            isModal ? 'text-sm sm:text-base' : 'text-base'
+                        }`}
+                    >
+                        {badukTotalPower}
+                    </span>
+                </span>
+                <span className="h-3.5 w-px shrink-0 self-center bg-white/15" aria-hidden />
+                {(
+                    [
+                        { phase: 'opening' as const, label: '초반' },
+                        { phase: 'midgame' as const, label: '중반' },
+                        { phase: 'endgame' as const, label: '종반' },
+                    ] as const
+                ).map(({ phase, label }, idx) => (
+                    <React.Fragment key={phase}>
+                        {idx > 0 ? <span className="h-3.5 w-px shrink-0 self-center bg-white/12" aria-hidden /> : null}
+                        <span className="inline-flex shrink-0 items-baseline gap-0.5">
+                            <span className="text-[0.58rem] font-semibold text-slate-400 sm:text-xs">{label}</span>
+                            <span
+                                className={`font-mono font-bold tabular-nums text-sky-100 ${
+                                    isModal ? 'text-xs sm:text-sm' : 'text-sm'
+                                }`}
+                            >
+                                {phaseScores[phase]}
+                            </span>
+                        </span>
+                    </React.Fragment>
+                ))}
             </div>
 
             <PairPetCoreStatsGrid

@@ -109,7 +109,20 @@ export interface KataServerMoveCandidateDetails {
     bestMove: Point | null;
 }
 
-/** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. 중복 제거. */
+/** 동일 응답·병합 후보에서 같은 좌표가 여러 번 오면 앞선 것만 유지 (먼저 온 좌표로 착수). */
+function dedupePointsFirstWins(points: Point[]): Point[] {
+    const seen = new Set<string>();
+    const out: Point[] = [];
+    for (const p of points) {
+        const k = `${p.x},${p.y}`;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        out.push(p);
+    }
+    return out;
+}
+
+/** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. GTP 문자열 단계에서 중복 제거. */
 function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: boolean): string[] {
     const best = data.bestMove?.trim();
     const reported = data.move?.trim();
@@ -141,6 +154,11 @@ export interface GenerateKataServerMoveParams {
     kataSessionTag?: string;
     /** true면 KataServer PASS 응답을 후보로 유지한다. */
     allowPass?: boolean;
+    /**
+     * 빈 좌표 응답·HTTP 오류·타임아웃 시 추가 재시도 횟수 (기본 0).
+     * 길드전 등 서버 봇 경로에서만 소량 지정하는 것을 권장 (최대 5로 캡).
+     */
+    moveApiRetries?: number;
 }
 
 const inFlightKataServerMoveRequests = new Map<string, Promise<KataServerMoveCandidateDetails>>();
@@ -161,6 +179,7 @@ function buildKataServerMoveRequestKey(params: GenerateKataServerMoveParams): st
 /**
  * Kata 한 번 호출로 후보 좌표 목록 반환 (move → bestMove 순, PASS 제외).
  * PASS·빈 응답이면 빈 배열을 반환하고, 호출 측 폴백(합법수 탐색/종료 판단)으로 넘긴다.
+ * `moveApiRetries`가 있으면 빈 응답·오류·타임아웃 시 카타 서버에 재요청한다.
  */
 async function generateKataServerMoveCandidatesUncached(params: GenerateKataServerMoveParams): Promise<KataServerMoveCandidateDetails> {
     if (!KATA_SERVER_URL) {
@@ -205,85 +224,114 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
         headers['game_id'] = kataSessionTag ? `${gameId}:${kataSessionTag}` : gameId;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), KATA_SERVER_TIMEOUT_MS);
-
-    try {
-        console.log(
-            `[KataServer] Requesting move: level=${level} boardSize=${boardSize} moves=${moves.length} firstMove=${isFirstMove} player=${player}`
-        );
-
-        const response = await fetch(url, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(body),
-            signal: controller.signal,
-        });
-
-        if (!response.ok) {
-            const text = await response.text().catch(() => '');
-            throw new Error(`KataServer API error: ${response.status} - ${text}`);
+    const parseOptionalPoint = (gtp: string | undefined): Point | null => {
+        if (!gtp) return null;
+        const normalized = gtp.trim().toUpperCase();
+        if (!normalized || (normalized === 'PASS' && !allowPass)) return null;
+        try {
+            return gtpCoordToPoint(gtp, boardSize);
+        } catch (e: any) {
+            console.warn(`[KataServer] skip unparsable optional GTP coord "${gtp}": ${e?.message ?? e}`);
+            return null;
         }
+    };
 
-        const data = (await response.json()) as KataMoveApiData;
+    const retries = Math.max(0, Math.min(5, Number(params.moveApiRetries) || 0));
+    const maxAttempts = 1 + retries;
 
-        console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
-
-        const gtps = buildGtpCandidatesFromKataResponse(data, allowPass);
-        const best = data.bestMove?.trim();
-        const reported = data.move?.trim();
-        if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {
+    const singleHttpAttempt = async (): Promise<KataServerMoveCandidateDetails> => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), KATA_SERVER_TIMEOUT_MS);
+        try {
             console.log(
-                `[KataServer] candidate order: move=${reported} then bestMove=${best} (strategy=${data.strategy ?? 'n/a'})`,
+                `[KataServer] Requesting move: level=${level} boardSize=${boardSize} moves=${moves.length} firstMove=${isFirstMove} player=${player}`
             );
-        }
 
-        if (gtps.length === 0) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body),
+                signal: controller.signal,
+            });
+
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                throw new Error(`KataServer API error: ${response.status} - ${text}`);
+            }
+
+            const data = (await response.json()) as KataMoveApiData;
+
+            console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
+
+            const gtps = buildGtpCandidatesFromKataResponse(data, allowPass);
+            const best = data.bestMove?.trim();
+            const reported = data.move?.trim();
+            if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {
+                console.log(
+                    `[KataServer] candidate order: move=${reported} then bestMove=${best} (strategy=${data.strategy ?? 'n/a'})`,
+                );
+            }
+
+            if (gtps.length === 0) {
+                console.warn(
+                    `[KataServer] /move returned no board coordinate (PASS or empty). move=${reported ?? 'n/a'} bestMove=${best ?? 'n/a'} strategy=${data.strategy ?? 'n/a'} level=${level} boardSize=${boardSize} moves=${moves.length} player=${player} gameId=${gameId ?? 'n/a'}`,
+                );
+                return { candidates: [], reportedMove: null, bestMove: null };
+            }
+
+            const points: Point[] = [];
+            for (const g of gtps) {
+                try {
+                    points.push(gtpCoordToPoint(g, boardSize));
+                } catch (e: any) {
+                    console.warn(`[KataServer] skip unparsable GTP coord "${g}": ${e?.message ?? e}`);
+                }
+            }
+            if (points.length === 0) {
+                throw new Error(
+                    `[KataServer] /move had GTP candidates but none parsed to a point: ${JSON.stringify(gtps)} level=${level} boardSize=${boardSize} gameId=${gameId ?? 'n/a'}`,
+                );
+            }
+            const deduped = dedupePointsFirstWins(points);
+            return {
+                candidates: deduped,
+                reportedMove: parseOptionalPoint(reported),
+                bestMove: parseOptionalPoint(best),
+            };
+        } catch (err: any) {
+            if (err.name === 'AbortError') {
+                throw new Error(`KataServer timeout (${KATA_SERVER_TIMEOUT_MS}ms)`);
+            }
+            throw err;
+        } finally {
+            clearTimeout(timeoutId);
+        }
+    };
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+            const r = await singleHttpAttempt();
+            const hasCandidates = r.candidates.length > 0;
+            if (hasCandidates || attempt === maxAttempts - 1) {
+                await sleep(KATA_APPLY_MOVE_DELAY_MS);
+                return r;
+            }
             console.warn(
-                `[KataServer] /move returned no board coordinate (PASS or empty). move=${reported ?? 'n/a'} bestMove=${best ?? 'n/a'} strategy=${data.strategy ?? 'n/a'} level=${level} boardSize=${boardSize} moves=${moves.length} player=${player} gameId=${gameId ?? 'n/a'}`,
+                `[KataServer] empty candidates, will retry ${attempt + 1}/${maxAttempts} gameId=${gameId ?? 'n/a'}`,
             );
-            await sleep(KATA_APPLY_MOVE_DELAY_MS);
-            return { candidates: [], reportedMove: null, bestMove: null };
-        }
-
-        const points: Point[] = [];
-        for (const g of gtps) {
-            try {
-                points.push(gtpCoordToPoint(g, boardSize));
-            } catch (e: any) {
-                console.warn(`[KataServer] skip unparsable GTP coord "${g}": ${e?.message ?? e}`);
+            await sleep(250 * (attempt + 1));
+        } catch (e: any) {
+            if (attempt === maxAttempts - 1) {
+                throw e;
             }
-        }
-        const parseOptionalPoint = (gtp: string | undefined): Point | null => {
-            if (!gtp) return null;
-            const normalized = gtp.trim().toUpperCase();
-            if (!normalized || (normalized === 'PASS' && !allowPass)) return null;
-            try {
-                return gtpCoordToPoint(gtp, boardSize);
-            } catch (e: any) {
-                console.warn(`[KataServer] skip unparsable optional GTP coord "${gtp}": ${e?.message ?? e}`);
-                return null;
-            }
-        };
-        if (points.length === 0) {
-            throw new Error(
-                `[KataServer] /move had GTP candidates but none parsed to a point: ${JSON.stringify(gtps)} level=${level} boardSize=${boardSize} gameId=${gameId ?? 'n/a'}`,
+            console.warn(
+                `[KataServer] attempt ${attempt + 1}/${maxAttempts} failed (${e?.message ?? e}), retry gameId=${gameId ?? 'n/a'}`,
             );
+            await sleep(250 * (attempt + 1));
         }
-        await sleep(KATA_APPLY_MOVE_DELAY_MS);
-        return {
-            candidates: points,
-            reportedMove: parseOptionalPoint(reported),
-            bestMove: parseOptionalPoint(best),
-        };
-    } catch (err: any) {
-        if (err.name === 'AbortError') {
-            throw new Error(`KataServer timeout (${KATA_SERVER_TIMEOUT_MS}ms)`);
-        }
-        throw err;
-    } finally {
-        clearTimeout(timeoutId);
     }
+
+    throw new Error(`[KataServer] exhausted retries gameId=${gameId ?? 'n/a'}`);
 }
 
 export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {

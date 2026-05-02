@@ -10,7 +10,8 @@ import {
     encodeBoardStateAsKataSetupMovesFromEmpty,
 } from '../kataCaptureSetupEncoding.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
-import { getTowerKataServerLevelByFloor } from '../../shared/utils/towerKataServerLevel.js';
+import { towerKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
+import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import {
     resolveTowerCaptureBlackTarget,
     resolveTowerPlainBlackCount,
@@ -156,9 +157,11 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 gameMode = GameMode.Standard;
             }
 
-            const kataServerLevel = getTowerKataServerLevelByFloor(floor);
+            const kataSnap = getKataServerRuntimeSnapshot();
+            const kataServerLevel = towerKataLevelFromSnapshot(kataSnap, floor);
             const kataProfileStep =
-                profileStepFromKataServerLevel(kataServerLevel) ?? towerAiDifficultyFallbackFromFloor(floor);
+                profileStepFromKataServerLevel(kataServerLevel, kataSnap.strategicLobbyKataByStep) ??
+                towerAiDifficultyFallbackFromFloor(floor);
             const botNickname = TOWER_AI_BOT_DISPLAY_NAME;
             const botLevel = kataProfileStep * 10;
 

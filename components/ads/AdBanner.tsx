@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAdContext } from './AdProvider.js';
 import type { AdBannerPosition, AdBannerSize } from '../../types/ads.js';
-import { BANNER_SIZES, SIDEBAR_AD_SIZE, SKYSCRAPER_AD_SIZE, AD_SLOTS } from '../../constants/ads.js';
+import { BANNER_SIZES, SIDEBAR_AD_SIZE, SKYSCRAPER_AD_SIZE, INGAME_FOOTER_AD_SIZE, AD_SLOTS } from '../../constants/ads.js';
 
 interface AdBannerProps {
   position: AdBannerPosition;
@@ -14,6 +14,7 @@ interface AdBannerProps {
  */
 function getBannerSize(position: AdBannerPosition, viewportWidth: number): AdBannerSize {
   if (position === 'sidebar') return SIDEBAR_AD_SIZE;
+  if (position === 'ingame_footer') return INGAME_FOOTER_AD_SIZE;
   if (position === 'left' || position === 'right') return SKYSCRAPER_AD_SIZE;
   const w = viewportWidth;
   if (position === 'bottom') {
@@ -30,6 +31,7 @@ function getSlotId(position: AdBannerPosition): string {
     case 'top': return AD_SLOTS.bannerTop;
     case 'bottom': return AD_SLOTS.bannerBottom;
     case 'sidebar': return AD_SLOTS.sidebar;
+    case 'ingame_footer': return AD_SLOTS.ingameFooter;
     case 'left': return AD_SLOTS.skyscraperLeft;
     case 'right': return AD_SLOTS.skyscraperRight;
   }

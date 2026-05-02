@@ -5,7 +5,8 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import { ARENA_ENTRANCE_KEYS, ARENA_ENTRANCE_LABELS, type ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 import Button from '../Button.js';
 import AdminPageHeader from './AdminPageHeader.js';
-import KataServerLevelReferenceCard from './KataServerLevelReferenceCard.js';
+import KataServerRuntimeAdminPanel from './KataServerRuntimeAdminPanel.js';
+import type { KataServerRuntimeSnapshot } from '../../shared/types/kataServerRuntime.js';
 import { adminCard, adminCardTitle, adminCheckRow, adminInput, adminPageNarrow, adminSectionGap } from './adminChrome.js';
 
 interface KataGoStatus {
@@ -31,6 +32,7 @@ interface ServerSettingsPanelProps {
     announcements?: Announcement[];
     globalOverrideAnnouncement: OverrideAnnouncement | null;
     announcementInterval?: number;
+    kataServerRuntimeConfig: KataServerRuntimeSnapshot;
     onAction: (action: ServerAction) => void;
     onBack: () => void;
 }
@@ -42,6 +44,7 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
         announcements = [],
         globalOverrideAnnouncement,
         announcementInterval = 10,
+        kataServerRuntimeConfig,
         onAction,
         onBack,
     } = props;
@@ -108,15 +111,44 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
     const allGameModes = useMemo(() => [...SPECIAL_GAME_MODES, ...PLAYFUL_GAME_MODES], []);
     const kataGoRecentLines = kataGoStatus?.log?.recentLines ?? [];
 
-    type ServerSettingsMobileTab = 'modes' | 'lobby' | 'emergency' | 'katago';
-    const [mobileTab, setMobileTab] = useState<ServerSettingsMobileTab>('modes');
+    type ServerSettingsMainTab = 'modes' | 'announcements' | 'kata';
+    const [mainTab, setMainTab] = useState<ServerSettingsMainTab>('modes');
 
-    const mobileTabs: { id: ServerSettingsMobileTab; label: string }[] = [
-        { id: 'modes', label: '모드·입장' },
-        { id: 'lobby', label: '대기실 공지' },
-        { id: 'emergency', label: '긴급 공지' },
-        { id: 'katago', label: 'KataGo' },
+    const mainTabs: { id: ServerSettingsMainTab; label: string }[] = [
+        { id: 'modes', label: '게임 모드 활성화' },
+        { id: 'announcements', label: '공지사항' },
+        { id: 'kata', label: '카타 서버 설정' },
     ];
+
+    const mainTabBar = (
+        <div
+            className="sticky top-0 z-20 -mx-1 mb-4 border-b border-color/40 bg-primary/95 px-1 pb-3 pt-0 backdrop-blur-md lg:static lg:z-auto lg:mx-0 lg:bg-transparent lg:pb-4 lg:pt-0 lg:backdrop-blur-0"
+            role="tablist"
+            aria-label="서버 설정 상위 탭"
+        >
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] lg:flex-wrap lg:overflow-visible">
+                {mainTabs.map((tab) => {
+                    const active = mainTab === tab.id;
+                    return (
+                        <button
+                            key={tab.id}
+                            type="button"
+                            role="tab"
+                            aria-selected={active}
+                            onClick={() => setMainTab(tab.id)}
+                            className={`shrink-0 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
+                                active
+                                    ? 'border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-inner'
+                                    : 'border-color/50 bg-secondary/40 text-gray-400 hover:border-color hover:bg-secondary/60 hover:text-primary'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
+                    );
+                })}
+            </div>
+        </div>
+    );
 
     const modeEntranceCard = (
         <div className={adminCard}>
@@ -341,61 +373,23 @@ const ServerSettingsPanel: React.FC<ServerSettingsPanelProps> = (props) => {
         <div className={`${adminPageNarrow} ${adminSectionGap}`}>
             <AdminPageHeader
                 title="서버 설정"
-                subtitle="대기실 공지, 경기장 입장, 게임 모드, 긴급 공지, KataGo 연동 상태를 관리합니다."
+                subtitle="게임 모드·경기장 입장, 공지사항, KataServer 런타임 및 KataGo 연동을 관리합니다."
                 onBack={onBack}
             />
 
-            {/* 모바일: 탭 + 단일 패널 */}
-            <div className="lg:hidden">
-                <div
-                    className="sticky top-0 z-20 -mx-1 mb-4 border-b border-color/40 bg-primary/95 px-1 pb-3 pt-0 backdrop-blur-md"
-                    role="tablist"
-                    aria-label="서버 설정 구역"
-                >
-                    <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch]">
-                        {mobileTabs.map((tab) => {
-                            const active = mobileTab === tab.id;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    type="button"
-                                    role="tab"
-                                    aria-selected={active}
-                                    onClick={() => setMobileTab(tab.id)}
-                                    className={`shrink-0 rounded-xl border px-3.5 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
-                                        active
-                                            ? 'border-amber-400/50 bg-amber-500/15 text-amber-100 shadow-inner'
-                                            : 'border-color/50 bg-secondary/40 text-gray-400 hover:border-color hover:bg-secondary/60 hover:text-primary'
-                                    }`}
-                                >
-                                    {tab.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                </div>
-                <div className="min-h-[12rem]" role="tabpanel">
-                    {mobileTab === 'modes' && modeEntranceCard}
-                    {mobileTab === 'lobby' && lobbyAnnouncementsCard}
-                    {mobileTab === 'emergency' && emergencyCard}
-                    {mobileTab === 'katago' && (
-                        <div className={adminSectionGap}>
-                            {kataGoCard}
-                            <KataServerLevelReferenceCard />
-                        </div>
-                    )}
-                </div>
-            </div>
+            {mainTabBar}
 
-            {/* 데스크톱: 기존 2열 */}
-            <div className="hidden grid-cols-1 gap-6 lg:grid lg:grid-cols-2 lg:gap-8">
-                <div className={adminSectionGap}>{modeEntranceCard}</div>
-                <div className={adminSectionGap}>
-                    {lobbyAnnouncementsCard}
-                    {emergencyCard}
-                    {kataGoCard}
-                    <KataServerLevelReferenceCard />
-                </div>
+            <div className="min-h-[12rem]" role="tabpanel">
+                {mainTab === 'modes' && modeEntranceCard}
+                {mainTab === 'announcements' && (
+                    <div className={`${adminSectionGap} max-w-3xl`}>
+                        {lobbyAnnouncementsCard}
+                        {emergencyCard}
+                    </div>
+                )}
+                {mainTab === 'kata' && (
+                    <KataServerRuntimeAdminPanel config={kataServerRuntimeConfig} onAction={onAction} kataGoSection={kataGoCard} />
+                )}
             </div>
         </div>
     );

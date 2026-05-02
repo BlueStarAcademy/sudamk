@@ -7,7 +7,7 @@ declare global {
 }
 
 /** 광고 배너 위치 */
-export type AdBannerPosition = 'top' | 'bottom' | 'sidebar' | 'left' | 'right';
+export type AdBannerPosition = 'top' | 'bottom' | 'sidebar' | 'left' | 'right' | 'ingame_footer';
 
 /** 광고 배너 크기 설정 */
 export interface AdBannerSize {

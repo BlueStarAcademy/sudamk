@@ -23,6 +23,7 @@ import {
   resolveAiLobbyProfileStepFromSettings,
   strategicLobbyAiWinXp,
 } from '../shared/utils/strategicAiDifficulty.js';
+import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import * as guildService from './guildService.js';
 import { adventureMonsterGoldLevelMultiplier } from '../constants/adventureConstants.js';
@@ -1501,7 +1502,7 @@ const processPlayerSummary = async (
     }
     // 대기실 AI 대국: 난이도 단계별 보상 — 놀이바둑 AI만 (전략 AI는 위에서 고정)
     if (!isNoContest && isWaitingRoomAiGame(game) && !isGuildWarMatch && !isStrategicLobbyAi) {
-        const step = resolveAiLobbyProfileStepFromSettings(game.settings as any);
+        const step = resolveAiLobbyProfileStepFromSettings(game.settings as any, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
         const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
         xpGain = Math.round(xpGain * tierMul);
     }
@@ -1750,7 +1751,7 @@ const processPlayerSummary = async (
     }
 
     if (!isNoContest && isWaitingRoomAiGame(game) && !isGuildWarMatch && !isStrategicLobbyAi) {
-        const step = resolveAiLobbyProfileStepFromSettings(game.settings as any);
+        const step = resolveAiLobbyProfileStepFromSettings(game.settings as any, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
         const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
         rewards.gold = Math.round(rewards.gold * tierMul);
         if (rewards.adventureGoldUnderstandingBonus != null) {
@@ -2061,7 +2062,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
     /** 펫·2인 페어 AI는 `isAiGame`이 false일 수 있어 `pairMode === 'ai'`로 구분 */
     const pairAiDifficultyMul =
         game.settings?.pairGame?.pairMode === 'ai'
-            ? pairGoAiRewardRelativeToStep3Multiplier(resolveAiLobbyProfileStepFromSettings(game.settings as any))
+            ? pairGoAiRewardRelativeToStep3Multiplier(resolveAiLobbyProfileStepFromSettings(game.settings as any, getKataServerRuntimeSnapshot().strategicLobbyKataByStep))
             : 1;
     const { broadcastUserUpdate } = await import('./socket.js');
     const initialRatingByUserId: Record<string, number> = {};
@@ -2129,6 +2130,14 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
             if (isWinner) pairStats.wins += 1;
             else pairStats.losses += 1;
         }
+        const modeKey = String(game.mode);
+        if (!user.pairArenaStatsByMode) user.pairArenaStatsByMode = {};
+        const pas = user.pairArenaStatsByMode[modeKey] ?? { wins: 0, losses: 0 };
+        if (!isNoContest && !isDraw) {
+            if (isWinner) pas.wins += 1;
+            else pas.losses += 1;
+        }
+        user.pairArenaStatsByMode[modeKey] = pas;
         user.stats[game.mode] = modeStats;
         user.stats['pair'] = pairStats;
 
@@ -2160,7 +2169,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         };
 
         await db.updateUser(user);
-        const fields = ['gold', 'strategyXp', 'strategyLevel', 'stats', 'quests'];
+        const fields = ['gold', 'strategyXp', 'strategyLevel', 'stats', 'quests', 'pairArenaStatsByMode'];
         if (pairPetGrowthSummary) fields.push('inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId');
         broadcastUserUpdate(user, fields);
     }

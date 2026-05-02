@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Button from './Button.js';
 import QuickAccessSidebar, { PC_QUICK_RAIL_COLUMN_CLASS } from './QuickAccessSidebar.js';
 import PlayerList from './waiting-room/PlayerList.js';
 import PairRoomSeatGrid, { type PairSeatMember } from './pair/PairRoomSeatGrid.js';
 import PairRoomChatPanel, { type PairRoomChatScope } from './pair/PairRoomChatPanel.js';
-import type { PairRoomChatLine } from '../types/api.js';
+import PairRoomKickDropZone from './pair/PairRoomKickDropZone.js';
+import type { PairLobbyPetSnapshot, PairRoomChatLine } from '../types/api.js';
+import type { InventoryItem } from '../types.js';
 import PairPetLobbyPanel from './pair/PairPetLobbyPanel.js';
 import PairPartnerInviteModal from './pair/PairPartnerInviteModal.js';
 import PairPetRankedMatchOfferModal from './pair/PairPetRankedMatchOfferModal.js';
@@ -74,7 +76,73 @@ type PairRoom = {
     extraPairMembers?: Array<{ id: string; name: string; ready?: boolean }>;
     /** 서버 목록·브로드캐스트에서 내려주는 유저 착석 수 */
     listOccupiedHumans?: number;
+    pairRoomKickedUserIds?: string[];
+    ownerLobbyPet?: PairLobbyPetSnapshot;
+    opponentLobbyPet?: PairLobbyPetSnapshot;
 };
+
+function lobbySpectatorPetSnapshotToInventoryItem(snap: PairLobbyPetSnapshot): InventoryItem | null {
+    const tid = snap.templateId;
+    const meta = snap.pairPetMeta;
+    const grade = snap.grade;
+    if (!tid || !meta || grade === undefined) return null;
+    const def = getPairPetDefinition(tid);
+    const image = snap.image ?? def?.image ?? '';
+    return {
+        id: `pair-lobby-spectator-${tid}-${snap.displayName}`,
+        name: snap.displayName,
+        description: def?.description ?? '',
+        type: 'material',
+        slot: null,
+        quantity: 1,
+        level: 1,
+        isEquipped: false,
+        createdAt: Date.now(),
+        image,
+        grade,
+        stars: 0,
+        templateId: tid,
+        pairPetMeta: meta,
+    };
+}
+
+function mergePairSeatRowPetPortraits(params: {
+    room: PairRoom;
+    members: Array<{ id: string; name: string; kind: string; ready?: boolean }>;
+    currentUserId: string;
+    viewerPortrait: string | null;
+    viewerPetDisplayName: string | null;
+    viewerPetName: string | null;
+    viewerPetLevel: number | null;
+}): PairSeatMember[] {
+    const { room, members, currentUserId, viewerPortrait, viewerPetDisplayName, viewerPetName, viewerPetLevel } = params;
+    const ownerId = room.ownerId;
+    const oppHumanId = room.extraPairMembers?.[0]?.id;
+    return members.map((m) => {
+        const base: PairSeatMember = { id: m.id, name: m.name, kind: m.kind, ready: m.ready };
+        if (!m.id.startsWith('pet-ai-')) return base;
+        const petOwnerUserId = m.id.slice('pet-ai-'.length);
+        if (petOwnerUserId === currentUserId) {
+            if (!viewerPetName && !viewerPortrait) return base;
+            const label =
+                viewerPetDisplayName ??
+                (viewerPetLevel != null ? `Lv.${viewerPetLevel} ${viewerPetName || '내 펫'}` : viewerPetName || m.name);
+            return {
+                ...base,
+                name: label,
+                subLabel: '장착 펫',
+                portraitSrc: viewerPortrait,
+            };
+        }
+        if (petOwnerUserId === ownerId && room.ownerLobbyPet?.image) {
+            return { ...base, portraitSrc: room.ownerLobbyPet.image, subLabel: '장착 펫' };
+        }
+        if (oppHumanId && petOwnerUserId === oppHumanId && room.opponentLobbyPet?.image) {
+            return { ...base, portraitSrc: room.opponentLobbyPet.image, subLabel: '장착 펫' };
+        }
+        return base;
+    });
+}
 
 const ROOM_KIND_OPTIONS: { value: RoomKind; label: string; hint: string }[] = [
     { value: 'friendly_4p', label: '4인 친선', hint: '2:2 친선 페어 (매칭 시작은 준비 중일 수 있음)' },
@@ -91,6 +159,15 @@ const PAIR_ROOM_INTERIOR_TEAM_BOX =
     'rounded-xl border border-violet-400/26 bg-black/45 p-2 shadow-inner ring-1 ring-violet-500/[0.08]';
 const PAIR_ROOM_INTERIOR_ACTION_BAR =
     'grid shrink-0 gap-2 rounded-2xl border border-violet-400/32 bg-gradient-to-r from-violet-950/60 via-indigo-950/45 to-zinc-950/85 p-2 ring-1 ring-violet-500/18';
+
+/** 모바일: 방 내부 카드·슬롯·하단 버튼을 한 화면에 더 많이 */
+const PAIR_ROOM_INTERIOR_SHELL_HANDHELD =
+    'rounded-xl border border-violet-400/38 bg-gradient-to-br from-violet-950/90 via-indigo-950/[0.78] to-zinc-950 ' +
+    'p-2 shadow-[0_0_40px_-12px_rgba(139,92,246,0.42),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-violet-500/22';
+const PAIR_ROOM_INTERIOR_TEAM_BOX_HANDHELD =
+    'rounded-lg border border-violet-400/26 bg-black/45 p-1.5 shadow-inner ring-1 ring-violet-500/[0.08]';
+const PAIR_ROOM_INTERIOR_ACTION_BAR_HANDHELD =
+    'grid shrink-0 gap-1 rounded-xl border border-violet-400/32 bg-gradient-to-r from-violet-950/60 via-indigo-950/45 to-zinc-950/85 p-1.5 ring-1 ring-violet-500/18';
 
 function roomKindLabel(kind: RoomKind | undefined): string {
     if (!kind) return '';
@@ -142,6 +219,23 @@ function memberKindIsUser(kind: string | undefined): boolean {
     return String(kind || '').toLowerCase() === 'user';
 }
 
+/** 인게임 세션의 pairGame.roomId가 이 방과 같은 껍데기 경기인지(랭크 병합 방은 `pair-ranked-a-b` 형태) */
+function pairShellGameRoomIdMatchesMyRoom(shellRoomId: unknown, myRoomId: string): boolean {
+    if (typeof shellRoomId !== 'string' || !myRoomId) return false;
+    if (shellRoomId === myRoomId) return true;
+    if (shellRoomId.startsWith('pair-ranked-') && shellRoomId.includes(myRoomId)) return true;
+    return false;
+}
+
+/** 서버 `leavePairWaitingRoomIfPresent`와 동일 기준 — owner/partner/extra 외에 팀 멤버에만 있어도 방 소속 */
+function userInPairRoomClient(room: PairRoom, userId: string): boolean {
+    if (!userId) return false;
+    if (room.ownerId === userId || room.partnerId === userId) return true;
+    if ((room.extraPairMembers ?? []).some((m) => m.id === userId)) return true;
+    const members = [...(room.teamA?.members ?? []), ...(room.teamB?.members ?? [])];
+    return members.some((m) => memberKindIsUser(m.kind) && m.id === userId);
+}
+
 function countHumanUsersInPairRoom(room: PairRoom): number {
     const members = [...(room.teamA?.members ?? []), ...(room.teamB?.members ?? [])];
     const userMembers = members.filter((m) => memberKindIsUser(m.kind));
@@ -183,6 +277,7 @@ const PairWaitingLobby: React.FC = () => {
         onlineUsers,
         handlers,
         pairRooms,
+        liveGames,
         pairRoomChatByRoomId,
         negotiations,
         pairInviteCooldownUntilByInviteeId,
@@ -204,10 +299,30 @@ const PairWaitingLobby: React.FC = () => {
     const [partnerInviteTargetSlot, setPartnerInviteTargetSlot] = useState<{ team: 'teamA' | 'teamB'; index: 0 | 1 } | null>(null);
     const [pairMatchSettingsModalOpen, setPairMatchSettingsModalOpen] = useState(false);
     const [pairAiChallengeModalOpen, setPairAiChallengeModalOpen] = useState(false);
+    const [kickConfirmModal, setKickConfirmModal] = useState<{ userId: string; userName: string } | null>(null);
+    const [kickConfirmBusy, setKickConfirmBusy] = useState(false);
     const [localInviteCooldownUntilByInviteeId, setLocalInviteCooldownUntilByInviteeId] = useState<Record<string, number>>({});
     const [cooldownUiTick, setCooldownUiTick] = useState(0);
     /** 뒤로가기 등으로 해시가 바뀐 뒤 복귀시킬 목적지(방 퇴장 확인용) */
     const [pairLeaveNavTargetHash, setPairLeaveNavTargetHash] = useState<string | null>(null);
+    const handleActionRef = useRef(handlers.handleAction);
+    const pairLobbyPresenceClientIdRef = useRef<string | null>(null);
+    /** handleAction 직후 `hashchange`가 리렌더보다 먼저 오는 경우 — 페어 껍데기 경기장 입장은 가로채지 않음 */
+    const pairShellGameNavAllowIdRef = useRef<string | null>(null);
+
+    const getPairLobbyPresenceClientId = () => {
+        if (!pairLobbyPresenceClientIdRef.current) {
+            pairLobbyPresenceClientIdRef.current =
+                typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+                    ? crypto.randomUUID()
+                    : `pair-lobby-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        }
+        return pairLobbyPresenceClientIdRef.current;
+    };
+
+    useEffect(() => {
+        handleActionRef.current = handlers.handleAction;
+    }, [handlers.handleAction]);
 
     useEffect(() => {
         const id = window.setInterval(() => setCooldownUiTick((t) => t + 1), 500);
@@ -215,16 +330,27 @@ const PairWaitingLobby: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        handlers.handleAction({ type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: true } }).catch(() => undefined);
+        const clientId = getPairLobbyPresenceClientId();
+        const markActive = () =>
+            handleActionRef.current({
+                type: 'PAIR_SET_LOBBY_SCREEN',
+                payload: { active: true, clientId },
+            }).catch(() => undefined);
+        markActive();
+        const heartbeatId = window.setInterval(markActive, 15000);
         return () => {
-            handlers.handleAction({ type: 'PAIR_SET_LOBBY_SCREEN', payload: { active: false } }).catch(() => undefined);
+            window.clearInterval(heartbeatId);
+            handleActionRef.current({
+                type: 'PAIR_SET_LOBBY_SCREEN',
+                payload: { active: false, clientId },
+            }).catch(() => undefined);
         };
-    }, [handlers]);
+    }, []);
 
     useEffect(() => {
-        handlers.handleAction({ type: 'PAIR_SYNC' }).catch(() => undefined);
-        handlers.handleAction({ type: 'FRIEND_SYNC' }).catch(() => undefined);
-    }, [handlers]);
+        handleActionRef.current({ type: 'PAIR_SYNC' }).catch(() => undefined);
+        handleActionRef.current({ type: 'FRIEND_SYNC' }).catch(() => undefined);
+    }, []);
 
     const mergedInviteCooldownUntilByInviteeId = useMemo(
         () => ({ ...pairInviteCooldownUntilByInviteeId, ...localInviteCooldownUntilByInviteeId }),
@@ -240,7 +366,10 @@ const PairWaitingLobby: React.FC = () => {
         const matched =
             rankedMatchFound.player1?.id === currentUserId ||
             rankedMatchFound.player2?.id === currentUserId;
-        if (matched) replaceAppHash(`/game/${rankedMatchFound.gameId}`);
+        if (matched) {
+            pairShellGameNavAllowIdRef.current = rankedMatchFound.gameId;
+            replaceAppHash(`/game/${rankedMatchFound.gameId}`);
+        }
     }, [rankedMatchFound, currentUserId]);
 
     const pairRoomCodeSortKey = (code: string): number => {
@@ -260,13 +389,7 @@ const PairWaitingLobby: React.FC = () => {
     );
     /** 경기 중(in_game) 껍데기 방도 소속 방으로 인정 — 인게임에서 복귀 시 같은 방 UI·중복 입장 방지 유지 */
     const myRoom = useMemo(
-        () =>
-            rooms.find(
-                (r) =>
-                    r.ownerId === currentUserId ||
-                    r.partnerId === currentUserId ||
-                    (r.extraPairMembers ?? []).some((m) => m.id === currentUserId),
-            ) || null,
+        () => rooms.find((r) => userInPairRoomClient(r, currentUserId)) || null,
         [rooms, currentUserId],
     );
     /** 방에 참여 중이어도 전체 방 목록에는 그대로 표시한다. (입장 버튼만 비활성 조건으로 제어) */
@@ -291,6 +414,19 @@ const PairWaitingLobby: React.FC = () => {
         return () => window.clearInterval(id);
     }, [isPairRoomMatching, matchQueuedAt]);
 
+    const myRoomRef = useRef(myRoom);
+    const liveGamesRef = useRef(liveGames);
+    const currentUserWithStatusRef = useRef(currentUserWithStatus);
+    useEffect(() => {
+        myRoomRef.current = myRoom;
+    }, [myRoom]);
+    useEffect(() => {
+        liveGamesRef.current = liveGames;
+    }, [liveGames]);
+    useEffect(() => {
+        currentUserWithStatusRef.current = currentUserWithStatus;
+    }, [currentUserWithStatus]);
+
     useEffect(() => {
         if (!myRoom) {
             setPairLeaveNavTargetHash(null);
@@ -300,6 +436,24 @@ const PairWaitingLobby: React.FC = () => {
         const onHashOrPop = () => {
             const h = window.location.hash || '';
             if (!h || h === pairHash) return;
+            const room = myRoomRef.current;
+            if (!room) return;
+
+            const gameHashMatch = /^#\/game\/([^/?#]+)/.exec(h);
+            if (gameHashMatch) {
+                const gid = gameHashMatch[1];
+                if (pairShellGameNavAllowIdRef.current === gid) {
+                    pairShellGameNavAllowIdRef.current = null;
+                    return;
+                }
+                if (room.phase === 'in_game') return;
+                const viewer = currentUserWithStatusRef.current;
+                if (viewer?.gameId && viewer.gameId === gid) return;
+                const lg = (liveGamesRef.current as Record<string, { settings?: { pairGame?: { roomId?: string } } }> | undefined)?.[gid];
+                const shellRoomId = lg?.settings?.pairGame?.roomId;
+                if (pairShellGameRoomIdMatchesMyRoom(shellRoomId, room.id)) return;
+            }
+
             setPairLeaveNavTargetHash(h);
             replaceAppHash(pairHash);
         };
@@ -352,7 +506,10 @@ const PairWaitingLobby: React.FC = () => {
             const error = (result as any)?.error;
             if (error) return window.alert(error);
             const gameId = (result as any)?.gameId || (result as any)?.clientResponse?.gameId;
-            if (gameId) window.location.hash = `#/game/${gameId}`;
+            if (gameId) {
+                pairShellGameNavAllowIdRef.current = gameId;
+                window.location.hash = `#/game/${gameId}`;
+            }
             return result;
         } finally {
             setIsBusy(false);
@@ -391,7 +548,10 @@ const PairWaitingLobby: React.FC = () => {
                 return;
             }
             const gameId = (result as any)?.gameId || (result as any)?.clientResponse?.gameId;
-            if (gameId) window.location.hash = `#/game/${gameId}`;
+            if (gameId) {
+                pairShellGameNavAllowIdRef.current = gameId;
+                window.location.hash = `#/game/${gameId}`;
+            }
             setCreateRoomModalOpen(false);
         } finally {
             setIsBusy(false);
@@ -445,7 +605,10 @@ const PairWaitingLobby: React.FC = () => {
                 return;
             }
             const gameId = (result as any)?.gameId || (result as any)?.clientResponse?.gameId;
-            if (gameId) window.location.hash = `#/game/${gameId}`;
+            if (gameId) {
+                pairShellGameNavAllowIdRef.current = gameId;
+                window.location.hash = `#/game/${gameId}`;
+            }
         } finally {
             setIsBusy(false);
         }
@@ -494,7 +657,10 @@ const PairWaitingLobby: React.FC = () => {
                 return;
             }
             const gameId = (result as any)?.gameId || (result as any)?.clientResponse?.gameId;
-            if (gameId) window.location.hash = `#/game/${gameId}`;
+            if (gameId) {
+                pairShellGameNavAllowIdRef.current = gameId;
+                window.location.hash = `#/game/${gameId}`;
+            }
             setJoinPasswordModal(null);
             setJoinPasswordDraft('');
         } finally {
@@ -502,7 +668,11 @@ const PairWaitingLobby: React.FC = () => {
         }
     };
 
-    const leaveRoom = async () => applyAction({ type: 'PAIR_LEAVE_ROOM' });
+    const leaveRoom = async () => {
+        const result = await applyAction({ type: 'PAIR_LEAVE_ROOM' });
+        if (result && (result as { error?: string }).error) return;
+        await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
+    };
     const cancelPairPetMatching = async () => applyAction({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' } as ServerAction);
     const respondPairPetRankedMatch = async (accept: boolean) => {
         const p = myRoom?.pairRankedPetProposal;
@@ -525,6 +695,7 @@ const PairWaitingLobby: React.FC = () => {
                 window.alert(error);
                 return;
             }
+            await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
             window.location.hash = dest.startsWith('#') ? dest : `#${dest}`;
         } finally {
             setIsBusy(false);
@@ -662,32 +833,39 @@ const PairWaitingLobby: React.FC = () => {
 
     const seatTeamAMembers = useMemo((): PairSeatMember[] | undefined => {
         if (!myRoom?.teamA?.members?.length) return undefined;
-        return myRoom.teamA.members.map((m) => ({
-            id: m.id,
-            name: m.name,
-            kind: m.kind,
-            ready: m.ready,
-            ...(m.id === `pet-ai-${currentUserId}` && viewerEquippedPairPetInfo.name
-                ? {
-                      name: viewerEquippedPairPetInfo.displayName ?? viewerEquippedPairPetInfo.name,
-                      subLabel: '장착 펫',
-                      portraitSrc: viewerEquippedPairPetPortraitSrc,
-                  }
-                : {}),
-        }));
-    }, [currentUserId, myRoom?.id, myRoom?.teamA?.members, viewerEquippedPairPetInfo, viewerEquippedPairPetPortraitSrc]);
+        return mergePairSeatRowPetPortraits({
+            room: myRoom,
+            members: myRoom.teamA.members,
+            currentUserId,
+            viewerPortrait: viewerEquippedPairPetPortraitSrc,
+            viewerPetDisplayName: viewerEquippedPairPetInfo.displayName,
+            viewerPetName: viewerEquippedPairPetInfo.name,
+            viewerPetLevel: viewerEquippedPairPetInfo.level,
+        });
+    }, [
+        currentUserId,
+        myRoom,
+        myRoom?.teamA?.members,
+        myRoom?.ownerLobbyPet,
+        myRoom?.opponentLobbyPet,
+        myRoom?.extraPairMembers,
+        viewerEquippedPairPetInfo,
+        viewerEquippedPairPetPortraitSrc,
+    ]);
 
     const seatTeamBMembers = useMemo((): PairSeatMember[] | undefined => {
-        if (myRoom?.roomKind === 'ai_duel') {
-            const opponent = myRoom.extraPairMembers?.[0];
-            return opponent
-                ? [
-                      { id: opponent.id, name: opponent.name, kind: 'user', ready: opponent.ready },
-                      { id: `pet-ai-${opponent.id}`, name: `${opponent.name}의 펫`, kind: 'pet', ready: true },
-                  ]
-                : undefined;
-        }
         if (!myRoom?.teamB?.members?.length) return undefined;
+        if (myRoom.roomKind === 'ai_duel') {
+            return mergePairSeatRowPetPortraits({
+                room: myRoom,
+                members: myRoom.teamB.members,
+                currentUserId,
+                viewerPortrait: viewerEquippedPairPetPortraitSrc,
+                viewerPetDisplayName: viewerEquippedPairPetInfo.displayName,
+                viewerPetName: viewerEquippedPairPetInfo.name,
+                viewerPetLevel: viewerEquippedPairPetInfo.level,
+            });
+        }
         return myRoom.teamB.members
             .filter((m) => !String(m.id).startsWith('pair-opponent-'))
             .map((m) => ({
@@ -696,7 +874,51 @@ const PairWaitingLobby: React.FC = () => {
                 kind: m.kind,
                 ready: m.ready,
             }));
-    }, [myRoom?.id, myRoom?.roomKind, myRoom?.extraPairMembers, myRoom?.teamB?.members]);
+    }, [
+        currentUserId,
+        myRoom,
+        myRoom?.roomKind,
+        myRoom?.teamB?.members,
+        myRoom?.ownerLobbyPet,
+        myRoom?.opponentLobbyPet,
+        myRoom?.extraPairMembers,
+        viewerEquippedPairPetInfo,
+        viewerEquippedPairPetPortraitSrc,
+    ]);
+
+    const resolveKickTargetDisplayName = (userId: string): string => {
+        if (!myRoom) return '유저';
+        if (myRoom.ownerId === userId) return myRoom.ownerName;
+        if (myRoom.partnerId === userId) return myRoom.partnerName || '유저';
+        const ex = myRoom.extraPairMembers?.find((m) => m.id === userId);
+        if (ex) return ex.name;
+        for (const row of [...(seatTeamAMembers ?? []), ...(seatTeamBMembers ?? [])]) {
+            if (row.id === userId) return row.name;
+        }
+        return '유저';
+    };
+
+    const handleKickSlotUserDropped = (userId: string) => {
+        if (!myRoom || myRoom.ownerId !== currentUserId) return;
+        if (!userId || userId === currentUserId || userId.startsWith('pet-ai-')) return;
+        setKickConfirmModal({ userId, userName: resolveKickTargetDisplayName(userId) });
+    };
+
+    const confirmKickFromModal = async () => {
+        if (!kickConfirmModal || !myRoom || myRoom.ownerId !== currentUserId) return;
+        setKickConfirmBusy(true);
+        try {
+            const result = await handlers.handleAction({
+                type: 'PAIR_KICK_ROOM_MEMBER',
+                payload: { roomId: myRoom.id, targetUserId: kickConfirmModal.userId },
+            } as ServerAction);
+            const error = (result as { error?: string } | undefined)?.error;
+            if (error) window.alert(error);
+        } finally {
+            setKickConfirmModal(null);
+            setKickConfirmBusy(false);
+        }
+    };
 
     const openViewerEquippedPairPetDetail = useCallback(() => {
         const u = currentUserWithStatus;
@@ -704,6 +926,22 @@ const PairWaitingLobby: React.FC = () => {
         const row = getEquippedPairPetInventoryRow(u);
         if (row) handlers.openPairPetDetailModal(row, 'view');
     }, [currentUserWithStatus, handlers]);
+
+    const openLobbySpectatorPairPetDetail = useCallback(
+        (petAiParticipantId: string) => {
+            if (!myRoom || !petAiParticipantId.startsWith('pet-ai-')) return;
+            const petOwnerUserId = petAiParticipantId.slice('pet-ai-'.length);
+            const snap =
+                petOwnerUserId === myRoom.ownerId
+                    ? myRoom.ownerLobbyPet
+                    : petOwnerUserId === myRoom.extraPairMembers?.[0]?.id
+                      ? myRoom.opponentLobbyPet
+                      : undefined;
+            const item = snap ? lobbySpectatorPetSnapshotToInventoryItem(snap) : null;
+            if (item) handlers.openPairPetDetailModal(item, 'view');
+        },
+        [handlers, myRoom],
+    );
 
     const userListPanel = (
         <>
@@ -736,7 +974,9 @@ const PairWaitingLobby: React.FC = () => {
             <div
                 className={`rounded-xl border border-dashed border-white/15 bg-black/20 p-2 ${
                     myRoom
-                        ? 'max-h-[min(38dvh,240px)] overflow-y-auto sm:max-h-[min(44dvh,320px)]'
+                        ? isHandheld
+                            ? 'max-h-[min(26dvh,180px)] overflow-y-auto sm:max-h-[min(44dvh,320px)]'
+                            : 'max-h-[min(38dvh,240px)] overflow-y-auto sm:max-h-[min(44dvh,320px)]'
                         : 'min-h-0 flex-1 overflow-y-auto'
                 }`}
             >
@@ -887,26 +1127,36 @@ const PairWaitingLobby: React.FC = () => {
                     <div className={waitingLobbyPcPanelTopHairlineClassFor(lobbyTone)} aria-hidden />
                     {myRoom ? (
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                            <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
-                                <div className={`flex shrink-0 flex-col gap-3 ${PAIR_ROOM_INTERIOR_SHELL}`}>
-                            <div className={`flex flex-col gap-2 ${PAIR_ROOM_INTERIOR_HEADER_RULE}`}>
+                            <div
+                                className={`flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] ${isHandheld ? 'gap-1.5' : 'gap-2'}`}
+                            >
                                 <div
-                                    className={`flex w-full flex-nowrap items-center justify-between gap-x-2 ${
-                                        isPairPetRoom ? 'min-h-[3.5rem] sm:min-h-16' : ''
+                                    className={`flex shrink-0 flex-col ${isHandheld ? 'gap-2' : 'gap-3'} ${isHandheld ? PAIR_ROOM_INTERIOR_SHELL_HANDHELD : PAIR_ROOM_INTERIOR_SHELL}`}
+                                >
+                            <div
+                                className={`flex flex-col ${isHandheld ? 'gap-1.5 border-b border-violet-400/22 pb-2' : `gap-2 ${PAIR_ROOM_INTERIOR_HEADER_RULE}`}`}
+                            >
+                                <div
+                                    className={`flex w-full flex-nowrap items-center justify-between gap-x-1.5 sm:gap-x-2 ${
+                                        isPairPetRoom ? (isHandheld ? 'min-h-0' : 'min-h-[3.5rem] sm:min-h-16') : ''
                                     }`}
                                 >
-                                    <div className="flex min-h-0 min-w-0 flex-1 flex-nowrap items-center gap-x-2 overflow-hidden">
-                                        <span className="shrink-0 font-mono text-sm font-extrabold tabular-nums text-amber-200/95 drop-shadow-[0_0_10px_rgba(251,191,36,0.18)]">
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-nowrap items-center gap-x-1.5 overflow-hidden sm:gap-x-2">
+                                        <span
+                                            className={`shrink-0 font-mono font-extrabold tabular-nums text-amber-200/95 drop-shadow-[0_0_10px_rgba(251,191,36,0.18)] ${isHandheld ? 'text-[11px]' : 'text-sm'}`}
+                                        >
                                             #{myRoom.code}
                                         </span>
                                         <span
-                                            className="min-w-0 truncate bg-gradient-to-r from-violet-50 to-indigo-100 bg-clip-text text-sm font-extrabold text-transparent"
+                                            className={`min-w-0 truncate bg-gradient-to-r from-violet-50 to-indigo-100 bg-clip-text font-extrabold text-transparent ${isHandheld ? 'text-[11px]' : 'text-sm'}`}
                                             title={myRoom.title}
                                         >
                                             {myRoom.title}
                                         </span>
                                         <span
-                                            className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-extrabold sm:text-xs ${
+                                            className={`shrink-0 rounded-md border font-extrabold sm:rounded-lg ${
+                                                isHandheld ? 'px-1.5 py-0.5 text-[10px]' : 'px-2 py-1 text-[11px] sm:text-xs'
+                                            } ${
                                                 myRoom.visibility === 'private'
                                                     ? 'border-violet-400/45 bg-violet-950/55 text-violet-100'
                                                     : 'border-emerald-400/40 bg-emerald-950/45 text-emerald-100'
@@ -918,7 +1168,9 @@ const PairWaitingLobby: React.FC = () => {
                                     </div>
                                     {isPairPetRoom ? (
                                         <div
-                                            className={`pointer-events-none flex shrink-0 items-center gap-2 rounded-xl border-2 px-2.5 py-1.5 sm:gap-2.5 sm:px-3 sm:py-2 ${
+                                            className={`pointer-events-none flex shrink-0 items-center rounded-lg border-2 sm:rounded-xl ${
+                                                isHandheld ? 'gap-1.5 px-2 py-1' : 'gap-2 rounded-xl px-2.5 py-1.5 sm:gap-2.5 sm:px-3 sm:py-2'
+                                            } ${
                                                 isPairRoomMatching
                                                     ? 'pointer-events-auto border-yellow-500/55 bg-gradient-to-br from-yellow-900/45 via-amber-900/35 to-yellow-900/45 shadow-[0_4px_20px_rgba(234,179,8,0.25)]'
                                                     : 'border-transparent bg-transparent shadow-none'
@@ -927,25 +1179,31 @@ const PairWaitingLobby: React.FC = () => {
                                         >
                                             {isPairRoomMatching ? (
                                                 <>
-                                                    <div className="relative h-9 w-9 shrink-0 sm:h-10 sm:w-10">
-                                                        <div className="absolute inset-0 rounded-full border-[3px] border-yellow-400 border-t-transparent animate-spin sm:border-4" />
+                                                    <div className={`relative shrink-0 ${isHandheld ? 'h-7 w-7' : 'h-9 w-9 sm:h-10 sm:w-10'}`}>
                                                         <div
-                                                            className="absolute inset-1.5 rounded-full border-[3px] border-amber-400 border-t-transparent animate-spin sm:inset-2 sm:border-4"
+                                                            className={`absolute inset-0 rounded-full border-yellow-400 border-t-transparent animate-spin ${isHandheld ? 'border-2' : 'border-[3px] sm:border-4'}`}
+                                                        />
+                                                        <div
+                                                            className={`absolute rounded-full border-amber-400 border-t-transparent animate-spin ${isHandheld ? 'inset-1 border-2' : 'inset-1.5 border-[3px] sm:inset-2 sm:border-4'}`}
                                                             style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
                                                         />
                                                     </div>
                                                     <div className="min-w-0 text-right">
-                                                        <p className="text-[10px] font-extrabold uppercase tracking-wide text-yellow-200/95 sm:text-xs">
+                                                        <p
+                                                            className={`font-extrabold uppercase tracking-wide text-yellow-200/95 ${isHandheld ? 'text-[9px]' : 'text-[10px] sm:text-xs'}`}
+                                                        >
                                                             매칭중
                                                         </p>
-                                                        <p className="font-mono text-xs font-bold tabular-nums text-yellow-50 sm:text-sm">
+                                                        <p
+                                                            className={`font-mono font-bold tabular-nums text-yellow-50 ${isHandheld ? 'text-[10px]' : 'text-xs sm:text-sm'}`}
+                                                        >
                                                             {formatElapsedHhMmSs(matchElapsedSec)}
                                                         </p>
                                                     </div>
                                                 </>
                                             ) : (
                                                 <div className="flex items-center gap-2 opacity-0" aria-hidden>
-                                                    <div className="relative h-9 w-9 shrink-0 sm:h-10 sm:w-10" />
+                                                    <div className={`relative shrink-0 ${isHandheld ? 'h-7 w-7' : 'h-9 w-9 sm:h-10 sm:w-10'}`} />
                                                     <div className="min-w-0 text-right">
                                                         <p className="text-[10px] font-extrabold uppercase tracking-wide sm:text-xs">매칭중</p>
                                                         <p className="font-mono text-xs font-bold tabular-nums sm:text-sm">00:00:00</p>
@@ -955,7 +1213,7 @@ const PairWaitingLobby: React.FC = () => {
                                         </div>
                                     ) : null}
                                 </div>
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className={`flex flex-wrap ${isHandheld ? 'gap-1' : 'gap-1.5'}`}>
                                     {ROOM_KIND_OPTIONS.map((o) => {
                                         const isCurrent = myRoom.roomKind === o.value;
                                         const blockDuoOrPet =
@@ -984,7 +1242,9 @@ const PairWaitingLobby: React.FC = () => {
                                                 disabled={disabled}
                                                 title={!isOwner ? undefined : hintTitle}
                                                 onClick={() => void applyRoomKindNow(o.value)}
-                                                className={`min-w-0 shrink-0 rounded-lg border px-2.5 py-1.5 text-[11px] font-extrabold transition sm:px-3 sm:text-xs ${
+                                                className={`min-w-0 shrink-0 rounded-md border font-extrabold transition sm:rounded-lg ${
+                                                    isHandheld ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1.5 text-[11px] sm:px-3 sm:text-xs'
+                                                } ${
                                                     isCurrent
                                                         ? 'border-amber-400/75 bg-amber-950/60 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_0_20px_-8px_rgba(251,191,36,0.25)]'
                                                         : 'border-violet-400/22 bg-violet-950/35 text-violet-100/90 hover:border-violet-300/48 hover:bg-violet-900/40 hover:text-white'
@@ -996,8 +1256,9 @@ const PairWaitingLobby: React.FC = () => {
                                     })}
                                 </div>
                             </div>
-                            <div className={`min-h-0 shrink-0 ${PAIR_ROOM_INTERIOR_TEAM_BOX}`}>
+                            <div className={`min-h-0 shrink-0 ${isHandheld ? PAIR_ROOM_INTERIOR_TEAM_BOX_HANDHELD : PAIR_ROOM_INTERIOR_TEAM_BOX}`}>
                                 <PairRoomSeatGrid
+                                    compact={isHandheld}
                                     roomKind={myRoom.roomKind}
                                     ownerId={myRoom.ownerId}
                                     ownerName={myRoom.ownerName}
@@ -1016,6 +1277,7 @@ const PairWaitingLobby: React.FC = () => {
                                         handlers.openViewingUser(userId);
                                     }}
                                     onViewOwnerEquippedPetDetail={openViewerEquippedPairPetDetail}
+                                    onViewOtherSeatPetDetail={myRoom.roomKind === 'ai_duel' ? openLobbySpectatorPairPetDetail : undefined}
                                     onInvitePartnerSlot={
                                         isOwner && myRoom.roomKind === 'duo_match'
                                             ? () => {
@@ -1047,30 +1309,44 @@ const PairWaitingLobby: React.FC = () => {
                                               }
                                             : undefined
                                     }
+                                    enableOwnerKickSeatDrag={isOwner}
                                 />
                             </div>
-                            <div className="min-h-0 shrink-0">
-                                <PairRoomChatPanel
-                                    roomId={myRoom.id}
-                                    messages={pairRoomChatByRoomId[myRoom.id] || []}
-                                    currentUserId={currentUserId}
+                            <div
+                                className={`flex min-h-0 shrink-0 min-w-0 flex-col gap-2 ${isHandheld ? '' : 'sm:flex-row sm:items-stretch sm:gap-2'}`}
+                            >
+                                <div className={`min-h-0 min-w-0 ${isHandheld ? 'w-full shrink-0' : 'shrink-0 sm:flex-1 sm:min-w-0'}`}>
+                                    <PairRoomChatPanel
+                                        roomId={myRoom.id}
+                                        messages={pairRoomChatByRoomId[myRoom.id] || []}
+                                        currentUserId={currentUserId}
+                                        disabled={isBusy}
+                                        variant="interior"
+                                        compact={isHandheld}
+                                        onSend={sendPairRoomChat}
+                                    />
+                                </div>
+                                <PairRoomKickDropZone
+                                    visible={isOwner}
                                     disabled={isBusy}
-                                    variant="interior"
-                                    onSend={sendPairRoomChat}
+                                    compact={isHandheld}
+                                    onUserDropped={handleKickSlotUserDropped}
                                 />
                             </div>
                         </div>
                                 {pairLobbyRoomListBlock}
                             </div>
                             <div
-                                className={`${PAIR_ROOM_INTERIOR_ACTION_BAR} shrink-0 ${roomActionGridClass} mt-2 pb-[max(0px,env(safe-area-inset-bottom))]`}
+                                className={`${isHandheld ? PAIR_ROOM_INTERIOR_ACTION_BAR_HANDHELD : PAIR_ROOM_INTERIOR_ACTION_BAR} shrink-0 ${roomActionGridClass} mt-2 pb-[max(0px,env(safe-area-inset-bottom))]`}
                             >
                                 {showReadyButton && (
                                     <button
                                         type="button"
                                         disabled={isBusy}
                                         onClick={() => setReady(!currentUserPairReady)}
-                                        className="rounded-xl border border-emerald-400/50 bg-emerald-950/55 px-3 py-2 text-sm font-extrabold text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-emerald-300/55 hover:bg-emerald-900/50 disabled:pointer-events-none disabled:opacity-45"
+                                        className={`border border-emerald-400/50 bg-emerald-950/55 font-extrabold text-emerald-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-emerald-300/55 hover:bg-emerald-900/50 disabled:pointer-events-none disabled:opacity-45 ${
+                                            isHandheld ? 'rounded-lg px-2 py-1.5 text-[11px] leading-tight' : 'rounded-xl px-3 py-2 text-sm'
+                                        }`}
                                     >
                                         준비
                                     </button>
@@ -1080,7 +1356,9 @@ const PairWaitingLobby: React.FC = () => {
                                         type="button"
                                         disabled={isBusy}
                                         onClick={() => void cancelPairPetMatching()}
-                                        className="rounded-xl border border-rose-400/50 bg-rose-950/55 px-3 py-2 text-sm font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-rose-300/55 hover:bg-rose-900/50 disabled:pointer-events-none disabled:opacity-45"
+                                        className={`border border-rose-400/50 bg-rose-950/55 font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-rose-300/55 hover:bg-rose-900/50 disabled:pointer-events-none disabled:opacity-45 ${
+                                            isHandheld ? 'rounded-lg px-2 py-1.5 text-[11px] leading-tight' : 'rounded-xl px-3 py-2 text-sm'
+                                        }`}
                                     >
                                         매칭 취소
                                     </button>
@@ -1089,7 +1367,9 @@ const PairWaitingLobby: React.FC = () => {
                                         type="button"
                                         disabled={isBusy || !canStart}
                                         onClick={startMatch}
-                                        className="rounded-xl border border-indigo-400/50 bg-indigo-950/55 px-3 py-2 text-sm font-extrabold text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-indigo-300/55 hover:bg-indigo-900/50 disabled:pointer-events-none disabled:opacity-45"
+                                        className={`border border-indigo-400/50 bg-indigo-950/55 font-extrabold text-indigo-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-indigo-300/55 hover:bg-indigo-900/50 disabled:pointer-events-none disabled:opacity-45 ${
+                                            isHandheld ? 'rounded-lg px-2 py-1.5 text-[11px] leading-tight' : 'rounded-xl px-3 py-2 text-sm'
+                                        }`}
                                     >
                                         매칭 시작
                                     </button>
@@ -1099,7 +1379,9 @@ const PairWaitingLobby: React.FC = () => {
                                         type="button"
                                         disabled={isBusy || !canStartAiMatch}
                                         onClick={openPairAiMatchSettings}
-                                        className="rounded-xl border border-fuchsia-400/50 bg-fuchsia-950/55 px-3 py-2 text-sm font-extrabold text-fuchsia-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-fuchsia-300/55 hover:bg-fuchsia-900/50 disabled:pointer-events-none disabled:opacity-45"
+                                        className={`border border-fuchsia-400/50 bg-fuchsia-950/55 font-extrabold text-fuchsia-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition hover:border-fuchsia-300/55 hover:bg-fuchsia-900/50 disabled:pointer-events-none disabled:opacity-45 ${
+                                            isHandheld ? 'rounded-lg px-2 py-1.5 text-[11px] leading-tight' : 'rounded-xl px-3 py-2 text-sm'
+                                        }`}
                                     >
                                         AI 대전
                                     </button>
@@ -1108,7 +1390,9 @@ const PairWaitingLobby: React.FC = () => {
                                     type="button"
                                     disabled={isBusy}
                                     onClick={leaveRoom}
-                                    className="rounded-xl border border-rose-400/50 bg-rose-950/45 px-3 py-2 text-sm font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-rose-300/50 hover:bg-rose-900/45 disabled:pointer-events-none disabled:opacity-45"
+                                    className={`border border-rose-400/50 bg-rose-950/45 font-extrabold text-rose-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-rose-300/50 hover:bg-rose-900/45 disabled:pointer-events-none disabled:opacity-45 ${
+                                        isHandheld ? 'rounded-lg px-2 py-1.5 text-[11px] leading-tight' : 'rounded-xl px-3 py-2 text-sm'
+                                    }`}
                                 >
                                     방 나가기
                                 </button>
@@ -1254,6 +1538,52 @@ const PairWaitingLobby: React.FC = () => {
                                 className="!justify-center rounded-xl border border-emerald-400/50 bg-emerald-900/55 !py-2.5 !text-sm !font-extrabold !text-emerald-50"
                             >
                                 만들기
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {kickConfirmModal && (
+                <div
+                    className="fixed inset-0 z-[81] flex items-center justify-center bg-black/70 p-3 backdrop-blur-sm"
+                    role="presentation"
+                    onClick={() => !kickConfirmBusy && setKickConfirmModal(null)}
+                >
+                    <div
+                        className="relative w-full max-w-sm overflow-hidden rounded-2xl border border-rose-400/35 bg-gradient-to-b from-zinc-900 to-black p-4 shadow-2xl shadow-black/60 ring-1 ring-white/10"
+                        role="dialog"
+                        aria-modal
+                        aria-labelledby="pair-kick-confirm-title"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <h2 id="pair-kick-confirm-title" className="text-center text-base font-extrabold text-rose-100">
+                            강퇴 확인
+                        </h2>
+                        <p className="mt-3 text-center text-sm text-slate-200">
+                            <span className="font-bold text-white">{kickConfirmModal.userName}</span>님을 방에서보내겠습니까?
+                        </p>
+                        <p className="mt-2 text-center text-xs leading-relaxed text-slate-500">
+                            강퇴된 유저는 방장 초대를 수락하기 전까지 이 방에 들어올 수 없습니다.
+                        </p>
+                        <div className="mt-4 grid grid-cols-2 gap-2">
+                            <Button
+                                type="button"
+                                bare
+                                disabled={kickConfirmBusy}
+                                onClick={() => setKickConfirmModal(null)}
+                                className="rounded-xl border border-white/20 bg-zinc-800/60 py-2.5 text-sm font-bold text-zinc-200"
+                            >
+                                취소
+                            </Button>
+                            <Button
+                                type="button"
+                                bare
+                                disabled={kickConfirmBusy}
+                                onClick={() => void confirmKickFromModal()}
+                                className="rounded-xl border border-rose-400/55 bg-rose-950/55 py-2.5 text-sm font-extrabold text-rose-50"
+                            >
+                                강퇴
                             </Button>
                         </div>
                     </div>

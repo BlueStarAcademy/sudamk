@@ -616,6 +616,8 @@ export type User = {
   pairPetHatcherySlotUnlocked?: boolean[];
   /** 부화장: 일반 4칸 + VIP 1칸 진행 세션 */
   pairPetHatcherySessions?: (PairPetHatcherySession | null)[];
+  /** 페어 경기장 대국만의 모드별 승패 (PVP 일반 대국 `stats[mode]`와 별도) */
+  pairArenaStatsByMode?: Record<string, { wins: number; losses: number }>;
   adventureProfile?: AdventureProfile;
   /** VIP 만료 시각(ms). Header 등에서 활성 여부 판별. 관리자 테스트용으로 직접 설정 가능. */
   rewardVipExpiresAt?: number;

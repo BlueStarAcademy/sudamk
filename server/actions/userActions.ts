@@ -8,6 +8,7 @@ import {
     NICKNAME_MAX_LENGTH,
     NICKNAME_MIN_LENGTH,
     DEFAULT_GAME_SETTINGS,
+    RANKED_ELO_BASE_SCORE,
 } from '../../constants';
 import {
     getAdventureMonsterAttackActionPointCost,
@@ -18,9 +19,8 @@ import {
     nicknameContainsReservedStaffTerms,
     RESERVED_STAFF_NICKNAME_USER_MESSAGE,
 } from '../../shared/utils/staffNicknameDisplay.js';
-import {
-    adventureMonsterLevelToKataServerLevel,
-} from '../../shared/utils/strategicAiDifficulty.js';
+import { adventureKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
+import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import type { AdventureMonsterBattleModeKey } from '../../shared/utils/adventureBattleBoard.js';
 import {
     applyAdventureStrategicGameSettings,
@@ -344,7 +344,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
 
                 const settings = { ...DEFAULT_GAME_SETTINGS };
                 const lv = effectiveMonsterLevel;
-                settings.kataServerLevel = adventureMonsterLevelToKataServerLevel(lv);
+                settings.kataServerLevel = adventureKataLevelFromSnapshot(getKataServerRuntimeSnapshot(), lv);
                 settings.goAiBotLevel = Math.max(1, Math.min(10, Math.ceil(lv / 5)));
                 applyAdventureStrategicGameSettings(settings, boardSize, mode);
                 const scanExtra = getRegionalHiddenScanBonus(user.adventureProfile, stageId!);
@@ -635,6 +635,54 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday']);
             
+            return { clientResponse: { updatedUser } };
+        }
+        case 'RESET_PAIR_ARENA_SINGLE_STAT': {
+            const { mode } = payload as { mode: types.GameMode };
+            if (!SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+                return { error: '페어 경기장에서 초기화할 수 없는 모드입니다.' };
+            }
+            const SINGLE_RESET_COST = 300;
+            if ((user.diamonds ?? 0) < SINGLE_RESET_COST && !user.isAdmin) {
+                return { error: `다이아가 부족합니다. (필요: ${SINGLE_RESET_COST})` };
+            }
+            const modeKey = String(mode);
+            const prev = user.pairArenaStatsByMode?.[modeKey] ?? { wins: 0, losses: 0 };
+            const pw = Math.max(0, prev.wins ?? 0);
+            const pl = Math.max(0, prev.losses ?? 0);
+            if (pw === 0 && pl === 0) {
+                return { error: '이 모드에 기록된 페어 경기장 전적이 없습니다.' };
+            }
+            if (!user.stats) user.stats = {};
+            const pairAgg = user.stats['pair'] ?? { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
+            pairAgg.wins = Math.max(0, (pairAgg.wins ?? 0) - pw);
+            pairAgg.losses = Math.max(0, (pairAgg.losses ?? 0) - pl);
+            if (typeof pairAgg.rankingScore !== 'number' || !Number.isFinite(pairAgg.rankingScore)) {
+                pairAgg.rankingScore = RANKED_ELO_BASE_SCORE;
+            }
+            user.stats['pair'] = pairAgg;
+            if (!user.pairArenaStatsByMode) user.pairArenaStatsByMode = {};
+            user.pairArenaStatsByMode[modeKey] = { wins: 0, losses: 0 };
+            if (!user.isAdmin) user.diamonds = (user.diamonds ?? 0) - SINGLE_RESET_COST;
+            const updatedUser = getSelectiveUserUpdate(user, 'RESET_PAIR_ARENA_SINGLE_STAT');
+            db.updateUser(user).catch((err) => console.error('[UserAction] RESET_PAIR_ARENA_SINGLE_STAT save failed:', err));
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['diamonds', 'stats', 'pairArenaStatsByMode']);
+            return { clientResponse: { updatedUser } };
+        }
+        case 'RESET_PAIR_ARENA_STRATEGIC_ALL': {
+            const CATEGORY_RESET_COST = 500;
+            if ((user.diamonds ?? 0) < CATEGORY_RESET_COST && !user.isAdmin) {
+                return { error: `다이아가 부족합니다. (필요: ${CATEGORY_RESET_COST})` };
+            }
+            if (!user.stats) user.stats = {};
+            user.stats['pair'] = { wins: 0, losses: 0, rankingScore: RANKED_ELO_BASE_SCORE };
+            user.pairArenaStatsByMode = {};
+            if (!user.isAdmin) user.diamonds = (user.diamonds ?? 0) - CATEGORY_RESET_COST;
+            const updatedUser = getSelectiveUserUpdate(user, 'RESET_PAIR_ARENA_STRATEGIC_ALL');
+            db.updateUser(user).catch((err) => console.error('[UserAction] RESET_PAIR_ARENA_STRATEGIC_ALL save failed:', err));
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['diamonds', 'stats', 'pairArenaStatsByMode']);
             return { clientResponse: { updatedUser } };
         }
         case 'CONFIRM_STAT_ALLOCATION': {

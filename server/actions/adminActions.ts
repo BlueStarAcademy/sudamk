@@ -38,6 +38,8 @@ import {
     patchVolatileSinglePlayerStageIds,
 } from '../singlePlayerStageIdMigration.js';
 import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlayerConstants.js';
+import type { KataServerRuntimeOverrides } from '../../shared/types/kataServerRuntime.js';
+import { resetKataServerRuntimeOverrides, saveKataServerRuntimePatch } from '../kataServerRuntimeStore.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -666,6 +668,18 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const arenaEntranceAvailability = mergeArenaEntranceAvailability(stored);
             broadcast({ type: 'ARENA_ENTRANCE_AVAILABILITY_UPDATE', payload: { arenaEntranceAvailability } });
             return { clientResponse: { arenaEntranceAvailability } };
+        }
+        case 'ADMIN_PATCH_KATA_SERVER_RUNTIME': {
+            const patch = (payload as { patch?: KataServerRuntimeOverrides })?.patch;
+            if (!patch || typeof patch !== 'object') return { error: '유효하지 않은 패치입니다.' };
+            const kataServerRuntimeConfig = await saveKataServerRuntimePatch(patch);
+            broadcast({ type: 'KATA_SERVER_RUNTIME_CONFIG_UPDATE', payload: { kataServerRuntimeConfig } });
+            return { clientResponse: { kataServerRuntimeConfig } };
+        }
+        case 'ADMIN_RESET_KATA_SERVER_RUNTIME': {
+            const kataServerRuntimeConfig = await resetKataServerRuntimeOverrides();
+            broadcast({ type: 'KATA_SERVER_RUNTIME_CONFIG_UPDATE', payload: { kataServerRuntimeConfig } });
+            return { clientResponse: { kataServerRuntimeConfig } };
         }
         case 'ADMIN_SET_GAME_DESCRIPTION': {
             const { gameId, description } = payload;

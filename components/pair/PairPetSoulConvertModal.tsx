@@ -106,7 +106,7 @@ const PairPetSoulConvertModal: React.FC<PairPetSoulConvertModalProps> = ({
                     <div className="mt-3 flex flex-col items-center gap-2">
                         <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-black/40 p-1 ring-1 ring-white/12">
                             <img
-                                src={soulMeta?.image ?? '/images/materials/soulstone1.webp'}
+                                src={soulMeta?.image ?? '/images/pets/soulstone1.webp'}
                                 alt=""
                                 className="max-h-full max-w-full object-contain"
                                 loading="lazy"

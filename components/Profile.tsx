@@ -6,6 +6,7 @@ import Avatar from './Avatar.js';
 import UserNicknameText from './UserNicknameText.js';
 import Button from './Button.js';
 import DetailedStatsModal from './DetailedStatsModal.js';
+import PairArenaDetailedStatsModal from './PairArenaDetailedStatsModal.js';
 import ProfileEditModal from './ProfileEditModal.js';
 import { getMannerScore, getMannerRank, getMannerStyle } from '../services/manner.js';
 import { calculateUserEffects } from '../services/effectService.js';
@@ -33,6 +34,16 @@ import {
     ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
     CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL,
 } from '../shared/utils/contentProgressionGates.js';
+import {
+    PAIR_TRAINING_SLOT_COUNT,
+    normalizePairPetTrainingSlots,
+    isPairTrainingSlotUnlocked,
+} from '../shared/constants/pairTraining.js';
+import {
+    PAIR_HATCHERY_SESSION_SLOT_COUNT,
+    normalizePairPetHatcherySessions,
+    canUsePairHatcherySlot,
+} from '../shared/constants/pairHatchery.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { isOnboardingTutorialActive, ONBOARDING_PHASE_COMPLETE } from '../shared/constants/onboardingTutorial.js';
@@ -45,7 +56,7 @@ import {
     getCombinedStrategyPlayfulLevel,
 } from '../shared/constants/guildConstants.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
-import { isNewFeatureBadgeActive, NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
+import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 
 function isVipExpiresActive(exp?: number): boolean {
     return typeof exp === 'number' && Number.isFinite(exp) && exp > Date.now();
@@ -594,6 +605,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const championshipScore = championshipMyEntry?.score ?? currentUserWithStatus?.cumulativeTournamentScore ?? 0;
     const championshipRank = championshipMyEntry?.rank ?? null;
     const [detailedStatsType, setDetailedStatsType] = useState<'strategic' | 'playful' | 'both' | null>(null);
+    const [pairArenaStatsModalOpen, setPairArenaStatsModalOpen] = useState(false);
     const [trainingQuestModalOpen, setTrainingQuestModalOpen] = useState(false);
     const [towerTimeLeft, setTowerTimeLeft] = useState('');
     const [selectedPreset, setSelectedPreset] = useState(0);
@@ -892,6 +904,33 @@ const Profile: React.FC<ProfileProps> = () => {
         }
         return { strategic, playful };
     }, [stats]);
+
+    const pairArenaHomeSlots = useMemo(() => {
+        const u = currentUserWithStatus;
+        const trainingSlots = normalizePairPetTrainingSlots(u.pairPetTrainingSlots);
+        let trainUsed = 0;
+        let trainOpen = 0;
+        for (let i = 0; i < PAIR_TRAINING_SLOT_COUNT; i++) {
+            if (isPairTrainingSlotUnlocked(u, i)) trainOpen++;
+            if (trainingSlots[i]) trainUsed++;
+        }
+        const hatchSessions = normalizePairPetHatcherySessions(u.pairPetHatcherySessions);
+        let hatchUsed = 0;
+        let hatchOpen = 0;
+        for (let i = 0; i < PAIR_HATCHERY_SESSION_SLOT_COUNT; i++) {
+            if (canUsePairHatcherySlot(u, i)) hatchOpen++;
+            if (hatchSessions[i]) hatchUsed++;
+        }
+        const ps = u.stats?.['pair' as keyof typeof u.stats] as { wins?: number; losses?: number } | undefined;
+        return {
+            trainUsed,
+            trainOpen,
+            hatchUsed,
+            hatchOpen,
+            pairWins: ps?.wins ?? 0,
+            pairLosses: ps?.losses ?? 0,
+        };
+    }, [currentUserWithStatus]);
     
     const totalMannerScore = getMannerScore(currentUserWithStatus);
     const mannerRank = getMannerRank(totalMannerScore);
@@ -1703,7 +1742,6 @@ const Profile: React.FC<ProfileProps> = () => {
     const infoValueClass = 'min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
     const hasPcHomeTrainingQuestReward =
         !isNativeMobile && userHasFullTrainingQuestReward(currentUserWithStatus);
-    const showPairLobbyNewBadge = isNewFeatureBadgeActive('pairLobby');
     const LobbyCards = (
         <div className={lobbyGridShell}>
             <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -1817,24 +1855,37 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
                 <div className={mergedCardClass}>
                     <div className={pairImagePaneClass}>
-                        <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} newBadge={showPairLobbyNewBadge} />
+                        <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} />
                     </div>
                     <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                        <div className={`${infoTitleClass} relative text-violet-100`}>
-                            페어경기장
-                            {showPairLobbyNewBadge && (
-                                <span className="ml-1.5 rounded-full border border-rose-200/70 bg-gradient-to-r from-rose-500 via-orange-400 to-amber-300 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white shadow-[0_0_10px_rgba(251,146,60,0.55)]">
-                                    NEW
-                                </span>
-                            )}
-                        </div>
+                        <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
                         <div className={infoPanelMiddleClass}>
-                            <div className={infoRowClass}><span className={infoLabelClass}>모드</span><span className={infoValueClass}>2인 고정 팀 대전</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>진행 상태</span><span className={`${infoValueClass} font-semibold text-violet-200`}>입장 가능</span></div>
-                            <div className={infoRowClass}><span className={infoLabelClass}>오픈</span><span className={infoValueClass}>PVP/펫 페어</span></div>
+                            <div className={infoRowClass}>
+                                <span className={infoLabelClass}>펫수련</span>
+                                <span className={`${infoValueClass} font-mono tabular-nums`}>
+                                    {pairArenaHomeSlots.trainUsed}/{pairArenaHomeSlots.trainOpen}
+                                </span>
+                            </div>
+                            <div className={infoRowClass}>
+                                <span className={infoLabelClass}>부화장</span>
+                                <span className={`${infoValueClass} font-mono tabular-nums`}>
+                                    {pairArenaHomeSlots.hatchUsed}/{pairArenaHomeSlots.hatchOpen}
+                                </span>
+                            </div>
+                            <div className={infoRowClass}>
+                                <span className={infoLabelClass}>페어 전적</span>
+                                <span className={`${infoValueClass} font-mono whitespace-nowrap tabular-nums`}>
+                                    {pairArenaHomeSlots.pairWins}승{pairArenaHomeSlots.pairLosses}패
+                                </span>
+                            </div>
                         </div>
-                        <Button onClick={onSelectPairLobby} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-violet-300/40 bg-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:bg-violet-900/55">
-                            입장하기
+                        <Button
+                            type="button"
+                            onClick={() => setPairArenaStatsModalOpen(true)}
+                            colorScheme="none"
+                            className="w-full shrink-0 !justify-center rounded-lg border border-violet-300/50 bg-gradient-to-r from-violet-950/55 via-zinc-950/80 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:from-violet-900/60 hover:to-violet-900/50"
+                        >
+                            상세전적
                         </Button>
                     </div>
                 </div>
@@ -2271,24 +2322,37 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                     <div className={mergedCardClass}>
                                         <div className={pairImagePaneClass}>
-                                            <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} newBadge={showPairLobbyNewBadge} />
+                                            <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                                            <div className={`${infoTitleClass} relative text-violet-100`}>
-                                                페어경기장
-                                                {showPairLobbyNewBadge && (
-                                                    <span className="ml-1.5 rounded-full border border-rose-200/70 bg-gradient-to-r from-rose-500 via-orange-400 to-amber-300 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white shadow-[0_0_10px_rgba(251,146,60,0.55)]">
-                                                        NEW
-                                                    </span>
-                                                )}
-                                            </div>
+                                            <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
                                             <div className={infoPanelMiddleClass}>
-                                                <div className={infoRowClass}><span className={infoLabelClass}>모드</span><span className={infoValueClass}>2인 고정 팀 대전</span></div>
-                                                <div className={infoRowClass}><span className={infoLabelClass}>진행 상태</span><span className={`${infoValueClass} font-semibold text-violet-200`}>입장 가능</span></div>
-                                                <div className={infoRowClass}><span className={infoLabelClass}>오픈</span><span className={infoValueClass}>PVP/펫 페어</span></div>
+                                                <div className={infoRowClass}>
+                                                    <span className={infoLabelClass}>펫수련</span>
+                                                    <span className={`${infoValueClass} font-mono tabular-nums`}>
+                                                        {pairArenaHomeSlots.trainUsed}/{pairArenaHomeSlots.trainOpen}
+                                                    </span>
+                                                </div>
+                                                <div className={infoRowClass}>
+                                                    <span className={infoLabelClass}>부화장</span>
+                                                    <span className={`${infoValueClass} font-mono tabular-nums`}>
+                                                        {pairArenaHomeSlots.hatchUsed}/{pairArenaHomeSlots.hatchOpen}
+                                                    </span>
+                                                </div>
+                                                <div className={infoRowClass}>
+                                                    <span className={infoLabelClass}>페어 전적</span>
+                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap tabular-nums`}>
+                                                        {pairArenaHomeSlots.pairWins}승{pairArenaHomeSlots.pairLosses}패
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <Button onClick={onSelectPairLobby} colorScheme="none" className="w-full shrink-0 !justify-center rounded-lg border border-violet-300/40 bg-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:bg-violet-900/55">
-                                                입장하기
+                                            <Button
+                                                type="button"
+                                                onClick={() => setPairArenaStatsModalOpen(true)}
+                                                colorScheme="none"
+                                                className="w-full shrink-0 !justify-center rounded-lg border border-violet-300/50 bg-gradient-to-r from-violet-950/55 via-zinc-950/80 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:from-violet-900/60 hover:to-violet-900/50"
+                                            >
+                                                상세전적
                                             </Button>
                                         </div>
                                     </div>
@@ -2444,6 +2508,13 @@ const Profile: React.FC<ProfileProps> = () => {
                     currentUser={currentUserWithStatus}
                     statsType={detailedStatsType}
                     onClose={() => setDetailedStatsType(null)}
+                    onAction={handlers.handleAction}
+                />
+            )}
+            {pairArenaStatsModalOpen && (
+                <PairArenaDetailedStatsModal
+                    currentUser={currentUserWithStatus}
+                    onClose={() => setPairArenaStatsModalOpen(false)}
                     onAction={handlers.handleAction}
                 />
             )}

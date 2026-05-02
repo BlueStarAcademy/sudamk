@@ -18,6 +18,7 @@ import {
     arenaGameRoomIngameInnerNeutralSurfaceClass,
     pveIngameFooterReservedHeightClass,
 } from './arenaGameRoomStyles.js';
+import IngameMobileFooterAd from './IngameMobileFooterAd.js';
 
 interface GuildWarMissileTowerControlsProps extends Pick<GameProps, 'session' | 'onAction'> {
     setShowResultModal?: (show: boolean) => void;
@@ -128,6 +129,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                     </Button>
                     </div>
                 </div>
+                <IngameMobileFooterAd isMobile={!!isMobile} />
             </footer>
         );
     }
@@ -139,12 +141,13 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
 		<footer
 			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
 				isMobile
-					? 'flex h-[164px] w-full min-w-0 flex-row items-stretch gap-3 p-2'
+					? 'flex min-h-[164px] w-full min-w-0 flex-col items-stretch gap-1 p-2'
 					: 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
 			}`}
 		>
             {isMobile ? (
                 <>
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-row items-stretch gap-3">
 					<div className={`flex min-w-0 flex-1 flex-col justify-center px-1 py-2 ${arenaGameRoomIngameInnerNeutralSurfaceClass}`}>
                         <div className="flex min-h-0 w-full flex-1 items-center justify-center">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-h-0" gapClass="gap-3">
@@ -174,6 +177,8 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                             </ArenaControlStrip>
                         </div>
                     </div>
+                    </div>
+                    <IngameMobileFooterAd isMobile={!!isMobile} />
                 </>
             ) : (
                 <>

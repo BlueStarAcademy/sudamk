@@ -73,6 +73,16 @@ export const arenaGameRoomChatTabInactiveClass =
     'flex-1 py-1.5 text-xs sm:text-sm font-semibold rounded-md text-slate-400 transition-colors duration-200 ' +
     'hover:bg-white/[0.05] hover:text-slate-100';
 
+/** 모바일 인게임 서랍: 탭·본문과 동일 13px 계열로 통일 */
+export const arenaGameRoomChatTabActiveDrawerClass =
+    'flex-1 py-1.5 text-[13px] leading-tight font-semibold rounded-md transition-all duration-200 ' +
+    'bg-gradient-to-b from-sky-600/95 to-sky-900/98 text-white ' +
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_4px_16px_-6px_rgba(56,189,248,0.42)] ring-1 ring-sky-400/22';
+
+export const arenaGameRoomChatTabInactiveDrawerClass =
+    'flex-1 py-1.5 text-[13px] leading-tight font-semibold rounded-md text-slate-400 transition-colors duration-200 ' +
+    'hover:bg-white/[0.05] hover:text-slate-100';
+
 /** 채팅 메시지 스크롤 영역 */
 export const arenaGameRoomChatBodyClass =
     'flex-grow space-y-1 overflow-y-auto pr-2 mb-2 min-h-0 rounded-lg p-2 ' +

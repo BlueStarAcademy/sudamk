@@ -13,7 +13,7 @@ import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
 import { volatileState } from './state.js';
-import { broadcast } from './socket.js';
+import { broadcastToGameParticipants } from './socket.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
 import { generateKataServerMoveCandidateDetails, generateKataServerMoveCandidates, isKataServerAvailable } from './kataServerService.js';
@@ -42,9 +42,13 @@ import {
     isIntersectionRecordedAsBaseStone,
     removeCapturedBaseStoneMarkersFromSession,
 } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
-import { adventureMonsterLevelToKataServerLevel, KATA_SERVER_LEVEL_BY_PROFILE_STEP } from '../shared/utils/strategicAiDifficulty.js';
-import { getGuildWarKataServerLevelByBoardId } from '../shared/constants/guildConstants.js';
-import { getTowerKataServerLevelByFloor } from '../shared/utils/towerKataServerLevel.js';
+import {
+    adventureKataLevelFromSnapshot,
+    guildWarKataLevelFromSnapshot,
+    strategicKataLevelFromSnapshot,
+    towerKataLevelFromSnapshot,
+} from '../shared/utils/kataServerRuntimeResolvers.js';
+import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
 import {
     appendPassesUntilSideToMove,
@@ -1578,12 +1582,14 @@ function appendPairPetGameChat(game: types.LiveGameSession, text: string): void 
     if (!volatileState.gameChats[game.id]) volatileState.gameChats[game.id] = [];
     volatileState.gameChats[game.id].push(message);
     if (volatileState.gameChats[game.id].length > 100) volatileState.gameChats[game.id].shift();
-    broadcast({
-        type: 'GAME_CHAT_UPDATE',
-        payload: {
-            [game.id]: volatileState.gameChats[game.id],
+    broadcastToGameParticipants(
+        game.id,
+        {
+            type: 'GAME_CHAT_UPDATE',
+            payload: { [game.id]: volatileState.gameChats[game.id] },
         },
-    });
+        game,
+    );
 }
 
 export async function makeGoAiBotMove(
@@ -1624,6 +1630,7 @@ export async function makeGoAiBotMove(
     const aiPlayerEnum = pairCurrentSeat?.player ?? game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const now = Date.now();
+    const guildWarKataRetries = String((game as any).gameCategory ?? '') === 'guildwar' ? 2 : 0;
 
     reconcileStrategicAiBoardSizeWithGroundTruth(game);
 
@@ -1764,7 +1771,7 @@ export async function makeGoAiBotMove(
         );
 
     const goAiProfileLevel = Math.max(1, Math.min(10, aiLevel));
-    const DIFFICULTY_TO_KATA_LEVEL = KATA_SERVER_LEVEL_BY_PROFILE_STEP;
+    const kataRuntimeSnap = getKataServerRuntimeSnapshot();
     const forcedAiResponsesForStage = ((game.settings as any)?.singlePlayerForcedAiResponses ?? []) as Array<{
         whenOpponentStoneAt?: Point;
         move: Point;
@@ -1798,25 +1805,26 @@ export async function makeGoAiBotMove(
             const floorRaw = (game as any).towerFloor;
             const floor = typeof floorRaw === 'number' ? floorRaw : parseInt(String(floorRaw ?? ''), 10);
             if (Number.isFinite(floor) && floor >= 1) {
-                configuredKataLevel = getTowerKataServerLevelByFloor(floor);
+                configuredKataLevel = towerKataLevelFromSnapshot(kataRuntimeSnap, floor);
             }
         } else if (gc === 'adventure') {
             const lvRaw = (game as any).adventureMonsterLevel;
             const lv = typeof lvRaw === 'number' ? lvRaw : parseInt(String(lvRaw ?? ''), 10);
             if (Number.isFinite(lv) && lv >= 1) {
-                configuredKataLevel = adventureMonsterLevelToKataServerLevel(lv);
+                configuredKataLevel = adventureKataLevelFromSnapshot(kataRuntimeSnap, lv);
             }
         } else if (gc === 'guildwar') {
             const boardId = String((game as any).guildWarBoardId ?? '');
             if (boardId) {
-                configuredKataLevel = getGuildWarKataServerLevelByBoardId(boardId);
+                configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
             }
         }
         if (configuredKataLevel !== undefined && game.settings && typeof game.settings === 'object') {
             (game.settings as any).kataServerLevel = configuredKataLevel;
         }
     }
-    let resolvedKataLevel = configuredKataLevel ?? (DIFFICULTY_TO_KATA_LEVEL[goAiProfileLevel] ?? -12);
+    let resolvedKataLevel =
+        configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
     const pairValidPlyForNextMove = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
     const pairKataPhase = pairCurrentSeat
         ? pairPetKataPhaseFromTotalPly(game.settings.boardSize || 19, pairValidPlyForNextMove)
@@ -1840,7 +1848,12 @@ export async function makeGoAiBotMove(
     if (pairCurrentSeat && Number.isFinite(pairFixedKataLevel)) {
         resolvedKataLevel = Number(pairFixedKataLevel);
     } else if (pairCurrentSeat && pairKataStats) {
-        resolvedKataLevel = pairPetKataLevelForTotalPly(game.settings.boardSize || 19, pairValidPlyForNextMove, pairKataStats);
+        resolvedKataLevel = pairPetKataLevelForTotalPly(
+            game.settings.boardSize || 19,
+            pairValidPlyForNextMove,
+            pairKataStats,
+            kataRuntimeSnap.pairPet,
+        );
     }
     const pairHasFixedScoringTurnLimit =
         pairClassicGame &&
@@ -2027,6 +2040,7 @@ export async function makeGoAiBotMove(
             gameId: game.id,
             kataSessionTag: composeKataSessionTagForGame(game, undefined),
             allowPass: pairKataAllowPass,
+            moveApiRetries: guildWarKataRetries,
         };
         let kataCandidates: Point[] = [];
         let kataBestMove: Point | null = null;
@@ -2264,6 +2278,7 @@ export async function makeGoAiBotMove(
                 gameId: game.id,
                 kataSessionTag: composeKataSessionTagForGame(game, hiddenRevealTag),
                 allowPass: pairKataAllowPass,
+                moveApiRetries: guildWarKataRetries,
             };
             let kataCandidatesReveal: Point[] = [];
             if (isKataServerAvailable()) {

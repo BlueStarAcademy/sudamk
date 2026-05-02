@@ -22,7 +22,7 @@ export function getSelectiveUserUpdate(
         'USE_ALL_ITEMS_OF_TYPE': ['inventory', 'gold', 'diamonds', 'actionPoints', 'quests'],
         'TOGGLE_EQUIP_ITEM': ['inventory', 'equipment', 'actionPoints', 'lastActionPointUpdate'],
         'MARK_ITEM_EXCHANGE_LISTED': ['inventory', 'gold', 'diamonds'],
-        'UNMARK_ITEM_EXCHANGE_LISTED': ['inventory'],
+        'UNMARK_ITEM_EXCHANGE_LISTED': ['inventory', 'exchangeState'],
         'CLAIM_EXCHANGE_SETTLEMENT': ['exchangeState', 'gold', 'diamonds'],
         'SELL_ITEM': ['inventory', 'gold', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId'],
         'COMBINE_ITEMS': ['inventory', 'blacksmithLevel', 'blacksmithXp'],
@@ -68,6 +68,8 @@ export function getSelectiveUserUpdate(
         'UPDATE_MBTI': ['mbti', 'isMbtiPublic', 'diamonds'],
         'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints'],
         'RESET_STAT_POINTS': ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday'],
+        'RESET_PAIR_ARENA_SINGLE_STAT': ['diamonds', 'stats', 'pairArenaStatsByMode'],
+        'RESET_PAIR_ARENA_STRATEGIC_ALL': ['diamonds', 'stats', 'pairArenaStatsByMode'],
         'CONFIRM_STAT_ALLOCATION': ['spentStatPoints'],
         'SAVE_PRESET': ['equipmentPresets'],
         'APPLY_PRESET': ['equipment', 'inventory', 'actionPoints', 'lastActionPointUpdate'],
@@ -114,6 +116,7 @@ export function getSelectiveUserUpdate(
         // 소셜 관련
         'LOGOUT': [], // 로그아웃은 사용자 데이터 반환 불필요
         'PAIR_PET_START_TRAINING': ['pairPetTrainingSlots'],
+        'PAIR_PET_CANCEL_TRAINING': ['pairPetTrainingSlots'],
         'PAIR_PET_CLAIM_TRAINING': ['inventory', 'gold', 'pairPetTrainingSlots'],
         'PAIR_PET_HATCHERY_UNLOCK': ['pairPetHatcherySlotUnlocked', 'gold'],
         'PAIR_PET_HATCHERY_START': ['inventory', 'pairPetHatcherySessions'],
