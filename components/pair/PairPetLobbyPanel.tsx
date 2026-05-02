@@ -8,6 +8,7 @@ import PairPetLobbyInfoPetViewer from './PairPetLobbyInfoPetViewer.js';
 import PairPetLobbySoulStoneViewer from './PairPetLobbySoulStoneViewer.js';
 import PairPetSoulConvertModal from './PairPetSoulConvertModal.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import PurchaseQuantityModal from '../PurchaseQuantityModal.js';
 import type { User, UserWithStatus, InventoryItem, ServerAction } from '../../types.js';
 import { MATERIAL_ITEMS, gradeBackgrounds } from '../../shared/constants/items.js';
@@ -152,6 +153,7 @@ function InvThumb({
     onClick,
     disabled,
     showRepresentativeBadge,
+    title,
 }: {
     item: InventoryItem;
     selected: boolean;
@@ -159,6 +161,7 @@ function InvThumb({
     disabled?: boolean;
     /** 페어 로비 인벤: 대표로 장착된 펫 썸네일 상단 표시 */
     showRepresentativeBadge?: boolean;
+    title?: string;
 }) {
     const qty = item.quantity ?? 1;
     const showStackBadge = !isPairPetMaterial(item) && qty > 1;
@@ -170,6 +173,7 @@ function InvThumb({
         <button
             type="button"
             disabled={disabled}
+            title={title}
             onClick={onClick}
             className={`relative flex aspect-square w-full min-w-0 flex-col items-center justify-center overflow-hidden rounded-lg border p-0.5 text-xs font-bold transition ${
                 selected ? 'border-cyan-300 bg-cyan-950/60 text-cyan-50' : 'border-white/15 bg-black/40 text-slate-200 hover:border-white/35'
@@ -358,6 +362,9 @@ export interface PairPetLobbyPanelProps {
 
 const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, currentUserId, isBusy, applyPetAction }) => {
     const { handlers } = useAppContext();
+    const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
+    /** 터치·좁은 화면: 드롭 대신 슬롯 탭 → 펫 탭 */
+    const useTapTrainingFlow = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
     const [aiTab, setAiTab] = useState<AiTab>('info');
     const [shopSkuTab, setShopSkuTab] = useState<ShopSkuTab>('egg');
     const [shopDescSkuId, setShopDescSkuId] = useState<string | null>(null);
@@ -372,6 +379,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const [hatcheryInstantConfirmSlotIndex, setHatcheryInstantConfirmSlotIndex] = useState<number | null>(null);
     const [hatcheryPetInvFullModalOpen, setHatcheryPetInvFullModalOpen] = useState(false);
     const [soulConvertItem, setSoulConvertItem] = useState<InventoryItem | null>(null);
+    /** 모바일: 빈 수련 슬롯 탭 후 인벤에서 펫 선택 */
+    const [trainingMobilePickSlotIndex, setTrainingMobilePickSlotIndex] = useState<number | null>(null);
+    /** 수련 시작 직전 확인(드롭·모바일 탭 공통) */
+    const [trainingStartConfirm, setTrainingStartConfirm] = useState<{ slotIndex: number; itemId: string } | null>(null);
 
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     /** 저장되어 있으면 해당 행만 대표 표시(동종 다마리 구분). 없으면 템플릿 일치 행 전체에 표시(구버전 호환). */
@@ -526,6 +537,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         if (aiTab !== 'hatchery') {
             setHatcheryConfirmSlotIndex(null);
             setHatcheryInstantConfirmSlotIndex(null);
+        }
+    }, [aiTab]);
+
+    useEffect(() => {
+        if (aiTab !== 'training') {
+            setTrainingMobilePickSlotIndex(null);
+            setTrainingStartConfirm(null);
         }
     }, [aiTab]);
 
@@ -799,7 +817,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                             🔒
                                         </span>
                                         {isVip ? (
-                                            <HatcheryFunctionVipHintIcon />
+                                            <div className="flex flex-col items-center gap-1">
+                                                <HatcheryFunctionVipHintIcon />
+                                                <p className="max-w-full px-0.5 text-center text-[clamp(0.58rem,1.55vmin,0.7rem)] font-extrabold leading-tight text-amber-200/95">
+                                                    기능VIP활성화
+                                                </p>
+                                            </div>
                                         ) : (
                                             <p className="max-w-full bg-gradient-to-r from-amber-100 to-amber-300 bg-clip-text px-0.5 text-center text-[clamp(0.58rem,1.55vmin,0.7rem)] font-extrabold leading-tight text-transparent">
                                                 페어 {def.unlockWinsRequired}승
@@ -963,7 +986,27 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         if (aiTab === 'training') {
             const slotsNorm = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
             const inTrain = isItemIdInPairTraining(slotsNorm, it.id);
-            const dragPet = isPairPetMaterial(it) && !isPairEggItem(it) && !inTrain;
+            const isRepPet = Boolean(
+                isPairPetMaterial(it) &&
+                    !isPairEggItem(it) &&
+                    it.templateId &&
+                    equippedTid &&
+                    it.templateId === equippedTid &&
+                    (!equippedItemId || equippedItemId === it.id),
+            );
+            const dragPet =
+                isPairPetMaterial(it) && !isPairEggItem(it) && !inTrain && !isRepPet && !useTapTrainingFlow;
+            const canTapPetToTrain =
+                useTapTrainingFlow && isPairPetMaterial(it) && !isPairEggItem(it) && !inTrain && !isRepPet;
+            const trainInvTitle = useTapTrainingFlow
+                ? trainingMobilePickSlotIndex == null
+                    ? '먼저 위쪽 빈 수련 슬롯을 누른 뒤 펫을 선택하세요.'
+                    : isRepPet
+                      ? '대표 펫은 수련에 보낼 수 없습니다.'
+                      : undefined
+                : isRepPet
+                  ? '대표 펫은 수련에 보낼 수 없습니다.'
+                  : undefined;
             return (
                 <div
                     key={it.id}
@@ -978,9 +1021,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     <InvThumb
                         item={it}
                         selected={false}
-                        disabled={isBusy || inTrain}
-                        onClick={() => {}}
+                        disabled={isBusy || inTrain || isRepPet}
+                        onClick={() => {
+                            if (!canTapPetToTrain || trainingMobilePickSlotIndex == null) return;
+                            setTrainingStartConfirm({ slotIndex: trainingMobilePickSlotIndex, itemId: it.id });
+                            setTrainingMobilePickSlotIndex(null);
+                        }}
                         showRepresentativeBadge={representativeThumb}
+                        title={trainInvTitle}
                     />
                 </div>
             );
@@ -1021,11 +1069,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             return `${m}:${r.toString().padStart(2, '0')}`;
         };
 
-        const onDropStart = async (slotIndex: number, e: React.DragEvent) => {
+        const onDropStart = (slotIndex: number, e: React.DragEvent) => {
             e.preventDefault();
+            if (trainingStartConfirm != null || isBusy) return;
             const itemId = e.dataTransfer.getData('text/pair-training-pet');
             if (!itemId) return;
-            await applyPetAction({ type: 'PAIR_PET_START_TRAINING', payload: { slotIndex, itemId } });
+            setTrainingStartConfirm({ slotIndex, itemId });
         };
 
         const claim = async (slotIndex: number) => {
@@ -1045,11 +1094,21 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
         return (
             <div className="space-y-2">
+                {useTapTrainingFlow ? (
+                    <p className="rounded-md border border-violet-500/25 bg-violet-950/30 px-2 py-1.5 text-center text-[0.65rem] font-semibold leading-snug text-violet-100/95 sm:text-xs">
+                        빈 수련 슬롯을 누른 뒤 아래 인벤토리에서 펫을 고르면 확인 창이 열립니다. 대표 펫은 수련에 보낼 수 없습니다.
+                    </p>
+                ) : (
+                    <p className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-center text-[0.65rem] font-semibold text-slate-400 sm:text-xs">
+                        펫을 슬롯에 놓으면 확인 후 수련이 시작됩니다.
+                    </p>
+                )}
                     {PAIR_TRAINING_SLOT_DEFS.map((def) => {
                         const i = def.slotIndex;
                         const unlocked = isPairTrainingSlotUnlocked(currentUser, i);
                         const reqW = PAIR_TRAINING_UNLOCK_WINS[i]!;
                         const minLv = minPetLevelForTrainingSlot(i);
+                        const isVipTrainingSlot = Boolean(def.requiresFunctionVip);
                         const session = trainingSlots[i];
                         const petRow = session ? inventory.find((x) => x.id === session.itemId) : null;
                         const endAt = session ? trainingEndsAt(session.startedAt, i) : 0;
@@ -1069,7 +1128,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 ? def.goldMin.toLocaleString()
                                 : `${def.goldMin.toLocaleString()}~${def.goldMax.toLocaleString()}`;
                         const rewardPanel = (
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-row flex-nowrap items-center justify-center gap-1 self-stretch overflow-x-auto border-l border-white/10 pl-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            <div
+                                className={`flex min-h-0 min-w-0 flex-1 flex-row flex-nowrap items-center justify-center gap-1 self-stretch overflow-x-auto border-l pl-1.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+                                    isVipTrainingSlot ? 'border-amber-500/25' : 'border-white/10'
+                                }`}
+                            >
                                 <div className="flex shrink-0 flex-col items-center gap-1">
                                     <span className={`${trLbl} text-amber-100/95`}>확정보상</span>
                                     <div className="rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-950/35 via-black/30 to-zinc-950/40 px-2 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
@@ -1154,21 +1217,67 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             <div
                                 key={`train-slot-${i}`}
                                 className={`flex items-stretch gap-1.5 rounded-xl border p-2 text-sm ${
-                                    unlocked ? 'border-violet-500/35 bg-violet-950/20' : 'border-white/10 bg-black/30'
+                                    isVipTrainingSlot
+                                        ? unlocked
+                                            ? 'border-amber-500/45 bg-gradient-to-br from-amber-950/30 via-zinc-950/50 to-amber-950/20 shadow-[inset_0_1px_0_rgba(251,191,36,0.08)] ring-1 ring-amber-500/15'
+                                            : 'border-amber-800/35 bg-amber-950/12 ring-1 ring-amber-900/25'
+                                        : unlocked
+                                          ? 'border-violet-500/35 bg-violet-950/20'
+                                          : 'border-white/10 bg-black/30'
                                 }`}
                             >
                                 <div className="flex w-[5.5rem] shrink-0 flex-col items-stretch gap-1">
-                                    <span className={trSlotTitle}>{getPairTrainingSlotDisplayName(i)}</span>
+                                    <span
+                                        className={`${trSlotTitle} flex flex-col items-center gap-0.5 ${
+                                            isVipTrainingSlot ? 'text-amber-100' : ''
+                                        }`}
+                                    >
+                                        {isVipTrainingSlot ? (
+                                            <span className="rounded border border-amber-400/50 bg-amber-500/20 px-1 py-px text-[0.55rem] font-black uppercase tracking-wider text-amber-200">
+                                                VIP
+                                            </span>
+                                        ) : null}
+                                        <span>{getPairTrainingSlotDisplayName(i)}</span>
+                                    </span>
                                     <div
+                                        role={useTapTrainingFlow && unlocked && !session ? 'button' : undefined}
+                                        tabIndex={useTapTrainingFlow && unlocked && !session ? 0 : undefined}
+                                        onKeyDown={(e) => {
+                                            if (!useTapTrainingFlow || !unlocked || session || isBusy) return;
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                setTrainingMobilePickSlotIndex((cur) => (cur === i ? null : i));
+                                            }
+                                        }}
+                                        onClick={() => {
+                                            if (!useTapTrainingFlow || !unlocked || session || isBusy) return;
+                                            setTrainingMobilePickSlotIndex((cur) => (cur === i ? null : i));
+                                        }}
                                         className={`flex aspect-square w-full shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-0.5 ${
-                                            unlocked && !session ? 'border-violet-400/50 bg-black/25' : 'border-white/12 bg-black/20'
+                                            unlocked && !session
+                                                ? isVipTrainingSlot
+                                                    ? 'border-amber-400/55 bg-amber-950/20'
+                                                    : 'border-violet-400/50 bg-black/25'
+                                                : 'border-white/12 bg-black/20'
+                                        } ${
+                                            useTapTrainingFlow && unlocked && !session
+                                                ? `cursor-pointer outline-none transition ${
+                                                      isVipTrainingSlot ? 'hover:border-amber-300/75' : 'hover:border-violet-300/70'
+                                                  } ${
+                                                      trainingMobilePickSlotIndex === i
+                                                          ? isVipTrainingSlot
+                                                              ? 'ring-2 ring-amber-400/85 ring-offset-2 ring-offset-zinc-950'
+                                                              : 'ring-2 ring-cyan-400/80 ring-offset-2 ring-offset-zinc-950'
+                                                          : ''
+                                                  }`
+                                                : ''
                                         }`}
                                         onDragOver={(e) => {
-                                            if (unlocked && !session) e.preventDefault();
+                                            if (unlocked && !session && trainingStartConfirm == null) e.preventDefault();
                                         }}
                                         onDrop={(e) => {
-                                            if (!unlocked || session || isBusy) return;
-                                            void onDropStart(i, e);
+                                            if (!unlocked || session || isBusy || trainingStartConfirm != null) return;
+                                            onDropStart(i, e);
                                         }}
                                     >
                                         {!unlocked ? (
@@ -1176,9 +1285,15 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 <span className="text-lg leading-none opacity-90" aria-hidden>
                                                     🔒
                                                 </span>
-                                                <p className="text-center text-[0.65rem] font-semibold leading-tight text-amber-200/95">
-                                                    승리 {reqW}회
-                                                </p>
+                                                {isVipTrainingSlot ? (
+                                                    <p className="text-center text-[0.65rem] font-extrabold leading-tight text-amber-200/95">
+                                                        기능VIP활성화
+                                                    </p>
+                                                ) : (
+                                                    <p className="text-center text-[0.65rem] font-semibold leading-tight text-amber-200/95">
+                                                        승리 {reqW}회
+                                                    </p>
+                                                )}
                                                 {minLv > 1 ? (
                                                     <p className="text-center text-[0.62rem] leading-tight text-slate-500">펫 Lv.{minLv}+</p>
                                                 ) : (
@@ -1193,8 +1308,16 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 loading="lazy"
                                             />
                                         ) : unlocked ? (
-                                            <span className="px-0.5 text-center text-xs font-semibold leading-tight text-violet-200/90">
-                                                펫 드롭
+                                            <span
+                                                className={`px-0.5 text-center text-xs font-semibold leading-tight ${
+                                                    isVipTrainingSlot ? 'text-amber-200/95' : 'text-violet-200/90'
+                                                }`}
+                                            >
+                                                {useTapTrainingFlow
+                                                    ? trainingMobilePickSlotIndex === i
+                                                        ? '펫 선택'
+                                                        : '슬롯 탭'
+                                                    : '펫 드롭'}
                                             </span>
                                         ) : null}
                                     </div>
@@ -1219,7 +1342,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                         </div>
                                     ) : null}
                                     <span
-                                        className={`${trMono} text-center tracking-tight text-violet-200/90`}
+                                        className={`${trMono} text-center tracking-tight ${
+                                            isVipTrainingSlot ? 'text-amber-200/90' : 'text-violet-200/90'
+                                        }`}
                                         aria-label={`수련 소요 ${durationHhMmSs}`}
                                     >
                                         {durationHhMmSs}
@@ -1233,6 +1358,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         );
     })();
 
+    const trainingSlotsForUi = normalizePairPetTrainingSlots(currentUser.pairPetTrainingSlots);
+    const selectedPetInTraining = Boolean(
+        selectedItem && isPairPetMaterial(selectedItem) && isItemIdInPairTraining(trainingSlotsForUi, selectedItem.id),
+    );
+
     const infoDetailPanel =
         aiTab === 'info' ? (
             !selectedItem ? null : isPairPetMaterial(selectedItem) && selectedItem.templateId ? (
@@ -1241,6 +1371,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     item={selectedItem}
                     isBusy={isBusy}
                     equippedTemplateId={equippedTid}
+                    petInTraining={selectedPetInTraining}
                     onSetRepresentative={(templateId, inventoryItemId) => void equipPet(templateId, inventoryItemId)}
                     onClearRepresentative={() => void clearEquip()}
                     onSoulConvert={(item) => setSoulConvertItem(item)}
@@ -1536,6 +1667,82 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     onConfirm={() => void confirmSoulConvert()}
                     isTopmost
                 />
+            ) : null}
+
+            {trainingStartConfirm ? (
+                <DraggableWindow
+                    title="펫 수련 확인"
+                    onClose={() => {
+                        if (!isBusy) setTrainingStartConfirm(null);
+                    }}
+                    windowId="pairPetTrainingStartConfirm"
+                    isTopmost
+                    variant="store"
+                    initialWidth={420}
+                    shrinkHeightToContent
+                    bodyNoScroll
+                    bodyPaddingClassName="p-0"
+                >
+                    {(() => {
+                        const { slotIndex, itemId } = trainingStartConfirm;
+                        const petRow = inventory.find((x) => x.id === itemId);
+                        const slotLabel = getPairTrainingSlotDisplayName(slotIndex);
+                        const petName = petRow
+                            ? getPairPetDefinition(petRow.templateId!)?.displayName ?? petRow.name
+                            : '펫';
+                        return (
+                            <div className="relative overflow-hidden">
+                                <div
+                                    className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_75%_55%_at_50%_-18%,rgba(139,92,246,0.32),transparent_55%),linear-gradient(165deg,rgba(24,24,27,0.98)0%,rgba(9,9,11,0.99)48%,rgba(59,7,100,0.32)100%)]"
+                                    aria-hidden
+                                />
+                                <div className="relative px-5 pb-5 pt-6 text-center sm:px-6 sm:pb-6 sm:pt-7">
+                                    {petRow ? (
+                                        <div className="mx-auto mb-4 flex h-[5.25rem] w-[5.25rem] items-center justify-center rounded-xl border border-violet-400/40 bg-black/35 p-1 shadow-inner sm:h-[5.75rem] sm:w-[5.75rem]">
+                                            <img src={petRow.image} alt="" className="max-h-full max-w-full object-contain" loading="lazy" />
+                                        </div>
+                                    ) : null}
+                                    <h3 className="text-base font-black leading-snug text-violet-50 sm:text-lg">
+                                        <span className="text-white">{petName}</span> 펫을
+                                        <br />
+                                        <span className="text-violet-200">{slotLabel}</span>에 보낼까요?
+                                    </h3>
+                                    <p className="mx-auto mt-3 max-w-sm text-left text-[0.7rem] font-semibold leading-relaxed text-slate-300 sm:text-xs">
+                                        수련이 진행되는 동안 이 펫은 페어바둑에 출전할 수 없습니다. 대표 펫으로 지정된 펫은 수련에 보낼 수 없으며, 수련 중에는
+                                        대표 펫으로 바꿀 수 없습니다.
+                                    </p>
+                                    <div className="mx-auto mt-5 flex max-w-sm flex-col items-stretch justify-center gap-2.5 sm:flex-row sm:gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setTrainingStartConfirm(null)}
+                                            disabled={isBusy}
+                                            className="order-2 w-full min-w-[8rem] rounded-full border border-white/15 bg-white/[0.04] px-5 py-2.5 text-sm font-semibold text-slate-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-white/25 hover:bg-white/[0.08] disabled:opacity-45 sm:order-1 sm:w-auto"
+                                        >
+                                            취소
+                                        </button>
+                                        <Button
+                                            type="button"
+                                            disabled={isBusy || !petRow}
+                                            onClick={async () => {
+                                                if (!petRow) return;
+                                                const res = await applyPetAction({
+                                                    type: 'PAIR_PET_START_TRAINING',
+                                                    payload: { slotIndex, itemId },
+                                                });
+                                                if (res && (res as { error?: string }).error) return;
+                                                setTrainingStartConfirm(null);
+                                            }}
+                                            colorScheme="none"
+                                            className="order-1 w-full min-w-[8rem] !rounded-full !border !border-violet-400/55 !bg-gradient-to-r !from-violet-600 !via-violet-500 !to-fuchsia-600 !px-6 !py-2.5 !text-sm !font-black !text-white !shadow-[0_8px_26px_rgba(124,58,237,0.4),inset_0_1px_0_rgba(255,255,255,0.18)] hover:!from-violet-500 hover:!via-violet-400 hover:!to-fuchsia-500 disabled:!opacity-40 sm:order-2 sm:w-auto"
+                                        >
+                                            수련 보내기
+                                        </Button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                </DraggableWindow>
             ) : null}
 
             {hatcheryPetInvFullModalOpen ? (

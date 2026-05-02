@@ -2729,6 +2729,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     ) {
                         return { error: '선택한 펫을 찾을 수 없습니다.' };
                     }
+                    user.pairPetTrainingSlots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
+                    if (isItemIdInPairTraining(user.pairPetTrainingSlots, inventoryItemId)) {
+                        return { error: '수련 중인 펫은 대표펫으로 지정할 수 없습니다.' };
+                    }
                     user.equippedPairPetInventoryItemId = inventoryItemId;
                 } else {
                     reconcileEquippedPairPetInventoryItem(user);
@@ -3061,6 +3065,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             if (isItemIdInPairTraining(user.pairPetTrainingSlots, itemId)) {
                 return { error: '이미 다른 슬롯에서 수련 중인 펫입니다.' };
+            }
+            const eqTid = user.equippedPairPetTemplateId ?? null;
+            const eqIid = user.equippedPairPetInventoryItemId ?? null;
+            if (eqIid && eqIid === itemId) {
+                return { error: '대표로 지정된 펫은 수련에 보낼 수 없습니다. 대표펫을 해제한 뒤 시도해 주세요.' };
+            }
+            if (!eqIid && eqTid && row.templateId === eqTid) {
+                return { error: '대표로 지정된 펫은 수련에 보낼 수 없습니다. 대표펫을 해제한 뒤 시도해 주세요.' };
             }
             const meta = readPairPetMetaFromRow(row);
             const minLv = minPetLevelForTrainingSlot(slotIndex);

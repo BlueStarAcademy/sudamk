@@ -1,13 +1,20 @@
 import type { InventoryItem, User } from '../types/entities.js';
 import { isPairEggItem, isPairPetMaterial } from '../constants/petLobby.js';
+import { isItemIdInPairTraining, normalizePairPetTrainingSlots } from '../constants/pairTraining.js';
+
+type EquippedPickUser = Pick<User, 'inventory' | 'equippedPairPetTemplateId' | 'equippedPairPetInventoryItemId' | 'pairPetTrainingSlots'>;
+
+function petRowEligibleForRepresentative(user: EquippedPickUser, row: InventoryItem): boolean {
+    if (!isPairPetMaterial(row) || isPairEggItem(row) || (row.quantity ?? 1) < 1) return false;
+    const slots = normalizePairPetTrainingSlots(user.pairPetTrainingSlots);
+    return !isItemIdInPairTraining(slots, row.id);
+}
 
 /**
  * 대표 펫은 `equippedPairPetTemplateId`만 저장하면 동종 펫이 여러 마리일 때 `inventory.find`가
  * 항상 첫 행을 잡아 등급이 어긋날 수 있음 → `equippedPairPetInventoryItemId`로 정확한 인벤 행을 지정.
  */
-export function getEquippedPairPetInventoryRow(
-    user: Pick<User, 'inventory' | 'equippedPairPetTemplateId' | 'equippedPairPetInventoryItemId'>
-): InventoryItem | null {
+export function getEquippedPairPetInventoryRow(user: EquippedPickUser): InventoryItem | null {
     const tid = user.equippedPairPetTemplateId ?? null;
     if (!tid) return null;
     const inv = user.inventory ?? [];
@@ -19,7 +26,8 @@ export function getEquippedPairPetInventoryRow(
             isPairPetMaterial(byId) &&
             !isPairEggItem(byId) &&
             byId.templateId === tid &&
-            (byId.quantity ?? 1) >= 1
+            (byId.quantity ?? 1) >= 1 &&
+            petRowEligibleForRepresentative(user, byId)
         ) {
             return byId;
         }
@@ -30,7 +38,8 @@ export function getEquippedPairPetInventoryRow(
                 isPairPetMaterial(it) &&
                 !isPairEggItem(it) &&
                 it.templateId === tid &&
-                (it.quantity ?? 1) >= 1
+                (it.quantity ?? 1) >= 1 &&
+                petRowEligibleForRepresentative(user, it)
         ) ?? null
     );
 }
@@ -51,7 +60,8 @@ export function reconcileEquippedPairPetInventoryItem(user: User): void {
             isPairPetMaterial(row) &&
             !isPairEggItem(row) &&
             row.templateId === tid &&
-            (row.quantity ?? 1) >= 1
+            (row.quantity ?? 1) >= 1 &&
+            petRowEligibleForRepresentative(user, row)
         ) {
             return;
         }
@@ -61,7 +71,8 @@ export function reconcileEquippedPairPetInventoryItem(user: User): void {
             isPairPetMaterial(it) &&
             !isPairEggItem(it) &&
             it.templateId === tid &&
-            (it.quantity ?? 1) >= 1
+            (it.quantity ?? 1) >= 1 &&
+            petRowEligibleForRepresentative(user, it)
     );
     user.equippedPairPetInventoryItemId = fb?.id ?? null;
     if (!fb) user.equippedPairPetTemplateId = null;

@@ -25,6 +25,8 @@ export interface PairPetLobbyInfoPetViewerProps {
     isBusy: boolean;
     /** 현재 대표로 장착된 펫의 `templateId` */
     equippedTemplateId: string | null;
+    /** 수련 슬롯에 올라가 있는 펫은 대표로 지정할 수 없음 */
+    petInTraining?: boolean;
     onSetRepresentative: (templateId: string, inventoryItemId: string) => void;
     onClearRepresentative: () => void;
     onSoulConvert: (item: InventoryItem) => void;
@@ -36,6 +38,7 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
     item,
     isBusy,
     equippedTemplateId,
+    petInTraining = false,
     onSetRepresentative,
     onClearRepresentative,
     onSoulConvert,
@@ -111,7 +114,12 @@ const PairPetLobbyInfoPetViewer: React.FC<PairPetLobbyInfoPetViewerProps> = ({
                 ) : (
                     <Button
                         type="button"
-                        disabled={isBusy || !tid}
+                        disabled={isBusy || !tid || petInTraining}
+                        title={
+                            petInTraining
+                                ? '수련 중인 펫은 대표펫으로 지정할 수 없습니다. 수련을 마친 뒤 지정해 주세요.'
+                                : undefined
+                        }
                         onClick={() => tid && void onSetRepresentative(tid, item.id)}
                         colorScheme="none"
                         className="!min-w-0 !flex-1 !shrink !rounded-lg !border !border-cyan-400/50 !bg-cyan-950/55 !px-1 !py-2 !text-[0.7rem] !font-extrabold !leading-tight !text-cyan-50 sm:!rounded-xl sm:!px-2 sm:!text-xs"
