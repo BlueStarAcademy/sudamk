@@ -5,15 +5,18 @@
  * KataServer 미설정·API 오류·무효/PASS 응답은 서버 합법수/종료 폴백으로 안전 처리해 AI 턴 정지를 막는다.
  */
 
+import { randomUUID } from 'crypto';
 import { LiveGameSession, Player, Point } from '../types/index.js';
 import { getGoLogic, processMove } from './goLogic.js';
 import * as types from '../types/index.js';
 import * as summaryService from './summaryService.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import * as db from './db.js';
+import { volatileState } from './state.js';
+import { broadcast } from './socket.js';
 import { hasTimeControl, shouldEnforceTimeControl } from './modes/shared.js';
 import { isFischerStyleTimeControl } from '../shared/utils/gameTimeControl.js';
-import { generateKataServerMoveCandidates, isKataServerAvailable } from './kataServerService.js';
+import { generateKataServerMoveCandidateDetails, generateKataServerMoveCandidates, isKataServerAvailable } from './kataServerService.js';
 import {
     advancePairTurn,
     getCurrentPairTurnSeat,
@@ -23,10 +26,12 @@ import {
     resetPairPasses,
 } from '../shared/utils/pairGameTurn.js';
 import {
+    pairPetKataAbilityScore,
     pairPetKataLevelForTotalPly,
     pairPetKataPhaseFromTotalPly,
 } from '../shared/constants/pairArena.js';
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
+import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from '../shared/constants/gameSettings.js';
 import {
     consumeOpponentPatternStoneIfAny,
     isPatternIntersectionPermanentlyConsumed,
@@ -1310,8 +1315,6 @@ function revealAllUnrevealedHiddensForPlayerEnum(game: types.LiveGameSession, pl
 }
 
 const USER_HIDDEN_FULL_REVEAL_MS = 1500;
-/** AI 히든 아이템 "생각" 연출 길이 — 연출이 끝난 뒤에 Kata로 좌표를 정한다 */
-const AI_HIDDEN_ITEM_THINKING_DURATION_MS = 6000;
 
 /**
  * AI가 마스킹된 유저 히든을 찍어 전체 공개가 필요할 때: 영구 공개 + 전체공개 연출 후,
@@ -1527,6 +1530,60 @@ function getMaxOpponentWeightedCaptureReply(
         if (w > maxW) maxW = w;
     }
     return maxW;
+}
+
+function isLegalAiMoveOnCurrentBoard(game: types.LiveGameSession, move: Point | null | undefined, player: Player): move is Point {
+    if (!move || move.x < 0 || move.y < 0) return false;
+    const boardSize = game.settings.boardSize || game.boardState.length;
+    if (move.x >= boardSize || move.y >= boardSize) return false;
+    return processMove(game.boardState, { ...move, player }, game.koInfo, game.moveHistory.length).isValid;
+}
+
+function countPairSeatOwnMoves(game: types.LiveGameSession, participantId: string): number {
+    return (game.moveHistory || []).filter(
+        (m: any) => m && m.x !== -1 && m.y !== -1 && m.actorId === participantId
+    ).length;
+}
+
+function shuffledAdjacentMoves(move: Point): Point[] {
+    const candidates: Point[] = [
+        { x: move.x + 1, y: move.y },
+        { x: move.x - 1, y: move.y },
+        { x: move.x, y: move.y + 1 },
+        { x: move.x, y: move.y - 1 },
+    ];
+    for (let i = candidates.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidates[i], candidates[j]] = [candidates[j]!, candidates[i]!];
+    }
+    return candidates;
+}
+
+function choosePairPetMistakeMove(game: types.LiveGameSession, bestMove: Point, player: Player): Point | null {
+    for (const candidate of shuffledAdjacentMoves(bestMove)) {
+        if (isLegalAiMoveOnCurrentBoard(game, candidate, player)) return candidate;
+    }
+    return null;
+}
+
+function appendPairPetGameChat(game: types.LiveGameSession, text: string): void {
+    if (!text) return;
+    const message: types.ChatMessage = {
+        id: `msg-${randomUUID()}`,
+        user: { id: 'pair-pet-ai', nickname: '페어 펫' },
+        text,
+        system: true,
+        timestamp: Date.now(),
+    };
+    if (!volatileState.gameChats[game.id]) volatileState.gameChats[game.id] = [];
+    volatileState.gameChats[game.id].push(message);
+    if (volatileState.gameChats[game.id].length > 100) volatileState.gameChats[game.id].shift();
+    broadcast({
+        type: 'GAME_CHAT_UPDATE',
+        payload: {
+            [game.id]: volatileState.gameChats[game.id],
+        },
+    });
 }
 
 export async function makeGoAiBotMove(
@@ -1891,6 +1948,7 @@ export async function makeGoAiBotMove(
     }
     
     let selectedMove: Point | null = null;
+    let pendingPairPetKataChatMessage: string | null = null;
     const configuredAiHiddenPlacementsRaw = (game.settings as any)?.singlePlayerAiHiddenItemPlacements;
     const configuredAiHiddenPlacements: Point[] = Array.isArray(configuredAiHiddenPlacementsRaw)
         ? configuredAiHiddenPlacementsRaw
@@ -1971,9 +2029,12 @@ export async function makeGoAiBotMove(
             allowPass: pairKataAllowPass,
         };
         let kataCandidates: Point[] = [];
+        let kataBestMove: Point | null = null;
         if (isKataServerAvailable()) {
             try {
-                kataCandidates = await generateKataServerMoveCandidates(kataParamsBase);
+                const kataDetails = await generateKataServerMoveCandidateDetails(kataParamsBase);
+                kataCandidates = kataDetails.candidates;
+                kataBestMove = kataDetails.bestMove;
             } catch (e: any) {
                 console.error(
                     `[makeGoAiBotMove] KataServer 호출 실패; 서버 합법수 폴백으로 진행합니다. game=${game.id}:`,
@@ -2066,8 +2127,41 @@ export async function makeGoAiBotMove(
 
         if (!selectedMove && pickedFromKata) {
             selectedMove = { x: pickedFromKata.x, y: pickedFromKata.y };
+            const pairPetSeat = pairCurrentSeat?.kind === 'pet' ? pairCurrentSeat : null;
+            const pairSeatOwnMoveNumber = pairCurrentSeat
+                ? countPairSeatOwnMoves(game, pairCurrentSeat.participantId) + 1
+                : 0;
+            const canCheckPairPetEvent = Boolean(
+                pairPetSeat &&
+                pairKataStats &&
+                pairKataPhase &&
+                pairSeatOwnMoveNumber > 0 &&
+                pairSeatOwnMoveNumber % 10 === 0 &&
+                kataBestMove &&
+                isLegalAiMoveOnCurrentBoard(game, kataBestMove, aiPlayerEnum)
+            );
+            if (canCheckPairPetEvent && kataBestMove) {
+                const petName = pairPetSeat?.name || '펫';
+                const pickedMistakeBranch = Math.random() < 0.5;
+                if (pickedMistakeBranch) {
+                    const ability = pairPetKataAbilityScore(pairKataPhase!, pairKataStats!);
+                    const mistakeProbability = Math.max(0, Math.min(1, 0.3 - ability / 1000));
+                    if (Math.random() < mistakeProbability) {
+                        const mistakeMove = choosePairPetMistakeMove(game, kataBestMove, aiPlayerEnum);
+                        if (mistakeMove) {
+                            selectedMove = { x: mistakeMove.x, y: mistakeMove.y };
+                            pendingPairPetKataChatMessage = `${petName} : 앗! 실수..`;
+                        } else {
+                            selectedMove = { x: kataBestMove.x, y: kataBestMove.y };
+                        }
+                    }
+                } else {
+                    selectedMove = { x: kataBestMove.x, y: kataBestMove.y };
+                    pendingPairPetKataChatMessage = `${petName} : 신의 한 수!`;
+                }
+            }
             console.log(
-                `[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${pickedFromKata.x},${pickedFromKata.y})`
+                `[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${selectedMove.x},${selectedMove.y})`
             );
         }
     }
@@ -2232,6 +2326,7 @@ export async function makeGoAiBotMove(
                 );
             }
             selectedMove = { x: pickedReveal.x, y: pickedReveal.y };
+            pendingPairPetKataChatMessage = null;
         }
     }
 
@@ -2295,6 +2390,7 @@ export async function makeGoAiBotMove(
                     `[makeGoAiBotMove] invalid Kata/hidden coord (${selectedMove.x},${selectedMove.y}); emergency legal (${fb.x},${fb.y}), game=${game.id}`
                 );
                 selectedMove = fb;
+                pendingPairPetKataChatMessage = null;
                 result = retry;
             }
         }
@@ -2320,6 +2416,10 @@ export async function makeGoAiBotMove(
         y: selectedMove.y,
         ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
     });
+    if (pendingPairPetKataChatMessage) {
+        appendPairPetGameChat(game, pendingPairPetKataChatMessage);
+        pendingPairPetKataChatMessage = null;
+    }
     if (shouldApplyHiddenOnThisMove) {
         if (!game.hiddenMoves) game.hiddenMoves = {};
         game.hiddenMoves[game.moveHistory.length - 1] = true;

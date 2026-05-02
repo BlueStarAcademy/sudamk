@@ -19,6 +19,7 @@ import { isGuildWarLiveSession } from '../shared/constants/guildConstants.js';
 import {
   aiLobbyRewardMultiplierFromProfileStep,
   isWaitingRoomAiGame,
+  pairGoAiRewardRelativeToStep3Multiplier,
   resolveAiLobbyProfileStepFromSettings,
   strategicLobbyAiWinXp,
 } from '../shared/utils/strategicAiDifficulty.js';
@@ -951,9 +952,9 @@ type PairGoRewardBand = {
 };
 
 const PAIR_GO_REWARD_BANDS: Record<9 | 13 | 19, PairGoRewardBand> = {
-    9: { gold: [100, 200], petXp: [10, 15], strategyXp: [10, 15] },
-    13: { gold: [300, 500], petXp: [20, 30], strategyXp: [20, 30] },
-    19: { gold: [500, 1000], petXp: [30, 50], strategyXp: [30, 50] },
+    9: { gold: [100, 200], petXp: [30, 45], strategyXp: [10, 15] },
+    13: { gold: [300, 500], petXp: [60, 90], strategyXp: [20, 30] },
+    19: { gold: [500, 1000], petXp: [90, 150], strategyXp: [30, 50] },
 };
 
 const rollInclusive = ([min, max]: [number, number]): number => {
@@ -1049,6 +1050,28 @@ function applyPairPetRewardXp(user: User, rawGain: number): { xp: StatChange; le
                 initial: initialXp,
                 final: finalXp,
                 max: Number.isFinite(maxXpForInitialLevel) && maxXpForInitialLevel > 0 ? maxXpForInitialLevel : 0,
+            },
+        },
+    };
+}
+
+/** 페어 종료 시 펫 XP가 0이어도 결과 모달에 장착 펫 상태를 표시하기 위한 스냅샷(인벤토리/유저 변경 없음). 반환 형태는 {@link applyPairPetRewardXp}와 동일 */
+function buildPairPetZeroGainSummary(user: User): { xp: StatChange; level: NonNullable<GameSummary['pairPetLevel']> } | undefined {
+    const row = getEquippedPairPetInventoryRow(user);
+    if (!row) return undefined;
+    const meta = resolvePairPetMetaFromInventoryRow(row);
+    const oldLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
+    const initialXp = Math.max(0, Math.floor(meta.xp ?? 0));
+    const maxXpForLevel = getXpRequirementForLevel(oldLevel);
+    return {
+        xp: { initial: initialXp, change: 0, final: initialXp },
+        level: {
+            initial: oldLevel,
+            final: oldLevel,
+            progress: {
+                initial: initialXp,
+                final: initialXp,
+                max: Number.isFinite(maxXpForLevel) && maxXpForLevel > 0 ? maxXpForLevel : 100,
             },
         },
     };
@@ -2035,6 +2058,11 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
 
     const seats = game.settings.pairGame?.turnOrder ?? [];
     const humanIds = getPairGoHumanParticipantIds(game);
+    /** 펫·2인 페어 AI는 `isAiGame`이 false일 수 있어 `pairMode === 'ai'`로 구분 */
+    const pairAiDifficultyMul =
+        game.settings?.pairGame?.pairMode === 'ai'
+            ? pairGoAiRewardRelativeToStep3Multiplier(resolveAiLobbyProfileStepFromSettings(game.settings as any))
+            : 1;
     const { broadcastUserUpdate } = await import('./socket.js');
     const initialRatingByUserId: Record<string, number> = {};
     if (game.isRankedGame && !game.isAiGame) {
@@ -2069,9 +2097,9 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const rolledGold = rollInclusive(band.gold);
         const rolledStrategyXp = rollInclusive(band.strategyXp);
         const rolledPetXp = rollInclusive(band.petXp);
-        const goldGain = Math.floor(rolledGold * multiplier);
-        const strategyXpGain = Math.floor(rolledStrategyXp * multiplier);
-        const petXpGain = Math.floor(rolledPetXp * multiplier);
+        const goldGain = Math.floor(rolledGold * pairAiDifficultyMul * multiplier);
+        const strategyXpGain = Math.floor(rolledStrategyXp * pairAiDifficultyMul * multiplier);
+        const petXpGain = Math.floor(rolledPetXp * pairAiDifficultyMul * multiplier);
 
         user.gold += goldGain;
         let currentXp = initialStrategyXp + strategyXpGain;
@@ -2087,6 +2115,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         user.strategyXp = currentXp;
 
         const pairPetGrowthSummary = petXpGain > 0 ? applyPairPetRewardXp(user, petXpGain) : undefined;
+        const pairPetDisplaySummary = pairPetGrowthSummary ?? buildPairPetZeroGainSummary(user);
 
         let ratingChange = 0;
         if (game.isRankedGame && !game.isAiGame && !isNoContest && rankedOpponentId) {
@@ -2127,7 +2156,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
                     max: requiredXpForInitialLevel,
                 },
             },
-            ...(pairPetGrowthSummary ? { pairPetXp: pairPetGrowthSummary.xp, pairPetLevel: pairPetGrowthSummary.level } : {}),
+            ...(pairPetDisplaySummary ? { pairPetXp: pairPetDisplaySummary.xp, pairPetLevel: pairPetDisplaySummary.level } : {}),
         };
 
         await db.updateUser(user);

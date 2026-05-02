@@ -79,6 +79,22 @@ const addSpeedConsumedSeconds = (game: types.LiveGameSession, player: types.Play
 };
 import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
 
+function findLatestMoveIndexAt(
+    moveHistory: types.LiveGameSession['moveHistory'] | undefined,
+    x: number,
+    y: number,
+    player?: types.Player,
+): number {
+    const moves = moveHistory || [];
+    for (let i = moves.length - 1; i >= 0; i--) {
+        const move = moves[i];
+        if (move.x === x && move.y === y && (player === undefined || move.player === player)) {
+            return i;
+        }
+    }
+    return -1;
+}
+
 const STRATEGIC_GO_SERVER_AI_MODES: types.GameMode[] = [
     types.GameMode.Standard,
     types.GameMode.Capture,
@@ -1300,7 +1316,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     const isCurrentMove = nx === x && ny === y;
                     let isHiddenStone = isCurrentMove ? effectiveIsHidden : false;
                     if (!isCurrentMove) {
-                        const moveIndex = game.moveHistory.findIndex(m => m.x === nx && m.y === ny);
+                        const moveIndex = findLatestMoveIndexAt(game.moveHistory, nx, ny, myPlayerEnum);
                         isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
                         if (!isHiddenStone && aiInitialHiddenCellTracking && (game as any).aiInitialHiddenStone) {
                             const aiHidden = (game as any).aiInitialHiddenStone;
@@ -1319,7 +1335,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             const capturedHiddenStones: { point: types.Point; player: types.Player }[] = [];
             if (result.capturedStones.length > 0) {
                 for (const capturedStone of result.capturedStones) {
-                    const moveIndex = game.moveHistory.findIndex(m => m.x === capturedStone.x && m.y === capturedStone.y);
+                    const moveIndex = findLatestMoveIndexAt(game.moveHistory, capturedStone.x, capturedStone.y, opponentPlayerEnum);
                     if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
                         const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === capturedStone.x && p.y === capturedStone.y);
                         if (!isPermanentlyRevealed) {

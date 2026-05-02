@@ -67,11 +67,14 @@ export const ResultModalXpRewardBadge: React.FC<{
     className?: string;
     title?: string;
     hideAmount?: boolean;
-}> = ({ variant, amount, density = 'compact', className = '', title, hideAmount = false }) => {
-    if (amount <= 0) return null;
+    /** 페어 등: 펫 XP +0일 때도 배지 자리를 유지(변동 없음 표시) */
+    allowZeroDisplay?: boolean;
+}> = ({ variant, amount, density = 'compact', className = '', title, hideAmount = false, allowZeroDisplay = false }) => {
+    const showPetZero = variant === 'pet' && allowZeroDisplay && amount <= 0;
+    if (amount <= 0 && !showPetZero) return null;
     const v = VARIANT[variant];
     const modeLabel = variant === 'strategy' ? '전략' : variant === 'playful' ? '놀이' : '펫';
-    const defaultTitle = `${modeLabel} 경험치 +${amount.toLocaleString()}`;
+    const defaultTitle = showPetZero ? '펫 경험치 변동 없음' : `${modeLabel} 경험치 +${amount.toLocaleString()}`;
 
     const isPreGameInline = density === 'preGameInline';
     const isCompact = density === 'compact' || isPreGameInline;
@@ -109,7 +112,11 @@ export const ResultModalXpRewardBadge: React.FC<{
                 <span
                     className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}
                 >
-                    <span className="whitespace-nowrap">+{amount.toLocaleString()}</span>
+                    {showPetZero ? (
+                        <span className="whitespace-nowrap text-slate-400">변동 없음</span>
+                    ) : (
+                        <span className="whitespace-nowrap">+{amount.toLocaleString()}</span>
+                    )}
                 </span>
             )}
         </div>

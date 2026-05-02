@@ -1511,6 +1511,21 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
 
     const isWinner = getIsWinner(session, currentUser);
     const mySummary = session.summary?.[currentUser.id];
+    const isPairGoSession = useMemo(
+        () => Boolean(session.settings?.pairGame?.turnOrder?.length),
+        [session.settings?.pairGame?.turnOrder],
+    );
+    const pairPetPortraitUrl = useMemo(() => {
+        const row = getEquippedPairPetInventoryRow(currentUser);
+        if (!row) return null;
+        const img = (row as { image?: string }).image;
+        return img ?? (row.templateId ? getPairPetDefinition(row.templateId)?.image : null) ?? null;
+    }, [currentUser]);
+    const pairPetSummaryReady =
+        mySummary != null &&
+        mySummary.pairPetLevel != null &&
+        mySummary.pairPetXp != null;
+    const showPairPetProfileAside = isPairGoSession && (!!pairPetPortraitUrl || pairPetSummaryReady);
     const isAdventureGame = session.gameCategory === 'adventure';
     const sessionShowsVipPlayRewardSlot = useMemo(() => {
         if (isSpectator) return false;
@@ -1589,6 +1604,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             (mySummary.gold ?? 0) > 0 ||
             (mySummary.xp?.change ?? 0) > 0 ||
             (mySummary.pairPetXp?.change ?? 0) > 0 ||
+            mySummary.pairPetXp != null ||
             (mySummary.items?.length ?? 0) > 0
         );
     }, [mySummary, isAdventureGame, sessionShowsVipPlayRewardSlot, vipSlotEffective]);
@@ -2034,13 +2050,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 />
                             </div>
                         )}
-                        {(mySummary.pairPetXp?.change ?? 0) > 0 && (
+                        {mySummary.pairPetXp != null && (
                             <div className="flex shrink-0 flex-col items-center justify-center">
                                 <ResultModalXpRewardBadge
                                     variant="pet"
-                                    amount={mySummary.pairPetXp!.change}
+                                    amount={mySummary.pairPetXp.change}
                                     density={useCompactRewardSlots ? 'compact' : 'comfortable'}
-                                    title={`펫 경험치 +${mySummary.pairPetXp!.change.toLocaleString()}`}
+                                    title={
+                                        mySummary.pairPetXp.change > 0
+                                            ? `펫 경험치 +${mySummary.pairPetXp.change.toLocaleString()}`
+                                            : '펫 경험치 변동 없음'
+                                    }
+                                    allowZeroDisplay={isPairGoSession}
                                 />
                             </div>
                         )}
@@ -2239,37 +2260,81 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                             {isGuildWar ? '보상·기록' : '대국 결과'}
                                         </h2>
                                         <div className="flex-shrink-0 rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-1 ring-1 ring-inset ring-amber-500/10 sm:p-2">
-                                            <div className="flex items-center gap-1.5">
-                                                <Avatar
-                                                    userId={currentUser.id}
-                                                    userName={currentUser.nickname}
-                                                    size={Math.round(24 * mobileImageScale)}
-                                                    avatarUrl={avatarUrl}
-                                                    borderUrl={borderUrl}
-                                                />
-                                                <div className="min-w-0 flex-1">
-                                                    <div
-                                                        className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
-                                                        title={currentUser.nickname}
-                                                    >
-                                                        <p
-                                                            className="inline-block min-w-0 whitespace-nowrap pr-1 font-bold leading-snug text-white"
-                                                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                            <div className="flex w-full min-w-0 gap-1.5">
+                                                <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                                                    <Avatar
+                                                        userId={currentUser.id}
+                                                        userName={currentUser.nickname}
+                                                        size={Math.round(24 * mobileImageScale)}
+                                                        avatarUrl={avatarUrl}
+                                                        borderUrl={borderUrl}
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <div
+                                                            className="max-w-full overflow-x-auto overflow-y-hidden whitespace-nowrap [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]"
+                                                            title={currentUser.nickname}
                                                         >
-                                                            {currentUser.nickname}
+                                                            <p
+                                                                className="inline-block min-w-0 whitespace-nowrap pr-1 font-bold leading-snug text-white"
+                                                                style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                                            >
+                                                                {currentUser.nickname}
+                                                            </p>
+                                                        </div>
+                                                        <p
+                                                            className="font-medium text-slate-400 text-[0.7rem] sm:text-sm"
+                                                            style={{ fontSize: `${8 * mobileTextScale}px` }}
+                                                        >
+                                                            {isPlayful ? '놀이' : '전략'} Lv.
+                                                            {mySummary?.level ? mySummary.level.final : isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel}
                                                         </p>
                                                     </div>
-                                                    <p
-                                                        className="font-medium text-slate-400 text-[0.7rem] sm:text-sm"
-                                                        style={{ fontSize: `${8 * mobileTextScale}px` }}
-                                                    >
-                                                        {isPlayful ? '놀이' : '전략'} Lv.
-                                                        {mySummary?.level ? mySummary.level.final : isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel}
-                                                    </p>
                                                 </div>
+                                                {showPairPetProfileAside ? (
+                                                    <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md border border-fuchsia-400/25 bg-fuchsia-950/15 px-1 py-0.5 ring-1 ring-inset ring-fuchsia-400/10">
+                                                        <span
+                                                            className="text-[0.58rem] font-black uppercase tracking-tight text-fuchsia-200/95"
+                                                            style={{ fontSize: `${7 * mobileTextScale}px` }}
+                                                        >
+                                                            대표펫
+                                                        </span>
+                                                        <div
+                                                            className="flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-black/40 ring-1 ring-black/40"
+                                                            style={{
+                                                                width: Math.round(30 * mobileImageScale),
+                                                                height: Math.round(30 * mobileImageScale),
+                                                            }}
+                                                        >
+                                                            {pairPetPortraitUrl ? (
+                                                                <img
+                                                                    src={pairPetPortraitUrl}
+                                                                    alt=""
+                                                                    className="h-full w-full object-contain p-0.5"
+                                                                    loading="lazy"
+                                                                />
+                                                            ) : (
+                                                                <span className="text-[0.5rem] font-bold text-slate-500">—</span>
+                                                            )}
+                                                        </div>
+                                                        {mySummary?.pairPetXp != null ? (
+                                                            <p
+                                                                className="text-center font-bold tabular-nums leading-none text-[0.62rem]"
+                                                                style={{ fontSize: `${7 * mobileTextScale}px` }}
+                                                            >
+                                                                {mySummary.pairPetXp.change === 0 ? (
+                                                                    <span className="text-slate-500">펫 XP 변동 없음</span>
+                                                                ) : (
+                                                                    <span className="text-fuchsia-200/95">
+                                                                        +{mySummary.pairPetXp.change.toLocaleString()} XP
+                                                                    </span>
+                                                                )}
+                                                            </p>
+                                                        ) : null}
+                                                    </div>
+                                                ) : null}
                                             </div>
                                         </div>
-                                        {mySummary?.level && mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
+                                        {mySummary && mySummary.level && mySummary.pairPetLevel && mySummary.pairPetXp != null ? (
                                             <div className="grid min-h-[3rem] flex-shrink-0 grid-cols-2 gap-1">
                                                 <div className="min-w-0 rounded-lg border border-emerald-400/20 bg-emerald-950/15 px-1.5 py-1">
                                                     <p
@@ -2347,7 +2412,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 </div>
                                             </div>
                                         )}
-                                        {mySummary?.pairPetLevel && mySummary?.pairPetXp && !mySummary?.level ? (
+                                        {mySummary && mySummary.pairPetLevel && mySummary.pairPetXp != null && !mySummary.level ? (
                                             <div className="flex min-h-[2.4rem] flex-shrink-0 flex-col justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 px-1.5 py-1">
                                                 <p
                                                     className="mb-1 text-center text-[0.65rem] font-black tracking-tight text-fuchsia-200"
@@ -2533,56 +2598,88 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     {isGuildWar ? '보상·기록' : '대국 결과'}
                                 </h2>
                                 <div className="flex-shrink-0 rounded-lg border border-amber-500/20 bg-gradient-to-r from-slate-950/80 via-[#15151c] to-slate-950/80 p-1.5 ring-1 ring-inset ring-amber-500/10 sm:p-2">
-                                    <div className="flex min-w-0 items-center gap-2">
-                                        <Avatar
-                                            userId={currentUser.id}
-                                            userName={currentUser.nickname}
-                                            size={40}
-                                            avatarUrl={avatarUrl}
-                                            borderUrl={borderUrl}
-                                        />
-                                        <div className="min-w-0 shrink">
-                                            <p
-                                                className="min-w-0 break-words text-sm font-bold leading-tight text-white min-[1024px]:text-[0.9rem]"
-                                                style={{ wordBreak: 'break-word' }}
-                                                title={currentUser.nickname}
-                                            >
-                                                {currentUser.nickname}
-                                            </p>
-                                            <p className="text-[0.65rem] font-medium leading-none text-slate-400 min-[1024px]:text-xs">
-                                                {isPlayful ? '놀이' : '전략'} Lv.
-                                                {mySummary?.level ? mySummary.level.final : isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel}
-                                            </p>
-                                        </div>
-                                        {!(mySummary?.pairPetLevel && mySummary?.pairPetXp && mySummary?.level) ? (
-                                            <div className="min-w-0 flex-1 self-center">
-                                                {mySummary?.level ? (
-                                                    <XpBar
-                                                        initial={mySummary.level.progress.initial}
-                                                        final={mySummary.level.progress.final}
-                                                        max={mySummary.level.progress.max}
-                                                        levelUp={mySummary.level.initial < mySummary.level.final}
-                                                        xpGain={mySummary.xp?.change ?? 0}
-                                                        finalLevel={mySummary.level.final}
-                                                        isMobile={false}
-                                                        mobileTextScale={mobileTextScale}
-                                                        compact
-                                                        omitLevelColumn
-                                                    />
-                                                ) : (
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-14 shrink-0 text-right text-xs font-bold text-slate-400">경험치</span>
-                                                        <div className="relative flex h-3 w-full min-w-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
-                                                            <span className="text-[10px] font-bold text-slate-500">0 XP</span>
+                                    <div className="flex w-full min-w-0 gap-2">
+                                        <div className="flex min-w-0 flex-1 items-center gap-2">
+                                            <Avatar
+                                                userId={currentUser.id}
+                                                userName={currentUser.nickname}
+                                                size={40}
+                                                avatarUrl={avatarUrl}
+                                                borderUrl={borderUrl}
+                                            />
+                                            <div className="min-w-0 shrink">
+                                                <p
+                                                    className="min-w-0 break-words text-sm font-bold leading-tight text-white min-[1024px]:text-[0.9rem]"
+                                                    style={{ wordBreak: 'break-word' }}
+                                                    title={currentUser.nickname}
+                                                >
+                                                    {currentUser.nickname}
+                                                </p>
+                                                <p className="text-[0.65rem] font-medium leading-none text-slate-400 min-[1024px]:text-xs">
+                                                    {isPlayful ? '놀이' : '전략'} Lv.
+                                                    {mySummary?.level ? mySummary.level.final : isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel}
+                                                </p>
+                                            </div>
+                                            {!(mySummary && mySummary.pairPetLevel && mySummary.pairPetXp != null && mySummary.level) ? (
+                                                <div className="min-w-0 flex-1 self-center">
+                                                    {mySummary?.level ? (
+                                                        <XpBar
+                                                            initial={mySummary.level.progress.initial}
+                                                            final={mySummary.level.progress.final}
+                                                            max={mySummary.level.progress.max}
+                                                            levelUp={mySummary.level.initial < mySummary.level.final}
+                                                            xpGain={mySummary.xp?.change ?? 0}
+                                                            finalLevel={mySummary.level.final}
+                                                            isMobile={false}
+                                                            mobileTextScale={mobileTextScale}
+                                                            compact
+                                                            omitLevelColumn
+                                                        />
+                                                    ) : (
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="w-14 shrink-0 text-right text-xs font-bold text-slate-400">경험치</span>
+                                                            <div className="relative flex h-3 w-full min-w-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
+                                                                <span className="text-[10px] font-bold text-slate-500">0 XP</span>
+                                                            </div>
+                                                            <span className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-500">+0 XP</span>
                                                         </div>
-                                                        <span className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-500">+0 XP</span>
-                                                    </div>
-                                                )}
+                                                    )}
+                                                </div>
+                                            ) : null}
+                                        </div>
+                                        {showPairPetProfileAside ? (
+                                            <div className="flex w-[min(42%,11rem)] shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-fuchsia-400/25 bg-fuchsia-950/15 px-2 py-1.5 ring-1 ring-inset ring-fuchsia-400/10">
+                                                <span className="text-[0.65rem] font-black uppercase tracking-tight text-fuchsia-200/95 min-[1024px]:text-xs">
+                                                    대표펫
+                                                </span>
+                                                <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-black/40 ring-1 ring-black/40 min-[1024px]:h-12 min-[1024px]:w-12">
+                                                    {pairPetPortraitUrl ? (
+                                                        <img
+                                                            src={pairPetPortraitUrl}
+                                                            alt=""
+                                                            className="h-full w-full object-contain p-0.5"
+                                                            loading="lazy"
+                                                        />
+                                                    ) : (
+                                                        <span className="text-xs font-bold text-slate-500">—</span>
+                                                    )}
+                                                </div>
+                                                {mySummary?.pairPetXp != null ? (
+                                                    <p className="text-center text-[0.7rem] font-bold tabular-nums leading-tight min-[1024px]:text-xs">
+                                                        {mySummary.pairPetXp.change === 0 ? (
+                                                            <span className="text-slate-500">펫 XP 변동 없음</span>
+                                                        ) : (
+                                                            <span className="text-fuchsia-200/95">
+                                                                +{mySummary.pairPetXp.change.toLocaleString()} XP
+                                                            </span>
+                                                        )}
+                                                    </p>
+                                                ) : null}
                                             </div>
                                         ) : null}
                                     </div>
                                 </div>
-                                {mySummary?.pairPetLevel && mySummary?.pairPetXp && mySummary?.level ? (
+                                {mySummary && mySummary.level && mySummary.pairPetLevel && mySummary.pairPetXp != null ? (
                                     <div className="grid flex-shrink-0 grid-cols-2 gap-1.5">
                                         <div className="min-w-0 rounded-lg border border-emerald-400/20 bg-emerald-950/15 p-1.5 ring-1 ring-inset ring-emerald-400/10 sm:p-2">
                                             <div className="mb-1 text-center text-[0.65rem] font-black leading-tight text-emerald-200 min-[1024px]:text-xs">
@@ -2617,7 +2714,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                             />
                                         </div>
                                     </div>
-                                ) : mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
+                                ) : mySummary && mySummary.pairPetLevel && mySummary.pairPetXp != null ? (
                                     <div className="flex-shrink-0 rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 p-1.5 ring-1 ring-inset ring-fuchsia-400/10 sm:p-2">
                                         <div className="flex min-w-0 items-center gap-2">
                                             <div className="w-14 shrink-0 text-right text-[0.65rem] font-black leading-tight text-fuchsia-200 min-[1024px]:text-xs">

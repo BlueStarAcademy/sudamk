@@ -103,6 +103,12 @@ type KataMoveApiData = {
     bestMove?: string;
 };
 
+export interface KataServerMoveCandidateDetails {
+    candidates: Point[];
+    reportedMove: Point | null;
+    bestMove: Point | null;
+}
+
 /** KataServer가 레벨에 맞게 고른 `move` 우선, 그다음 참고용 `bestMove`. 중복 제거. */
 function buildGtpCandidatesFromKataResponse(data: KataMoveApiData, allowPass: boolean): string[] {
     const best = data.bestMove?.trim();
@@ -137,7 +143,7 @@ export interface GenerateKataServerMoveParams {
     allowPass?: boolean;
 }
 
-const inFlightKataServerMoveRequests = new Map<string, Promise<Point[]>>();
+const inFlightKataServerMoveRequests = new Map<string, Promise<KataServerMoveCandidateDetails>>();
 
 function buildKataServerMoveRequestKey(params: GenerateKataServerMoveParams): string {
     return JSON.stringify({
@@ -156,7 +162,7 @@ function buildKataServerMoveRequestKey(params: GenerateKataServerMoveParams): st
  * Kata 한 번 호출로 후보 좌표 목록 반환 (move → bestMove 순, PASS 제외).
  * PASS·빈 응답이면 빈 배열을 반환하고, 호출 측 폴백(합법수 탐색/종료 판단)으로 넘긴다.
  */
-async function generateKataServerMoveCandidatesUncached(params: GenerateKataServerMoveParams): Promise<Point[]> {
+async function generateKataServerMoveCandidatesUncached(params: GenerateKataServerMoveParams): Promise<KataServerMoveCandidateDetails> {
     if (!KATA_SERVER_URL) {
         throw new Error('KATA_SERVER_URL is not set');
     }
@@ -237,7 +243,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
                 `[KataServer] /move returned no board coordinate (PASS or empty). move=${reported ?? 'n/a'} bestMove=${best ?? 'n/a'} strategy=${data.strategy ?? 'n/a'} level=${level} boardSize=${boardSize} moves=${moves.length} player=${player} gameId=${gameId ?? 'n/a'}`,
             );
             await sleep(KATA_APPLY_MOVE_DELAY_MS);
-            return [];
+            return { candidates: [], reportedMove: null, bestMove: null };
         }
 
         const points: Point[] = [];
@@ -248,13 +254,28 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
                 console.warn(`[KataServer] skip unparsable GTP coord "${g}": ${e?.message ?? e}`);
             }
         }
+        const parseOptionalPoint = (gtp: string | undefined): Point | null => {
+            if (!gtp) return null;
+            const normalized = gtp.trim().toUpperCase();
+            if (!normalized || (normalized === 'PASS' && !allowPass)) return null;
+            try {
+                return gtpCoordToPoint(gtp, boardSize);
+            } catch (e: any) {
+                console.warn(`[KataServer] skip unparsable optional GTP coord "${gtp}": ${e?.message ?? e}`);
+                return null;
+            }
+        };
         if (points.length === 0) {
             throw new Error(
                 `[KataServer] /move had GTP candidates but none parsed to a point: ${JSON.stringify(gtps)} level=${level} boardSize=${boardSize} gameId=${gameId ?? 'n/a'}`,
             );
         }
         await sleep(KATA_APPLY_MOVE_DELAY_MS);
-        return points;
+        return {
+            candidates: points,
+            reportedMove: parseOptionalPoint(reported),
+            bestMove: parseOptionalPoint(best),
+        };
     } catch (err: any) {
         if (err.name === 'AbortError') {
             throw new Error(`KataServer timeout (${KATA_SERVER_TIMEOUT_MS}ms)`);
@@ -266,6 +287,11 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
 }
 
 export async function generateKataServerMoveCandidates(params: GenerateKataServerMoveParams): Promise<Point[]> {
+    const details = await generateKataServerMoveCandidateDetails(params);
+    return details.candidates;
+}
+
+export async function generateKataServerMoveCandidateDetails(params: GenerateKataServerMoveParams): Promise<KataServerMoveCandidateDetails> {
     const key = buildKataServerMoveRequestKey(params);
     const existing = inFlightKataServerMoveRequests.get(key);
     if (existing) {

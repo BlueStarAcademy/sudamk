@@ -41,12 +41,12 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
             const withinTurnRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn ?? 0);
             const withinTurn = Number.isFinite(withinTurnRaw) ? Math.max(1, Math.min(99, Math.floor(withinTurnRaw))) : 10;
             const configuredUseCountRaw = Number((game.settings as any)?.singlePlayerAiHiddenItemUseCount ?? 0);
+            const hasConfiguredRandomWindow = (game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn != null;
             const configuredUseCount = Number.isFinite(configuredUseCountRaw)
                 ? Math.max(1, Math.min(12, Math.floor(configuredUseCountRaw)))
                 : 1;
-            const plannedRandomUseCount = (game.settings as any)?.singlePlayerAiHiddenItemUseWithinTurn != null
-                ? configuredUseCount
-                : 0;
+            const hiddenStoneCount = Math.max(0, Number((game.settings as any)?.hiddenStoneCount ?? 0));
+            const plannedRandomUseCount = hasConfiguredRandomWindow ? configuredUseCount : (hiddenStoneCount > 0 ? 1 : 0);
             const minAiHiddenByConfig =
                 configuredTurns.length > 0
                     ? configuredTurns.length
@@ -71,7 +71,7 @@ export const initializeSinglePlayerHidden = (game: types.LiveGameSession) => {
                     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
                 }
                 const randomTurns = candidates
-                    .slice(0, Math.min(configuredUseCount, candidates.length))
+                    .slice(0, Math.min(plannedRandomUseCount, candidates.length))
                     .sort((a, b) => a - b);
                 game.aiHiddenItemTurn = randomTurns[0]; // 1=1번째 AI턴, ..., withinTurn=withinTurn번째 AI턴
                 game.aiHiddenItemTurns = randomTurns;

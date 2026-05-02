@@ -42,6 +42,12 @@ function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameM
         delete (next as { missileCount?: number }).missileCount;
         delete (next as { hiddenCount?: number }).hiddenCount;
         delete (next as { scanCount?: number }).scanCount;
+        delete (next as { aiHiddenItemTurns?: number[] }).aiHiddenItemTurns;
+        delete (next as { aiHiddenItemUseWithinTurn?: number }).aiHiddenItemUseWithinTurn;
+        delete (next as { aiHiddenItemUseCount?: number }).aiHiddenItemUseCount;
+        delete (next as { aiHiddenItemPlacements?: { x: number; y: number }[] }).aiHiddenItemPlacements;
+        delete (next as { disableAiHiddenItemUsage?: boolean }).disableAiHiddenItemUsage;
+        delete (next as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
         delete (next as { baseStones?: number }).baseStones;
         delete (next as { blackTurnLimit?: number }).blackTurnLimit;
         delete (next as { autoScoringTurns?: number }).autoScoringTurns;
@@ -54,6 +60,7 @@ function pruneDraftForMixedStrategicModes(d: SinglePlayerStageInfo, modes: GameM
         delete (next as { scanCount?: number }).scanCount;
         delete (next as { aiHiddenItemTurns?: number[] }).aiHiddenItemTurns;
         delete (next as { aiHiddenItemUseWithinTurn?: number }).aiHiddenItemUseWithinTurn;
+        delete (next as { aiHiddenItemUseCount?: number }).aiHiddenItemUseCount;
         delete (next as { aiHiddenItemPlacements?: { x: number; y: number }[] }).aiHiddenItemPlacements;
         delete (next as { disableAiHiddenItemUsage?: boolean }).disableAiHiddenItemUsage;
         delete (next as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
@@ -91,8 +98,12 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemTurns',
+                'aiHiddenItemUseWithinTurn',
+                'aiHiddenItemUseCount',
                 'aiHiddenItemPlacements',
                 'disableAiHiddenItemUsage',
+                'forceAiResponsesOnHiddenTurnsOnly',
                 'baseStones',
                 'mixedStrategicModes',
             ]);
@@ -109,8 +120,12 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemTurns',
+                'aiHiddenItemUseWithinTurn',
+                'aiHiddenItemUseCount',
                 'aiHiddenItemPlacements',
                 'disableAiHiddenItemUsage',
+                'forceAiResponsesOnHiddenTurnsOnly',
                 'baseStones',
                 'mixedStrategicModes',
                 'blackTurnLimit',
@@ -122,8 +137,12 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemTurns',
+                'aiHiddenItemUseWithinTurn',
+                'aiHiddenItemUseCount',
                 'aiHiddenItemPlacements',
                 'disableAiHiddenItemUsage',
+                'forceAiResponsesOnHiddenTurnsOnly',
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
@@ -134,8 +153,12 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemTurns',
+                'aiHiddenItemUseWithinTurn',
+                'aiHiddenItemUseCount',
                 'aiHiddenItemPlacements',
                 'disableAiHiddenItemUsage',
+                'forceAiResponsesOnHiddenTurnsOnly',
                 'survivalTurns',
                 'blackTurnLimit',
                 'baseStones',
@@ -146,8 +169,12 @@ function nextDraftAfterStrategicRulePresetChange(
                 'missileCount',
                 'hiddenCount',
                 'scanCount',
+                'aiHiddenItemTurns',
+                'aiHiddenItemUseWithinTurn',
+                'aiHiddenItemUseCount',
                 'aiHiddenItemPlacements',
                 'disableAiHiddenItemUsage',
+                'forceAiResponsesOnHiddenTurnsOnly',
                 'survivalTurns',
                 'blackTurnLimit',
                 'mixedStrategicModes',
@@ -166,6 +193,7 @@ function nextDraftAfterStrategicRulePresetChange(
                 'scanCount',
                 'aiHiddenItemTurns',
                 'aiHiddenItemUseWithinTurn',
+                'aiHiddenItemUseCount',
                 'aiHiddenItemPlacements',
                 'disableAiHiddenItemUsage',
                 'forceAiResponsesOnHiddenTurnsOnly',
@@ -1235,20 +1263,28 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
                                     rulePreset === 'auto'
                                         ? draft
                                         : nextDraftAfterStrategicRulePresetChange(draft, rulePreset);
+                                const saveHiddenAiSettings =
+                                    showHiddenAiTiming && cleanedDraft.disableAiHiddenItemUsage !== true;
                                 const normalizedHiddenTurns = normalizeHiddenTurnsFromCsv(aiHiddenTurnsCsv);
                                 const normalizedHiddenPlacements = normalizeHiddenPlacementsFromCsv(aiHiddenPlacementsCsv, cleanedDraft.boardSize);
                                 const aiHiddenItemUseCount = Number((cleanedDraft as { aiHiddenItemUseCount?: number }).aiHiddenItemUseCount ?? 0);
                                 await onSave({
                                     ...cleanedDraft,
                                     strategicRulePreset: rulePreset === 'auto' ? undefined : rulePreset,
-                                    aiHiddenItemTurns: normalizedHiddenTurns.length > 0 ? normalizedHiddenTurns : undefined,
-                                    aiHiddenItemUseWithinTurn: Number(cleanedDraft.aiHiddenItemUseWithinTurn ?? 0) > 0
+                                    aiHiddenItemTurns: saveHiddenAiSettings && normalizedHiddenTurns.length > 0 ? normalizedHiddenTurns : undefined,
+                                    aiHiddenItemUseWithinTurn: saveHiddenAiSettings && Number(cleanedDraft.aiHiddenItemUseWithinTurn ?? 0) > 0
                                         ? Number(cleanedDraft.aiHiddenItemUseWithinTurn)
                                         : undefined,
-                                    aiHiddenItemUseCount: aiHiddenItemUseCount > 0 ? Math.min(12, Math.floor(aiHiddenItemUseCount)) : undefined,
-                                    aiHiddenItemPlacements: normalizedHiddenPlacements.length > 0 ? normalizedHiddenPlacements : undefined,
-                                    disableAiHiddenItemUsage: cleanedDraft.disableAiHiddenItemUsage === true ? true : undefined,
-                                    forceAiResponsesOnHiddenTurnsOnly: cleanedDraft.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
+                                    aiHiddenItemUseCount:
+                                        saveHiddenAiSettings &&
+                                        Number(cleanedDraft.aiHiddenItemUseWithinTurn ?? 0) > 0 &&
+                                        aiHiddenItemUseCount > 0
+                                            ? Math.min(12, Math.floor(aiHiddenItemUseCount))
+                                            : undefined,
+                                    aiHiddenItemPlacements: saveHiddenAiSettings && normalizedHiddenPlacements.length > 0 ? normalizedHiddenPlacements : undefined,
+                                    disableAiHiddenItemUsage: showHiddenAiTiming && cleanedDraft.disableAiHiddenItemUsage === true ? true : undefined,
+                                    forceAiResponsesOnHiddenTurnsOnly:
+                                        saveHiddenAiSettings && cleanedDraft.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
                                     fixedOpening: cellsToFixedOpening(resizeCells(cells, cleanedDraft.boardSize)),
                                 });
                             } catch (error) {

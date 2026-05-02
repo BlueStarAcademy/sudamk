@@ -566,7 +566,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
     // (필요한 경우에만 ENABLE_MANUAL_SCORING_FALLBACK=true 로 명시적으로 켤 수 있음)
     const ENABLE_MANUAL_SCORING_FALLBACK = String(process.env.ENABLE_MANUAL_SCORING_FALLBACK || '').toLowerCase() === 'true';
     const SCORING_FALLBACK_AFTER_MS = parseInt(process.env.KATAGO_SCORING_FALLBACK_AFTER_MS || '0', 10);
-    // 계가 전용: 약 3초 안에 끝나도록 제한 (연출은 클라이언트 5초 유지). env로 오버라이드 가능.
+    // 계가 전용: HTTP/Kata 한도 (연출은 클라이언트 ScoringOverlay 진행 막대와 별개). env로 오버라이드 가능.
     const scoringLimits = getScoringKataGoLimits();
     let fallbackTimer: ReturnType<typeof setTimeout> | null = null;
 

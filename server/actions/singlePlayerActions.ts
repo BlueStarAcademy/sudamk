@@ -48,6 +48,12 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
     return Math.max(0, Math.floor(base + add));
 };
 
+const getSinglePlayerRuleFlags = (gameMode: GameMode, mixModes: GameMode[]) => ({
+    hasHidden: gameMode === GameMode.Hidden || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Hidden)),
+    hasMissile: gameMode === GameMode.Missile || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Missile)),
+    hasBase: gameMode === GameMode.Base || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Base)),
+});
+
 /**
  * 반(난이도 구간)별 프로필 단계 1~5 (봇 표시 레벨·aiDifficulty 등, 스테이지 구간 내 동일).
  */
@@ -187,6 +193,7 @@ const applyLatestPendingSinglePlayerStage = async (
 ): Promise<void> => {
     const gameMode: GameMode = resolveSinglePlayerStrategicGameMode(stage);
     const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];
+    const ruleFlags = getSinglePlayerRuleFlags(gameMode, mixModes);
     const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
     const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
     const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
@@ -265,22 +272,22 @@ const applyLatestPendingSinglePlayerStage = async (
         goAiBotLevel: kataProfileStep,
         survivalTurns: survivalTurnsResolved,
         isSurvivalMode: isSurvivalMode,
-        hiddenStoneCount: stage.hiddenCount,
-        scanCount: stage.scanCount,
-        missileCount: stage.missileCount,
+        hiddenStoneCount: ruleFlags.hasHidden ? stage.hiddenCount : undefined,
+        scanCount: ruleFlags.hasHidden ? stage.scanCount : undefined,
+        missileCount: ruleFlags.hasMissile ? stage.missileCount : undefined,
         singlePlayerPlacementRefreshAllowed: stage.allowPlacementRefresh !== false,
         autoScoringTurns: hasAutoScoring ? stage.autoScoringTurns : undefined,
         // 따내기/살리기에서만 턴 제한을 사용한다.
         blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
-        baseStones: stage.baseStones,
+        baseStones: ruleFlags.hasBase ? stage.baseStones : undefined,
         singlePlayerForcedAiResponses: stage.forcedAiResponses,
         singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
-        singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
-        singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
-        singlePlayerAiHiddenItemUseCount: stage.aiHiddenItemUseCount,
-        singlePlayerAiHiddenItemPlacements: stage.aiHiddenItemPlacements,
-        singlePlayerDisableAiHiddenItemUsage: stage.disableAiHiddenItemUsage === true,
-        singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,
+        singlePlayerAiHiddenItemTurns: ruleFlags.hasHidden ? stage.aiHiddenItemTurns : undefined,
+        singlePlayerAiHiddenItemUseWithinTurn: ruleFlags.hasHidden ? stage.aiHiddenItemUseWithinTurn : undefined,
+        singlePlayerAiHiddenItemUseCount: ruleFlags.hasHidden ? stage.aiHiddenItemUseCount : undefined,
+        singlePlayerAiHiddenItemPlacements: ruleFlags.hasHidden ? stage.aiHiddenItemPlacements : undefined,
+        singlePlayerDisableAiHiddenItemUsage: ruleFlags.hasHidden ? stage.disableAiHiddenItemUsage === true : undefined,
+        singlePlayerForceAiResponsesOnHiddenTurnsOnly: ruleFlags.hasHidden ? stage.forceAiResponsesOnHiddenTurnsOnly === true : undefined,
         ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
     } as any;
 
@@ -374,6 +381,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 게임 모드: strategicRulePreset이 있으면 우선, 없으면 기존 필드 조합 추론
             const gameMode: GameMode = resolveSinglePlayerStrategicGameMode(stage);
             const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];
+            const ruleFlags = getSinglePlayerRuleFlags(gameMode, mixModes);
             const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
             const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
 
@@ -445,21 +453,21 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     goAiBotLevel: kataProfileStep,
                     survivalTurns: survivalTurnsResolved, // 살리기 바둑 모드: AI가 살아남아야 하는 턴 수
                     isSurvivalMode: isSurvivalMode, // 살리기 바둑 모드 플래그
-                    hiddenStoneCount: stage.hiddenCount, // 히든바둑: 히든 아이템 개수
-                    scanCount: stage.scanCount, // 히든바둑: 스캔 아이템 개수
-                    missileCount: stage.missileCount, // 미사일바둑: 미사일 아이템 개수
+                    hiddenStoneCount: ruleFlags.hasHidden ? stage.hiddenCount : undefined, // 히든바둑: 히든 아이템 개수
+                    scanCount: ruleFlags.hasHidden ? stage.scanCount : undefined, // 히든바둑: 스캔 아이템 개수
+                    missileCount: ruleFlags.hasMissile ? stage.missileCount : undefined, // 미사일바둑: 미사일 아이템 개수
                     singlePlayerPlacementRefreshAllowed: stage.allowPlacementRefresh !== false,
                     autoScoringTurns: hasAutoScoring ? stage.autoScoringTurns : undefined, // 자동 계가 턴 수
                     blackTurnLimit: isCaptureGoalMode && !isSurvivalMode ? stage.blackTurnLimit : undefined,
-                    baseStones: stage.baseStones, // 베이스바둑: 베이스 돌 개수
+                    baseStones: ruleFlags.hasBase ? stage.baseStones : undefined, // 베이스바둑: 베이스 돌 개수
                     singlePlayerForcedAiResponses: stage.forcedAiResponses,
                     singlePlayerStrictForcedAiResponses: stage.strictForcedAiResponses === true,
-                    singlePlayerAiHiddenItemTurns: stage.aiHiddenItemTurns,
-                    singlePlayerAiHiddenItemUseWithinTurn: stage.aiHiddenItemUseWithinTurn,
-                    singlePlayerAiHiddenItemUseCount: stage.aiHiddenItemUseCount,
-                    singlePlayerAiHiddenItemPlacements: stage.aiHiddenItemPlacements,
-                    singlePlayerDisableAiHiddenItemUsage: stage.disableAiHiddenItemUsage === true,
-                    singlePlayerForceAiResponsesOnHiddenTurnsOnly: stage.forceAiResponsesOnHiddenTurnsOnly === true,
+                    singlePlayerAiHiddenItemTurns: ruleFlags.hasHidden ? stage.aiHiddenItemTurns : undefined,
+                    singlePlayerAiHiddenItemUseWithinTurn: ruleFlags.hasHidden ? stage.aiHiddenItemUseWithinTurn : undefined,
+                    singlePlayerAiHiddenItemUseCount: ruleFlags.hasHidden ? stage.aiHiddenItemUseCount : undefined,
+                    singlePlayerAiHiddenItemPlacements: ruleFlags.hasHidden ? stage.aiHiddenItemPlacements : undefined,
+                    singlePlayerDisableAiHiddenItemUsage: ruleFlags.hasHidden ? stage.disableAiHiddenItemUsage === true : undefined,
+                    singlePlayerForceAiResponsesOnHiddenTurnsOnly: ruleFlags.hasHidden ? stage.forceAiResponsesOnHiddenTurnsOnly === true : undefined,
                     ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
                 } as any,
                 player1: user,

@@ -124,6 +124,15 @@ export function aiLobbyRewardMultiplierFromProfileStep(profileStep: number): num
   return 1 + t * 0.1;
 }
 
+/**
+ * 페어바둑 AI 대국(`summaryService` PAIR_GO 롤 베이스): 3단계를 100% 기준으로 한 단계마다 ±10%p.
+ * 예) 1단계 0.8, 2단계 0.9, 3단계 1, 4단계 1.1, …, 10단계 1.7.
+ */
+export function pairGoAiRewardRelativeToStep3Multiplier(profileStep: number): number {
+  const s = Math.max(1, Math.min(10, Math.round(profileStep)));
+  return 1 + (s - 3) * 0.1;
+}
+
 function strategicLobbyAiBoardXpMultiplier(boardSize: number): number {
   if (boardSize === 13) return 1.5;
   if (boardSize === 19) return 2.5;

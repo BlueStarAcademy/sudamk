@@ -39,7 +39,6 @@ function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMo
 }
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
-import { ScoringOverlay } from './components/game/ScoringOverlay.js';
 import { useClientTimer } from './hooks/useClientTimer.js';
 import { useIsHandheldDevice } from './hooks/useIsMobileLayout.js';
 import { calculateSimpleAiMove } from './client/goAiBotClient.js';
@@ -63,6 +62,7 @@ import {
     ONBOARDING_INTRO1_FORCED_CAPTURE_POINT,
     shouldRestrictIntro1OnboardingFirstMove,
 } from './shared/constants/onboardingTutorial.js';
+import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from './shared/constants/gameSettings.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
 const AI_USER_ID = aiUserId;
 
@@ -409,6 +409,22 @@ const PairIngameTopPanel: React.FC<{ session: LiveGameSession; clientTimes: Pair
 };
 
 const isSamePoint = (a: Point, b: Point) => a.x === b.x && a.y === b.y;
+
+const findLatestMoveIndexAt = (
+    moveHistory: LiveGameSession['moveHistory'] | undefined,
+    x: number,
+    y: number,
+    player?: Player,
+): number => {
+    const moves = moveHistory || [];
+    for (let i = moves.length - 1; i >= 0; i--) {
+        const move = moves[i];
+        if (move.x === x && move.y === y && (player === undefined || move.player === player)) {
+            return i;
+        }
+    }
+    return -1;
+};
 
 const isUnrevealedUserHiddenStoneAt = (game: LiveGameSession, x: number, y: number): boolean => {
     if (!game.moveHistory || !game.hiddenMoves) return false;
@@ -2018,7 +2034,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
                 const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
                     !!session.hiddenMoves?.[moveIndexAtTarget] &&
@@ -2093,7 +2109,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
                 const isHiddenTarget =
                     stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
@@ -2125,7 +2141,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (x < 0 || x >= boardSize || y < 0 || y >= boardSize) return;
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
                 const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
                     !!session.hiddenMoves?.[moveIndexAtTarget] &&
@@ -2224,7 +2240,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 // 싱글플레이/도전의 탑에서 AI 돌 위에 착점하는 것 차단
                 const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
                 const stoneAtTarget = boardStateToUse[y][x];
-                const moveIndexAtTarget = (session.moveHistory || []).findIndex(m => m.x === x && m.y === y);
+                const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
                 const isHiddenTarget = stoneAtTarget === opponentPlayerEnum &&
                     moveIndexAtTarget !== -1 &&
                     !!session.hiddenMoves?.[moveIndexAtTarget] &&
@@ -2319,7 +2335,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             let isOpponentHiddenRevealOnline = false;
             if (gameStatus === 'hidden_placing' && boardStateForOnline && session.moveHistory) {
                 const st = boardStateForOnline[y][x];
-                const mi = session.moveHistory.findIndex(m => m.x === x && m.y === y);
+                const mi = findLatestMoveIndexAt(session.moveHistory, x, y, opponentEnumOnline);
                 isOpponentHiddenRevealOnline =
                     st === opponentEnumOnline &&
                     mi !== -1 &&
@@ -2558,7 +2574,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 let isOpponentHiddenReveal = false;
                 if (gameStatus === 'hidden_placing' && boardStateToUse && session.moveHistory) {
                     const stoneAtTarget = boardStateToUse[y][x];
-                    const moveIndexAtTarget = session.moveHistory.findIndex(m => m.x === x && m.y === y);
+                    const moveIndexAtTarget = findLatestMoveIndexAt(session.moveHistory, x, y, opponentPlayerEnum);
                     isOpponentHiddenReveal =
                         stoneAtTarget === opponentPlayerEnum &&
                         moveIndexAtTarget !== -1 &&
@@ -3275,7 +3291,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 aiTurnIndex === nextAiHiddenItemTurn;
             if (isAiHiddenItemTurn && aiHiddenItemEffectEndTime == null && isGuildWarGame) {
                 aiHiddenMoveExecutedRef.current = false;
-                setAiHiddenItemEffectEndTime(Date.now() + 6000);
+                setAiHiddenItemEffectEndTime(Date.now() + AI_HIDDEN_ITEM_THINKING_DURATION_MS);
                 return;
             }
             if (aiHiddenItemEffectEndTime != null) return;
@@ -4243,26 +4259,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     )}
                                 </div>
                             </div>
-                            {/* 계가 중: 바둑판 위 연출(ScoringOverlay). 싱글/탑은 Arena에서 fullscreen 오버레이 표시 */}
-                            {session.gameStatus === 'scoring' &&
-                                !session.isSinglePlayer &&
-                                session.gameCategory !== 'tower' &&
-                                (!session.analysisResult?.['system'] || session.isAnalyzing) && (
-                                    <ScoringOverlay />
-                                )}
+                            {/* 계가 연출(ScoringOverlay)은 GoGameArena·SinglePlayerArena에서만 표시 — 여기서 중복 마운트하면 이중 애니메이션 발생 */}
                         </div>
-                        <div className={`flex-shrink-0 w-full flex flex-col ${isPairIngame && isMobile ? 'gap-0.5' : 'gap-1'}`}>
-                            {!(isPairIngame && isMobile) && (
-                                <TurnDisplay
-                                    session={turnDisplaySession}
-                                    isMobile={isMobile}
-                                    onOpenSidebar={isMobile ? openMobileSidebar : undefined}
-                                    sidebarNotification={hasNewMessage}
-                                    onAction={handlers.handleAction}
-                                    boardRuleFlashMessage={boardRuleFlashMessage}
-                                    viewerUserId={isSpectator ? undefined : currentUser.id}
-                                />
-                            )}
+                        <div className="flex-shrink-0 w-full flex flex-col gap-1">
+                            <TurnDisplay
+                                session={turnDisplaySession}
+                                isMobile={isMobile}
+                                onOpenSidebar={isMobile ? openMobileSidebar : undefined}
+                                sidebarNotification={hasNewMessage}
+                                onAction={handlers.handleAction}
+                                boardRuleFlashMessage={boardRuleFlashMessage}
+                                viewerUserId={isSpectator ? undefined : currentUser.id}
+                            />
                             {isGuildWarTowerStyleUi && mode === GameMode.Missile ? (
                                 <GuildWarMissileTowerControls
                                     session={session}

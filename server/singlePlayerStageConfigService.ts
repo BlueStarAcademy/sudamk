@@ -101,6 +101,43 @@ const normalizeOptionalText = (value: unknown, fallback: string | undefined, max
     return text ? text.slice(0, maxLength) : undefined;
 };
 
+const deleteHiddenStageFields = (stage: SinglePlayerStageInfo): void => {
+    delete (stage as { hiddenCount?: number }).hiddenCount;
+    delete (stage as { scanCount?: number }).scanCount;
+    delete (stage as { aiHiddenItemTurns?: number[] }).aiHiddenItemTurns;
+    delete (stage as { aiHiddenItemUseWithinTurn?: number }).aiHiddenItemUseWithinTurn;
+    delete (stage as { aiHiddenItemUseCount?: number }).aiHiddenItemUseCount;
+    delete (stage as { aiHiddenItemPlacements?: SinglePlayerStageInfo['aiHiddenItemPlacements'] }).aiHiddenItemPlacements;
+    delete (stage as { disableAiHiddenItemUsage?: boolean }).disableAiHiddenItemUsage;
+    delete (stage as { forceAiResponsesOnHiddenTurnsOnly?: boolean }).forceAiResponsesOnHiddenTurnsOnly;
+};
+
+const pruneStageFieldsForExplicitRulePreset = (stage: SinglePlayerStageInfo): void => {
+    const preset = stage.strategicRulePreset;
+    if (!preset || preset === 'auto') return;
+
+    const mixModes =
+        preset === 'mix'
+            ? (Array.isArray(stage.mixedStrategicModes) && stage.mixedStrategicModes.length >= 2
+                ? stage.mixedStrategicModes
+                : [GameMode.Speed, GameMode.Capture])
+            : [];
+    const keepsHidden = preset === 'hidden' || (preset === 'mix' && mixModes.includes(GameMode.Hidden));
+    const keepsMissile = preset === 'missile' || (preset === 'mix' && mixModes.includes(GameMode.Missile));
+    const keepsBase = preset === 'base' || (preset === 'mix' && mixModes.includes(GameMode.Base));
+    const keepsCapture = preset === 'capture' || preset === 'survival' || (preset === 'mix' && mixModes.includes(GameMode.Capture));
+    const keepsSurvival = preset === 'survival';
+    const keepsAutoScoring = preset === 'speed' || (preset === 'mix' && !mixModes.includes(GameMode.Capture));
+
+    if (!keepsHidden) deleteHiddenStageFields(stage);
+    if (!keepsMissile) delete (stage as { missileCount?: number }).missileCount;
+    if (!keepsBase) delete (stage as { baseStones?: number }).baseStones;
+    if (!keepsCapture) delete (stage as { blackTurnLimit?: number }).blackTurnLimit;
+    if (!keepsSurvival) delete (stage as { survivalTurns?: number }).survivalTurns;
+    if (!keepsAutoScoring) delete (stage as { autoScoringTurns?: number }).autoScoringTurns;
+    if (preset !== 'mix') delete (stage as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
+};
+
 const defaultSinglePlayerKataServerLevel = (level: SinglePlayerStageInfo['level']): number => {
     switch (level) {
         case '입문':
@@ -297,6 +334,7 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
     if (out.strategicRulePreset === 'mix' && out.mixedStrategicModes?.includes(GameMode.Capture)) {
         delete (out as { autoScoringTurns?: number }).autoScoringTurns;
     }
+    pruneStageFieldsForExplicitRulePreset(out);
 
     return out;
 };
