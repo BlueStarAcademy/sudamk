@@ -24,6 +24,10 @@ interface GoGameArenaProps extends GameProps {
     captureScoreFloatMinPoints?: number;
 }
 
+function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
+    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
+}
+
 const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     const {
         session,
@@ -203,7 +207,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     // 남은 턴이 0이면 계가 진행되므로, 그 순간부터 클릭 불가 (빠르게 눌러서 추가 착수되는 버그 방지)
     const isBoardDisabledDueToTurnLimit = useMemo(() => {
         if (gameStatus !== 'playing' && gameStatus !== 'hidden_placing') return false;
-        if (session.settings?.pairGame) return false;
+        const isPairGame = Boolean(session.settings?.pairGame);
         const moveHistory = session.moveHistory ?? [];
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCount = moveHistory.length;
@@ -227,13 +231,15 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
         const limit = settings.scoringTurnLimit;
         if (
             isStrategicMode &&
-            mode !== GameMode.Capture &&
+            !modeIncludesCaptureRule(mode, settings) &&
             !session.isSinglePlayer &&
             session.gameCategory !== 'tower' &&
             limit != null &&
             limit > 0
         ) {
-            const current = turnCount > 0 ? turnCount : (session.totalTurns ?? 0);
+            const current = isPairGame
+                ? Math.max(validMovesCount, session.totalTurns ?? 0)
+                : (turnCount > 0 ? turnCount : (session.totalTurns ?? 0));
             if (current >= limit) return true;
         }
 

@@ -19,6 +19,8 @@ export interface PairPetProfilePanelProps {
     isBusy: boolean;
     /** 대표 펫이 있을 때 상세 모달 열기 */
     onOpenEquippedPetDetail: () => void;
+    /** 대표펫 미지정 시 패널 클릭 → 정보 탭 펫 인벤으로 이동 */
+    onFocusPetInventory?: () => void;
 }
 
 const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
@@ -26,6 +28,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     currentUserId,
     isBusy,
     onOpenEquippedPetDetail,
+    onFocusPetInventory,
 }) => {
     const equippedTid = currentUser.equippedPairPetTemplateId ?? null;
     const equippedDef = equippedTid ? getPairPetDefinition(equippedTid) : null;
@@ -62,6 +65,7 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
     const lineInnerRef = useRef<HTMLDivElement>(null);
 
     useLayoutEffect(() => {
+        if (!equippedItem) return;
         const outer = lineOuterRef.current;
         const inner = lineInnerRef.current;
         if (!outer || !inner) return;
@@ -83,8 +87,10 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
         return () => ro.disconnect();
     }, [displayName, levelSafe, badukTotal, equippedItem, gradeKo]);
 
-    return (
-        <div className="shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5">
+    const panelClassName =
+        'shrink-0 rounded-lg border border-violet-400/25 bg-gradient-to-br from-violet-950/40 via-black/35 to-fuchsia-950/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:p-2.5';
+
+    const body = (
             <div className="flex min-h-0 min-w-0 flex-nowrap items-center gap-1.5 sm:gap-2.5">
                 {equippedItem && petAvatarUrl ? (
                     <Avatar
@@ -107,29 +113,22 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                     ref={lineOuterRef}
                     className="min-h-0 min-w-0 flex-1 overflow-x-auto overflow-y-hidden [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 >
+                    {equippedItem ? (
                     <div
                         ref={lineInnerRef}
                         className="inline-flex max-w-none flex-nowrap items-center gap-x-[0.45em] gap-y-0 whitespace-nowrap leading-tight"
                         style={{ fontSize: `${PET_PROFILE_LINE_FONT_MAX}px` }}
                     >
                         <span className="inline-flex shrink-0 items-baseline gap-x-[0.35em]">
-                            {equippedItem ? (
-                                <span
-                                    className={`inline-flex shrink-0 rounded-md border border-white/18 px-[0.35em] py-px text-[0.82em] font-extrabold leading-none ${gradeStyle.color} bg-black/50`}
-                                >
-                                    {gradeKo}
-                                </span>
-                            ) : null}
+                            <span
+                                className={`inline-flex shrink-0 rounded-md border border-white/18 px-[0.35em] py-px text-[0.82em] font-extrabold leading-none ${gradeStyle.color} bg-black/50`}
+                            >
+                                {gradeKo}
+                            </span>
                             {levelSafe != null ? (
                                 <span className="font-black tabular-nums text-amber-200">Lv.{levelSafe}</span>
                             ) : null}
-                            {equippedItem ? (
-                                <span className="font-semibold text-violet-100/95">{displayName}</span>
-                            ) : (
-                                <span className="inline-flex shrink-0 rounded-md border border-violet-300/35 bg-violet-950/50 px-[0.55em] py-[0.18em] font-black tracking-tight text-violet-100">
-                                    대표펫
-                                </span>
-                            )}
+                            <span className="font-semibold text-violet-100/95">{displayName}</span>
                         </span>
                         {badukTotal != null ? (
                             <span
@@ -153,6 +152,11 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                             </span>
                         ) : null}
                     </div>
+                    ) : (
+                        <p className="min-w-0 pr-0.5 text-left text-[0.7rem] font-semibold leading-snug text-violet-200/95 sm:text-sm">
+                            대표펫을 지정해 주세요.
+                        </p>
+                    )}
                 </div>
                 {equippedItem ? (
                     <button
@@ -165,8 +169,23 @@ const PairPetProfilePanel: React.FC<PairPetProfilePanelProps> = ({
                     </button>
                 ) : null}
             </div>
-        </div>
     );
+
+    if (!equippedItem && onFocusPetInventory) {
+        return (
+            <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => onFocusPetInventory()}
+                aria-label="정보 탭 펫 인벤토리로 이동"
+                className={`${panelClassName} w-full text-left transition hover:border-violet-300/45 hover:bg-violet-950/25 disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+                {body}
+            </button>
+        );
+    }
+
+    return <div className={panelClassName}>{body}</div>;
 };
 
 export default PairPetProfilePanel;

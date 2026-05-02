@@ -7,6 +7,7 @@ import {
     isBlacksmithQuickUnlocked,
     isQuestQuickUnlocked,
 } from '../shared/utils/contentProgressionGates.js';
+import { isNewFeatureBadgeActive, NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
     compact?: boolean;
@@ -38,6 +39,7 @@ type QuickBtn = {
     handler: () => void;
     disabled?: boolean;
     notification?: boolean;
+    newBadge?: boolean;
     count?: number;
     /** 온보딩 안내용 점멸 */
     pulse?: boolean;
@@ -108,6 +110,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 handler: handlers.openExchange,
                 disabled: tutorialQuickDisabled('거래소'),
                 notification: hasClaimableExchangeSettlement,
+                newBadge: isNewFeatureBadgeActive('exchange'),
             },
             {
                 label: '대장간',
@@ -308,6 +311,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     ) : (
                         <span className={notificationDotClass} />
                     ))}
+                {btn.newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-0.5 top-0.5 scale-90`}>NEW</span>}
             </button>
         );
     };
@@ -391,29 +395,29 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     }
 
     const verticalOuter = compact
-        ? `rounded-xl border border-slate-600/40 bg-slate-950/50 p-1 flex flex-col gap-1.5 ${fillHeight ? 'h-full min-h-0' : ''}`
-        : `rounded-xl border border-slate-600/40 bg-slate-950/50 p-1.5 flex flex-col gap-2 ${fillHeight ? 'h-full min-h-0' : ''}`;
+        ? `rounded-xl border border-slate-600/40 bg-slate-950/50 p-1 flex flex-col gap-1.5 overflow-hidden ${fillHeight ? 'h-full min-h-0' : ''}`
+        : `rounded-xl border border-slate-600/40 bg-slate-950/50 p-1.5 flex flex-col gap-2 overflow-hidden ${fillHeight ? 'h-full min-h-0' : ''}`;
 
     const gameplayPanel = compact
-        ? 'flex flex-col gap-0.5 rounded-lg border border-amber-500/40 bg-gradient-to-b from-amber-950/50 to-slate-950/90 p-1 shadow-inner'
-        : 'flex flex-col gap-1 rounded-lg border border-amber-500/45 bg-gradient-to-b from-amber-950/55 via-amber-900/20 to-slate-950/90 p-1.5 shadow-inner';
+        ? 'flex min-h-0 flex-[5_1_0] flex-col gap-0.5 overflow-hidden rounded-lg border border-amber-500/40 bg-gradient-to-b from-amber-950/50 to-slate-950/90 p-1 shadow-inner'
+        : 'flex min-h-0 flex-[5_1_0] flex-col gap-1 overflow-hidden rounded-lg border border-amber-500/45 bg-gradient-to-b from-amber-950/55 via-amber-900/20 to-slate-950/90 p-1.5 shadow-inner';
 
     const utilityPanel = compact
-        ? 'flex flex-col gap-0.5 rounded-lg border border-violet-500/35 bg-gradient-to-b from-violet-950/35 to-slate-950/90 p-1 shadow-inner'
-        : 'flex flex-col gap-1 rounded-lg border border-violet-500/40 bg-gradient-to-b from-violet-950/40 via-slate-900/30 to-slate-950/90 p-1.5 shadow-inner';
+        ? 'flex min-h-0 flex-[6_1_0] flex-col gap-0.5 overflow-hidden rounded-lg border border-violet-500/35 bg-gradient-to-b from-violet-950/35 to-slate-950/90 p-1 shadow-inner'
+        : 'flex min-h-0 flex-[6_1_0] flex-col gap-1 overflow-hidden rounded-lg border border-violet-500/40 bg-gradient-to-b from-violet-950/40 via-slate-900/30 to-slate-950/90 p-1.5 shadow-inner';
 
     const pcBtnGameplay = compact
-        ? 'relative flex w-full flex-col items-center justify-center gap-0.5 rounded-md border border-amber-600/35 bg-gradient-to-br from-amber-900/50 to-slate-900/80 px-0.5 py-1 shadow-sm transition-transform hover:border-amber-400/50 active:scale-[0.98]'
-        : 'relative flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-amber-500/50 bg-gradient-to-br from-amber-800/45 via-amber-900/35 to-slate-900/85 px-1 py-1.5 shadow-md transition-transform hover:border-amber-400/65 hover:shadow-lg active:scale-[0.98]';
+        ? 'relative flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-0.5 rounded-md border border-amber-600/35 bg-gradient-to-br from-amber-900/50 to-slate-900/80 px-0.5 py-0.5 shadow-sm transition-transform hover:border-amber-400/50 active:scale-[0.98]'
+        : 'relative flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-amber-500/50 bg-gradient-to-br from-amber-800/45 via-amber-900/35 to-slate-900/85 px-1 py-1 shadow-md transition-transform hover:border-amber-400/65 hover:shadow-lg active:scale-[0.98]';
 
     const pcBtnUtility = compact
-        ? 'relative flex w-full flex-col items-center justify-center gap-0.5 rounded-md border border-violet-500/30 bg-gradient-to-br from-violet-950/45 to-slate-900/85 px-0.5 py-1 shadow-sm transition-transform hover:border-violet-400/45 active:scale-[0.98]'
-        : 'relative flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-violet-500/40 bg-gradient-to-br from-violet-900/40 via-slate-900/40 to-slate-950/90 px-1 py-1.5 shadow-md transition-transform hover:border-violet-400/55 hover:shadow-lg active:scale-[0.98]';
+        ? 'relative flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-0.5 rounded-md border border-violet-500/30 bg-gradient-to-br from-violet-950/45 to-slate-900/85 px-0.5 py-0.5 shadow-sm transition-transform hover:border-violet-400/45 active:scale-[0.98]'
+        : 'relative flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-violet-500/40 bg-gradient-to-br from-violet-900/40 via-slate-900/40 to-slate-950/90 px-1 py-1 shadow-md transition-transform hover:border-violet-400/55 hover:shadow-lg active:scale-[0.98]';
 
-    const iconPcGameplay = compact ? 'h-10 w-10 object-contain' : 'h-11 w-11 object-contain sm:h-12 sm:w-12';
-    const iconPcUtility = compact ? 'h-10 w-10 object-contain' : 'h-11 w-11 object-contain sm:h-12 sm:w-12';
-    const emojiPcGameplay = compact ? 'text-[1.35rem]' : 'text-[1.7rem] sm:text-[1.85rem]';
-    const emojiPcUtility = compact ? 'text-xl' : 'text-[1.45rem] sm:text-[1.7rem]';
+    const iconPcGameplay = compact ? 'max-h-full max-w-full object-contain' : 'max-h-full max-w-full object-contain';
+    const iconPcUtility = compact ? 'max-h-full max-w-full object-contain' : 'max-h-full max-w-full object-contain';
+    const emojiPcGameplay = compact ? 'text-[min(1.35rem,100%)]' : 'text-[min(1.85rem,100%)]';
+    const emojiPcUtility = compact ? 'text-[min(1.25rem,100%)]' : 'text-[min(1.7rem,100%)]';
 
     const labelPc = compact ? 'text-[9px] font-semibold text-gray-100' : 'text-[10px] font-semibold text-gray-100 sm:text-[11px]';
 
@@ -434,7 +438,8 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 {...(btn.onboardingTarget ? { 'data-onboarding-target': btn.onboardingTarget } : {})}
                 className={`${base} disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''}`}
             >
-                <div className="flex h-10 w-full items-center justify-center sm:h-11">
+                <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                    <div className="flex aspect-square h-full max-h-12 min-h-0 max-w-full items-center justify-center">
                     {btn.iconUrl ? (
                         <img src={btn.iconUrl} alt="" className={imgCls} />
                     ) : (
@@ -442,6 +447,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                             {btn.emoji}
                         </span>
                     )}
+                    </div>
                 </div>
                 <span className={`${labelPc} w-full truncate text-center leading-tight`}>{btn.label}</span>
                 {btn.notification &&
@@ -450,6 +456,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     ) : (
                         <span className={notificationDotClass} />
                     ))}
+                {btn.newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-1 top-1`}>NEW</span>}
             </button>
         );
     };

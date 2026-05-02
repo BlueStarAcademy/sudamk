@@ -2269,7 +2269,46 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 </div>
                                             </div>
                                         </div>
-                                        {mySummary?.level ? (
+                                        {mySummary?.level && mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
+                                            <div className="grid min-h-[3rem] flex-shrink-0 grid-cols-2 gap-1">
+                                                <div className="min-w-0 rounded-lg border border-emerald-400/20 bg-emerald-950/15 px-1.5 py-1">
+                                                    <p
+                                                        className="mb-1 text-center text-[0.65rem] font-black tracking-tight text-emerald-200"
+                                                        style={{ fontSize: `${8 * mobileTextScale}px` }}
+                                                    >
+                                                        유저 성장
+                                                    </p>
+                                                    <XpBar
+                                                        initial={mySummary.level.progress.initial}
+                                                        final={mySummary.level.progress.final}
+                                                        max={mySummary.level.progress.max}
+                                                        levelUp={mySummary.level.initial < mySummary.level.final}
+                                                        xpGain={mySummary.xp?.change ?? 0}
+                                                        finalLevel={mySummary.level.final}
+                                                        isMobile={isMobile}
+                                                        mobileTextScale={mobileTextScale}
+                                                    />
+                                                </div>
+                                                <div className="min-w-0 rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 px-1.5 py-1">
+                                                    <p
+                                                        className="mb-1 text-center text-[0.65rem] font-black tracking-tight text-fuchsia-200"
+                                                        style={{ fontSize: `${8 * mobileTextScale}px` }}
+                                                    >
+                                                        대표펫 성장
+                                                    </p>
+                                                    <XpBar
+                                                        initial={mySummary.pairPetLevel.progress.initial}
+                                                        final={mySummary.pairPetLevel.progress.final}
+                                                        max={Math.max(1, mySummary.pairPetLevel.progress.max)}
+                                                        levelUp={mySummary.pairPetLevel.initial < mySummary.pairPetLevel.final}
+                                                        xpGain={mySummary.pairPetXp.change}
+                                                        finalLevel={mySummary.pairPetLevel.final}
+                                                        isMobile={isMobile}
+                                                        mobileTextScale={mobileTextScale}
+                                                    />
+                                                </div>
+                                            </div>
+                                        ) : mySummary?.level ? (
                                             <div className="flex min-h-[2rem] flex-shrink-0 flex-col justify-center">
                                                 <XpBar
                                                     initial={mySummary.level.progress.initial}
@@ -2308,7 +2347,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 </div>
                                             </div>
                                         )}
-                                        {mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
+                                        {mySummary?.pairPetLevel && mySummary?.pairPetXp && !mySummary?.level ? (
                                             <div className="flex min-h-[2.4rem] flex-shrink-0 flex-col justify-center rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 px-1.5 py-1">
                                                 <p
                                                     className="mb-1 text-center text-[0.65rem] font-black tracking-tight text-fuchsia-200"
@@ -2515,33 +2554,70 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                                 {mySummary?.level ? mySummary.level.final : isPlayful ? currentUser.playfulLevel : currentUser.strategyLevel}
                                             </p>
                                         </div>
-                                        <div className="min-w-0 flex-1 self-center">
-                                            {mySummary?.level ? (
-                                                <XpBar
-                                                    initial={mySummary.level.progress.initial}
-                                                    final={mySummary.level.progress.final}
-                                                    max={mySummary.level.progress.max}
-                                                    levelUp={mySummary.level.initial < mySummary.level.final}
-                                                    xpGain={mySummary.xp?.change ?? 0}
-                                                    finalLevel={mySummary.level.final}
-                                                    isMobile={false}
-                                                    mobileTextScale={mobileTextScale}
-                                                    compact
-                                                    omitLevelColumn
-                                                />
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="w-14 shrink-0 text-right text-xs font-bold text-slate-400">경험치</span>
-                                                    <div className="relative flex h-3 w-full min-w-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
-                                                        <span className="text-[10px] font-bold text-slate-500">0 XP</span>
+                                        {!(mySummary?.pairPetLevel && mySummary?.pairPetXp && mySummary?.level) ? (
+                                            <div className="min-w-0 flex-1 self-center">
+                                                {mySummary?.level ? (
+                                                    <XpBar
+                                                        initial={mySummary.level.progress.initial}
+                                                        final={mySummary.level.progress.final}
+                                                        max={mySummary.level.progress.max}
+                                                        levelUp={mySummary.level.initial < mySummary.level.final}
+                                                        xpGain={mySummary.xp?.change ?? 0}
+                                                        finalLevel={mySummary.level.final}
+                                                        isMobile={false}
+                                                        mobileTextScale={mobileTextScale}
+                                                        compact
+                                                        omitLevelColumn
+                                                    />
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="w-14 shrink-0 text-right text-xs font-bold text-slate-400">경험치</span>
+                                                        <div className="relative flex h-3 w-full min-w-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
+                                                            <span className="text-[10px] font-bold text-slate-500">0 XP</span>
+                                                        </div>
+                                                        <span className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-500">+0 XP</span>
                                                     </div>
-                                                    <span className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-500">+0 XP</span>
-                                                </div>
-                                            )}
-                                        </div>
+                                                )}
+                                            </div>
+                                        ) : null}
                                     </div>
                                 </div>
-                                {mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
+                                {mySummary?.pairPetLevel && mySummary?.pairPetXp && mySummary?.level ? (
+                                    <div className="grid flex-shrink-0 grid-cols-2 gap-1.5">
+                                        <div className="min-w-0 rounded-lg border border-emerald-400/20 bg-emerald-950/15 p-1.5 ring-1 ring-inset ring-emerald-400/10 sm:p-2">
+                                            <div className="mb-1 text-center text-[0.65rem] font-black leading-tight text-emerald-200 min-[1024px]:text-xs">
+                                                유저
+                                            </div>
+                                            <XpBar
+                                                initial={mySummary.level.progress.initial}
+                                                final={mySummary.level.progress.final}
+                                                max={mySummary.level.progress.max}
+                                                levelUp={mySummary.level.initial < mySummary.level.final}
+                                                xpGain={mySummary.xp?.change ?? 0}
+                                                finalLevel={mySummary.level.final}
+                                                isMobile={false}
+                                                mobileTextScale={mobileTextScale}
+                                                compact
+                                            />
+                                        </div>
+                                        <div className="min-w-0 rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 p-1.5 ring-1 ring-inset ring-fuchsia-400/10 sm:p-2">
+                                            <div className="mb-1 text-center text-[0.65rem] font-black leading-tight text-fuchsia-200 min-[1024px]:text-xs">
+                                                대표펫
+                                            </div>
+                                            <XpBar
+                                                initial={mySummary.pairPetLevel.progress.initial}
+                                                final={mySummary.pairPetLevel.progress.final}
+                                                max={Math.max(1, mySummary.pairPetLevel.progress.max)}
+                                                levelUp={mySummary.pairPetLevel.initial < mySummary.pairPetLevel.final}
+                                                xpGain={mySummary.pairPetXp.change}
+                                                finalLevel={mySummary.pairPetLevel.final}
+                                                isMobile={false}
+                                                mobileTextScale={mobileTextScale}
+                                                compact
+                                            />
+                                        </div>
+                                    </div>
+                                ) : mySummary?.pairPetLevel && mySummary?.pairPetXp ? (
                                     <div className="flex-shrink-0 rounded-lg border border-fuchsia-400/20 bg-fuchsia-950/20 p-1.5 ring-1 ring-inset ring-fuchsia-400/10 sm:p-2">
                                         <div className="flex min-w-0 items-center gap-2">
                                             <div className="w-14 shrink-0 text-right text-[0.65rem] font-black leading-tight text-fuchsia-200 min-[1024px]:text-xs">

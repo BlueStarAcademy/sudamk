@@ -45,6 +45,7 @@ import {
     getCombinedStrategyPlayfulLevel,
 } from '../shared/constants/guildConstants.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
+import { isNewFeatureBadgeActive, NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
 
 function isVipExpiresActive(exp?: number): boolean {
     return typeof exp === 'number' && Number.isFinite(exp) && exp > Date.now();
@@ -292,7 +293,7 @@ const LobbyCard: React.FC<{
     );
 };
 
-const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string; imageScaleClass?: string }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason, imageScaleClass = '' }) => {
+const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tall'; footerContent?: React.ReactNode; onClick?: () => void; isComingSoon?: boolean; compact?: boolean; arenaMobile?: boolean; hideOverlayText?: boolean; locked?: boolean; lockReason?: string; imageScaleClass?: string; newBadge?: boolean }> = ({ title, imageUrl, layout, footerContent, onClick, isComingSoon, compact, arenaMobile, hideOverlayText = false, locked = false, lockReason, imageScaleClass = '', newBadge = false }) => {
     const shadowColor = "hover:shadow-purple-500/30";
     const compactMode = Boolean(compact && !arenaMobile);
 
@@ -339,6 +340,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                         Soon
                     </div>
                 )}
+                {newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-2 top-2 sm:left-3 sm:top-3`}>NEW</span>}
                 {interactive ? (
                     <button type="button" onClick={onClick} className={`group ${shellClass}`} aria-label={`${title} 입장`}>
                         {inner}
@@ -366,6 +368,7 @@ const PveCard: React.FC<{ title: string; imageUrl: string; layout: 'grid' | 'tal
                     Coming Soon
                 </div>
             )}
+            {newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-2 top-2 ${compactMode ? 'scale-75' : ''}`}>NEW</span>}
             <img src={imageUrl} alt={title} className={`absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105 ${imageScaleClass}`} />
             <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/5 via-violet-950/5 to-black/16" />
             {locked && (
@@ -1700,6 +1703,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const infoValueClass = 'min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
     const hasPcHomeTrainingQuestReward =
         !isNativeMobile && userHasFullTrainingQuestReward(currentUserWithStatus);
+    const showPairLobbyNewBadge = isNewFeatureBadgeActive('pairLobby');
     const LobbyCards = (
         <div className={lobbyGridShell}>
             <div className="flex h-full min-h-0 min-w-0 flex-col">
@@ -1813,10 +1817,17 @@ const Profile: React.FC<ProfileProps> = () => {
                 </div>
                 <div className={mergedCardClass}>
                     <div className={pairImagePaneClass}>
-                        <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} />
+                        <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} newBadge={showPairLobbyNewBadge} />
                     </div>
                     <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                        <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
+                        <div className={`${infoTitleClass} relative text-violet-100`}>
+                            페어경기장
+                            {showPairLobbyNewBadge && (
+                                <span className="ml-1.5 rounded-full border border-rose-200/70 bg-gradient-to-r from-rose-500 via-orange-400 to-amber-300 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white shadow-[0_0_10px_rgba(251,146,60,0.55)]">
+                                    NEW
+                                </span>
+                            )}
+                        </div>
                         <div className={infoPanelMiddleClass}>
                             <div className={infoRowClass}><span className={infoLabelClass}>모드</span><span className={infoValueClass}>2인 고정 팀 대전</span></div>
                             <div className={infoRowClass}><span className={infoLabelClass}>진행 상태</span><span className={`${infoValueClass} font-semibold text-violet-200`}>입장 가능</span></div>
@@ -2260,10 +2271,17 @@ const Profile: React.FC<ProfileProps> = () => {
                                     </div>
                                     <div className={mergedCardClass}>
                                         <div className={pairImagePaneClass}>
-                                            <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} />
+                                            <PveCard title="페어경기장" imageUrl={PAIR_GO_LOBBY_IMG} layout="tall" onClick={onSelectPairLobby} compact={false} hideOverlayText imageScaleClass="scale-[1.14]" locked={!!getArenaEntryLockReason('pairLobby')} lockReason={getArenaEntryLockReason('pairLobby') ?? undefined} newBadge={showPairLobbyNewBadge} />
                                         </div>
                                         <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                                            <div className={`${infoTitleClass} text-violet-100`}>페어경기장</div>
+                                            <div className={`${infoTitleClass} relative text-violet-100`}>
+                                                페어경기장
+                                                {showPairLobbyNewBadge && (
+                                                    <span className="ml-1.5 rounded-full border border-rose-200/70 bg-gradient-to-r from-rose-500 via-orange-400 to-amber-300 px-1.5 py-0.5 text-[9px] font-black leading-none tracking-wide text-white shadow-[0_0_10px_rgba(251,146,60,0.55)]">
+                                                        NEW
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className={infoPanelMiddleClass}>
                                                 <div className={infoRowClass}><span className={infoLabelClass}>모드</span><span className={infoValueClass}>2인 고정 팀 대전</span></div>
                                                 <div className={infoRowClass}><span className={infoLabelClass}>진행 상태</span><span className={`${infoValueClass} font-semibold text-violet-200`}>입장 가능</span></div>

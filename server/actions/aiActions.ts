@@ -1,10 +1,28 @@
 import type { ServerAction, User, VolatileState } from '../../shared/types/index.js';
+import { GameMode } from '../../shared/types/enums.js';
 import { Player } from '../../shared/types/enums.js';
 import * as db from '../db.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
+import { DEFAULT_GAME_SETTINGS, getAiScoringTurnLimitByBoardSize, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../shared/constants/index.js';
 import { aiUserId, scheduleAiTurnStartForFreshUi } from '../aiPlayer.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import { applyAdventureRegionalFlatBonusToHumanCaptures } from '../utils/adventureHeadStartCaptures.js';
+
+function modeIncludesCaptureRule(mode: any, settings: any): boolean {
+  return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings?.mixedModes?.includes?.(GameMode.Capture)));
+}
+
+function normalizeStrategicAiScoringSettings(game: any): void {
+  if (!SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) return;
+  game.settings = { ...DEFAULT_GAME_SETTINGS, ...(game.settings || {}) };
+  if (modeIncludesCaptureRule(game.mode, game.settings)) {
+    game.settings.scoringTurnLimit = 0;
+    delete game.settings.autoScoringTurns;
+    return;
+  }
+  game.settings.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(
+    game.settings.boardSize || DEFAULT_GAME_SETTINGS.boardSize,
+  );
+}
 
 export async function handleAiAction(
   volatileState: VolatileState,
@@ -40,6 +58,7 @@ export async function handleAiAction(
   clearAiSession(gameId);
 
   const now = Date.now();
+  normalizeStrategicAiScoringSettings(game as any);
 
   // Minimal "negotiation-like" object for initializer functions that need settings/mode.
   // game.settings는 START_AI_GAME 시 클라이언트에서 받은 전체 설정(계가까지 턴, 초읽기 등)을 그대로 유지.

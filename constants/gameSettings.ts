@@ -43,6 +43,19 @@ export const getScoringTurnLimitOptionsByBoardSize = (boardSize: number): readon
       return [0];
   }
 };
+
+export const getAiScoringTurnLimitByBoardSize = (boardSize: number): number => {
+  switch (boardSize) {
+    case 9:
+      return 50;
+    case 13:
+      return 80;
+    case 19:
+      return 200;
+    default:
+      return Math.max(1, Math.ceil(boardSize * boardSize * 0.7));
+  }
+};
 export const CAPTURE_TARGETS = [5, 10, 15, 20, 25, 30];
 export const CAPTURE_BID_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 export const TTAMOK_CAPTURE_TARGETS = [10, 20, 30];

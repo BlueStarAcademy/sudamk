@@ -7,7 +7,7 @@ import { containsProfanity } from '../../profanity.js';
 import * as tournamentService from '../tournamentService.js';
 import * as summaryService from '../summaryService.js';
 import { broadcast, broadcastToUserIds } from '../socket.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, NO_CONTEST_MOVE_THRESHOLD, RANKED_ELO_BASE_SCORE, RANKED_MATCH_MAX_RATING_DIFF, DEFAULT_GAME_SETTINGS } from '../../constants/index.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, NO_CONTEST_MOVE_THRESHOLD, RANKED_ELO_BASE_SCORE, RANKED_MATCH_MAX_RATING_DIFF, DEFAULT_GAME_SETTINGS, getAiScoringTurnLimitByBoardSize } from '../../constants/index.js';
 import { clearAiSession } from '../aiSessionManager.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
@@ -21,6 +21,7 @@ import { clampPairRoomTitle } from '../../shared/constants/pairArena.js';
 import {
     buildTeamPreservingPairTurnOrder,
     getPairHumanParticipantIds,
+    isPairAiSeat,
     PAIR_GO_GAME_MODES,
 } from '../../shared/utils/pairGameTurn.js';
 import { enrichPairRoomsForClientPayload } from '../utils/pairRoomClientPayload.js';
@@ -307,6 +308,8 @@ const pairModeOrDefault = (mode: unknown): GameMode =>
     typeof mode === 'string' && PAIR_GO_GAME_MODES.includes(mode as GameMode)
         ? (mode as GameMode)
         : PAIR_MODE_DEFAULT_GAME_MODE;
+const pairModeIncludesCaptureRule = (mode: GameMode, settings: Pick<types.GameSettings, 'mixedModes'>): boolean =>
+    mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
 const FRIEND_LIMIT = 30;
 
 const broadcastPairRooms = (volatileState: VolatileState) => {
@@ -820,11 +823,18 @@ function configurePairClassicGameStart(
     petStatUsers: User[] = [ownerUser],
 ): void {
     if (!PAIR_GO_GAME_MODES.includes(game.mode) || !game.settings?.pairGame) return;
-    game.settings.scoringTurnLimit = 0;
-    delete (game.settings as any).autoScoringTurns;
     const pairGame = game.settings.pairGame;
     const turnOrder = buildTeamPreservingPairTurnOrder(pairGame);
     pairGame.turnOrder = turnOrder;
+    const hasAiSeat = turnOrder.some((seat) => isPairAiSeat(seat));
+    const captureRuleGame = pairModeIncludesCaptureRule(game.mode, game.settings);
+    if (hasAiSeat && !captureRuleGame) {
+        game.settings.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(game.settings.boardSize || 19);
+        delete (game.settings as any).autoScoringTurns;
+    } else {
+        game.settings.scoringTurnLimit = 0;
+        delete (game.settings as any).autoScoringTurns;
+    }
     pairGame.currentTurnIndex = 0;
     pairGame.passSeatIds = [];
     pairGame.orderSeededAt = Date.now();

@@ -33,6 +33,10 @@ import SinglePlayerSidebar from './components/game/SinglePlayerSidebar.js';
 import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
 import GuildWarMissileTowerControls from './components/game/GuildWarMissileTowerControls.js';
+
+function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
+    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
+}
 import GuildWarHiddenTowerControls from './components/game/GuildWarHiddenTowerControls.js';
 import GuildWarTowerSidebar from './components/game/GuildWarTowerSidebar.js';
 import { ScoringOverlay } from './components/game/ScoringOverlay.js';
@@ -669,8 +673,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             ((session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ?? 0) > 0);
     // 전략바둑 AI/PVP 수순 제한: 새로고침 후 totalTurns·moveHistory 복원/저장에 포함
     const hasStrategicTurnLimit =
-        !session.settings?.pairGame &&
-        mode !== GameMode.Capture &&
+        !modeIncludesCaptureRule(mode, session.settings) &&
         ((session.settings?.scoringTurnLimit ?? 0) > 0 || ((session.settings as any)?.autoScoringTurns ?? 0) > 0);
     /** 모험 포함: 새로고침 시 sessionStorage와 병합해 남은 턴·경과 시간이 초기화되지 않게 함 */
     const useRefreshSessionStorageMerge =

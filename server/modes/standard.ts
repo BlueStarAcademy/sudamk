@@ -50,6 +50,11 @@ import {
 import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { PVE_STRATEGIC_SERVER_AI_POST_HUMAN_DELAY_MS } from '../constants/pveStrategicAiSchedule.js';
 
+function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
+    return game.mode === types.GameMode.Capture ||
+        (game.mode === types.GameMode.Mix && Boolean(game.settings?.mixedModes?.includes(types.GameMode.Capture)));
+}
+
 const resolveEffectiveFischerIncrement = (game: types.LiveGameSession): number => {
     const isSpeedMode =
         game.mode === types.GameMode.Speed ||
@@ -699,8 +704,12 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
         let fixedScoringTurnLimit: number | undefined;
         let countPassAsTurn = false;
         if (pairClassicGame) {
-            // 페어바둑은 정해진 수순 없이 4좌석 모두 PASS할 때만 계가한다.
-            return { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount: 0 };
+            // AI가 포함된 페어바둑은 설정된 제한 수순으로 계가한다. 4인 유저 페어는 기존처럼 모두 PASS가 필요하다.
+            fixedScoringTurnLimit = modeIncludesCaptureRule(game)
+                ? undefined
+                : (game.settings as any)?.scoringTurnLimit;
+            const currentTurnCount = (game.moveHistory || []).filter(m => m && m.x !== -1 && m.y !== -1).length;
+            return { fixedScoringTurnLimit, countPassAsTurn, currentTurnCount };
         }
         if ((game as any).gameCategory === 'guildwar') {
             fixedScoringTurnLimit = (game.settings as any)?.autoScoringTurns;
@@ -1607,12 +1616,18 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 (game as any).gameCategory === 'guildwar' &&
                 (game.settings as any)?.autoScoringTurns != null &&
                 (game.settings as any)?.autoScoringTurns > 0;
+            const pairAutoScoring =
+                pairClassicGame &&
+                !modeIncludesCaptureRule(game) &&
+                (game.settings as any)?.scoringTurnLimit != null &&
+                (game.settings as any)?.scoringTurnLimit > 0;
             const isAutoScoringMode =
-                !pairClassicGame &&
-                (((game.isSinglePlayer || game.gameCategory === GameCategory.Tower) && game.stageId) || guildWarAutoScoring);
+                (((game.isSinglePlayer || game.gameCategory === GameCategory.Tower) && game.stageId) || guildWarAutoScoring || pairAutoScoring);
             if (isAutoScoringMode) {
                 let autoScoringTurns: number | undefined;
-                if (guildWarAutoScoring) {
+                if (pairAutoScoring) {
+                    autoScoringTurns = (game.settings as any)?.scoringTurnLimit;
+                } else if (guildWarAutoScoring) {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
                 } else if (game.gameCategory === GameCategory.Tower) {
                     autoScoringTurns = (game.settings as any)?.autoScoringTurns;
@@ -1633,6 +1648,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                             ? 'Tower'
                             : guildWarAutoScoring
                               ? 'GuildWar'
+                              : pairAutoScoring
+                                ? 'Pair'
                               : 'SinglePlayer';
                         console.log(`[handleStandardAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);
                         game.gameStatus = 'scoring';
@@ -1715,6 +1732,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
         }
         case 'PASS_TURN': {
             if (!isMyTurn || game.gameStatus !== 'playing') return { error: 'Not your turn to pass.' };
+            if (modeIncludesCaptureRule(game)) {
+                return { error: '따내기 규칙이 포함된 대국에서는 통과할 수 없습니다.' };
+            }
             // 수순 고정 모드에서는 제한 수순 종료 후 PASS도 엄격 차단한다.
             {
                 const { fixedScoringTurnLimit, currentTurnCount } = await resolveFixedScoringTurnState();

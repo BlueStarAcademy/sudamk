@@ -39,6 +39,7 @@ import {
 } from '../constants/arenaEntrance.js';
 import { applyOnboardingArenaEntranceTutorialLocks } from '../shared/constants/onboardingTutorial.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
+import { isPairAiSeat } from '../shared/utils/pairGameTurn.js';
 
 const HOME_BOARD_READ_STORAGE_PREFIX = 'sudamr-home-board-read-posts';
 
@@ -300,6 +301,19 @@ function shouldSkipDelayedAiSnapshotApply(
     }
 
     return false;
+}
+
+function shiftDelayedAiSnapshotTurnClock(game: LiveGameSession, delayedByMs: number): LiveGameSession {
+    if (!Number.isFinite(delayedByMs) || delayedByMs <= 0) return game;
+    if (!['playing', 'hidden_placing'].includes(String(game.gameStatus))) return game;
+    const shifted: LiveGameSession = { ...game };
+    if (typeof shifted.turnDeadline === 'number' && Number.isFinite(shifted.turnDeadline)) {
+        shifted.turnDeadline += delayedByMs;
+    }
+    if (typeof shifted.turnStartTime === 'number' && Number.isFinite(shifted.turnStartTime)) {
+        shifted.turnStartTime += delayedByMs;
+    }
+    return shifted;
 }
 
 function getLastPlacedPointForStaleCheck(g: LiveGameSession | undefined): { x: number; y: number } | null {
@@ -1107,6 +1121,7 @@ export const useApp = () => {
     const towerGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const towerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     const liveGameGnugoDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const singlePlayerKataDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
     const singlePlayerScoringDelayTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({}); // AI 수 표시 후 계가 전환용
     // 같은 게임의 AI 동기화 요청이 겹치면 턴/보드 병합이 충돌할 수 있어 in-flight 중복을 차단
     const inFlightAiSyncActionRef = useRef<Set<string>>(new Set());
@@ -7091,6 +7106,42 @@ export const useApp = () => {
                                                 }
                                             }
                                         }
+                                        const updatedSinglePlayerGame = updatedGames[gameId];
+                                        const lastSinglePlayerMove = Array.isArray(game.moveHistory)
+                                            ? (game.moveHistory as any[])[game.moveHistory.length - 1]
+                                            : null;
+                                        const singleAiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
+                                        const isNewSinglePlayerAiMove =
+                                            !!existingGame &&
+                                            !!updatedSinglePlayerGame &&
+                                            game.isSinglePlayer &&
+                                            hasNewMoves &&
+                                            game.moveHistory?.length > 0 &&
+                                            lastSinglePlayerMove?.player === singleAiPlayerEnum &&
+                                            !['scoring', 'hidden_final_reveal', 'ended', 'no_contest'].includes(String(updatedSinglePlayerGame.gameStatus));
+                                        if (isNewSinglePlayerAiMove) {
+                                            if (singlePlayerKataDelayTimeoutRef.current[gameId] != null) {
+                                                clearTimeout(singlePlayerKataDelayTimeoutRef.current[gameId]);
+                                            }
+                                            const scheduledAt = Date.now();
+                                            const gameToApply = JSON.parse(JSON.stringify(updatedSinglePlayerGame)) as LiveGameSession;
+                                            singlePlayerKataDelayTimeoutRef.current[gameId] = setTimeout(() => {
+                                                let appliedDelayedSnapshot = false;
+                                                const delayedByMs = Math.max(0, Date.now() - scheduledAt);
+                                                const shiftedGameToApply = shiftDelayedAiSnapshotTurnClock(gameToApply, delayedByMs);
+                                                setSinglePlayerGames(prev => {
+                                                    if (shouldSkipDelayedAiSnapshotApply(prev[gameId], shiftedGameToApply)) return prev;
+                                                    appliedDelayedSnapshot = true;
+                                                    return { ...prev, [gameId]: shiftedGameToApply };
+                                                });
+                                                if (appliedDelayedSnapshot) {
+                                                    lastGameUpdateMoveCountRef.current[gameId] = shiftedGameToApply.moveHistory?.length ?? 0;
+                                                    singlePlayerGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
+                                                }
+                                                delete singlePlayerKataDelayTimeoutRef.current[gameId];
+                                            }, 1000);
+                                            return currentGames;
+                                        }
                                 const lastMoves = Array.isArray(game.moveHistory)
                                     ? game.moveHistory.slice(Math.max(0, game.moveHistory.length - 4)).map((m: any) => ({
                                         x: m?.x,
@@ -7389,9 +7440,12 @@ export const useApp = () => {
                                             }
                                             const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
                                             const isScoringInUpdate = gameToApply.gameStatus === 'scoring';
+                                            const scheduledAt = Date.now();
                                             towerGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
                                                 delete towerGnugoDelayTimeoutRef.current[gameId];
                                                 let appliedDelayedSnapshot = false;
+                                                const delayedByMs = Math.max(0, Date.now() - scheduledAt);
+                                                const shiftedGameToApply = shiftDelayedAiSnapshotTurnClock(gameToApply, delayedByMs);
                                                 // 서버가 이미 scoring이면 playing→scoring 깜빡임은 ScoringOverlay를 두 번 마운트시킴 → 즉시 scoring 반영
                                                 if (isScoringInUpdate) {
                                                     if (towerScoringDelayTimeoutRef.current[gameId] != null) {
@@ -7399,20 +7453,20 @@ export const useApp = () => {
                                                         delete towerScoringDelayTimeoutRef.current[gameId];
                                                     }
                                                     setTowerGames(prev => {
-                                                        if (shouldSkipDelayedAiSnapshotApply(prev[gameId], gameToApply)) return prev;
+                                                        if (shouldSkipDelayedAiSnapshotApply(prev[gameId], shiftedGameToApply)) return prev;
                                                         appliedDelayedSnapshot = true;
-                                                        return { ...prev, [gameId]: gameToApply };
+                                                        return { ...prev, [gameId]: shiftedGameToApply };
                                                     });
                                                 } else {
                                                     setTowerGames(prev => {
-                                                        if (shouldSkipDelayedAiSnapshotApply(prev[gameId], gameToApply)) return prev;
+                                                        if (shouldSkipDelayedAiSnapshotApply(prev[gameId], shiftedGameToApply)) return prev;
                                                         appliedDelayedSnapshot = true;
-                                                        return { ...prev, [gameId]: gameToApply };
+                                                        return { ...prev, [gameId]: shiftedGameToApply };
                                                     });
                                                 }
                                                 if (appliedDelayedSnapshot) {
-                                                    lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
-                                                    towerGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                    lastGameUpdateMoveCountRef.current[gameId] = shiftedGameToApply.moveHistory?.length ?? 0;
+                                                    towerGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
                                                 }
                                             }, 1000);
                                             return currentGames;
@@ -7768,9 +7822,23 @@ export const useApp = () => {
                                         const lastMove = (game.moveHistory as any[])?.[game.moveHistory.length - 1];
                                         const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
                                         const isNewAiMoveLive = isStrategicAiGame && hasNewMoves && lastMove?.player === aiPlayerEnum;
+                                        const pairTurnOrder = Array.isArray(game.settings?.pairGame?.turnOrder)
+                                            ? game.settings.pairGame.turnOrder
+                                            : [];
+                                        const lastPairSeat = pairTurnOrder.find((seat: any) =>
+                                            seat &&
+                                            (
+                                                (lastMove?.actorId && seat.participantId === lastMove.actorId) ||
+                                                (lastMove?.pairSeatId && seat.seatId === lastMove.pairSeatId)
+                                            )
+                                        );
+                                        const isNewPairAiMoveLive =
+                                            hasNewMoves &&
+                                            pairTurnOrder.length > 0 &&
+                                            isPairAiSeat(lastPairSeat as any);
                                         // 모험/길드전: 서버가 유저 착수 후 1초 뒤 AI를 반영하므로 클라에서 또 1초 미루면 체감이 2초가 된다.
                                         const deferStrategicAiMoveForEffect =
-                                            isNewAiMoveLive &&
+                                            (isNewAiMoveLive || isNewPairAiMoveLive) &&
                                             game.gameCategory !== 'adventure' &&
                                             game.gameCategory !== 'guildwar';
                                         if (deferStrategicAiMoveForEffect) {
@@ -7778,16 +7846,19 @@ export const useApp = () => {
                                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[gameId]);
                                             }
                                             const gameToApply = JSON.parse(JSON.stringify(mergedGame)) as LiveGameSession;
+                                            const scheduledAt = Date.now();
                                             liveGameGnugoDelayTimeoutRef.current[gameId] = setTimeout(() => {
                                                 let appliedDelayedSnapshot = false;
+                                                const delayedByMs = Math.max(0, Date.now() - scheduledAt);
+                                                const shiftedGameToApply = shiftDelayedAiSnapshotTurnClock(gameToApply, delayedByMs);
                                                 setLiveGames(prev => {
-                                                    if (shouldSkipDelayedAiSnapshotApply(prev[gameId], gameToApply)) return prev;
+                                                    if (shouldSkipDelayedAiSnapshotApply(prev[gameId], shiftedGameToApply)) return prev;
                                                     appliedDelayedSnapshot = true;
-                                                    return { ...prev, [gameId]: gameToApply };
+                                                    return { ...prev, [gameId]: shiftedGameToApply };
                                                 });
                                                 if (appliedDelayedSnapshot) {
-                                                    lastGameUpdateMoveCountRef.current[gameId] = gameToApply.moveHistory?.length ?? 0;
-                                                    liveGameSignaturesRef.current[gameId] = stableStringify(gameToApply);
+                                                    lastGameUpdateMoveCountRef.current[gameId] = shiftedGameToApply.moveHistory?.length ?? 0;
+                                                    liveGameSignaturesRef.current[gameId] = stableStringify(shiftedGameToApply);
                                                 }
                                                 delete liveGameGnugoDelayTimeoutRef.current[gameId];
                                             }, STRATEGIC_AI_MOVE_DELAY_MS);
@@ -7883,6 +7954,10 @@ export const useApp = () => {
                             if (liveGameGnugoDelayTimeoutRef.current[deletedGameId] != null) {
                                 clearTimeout(liveGameGnugoDelayTimeoutRef.current[deletedGameId]);
                                 delete liveGameGnugoDelayTimeoutRef.current[deletedGameId];
+                            }
+                            if (singlePlayerKataDelayTimeoutRef.current[deletedGameId] != null) {
+                                clearTimeout(singlePlayerKataDelayTimeoutRef.current[deletedGameId]);
+                                delete singlePlayerKataDelayTimeoutRef.current[deletedGameId];
                             }
 
                             const removeFromGames = (setter: any, signaturesRef: Record<string, string>) => {

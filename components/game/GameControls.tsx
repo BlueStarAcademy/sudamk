@@ -65,6 +65,10 @@ const CountOverlay: React.FC<{ count: number; disabled?: boolean; children: Reac
     </div>
 );
 
+function modeIncludesCaptureRule(mode: GameMode, settings: { mixedModes?: GameMode[] }): boolean {
+    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
+}
+
 const ImageButton: React.FC<ImageButtonProps> = ({ src, alt, onClick, disabled = false, title, variant = 'primary', count, compact = false }) => {
     const [isTooltipVisible, setIsTooltipVisible] = useState(false);
     const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1263,6 +1267,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const isGameActive = ACTIVE_GAME_STATUSES.includes(gameStatus);
     const isPreGame = !isGameActive && !isGameEnded;
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
+    const hasCaptureRule = modeIncludesCaptureRule(mode, session.settings);
     const isPairGame = Boolean(session.settings.pairGame?.turnOrder?.length);
     const isMobilePairGame = Boolean(isMobile && isPairGame);
     const aiLobbyRematchActionPointCost =
@@ -2087,7 +2092,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             ) : (
                 <>
                     {isStrategic &&
-                        mode !== GameMode.Capture &&
+                        !hasCaptureRule &&
                         (!isAiLobbyGame || isPairGame) &&
                         session.gameCategory !== 'adventure' && (
                         <LabeledControlButton

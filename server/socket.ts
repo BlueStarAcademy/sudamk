@@ -308,14 +308,14 @@ export const createWebSocketServer = (server: Server) => {
                             }
                         }
                         // 전략바둑 AI/PVP 수순 제한: liveGames도 moveHistory 제거하므로 totalTurns가 없으면 유효 수 기준으로 설정 (새로고침 후 수순 0/N 되는 버그 방지)
-                        const isPairGameForList = Boolean((optimizedGame.settings as any)?.pairGame);
                         const scoringLimit = (optimizedGame.settings as any)?.scoringTurnLimit;
                         const autoScoring = (optimizedGame.settings as any)?.autoScoringTurns;
-                        if (!isPairGameForList && (scoringLimit > 0 || (autoScoring != null && autoScoring > 0)) && (optimizedGame.totalTurns == null || optimizedGame.totalTurns === 0)) {
+                        if ((scoringLimit > 0 || (autoScoring != null && autoScoring > 0)) && (optimizedGame.totalTurns == null || optimizedGame.totalTurns === 0)) {
                             const moves = (optimizedGame as any).moveHistory;
                             if (Array.isArray(moves) && moves.length > 0) {
-                                // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
-                                if (scoringLimit > 0) {
+                                const isPairGameForList = Boolean((optimizedGame.settings as any)?.pairGame);
+                                // 페어 AI 제한 수순은 실제 착수만 카운트한다. 일반 PvP scoringTurnLimit은 PASS 포함.
+                                if (scoringLimit > 0 && !isPairGameForList) {
                                     (optimizedGame as any).totalTurns = moves.length;
                                 } else {
                                     const validCount = moves.filter((m: { x: number; y: number }) => m.x !== -1 && m.y !== -1).length;

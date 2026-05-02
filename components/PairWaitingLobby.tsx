@@ -22,6 +22,7 @@ import { UserStatus } from '../types.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
 import { PAIR_ROOM_TITLE_MAX_CHARS, clampPairRoomTitle } from '../shared/constants/pairArena.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
+import { getAiScoringTurnLimitByBoardSize } from '../shared/constants/gameSettings.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
 import { replaceAppHash } from '../utils/appUtils.js';
@@ -548,17 +549,25 @@ const PairWaitingLobby: React.FC = () => {
         [myRoom?.selectedGameMode, myRoom?.settings],
     );
     const transformPairAiSettings = useCallback((_mode: GameMode, raw: GameSettings): GameSettings => {
+        const includesCaptureRule =
+            _mode === GameMode.Capture ||
+            (_mode === GameMode.Mix && Boolean(raw.mixedModes?.includes(GameMode.Capture)));
+        const shouldUseFixedTurns = pairAiChallengeModalOpen || myRoom?.roomKind === 'ai_duel';
         const next: GameSettings = {
             ...raw,
             timeLimit: 0,
             byoyomiTime: 0,
             byoyomiCount: 0,
             timeIncrement: 0,
-            scoringTurnLimit: 0,
+            scoringTurnLimit: includesCaptureRule
+                ? 0
+                : shouldUseFixedTurns
+                  ? getAiScoringTurnLimitByBoardSize(raw.boardSize || 19)
+                  : 0,
         };
-        delete (next as any).autoScoringTurns;
+        if (includesCaptureRule || !shouldUseFixedTurns) delete (next as any).autoScoringTurns;
         return next;
-    }, []);
+    }, [myRoom?.roomKind, pairAiChallengeModalOpen]);
     const applyRoomKindNow = async (roomKind: RoomKind) => {
         const room = myRoom;
         if (!room || room.ownerId !== currentUserId) return;
@@ -1506,7 +1515,6 @@ const PairWaitingLobby: React.FC = () => {
                     title={isDuoPairRoom ? '2인 페어 AI 대전' : '펫 페어 AI 대전'}
                     submitLabel="AI 대전 시작"
                     transformSettingsBeforeStart={transformPairAiSettings}
-                    hideScoringTurnLimit
                 />
             )}
             {pairMatchSettingsModalOpen && (
@@ -1520,7 +1528,7 @@ const PairWaitingLobby: React.FC = () => {
                     submitLabel={isPairPetRoom ? '매칭 시작' : '대국 시작'}
                     showActionPointCost={false}
                     transformSettingsBeforeStart={transformPairAiSettings}
-                    hideScoringTurnLimit
+                    hideScoringTurnLimit={!isPairPetRoom}
                 />
             )}
         </div>

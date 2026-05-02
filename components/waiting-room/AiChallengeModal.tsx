@@ -18,7 +18,7 @@ import {
   HIDDEN_STONE_COUNTS, SCAN_COUNTS, MISSILE_BOARD_SIZES, MISSILE_COUNTS,
   ALKKAGI_STONE_COUNTS, ALKKAGI_ROUNDS, ALKKAGI_GAUGE_SPEEDS, ALKKAGI_ITEM_COUNTS,
   CURLING_STONE_COUNTS, CURLING_ROUNDS, CURLING_GAUGE_SPEEDS, CURLING_ITEM_COUNTS,
-  OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize
+  OMOK_BOARD_SIZES, HIDDEN_BOARD_SIZES, DICE_GO_ITEM_COUNTS, getStrategicBoardSizesByMode, getScoringTurnLimitOptionsByBoardSize, getAiScoringTurnLimitByBoardSize
 } from '../../constants/gameSettings.js';
 import Avatar from '../Avatar.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
@@ -65,6 +65,23 @@ function getAiChallengeBoardSizes(mode: GameMode, lobbyType: 'strategic' | 'play
     return [...getStrategicBoardSizesByMode(mode)];
 }
 
+function modeIncludesCaptureRule(mode: GameMode, settings: Pick<GameSettings, 'mixedModes'>): boolean {
+    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
+}
+
+function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): GameSettings {
+    if (!SPECIAL_GAME_MODES.some(m => m.mode === mode)) return settings;
+    if (modeIncludesCaptureRule(mode, settings)) {
+        const next = { ...settings, scoringTurnLimit: 0 };
+        delete (next as any).autoScoringTurns;
+        return next;
+    }
+    return {
+        ...settings,
+        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(settings.boardSize || DEFAULT_GAME_SETTINGS.boardSize),
+    };
+}
+
 /** 종료된 대국 session.settings → AI 도전 모달 초기값 (NegotiationModal과 유사 검증) */
 function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSettings): GameSettings {
     let newSettings: GameSettings = { ...DEFAULT_GAME_SETTINGS, ...sessionSettings };
@@ -108,7 +125,7 @@ function mergeSeedIntoChallengeSettings(mode: GameMode, sessionSettings: GameSet
     if (newSettings.missileCount != null && !AI_CHALLENGE_MISSILE_COUNTS.includes(newSettings.missileCount)) {
         delete (newSettings as any).missileCount;
     }
-    return newSettings;
+    return normalizeAiScoringTurnLimit(mode, newSettings);
 }
 
 const GameCard: React.FC<{
@@ -242,16 +259,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 if (parsed.missileCount != null && !AI_CHALLENGE_MISSILE_COUNTS.includes(parsed.missileCount)) {
                     delete (parsed as any).missileCount;
                 }
-                if (selectedGameMode === GameMode.Capture) {
-                    parsed.scoringTurnLimit = 0;
-                    delete (parsed as any).autoScoringTurns;
-                }
-                setSettings({ ...DEFAULT_GAME_SETTINGS, ...parsed });
+                setSettings(normalizeAiScoringTurnLimit(selectedGameMode, { ...DEFAULT_GAME_SETTINGS, ...parsed }));
             } catch {
-                setSettings({ ...DEFAULT_GAME_SETTINGS });
+                setSettings(normalizeAiScoringTurnLimit(selectedGameMode, { ...DEFAULT_GAME_SETTINGS }));
             }
         } else {
-            setSettings({ ...DEFAULT_GAME_SETTINGS });
+            setSettings(normalizeAiScoringTurnLimit(selectedGameMode, { ...DEFAULT_GAME_SETTINGS }));
         }
     }, [selectedGameMode]);
 
@@ -265,25 +278,28 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
     useEffect(() => {
         if (hideScoringTurnLimit) return;
-        if (selectedGameMode === GameMode.Capture) return;
-        const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
-        const nonZeroOptions = scoringTurnLimitOptions.filter(l => l > 0);
+        if (!selectedGameMode) return;
+        const requiredLimit = modeIncludesCaptureRule(selectedGameMode, settings)
+            ? 0
+            : getAiScoringTurnLimitByBoardSize(settings.boardSize);
         const currentLimit = settings.scoringTurnLimit ?? 0;
-        if (!nonZeroOptions.includes(currentLimit)) {
-            // "제한없음(0)" 옵션 제거 정책: 항상 0보다 큰 값만 허용
-            handleSettingChange('scoringTurnLimit', nonZeroOptions[0] ?? 1);
+        if (currentLimit !== requiredLimit) {
+            handleSettingChange('scoringTurnLimit', requiredLimit);
         }
-    }, [hideScoringTurnLimit, selectedGameMode, settings.boardSize, settings.scoringTurnLimit]);
+    }, [hideScoringTurnLimit, selectedGameMode, settings.boardSize, settings.mixedModes, settings.scoringTurnLimit]);
 
     const handleSettingChange = <K extends keyof GameSettings>(key: K, value: GameSettings[K]) => {
         setSettings(prev => {
-            const newSettings = { ...prev, [key]: value };
+            let newSettings = { ...prev, [key]: value };
             if (newSettings.mixedModes) {
                 const isBaseSelected = newSettings.mixedModes.includes(GameMode.Base);
                 const isCaptureSelected = newSettings.mixedModes.includes(GameMode.Capture);
                 if (isBaseSelected && isCaptureSelected) {
                     newSettings.mixedModes = newSettings.mixedModes.filter(m => m !== GameMode.Base);
                 }
+            }
+            if (selectedGameMode && (key === 'boardSize' || key === 'mixedModes')) {
+                newSettings = normalizeAiScoringTurnLimit(selectedGameMode, newSettings);
             }
             if (selectedGameMode) {
                 localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
@@ -300,7 +316,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             if (nextMixed.includes(GameMode.Base) && nextMixed.includes(GameMode.Capture)) {
                 nextMixed = nextMixed.filter(m => m !== GameMode.Base);
             }
-            const newSettings = { ...prev, mixedModes: nextMixed };
+            const newSettings = normalizeAiScoringTurnLimit(selectedGameMode ?? GameMode.Mix, { ...prev, mixedModes: nextMixed });
             if (selectedGameMode) {
                 localStorage.setItem(`preferredGameSettings_${selectedGameMode}`, JSON.stringify(newSettings));
             }
@@ -325,7 +341,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 prev.mixedModes && prev.mixedModes.length === 1
                     ? [...prev.mixedModes, defaults.find(m => !prev.mixedModes!.includes(m)) ?? GameMode.Hidden]
                     : (defaults.length >= 2 ? defaults : [GameMode.Hidden, GameMode.Speed]);
-            const next = { ...prev, mixedModes: nextMixed };
+            const next = normalizeAiScoringTurnLimit(GameMode.Mix, { ...prev, mixedModes: nextMixed });
             localStorage.setItem(`preferredGameSettings_${GameMode.Mix}`, JSON.stringify(next));
             return next;
         });
@@ -370,14 +386,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                       }
                     : {}),
             };
-            if (selectedGameMode === GameMode.Capture) {
-                mergedSettings.scoringTurnLimit = 0;
-                delete (mergedSettings as any).autoScoringTurns;
-            }
+            const normalizedSettings = normalizeAiScoringTurnLimit(selectedGameMode, mergedSettings);
 
             const finalSettings = transformSettingsBeforeStart
-                ? transformSettingsBeforeStart(selectedGameMode, mergedSettings)
-                : mergedSettings;
+                ? transformSettingsBeforeStart(selectedGameMode, normalizedSettings)
+                : normalizedSettings;
 
             await onAction({ 
                 type: startActionType, 
@@ -420,7 +433,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         const showTtamokForbiddenRules = selectedGameMode === GameMode.Ttamok;
 
         const showGoAiLevel = lobbyType === 'strategic';
-        const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && selectedGameMode !== GameMode.Capture;
+        const captureRuleSelected = modeIncludesCaptureRule(selectedGameMode, settings);
+        const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && !captureRuleSelected;
 
         const AI_LEVELS = [
             { value: -31, label: '1단계' },
@@ -436,8 +450,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         ];
 
         const boardSizeOptions = selectedGameMode != null ? getAiChallengeBoardSizes(selectedGameMode, lobbyType) : BOARD_SIZES;
+        const requiredScoringTurnLimit = getAiScoringTurnLimitByBoardSize(settings.boardSize);
         const scoringTurnLimitOptions = getScoringTurnLimitOptionsByBoardSize(settings.boardSize);
-        const nonZeroScoringTurnLimitOptions = scoringTurnLimitOptions.filter(l => l > 0);
+        const nonZeroScoringTurnLimitOptions = scoringTurnLimitOptions.includes(requiredScoringTurnLimit)
+            ? [requiredScoringTurnLimit]
+            : [requiredScoringTurnLimit];
 
         return (
             <div className="h-full flex flex-col gap-2 overflow-y-auto pr-2">
@@ -477,8 +494,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     <div className="grid grid-cols-2 gap-2 items-center">
                         <label className="font-semibold text-gray-300 flex-shrink-0" style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}>계가까지 턴</label>
                         <select 
-                            value={settings.scoringTurnLimit ?? nonZeroScoringTurnLimitOptions[0] ?? 1} 
+                            value={requiredScoringTurnLimit}
                             onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
+                            disabled
                             className="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500 p-1.5 lg:p-2"
                             style={{ fontSize: `${Math.max(12, Math.round(14 * mobileTextScale))}px` }}
                         >

@@ -57,6 +57,7 @@ import {
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
 type AiTab = 'info' | 'training' | 'hatchery' | 'shop';
 type InvFilter = 'pet' | 'soul';
+type ShopSkuTab = 'egg' | 'soul';
 type PairExpandCategory = 'pet';
 type InvSortMode = 'recent' | 'oldest' | 'name';
 
@@ -358,6 +359,7 @@ export interface PairPetLobbyPanelProps {
 const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, currentUserId, isBusy, applyPetAction }) => {
     const { handlers } = useAppContext();
     const [aiTab, setAiTab] = useState<AiTab>('info');
+    const [shopSkuTab, setShopSkuTab] = useState<ShopSkuTab>('egg');
     const [shopDescSkuId, setShopDescSkuId] = useState<string | null>(null);
     const [pairShopPurchaseSku, setPairShopPurchaseSku] = useState<PairPetShopSku | null>(null);
     const [invFilter, setInvFilter] = useState<InvFilter>('pet');
@@ -388,6 +390,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const eggCount = useMemo(
         () => inventory.filter(isPairEggItem).reduce((s, it) => s + (it.quantity ?? 1), 0),
         [inventory]
+    );
+
+    const shopSkusVisible = useMemo(
+        () =>
+            PAIR_PET_SHOP_SKUS.filter((sku) =>
+                shopSkuTab === 'egg' ? sku.id.startsWith('pair_shop_egg_') : sku.id.startsWith('pair_shop_soul_')
+            ),
+        [shopSkuTab]
     );
 
     /** 수련 탭은 펫 인벤만 사용 (영혼석 탭 없음). 정보 탭은 기존 펫/영혼석 필터 유지. */
@@ -548,6 +558,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const row = getEquippedPairPetInventoryRow(currentUser);
         if (row) handlers.openPairPetDetailModal(row, 'view');
     }, [currentUser, handlers]);
+
+    const focusInfoPetInventory = useCallback(() => {
+        setAiTab('info');
+        setInvFilter('pet');
+        setExpandTarget(null);
+    }, []);
 
     const confirmSoulConvert = async () => {
         if (!soulConvertItem || isBusy) return;
@@ -1257,15 +1273,33 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const tabContent = (
         <>
             {aiTab === 'shop' && (
-                <div className="space-y-1.5 sm:space-y-2">
-                    <div>
-                        <p className="text-sm font-semibold text-amber-100 sm:text-base">펫 상점</p>
-                        <p className="mt-0.5 text-[0.7rem] leading-relaxed text-slate-400 sm:text-xs">
-                            알·영혼석을 한 목록에서 구매합니다. 일일 한도는 KST 자정 기준으로 초기화됩니다.
-                        </p>
+                <div className="space-y-2 sm:space-y-2.5">
+                    <div className="grid shrink-0 grid-cols-2 gap-1 rounded-lg border border-white/10 bg-black/40 p-1">
+                        {(
+                            [
+                                { id: 'egg' as const, label: '알' },
+                                { id: 'soul' as const, label: '영혼석' },
+                            ] as const
+                        ).map(({ id, label }) => (
+                            <button
+                                key={id}
+                                type="button"
+                                onClick={() => {
+                                    setShopSkuTab(id);
+                                    setShopDescSkuId(null);
+                                }}
+                                className={`rounded-md px-1.5 py-1.5 text-[0.65rem] font-extrabold sm:px-2 sm:py-2 sm:text-sm ${
+                                    shopSkuTab === id
+                                        ? 'bg-amber-500 text-amber-950 shadow-sm shadow-amber-900/40'
+                                        : 'text-slate-300 hover:bg-white/10 hover:text-slate-100'
+                                }`}
+                            >
+                                {label}
+                            </button>
+                        ))}
                     </div>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        {PAIR_PET_SHOP_SKUS.map((sku) => (
+                        {shopSkusVisible.map((sku) => (
                             <PairPetShopSkuCard
                                 key={sku.id}
                                 sku={sku}
@@ -1290,6 +1324,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                 currentUserId={currentUserId}
                 isBusy={isBusy}
                 onOpenEquippedPetDetail={openEquippedPetDetail}
+                onFocusPetInventory={focusInfoPetInventory}
             />
 
             <div className="grid shrink-0 grid-cols-4 gap-0.5 rounded-lg border border-white/10 bg-black/30 p-0.5 sm:gap-1 sm:p-1">

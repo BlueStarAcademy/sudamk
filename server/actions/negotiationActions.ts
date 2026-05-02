@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import { type ServerAction, type User, type VolatileState, Negotiation, GameMode, UserStatus, Player } from '../../types/index.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, DEFAULT_GAME_SETTINGS, OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE } from '../../constants';
+import { type ServerAction, type User, type VolatileState, type GameSettings, Negotiation, GameMode, UserStatus, Player } from '../../types/index.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, DEFAULT_GAME_SETTINGS, OPPONENT_INSUFFICIENT_ACTION_POINTS_MESSAGE, getAiScoringTurnLimitByBoardSize } from '../../constants';
 import { initializeGame } from '../gameModes.js';
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
@@ -12,6 +12,23 @@ type HandleActionResult = {
     clientResponse?: any;
     error?: string;
 };
+
+function modeIncludesCaptureRule(mode: GameMode, settings: Pick<GameSettings, 'mixedModes'>): boolean {
+    return mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
+}
+
+function normalizeStrategicAiScoringSettings(mode: GameMode, settings: GameSettings): GameSettings {
+    if (!SPECIAL_GAME_MODES.some((m) => m.mode === mode)) return settings;
+    if (modeIncludesCaptureRule(mode, settings)) {
+        const next = { ...settings, scoringTurnLimit: 0 };
+        delete (next as any).autoScoringTurns;
+        return next;
+    }
+    return {
+        ...settings,
+        scoringTurnLimit: getAiScoringTurnLimitByBoardSize(settings.boardSize || DEFAULT_GAME_SETTINGS.boardSize),
+    };
+}
 
 /** 협상 종료 후 대기실 복귀: 전략/놀이 집계 로비는 waitingLobby로 복원 */
 function restoreUserToWaitingLobby(
@@ -440,7 +457,7 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
             try {
                 const { mode, settings: incomingSettings } = payload;
                 const settings = SPECIAL_GAME_MODES.some((m) => m.mode === mode)
-                    ? { ...incomingSettings, useClientSideAi: false }
+                    ? normalizeStrategicAiScoringSettings(mode, { ...DEFAULT_GAME_SETTINGS, ...incomingSettings, useClientSideAi: false })
                     : incomingSettings;
                 const cost = getActionPointCost(mode);
                 await applyPassiveActionPointRegenToUser(user, now);

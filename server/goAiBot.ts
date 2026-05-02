@@ -85,6 +85,16 @@ function shouldCountPassAsTurnForScoring(game: types.LiveGameSession): boolean {
     );
 }
 
+function pairAiForcePassPlyThreshold(boardSize: number): number {
+    const size = Number.isFinite(boardSize) && boardSize > 0 ? Math.floor(boardSize) : 19;
+    return Math.max(1, Math.ceil(size * size * 0.7));
+}
+
+function modeIncludesCaptureRule(game: types.LiveGameSession): boolean {
+    return game.mode === types.GameMode.Capture ||
+        (game.mode === types.GameMode.Mix && Boolean(game.settings?.mixedModes?.includes(types.GameMode.Capture)));
+}
+
 async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
     try {
         const { getCachedGame } = await import('./gameCache.js');
@@ -99,11 +109,10 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
         }
         (g as any).pendingAutoScoringKickoffAt = undefined;
         if (g.gameStatus !== 'playing' && (g.gameStatus as string) !== 'hidden_placing') return;
-        if (isPairClassicGame(g.settings, g.mode)) return;
 
         const scoringLimit = (g.settings as any)?.scoringTurnLimit;
         const useScoringLimitAsAuto =
-            g.mode !== types.GameMode.Capture && scoringLimit != null && scoringLimit > 0;
+            !modeIncludesCaptureRule(g) && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns =
             g.isSinglePlayer && g.stageId
                 ? (await getEffectiveSinglePlayerStages()).find((s) => s.id === g.stageId)?.autoScoringTurns
@@ -1553,6 +1562,7 @@ export async function makeGoAiBotMove(
     }
     
     const pairClassicGame = isPairClassicGame(game.settings, game.mode);
+    const captureRuleGame = modeIncludesCaptureRule(game);
     const pairCurrentSeat = pairClassicGame ? getCurrentPairTurnSeat(game.settings) : null;
     const aiPlayerEnum = pairCurrentSeat?.player ?? game.currentPlayer;
     const opponentPlayerEnum = aiPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
@@ -1775,10 +1785,20 @@ export async function makeGoAiBotMove(
     } else if (pairCurrentSeat && pairKataStats) {
         resolvedKataLevel = pairPetKataLevelForTotalPly(game.settings.boardSize || 19, pairValidPlyForNextMove, pairKataStats);
     }
-    const pairKataAllowPass = Boolean(pairCurrentSeat && pairKataStats && pairKataPhase === 'endgame');
+    const pairHasFixedScoringTurnLimit =
+        pairClassicGame &&
+        !captureRuleGame &&
+        Number((game.settings as any)?.scoringTurnLimit ?? 0) > 0;
+    const pairKataAllowPass = Boolean(pairCurrentSeat && pairKataStats && pairKataPhase === 'endgame' && !captureRuleGame && !pairHasFixedScoringTurnLimit);
+    const pairKataForcePassPlyThreshold = pairCurrentSeat
+        ? pairAiForcePassPlyThreshold(game.settings.boardSize || 19)
+        : Number.POSITIVE_INFINITY;
+    const pairKataForcePassByPly =
+        pairKataAllowPass &&
+        pairValidPlyForNextMove >= pairKataForcePassPlyThreshold;
     if (process.env.NODE_ENV === 'development') {
         console.log(
-            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`
+            `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairPassThreshold=${pairCurrentSeat ? pairKataForcePassPlyThreshold : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`
         );
     }
 
@@ -1837,9 +1857,10 @@ export async function makeGoAiBotMove(
         scoringTurnLimit != null &&
         scoringTurnLimit > 0 &&
         game.mode !== types.GameMode.Capture &&
+        !captureRuleGame &&
         !game.isSinglePlayer &&
         (game as any).gameCategory !== 'tower' &&
-        !pairClassicGame
+        (!pairClassicGame || pairHasFixedScoringTurnLimit)
     ) {
         // 모험/AI 계열은 PASS를 허용하지 않으므로 유효 착수 수만 기준으로 삼는다.
         const totalTurnsSoFar = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length;
@@ -1927,6 +1948,13 @@ export async function makeGoAiBotMove(
         );
     }
 
+    if (!selectedMove && pairKataForcePassByPly) {
+        selectedMove = { x: -1, y: -1 };
+        console.log(
+            `[makeGoAiBotMove] Pair pet AI forced PASS by endgame ply threshold game=${game.id} ply=${pairValidPlyForNextMove} threshold=${pairKataForcePassPlyThreshold}`,
+        );
+    }
+
     if (!selectedMove) {
         const kataLevel = resolvedKataLevel;
         const rawMoveHistory = getMoveHistoryForKataServer(game, aiPlayerEnum);
@@ -2007,14 +2035,33 @@ export async function makeGoAiBotMove(
                 );
             }
             if (legalFb.length === 0) {
-                console.warn(`[makeGoAiBotMove] no legal move after Kata PASS/invalid coords → resign, game=${game.id}`);
-                await summaryService.endGame(game, opponentPlayerEnum, 'resign');
-                return;
+                if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
+                    const totalTurns = getProgressTurnCount(game);
+                    console.warn(`[makeGoAiBotMove] pair fixed-turn game has no legal fallback moves → scoring, game=${game.id}, turns=${totalTurns}`);
+                    game.totalTurns = totalTurns;
+                    game.gameStatus = 'scoring';
+                    await db.saveGame(game);
+                    const { getGameResult } = await import('./gameModes.js');
+                    await getGameResult(game);
+                    return;
+                } else if (pairKataAllowPass && pairCurrentSeat) {
+                    selectedMove = { x: -1, y: -1 };
+                    console.warn(`[makeGoAiBotMove] pair endgame has no legal fallback moves → PASS, game=${game.id}`);
+                    pickedFromKata = null;
+                } else {
+                    console.warn(`[makeGoAiBotMove] no legal move after Kata PASS/invalid coords → resign, game=${game.id}`);
+                    await summaryService.endGame(game, opponentPlayerEnum, 'resign');
+                    return;
+                }
             }
-            pickedFromKata = legalFb[0]!;
-            console.warn(
-                `[makeGoAiBotMove] all Kata coords invalid; using first legal (${pickedFromKata.x},${pickedFromKata.y}), game=${game.id}`
-            );
+            if (selectedMove) {
+                // Pair endgame PASS fallback was selected above.
+            } else {
+                pickedFromKata = legalFb[0]!;
+                console.warn(
+                    `[makeGoAiBotMove] all Kata coords invalid; using first legal (${pickedFromKata.x},${pickedFromKata.y}), game=${game.id}`
+                );
+            }
         }
 
         if (!selectedMove && pickedFromKata) {
@@ -2381,7 +2428,7 @@ export async function makeGoAiBotMove(
     if (!isItemMode) {
         const scoringLimit = (game.settings as any)?.scoringTurnLimit;
         const useScoringLimitAsAuto =
-            !pairClassicGame && game.mode !== types.GameMode.Capture && scoringLimit != null && scoringLimit > 0;
+            !modeIncludesCaptureRule(game) && scoringLimit != null && scoringLimit > 0;
         const autoScoringTurns = game.isSinglePlayer && game.stageId
             ? (await getEffectiveSinglePlayerStages()).find(s => s.id === game.stageId)?.autoScoringTurns
             : (game as any).gameCategory === 'tower'

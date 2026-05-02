@@ -695,6 +695,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     const bodyInnerNoFlexGrow =
         bodyScaleToFitNaturalLayout ||
+        useReadableSmallPcViewportPortal ||
         (bodyAvoidVerticalStretch && useUniformPcScaleLayout) ||
         (Boolean(bodyShrinkToContent) && useMobileViewportFitLayout);
 
@@ -807,6 +808,55 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         const contentW = Math.ceil(designInitialWidth * smallPcBodyContentScale);
         return Math.max(320, Math.min(layoutW - 4, contentW + chromePadding));
     }, [useReadableSmallPcViewportPortal, designInitialWidth, smallPcBodyContentScale, windowWidth, windowHeight]);
+
+    const smallPcScaledContentRef = useRef<HTMLDivElement | null>(null);
+    const [smallPcObservedContentHeightPx, setSmallPcObservedContentHeightPx] = useState(0);
+
+    useLayoutEffect(() => {
+        if (!useReadableSmallPcViewportPortal) {
+            setSmallPcObservedContentHeightPx(0);
+            return;
+        }
+        setSmallPcObservedContentHeightPx(0);
+    }, [useReadableSmallPcViewportPortal, windowId, windowWidth, windowHeight]);
+
+    useLayoutEffect(() => {
+        if (!useReadableSmallPcViewportPortal) return;
+        const el = smallPcScaledContentRef.current;
+        if (!el) return;
+
+        const sync = () => {
+            const unscaledH = Math.max(el.scrollHeight, el.offsetHeight);
+            if (!Number.isFinite(unscaledH) || unscaledH <= 0) return;
+            const scaledH = Math.ceil(unscaledH * smallPcBodyContentScale);
+            setSmallPcObservedContentHeightPx((prev) => Math.max(prev, scaledH));
+        };
+
+        sync();
+        const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => requestAnimationFrame(sync)) : null;
+        ro?.observe(el);
+        const raf = requestAnimationFrame(sync);
+        return () => {
+            cancelAnimationFrame(raf);
+            ro?.disconnect();
+        };
+    }, [useReadableSmallPcViewportPortal, smallPcBodyContentScale, children, windowId]);
+
+    const smallPcShellHeightPx = useMemo(() => {
+        if (!useReadableSmallPcViewportPortal || !mobileViewportFitHeightPx) return undefined;
+        const chromeH = Math.max(30, 42 * smallPcBodyContentScale) + (hideFooter ? 0 : Math.max(30, 46 * smallPcBodyContentScale));
+        const bodyPaddingH = 16;
+        const fallbackBodyH = Math.ceil(smallPcContentDesignHeight * smallPcBodyContentScale);
+        const bodyH = smallPcObservedContentHeightPx > 0 ? smallPcObservedContentHeightPx : fallbackBodyH;
+        return Math.max(320, Math.min(mobileViewportFitHeightPx, Math.ceil(chromeH + bodyPaddingH + bodyH)));
+    }, [
+        useReadableSmallPcViewportPortal,
+        mobileViewportFitHeightPx,
+        smallPcBodyContentScale,
+        hideFooter,
+        smallPcContentDesignHeight,
+        smallPcObservedContentHeightPx,
+    ]);
 
     useLayoutEffect(() => {
         if (!useCompactScaleToFitLayout || !isInitialized) {
@@ -1191,9 +1241,12 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
               : 'p-4');
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
-    const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? viewportMaxHeightCss;
+    const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? (isNativeMobile ? viewportMaxHeightCss : 'calc(100dvh - 8px)');
     const mobileViewportFitDvhBottomGapPx =
         mobileViewportDvhBottomGapPx !== undefined ? mobileViewportDvhBottomGapPx : isNativeMobile ? 32 : 28;
+    const mobileViewportFitFrameMaxHeightCss = isNativeMobile
+        ? `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px)))`
+        : `min(${mobileViewportFitMaxHeightCss}, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px))`;
     /** 균일 scale(모든 화면)·실측 scale: max-height로 레이아웃이 먼저 잘리면 스크롤·하단 버튼 잘림 유발 */
     const relaxOuterMaxHeight = useCompactScaleToFitLayout || uniformLayout;
     /** 실측·uniform 균일 scale 시 본문 스크롤 없음(줄바꿈·비율은 transform으로 유지). 뷰포트 맞춤만 스크롤 허용 */
@@ -1208,23 +1261,26 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const { main: stickyMain, footer: stickyFooter } = partitionMobileStickyFooter(children);
     const useStickyMobileFooter = isMobileModalShell && !useReadableSmallPcViewportPortal && stickyFooter !== null;
     const scrollRegionAllowsVerticalScroll = useStickyMobileFooter || bodyAllowsVerticalScroll;
-    const useSmallPcScaledBodyContent = useReadableSmallPcViewportPortal && smallPcBodyContentScale < 0.999;
+    const useSmallPcScaledBodyContent = useReadableSmallPcViewportPortal;
     const smallPcChromeScale = useReadableSmallPcViewportPortal ? smallPcBodyContentScale : 1;
     const mobileBodyClass = isMobileModalShell && !useReadableSmallPcViewportPortal ? ' sudamr-mobile-modal-body' : '';
     const renderSmallPcScaledBodyContent = (node: React.ReactNode) => {
         if (!useSmallPcScaledBodyContent) return node;
+        const measuredH = smallPcObservedContentHeightPx > 0 ? smallPcObservedContentHeightPx : smallPcContentDesignHeight * smallPcBodyContentScale;
+        const keepDesignFrameHeight = !useReadableSmallPcViewportPortal && (!bodyScrollable || bodyNoScroll);
         return (
             <div
                 className="relative max-w-full overflow-visible"
                 style={{
                     width: `${designInitialWidth * smallPcBodyContentScale}px`,
-                    minHeight: `${smallPcContentDesignHeight * smallPcBodyContentScale}px`,
+                    height: `${measuredH}px`,
                 }}
             >
                 <div
+                    ref={smallPcScaledContentRef}
                     style={{
                         width: `${designInitialWidth}px`,
-                        minHeight: `${smallPcContentDesignHeight}px`,
+                        minHeight: keepDesignFrameHeight ? `${smallPcContentDesignHeight}px` : undefined,
                         transform: `scale(${smallPcBodyContentScale})`,
                         transformOrigin: 'top left',
                     }}
@@ -1305,8 +1361,8 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     height: uniformLayout
                         ? `${uniformDesignH}px`
                         : useMobileViewportFitLayout
-                          ? mobileViewportFitHeightPx != null
-                              ? `${mobileViewportFitHeightPx}px`
+                          ? (smallPcShellHeightPx ?? mobileViewportFitHeightPx) != null
+                              ? `${smallPcShellHeightPx ?? mobileViewportFitHeightPx}px`
                               : undefined
                           : useCompactScaleToFitLayout
                             ? undefined
@@ -1322,7 +1378,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                           : useMobileViewportFitLayout
                             ? useReadableSmallPcViewportPortal
                               ? 'calc(100dvh - 16px)'
-                              : `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px)))`
+                              : mobileViewportFitFrameMaxHeightCss
                             : isNativeMobile
                               ? `min(${viewportMaxHeightCss}, min(${NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}dvh, 100%))`
                               : modalLayerUsesDesignPixels
